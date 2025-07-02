@@ -1,0 +1,21 @@
+# Lua compiled files
+*.so
+*.dll
+luac.out
+
+# Vim swap files
+*.sw[a-p]
+*.s[a-v][a-z]
+*.sw[a-p]
+*~
+
+# macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Neovim generated files
+doc/tags
+
+# Test dependencies
+deps/

@@ -1,8 +1,8 @@
 local M = {}
 
-local INPUT_PLACEHOLDER = 'Plan, search, build anything'
-local config = require("opencode.config").get()
-local state = require("opencode.state")
+local INPUT_PLACEHOLDER = 'Plan, search, ask, / for custom commands'
+local config = require('opencode.config').get()
+local state = require('opencode.state')
 local ui_util = require('opencode.ui.util')
 
 M.base_window_opts = {
@@ -13,7 +13,7 @@ M.base_window_opts = {
   width = 1,
   height = 1,
   col = 0,
-  row = 0
+  row = 0,
 }
 
 function M.setup_options(windows)
@@ -26,7 +26,11 @@ function M.setup_options(windows)
   vim.b[windows.input_buf].completion = false
 
   -- Output window/buffer options
-  vim.api.nvim_win_set_option(windows.output_win, 'winhighlight', 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder')
+  vim.api.nvim_win_set_option(
+    windows.output_win,
+    'winhighlight',
+    'Normal:OpencodeBackground,FloatBorder:OpencodeBorder'
+  )
   vim.api.nvim_win_set_option(windows.output_win, 'wrap', true)
   vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', false)
   vim.api.nvim_buf_set_option(windows.output_buf, 'buftype', 'nofile')
@@ -39,7 +43,7 @@ function M.refresh_placeholder(windows, input_lines)
     input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   end
 
-  if #input_lines == 1 and input_lines[1] == "" then
+  if #input_lines == 1 and input_lines[1] == '' then
     local ns_id = vim.api.nvim_create_namespace('input-placeholder')
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = { { INPUT_PLACEHOLDER, 'Comment' } },
@@ -59,9 +63,9 @@ function M.setup_autocmds(windows)
     buffer = windows.output_buf,
     callback = function()
       vim.cmd('stopinsert')
-      state.last_focused_opencode_window = "output"
+      state.last_focused_opencode_window = 'output'
       M.refresh_placeholder(windows)
-    end
+    end,
   })
 
   -- Input window autocmds
@@ -70,8 +74,8 @@ function M.setup_autocmds(windows)
     buffer = windows.input_buf,
     callback = function()
       M.refresh_placeholder(windows)
-      state.last_focused_opencode_window = "input"
-    end
+      state.last_focused_opencode_window = 'input'
+    end,
   })
 
   vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
@@ -80,7 +84,7 @@ function M.setup_autocmds(windows)
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
       state.input_content = input_lines
       M.refresh_placeholder(windows, input_lines)
-    end
+    end,
   })
 
   vim.api.nvim_create_autocmd('WinClosed', {
@@ -95,18 +99,18 @@ function M.setup_autocmds(windows)
           require('opencode.ui.ui').close_windows(windows)
         end)
       end
-    end
+    end,
   })
 
   vim.api.nvim_create_autocmd('WinLeave', {
     group = group,
-    pattern = "*",
+    pattern = '*',
     callback = function()
       if not require('opencode.ui.ui').is_opencode_focused() then
         require('opencode.context').load()
         state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
       end
-    end
+    end,
   })
 
   vim.api.nvim_create_autocmd('WinLeave', {
@@ -114,7 +118,7 @@ function M.setup_autocmds(windows)
     buffer = windows.input_buf,
     callback = function()
       state.last_input_window_position = vim.api.nvim_win_get_cursor(0)
-    end
+    end,
   })
 
   vim.api.nvim_create_autocmd('WinLeave', {
@@ -122,7 +126,7 @@ function M.setup_autocmds(windows)
     buffer = windows.output_buf,
     callback = function()
       state.last_output_window_position = vim.api.nvim_win_get_cursor(0)
-    end
+    end,
   })
 end
 
@@ -142,7 +146,7 @@ function M.configure_window_dimensions(windows)
   local total_usable_height
   local row, col
 
-  if layout == "center" then
+  if layout == 'center' then
     -- Use a smaller height for floating; allow an optional `floating_height` factor (e.g. 0.8).
     local fh = config.ui.floating_height
     total_usable_height = math.floor(total_height * fh)
@@ -184,7 +188,7 @@ function M.setup_resize_handler(windows)
 
   vim.api.nvim_create_autocmd('VimResized', {
     group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true }),
-    callback = cb
+    callback = cb,
   })
 end
 
@@ -203,7 +207,7 @@ local function handle_submit(windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
   vim.api.nvim_exec_autocmds('TextChanged', {
     buffer = windows.input_buf,
-    modeline = false
+    modeline = false,
   })
 
   -- Switch to the output window
@@ -214,18 +218,27 @@ local function handle_submit(windows)
   vim.api.nvim_win_set_cursor(windows.output_win, { line_count, 0 })
 
   -- Run the command with the input content
-  require("opencode.core").run(input_content)
+  require('opencode.core').run(input_content)
 end
 
 function M.setup_keymaps(windows)
   local window_keymap = config.keymap.window
   local api = require('opencode.api')
 
-  vim.keymap.set({  'n' }, window_keymap.submit, function()
+  vim.keymap.set({ 'i' }, '/', function()
+    vim.api.nvim_put({ '/' }, 'c', true, true)
+    if not vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)[1] == '' then
+      return
+    end
+
+    require('opencode.command_handler').get_handlers_completion()
+  end, { buffer = windows.input_buf, silent = true })
+
+  vim.keymap.set({ 'n' }, window_keymap.submit, function()
     handle_submit(windows)
   end, { buffer = windows.input_buf, silent = false })
 
-  vim.keymap.set({  'i' }, window_keymap.submit_insert, function()
+  vim.keymap.set({ 'i' }, window_keymap.submit_insert, function()
     handle_submit(windows)
   end, { buffer = windows.input_buf, silent = false })
 
@@ -275,16 +288,22 @@ function M.setup_keymaps(windows)
 
   vim.keymap.set({ 'n' }, window_keymap.focus_input, function()
     api.toggle_pane()
-    vim.api.nvim_feedkeys("Ga", 'n', true)
+    vim.api.nvim_feedkeys('Ga', 'n', true)
   end, { buffer = windows.output_buf, silent = true })
 
-  vim.keymap.set({ 'n', 'i' }, window_keymap.prev_prompt_history,
+  vim.keymap.set(
+    { 'n', 'i' },
+    window_keymap.prev_prompt_history,
     ui_util.navigate_history('prev', window_keymap.prev_prompt_history, api.prev_history, api.next_history),
-    { buffer = windows.input_buf, silent = true })
+    { buffer = windows.input_buf, silent = true }
+  )
 
-  vim.keymap.set({ 'n', 'i' }, window_keymap.next_prompt_history,
+  vim.keymap.set(
+    { 'n', 'i' },
+    window_keymap.next_prompt_history,
     ui_util.navigate_history('next', window_keymap.next_prompt_history, api.prev_history, api.next_history),
-    { buffer = windows.input_buf, silent = true })
+    { buffer = windows.input_buf, silent = true }
+  )
 end
 
 return M

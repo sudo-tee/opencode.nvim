@@ -68,11 +68,28 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 
 ## ⚙️ Configuration
 
+### Custom Commands
+
+You can add your own slash commands via the `custom_commands` option in your config. These will override or extend the built-in commands.
+
+#### Default available slash commands:
+
+- `/help` — Show help message
+- `/init` — Start a new session with the initialize prompt
+- `/session` — Select a session
+- `/stop` — Stop the current opencode job
+- `/provider` — Configure the provider/model
+
 ```lua
 -- Default configuration with all available options
 require('opencode').setup({
   prefered_picker = nil,                     -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
   default_global_keymaps = true,             -- If false, disables all default global keymaps
+  custom_commands = {
+    ["/hello"] = function()
+      vim.notify("Hello from custom command!", vim.log.levels.INFO)
+    end,
+  },
   keymap = {
     global = {
       toggle = '<leader>oa',                 -- Open opencode. Close if opened

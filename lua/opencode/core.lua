@@ -13,12 +13,16 @@ function M.select_session()
 
   ui.select_session(filtered_sessions, function(selected_session)
     if not selected_session then
+      if state.windows then
+        ui.focus_input()
+      end
       return
     end
     state.active_session = selected_session
     if state.windows then
       ui.render_output()
       ui.scroll_to_bottom()
+      ui.focus_input()
     else
       M.open()
     end
@@ -61,6 +65,16 @@ function M.open(opts)
 end
 
 function M.run(prompt, opts)
+  if type(prompt) == 'string' and prompt:sub(1, 1) == '/' then
+    local command_handler = require('opencode.command_handler')
+    local cmd = prompt:match('^%S+')
+    local handlers = command_handler.get_handlers()
+    if handlers[cmd] then
+      handlers[cmd].fn()
+      require('opencode.history').write(prompt)
+      return true
+    end
+  end
   if not M.opencode_ok() then
     return false
   end
@@ -130,6 +144,9 @@ function M.configure_provider()
   local info_mod = require('opencode.info')
   require('opencode.provider').select(function(selection)
     if not selection then
+      if state.windows then
+        ui.focus_input()
+      end
       return
     end
 
@@ -140,6 +157,7 @@ function M.configure_provider()
     else
       vim.notify('Changed provider to ' .. selection.display, vim.log.levels.INFO)
     end
+    ui.focus_input()
   end)
 end
 

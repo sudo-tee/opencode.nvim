@@ -160,6 +160,11 @@ function M.render_output()
   renderer.render(state.windows, false)
 end
 
+function M.render_lines(lines)
+  M.clear_output()
+  renderer.write_output(state.windows, lines)
+end
+
 function M.stop_render_output()
   renderer.stop()
 end

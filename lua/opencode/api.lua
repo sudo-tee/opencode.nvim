@@ -24,6 +24,14 @@ function M.open_output()
 end
 
 function M.close()
+  if state.slash_command then
+    state.slash_command = nil
+    ui.clear_output()
+    ui.render_output()
+    ui.scroll_to_bottom()
+    return
+  end
+
   ui.close_windows(state.windows)
 end
 

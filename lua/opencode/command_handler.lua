@@ -1,4 +1,5 @@
 local core = require('opencode.core')
+local api = require('opencode.core')
 
 local M = {}
 
@@ -61,6 +62,14 @@ M.default_handlers = {
     desc = 'Configure the provider/model',
     fn = function()
       core.configure_provider()
+    end,
+  },
+  ['/new'] = {
+    desc = 'Start a new opencode session',
+    fn = function()
+      api.open({
+        new_session = true,
+      })
     end,
   },
 }

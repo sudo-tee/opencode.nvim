@@ -1,5 +1,5 @@
 local M = {}
-
+local config = require('opencode.config')
 local state = require('opencode.state')
 local renderer = require('opencode.ui.output_renderer')
 
@@ -43,36 +43,55 @@ function M.return_to_last_code_win()
   end
 end
 
-function M.create_windows()
-  vim.treesitter.language.register('markdown', 'opencode_output')
-  local configurator = require('opencode.ui.window_config')
-
+function M.setup_buffers()
   local input_buf = vim.api.nvim_create_buf(false, true)
   local output_buf = vim.api.nvim_create_buf(false, true)
-
-  -- Set custom filetypes for buffers
   vim.api.nvim_buf_set_option(input_buf, 'filetype', 'opencode_input')
   vim.api.nvim_buf_set_option(output_buf, 'filetype', 'opencode_output')
+  return { input_buf = input_buf, output_buf = output_buf }
+end
 
+function M.create_floating_windows(input_buf, output_buf, opts)
+  local input_win = vim.api.nvim_open_win(input_buf, false, opts)
+  local output_win = vim.api.nvim_open_win(output_buf, false, opts)
+  return { input_win = input_win, output_win = output_win }
+end
+
+function M.create_split_windows(input_buf, output_buf)
+  if state.windows then
+    M.close_windows(state.windows)
+  end
+  vim.cmd('wincmd l')
+  vim.cmd('vsplit')
+  local output_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(output_win, output_buf)
+  vim.cmd('split')
+  local input_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(input_win, input_buf)
+  return { input_win = input_win, output_win = output_win }
+end
+
+function M.create_windows()
   require('opencode.ui.highlight').setup()
+  vim.treesitter.language.register('markdown', 'opencode_output')
 
-  local input_win = vim.api.nvim_open_win(input_buf, false, configurator.base_window_opts)
-  local output_win = vim.api.nvim_open_win(output_buf, false, configurator.base_window_opts)
-  local windows = {
-    input_buf = input_buf,
-    output_buf = output_buf,
-    input_win = input_win,
-    output_win = output_win,
-  }
+  local configurator = require('opencode.ui.window_config')
+  local buffers = M.setup_buffers()
+  local windows = config.get('ui').floating
+      and M.create_floating_windows(buffers.input_buf, buffers.output_buf, configurator.floating_win_opts)
+    or M.create_split_windows(buffers.input_buf, buffers.output_buf)
 
-  configurator.setup_options(windows)
-  configurator.refresh_placeholder(windows)
-  configurator.setup_autocmds(windows)
-  configurator.setup_resize_handler(windows)
-  configurator.setup_keymaps(windows)
-  configurator.setup_after_actions(windows)
-  configurator.configure_window_dimensions(windows)
-  return windows
+  local wins_and_bufs = vim.tbl_extend('error', buffers, windows)
+
+  configurator.setup_options(wins_and_bufs)
+  configurator.refresh_placeholder(wins_and_bufs)
+  configurator.setup_autocmds(wins_and_bufs)
+  configurator.setup_resize_handler(wins_and_bufs)
+  configurator.setup_keymaps(wins_and_bufs)
+  configurator.setup_after_actions(wins_and_bufs)
+  configurator.configure_window_dimensions(wins_and_bufs)
+
+  return wins_and_bufs
 end
 
 function M.focus_input(opts)
@@ -176,9 +195,13 @@ function M.toggle_fullscreen()
   end
 
   local ui_config = require('opencode.config').get('ui')
+  if not ui_config.floating then
+    vim.notify('Fullscreen mode is only available in floating window mode', vim.log.levels.WARN)
+    return
+  end
   ui_config.fullscreen = not ui_config.fullscreen
 
-  require('opencode.ui.window_config').configure_window_dimensions(windows)
+  require('opencode.ui.window_config').configure_floating_window_dimensions(windows)
   require('opencode.ui.topbar').render()
 
   if not M.is_opencode_focused() then

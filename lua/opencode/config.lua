@@ -37,12 +37,14 @@
 --- @field window OpencodeKeymapWindow
 
 --- @class OpencodeUIConfig
+--- @field floating boolean
 --- @field window_width number
 --- @field input_height number
 --- @field fullscreen boolean
 --- @field layout string
 --- @field floating_height number
 --- @field display_model boolean
+--- @field window_highlight string
 
 --- @class OpencodeContextConfig
 --- @field cursor_data boolean
@@ -58,8 +60,6 @@
 --- @field providers OpencodeProviders
 --- @field context OpencodeContextConfig
 --- @field custom_commands table<string, { desc: string, fn: function }>
-
---- @generic K: '"prefered_picker"|"default_global_keymaps"|"keymap"|"ui"|"providers"|"context"'
 
 --- @class OpencodeModule
 --- @field defaults OpencodeConfig
@@ -114,12 +114,14 @@ M.defaults = {
     },
   },
   ui = {
+    floating = false,
     window_width = 0.35,
     input_height = 0.15,
     fullscreen = false,
     layout = 'right',
     floating_height = 0.8,
     display_model = true,
+    window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
   },
   context = {
     cursor_data = false,

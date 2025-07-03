@@ -5,7 +5,7 @@ local config = require('opencode.config').get()
 local state = require('opencode.state')
 local ui_util = require('opencode.ui.util')
 
-M.base_window_opts = {
+M.floating_win_opts = {
   relative = 'editor',
   style = 'minimal',
   border = 'rounded',
@@ -18,20 +18,20 @@ M.base_window_opts = {
 
 function M.setup_options(windows)
   -- Input window/buffer options
-  vim.api.nvim_win_set_option(windows.input_win, 'winhighlight', 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder')
+  vim.api.nvim_win_set_option(windows.input_win, 'winhighlight', config.ui.window_highlight)
   vim.api.nvim_win_set_option(windows.input_win, 'signcolumn', 'yes')
   vim.api.nvim_win_set_option(windows.input_win, 'cursorline', false)
+  vim.api.nvim_win_set_option(windows.input_win, 'number', false)
+  vim.api.nvim_win_set_option(windows.input_win, 'relativenumber', false)
   vim.api.nvim_buf_set_option(windows.input_buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(windows.input_buf, 'swapfile', false)
   vim.b[windows.input_buf].completion = false
 
   -- Output window/buffer options
-  vim.api.nvim_win_set_option(
-    windows.output_win,
-    'winhighlight',
-    'Normal:OpencodeBackground,FloatBorder:OpencodeBorder'
-  )
+  vim.api.nvim_win_set_option(windows.output_win, 'winhighlight', config.ui.window_highlight)
   vim.api.nvim_win_set_option(windows.output_win, 'wrap', true)
+  vim.api.nvim_win_set_option(windows.output_win, 'number', false)
+  vim.api.nvim_win_set_option(windows.output_win, 'relativenumber', false)
   vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', false)
   vim.api.nvim_buf_set_option(windows.output_buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(windows.output_buf, 'swapfile', false)
@@ -131,6 +131,19 @@ function M.setup_autocmds(windows)
 end
 
 function M.configure_window_dimensions(windows)
+  if config.ui.floating then
+    M.configure_floating_window_dimensions(windows)
+  end
+  local total_width = vim.api.nvim_get_option('columns')
+  local total_height = vim.api.nvim_get_option('lines')
+  local width = math.floor(total_width * config.ui.window_width)
+  local height = math.floor(total_height * config.ui.input_height)
+
+  vim.api.nvim_win_set_config(windows.output_win, { width = width })
+  vim.api.nvim_win_set_config(windows.input_win, { width = width, height = height })
+end
+
+function M.configure_floating_window_dimensions(windows)
   local total_width = vim.api.nvim_get_option('columns')
   local total_height = vim.api.nvim_get_option('lines')
   local is_fullscreen = config.ui.fullscreen
@@ -182,7 +195,7 @@ end
 
 function M.setup_resize_handler(windows)
   local function cb()
-    M.configure_window_dimensions(windows)
+    M.configure_floating_window_dimensions(windows)
     require('opencode.ui.topbar').render()
   end
 

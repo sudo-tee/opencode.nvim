@@ -60,7 +60,7 @@ Install the plugin with your favorite package manager. See the [Configuration](#
         anti_conceal = { enabled = false },
         file_types = { 'markdown', 'opencode_output' },
       },
-      ft = { 'markdown', 'Avante', 'copilot-chat', 'goose_output', 'opencode_output' },
+      ft = { 'markdown', 'Avante', 'copilot-chat', 'opencode_output' },
     }
   },
 }
@@ -123,12 +123,14 @@ require('opencode').setup({
     }
   },
   ui = {
+    floating = false,                       -- Use floating windows for input and output
     window_width = 0.35,                   -- Width as percentage of editor width
     input_height = 0.15,                   -- Input height as percentage of window height
     fullscreen = false,                    -- Start in fullscreen mode (default: false)
     layout = "right",                      -- Options: "center" or "right"
     floating_height = 0.8,                 -- Height as percentage of editor height for "center" layout
     display_model = true,                  -- Display model name on top winbar
+    window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
   },
 })
 ```

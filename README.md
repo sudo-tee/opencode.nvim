@@ -113,20 +113,6 @@ require('opencode').setup({
     floating_height = 0.8,                 -- Height as percentage of editor height for "center" layout
     display_model = true,                  -- Display model name on top winbar
   },
-  providers = {
-    --[[
-    Define available providers and their models for quick model switching
-    anthropic|azure|bedrock|databricks|google|groq|ollama|openai|openrouter
-    Example:
-    openrouter = {
-      "anthropic/claude-3.5-sonnet",
-      "openai/gpt-4.1",
-    },
-    ollama = {
-      "cogito:14b"
-    }
-    --]]
-  }
 })
 ```
 

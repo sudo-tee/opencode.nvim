@@ -120,20 +120,6 @@ M.defaults = {
     floating_height = 0.8,
     display_model = true,
   },
-  providers = {
-    --[[
-    Define available providers and their models for quick model switching
-    anthropic|azure|bedrock|databricks|google|groq|ollama|openai|openrouter
-    Example:
-    openrouter = {
-      "anthropic/claude-3.5-sonnet",
-      "openai/gpt-4.1",
-    },
-    ollama = {
-      "cogito:14b"
-    }
-    --]]
-  },
   context = {
     cursor_data = false,
   },

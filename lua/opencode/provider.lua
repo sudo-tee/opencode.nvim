@@ -1,31 +1,34 @@
 local M = {}
 
-function M.select(cb)
-  local config = require("opencode.config")
+function M._get_models()
+  local result = vim.system({ 'opencode', 'models' }):wait()
+  if result.code ~= 0 then
+    vim.notify('Failed to get providers: ' .. result.stderr, vim.log.levels.ERROR)
+    return {}
+  end
 
-  -- Create a flat list of all provider/model combinations
-  local model_options = {}
-
-  for provider, models in pairs(config.get("providers")) do
-    for _, model in ipairs(models) do
-      table.insert(model_options, {
+  local models = {}
+  for line in result.stdout:gmatch('[^\n]+') do
+    local provider, model = line:match('^(%S+)/(%S+)$')
+    if provider and model then
+      table.insert(models, {
         provider = provider,
         model = model,
-        display = provider .. ": " .. model
+        display = provider .. ': ' .. model,
       })
     end
   end
+  return models
+end
 
-  if #model_options == 0 then
-    vim.notify("No models configured in providers", vim.log.levels.ERROR)
-    return
-  end
+function M.select(cb)
+  local models = M._get_models()
 
-  vim.ui.select(model_options, {
-    prompt = "Select model:",
+  vim.ui.select(models, {
+    prompt = 'Select model:',
     format_item = function(item)
       return item.display
-    end
+    end,
   }, function(selection)
     cb(selection)
   end)

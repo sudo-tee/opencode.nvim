@@ -9,8 +9,6 @@
 --- @field close string
 --- @field toggle_fullscreen string
 --- @field select_session string
---- @field opencode_mode_chat string
---- @field opencode_mode_auto string
 --- @field configure_provider string
 --- @field diff_open string
 --- @field diff_next string
@@ -89,8 +87,6 @@ M.defaults = {
       close = '<leader>oq',
       toggle_fullscreen = '<leader>of',
       select_session = '<leader>os',
-      opencode_mode_chat = '<leader>omc',
-      opencode_mode_auto = '<leader>oma',
       configure_provider = '<leader>op',
       diff_open = '<leader>od',
       diff_next = '<leader>o]',

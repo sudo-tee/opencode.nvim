@@ -123,7 +123,7 @@ require('opencode').setup({
     }
   },
   ui = {
-    floating = false,                       -- Use floating windows for input and output
+    floating = false,                      -- Use floating windows for input and output
     window_width = 0.35,                   -- Width as percentage of editor width
     input_height = 0.15,                   -- Input height as percentage of window height
     fullscreen = false,                    -- Start in fullscreen mode (default: false)

@@ -222,22 +222,6 @@ M.commands = {
     end,
   },
 
-  opencode_mode_chat = {
-    name = 'OpencodeModeChat',
-    desc = 'Set opencode mode to `chat`. (Tool calling disabled. No editor context besides selections)',
-    fn = function()
-      M.opencode_mode_chat()
-    end,
-  },
-
-  opencode_mode_auto = {
-    name = 'OpencodeModeAuto',
-    desc = 'Set opencode mode to `auto`. (Default mode with full agent capabilities)',
-    fn = function()
-      M.opencode_mode_auto()
-    end,
-  },
-
   configure_provider = {
     name = 'OpencodeConfigureProvider',
     desc = 'Quick provider and model switch from predefined list',

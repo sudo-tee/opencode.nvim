@@ -59,11 +59,6 @@ function M.get_all_workspace_sessions()
     return nil
   end
 
-  local workspace = vim.fn.getcwd()
-  sessions = vim.tbl_filter(function(session)
-    return session.workspace == workspace
-  end, sessions)
-
   table.sort(sessions, function(a, b)
     return a.modified > b.modified
   end)

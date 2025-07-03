@@ -9,7 +9,7 @@ M.config_file = vim.fn.expand('$HOME/.config/opencode/config.json')
 
 function M.parse_opencode_config()
   local content = vim.fn.readfile(M.config_file)
-  local success, json = pcall(vim.fn.json_decode, table.concat(content, '\n'))
+  local success, json = pcall(vim.json.decode, table.concat(content, '\n'))
 
   if not success then
     vim.notify('Could not parse opencode config file: ' .. M.config_file, vim.log.levels.ERROR)
@@ -19,14 +19,12 @@ function M.parse_opencode_config()
   return json
 end
 
--- Set a value in the opencode config file
----@param key OpencodeConfigKeys
----@param value any
-function M.set_config_value(key, value)
-  local conf = M.parse_opencode_config()
-
-  conf[key] = value
-  local success, err = pcall(vim.fn.writefile, vim.fn.json_encode(conf), M.config_file)
+---@param provider string
+---@param model string
+function M.set_provider(provider, model)
+  local content = table.concat(vim.fn.readfile(M.config_file), '\n')
+  local updated = content:gsub('"model": "[^"]+"', string.format('"model": "%s/%s"', provider, model))
+  local success, err = pcall(vim.fn.writefile, vim.split(updated, '\n'), M.config_file)
 
   if not success then
     vim.notify('Could not write to opencode config file: ' .. err, vim.log.levels.ERROR)

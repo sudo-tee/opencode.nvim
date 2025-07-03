@@ -133,7 +133,7 @@ function M.configure_provider()
       return
     end
 
-    info_mod.set_config_value(info_mod.ConfigKeys.MODEL, selection.provider .. '/' .. selection.model)
+    info_mod.set_provider(selection.provider, selection.model)
 
     if state.windows then
       require('opencode.ui.topbar').render()

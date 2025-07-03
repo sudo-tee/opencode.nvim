@@ -45,8 +45,11 @@ function M.refresh_placeholder(windows, input_lines)
 
   if #input_lines == 1 and input_lines[1] == '' then
     local ns_id = vim.api.nvim_create_namespace('input-placeholder')
+    local win_width = vim.api.nvim_win_get_width(windows.input_win)
+    local placeholder_len = vim.fn.strwidth(INPUT_PLACEHOLDER)
+    local padding = string.rep(' ', win_width - placeholder_len)
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
-      virt_text = { { INPUT_PLACEHOLDER, 'Comment' } },
+      virt_text = { { INPUT_PLACEHOLDER .. padding, 'Comment' } },
       virt_text_pos = 'overlay',
     })
   else

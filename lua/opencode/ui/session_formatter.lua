@@ -118,6 +118,9 @@ function M._format_tool(lines, part, _message)
     M._format_context(lines, '👀 read', file_name)
   elseif tool.toolName == 'edit' then
     M._format_context(lines, '✏️ edit file', file_name)
+    if not args.newString or args.newString == '' then
+      return
+    end
     M._format_code(lines, args.newString, file_type)
   else
     M._format_context(lines, '🔧 tool', tool.toolName)

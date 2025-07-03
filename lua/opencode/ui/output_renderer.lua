@@ -263,9 +263,9 @@ function M.handle_loading(windows, output_lines)
 end
 
 function M.write_output(windows, output_lines)
-  vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', true)
+  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
-  vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', false)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 end
 
 function M.handle_auto_scroll(windows)

@@ -18,23 +18,23 @@ M.floating_win_opts = {
 
 function M.setup_options(windows)
   -- Input window/buffer options
-  vim.api.nvim_win_set_option(windows.input_win, 'winhighlight', config.ui.window_highlight)
-  vim.api.nvim_win_set_option(windows.input_win, 'signcolumn', 'yes')
-  vim.api.nvim_win_set_option(windows.input_win, 'cursorline', false)
-  vim.api.nvim_win_set_option(windows.input_win, 'number', false)
-  vim.api.nvim_win_set_option(windows.input_win, 'relativenumber', false)
-  vim.api.nvim_buf_set_option(windows.input_buf, 'buftype', 'nofile')
-  vim.api.nvim_buf_set_option(windows.input_buf, 'swapfile', false)
+  vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.input_win })
+  vim.api.nvim_set_option_value('signcolumn', 'yes', { win = windows.input_win })
+  vim.api.nvim_set_option_value('cursorline', false, { win = windows.input_win })
+  vim.api.nvim_set_option_value('number', false, { win = windows.input_win })
+  vim.api.nvim_set_option_value('relativenumber', false, { win = windows.input_win })
+  vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
+  vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
   vim.b[windows.input_buf].completion = false
 
   -- Output window/buffer options
-  vim.api.nvim_win_set_option(windows.output_win, 'winhighlight', config.ui.window_highlight)
-  vim.api.nvim_win_set_option(windows.output_win, 'wrap', true)
-  vim.api.nvim_win_set_option(windows.output_win, 'number', false)
-  vim.api.nvim_win_set_option(windows.output_win, 'relativenumber', false)
-  vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', false)
-  vim.api.nvim_buf_set_option(windows.output_buf, 'buftype', 'nofile')
-  vim.api.nvim_buf_set_option(windows.output_buf, 'swapfile', false)
+  vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
+  vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
+  vim.api.nvim_set_option_value('number', false, { win = windows.output_win })
+  vim.api.nvim_set_option_value('relativenumber', false, { win = windows.output_win })
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
 end
 
 function M.refresh_placeholder(windows, input_lines)
@@ -137,8 +137,8 @@ function M.configure_window_dimensions(windows)
   if config.ui.floating then
     M.configure_floating_window_dimensions(windows)
   end
-  local total_width = vim.api.nvim_get_option('columns')
-  local total_height = vim.api.nvim_get_option('lines')
+  local total_width = vim.api.nvim_get_option_value('columns', {})
+  local total_height = vim.api.nvim_get_option_value('lines', {})
   local width = math.floor(total_width * config.ui.window_width)
   local height = math.floor(total_height * config.ui.input_height)
 
@@ -147,8 +147,8 @@ function M.configure_window_dimensions(windows)
 end
 
 function M.configure_floating_window_dimensions(windows)
-  local total_width = vim.api.nvim_get_option('columns')
-  local total_height = vim.api.nvim_get_option('lines')
+  local total_width = vim.api.nvim_get_option_value('columns', {})
+  local total_height = vim.api.nvim_get_option_value('lines', {})
   local is_fullscreen = config.ui.fullscreen
 
   local width

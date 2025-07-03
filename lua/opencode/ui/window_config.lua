@@ -226,8 +226,10 @@ function M.setup_keymaps(windows)
   local api = require('opencode.api')
 
   vim.keymap.set({ 'i' }, '/', function()
+    local text = vim.api.nvim_buf_get_text(windows.input_buf, 0, 0, -1, -1, {})
     vim.api.nvim_put({ '/' }, 'c', true, true)
-    if not vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)[1] == '' then
+
+    if #text > 1 or text[1] ~= '' then
       return
     end
 

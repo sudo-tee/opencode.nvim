@@ -1,5 +1,5 @@
 local core = require('opencode.core')
-local api = require('opencode.core')
+local api = require('opencode.api')
 
 local M = {}
 
@@ -36,14 +36,9 @@ M.default_handlers = {
     end,
   },
   ['/init'] = {
-    desc = 'initialize / update AGENTS.md file',
+    desc = 'Initialize/Update AGENTS.md file',
     fn = function()
-      local script_path = debug.getinfo(1, 'S').source:sub(2)
-      local script_dir = vim.fn.fnamemodify(script_path, ':p:h')
-      local p = vim.fn.readfile(script_dir .. '/prompts/initialize.txt')
-      core.run(table.concat(p, '\n'), {
-        new_session = true,
-      })
+      api.initialize()
     end,
   },
   ['/session'] = {
@@ -67,7 +62,7 @@ M.default_handlers = {
   ['/new'] = {
     desc = 'Start a new opencode session',
     fn = function()
-      api.open({
+      core.open({
         new_session = true,
       })
     end,
@@ -80,7 +75,7 @@ function M.get_handlers()
   return vim.tbl_deep_extend('force', M.default_handlers, custom)
 end
 
-function M.get_handlers_completion()
+function M.get_handlers_compgetion()
   local handlers = M.get_handlers()
   local items = {}
   local max_len = 0

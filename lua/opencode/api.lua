@@ -140,6 +140,15 @@ function M.next_history()
   end
 end
 
+function M.initialize()
+  local script_path = debug.getinfo(1, 'S').source:sub(2)
+  local script_dir = vim.fn.fnamemodify(script_path, ':p:h')
+  local p = vim.fn.readfile(script_dir .. '/prompts/initialize.txt')
+  core.run(table.concat(p, '\n'), {
+    new_session = true,
+  })
+end
+
 -- Command definitions that call the API functions
 M.commands = {
   toggle = {
@@ -300,6 +309,14 @@ M.commands = {
     desc = 'Set a review breakpoint to track changes',
     fn = function()
       M.set_review_breakpoint()
+    end,
+  },
+
+  init = {
+    name = 'OpencodeInit',
+    desc = 'Initialize/Update AGENTS.md file',
+    fn = function()
+      M.initialize()
     end,
   },
 }

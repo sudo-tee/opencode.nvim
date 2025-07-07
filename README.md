@@ -162,6 +162,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Close diff view tab                              | `<leader>oc`   | `:OpencodeDiffClose`              | `require('opencode.api').diff_close()`              |
 | Revert all file changes                          | `<leader>ora`  | `:OpencodeRevertAll`              | `require('opencode.api').diff_revert_all()`         |
 | Revert current file changes                      | `<leader>ort`  | `:OpencodeRevertThis`             | `require('opencode.api').diff_revert_this()`        |
+| Initialize/update AGENTS.md file                 | -              | `:OpencodeInit`                   | `require('opencode.api').initialize()`              |
 | Run prompt (continue session)                    | -              | `:OpencodeRun <prompt>`           | `require('opencode.api').run("prompt")`             |
 | Run prompt (new session)                         | -              | `:OpencodeRunNewSession <prompt>` | `require('opencode.api').run_new_session("prompt")` |
 | Stop opencode while it is running                | `<C-c>`        | `:OpencodeStop`                   | `require('opencode.api').stop()`                    |

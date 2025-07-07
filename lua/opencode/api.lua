@@ -24,8 +24,8 @@ function M.open_output()
 end
 
 function M.close()
-  if state.slash_command then
-    state.slash_command = nil
+  if state.display_route then
+    state.display_route = nil
     ui.clear_output()
     ui.render_output()
     ui.scroll_to_bottom()
@@ -147,6 +147,38 @@ function M.initialize()
   core.run(table.concat(p, '\n'), {
     new_session = true,
   })
+end
+
+function M.help()
+  state.display_route = '/help'
+
+  local msg = {
+    '## Opencode.nvim',
+    '',
+    '  █▀▀█ █▀▀█ █▀▀ █▀▀▄ █▀▀ █▀▀█ █▀▀▄ █▀▀',
+    '  █░░█ █░░█ █▀▀ █░░█ █░░ █░░█ █░░█ █▀▀',
+    '  ▀▀▀▀ █▀▀▀ ▀▀▀ ▀  ▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀',
+    '',
+    'Welcome to Opencode.nvim! This plugin allows you to interact with AI models directly from Neovim.',
+    '',
+    'Type your prompt or use available commads',
+    '',
+    '### Available Commands',
+    '',
+    '| Command   | Description         |',
+    '|-----------|---------------------|',
+  }
+
+  local max_desc_length = vim.api.nvim_win_get_width(state.windows.output_win) / 2 - 5
+  for _, def in pairs(M.commands) do
+    local desc = def.desc or ''
+    if #desc > max_desc_length then
+      desc = desc:sub(1, max_desc_length - 3) .. '...'
+    end
+    table.insert(msg, string.format('| %-10s | %-' .. max_desc_length .. 's |', def.name, desc))
+  end
+
+  ui.render_lines(msg)
 end
 
 -- Command definitions that call the API functions
@@ -317,6 +349,14 @@ M.commands = {
     desc = 'Initialize/Update AGENTS.md file',
     fn = function()
       M.initialize()
+    end,
+  },
+  help = {
+    name = 'OpencodeHelp',
+    desc = 'Display help message',
+    fn = function()
+      M.open_input()
+      M.help()
     end,
   },
 }

@@ -65,16 +65,6 @@ function M.open(opts)
 end
 
 function M.run(prompt, opts)
-  if type(prompt) == 'string' and prompt:sub(1, 1) == '/' then
-    local command_handler = require('opencode.command_handler')
-    local cmd = prompt:match('^%S+')
-    local handlers = command_handler.get_handlers()
-    if handlers[cmd] then
-      handlers[cmd].fn()
-      require('opencode.history').write(prompt)
-      return true
-    end
-  end
   if not M.opencode_ok() then
     return false
   end

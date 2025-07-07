@@ -241,17 +241,6 @@ function M.setup_keymaps(windows)
   local window_keymap = config.keymap.window
   local api = require('opencode.api')
 
-  vim.keymap.set({ 'i' }, '/', function()
-    local text = vim.api.nvim_buf_get_text(windows.input_buf, 0, 0, -1, -1, {})
-    vim.api.nvim_put({ '/' }, 'c', true, true)
-
-    if #text > 1 or text[1] ~= '' then
-      return
-    end
-
-    require('opencode.command_handler').get_handlers_completion()
-  end, { buffer = windows.input_buf, silent = true })
-
   vim.keymap.set({ 'n' }, window_keymap.submit, function()
     handle_submit(windows)
   end, { buffer = windows.input_buf, silent = false })

@@ -65,12 +65,6 @@ M.defaults = {
   context = {
     cursor_data = false,
   },
-  custom_commands = {
-    -- Example:
-    -- ["/mycmd"] = { desc = "Describe what this command does", fn = function() ... end },
-    -- Define custom slash commands here
-    -- Example:
-  },
   debug = {
     enabled = false,
   },

@@ -75,6 +75,8 @@ function M.create_windows()
   require('opencode.ui.highlight').setup()
   vim.treesitter.language.register('markdown', 'opencode_output')
 
+  state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
+
   local configurator = require('opencode.ui.window_config')
   local buffers = M.setup_buffers()
   local windows = config.get('ui').floating

@@ -1,145 +1,139 @@
-local M = {}
-
 local context_module = require('opencode.context')
+local Output = require('opencode.ui.output')
+
+local M = {
+  _output = Output.new(),
+  _messages = {},
+  _current = nil,
+}
 
 M.separator = {
   '---',
   '',
 }
 
-function M.add_empty_line(lines, prefix)
-  if lines[#lines] ~= '' and lines[#lines] ~= prefix then
-    table.insert(lines, prefix or '')
-  end
-end
-
 function M.format_session(session)
   if not session or session == '' then
     return nil
   end
 
-  local session_lines = require('opencode.session').get_messages(session)
-  if session_lines == nil or #session_lines == 0 then
-    return nil
-  end
+  M._messages = require('opencode.session').get_messages(session) or {}
 
-  local output_lines = { '' }
+  M._output:clear()
 
-  local need_separator = false
+  for i = 1, #M._messages do
+    local msg = M._messages[i]
 
-  for i = 1, #session_lines do
-    local message = session_lines[i]
+    for j, part in ipairs(msg.parts or {}) do
+      M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type }
+      M._output:add_empty_line(M._current)
 
-    local message_lines = M._format_message(message)
-    if message_lines then
-      if need_separator then
-        vim.list_extend(output_lines, M.separator)
-      else
-        need_separator = true
+      if part.type == 'text' and part.text then
+        if msg.role == 'user' then
+          M._format_user_message(part.text)
+        elseif msg.role == 'assistant' then
+          M._format_assistant_message(part.text)
+        end
+      elseif part.type == 'tool-invocation' then
+        M._format_tool(part)
       end
-
-      vim.list_extend(output_lines, message_lines)
     end
   end
 
-  return output_lines
+  return M._output:get_lines()
 end
 
-function M._format_user_message(lines, text)
-  table.insert(lines, '---')
-  local context = context_module.extract_from_message(text)
-  for _, line in ipairs(vim.split(context.prompt, '\n')) do
-    if _ == 1 then
-      line = '💬 ' .. line
+function M.get_message_at_line(line)
+  for i = line, 1, -1 do
+    local metadata = M._output:get_metadata(i)
+    if metadata and metadata.msg_idx and metadata.part_idx then
+      local msg = M._messages[metadata.msg_idx]
+      local part = msg.parts[metadata.part_idx]
+      return {
+        message = msg,
+        part = part,
+        type = part.type,
+        msg_idx = metadata.msg_idx,
+        part_idx = metadata.part_idx,
+      }
     end
-    table.insert(lines, '> ' .. line)
   end
+end
+
+function M._format_user_message(text)
+  local context = context_module.extract_from_message(text)
+  local prompt = '💬 ' .. context.prompt
+
+  M._output:add_empty_line()
+  M._output:add_line('---')
+  M._output:add_lines(vim.split(prompt, '\n'), nil, '> ')
 
   if context.selected_text then
-    M.add_empty_line(lines, '> ')
-    for _, line in ipairs(vim.split(context.selected_text, '\n')) do
-      table.insert(lines, '> ' .. line)
-    end
+    M._output:add_line('> ')
+    M._output:add_lines(vim.split(context.selected_text, '\n'), nil, '> ')
   end
+
+  M._output:add_line('---')
+  M._output:add_empty_line()
 end
 
-function M._format_message(message)
-  if not message.parts then
-    return nil
-  end
-
-  local lines = {}
-
-  for _, part in ipairs(message.parts) do
-    if part.type == 'text' and part.text then
-      local text = vim.trim(part.text)
-      if message.role == 'user' then
-        M._format_user_message(lines, text)
-      elseif message.role == 'assistant' then
-        M._format_assistant_message(lines, text)
-      end
-    elseif part.type == 'tool-invocation' then
-      M._format_tool(lines, part, message)
-    end
-  end
-
-  return lines
-end
-
----@param lines table
 ---@param text string
-function M._format_assistant_message(lines, text)
+function M._format_assistant_message(text)
   ---@TODO: properly merge text parts
-  if #lines > 0 and lines[#lines] ~= '' and not text:find('\n') then
-    lines[#lines] = lines[#lines] .. text
-  else
-    vim.list_extend(lines, vim.split(text, '\n'))
+  if not text:find('\n') then
+    local lines = M._output:get_lines()
+    if #lines > 0 and lines[#lines] ~= '' then
+      M._output:merge_line(#lines, text)
+      return
+    end
   end
+  M._output:add_lines(vim.split(text, '\n'))
 end
 
-function M._format_context(lines, type, value, ref)
+function M._format_context(type, value)
   if not type or not value then
     return
   end
 
-  local formatted_action = '**' .. type .. '** ` ' .. value .. ' ` <!--[' .. (ref or '') .. ']-->'
-  table.insert(lines, formatted_action)
+  local formatted_action = '**' .. type .. '** ` ' .. value .. ' `'
+  M._output:add_line(formatted_action)
 end
 
-function M._format_tool(lines, part, _message)
-  M.add_empty_line(lines)
+function M._format_tool(part)
+  M._output:add_empty_line()
   local tool = part.toolInvocation
   if not tool then
     return
   end
+
   local args = tool.args or {}
   local path = args.filePath
   local file_name = path and vim.fn.fnamemodify(path, ':t') or ''
   local file_type = path and vim.fn.fnamemodify(path, ':e') or ''
 
   if tool.toolName == 'bash' then
-    M._format_context(lines, '🚀 run', args.command, tool.toolCallId)
+    M._format_context('🚀 run', args.command)
   elseif tool.toolName == 'read' then
-    M._format_context(lines, '👀 read', file_name, tool.toolCallId)
+    M._format_context('👀 read', file_name)
   elseif tool.toolName == 'edit' then
-    M._format_context(lines, '✏️ edit file', file_name, tool.toolCallId)
-    if not args.newString or args.newString == '' then
-      return
-    end
-    M._format_code(lines, args.newString, file_type)
+    M._format_context('✏️ edit file', file_name)
+    M._format_code(args.newString or '', file_type)
   else
-    M._format_context(lines, '🔧 tool', tool.toolName, tool.toolCallId)
+    M._format_context('🔧 tool', tool.toolName)
   end
-  M.add_empty_line(lines)
+  M._output:add_empty_line()
 end
 
-function M._format_code(lines, code, language)
-  table.insert(lines, '```' .. (language or ''))
-  for _, line in ipairs(vim.split(code, '\n')) do
-    table.insert(lines, line)
-  end
-  table.insert(lines, '```')
-  M.add_empty_line(lines)
+function M._format_code(code, language)
+  M.wrap_block(vim.split(code, '\n'), '```' .. (language or ''), '```')
+end
+
+function M.wrap_block(lines, top, bottom)
+  M._output:add_empty_line()
+  M._output:add_line(top)
+  M._output:add_lines(lines)
+  M._output:add_line(bottom or top)
+  M._output:add_empty_line()
 end
 
 return M

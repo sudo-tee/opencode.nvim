@@ -120,6 +120,7 @@ require('opencode').setup({
       prev_prompt_history = '<up>',        -- Navigate to previous prompt in history
       next_prompt_history = '<down>'       -- Navigate to next prompt in history
       focus_input = '<C-i>',               -- Focus on input window and enter insert mode at the end of the input from the output window
+      debug_messages = '<leader>oD',       -- Open raw message in new buffer for debugging
     }
   },
   ui = {
@@ -131,6 +132,9 @@ require('opencode').setup({
     floating_height = 0.8,                 -- Height as percentage of editor height for "center" layout
     display_model = true,                  -- Display model name on top winbar
     window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
+  },
+  debug = {
+    enabled = false,                       -- Enable debug messages in the output window
   },
 })
 ```

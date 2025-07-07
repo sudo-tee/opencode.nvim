@@ -1,65 +1,6 @@
 -- Default and user-provided settings for opencode.nvim
 
---- @class OpencodeKeymapGlobal
---- @field toggle string
---- @field open_input string
---- @field open_input_new_session string
---- @field open_output string
---- @field toggle_focus string
---- @field close string
---- @field toggle_fullscreen string
---- @field select_session string
---- @field configure_provider string
---- @field diff_open string
---- @field diff_next string
---- @field diff_prev string
---- @field diff_close string
---- @field diff_revert_all string
---- @field diff_revert_this string
-
---- @class OpencodeKeymapWindow
---- @field submit string
---- @field submit_insert string
---- @field close string
---- @field stop string
---- @field next_message string
---- @field prev_message string
---- @field mention_file string
---- @field toggle_pane string
---- @field prev_prompt_history string
---- @field next_prompt_history string
---- @field focus_input string
-
---- @class OpencodeKeymap
---- @field global OpencodeKeymapGlobal
---- @field window OpencodeKeymapWindow
-
---- @class OpencodeUIConfig
---- @field floating boolean
---- @field window_width number
---- @field input_height number
---- @field fullscreen boolean
---- @field layout string
---- @field floating_height number
---- @field display_model boolean
---- @field window_highlight string
-
---- @class OpencodeContextConfig
---- @field cursor_data boolean
-
---- @class OpencodeProviders
---- @field [string] string[]
-
---- @class OpencodeConfig
---- @field prefered_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
---- @field default_global_keymaps boolean
---- @field keymap OpencodeKeymap
---- @field ui OpencodeUIConfig
---- @field providers OpencodeProviders
---- @field context OpencodeContextConfig
---- @field custom_commands table<string, { desc: string, fn: function }>
-
---- @class OpencodeModule
+--- @class OpencodeConfigModule
 --- @field defaults OpencodeConfig
 --- @field values OpencodeConfig
 --- @field setup fun(opts?: OpencodeConfig): nil
@@ -70,8 +11,9 @@
 --- @field get fun(key: "ui"): OpencodeUIConfig
 --- @field get fun(key: "providers"): OpencodeProviders
 --- @field get fun(key: "context"): OpencodeContextConfig
+--- @field get fun(key: "debug"): OpencodeDebugConfig
 
-local M = {} ---@type OpencodeModule
+local M = {} ---@type OpencodeConfigModule
 
 -- Default configuration
 M.defaults = {
@@ -107,6 +49,7 @@ M.defaults = {
       prev_prompt_history = '<up>',
       next_prompt_history = '<down>',
       focus_input = '<C-i>',
+      debug_message = '<leader>oD',
     },
   },
   ui = {
@@ -127,6 +70,9 @@ M.defaults = {
     -- ["/mycmd"] = { desc = "Describe what this command does", fn = function() ... end },
     -- Define custom slash commands here
     -- Example:
+  },
+  debug = {
+    enabled = false,
   },
 }
 

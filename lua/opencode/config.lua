@@ -62,6 +62,13 @@ M.defaults = {
     display_model = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
   },
+  output = {
+    tools = {
+      edit = {
+        display = 'diff',
+      },
+    },
+  },
   context = {
     cursor_data = false,
   },

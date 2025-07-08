@@ -313,6 +313,22 @@ function M.setup_keymaps(windows)
   )
 
   if config.debug.enabled then
+    vim.keymap.set({ 'n', 'i' }, '<leader>aO', function()
+      local session_formatter = require('opencode.ui.session_formatter')
+      local lines = session_formatter:get_lines()
+
+      local tmpfile = vim.fn.tempname() .. '.json'
+      local json_str = vim.json.encode(lines)
+
+      vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
+      vim.fn.writefile(vim.split(json_str, '\n'), tmpfile)
+
+      vim.cmd('e ' .. tmpfile)
+      if vim.fn.executable('jq') == 1 then
+        vim.cmd('silent! %!jq .')
+        vim.cmd('silent! w')
+      end
+    end, { buffer = windows.output_buf, silent = true })
     vim.keymap.set({ 'n', 'i' }, window_keymap.debug_message, function()
       local session_formatter = require('opencode.ui.session_formatter')
       local current_line = vim.api.nvim_win_get_cursor(windows.output_win)[1]

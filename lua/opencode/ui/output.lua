@@ -53,15 +53,17 @@ end
 ---@param lines string[]
 ---@param metadata? table
 ---@param prefix? string Optional prefix for each line
----@return number[] indices The indices of the added lines
 function Output:add_lines(lines, metadata, prefix)
-  local indices = {}
   for _, line in ipairs(lines) do
     prefix = prefix or ''
-    local idx = self:add_line(prefix .. line, metadata)
-    table.insert(indices, idx)
+
+    line = vim.trim(line)
+    if line == '' then
+      self:add_empty_line(metadata)
+    else
+      self:add_line(prefix .. line, metadata)
+    end
   end
-  return indices
 end
 
 ---Add an empty line if the last line is not empty
@@ -75,6 +77,19 @@ function Output:add_empty_line(metadata)
   return nil
 end
 
+---Add metadata to the last line
+---@param metadata table
+---@return number? index The index of the last line, or nil if no lines exist
+function Output:add_metadata(metadata)
+  if #self.lines == 0 then
+    return nil
+  end
+  local last_index = #self.lines
+  self.metadata[last_index] = metadata
+  return last_index
+end
+
+---Clear all lines and metadata
 function Output:clear()
   self.lines = {}
   self.metadata = {}

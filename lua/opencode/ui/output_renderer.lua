@@ -265,7 +265,23 @@ end
 function M.write_output(windows, output_lines)
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
+
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+
+  M.apply_output_extmarks(windows)
+end
+
+function M.apply_output_extmarks(windows)
+  local extmarks = formatter.output:get_extmarks()
+  local ns_id = vim.api.nvim_create_namespace('opencode_output')
+
+  vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+
+  for line_num, marks in pairs(extmarks) do
+    for _, mark in ipairs(marks) do
+      vim.api.nvim_buf_set_extmark(windows.output_buf, ns_id, line_num - 1, 0, mark)
+    end
+  end
 end
 
 function M.handle_auto_scroll(windows)

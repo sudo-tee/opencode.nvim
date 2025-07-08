@@ -4,7 +4,7 @@ local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 
 local M = {
-  _output = Output.new(),
+  output = Output.new(),
   _messages = {},
   _current = nil,
 }
@@ -21,7 +21,7 @@ function M.format_session(session)
 
   M._messages = require('opencode.session').get_messages(session) or {}
 
-  M._output:clear()
+  M.output:clear()
 
   for i = 1, #M._messages do
     M._format_message_header(M._messages[i])
@@ -29,7 +29,7 @@ function M.format_session(session)
     local msg = M._messages[i]
     for j, part in ipairs(msg.parts or {}) do
       M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type }
-      M._output:add_metadata(M._current)
+      M.output:add_metadata(M._current)
 
       if part.type == 'text' and part.text then
         if msg.role == 'user' then
@@ -40,21 +40,21 @@ function M.format_session(session)
       elseif part.type == 'tool' then
         M._format_tool(part)
       end
-      M._output:add_empty_line()
+      M.output:add_empty_line()
     end
     if msg.error and msg.error ~= '' then
       M._format_error(msg)
     end
 
-    M._output:add_lines(M.separator)
+    M.output:add_lines(M.separator)
   end
 
-  return M._output:get_lines()
+  return M.output:get_lines()
 end
 
 function M.get_message_at_line(line)
   for i = line, 1, -1 do
-    local metadata = M._output:get_metadata(i)
+    local metadata = M.output:get_metadata(i)
     if metadata and metadata.msg_idx and metadata.part_idx then
       local msg = M._messages[metadata.msg_idx]
       local part = msg.parts[metadata.part_idx]
@@ -70,11 +70,11 @@ function M.get_message_at_line(line)
 end
 
 function M.get_lines()
-  return M._output:get_lines()
+  return M.output:get_lines()
 end
 
 function M._format_error(message)
-  M._output:add_empty_line()
+  M.output:add_empty_line()
   M._format_callout('ERROR', message.error.data.message, message.error.name)
 end
 
@@ -83,8 +83,8 @@ function M._format_message_header(message)
   local callout = message.role == 'user' and 'QUESTION' or 'SUMMARY'
   local time = message.time and message.time.created or nil
   local title = '> [!' .. callout .. '] ' .. role:upper() .. (time and ' (' .. util.time_ago(time) .. ')' or '')
-  M._output:add_empty_line()
-  M._output:add_line(title)
+  M.output:add_empty_line()
+  M.output:add_line(title)
 end
 
 function M._format_callout(callout, text, title)
@@ -96,37 +96,37 @@ function M._format_callout(callout, text, title)
 
   local lines = vim.split(text, '\n')
   if #lines == 1 and title == '' then
-    M._output:add_line('> [!' .. callout .. '] ' .. lines[1])
+    M.output:add_line('> [!' .. callout .. '] ' .. lines[1])
   else
-    M._output:add_line('> [!' .. callout .. ']' .. title)
-    M._output:add_line('>')
-    M._output:add_lines(lines, nil, '> ')
+    M.output:add_line('> [!' .. callout .. ']' .. title)
+    M.output:add_line('>')
+    M.output:add_lines(lines, nil, '> ')
   end
 end
 
 function M._format_user_message(text)
   local context = context_module.extract_from_message(text)
 
-  M._output:add_line('>')
-  M._output:add_lines(vim.split(context.prompt, '\n'), nil, '> ')
+  M.output:add_line('>')
+  M.output:add_lines(vim.split(context.prompt, '\n'), nil, '> ')
 
   if context.selected_text then
-    M._output:add_lines(vim.split(context.selected_text, '\n'), nil, '> ')
+    M.output:add_lines(vim.split(context.selected_text, '\n'), nil, '> ')
   end
 end
 
 ---@param text string
 function M._format_assistant_message(text)
-  M._output:add_empty_line()
+  M.output:add_empty_line()
   ---@TODO: properly merge text parts
   if not text:find('\n') then
-    local lines = M._output:get_lines()
+    local lines = M.output:get_lines()
     if #lines > 0 and lines[#lines] ~= '' then
-      M._output:merge_line(#lines, text)
+      M.output:merge_line(#lines, text)
       return
     end
   end
-  M._output:add_lines(vim.split(text, '\n'))
+  M.output:add_lines(vim.split(text, '\n'))
 end
 
 function M._format_context(type, value)
@@ -135,73 +135,101 @@ function M._format_context(type, value)
   end
 
   local formatted_action = '**' .. type .. '** ` ' .. value .. ' `'
-  M._output:add_line(formatted_action)
+  M.output:add_line(formatted_action)
 end
 
 function M._format_tool(part)
-  M._output:add_empty_line()
+  M.output:add_empty_line()
   local tool = part.tool
   if not tool then
     return
   end
 
   local input = part.state.input
+  local metadata = part.state.metadata or {}
   local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
+  local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
 
   if tool == 'bash' then
     M._format_context('💻 run', input and input.description)
 
-    if part.state.metadata.stdout then
-      M._format_code('> ' .. input.command .. '\n\n' .. part.state.metadata.stdout, 'bash')
+    if metadata.stdout then
+      M._format_code('> ' .. input.command .. '\n\n' .. metadata.stdout, 'bash')
     end
   elseif tool == 'read' then
     M._format_context('👀 read', file_name)
   elseif tool == 'edit' then
     M._format_context('✏️ edit file', file_name)
 
-    if part.state.metadata.diff then
-      M._format_diff(part.state.metadata.diff)
+    if metadata.diff then
+      M._format_diff(metadata.diff, file_type)
     end
   elseif tool == 'todowrite' then
-    M._output:add_line('| 📃 PLAN `' .. (part.state.title or '') .. '`|')
-    M._output:add_line('|---|')
+    M.output:add_line('📃 PLAN `' .. (part.state.title or '') .. '`')
     for _, item in ipairs(input.todos or {}) do
       local statuses = {
-        in_progress = '⌛',
-        completed = '✅',
-        pending = '▢ ',
+        in_progress = '-',
+        completed = 'x',
+        pending = ' ',
       }
 
-      M._output:add_line(string.format('| [%s] %s |', statuses[item.status], item.content))
+      M.output:add_line(string.format('  - [%s] %s ', statuses[item.status], item.content), nil, true)
     end
-    M._output:add_line('<!--- end of todo list -->')
   else
     M._format_context('🔧 tool', tool)
   end
-  if part.state.metadata.error then
-    M._format_callout('ERROR', part.state.metadata.message)
+  if metadata.error then
+    M._format_callout('ERROR', metadata.message)
   end
-  M._output:add_empty_line()
+  M.output:add_empty_line()
 end
 
 function M._format_code(code, language)
   M.wrap_block(vim.split(code, '\n'), '```' .. (language or ''), '```')
 end
 
-function M._format_diff(code)
+function M._format_diff(code, file_type)
+  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
+  M.output:add_empty_line()
+  M.output:add_line('```' .. file_type)
   local lines = vim.split(code, '\n')
-  if #lines > 4 then
-    lines = vim.list_slice(lines, 5)
+  if #lines > 5 then
+    lines = vim.list_slice(lines, 6)
   end
-  M.wrap_block(lines, '```diff lua', '```')
+
+  M.output:add_empty_line()
+
+  for _, line in ipairs(lines) do
+    local line_idx = #M.output:get_lines() + 1
+
+    if line:sub(1, 1) == '+' then
+      M.output:add_line(' ' .. line:sub(2))
+      M.output:add_extmark(line_idx, {
+        virt_text = { { line .. string.rep(' ', win_width - #line), 'DiffAdd' } },
+        virt_text_pos = 'overlay',
+        hl_mode = 'combine',
+      })
+    elseif line:sub(1, 1) == '-' then
+      M.output:add_line(' ' .. line:sub(2))
+      M.output:add_extmark(line_idx, {
+        virt_text = { { line .. string.rep(' ', win_width - #line), 'DiffDelete' } },
+        virt_text_pos = 'overlay',
+        hl_mode = 'combine',
+      })
+    else
+      M.output:add_line(line)
+    end
+  end
+  M.output:add_line('```')
+  M.output:add_empty_line()
 end
 
 function M.wrap_block(lines, top, bottom)
-  M._output:add_empty_line()
-  M._output:add_line(top)
-  M._output:add_lines(lines)
-  M._output:add_line(bottom or top)
-  M._output:add_empty_line()
+  M.output:add_empty_line()
+  M.output:add_line(top)
+  M.output:add_lines(lines)
+  M.output:add_line(bottom or top)
+  M.output:add_empty_line()
 end
 
 return M

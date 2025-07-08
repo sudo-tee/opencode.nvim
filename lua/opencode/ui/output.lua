@@ -1,22 +1,30 @@
+local state = require('opencode.state')
 local Output = {}
 Output.__index = Output
 
 ---@class Output
 ---@field lines table<number, string>
 ---@field metadata table<number, table>
+---@field extmarks table<number, table> -- Stores extmarks for each line
 ---@return self Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}
   self.metadata = {}
+  self.extmarks = {}
   return self
 end
 
 ---Add a new line with optional metadata
 ---@param line string
 ---@param metadata? table
+---@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
-function Output:add_line(line, metadata)
+function Output:add_line(line, metadata, fit)
+  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
+  if fit and #line > win_width then
+    line = vim.fn.strcharpart(line, 0, win_width - 7) .. '...'
+  end
   table.insert(self.lines, line)
   local idx = #self.lines
   self.metadata[idx] = metadata
@@ -93,12 +101,29 @@ end
 function Output:clear()
   self.lines = {}
   self.metadata = {}
+  self.extmarks = {}
 end
 
 ---Get all lines as a table
 ---@return string[]
 function Output:get_lines()
   return vim.deepcopy(self.lines)
+end
+
+---Add an extmark for a specific line
+---@param idx number The line index
+---@param extmark table The extmark data {virt_text = {...}, virt_text_pos = '...', etc}
+function Output:add_extmark(idx, extmark)
+  if not self.extmarks[idx] then
+    self.extmarks[idx] = {}
+  end
+  table.insert(self.extmarks[idx], extmark)
+end
+
+---Get all extmarks
+---@return table<number, table[]>
+function Output:get_extmarks()
+  return vim.deepcopy(self.extmarks)
 end
 
 return Output

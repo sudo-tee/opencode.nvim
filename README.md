@@ -175,6 +175,18 @@ The following editor context is automatically captured and included in your conv
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
+### Highlight Groups
+
+The plugin defines several highlight groups that can be customized to match your colorscheme:
+
+- `OpencodeBorder`: Border color for Opencode windows (default: #616161)
+- `OpencodeBackground`: Background color for Opencode windows (linked to `Normal`)
+- `OpencodeSessionDescription`: Session description text color (linked to `Comment`)
+- `OpencodeMention`: Highlight for @file mentions (linked to `Special`)
+- `OpencodeToolBorder`: Border color for tool execution blocks (default: #3b4261)
+- `OpencodeMessageRoleAssistant`: Assistant message highlight (linked to `Added`)
+- `OpencodeMessageRoleUser`: User message highlight (linked to `Question`)
+
 ## 🔧 Setting up Opencode
 
 If you're new to opencode:

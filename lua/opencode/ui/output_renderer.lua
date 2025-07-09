@@ -199,7 +199,10 @@ function M.render(windows, force_refresh)
   render()
   require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
   require('opencode.ui.topbar').render()
-  M.render_markdown()
+
+  vim.schedule(function()
+    M.render_markdown()
+  end)
 end
 
 function M.stop()

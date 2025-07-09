@@ -275,6 +275,10 @@ function M.write_output(windows, output_lines)
 end
 
 function M.apply_output_extmarks(windows)
+  if state.display_route then
+    return
+  end
+
   local extmarks = formatter.output:get_extmarks()
   local ns_id = vim.api.nvim_create_namespace('opencode_output')
 

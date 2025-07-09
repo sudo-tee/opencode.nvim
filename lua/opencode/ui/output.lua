@@ -65,7 +65,6 @@ function Output:add_lines(lines, metadata, prefix)
   for _, line in ipairs(lines) do
     prefix = prefix or ''
 
-    line = vim.trim(line)
     if line == '' then
       self:add_empty_line(metadata)
     else
@@ -102,6 +101,12 @@ function Output:clear()
   self.lines = {}
   self.metadata = {}
   self.extmarks = {}
+end
+
+---Get the number of lines
+---@return number
+function Output:get_line_count()
+  return #self.lines
 end
 
 ---Get all lines as a table

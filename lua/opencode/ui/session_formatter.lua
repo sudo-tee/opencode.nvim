@@ -80,11 +80,25 @@ end
 
 function M._format_message_header(message)
   local role = message.role or 'unknown'
-  local callout = message.role == 'user' and 'QUESTION' or 'SUMMARY'
+  local icon = message.role == 'user' and '▌💬' or '🤖'
+
   local time = message.time and message.time.created or nil
-  local title = '> [!' .. callout .. '] ' .. role:upper() .. (time and ' (' .. util.time_ago(time) .. ')' or '')
+  local time_text = (time and ' (' .. util.time_ago(time) .. ')' or '')
+  local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
+
   M.output:add_empty_line()
-  M.output:add_line(title)
+  M.output:add_extmark(M.output:get_line_count(), {
+    virt_text = {
+      { icon, role_hl },
+      { ' ' },
+      { role:upper(), role_hl },
+      { time_text, 'Comment' },
+    },
+    virt_text_win_col = -3,
+    priority = 10,
+  })
+
+  M.output:add_line('')
 end
 
 function M._format_callout(callout, text, title)
@@ -106,13 +120,18 @@ end
 
 function M._format_user_message(text)
   local context = context_module.extract_from_message(text)
+  local start_line = M.output:get_line_count() - 1
 
-  M.output:add_line('>')
-  M.output:add_lines(vim.split(context.prompt, '\n'), nil, '> ')
+  M.output:add_empty_line()
+  M.output:add_lines(vim.split(context.prompt, '\n'), nil)
 
   if context.selected_text then
-    M.output:add_lines(vim.split(context.selected_text, '\n'), nil, '> ')
+    M.output:add_lines(vim.split(context.selected_text, '\n'), nil)
   end
+
+  local end_line = M.output:get_line_count()
+
+  M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param text string
@@ -144,6 +163,8 @@ function M._format_tool(part)
   if not tool then
     return
   end
+
+  local start_line = M.output:get_line_count() + 1
 
   local input = part.state.input
   local metadata = part.state.metadata or {}
@@ -182,6 +203,14 @@ function M._format_tool(part)
     M._format_callout('ERROR', metadata.message)
   end
   M.output:add_empty_line()
+
+  local end_line = M.output:get_line_count()
+
+  if end_line - start_line == 1 then
+    return
+  end
+
+  M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
 end
 
 function M._format_code(code, language)
@@ -200,7 +229,7 @@ function M._format_diff(code, file_type)
   M.output:add_empty_line()
 
   for _, line in ipairs(lines) do
-    local line_idx = #M.output:get_lines() + 1
+    local line_idx = M.output:get_line_count() + 1
 
     if line:sub(1, 1) == '+' then
       M.output:add_line(' ' .. line:sub(2))
@@ -222,6 +251,18 @@ function M._format_diff(code, file_type)
   end
   M.output:add_line('```')
   M.output:add_empty_line()
+end
+
+function M._add_vertical_border(start_line, end_line, hl_group, win_col)
+  for line = start_line, end_line do
+    M.output:add_extmark(line, {
+      virt_text = { { '▌', hl_group } },
+      virt_text_pos = 'inline',
+      virt_text_win_col = win_col,
+      virt_text_repeat_linebreak = true,
+      priority = 10,
+    })
+  end
 end
 
 function M.wrap_block(lines, top, bottom)

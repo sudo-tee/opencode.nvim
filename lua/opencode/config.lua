@@ -54,7 +54,7 @@ M.defaults = {
   },
   ui = {
     floating = false,
-    window_width = 0.35,
+    window_width = 0.40,
     input_height = 0.15,
     fullscreen = false,
     layout = 'right',

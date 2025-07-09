@@ -169,13 +169,13 @@ function M.help()
     '|-----------|---------------------|',
   }
 
-  local max_desc_length = vim.api.nvim_win_get_width(state.windows.output_win) / 2 - 5
+  local max_desc_length = (vim.api.nvim_win_get_width(state.windows.output_win) / 2) + 5
   for _, def in pairs(M.commands) do
     local desc = def.desc or ''
     if #desc > max_desc_length then
       desc = desc:sub(1, max_desc_length - 3) .. '...'
     end
-    table.insert(msg, string.format('| %-10s | %-' .. max_desc_length .. 's |', def.name, desc))
+    table.insert(msg, string.format('| %-10s | %s |', def.name, desc))
   end
 
   ui.render_lines(msg)

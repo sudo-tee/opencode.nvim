@@ -103,13 +103,16 @@ function M.get_messages(session)
   end
   local decoded_messages = {}
 
-  for file, type_ in vim.fs.dir(messages_path) do
-    if type_ == 'file' then
-      local content = table.concat(vim.fn.readfile(messages_path .. '/' .. file), '\n')
+  for file, file_type in vim.fs.dir(messages_path) do
+    if file_type == 'file' and file:match('%.json$') then
+      local file_ok, content = pcall(vim.fn.readfile, messages_path .. '/' .. file)
+      if file_ok then
+        local lines = table.concat(content, '\n')
 
-      local ok, message = pcall(vim.json.decode, content)
-      if ok and message then
-        table.insert(decoded_messages, message)
+        local ok, message = pcall(vim.json.decode, lines)
+        if ok and message then
+          table.insert(decoded_messages, message)
+        end
       end
     end
   end

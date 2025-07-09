@@ -168,9 +168,11 @@ function M.format_message(prompt)
 end
 
 function M.extract_from_message(text)
+  local current_file = template.extract_tag('current-file', text)
   local context = {
     prompt = template.extract_tag('user-query', text) or text,
     selected_text = template.extract_tag('manually-added-selection', text),
+    current_file = current_file and current_file:match('Path: (.+)') or nil,
   }
   return context
 end

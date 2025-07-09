@@ -133,6 +133,15 @@ function M._format_user_message(text)
     M.output:add_lines(vim.split(context.selected_text, '\n'), nil)
   end
 
+  if context.current_file then
+    M.output:add_empty_line()
+    local path = context.current_file
+    if vim.startswith(path, vim.fn.getcwd()) then
+      path = path:sub(#vim.fn.getcwd() + 2)
+    end
+    M.output:add_line(string.format('[%s](%s)', path, context.current_file))
+  end
+
   local end_line = M.output:get_line_count()
 
   M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)

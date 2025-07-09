@@ -51,8 +51,6 @@ function M.format_session(session)
     if msg.error and msg.error ~= '' then
       M._format_error(msg)
     end
-
-    M.output:add_lines(M.separator)
   end
 
   return M.output:get_lines()
@@ -143,14 +141,6 @@ end
 ---@param text string
 function M._format_assistant_message(text)
   M.output:add_empty_line()
-  ---@TODO: properly merge text parts
-  if not text:find('\n') then
-    local lines = M.output:get_lines()
-    if #lines > 0 and lines[#lines] ~= '' then
-      M.output:merge_line(#lines, text)
-      return
-    end
-  end
   M.output:add_lines(vim.split(text, '\n'))
 end
 
@@ -191,28 +181,45 @@ function M._format_tool(part)
     if metadata.diff then
       M._format_diff(metadata.diff, file_type)
     end
+  elseif tool == 'write' then
+    M._format_context('📝 write file', file_name)
+
+    if input.content then
+      M._format_code(input.content, file_type)
+    end
   elseif tool == 'todowrite' then
     M.output:add_line('📃 PLAN `' .. (part.state.title or '') .. '`')
+    M.output:add_empty_line()
+
     for _, item in ipairs(input.todos or {}) do
       local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
 
-      M.output:add_line(string.format('  - [%s] %s ', statuses[item.status], item.content), nil, true)
+      M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
     end
+  elseif tool == 'glob' then
+    M._format_context('🔍 glob', input and input.pattern)
+    local prefix = ''
+    if metadata.truncated then
+      prefix = ' more than'
+    end
+    M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
+  elseif tool == 'webfetch' then
+    M._format_context('🌐 fetch', input and input.url)
   else
     M._format_context('🔧 tool', tool)
   end
+
   if metadata.error then
     M._format_callout('ERROR', metadata.message)
   end
+
   M.output:add_empty_line()
 
   local end_line = M.output:get_line_count()
 
-  if end_line - start_line == 1 then
-    return
+  if end_line - start_line > 1 then
+    M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
   end
-
-  M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
 end
 
 function M._format_code(code, language)

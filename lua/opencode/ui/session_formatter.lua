@@ -23,7 +23,12 @@ function M.format_session(session)
 
   M.output:clear()
 
+  M.output:add_line('')
+  M.output:add_line('')
+
   for i = 1, #M._messages do
+    M.output:add_lines(M.separator)
+
     M._format_message_header(M._messages[i])
 
     local msg = M._messages[i]
@@ -42,6 +47,7 @@ function M.format_session(session)
       end
       M.output:add_empty_line()
     end
+
     if msg.error and msg.error ~= '' then
       M._format_error(msg)
     end
@@ -188,11 +194,7 @@ function M._format_tool(part)
   elseif tool == 'todowrite' then
     M.output:add_line('📃 PLAN `' .. (part.state.title or '') .. '`')
     for _, item in ipairs(input.todos or {}) do
-      local statuses = {
-        in_progress = '-',
-        completed = 'x',
-        pending = ' ',
-      }
+      local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
 
       M.output:add_line(string.format('  - [%s] %s ', statuses[item.status], item.content), nil, true)
     end

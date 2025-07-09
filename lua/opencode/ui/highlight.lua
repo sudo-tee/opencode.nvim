@@ -8,6 +8,8 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'OpencodeToolBorder', { fg = '#3b4261', nocombine = true })
   vim.api.nvim_set_hl(0, 'OpencodeMessageRoleAssistant', { link = 'Added' })
   vim.api.nvim_set_hl(0, 'OpencodeMessageRoleUser', { link = 'Question' })
+  vim.api.nvim_set_hl(0, 'OpencodeDiffAdd', { bg = '#2B3328' })
+  vim.api.nvim_set_hl(0, 'OpencodeDiffDelete', { bg = '#43242B' })
 end
 
 return M

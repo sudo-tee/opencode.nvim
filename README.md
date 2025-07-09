@@ -186,6 +186,8 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeToolBorder`: Border color for tool execution blocks (default: #3b4261)
 - `OpencodeMessageRoleAssistant`: Assistant message highlight (linked to `Added`)
 - `OpencodeMessageRoleUser`: User message highlight (linked to `Question`)
+- `OpencodeDiffAdd`: Highlight for added line in diffs (default: #2B3328)
+- `OpencodeDiffDelete`: Highlight for deleted line in diffs (default: #43242B)
 
 ## 🔧 Setting up Opencode
 

@@ -255,7 +255,7 @@ function M._format_diff(code, file_type)
 
     local first_char = line:sub(1, 1)
     if first_char == '+' or first_char == '-' then
-      local hl_group = first_char == '+' and 'DiffAdd' or 'DiffDelete'
+      local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
       M.output:add_line(' ' .. line:sub(2))
       M.output:add_extmark(line_idx, {
         virt_text = { { line .. string.rep(' ', win_width - #line), hl_group } },

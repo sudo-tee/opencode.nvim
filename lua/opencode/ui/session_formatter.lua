@@ -253,17 +253,12 @@ function M._format_diff(code, file_type)
   for _, line in ipairs(lines) do
     local line_idx = M.output:get_line_count() + 1
 
-    if line:sub(1, 1) == '+' then
+    local first_char = line:sub(1, 1)
+    if first_char == '+' or first_char == '-' then
+      local hl_group = first_char == '+' and 'DiffAdd' or 'DiffDelete'
       M.output:add_line(' ' .. line:sub(2))
       M.output:add_extmark(line_idx, {
-        virt_text = { { line .. string.rep(' ', win_width - #line), 'DiffAdd' } },
-        virt_text_pos = 'overlay',
-        hl_mode = 'combine',
-      })
-    elseif line:sub(1, 1) == '-' then
-      M.output:add_line(' ' .. line:sub(2))
-      M.output:add_extmark(line_idx, {
-        virt_text = { { line .. string.rep(' ', win_width - #line), 'DiffDelete' } },
+        virt_text = { { line .. string.rep(' ', win_width - #line), hl_group } },
         virt_text_pos = 'overlay',
         hl_mode = 'combine',
       })
@@ -282,7 +277,6 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col)
       virt_text_pos = 'inline',
       virt_text_win_col = win_col,
       virt_text_repeat_linebreak = true,
-      priority = 10,
     })
   end
 end

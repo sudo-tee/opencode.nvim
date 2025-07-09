@@ -144,13 +144,58 @@ function M._format_assistant_message(text)
   M.output:add_lines(vim.split(text, '\n'))
 end
 
-function M._format_context(type, value)
+function M._format_action(type, value)
   if not type or not value then
     return
   end
 
   local formatted_action = '**' .. type .. '** ` ' .. value .. ' `'
   M.output:add_line(formatted_action)
+end
+
+function M._format_bash_tool(input, metadata)
+  M._format_action('💻 run', input and input.description)
+  if metadata.stdout then
+    M._format_code('> ' .. input.command .. '\n\n' .. metadata.stdout, 'bash')
+  end
+end
+
+function M._format_file_tool(tool_type, input, metadata)
+  local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
+  local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
+  local icons = {
+    read = '👀 read',
+    edit = '✏️ edit file',
+    write = '📝 write file',
+  }
+
+  M._format_action(icons[tool_type], file_name)
+
+  if tool_type == 'edit' and metadata.diff then
+    M._format_diff(metadata.diff, file_type)
+  elseif tool_type == 'write' and input.content then
+    M._format_code(input.content, file_type)
+  end
+end
+
+function M._format_todo_tool(part)
+  M._format_action('📃 plan', (part.state.title or ''))
+  M.output:add_empty_line()
+
+  for _, item in ipairs(part.state.input.todos or {}) do
+    local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
+    M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
+  end
+end
+
+function M._format_glob_tool(input, metadata)
+  M._format_action('🔍 glob', input and input.pattern)
+  local prefix = metadata.truncated and ' more than' or ''
+  M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
+end
+
+function M._format_webfetch_tool(input)
+  M._format_action('🌐 fetch', input and input.url)
 end
 
 function M._format_tool(part)
@@ -161,52 +206,21 @@ function M._format_tool(part)
   end
 
   local start_line = M.output:get_line_count() + 1
-
   local input = part.state.input
   local metadata = part.state.metadata or {}
-  local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
-  local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
 
   if tool == 'bash' then
-    M._format_context('💻 run', input and input.description)
-
-    if metadata.stdout then
-      M._format_code('> ' .. input.command .. '\n\n' .. metadata.stdout, 'bash')
-    end
-  elseif tool == 'read' then
-    M._format_context('👀 read', file_name)
-  elseif tool == 'edit' then
-    M._format_context('✏️ edit file', file_name)
-
-    if metadata.diff then
-      M._format_diff(metadata.diff, file_type)
-    end
-  elseif tool == 'write' then
-    M._format_context('📝 write file', file_name)
-
-    if input.content then
-      M._format_code(input.content, file_type)
-    end
+    M._format_bash_tool(input, metadata)
+  elseif tool == 'read' or tool == 'edit' or tool == 'write' then
+    M._format_file_tool(tool, input, metadata)
   elseif tool == 'todowrite' then
-    M.output:add_line('📃 PLAN `' .. (part.state.title or '') .. '`')
-    M.output:add_empty_line()
-
-    for _, item in ipairs(input.todos or {}) do
-      local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
-
-      M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
-    end
+    M._format_todo_tool(part)
   elseif tool == 'glob' then
-    M._format_context('🔍 glob', input and input.pattern)
-    local prefix = ''
-    if metadata.truncated then
-      prefix = ' more than'
-    end
-    M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
+    M._format_glob_tool(input, metadata)
   elseif tool == 'webfetch' then
-    M._format_context('🌐 fetch', input and input.url)
+    M._format_webfetch_tool(input)
   else
-    M._format_context('🔧 tool', tool)
+    M._format_action('🔧 tool', tool)
   end
 
   if metadata.error then
@@ -216,7 +230,6 @@ function M._format_tool(part)
   M.output:add_empty_line()
 
   local end_line = M.output:get_line_count()
-
   if end_line - start_line > 1 then
     M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
   end

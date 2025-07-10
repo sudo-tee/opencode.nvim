@@ -69,7 +69,6 @@ function M.get_message_at_line(line)
       return {
         message = msg,
         part = part,
-        type = part.type,
         msg_idx = metadata.msg_idx,
         part_idx = metadata.part_idx,
       }
@@ -168,8 +167,7 @@ function M._format_action(type, value)
     return
   end
 
-  local formatted_action = '**' .. type .. '** ` ' .. value .. ' `'
-  M.output:add_line(formatted_action)
+  M.output:add_line('**' .. type .. '** ` ' .. value .. ' `')
 end
 
 ---@param input BashToolInput data for the tool
@@ -177,7 +175,7 @@ end
 function M._format_bash_tool(input, metadata)
   M._format_action('💻 run', input and input.description)
   if metadata.stdout then
-    M._format_code('> ' .. input.command .. '\n\n' .. metadata.stdout, 'bash')
+    M._format_code(vim.split('> ' .. input.command .. '\n\n' .. metadata.stdout, '\n'), 'bash')
   end
 end
 
@@ -187,18 +185,14 @@ end
 function M._format_file_tool(tool_type, input, metadata)
   local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
   local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
-  local icons = {
-    read = '👀 read',
-    edit = '✏️ edit file',
-    write = '📝 write file',
-  }
+  local icons = { read = '👀', edit = '✏️', write = '📝' }
 
-  M._format_action(icons[tool_type], file_name)
+  M._format_action(icons[tool_type] .. ' ' .. tool_type, file_name)
 
   if tool_type == 'edit' and metadata.diff then
     M._format_diff(metadata.diff, file_type)
   elseif tool_type == 'write' and input and input.content then
-    M._format_code(input.content, file_type)
+    M._format_code(vim.split(input.content, '\n'), file_type)
   end
 end
 
@@ -267,8 +261,12 @@ function M._format_tool(part)
   end
 end
 
-function M._format_code(code, language)
-  M.wrap_block(vim.split(code, '\n'), '```' .. (language or ''), '```')
+function M._format_code(lines, language)
+  M.output:add_empty_line()
+  M.output:add_line('```' .. (language or ''))
+  M.output:add_lines(lines)
+  M.output:add_line('```')
+  M.output:add_empty_line()
 end
 
 function M._format_diff(code, file_type)
@@ -280,15 +278,12 @@ function M._format_diff(code, file_type)
     lines = vim.list_slice(lines, 6)
   end
 
-  M.output:add_empty_line()
-
   for _, line in ipairs(lines) do
-    local line_idx = M.output:get_line_count() + 1
-
     local first_char = line:sub(1, 1)
     if first_char == '+' or first_char == '-' then
       local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
       M.output:add_line(' ' .. line:sub(2))
+      local line_idx = M.output:get_line_count()
       M.output:add_extmark(line_idx, {
         virt_text = { { line .. string.rep(' ', win_width - #line), hl_group } },
         virt_text_pos = 'overlay',
@@ -306,22 +301,11 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col)
   for line = start_line, end_line do
     M.output:add_extmark(line, {
       virt_text = { { '▌', hl_group } },
-      virt_text_pos = 'inline',
+      virt_text_pos = 'overlay',
       virt_text_win_col = win_col,
       virt_text_repeat_linebreak = true,
     })
   end
-end
-
----@param lines string[] Lines to wrap in a block
----@param top string Top border text
----@param bottom? string Bottom border text (defaults to top)
-function M.wrap_block(lines, top, bottom)
-  M.output:add_empty_line()
-  M.output:add_line(top)
-  M.output:add_lines(lines)
-  M.output:add_line(bottom or top)
-  M.output:add_empty_line()
 end
 
 return M

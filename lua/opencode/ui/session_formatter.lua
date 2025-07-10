@@ -182,7 +182,7 @@ function M._format_file_tool(tool_type, input, metadata)
 
   if tool_type == 'edit' and metadata.diff then
     M._format_diff(metadata.diff, file_type)
-  elseif tool_type == 'write' and input.content then
+  elseif tool_type == 'write' and input and input.content then
     M._format_code(input.content, file_type)
   end
 end
@@ -191,7 +191,9 @@ function M._format_todo_tool(part)
   M._format_action('📃 plan', (part.state.title or ''))
   M.output:add_empty_line()
 
-  for _, item in ipairs(part.state.input.todos or {}) do
+  local todos = part.state and part.state.input and part.state.input.todos
+
+  for _, item in ipairs(todos or {}) do
     local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
     M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
   end
@@ -215,7 +217,7 @@ function M._format_tool(part)
   end
 
   local start_line = M.output:get_line_count() + 1
-  local input = part.state.input
+  local input = part.state and part.state.input
   local metadata = part.state.metadata or {}
 
   if tool == 'bash' then

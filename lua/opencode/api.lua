@@ -149,6 +149,19 @@ function M.initialize()
   })
 end
 
+function M.open_configuration_file()
+  local config_path = require('opencode.info').config_file
+  if vim.fn.filereadable(config_path) == 1 then
+    if state.windows then
+      vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
+    end
+
+    vim.cmd('edit ' .. config_path)
+  else
+    ui.notify('Configuration file not found: ' .. config_path, 'error')
+  end
+end
+
 function M.help()
   state.display_route = '/help'
 
@@ -357,6 +370,13 @@ M.commands = {
     fn = function()
       M.open_input()
       M.help()
+    end,
+  },
+  config = {
+    name = 'OpencodeConfigFile',
+    desc = 'Open opencode configuration file',
+    fn = function()
+      M.open_configuration_file()
     end,
   },
 }

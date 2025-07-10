@@ -63,26 +63,72 @@
 --- @field custom_commands table<string, { desc: string, fn: function }>
 --- @field debug OpencodeDebugConfig
 
---- @class MessageToolInvocation
---- @field toolName string Name of the tool being invoked
---- @field toolCallId string Unique identifier for the tool call
---- @field args table Arguments passed to the tool
---- @field state string State of the tool invocation (e.g. 'result')
---- @field result string|nil Result of the tool invocation
+--- @class MessagePartState
+--- @field input BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|WebFetchToolInput Input data for the tool
+--- @field metadata ToolMetadataBase Metadata for the tool use
+--- @field time { start: number, end: number } Timestamps for tool use
+--- @field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
+--- @field title string Title of the tool use
+--- @field output string Output of the tool use, if applicable
+--- @field error? string Error message if the part failed
+
+--- @class ToolMetadataBase
+--- @field error boolean|nil
+--- @field message string|nil
+
+--- @class BashToolMetadata: ToolMetadataBase
+--- @field stdout string|nil
+
+--- @class FileToolMetadata: ToolMetadataBase
+--- @field diff string|nil
+
+--- @class GlobToolMetadata: ToolMetadataBase
+--- @field truncated boolean|nil
+--- @field count number|nil
+
+--- @class BashToolInput
+--- @field command string The command to execute
+--- @field description string Description of what the command does
+
+--- @class FileToolInput
+--- @field filePath string The path to the file
+--- @field content? string Content to write (for write tool)
+
+--- @class TodoToolInput
+--- @field todos { id: string, content: string, status: 'pending'|'in_progress'|'completed'|'cancelled', priority: 'high'|'medium'|'low' }[]
+
+--- @class GlobToolInput
+--- @field pattern string The glob pattern to match
+--- @field path? string Optional directory to search in
+
+--- @class WebFetchToolInput
+--- @field url string The URL to fetch content from
+--- @field format 'text'|'markdown'|'html'
 
 --- @class MessagePart
---- @field type 'text'|'tool-invocation'|'step-start' Type of the message part
+--- @field type 'text'|'tool'|'step-start' Type of the message part
 --- @field text string|nil Text content for text parts
---- @field toolInvocation MessageToolInvocation|nil Tool invocation data
+--- @field id string|nil Unique identifier for tool use parts
+--- @field tool string|nil Name of the tool being used
+--- @field state MessagePartState|nil State information for tool use parts
 
---- @class MessageMetadata
---- @field snapshot string Git snapshot ID
---- @field time { created: number, completed: number } Timestamps
---- @field sessionID string Session identifier
---- @field tool table<string, table> Tool-specific metadata
+--- @class MessageTokenCount
+--- @field reasoning number
+--- @field input number
+--- @field output number
+--- @field cache { write: number, read: number }
 
 --- @class Message
 --- @field id string Unique message identifier
---- @field role 'user'|'assistant'|'system' Role of the message sender
+--- @field sessionID string Unique session identifier
+--- @field tokens MessageTokenCount Token usage statistics
 --- @field parts MessagePart[] Array of message parts
---- @field metadata MessageMetadata Message metadata
+--- @field system string[] System messages
+--- @field time { created: number, completed: number } Timestamps
+--- @field cost number Cost of the message
+--- @field path { cwd: string, root: string } Working directory paths
+--- @field modelID string Model identifier
+--- @field providerID string Provider identifier
+--- @field role 'user'|'assistant'|'system' Role of the message sender
+--- @field system_role string|nil Role defined in system messages
+--- @field error table

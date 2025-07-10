@@ -14,6 +14,8 @@ M.separator = {
   '',
 }
 
+---@param session string|nil Session ID
+---@return string[]|nil Formatted session lines
 function M.format_session(session)
   if not session or session == '' then
     return nil
@@ -56,6 +58,8 @@ function M.format_session(session)
   return M.output:get_lines()
 end
 
+---@param line number Buffer line number
+---@return {message: Message, part: MessagePart, type: string, msg_idx: number, part_idx: number}|nil
 function M.get_message_at_line(line)
   for i = line, 1, -1 do
     local metadata = M.output:get_metadata(i)
@@ -73,15 +77,18 @@ function M.get_message_at_line(line)
   end
 end
 
+---@return string[] Lines from the current output
 function M.get_lines()
   return M.output:get_lines()
 end
 
+---@param message Message
 function M._format_error(message)
   M.output:add_empty_line()
-  M._format_callout('ERROR', message.error.data.message, message.error.name)
+  M._format_callout('ERROR', vim.inspect(message.error))
 end
 
+---@param message Message
 function M._format_message_header(message)
   local role = message.role or 'unknown'
   local icon = message.role == 'user' and '▌💬' or '🤖'
@@ -105,6 +112,7 @@ function M._format_message_header(message)
   M.output:add_line('')
 end
 
+---@param callout string Callout type (e.g., 'ERROR', 'TODO')
 function M._format_callout(callout, text, title)
   title = title and title .. ' ' or ''
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
@@ -122,6 +130,7 @@ function M._format_callout(callout, text, title)
   end
 end
 
+---@param text string
 function M._format_user_message(text)
   local context = context_module.extract_from_message(text)
   local start_line = M.output:get_line_count() - 1
@@ -153,6 +162,7 @@ function M._format_assistant_message(text)
   M.output:add_lines(vim.split(text, '\n'))
 end
 
+---@param type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 function M._format_action(type, value)
   if not type or not value then
     return
@@ -162,6 +172,8 @@ function M._format_action(type, value)
   M.output:add_line(formatted_action)
 end
 
+---@param input BashToolInput data for the tool
+---@param metadata BashToolMetadata Metadata for the tool use
 function M._format_bash_tool(input, metadata)
   M._format_action('💻 run', input and input.description)
   if metadata.stdout then
@@ -169,6 +181,9 @@ function M._format_bash_tool(input, metadata)
   end
 end
 
+---@param tool_type string Tool type (e.g., 'read', 'edit', 'write')
+---@param input FileToolInput data for the tool
+---@param metadata FileToolMetadata Metadata for the tool use
 function M._format_file_tool(tool_type, input, metadata)
   local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
   local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
@@ -187,28 +202,34 @@ function M._format_file_tool(tool_type, input, metadata)
   end
 end
 
-function M._format_todo_tool(part)
-  M._format_action('📃 plan', (part.state.title or ''))
+---@param title string
+---@param input TodoToolInput
+function M._format_todo_tool(title, input)
+  M._format_action('📃 plan', (title or ''))
   M.output:add_empty_line()
 
-  local todos = part.state and part.state.input and part.state.input.todos
+  local todos = input and input.todos or {}
 
-  for _, item in ipairs(todos or {}) do
+  for _, item in ipairs(todos) do
     local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
     M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
   end
 end
 
+---@param input GlobToolInput data for the tool
+---@param metadata GlobToolMetadata Metadata for the tool use
 function M._format_glob_tool(input, metadata)
   M._format_action('🔍 glob', input and input.pattern)
   local prefix = metadata.truncated and ' more than' or ''
   M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
 end
 
+---@param input WebFetchToolInput data for the tool
 function M._format_webfetch_tool(input)
   M._format_action('🌐 fetch', input and input.url)
 end
 
+---@param part MessagePart
 function M._format_tool(part)
   M.output:add_empty_line()
   local tool = part.tool
@@ -221,21 +242,21 @@ function M._format_tool(part)
   local metadata = part.state.metadata or {}
 
   if tool == 'bash' then
-    M._format_bash_tool(input, metadata)
+    M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
-    M._format_file_tool(tool, input, metadata)
+    M._format_file_tool(tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]])
   elseif tool == 'todowrite' then
-    M._format_todo_tool(part)
+    M._format_todo_tool(part.state.title, input --[[@as TodoToolInput]])
   elseif tool == 'glob' then
-    M._format_glob_tool(input, metadata)
+    M._format_glob_tool(input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]])
   elseif tool == 'webfetch' then
-    M._format_webfetch_tool(input)
+    M._format_webfetch_tool(input --[[@as WebFetchToolInput]])
   else
     M._format_action('🔧 tool', tool)
   end
 
-  if metadata.error then
-    M._format_callout('ERROR', metadata.message)
+  if part.state and part.state.status == 'error' then
+    M._format_callout('ERROR', part.state.error)
   end
 
   M.output:add_empty_line()
@@ -292,6 +313,9 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col)
   end
 end
 
+---@param lines string[] Lines to wrap in a block
+---@param top string Top border text
+---@param bottom? string Bottom border text (defaults to top)
 function M.wrap_block(lines, top, bottom)
   M.output:add_empty_line()
   M.output:add_line(top)

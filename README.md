@@ -105,6 +105,7 @@ require('opencode').setup({
       next_prompt_history = '<down>'       -- Navigate to next prompt in history
       focus_input = '<C-i>',               -- Focus on input window and enter insert mode at the end of the input from the output window
       debug_messages = '<leader>oD',       -- Open raw message in new buffer for debugging
+      debug_output = '<leader>oO',         -- Open raw output in new buffer for debugging
     }
   },
   ui = {

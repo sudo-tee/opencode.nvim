@@ -36,6 +36,7 @@ M.defaults = {
       diff_close = '<leader>oc',
       diff_revert_all = '<leader>ora',
       diff_revert_this = '<leader>ort',
+      open_configuration_file = '<leader>oc',
     },
     window = {
       submit = '<cr>',
@@ -50,6 +51,7 @@ M.defaults = {
       next_prompt_history = '<down>',
       focus_input = '<C-i>',
       debug_message = '<leader>oD',
+      debug_output = '<leader>oO',
     },
   },
   ui = {

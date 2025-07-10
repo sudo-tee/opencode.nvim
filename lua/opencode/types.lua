@@ -29,6 +29,7 @@
 --- @field next_prompt_history string
 --- @field focus_input string
 --- @field debug_message string
+--- @field debug_output string
 
 --- @class OpencodeKeymap
 --- @field global OpencodeKeymapGlobal

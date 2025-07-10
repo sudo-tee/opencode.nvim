@@ -313,7 +313,7 @@ function M.setup_keymaps(windows)
   )
 
   if config.debug.enabled then
-    vim.keymap.set({ 'n', 'i' }, '<leader>aO', function()
+    vim.keymap.set({ 'n', 'i' }, window_keymap.debug_output, function()
       local session_formatter = require('opencode.ui.session_formatter')
       local lines = session_formatter:get_lines()
 

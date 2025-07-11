@@ -81,6 +81,10 @@ local function get_session_desc()
 end
 
 function M.render()
+  if not state.windows then
+    return
+  end
+
   local win = state.windows.output_win
 
   vim.schedule(function()

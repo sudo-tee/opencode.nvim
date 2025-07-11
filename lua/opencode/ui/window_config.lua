@@ -313,8 +313,7 @@ function M.setup_keymaps(windows)
   )
 
   vim.keymap.set({ 'n', 'i' }, window_keymap.switch_mode, function()
-    state.current_mode = state.current_mode == 'build' and 'plan' or 'build'
-    require('opencode.ui.topbar').render()
+    api.switch_to_next_mode()
   end, { buffer = windows.input_buf, silent = true })
 
   if config.debug.enabled then

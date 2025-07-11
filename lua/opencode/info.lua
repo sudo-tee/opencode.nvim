@@ -19,6 +19,26 @@ function M.parse_opencode_config()
   return json
 end
 
+function M.get_opencode_modes()
+  local config = M.parse_opencode_config()
+  if not config then
+    return {}
+  end
+
+  local modes = {}
+  for mode, _ in pairs(config.mode or {}) do
+    table.insert(modes, mode)
+  end
+
+  for _, mode in ipairs({ 'build', 'plan' }) do
+    if not vim.tbl_contains(modes, mode) then
+      table.insert(modes, mode)
+    end
+  end
+
+  return modes
+end
+
 ---@param provider string
 ---@param model string
 function M.set_provider(provider, model)

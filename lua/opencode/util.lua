@@ -167,4 +167,13 @@ function M.time_ago(timestamp)
   end
 end
 
+function M.index_of(tbl, value)
+  for i, v in ipairs(tbl) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
 return M

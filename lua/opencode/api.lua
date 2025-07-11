@@ -1,4 +1,5 @@
 local core = require('opencode.core')
+local util = require('opencode.util')
 
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
@@ -162,14 +163,44 @@ function M.open_configuration_file()
   end
 end
 
-function M.opencode_mode_plan()
+function M.mode_plan()
   state.current_mode = 'plan'
   require('opencode.ui.topbar').render()
 end
 
-function M.opencode_mode_build()
-  require('opencode.ui.topbar').render()
+function M.mode_build()
   state.current_mode = 'build'
+  require('opencode.ui.topbar').render()
+end
+
+function M.select_mode()
+  local modes = require('opencode.info').get_opencode_modes()
+  vim.ui.select(modes, {
+    prompt = 'Select mode:',
+  }, function(selection)
+    if not selection then
+      return
+    end
+
+    state.current_mode = selection
+    require('opencode.ui.topbar').render()
+  end)
+end
+
+function M.switch_to_next_mode()
+  local modes = require('opencode.info').get_opencode_modes()
+
+  local current_index = util.index_of(modes, state.current_mode)
+
+  if current_index == -1 then
+    current_index = 0
+  end
+
+  -- Calculate next index, wrapping around if necessary
+  local next_index = (current_index % #modes) + 1
+
+  state.current_mode = modes[next_index]
+  require('opencode.ui.topbar').render()
 end
 
 function M.help()
@@ -394,7 +425,7 @@ M.commands = {
     name = 'OpencodeModePlan',
     desc = 'Set opencode mode to `plan`. (Tool calling disabled. No editor context besides selections)',
     fn = function()
-      M.opencode_mode_plan()
+      M.mode_plan()
     end,
   },
 
@@ -402,7 +433,14 @@ M.commands = {
     name = 'OpencodeModeBuild',
     desc = 'Set opencode mode to `build`. (Default mode with full agent capabilities)',
     fn = function()
-      M.opencode_mode_build()
+      M.mode_build()
+    end,
+  },
+  open_code_select_mode = {
+    name = 'OpencodeModeSelect',
+    desc = 'Select opencode mode',
+    fn = function()
+      M.select_mode()
     end,
   },
 }

@@ -154,6 +154,9 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Run prompt (new session)                         | -              | `:OpencodeRunNewSession <prompt>` | `require('opencode.api').run_new_session("prompt")` |
 | Open config file                                 | -              | `:OpencodeConfigFile`             | `require('opencode.api').open_configuration_file()` |
 | Stop opencode while it is running                | `<C-c>`        | `:OpencodeStop`                   | `require('opencode.api').stop()`                    |
+| Set mode to Build                                | -              | `:OpencodeModeBuild`             | `require('opencode.api').mode_build()`              |
+| Set mode to Plan                                 | -              | `:OpencodeModePlan`              | `require('opencode.api').mode_plan()`               |
+| Select and switch mode                           | -              | `:OpencodeModeSelect`            | `require('opencode.api').select_mode()`             |
 | [Pick a file and add to context](#file-mentions) | `@`            | -                                 | -                                                   |
 | Navigate to next message                         | `]]`           | -                                 | -                                                   |
 | Navigate to previous message                     | `[[`           | -                                 | -                                                   |

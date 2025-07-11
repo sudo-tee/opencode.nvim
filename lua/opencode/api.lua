@@ -152,7 +152,7 @@ end
 function M.open_configuration_file()
   local config_path = require('opencode.info').config_file
   if vim.fn.filereadable(config_path) == 1 then
-    if state.windows then
+    if ui.is_opencode_focused() then
       vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
     end
 

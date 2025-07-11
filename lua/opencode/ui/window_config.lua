@@ -316,40 +316,14 @@ function M.setup_keymaps(windows)
     api.switch_to_next_mode()
   end, { buffer = windows.input_buf, silent = true })
 
+  vim.keymap.set({ 'n' }, window_keymap.switch_mode, function()
+    api.switch_to_next_mode()
+  end, { buffer = windows.output_buf, silent = true })
+
   if config.debug.enabled then
-    vim.keymap.set({ 'n', 'i' }, window_keymap.debug_output, function()
-      local session_formatter = require('opencode.ui.session_formatter')
-      local lines = session_formatter:get_lines()
-
-      local tmpfile = vim.fn.tempname() .. '.json'
-      local json_str = vim.json.encode(lines)
-
-      vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
-      vim.fn.writefile(vim.split(json_str, '\n'), tmpfile)
-
-      vim.cmd('e ' .. tmpfile)
-      if vim.fn.executable('jq') == 1 then
-        vim.cmd('silent! %!jq .')
-        vim.cmd('silent! w')
-      end
-    end, { buffer = windows.output_buf, silent = true })
-    vim.keymap.set({ 'n', 'i' }, window_keymap.debug_message, function()
-      local session_formatter = require('opencode.ui.session_formatter')
-      local current_line = vim.api.nvim_win_get_cursor(windows.output_win)[1]
-      local metadata = session_formatter.get_message_at_line(current_line)
-
-      local tmpfile = vim.fn.tempname() .. '.json'
-      local json_str = vim.json.encode(metadata.message)
-
-      vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
-      vim.fn.writefile(vim.split(json_str, '\n'), tmpfile)
-
-      vim.cmd('e ' .. tmpfile)
-      if vim.fn.executable('jq') == 1 then
-        vim.cmd('silent! %!jq .')
-        vim.cmd('silent! w')
-      end
-    end, { buffer = windows.output_buf, silent = true })
+    local debug_helper = require('opencode.ui.debug_helper')
+    vim.keymap.set({ 'n' }, window_keymap.debug_output, function() debug_helper.debug_output(windows) end, { buffer = windows.output_buf, silent = true })
+    vim.keymap.set({ 'n' }, window_keymap.debug_message, function() debug_helper.debug_message(windows) end, { buffer = windows.output_buf, silent = true })
   end
 end
 

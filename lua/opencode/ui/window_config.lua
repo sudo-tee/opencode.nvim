@@ -312,6 +312,11 @@ function M.setup_keymaps(windows)
     { buffer = windows.input_buf, silent = true }
   )
 
+  vim.keymap.set({ 'n', 'i' }, window_keymap.switch_mode, function()
+    state.current_mode = state.current_mode == 'build' and 'plan' or 'build'
+    require('opencode.ui.topbar').render()
+  end, { buffer = windows.input_buf, silent = true })
+
   if config.debug.enabled then
     vim.keymap.set({ 'n', 'i' }, window_keymap.debug_output, function()
       local session_formatter = require('opencode.ui.session_formatter')

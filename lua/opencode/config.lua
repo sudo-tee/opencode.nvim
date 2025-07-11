@@ -19,6 +19,7 @@ local M = {} ---@type OpencodeConfigModule
 M.defaults = {
   prefered_picker = nil,
   default_global_keymaps = true,
+  default_mode = 'build',
   keymap = {
     global = {
       toggle = '<leader>og',
@@ -49,6 +50,7 @@ M.defaults = {
       toggle_pane = '<tab>',
       prev_prompt_history = '<up>',
       next_prompt_history = '<down>',
+      switch_mode = '<M-m>',
       focus_input = '<C-i>',
       debug_message = '<leader>oD',
       debug_output = '<leader>oO',
@@ -63,13 +65,6 @@ M.defaults = {
     floating_height = 0.8,
     display_model = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
-  },
-  output = {
-    tools = {
-      edit = {
-        display = 'diff',
-      },
-    },
   },
   context = {
     cursor_data = false,

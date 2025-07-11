@@ -162,6 +162,16 @@ function M.open_configuration_file()
   end
 end
 
+function M.opencode_mode_plan()
+  state.current_mode = 'plan'
+  require('opencode.ui.topbar').render()
+end
+
+function M.opencode_mode_build()
+  require('opencode.ui.topbar').render()
+  state.current_mode = 'build'
+end
+
 function M.help()
   state.display_route = '/help'
 
@@ -377,6 +387,22 @@ M.commands = {
     desc = 'Open opencode configuration file',
     fn = function()
       M.open_configuration_file()
+    end,
+  },
+
+  opencode_mode_plan = {
+    name = 'OpencodeModePlan',
+    desc = 'Set opencode mode to `plan`. (Tool calling disabled. No editor context besides selections)',
+    fn = function()
+      M.opencode_mode_plan()
+    end,
+  },
+
+  opencode_mode_build = {
+    name = 'OpencodeModeBuild',
+    desc = 'Set opencode mode to `build`. (Default mode with full agent capabilities)',
+    fn = function()
+      M.opencode_mode_build()
     end,
   },
 }

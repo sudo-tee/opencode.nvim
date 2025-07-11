@@ -20,17 +20,32 @@ local function format_model_info()
   return table.concat(parts, ' ')
 end
 
-local function create_winbar_text(description, model_info, win_width)
+local function format_mode_info()
+  return ' ' .. state.current_mode:upper() .. ' '
+end
+
+local function get_mode_highlight()
+  local mode = state.current_mode:lower()
+  if mode == 'build' then
+    return '%#OpencodeModeBuild#'
+  elseif mode == 'plan' then
+    return '%#OpencodeModePlan#'
+  else
+    return '%#OpencodeModeCustom#'
+  end
+end
+
+local function create_winbar_text(description, model_info, mode_info, win_width)
   local available_width = win_width - 2 -- 2 padding spaces
 
   -- If total length exceeds available width, truncate description
-  if #description + 1 + #model_info > available_width then
-    local space_for_desc = available_width - #model_info - 4 -- -4 for "... "
+  if #description + 1 + #model_info + #mode_info + 1 > available_width then
+    local space_for_desc = available_width - (#model_info + #mode_info + 1) - 4 -- -4 for "... "
     description = description:sub(1, space_for_desc) .. '... '
   end
 
-  local padding = string.rep(' ', available_width - #description - #model_info)
-  return string.format(' %s%s%s ', description, padding, model_info)
+  local padding = string.rep(' ', available_width - #description - #model_info - #mode_info - 1)
+  return string.format(' %s%s%s %s ', description, padding, model_info, get_mode_highlight() .. mode_info .. '%*')
 end
 
 local function update_winbar_highlights(win_id)
@@ -69,7 +84,8 @@ function M.render()
   local win = state.windows.output_win
 
   vim.schedule(function()
-    vim.wo[win].winbar = create_winbar_text(get_session_desc(), format_model_info(), vim.api.nvim_win_get_width(win))
+    vim.wo[win].winbar =
+      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
 
     update_winbar_highlights(win)
   end)

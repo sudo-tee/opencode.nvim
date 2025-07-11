@@ -144,10 +144,10 @@ function M.configure_provider()
 
     if state.windows then
       require('opencode.ui.topbar').render()
+      ui.focus_input()
     else
       vim.notify('Changed provider to ' .. selection.display, vim.log.levels.INFO)
     end
-    ui.focus_input()
   end)
 end
 

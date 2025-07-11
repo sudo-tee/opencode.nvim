@@ -30,7 +30,7 @@
 --- @field focus_input string
 --- @field debug_message string
 --- @field debug_output string
-
+--- @field switch_mode string
 --- @class OpencodeKeymap
 --- @field global OpencodeKeymapGlobal
 --- @field window OpencodeKeymapWindow
@@ -57,6 +57,7 @@
 --- @class OpencodeConfig
 --- @field prefered_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
 --- @field default_global_keymaps boolean
+--- @field default_mode 'build' | 'plan' | string -- Default mode
 --- @field keymap OpencodeKeymap
 --- @field ui OpencodeUIConfig
 --- @field providers OpencodeProviders

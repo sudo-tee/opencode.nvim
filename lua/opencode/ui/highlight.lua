@@ -10,6 +10,9 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'OpencodeMessageRoleUser', { link = 'Question' })
   vim.api.nvim_set_hl(0, 'OpencodeDiffAdd', { bg = '#2B3328' })
   vim.api.nvim_set_hl(0, 'OpencodeDiffDelete', { bg = '#43242B' })
+  vim.api.nvim_set_hl(0, 'OpencodeModePlan', { bg = '#61AFEF', fg = '#FFFFFF', bold = true })
+  vim.api.nvim_set_hl(0, 'OpencodeModeBuild', { bg = '#616161', fg = '#FFFFFF', bold = true })
+  vim.api.nvim_set_hl(0, 'OpencodeModeCustom', { bg = '#3b4261', fg = '#FFFFFF', bold = true })
 end
 
 return M

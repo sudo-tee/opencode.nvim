@@ -18,6 +18,12 @@ function M.build_args(prompt)
     table.insert(args, '-s')
     table.insert(args, state.active_session.name)
   end
+
+  if state.current_mode then
+    table.insert(args, '--mode')
+    table.insert(args, state.current_mode)
+  end
+
   return args
 end
 

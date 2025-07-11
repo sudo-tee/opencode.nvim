@@ -74,6 +74,7 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 require('opencode').setup({
   prefered_picker = nil,                     -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
   default_global_keymaps = true,             -- If false, disables all default global keymaps
+  default_mode = 'build',                    -- 'build' or 'plan' or any custom configured. @see [OpenCode Modes](https://opencode.ai/docs/modes/)
   keymap = {
     global = {
       toggle = '<leader>oa',                 -- Open opencode. Close if opened
@@ -102,7 +103,8 @@ require('opencode').setup({
       mention_file = '@',                  -- Pick a file and add to context. See File Mentions section
       toggle_pane = '<tab>',               -- Toggle between input and output panes
       prev_prompt_history = '<up>',        -- Navigate to previous prompt in history
-      next_prompt_history = '<down>'       -- Navigate to next prompt in history
+      next_prompt_history = '<down>',      -- Navigate to next prompt in history
+      switch_mode = '<M-m>',               -- Switch between modes (build/plan)
       focus_input = '<C-i>',               -- Focus on input window and enter insert mode at the end of the input from the output window
       debug_messages = '<leader>oD',       -- Open raw message in new buffer for debugging
       debug_output = '<leader>oO',         -- Open raw output in new buffer for debugging
@@ -177,6 +179,30 @@ The following editor context is automatically captured and included in your conv
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
+## 🔄 Modes
+
+Opencode provides two built-in modes and supports custom ones:
+
+### Built-in Modes
+
+- **Build** (default): Full development mode with all tools enabled for making code changes
+- **Plan**: Restricted mode for planning and analysis without making file changes. Useful for code review and understanding code without modifications
+
+### Switching Modes
+
+Press `<M-m>` (Alt+M) in the input window to switch between modes during a session.
+
+### Custom Modes
+
+You can create custom modes through your opencode config file. Each mode can have its own:
+
+- Model configuration
+- Custom prompt
+- Enabled/disabled tools
+- And more
+
+See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full configuration options.
+
 ### Highlight Groups
 
 The plugin defines several highlight groups that can be customized to match your colorscheme:
@@ -190,6 +216,9 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeMessageRoleUser`: User message highlight (linked to `Question`)
 - `OpencodeDiffAdd`: Highlight for added line in diffs (default: #2B3328)
 - `OpencodeDiffDelete`: Highlight for deleted line in diffs (default: #43242B)
+- `OpencodeModePlan`: Mode indicator in winbar for Plan mode (default: #61AFEF background)
+- `OpencodeModeBuild`: Mode indicator in winbar for Build mode (default: #616161 background)
+- `OpencodeModeCustom`: Mode indicator in winbar for custom modes (default: #3b4261 background)
 
 ## 🔧 Setting up Opencode
 

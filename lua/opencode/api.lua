@@ -413,7 +413,7 @@ M.commands = {
       M.help()
     end,
   },
-  config = {
+  open_configuration_file = {
     name = 'OpencodeConfigFile',
     desc = 'Open opencode configuration file',
     fn = function()

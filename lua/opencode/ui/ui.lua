@@ -46,8 +46,9 @@ end
 function M.setup_buffers()
   local input_buf = vim.api.nvim_create_buf(false, true)
   local output_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(input_buf, 'filetype', 'opencode_input')
-  vim.api.nvim_buf_set_option(output_buf, 'filetype', 'opencode_output')
+
+  vim.api.nvim_set_option_value('filetype', 'opencode_input', { buf = input_buf })
+  vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
   return { input_buf = input_buf, output_buf = output_buf }
 end
 
@@ -173,9 +174,9 @@ function M.clear_output()
   }
 
   -- Clear all buffer content
-  vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', true)
+  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, {})
-  vim.api.nvim_buf_set_option(windows.output_buf, 'modifiable', false)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 
   require('opencode.ui.topbar').render()
   renderer.render_markdown()

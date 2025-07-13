@@ -49,7 +49,7 @@ local function create_winbar_text(description, model_info, mode_info, win_width)
 end
 
 local function update_winbar_highlights(win_id)
-  local current = vim.api.nvim_win_get_option(win_id, 'winhighlight')
+  local current = vim.api.nvim_get_option_value('winhighlight', { win = win_id })
   local parts = vim.split(current, ',')
 
   -- Remove any existing winbar highlights
@@ -64,7 +64,7 @@ local function update_winbar_highlights(win_id)
   table.insert(parts, 'WinBar:OpencodeSessionDescription')
   table.insert(parts, 'WinBarNC:OpencodeSessionDescription')
 
-  vim.api.nvim_win_set_option(win_id, 'winhighlight', table.concat(parts, ','))
+  vim.api.nvim_set_option_value('winhighlight', table.concat(parts, ','), { win = win_id })
 end
 
 local function get_session_desc()

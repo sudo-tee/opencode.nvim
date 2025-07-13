@@ -4,6 +4,8 @@ local INPUT_PLACEHOLDER = 'Plan, search, ask, / for custom commands'
 local config = require('opencode.config').get()
 local state = require('opencode.state')
 local ui_util = require('opencode.ui.util')
+local ui = require('opencode.ui.ui')
+local api = require('opencode.api')
 
 M.floating_win_opts = {
   relative = 'editor',
@@ -218,7 +220,8 @@ function M.setup_after_actions(windows)
   recover_input(windows)
 end
 
-local function handle_submit(windows)
+local function handle_submit()
+  local windows = state.windows
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
   vim.api.nvim_exec_autocmds('TextChanged', {
@@ -238,92 +241,45 @@ local function handle_submit(windows)
 end
 
 function M.setup_keymaps(windows)
-  local window_keymap = config.keymap.window
-  local api = require('opencode.api')
+  local map = require('opencode.keymap').buf_keymap
+  local nav = require('opencode.ui.navigation')
+  local core = require('opencode.core')
 
-  vim.keymap.set({ 'n' }, window_keymap.submit, function()
-    handle_submit(windows)
-  end, { buffer = windows.input_buf, silent = false })
+  local keymaps = config.keymap.window
+  local input_buf = windows.input_buf
+  local output_buf = windows.output_buf
+  local both_bufs = { input_buf, output_buf }
+  local nav_history = ui_util.navigate_history
 
-  vim.keymap.set({ 'i' }, window_keymap.submit_insert, function()
-    handle_submit(windows)
-  end, { buffer = windows.input_buf, silent = false })
+  -- Submit handlers
+  map(keymaps.submit, handle_submit, input_buf, 'n')
+  map(keymaps.submit_insert, handle_submit, input_buf, 'i')
 
-  vim.keymap.set('n', window_keymap.close, function()
-    api.close()
-  end, { buffer = windows.input_buf, silent = true })
+  -- Close handlers
+  map(keymaps.close, api.close, both_bufs, 'n')
 
-  vim.keymap.set('n', window_keymap.close, function()
-    api.close()
-  end, { buffer = windows.output_buf, silent = true })
+  -- Message navigation
+  map(keymaps.next_message, nav.goto_next_message, both_bufs, 'n')
+  map(keymaps.prev_message, nav.goto_prev_message, both_bufs, 'n')
 
-  vim.keymap.set('n', window_keymap.next_message, function()
-    require('opencode.ui.navigation').goto_next_message()
-  end, { buffer = windows.output_buf, silent = true })
+  map(keymaps.stop, api.stop, both_bufs, { 'n', 'i' })
 
-  vim.keymap.set('n', window_keymap.prev_message, function()
-    require('opencode.ui.navigation').goto_prev_message()
-  end, { buffer = windows.output_buf, silent = true })
+  map(keymaps.mention_file, core.add_file_to_context, input_buf, 'i')
 
-  vim.keymap.set('n', window_keymap.next_message, function()
-    require('opencode.ui.navigation').goto_next_message()
-  end, { buffer = windows.input_buf, silent = true })
+  map(keymaps.toggle_pane, api.toggle_pane, both_bufs, { 'n', 'i' })
 
-  vim.keymap.set('n', window_keymap.prev_message, function()
-    require('opencode.ui.navigation').goto_prev_message()
-  end, { buffer = windows.input_buf, silent = true })
+  map(keymaps.focus_input, ui.focus_input, output_buf, 'n')
 
-  vim.keymap.set({ 'n', 'i' }, window_keymap.stop, function()
-    api.stop()
-  end, { buffer = windows.output_buf, silent = true })
+  map(keymaps.prev_prompt_history, nav_history(keymaps.prev_prompt_history, 'prev'), input_buf, { 'n', 'i' })
+  map(keymaps.next_prompt_history, nav_history(keymaps.next_prompt_history, 'next'), input_buf, { 'n', 'i' })
 
-  vim.keymap.set({ 'n', 'i' }, window_keymap.stop, function()
-    api.stop()
-  end, { buffer = windows.input_buf, silent = true })
-
-  vim.keymap.set('i', window_keymap.mention_file, function()
-    require('opencode.core').add_file_to_context()
-  end, { buffer = windows.input_buf, silent = true })
-
-  vim.keymap.set({ 'n', 'i' }, window_keymap.toggle_pane, function()
-    api.toggle_pane()
-  end, { buffer = windows.input_buf, silent = true })
-
-  vim.keymap.set({ 'n', 'i' }, window_keymap.toggle_pane, function()
-    api.toggle_pane()
-  end, { buffer = windows.output_buf, silent = true })
-
-  vim.keymap.set({ 'n' }, window_keymap.focus_input, function()
-    api.toggle_pane()
-    vim.api.nvim_feedkeys('Ga', 'n', true)
-  end, { buffer = windows.output_buf, silent = true })
-
-  vim.keymap.set(
-    { 'n', 'i' },
-    window_keymap.prev_prompt_history,
-    ui_util.navigate_history('prev', window_keymap.prev_prompt_history, api.prev_history, api.next_history),
-    { buffer = windows.input_buf, silent = true }
-  )
-
-  vim.keymap.set(
-    { 'n', 'i' },
-    window_keymap.next_prompt_history,
-    ui_util.navigate_history('next', window_keymap.next_prompt_history, api.prev_history, api.next_history),
-    { buffer = windows.input_buf, silent = true }
-  )
-
-  vim.keymap.set({ 'n', 'i' }, window_keymap.switch_mode, function()
-    api.switch_to_next_mode()
-  end, { buffer = windows.input_buf, silent = true })
-
-  vim.keymap.set({ 'n' }, window_keymap.switch_mode, function()
-    api.switch_to_next_mode()
-  end, { buffer = windows.output_buf, silent = true })
+  map(keymaps.switch_mode, api.switch_to_next_mode, input_buf, { 'n', 'i' })
+  map(keymaps.switch_mode, api.switch_to_next_mode, output_buf, 'n')
 
   if config.debug.enabled then
     local debug_helper = require('opencode.ui.debug_helper')
-    vim.keymap.set({ 'n' }, window_keymap.debug_output, function() debug_helper.debug_output(windows) end, { buffer = windows.output_buf, silent = true })
-    vim.keymap.set({ 'n' }, window_keymap.debug_message, function() debug_helper.debug_message(windows) end, { buffer = windows.output_buf, silent = true })
+    map(keymaps.debug_output, debug_helper.debug_output, output_buf, 'n')
+    map(keymaps.debug_message, debug_helper.debug_message, output_buf, 'n')
   end
 end
 

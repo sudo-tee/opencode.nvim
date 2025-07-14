@@ -186,12 +186,13 @@ The plugin provides the following actions that can be triggered via keymaps, com
 
 The following editor context is automatically captured and included in your conversations.
 
-| Context Type    | Description                                        |
-| --------------- | -------------------------------------------------- |
-| Current file    | Path to the focused file before entering opencode  |
-| Selected text   | Text and lines currently selected in visual mode   |
-| Mentioned files | File info added through [mentions](#file-mentions) |
-| Diagnostics     | Error diagnostics from the current file (if any)   |
+| Context Type    | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| Current file    | Path to the focused file before entering opencode    |
+| Selected text   | Text and lines currently selected in visual mode     |
+| Mentioned files | File info added through [mentions](#file-mentions)   |
+| Diagnostics     | Diagnostics from the current file (if any)           |
+| Cursor position | Current cursor position and line content in the file |
 
 <a id="file-mentions"></a>
 

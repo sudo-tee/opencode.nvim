@@ -15,20 +15,17 @@ function Output.new()
   return self
 end
 
----Add a new line with optional metadata
+---Add a new line
 ---@param line string
----@param metadata? table
 ---@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
-function Output:add_line(line, metadata, fit)
+function Output:add_line(line, fit)
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
   if fit and #line > win_width then
     line = vim.fn.strcharpart(line, 0, win_width - 7) .. '...'
   end
   table.insert(self.lines, line)
-  local idx = #self.lines
-  self.metadata[idx] = metadata
-  return idx
+  return #self.lines
 end
 
 ---Get line by index
@@ -40,7 +37,7 @@ end
 
 ---Get metadata for line
 ---@param idx number
----@return table?
+---@return OutputMetadata|nil
 function Output:get_metadata(idx)
   if not self.metadata[idx] then
     return nil
@@ -49,7 +46,7 @@ function Output:get_metadata(idx)
 end
 
 ---Get metadata for all lines
----@return table
+---@return OutputMetadata[]
 function Output:get_all_metadata()
   return vim.deepcopy(self.metadata or {})
 end
@@ -63,35 +60,33 @@ function Output:merge_line(idx, text)
   end
 end
 
----Add multiple lines with the same metadata
+---Add multiple lines
 ---@param lines string[]
----@param metadata? table
 ---@param prefix? string Optional prefix for each line
-function Output:add_lines(lines, metadata, prefix)
+function Output:add_lines(lines, prefix)
   for _, line in ipairs(lines) do
     prefix = prefix or ''
 
     if line == '' then
-      self:add_empty_line(metadata)
+      self:add_empty_line()
     else
-      self:add_line(prefix .. line, metadata)
+      self:add_line(prefix .. line)
     end
   end
 end
 
 ---Add an empty line if the last line is not empty
----@param metadata? table
 ---@return number? index The index of the added line, or nil if no line was added
-function Output:add_empty_line(metadata)
+function Output:add_empty_line()
   local last_line = self.lines[#self.lines]
   if not last_line or last_line ~= '' then
-    return self:add_line('', metadata)
+    return self:add_line('')
   end
   return nil
 end
 
 ---Add metadata to the last line
----@param metadata table
+---@param metadata OutputMetadata
 ---@return number? index The index of the last line, or nil if no lines exist
 function Output:add_metadata(metadata)
   if #self.lines == 0 then
@@ -123,7 +118,7 @@ end
 
 ---Add an extmark for a specific line
 ---@param idx number The line index
----@param extmark table The extmark data {virt_text = {...}, virt_text_pos = '...', etc}
+---@param extmark OutputExtmark The extmark data {virt_text = {...}, virt_text_pos = '...', etc}
 function Output:add_extmark(idx, extmark)
   if not self.extmarks[idx] then
     self.extmarks[idx] = {}

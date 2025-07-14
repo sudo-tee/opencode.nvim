@@ -75,14 +75,20 @@
 --- @field error? string Error message if the part failed
 
 --- @class ToolMetadataBase
---- @field error boolean|nil
---- @field message string|nil
+--- @field error boolean|nil Whether the tool execution resulted in an error
+--- @field message string|nil Optional status or error message
+
+--- @class WebFetchToolMetadata: ToolMetadataBase
+--- @field http_status number|nil HTTP response status code
+--- @field content_type string|nil Content type of the response
 
 --- @class BashToolMetadata: ToolMetadataBase
 --- @field stdout string|nil
 
 --- @class FileToolMetadata: ToolMetadataBase
---- @field diff string|nil
+--- @field diff string|nil The diff of changes made to the file
+--- @field file_type string|nil Detected file type/extension
+--- @field line_count number|nil Number of lines in the file
 
 --- @class GlobToolMetadata: ToolMetadataBase
 --- @field truncated boolean|nil
@@ -106,6 +112,7 @@
 --- @class WebFetchToolInput
 --- @field url string The URL to fetch content from
 --- @field format 'text'|'markdown'|'html'
+--- @field timeout? number Optional timeout in seconds (max 120)
 
 --- @class MessagePart
 --- @field type 'text'|'tool'|'step-start' Type of the message part
@@ -119,6 +126,14 @@
 --- @field input number
 --- @field output number
 --- @field cache { write: number, read: number }
+
+---@class OutputMetadata
+---@field msg_idx number|nil Message index in session
+---@field part_idx number|nil Part index in message
+---@field role 'user'|'assistant'|'system'|nil Message role
+---@field type 'text'|'tool'|'header'|nil Message part type
+
+---@alias OutputExtmark vim.api.keyset.set_extmark
 
 --- @class Message
 --- @field id string Unique message identifier

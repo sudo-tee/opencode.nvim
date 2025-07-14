@@ -131,7 +131,7 @@ function M._format_callout(callout, text, title)
   else
     M.output:add_line('> [!' .. callout .. ']' .. title)
     M.output:add_line('>')
-    M.output:add_lines(lines, nil, '> ')
+    M.output:add_lines(lines, '> ')
   end
 end
 
@@ -141,10 +141,10 @@ function M._format_user_message(text)
   local start_line = M.output:get_line_count() - 1
 
   M.output:add_empty_line()
-  M.output:add_lines(vim.split(context.prompt, '\n'), nil)
+  M.output:add_lines(vim.split(context.prompt, '\n'))
 
   if context.selected_text then
-    M.output:add_lines(vim.split(context.selected_text, '\n'), nil)
+    M.output:add_lines(vim.split(context.selected_text, '\n'))
   end
 
   if context.current_file then
@@ -212,7 +212,7 @@ function M._format_todo_tool(title, input)
 
   for _, item in ipairs(todos) do
     local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
-    M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), nil, true)
+    M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), true)
   end
 end
 

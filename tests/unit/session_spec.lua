@@ -26,7 +26,8 @@ describe('opencode.session', function()
     original_readfile = vim.fn.readfile
     original_fs_dir = vim.fs.dir
     original_workspace = vim.fn.getcwd
-    -- mock vim.fs
+    original_isdirectory = vim.fn.isdirectory
+    -- mock vim.fs and isdirectory
     vim.fs.dir = function(path)
       -- Return a mock directory listing
       local session_dir = session.get_workspace_session_path()
@@ -37,26 +38,65 @@ describe('opencode.session', function()
               coroutine.yield(file, 'file')
             end
           end)
+        elseif mock_data.message_files and path:match('/message/new%-8$') then
+          return coroutine.wrap(function()
+            for _, file in ipairs(mock_data.message_files) do
+              coroutine.yield(file, 'file')
+            end
+          end)
+        elseif mock_data.part_files and path:match('/part/new%-8/msg1$') then
+          return coroutine.wrap(function()
+            for _, file in ipairs(mock_data.part_files) do
+              coroutine.yield(file, 'file')
+            end
+          end)
         end
       end
       return original_fs_dir(path)
+    end
+    
+    vim.fn.isdirectory = function(path)
+      if mock_data.valid_dirs and vim.tbl_contains(mock_data.valid_dirs, path) then
+        return 1
+      end
+      return original_isdirectory(path)
     end
     -- Mock the readfile function
     vim.fn.readfile = function(file)
       local session_dir = session.get_workspace_session_path()
       local info_prefix = session_dir .. '/info/'
-      local filename = file:sub(#info_prefix + 1)
-      local session_name = filename:sub(1, -6) -- Remove '.json' extension
-
-      if vim.startswith(file, info_prefix) and vim.tbl_contains(session_files, filename) then
-        local data
-        if mock_data.session_list and mock_data.session_list[session_name] then
-          data = mock_data.session_list[session_name]
-        else
-          data = session_list_mock[session_name]
+      
+      -- Handle session info files
+      if vim.startswith(file, info_prefix) then
+        local filename = file:sub(#info_prefix + 1)
+        local session_name = filename:sub(1, -6) -- Remove '.json' extension
+        if vim.tbl_contains(session_files, filename) then
+          local data
+          if mock_data.session_list and mock_data.session_list[session_name] then
+            data = mock_data.session_list[session_name]
+          else
+            data = session_list_mock[session_name]
+          end
+          return vim.split(data, '\n')
         end
-        return vim.split(data, '\n')
       end
+      
+      -- Handle message files
+      if mock_data.messages and vim.startswith(file, session_dir .. '/message/new-8/') then
+        local msg_name = vim.fn.fnamemodify(file, ':t:r')
+        if mock_data.messages[msg_name] then
+          return vim.split(mock_data.messages[msg_name], '\n')
+        end
+      end
+      
+      -- Handle part files
+      if mock_data.parts and vim.startswith(file, session_dir .. '/part/new-8/msg1/') then
+        local part_name = vim.fn.fnamemodify(file, ':t:r')
+        if mock_data.parts[part_name] then
+          return vim.split(mock_data.parts[part_name], '\n')
+        end
+      end
+      
       -- Fall back to original for other commands
       return original_readfile(file)
     end
@@ -73,6 +113,7 @@ describe('opencode.session', function()
     vim.fn.readfile = original_readfile
     vim.fn.getcwd = original_workspace
     vim.fs.dir = original_fs_dir
+    vim.fn.isdirectory = original_isdirectory
     mock_data = {}
   end)
 
@@ -158,6 +199,93 @@ describe('opencode.session', function()
 
       -- Should be nil since no sessions match
       assert.is_nil(result)
+    end)
+  end)
+
+  describe('read_json_dir', function()
+    it('returns nil for non-existent directory', function()
+      local result = session.read_json_dir('/nonexistent/path')
+      assert.is_nil(result)
+    end)
+
+    it('returns nil when directory exists but has no JSON files', function()
+      mock_data.valid_dirs = { '/empty/dir' }
+      mock_data.message_files = {}
+      local result = session.read_json_dir('/empty/dir')
+      assert.is_nil(result)
+    end)
+
+    it('returns decoded JSON content from directory', function()
+      local dir = session.get_workspace_session_path() .. '/message/new-8'
+      mock_data.valid_dirs = { dir }
+      mock_data.message_files = { 'msg1.json' }
+      mock_data.messages = {
+        msg1 = '{"id": "msg1", "content": "test message"}'
+      }
+      
+      local result = session.read_json_dir(dir)
+      assert.is_not_nil(result)
+      assert.equals(1, #result)
+      assert.equals('msg1', result[1].id)
+      assert.equals('test message', result[1].content)
+    end)
+
+    it('skips invalid JSON files', function()
+      local dir = session.get_workspace_session_path() .. '/message/new-8'
+      mock_data.valid_dirs = { dir }
+      mock_data.message_files = { 'valid.json', 'invalid.json' }
+      mock_data.messages = {
+        valid = '{"id": "valid"}',
+        invalid = 'not json'
+      }
+      
+      local result = session.read_json_dir(dir)
+      assert.is_not_nil(result)
+      assert.equals(1, #result)
+      assert.equals('valid', result[1].id)
+    end)
+  end)
+  
+  describe('get_messages', function()
+    it('returns nil when session is nil', function()
+      local result = session.get_messages(nil)
+      assert.is_nil(result)
+    end)
+
+    it('returns nil when messages directory does not exist', function()
+      local result = session.get_messages({ messages_path = '/nonexistent/path' })
+      assert.is_nil(result)
+    end)
+
+    it('returns messages with their parts', function()
+      local session_dir = session.get_workspace_session_path()
+      local messages_dir = session_dir .. '/message/new-8'
+      local parts_dir = session_dir .. '/part/new-8/msg1'
+      
+      mock_data.valid_dirs = { messages_dir, parts_dir }
+      mock_data.message_files = { 'msg1.json' }
+      mock_data.part_files = { 'part1.json', 'part2.json' }
+      mock_data.messages = {
+        msg1 = '{"id": "msg1", "content": "test message"}'
+      }
+      mock_data.parts = {
+        part1 = '{"id": "part1", "content": "part 1"}',
+        part2 = '{"id": "part2", "content": "part 2"}'
+      }
+      
+      local test_session = {
+        messages_path = messages_dir,
+        parts_path = session_dir .. '/part/new-8/'
+      }
+      
+      local result = session.get_messages(test_session)
+      assert.is_not_nil(result)
+      assert.equals(1, #result)
+      assert.equals('msg1', result[1].id)
+      assert.equals('test message', result[1].content)
+      assert.equals(2, #result[1].parts)
+      assert.equals('part1', result[1].parts[1].id)
+      assert.equals('part2', result[1].parts[2].id)
     end)
   end)
 end)

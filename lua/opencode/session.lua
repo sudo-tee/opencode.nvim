@@ -9,6 +9,33 @@ local M = {}
 ---@field messages_path string
 ---@field parts_path string
 
+---@param dir string Directory path to read JSON files from
+---@return table[]|nil Array of decoded JSON objects
+function M.read_json_dir(dir)
+  if not dir or vim.fn.isdirectory(dir) == 0 then
+    return nil
+  end
+
+  local decoded_items = {}
+  for file, file_type in vim.fs.dir(dir) do
+    if file_type == 'file' and file:match('%.json$') then
+      local file_ok, content = pcall(vim.fn.readfile, dir .. '/' .. file)
+      if file_ok then
+        local lines = table.concat(content, '\n')
+        local ok, data = pcall(vim.json.decode, lines)
+        if ok and data then
+          table.insert(decoded_items, data)
+        end
+      end
+    end
+  end
+
+  if #decoded_items == 0 then
+    return nil
+  end
+  return decoded_items
+end
+
 function M.workspace_slug()
   local workspace = vim.fn.getcwd()
   local separator = package.config:sub(1, 1) -- Get the path separator (either "/" or "\")
@@ -99,52 +126,23 @@ function M.get_messages(session)
     return nil
   end
 
-  local messages_path = session.messages_path
-  if not messages_path or vim.fn.isdirectory(messages_path) == 0 then
+  local messages = M.read_json_dir(session.messages_path)
+  if not messages then
     return nil
   end
-  local decoded_messages = {}
 
-  for file, file_type in vim.fs.dir(messages_path) do
-    if file_type == 'file' and file:match('%.json$') then
-      local file_ok, content = pcall(vim.fn.readfile, messages_path .. '/' .. file)
-      if file_ok then
-        local lines = table.concat(content, '\n')
-
-        local ok, message = pcall(vim.json.decode, lines)
-        if ok and message then
-          if not message.parts or #message.parts == 0 then
-            message.parts = M.get_message_parts(message, session)
-          end
-          table.insert(decoded_messages, message)
-        end
-      end
+  for _, message in ipairs(messages) do
+    if not message.parts or #message.parts == 0 then
+      message.parts = M.get_message_parts(message, session)
     end
   end
 
-  return decoded_messages
+  return messages
 end
 
 function M.get_message_parts(message, session)
   local parts_path = session.parts_path .. message.id
-  if not parts_path or vim.fn.isdirectory(parts_path) == 0 then
-    return nil
-  end
-
-  local decoded_parts = {}
-  for file, file_type in vim.fs.dir(parts_path) do
-    if file_type == 'file' and file:match('%.json$') then
-      local file_ok, content = pcall(vim.fn.readfile, parts_path .. '/' .. file)
-      if file_ok then
-        local lines = table.concat(content, '\n')
-
-        local ok, parts = pcall(vim.json.decode, lines)
-        table.insert(decoded_parts, ok and parts or {})
-      end
-    end
-  end
-
-  return decoded_parts
+  return M.read_json_dir(parts_path)
 end
 
 return M

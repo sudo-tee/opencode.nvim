@@ -48,6 +48,7 @@ function M.get_all_sessions()
       name = session.id,
       path = sessions_dir .. '/info/' .. session.id .. '.json',
       messages_path = sessions_dir .. '/message/' .. session.id,
+      parts_path = sessions_dir .. '/part/' .. session.id .. '/',
     }
   end, sessions)
 end
@@ -111,6 +112,9 @@ function M.get_messages(session)
 
         local ok, message = pcall(vim.json.decode, lines)
         if ok and message then
+          if not message.parts or #message.parts == 0 then
+            message.parts = M.get_message_parts(message, session)
+          end
           table.insert(decoded_messages, message)
         end
       end
@@ -118,6 +122,28 @@ function M.get_messages(session)
   end
 
   return decoded_messages
+end
+
+function M.get_message_parts(message, session)
+  local parts_path = session.parts_path .. message.id
+  if not parts_path or vim.fn.isdirectory(parts_path) == 0 then
+    return nil
+  end
+
+  local decoded_parts = {}
+  for file, file_type in vim.fs.dir(parts_path) do
+    if file_type == 'file' and file:match('%.json$') then
+      local file_ok, content = pcall(vim.fn.readfile, parts_path .. '/' .. file)
+      if file_ok then
+        local lines = table.concat(content, '\n')
+
+        local ok, parts = pcall(vim.json.decode, lines)
+        table.insert(decoded_parts, ok and parts or {})
+      end
+    end
+  end
+
+  return decoded_parts
 end
 
 return M

@@ -7,6 +7,7 @@ local M = {}
 ---@field name string
 ---@field path string
 ---@field messages_path string
+---@field parts_path string
 
 function M.workspace_slug()
   local workspace = vim.fn.getcwd()

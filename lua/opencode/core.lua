@@ -36,6 +36,7 @@ function M.open(opts)
     return
   end
 
+  state.was_interrupted = false
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then

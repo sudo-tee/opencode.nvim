@@ -270,6 +270,14 @@ function M.write_output(windows, output_lines)
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 
+  M.apply_output_extmarks(windows)
+end
+
+function M.apply_output_extmarks(windows)
+  if state.display_route then
+    return
+  end
+
   if state.was_interrupted then
     formatter.output:add_extmark(formatter.output:get_line_count(), {
       virt_text = { { 'Session was interrupted', 'Error' } },
@@ -277,13 +285,6 @@ function M.write_output(windows, output_lines)
       hl_mode = 'combine',
     })
     state.was_interrupted = false
-  end
-  M.apply_output_extmarks(windows)
-end
-
-function M.apply_output_extmarks(windows)
-  if state.display_route then
-    return
   end
 
   local extmarks = formatter.output:get_extmarks()

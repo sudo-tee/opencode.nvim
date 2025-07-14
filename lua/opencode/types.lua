@@ -47,6 +47,7 @@
 
 --- @class OpencodeContextConfig
 --- @field cursor_data boolean
+--- @field diagnostics { info: boolean, warning: boolean, error: boolean }
 
 --- @class OpencodeDebugConfig
 --- @field enabled boolean

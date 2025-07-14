@@ -41,7 +41,22 @@ function M.load()
 end
 
 function M.check_linter_errors()
-  local diagnostics = vim.diagnostic.get(0, { severity = vim.diagnostic.severity.ERROR })
+  local diagnostic_conf = config.get('context') and config.get('context').diagnostics
+  if not diagnostic_conf then
+    return nil
+  end
+  local severity_levels = {}
+  if diagnostic_conf.error then
+    table.insert(severity_levels, vim.diagnostic.severity.ERROR)
+  end
+  if diagnostic_conf.warning then
+    table.insert(severity_levels, vim.diagnostic.severity.WARN)
+  end
+  if diagnostic_conf.info then
+    table.insert(severity_levels, vim.diagnostic.severity.INFO)
+  end
+
+  local diagnostics = vim.diagnostic.get(0, { severity = severity_levels })
   if #diagnostics == 0 then
     return nil
   end

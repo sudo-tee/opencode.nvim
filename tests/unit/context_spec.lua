@@ -1,13 +1,13 @@
 -- tests/unit/context_spec.lua
 -- Tests for the context module
 
-local context = require("opencode.context")
-local helpers = require("tests.helpers")
-local state = require("opencode.state")
-local template = require("opencode.template")
-local config = require("opencode.config")
+local context = require('opencode.context')
+local helpers = require('tests.helpers')
+local state = require('opencode.state')
+local template = require('opencode.template')
+local config = require('opencode.config')
 
-describe("opencode.context", function()
+describe('opencode.context', function()
   local test_file, buf_id
   local original_state
   local original_config
@@ -16,7 +16,7 @@ describe("opencode.context", function()
   before_each(function()
     original_state = vim.deepcopy(state)
     original_config = vim.deepcopy(config.values)
-    test_file = helpers.create_temp_file("Line 1\nLine 2\nLine 3\nLine 4\nLine 5")
+    test_file = helpers.create_temp_file('Line 1\nLine 2\nLine 3\nLine 4\nLine 5')
     buf_id = helpers.open_buffer(test_file)
   end)
 
@@ -43,33 +43,33 @@ describe("opencode.context", function()
     helpers.reset_editor()
   end)
 
-  describe("get_current_file", function()
-    it("returns the correct file path", function()
+  describe('get_current_file', function()
+    it('returns the correct file path', function()
       local file_path = context.get_current_file()
       assert.equal(test_file, file_path.path)
     end)
   end)
 
-  describe("get_current_cursor_data", function()
-    it("returns nil if cursor data is disabled in config (default)", function()
+  describe('get_current_cursor_data', function()
+    it('returns nil if cursor data is disabled in config (default)', function()
       local cursor_data = context.get_current_cursor_data()
       assert.equal(nil, cursor_data)
     end)
 
-    it("returns cursor data is enabled in config", function()
+    it('returns cursor data is enabled in config', function()
       config.values.context.cursor_data = true
 
       local cursor_data = context.get_current_cursor_data()
       assert.equal(1, cursor_data.col)
       assert.equal(1, cursor_data.line)
-      assert.equal("Line 1", cursor_data.line_content)
+      assert.equal('Line 1', cursor_data.line_content)
     end)
   end)
 
-  describe("get_current_selection", function()
-    it("returns selected text and lines when in visual mode", function()
+  describe('get_current_selection', function()
+    it('returns selected text and lines when in visual mode', function()
       -- Setup a visual selection (line 2 to line 3)
-      vim.cmd("normal! 2Gvj$")
+      vim.cmd('normal! 2Gvj$')
 
       -- Call the function
       local selection_result = context.get_current_selection()
@@ -78,14 +78,14 @@ describe("opencode.context", function()
       assert.is_not_nil(selection_result)
       assert.is_not_nil(selection_result.text)
       assert.is_not_nil(selection_result.lines)
-      assert.truthy(selection_result.text:match("Line 2"))
-      assert.truthy(selection_result.text:match("Line 3"))
-      assert.equal("2, 3", selection_result.lines)
+      assert.truthy(selection_result.text:match('Line 2'))
+      assert.truthy(selection_result.text:match('Line 3'))
+      assert.equal('2, 3', selection_result.lines)
     end)
 
-    it("returns nil when not in visual mode", function()
+    it('returns nil when not in visual mode', function()
       -- Ensure we're in normal mode
-      vim.cmd("normal! G")
+      vim.cmd('normal! G')
 
       -- Call the function
       local selection_result = context.get_current_selection()
@@ -95,15 +95,15 @@ describe("opencode.context", function()
     end)
   end)
 
-  describe("format_message", function()
-    it("formats message with file path and prompt", function()
+  describe('format_message', function()
+    it('formats message with file path and prompt', function()
       -- Mock template.render_template to verify it's called with right params
       local original_render = template.render_template
       local called_with_vars = nil
 
       template.render_template = function(vars)
         called_with_vars = vars
-        return "rendered template"
+        return 'rendered template'
       end
 
       -- Set up context
@@ -112,15 +112,15 @@ describe("opencode.context", function()
       context.context.cursor_data = nil
       context.context.mentioned_files = nil
       context.context.selections = nil
-      
+
       -- Set specific values for testing
       context.context.current_file = {
         path = test_file,
-        name = vim.fn.fnamemodify(test_file, ":t"),
-        extension = vim.fn.fnamemodify(test_file, ":e")
+        name = vim.fn.fnamemodify(test_file, ':t'),
+        extension = vim.fn.fnamemodify(test_file, ':e'),
       }
 
-      local prompt = "Help me with this code"
+      local prompt = 'Help me with this code'
       local message = context.format_message(prompt)
 
       -- Restore original function
@@ -132,17 +132,17 @@ describe("opencode.context", function()
       assert.equal(prompt, called_with_vars.prompt)
 
       -- Verify the message was returned
-      assert.equal("rendered template", message)
+      assert.equal('rendered template', message)
     end)
 
-    it("includes selection and selection lines in template variables when available", function()
+    it('includes selection and selection lines in template variables when available', function()
       -- Mock template.render_template
       local original_render = template.render_template
       local called_with_vars = nil
 
       template.render_template = function(vars)
         called_with_vars = vars
-        return "rendered template with selection"
+        return 'rendered template with selection'
       end
 
       -- Set up context
@@ -151,23 +151,23 @@ describe("opencode.context", function()
       context.context.cursor_data = nil
       context.context.mentioned_files = nil
       context.context.selections = nil
-      
+
       -- Set specific values for testing
       context.context.current_file = {
         path = test_file,
-        name = vim.fn.fnamemodify(test_file, ":t"),
-        extension = vim.fn.fnamemodify(test_file, ":e")
+        name = vim.fn.fnamemodify(test_file, ':t'),
+        extension = vim.fn.fnamemodify(test_file, ':e'),
       }
-      
+
       context.context.selections = {
         {
           file = context.context.current_file,
-          content = "Selected text for testing",
-          lines = "10, 15"
-        }
+          content = 'Selected text for testing',
+          lines = '10, 15',
+        },
       }
 
-      local prompt = "Help with this selection"
+      local prompt = 'Help with this selection'
       local message = context.format_message(prompt)
 
       -- Restore original function
@@ -177,17 +177,125 @@ describe("opencode.context", function()
       assert.truthy(called_with_vars)
       assert.equal(test_file, called_with_vars.current_file.path)
       assert.equal(prompt, called_with_vars.prompt)
-      assert.equal("Selected text for testing", called_with_vars.selections[1].content)
-      assert.equal("10, 15", called_with_vars.selections[1].lines)
+      assert.equal('Selected text for testing', called_with_vars.selections[1].content)
+      assert.equal('10, 15', called_with_vars.selections[1].lines)
 
       -- Verify the message was returned
-      assert.equal("rendered template with selection", message)
+      assert.equal('rendered template with selection', message)
     end)
   end)
 end)
 
-describe("extract_from_message", function()
-  it("extracts context elements from a formatted message", function()
+describe('check_linter_errors', function()
+  it('returns nil when diagnostics are disabled in config', function()
+    config.values.context = { diagnostics = nil }
+    local result = context.check_linter_errors()
+    assert.is_nil(result)
+  end)
+
+  it('returns nil when no diagnostics are present', function()
+    config.values.context = {
+      diagnostics = {
+        error = true,
+        warning = true,
+        info = true,
+      },
+    }
+    -- Mock vim.diagnostic.get to return empty array
+    local original_get = vim.diagnostic.get
+    vim.diagnostic.get = function()
+      return {}
+    end
+
+    local result = context.check_linter_errors()
+    vim.diagnostic.get = original_get
+    assert.is_nil(result)
+  end)
+
+  it('formats single error message correctly', function()
+    config.values.context = {
+      diagnostics = {
+        error = true,
+        warning = false,
+        info = false,
+      },
+    }
+
+    -- Mock vim.diagnostic.get to return one error
+    local original_get = vim.diagnostic.get
+    vim.diagnostic.get = function()
+      return {
+        {
+          lnum = 9, -- 0-based line number
+          message = "undefined variable 'foo'",
+        },
+      }
+    end
+
+    local result = context.check_linter_errors()
+    vim.diagnostic.get = original_get
+
+    assert.equal("Found 1 error:\n Line 10: undefined variable 'foo'", result)
+  end)
+
+  it('formats multiple errors message correctly', function()
+    config.values.context = {
+      diagnostics = {
+        error = true,
+        warning = true,
+        info = false,
+      },
+    }
+
+    -- Mock vim.diagnostic.get to return multiple diagnostics
+    local original_get = vim.diagnostic.get
+    vim.diagnostic.get = function()
+      return {
+        {
+          lnum = 9,
+          message = "undefined variable 'foo'",
+        },
+        {
+          lnum = 14,
+          message = 'missing semicolon',
+        },
+      }
+    end
+
+    local result = context.check_linter_errors()
+    vim.diagnostic.get = original_get
+
+    assert.equal("Found 2 errors:\n Line 10: undefined variable 'foo'\n Line 15: missing semicolon", result)
+  end)
+
+  it('respects severity level configuration', function()
+    config.values.context = {
+      diagnostics = {
+        error = true,
+        warning = false,
+        info = false,
+      },
+    }
+
+    -- Mock vim.diagnostic.get to verify severity levels
+    local original_get = vim.diagnostic.get
+    local severity_checked = nil
+    vim.diagnostic.get = function(_, opts)
+      severity_checked = opts.severity
+      return {}
+    end
+
+    context.check_linter_errors()
+    vim.diagnostic.get = original_get
+
+    -- Should only include ERROR severity
+    assert.equal(1, #severity_checked)
+    assert.equal(vim.diagnostic.severity.ERROR, severity_checked[1])
+  end)
+end)
+
+describe('extract_from_message', function()
+  it('extracts context elements from a formatted message', function()
     -- Updated to use 'Editor context:' instead of 'Opencode context:'
     local message = [[
 Help me with this code
@@ -206,7 +314,10 @@ Additional files:
 
     local result = context.extract_from_message(message)
 
-    assert.equal('Help me with this code\n\nEditor context:\nCurrent file: /path/to/file.lua\nSelected text:\nfunction test()\n  return "hello"\nend\nSelected lines: (10, 15)\nAdditional files:\n- /path/to/other.lua\n- /path/to/another.lua', vim.trim(result.prompt))
+    assert.equal(
+      'Help me with this code\n\nEditor context:\nCurrent file: /path/to/file.lua\nSelected text:\nfunction test()\n  return "hello"\nend\nSelected lines: (10, 15)\nAdditional files:\n- /path/to/other.lua\n- /path/to/another.lua',
+      vim.trim(result.prompt)
+    )
     assert.is_nil(result.selected_text)
   end)
 end)

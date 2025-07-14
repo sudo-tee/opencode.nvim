@@ -68,6 +68,11 @@ M.defaults = {
   },
   context = {
     cursor_data = false,
+    diagnostics = {
+      info = false,
+      warning = true,
+      error = true,
+    },
   },
   debug = {
     enabled = false,

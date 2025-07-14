@@ -120,6 +120,14 @@ require('opencode').setup({
     display_model = true,                  -- Display model name on top winbar
     window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
   },
+  context = {
+    cursor_data = true,                    -- send cursor position and current line to opencode
+    diagnostics = {
+      info = false,                        -- Include diagnostics info in the context (default to false
+      warn = true,                         -- Include diagnostics warnings in the context
+      error = true,                        -- Include diagnostics errors in the context
+    },
+  },
   debug = {
     enabled = false,                       -- Enable debug messages in the output window
   },

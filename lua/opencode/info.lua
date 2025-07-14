@@ -39,6 +39,15 @@ function M.get_opencode_modes()
   return modes
 end
 
+function M.get_mcp_servers()
+  local config = M.parse_opencode_config()
+  if not config or not config.mcp then
+    return nil
+  end
+
+  return config.mcp
+end
+
 ---@param provider string
 ---@param model string
 function M.set_provider(provider, model)

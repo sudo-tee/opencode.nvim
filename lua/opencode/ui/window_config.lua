@@ -40,6 +40,9 @@ function M.setup_options(windows)
 end
 
 function M.refresh_placeholder(windows, input_lines)
+  if vim.api.nvim_win_is_valid(windows.input_win) == false or vim.api.nvim_buf_is_valid(windows.input_buf) == false then
+    return
+  end
   -- show placeholder if input buffer is empty - otherwise clear it
   if not input_lines then
     input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)

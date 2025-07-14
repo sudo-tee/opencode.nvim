@@ -203,8 +203,9 @@ function M.switch_to_next_mode()
   require('opencode.ui.topbar').render()
 end
 
-function M.help()
-  state.display_route = '/help'
+function M.with_header(lines, show_welcome)
+  show_welcome = show_welcome or show_welcome
+  state.display_route = '/header'
 
   local msg = {
     '## Opencode.nvim',
@@ -213,23 +214,71 @@ function M.help()
     '  █░░█ █░░█ █▀▀ █░░█ █░░ █░░█ █░░█ █▀▀',
     '  ▀▀▀▀ █▀▀▀ ▀▀▀ ▀  ▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀',
     '',
-    'Welcome to Opencode.nvim! This plugin allows you to interact with AI models directly from Neovim.',
-    '',
-    'Type your prompt or use available commads',
-    '',
+  }
+  if show_welcome then
+    table.insert(
+      msg,
+      'Welcome to Opencode.nvim! This plugin allows you to interact with AI models directly from Neovim.'
+    )
+    table.insert(msg, '')
+  end
+
+  for _, line in ipairs(lines) do
+    table.insert(msg, line)
+  end
+  return msg
+end
+
+function M.help()
+  state.display_route = '/help'
+  local msg = M.with_header({
     '### Available Commands',
     '',
     '| Command   | Description         |',
     '|-----------|---------------------|',
-  }
+  }, false)
 
-  local max_desc_length = (vim.api.nvim_win_get_width(state.windows.output_win) / 2) + 5
+  local max_desc_length = (vim.api.nvim_win_get_width(state.windows.output_win) / 2) - 5
+
   for _, def in pairs(M.commands) do
     local desc = def.desc or ''
     if #desc > max_desc_length then
       desc = desc:sub(1, max_desc_length - 3) .. '...'
     end
     table.insert(msg, string.format('| %-10s | %s |', def.name, desc))
+  end
+
+  ui.render_lines(msg)
+end
+
+function M.mcp()
+  local info = require('opencode.info')
+  local mcp = info.get_mcp_servers()
+  if not mcp then
+    ui.notify('No MCP configuration found. Please check your opencode config file.', 'warn')
+    return
+  end
+
+  state.display_route = '/mcp'
+
+  local msg = M.with_header({
+    '### Available MCP servers',
+    '',
+    '| Name   | type | cmd|',
+    '|--------|------|----|',
+  })
+
+  for name, def in pairs(mcp) do
+    table.insert(
+      msg,
+      string.format(
+        '| %s %-10s | %s |%s|',
+        def.enabled and '🟢' or '⚫',
+        name,
+        def.type,
+        table.concat(def.command, ' ')
+      )
+    )
   end
 
   ui.render_lines(msg)
@@ -411,6 +460,14 @@ M.commands = {
     fn = function()
       M.open_input()
       M.help()
+    end,
+  },
+  mcp = {
+    name = 'OpencodeMCP',
+    desc = 'Display list od mcp servers',
+    fn = function()
+      M.open_input()
+      M.mcp()
     end,
   },
   open_configuration_file = {

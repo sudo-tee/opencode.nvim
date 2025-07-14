@@ -2,6 +2,7 @@ local context_module = require('opencode.context')
 local util = require('opencode.util')
 local Output = require('opencode.ui.output')
 local state = require('opencode.state')
+local config = require('opencode.config').get()
 
 local M = {
   output = Output.new(),
@@ -180,6 +181,11 @@ end
 ---@param metadata BashToolMetadata Metadata for the tool use
 function M._format_bash_tool(input, metadata)
   M._format_action('💻 run', input and input.description)
+
+  if not config.ui.output.tools.show_output then
+    return
+  end
+
   if metadata.stdout then
     M._format_code(vim.split('> ' .. input.command .. '\n\n' .. metadata.stdout, '\n'), 'bash')
   end
@@ -195,6 +201,10 @@ function M._format_file_tool(tool_type, input, metadata)
 
   M._format_action(icons[tool_type] .. ' ' .. tool_type, file_name)
 
+  if not config.ui.output.tools.show_output then
+    return
+  end
+
   if tool_type == 'edit' and metadata.diff then
     M._format_diff(metadata.diff, file_type)
   elseif tool_type == 'write' and input and input.content then
@@ -206,6 +216,10 @@ end
 ---@param input TodoToolInput
 function M._format_todo_tool(title, input)
   M._format_action('📃 plan', (title or ''))
+  if not config.ui.output.tools.show_output then
+    return
+  end
+
   M.output:add_empty_line()
 
   local todos = input and input.todos or {}
@@ -220,6 +234,9 @@ end
 ---@param metadata GlobToolMetadata Metadata for the tool use
 function M._format_glob_tool(input, metadata)
   M._format_action('🔍 glob', input and input.pattern)
+  if not config.ui.output.tools.show_output then
+    return
+  end
   local prefix = metadata.truncated and ' more than' or ''
   M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
 end

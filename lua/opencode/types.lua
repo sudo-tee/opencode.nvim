@@ -44,6 +44,7 @@
 --- @field floating_height number
 --- @field display_model boolean
 --- @field window_highlight string
+--- @field output { tools: { show_output: boolean } }
 
 --- @class OpencodeContextConfig
 --- @field cursor_data boolean

@@ -128,6 +128,11 @@ require('opencode').setup({
     floating_height = 0.8,                 -- Height as percentage of editor height for "center" layout
     display_model = true,                  -- Display model name on top winbar
     window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
+    output = {
+      tools = {
+        show_output = true,                -- Show tools output [diffs, cmd output, etc.] (default: true)
+      },
+    }
   },
   context = {
     cursor_data = true,                    -- send cursor position and current line to opencode

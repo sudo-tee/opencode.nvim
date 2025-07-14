@@ -66,6 +66,11 @@ M.defaults = {
     floating_height = 0.8,
     display_model = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
+    output = {
+      tools = {
+        show_output = true,
+      },
+    },
   },
   context = {
     cursor_data = false,

@@ -76,7 +76,7 @@ function M.run(prompt, opts)
       on_start = function()
         M.after_run(prompt)
       end,
-      on_output = function(output)
+      on_output = function(_)
         -- Reload all modified file buffers
         vim.cmd('checktime')
         if not state.active_session then

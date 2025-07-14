@@ -132,6 +132,12 @@ function M.ansi_reset()
   return '\27[0m'
 end
 
+-- Remove ANSI escape sequences
+--- @param str string: Input string containing ANSI escape codes
+function M.strip_ansi(str)
+  return str:gsub('\27%[[%d;]*m', '')
+end
+
 --- Convert a datetime to a human-readable "time ago" format
 --- @param timestamp number
 --- @return string: Human-readable time ago string (e.g., "2 hours ago")

@@ -3,6 +3,7 @@
 
 local context = require('opencode.context')
 local state = require('opencode.state')
+local util = require('opencode.util')
 local Job = require('plenary.job')
 
 local M = {}
@@ -52,6 +53,7 @@ function M.execute(prompt, handlers)
     end,
     on_stderr = function(err, data)
       vim.schedule(function()
+        ---@see https://github.com/sst/opencode/issues/369
         if err then
           handlers.on_error(data)
         else
@@ -59,9 +61,15 @@ function M.execute(prompt, handlers)
         end
       end)
     end,
-    on_exit = function()
+    on_exit = function(data, code)
+      if code ~= 0 then
+        vim.schedule(function()
+          handlers.on_error(util.strip_ansi(table.concat(data._stderr_results, '\n')))
+        end)
+        return
+      end
       vim.schedule(function()
-        handlers.on_exit()
+        handlers.on_exit(code)
       end)
     end,
   })

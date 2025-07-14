@@ -31,9 +31,9 @@ function M.format_session(session)
   for i = 1, #M._messages do
     M.output:add_lines(M.separator)
 
-    M._format_message_header(M._messages[i])
-
     local msg = M._messages[i]
+    M._format_message_header(msg, i)
+
     for j, part in ipairs(msg.parts or {}) do
       M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type }
       M.output:add_metadata(M._current)
@@ -88,7 +88,7 @@ function M._format_error(message)
 end
 
 ---@param message Message
-function M._format_message_header(message)
+function M._format_message_header(message, msg_idx)
   local role = message.role or 'unknown'
   local icon = message.role == 'user' and '▌💬' or '🤖'
 
@@ -97,6 +97,12 @@ function M._format_message_header(message)
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
 
   M.output:add_empty_line()
+  M.output:add_metadata({
+    msg_idx = msg_idx,
+    part_idx = 1,
+    role = role,
+    type = 'header',
+  })
   M.output:add_extmark(M.output:get_line_count(), {
     virt_text = {
       { icon, role_hl },

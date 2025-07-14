@@ -48,6 +48,12 @@ function Output:get_metadata(idx)
   return vim.deepcopy(self.metadata[idx])
 end
 
+---Get metadata for all lines
+---@return table
+function Output:get_all_metadata()
+  return vim.deepcopy(self.metadata or {})
+end
+
 ---Merge text into an existing line
 ---@param idx number
 ---@param text string

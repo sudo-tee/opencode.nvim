@@ -7,7 +7,7 @@ local LABELS = {
 }
 
 local function format_model_info()
-  local info = require('opencode.info').parse_opencode_config()
+  local info = require('opencode.config_file').parse_opencode_config()
   local config = require('opencode.config').get()
   local parts = {}
 

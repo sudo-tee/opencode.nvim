@@ -16,6 +16,7 @@
 local M = {} ---@type OpencodeConfigModule
 
 -- Default configuration
+---@type OpencodeConfig
 M.defaults = {
   prefered_picker = nil,
   default_global_keymaps = true,
@@ -81,6 +82,8 @@ M.defaults = {
 
 M.values = vim.deepcopy(M.defaults)
 
+--- Setup function to initialize or update the configuration
+--- @param opts OpencodeConfig
 function M.setup(opts)
   opts = opts or {}
 

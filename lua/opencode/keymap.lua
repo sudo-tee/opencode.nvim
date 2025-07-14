@@ -4,6 +4,7 @@ local M = {}
 
 -- Binds a keymap config with its api fn
 -- Name of api fn & keymap global config should always be the same
+---@param keymap OpencodeKeymap The keymap configuration table
 function M.setup(keymap)
   local cmds = api.commands
   local global = keymap.global

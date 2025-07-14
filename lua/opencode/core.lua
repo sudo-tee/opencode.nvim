@@ -131,7 +131,7 @@ function M.add_file_to_context()
 end
 
 function M.configure_provider()
-  local info_mod = require('opencode.info')
+  local info_mod = require('opencode.config_file')
   require('opencode.provider').select(function(selection)
     if not selection then
       if state.windows then

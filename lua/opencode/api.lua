@@ -151,7 +151,7 @@ function M.initialize()
 end
 
 function M.open_configuration_file()
-  local config_path = require('opencode.info').config_file
+  local config_path = require('opencode.config_file').config_file
   if vim.fn.filereadable(config_path) == 1 then
     if ui.is_opencode_focused() then
       vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
@@ -174,7 +174,7 @@ function M.mode_build()
 end
 
 function M.select_mode()
-  local modes = require('opencode.info').get_opencode_modes()
+  local modes = require('opencode.config_file').get_opencode_modes()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
@@ -188,7 +188,7 @@ function M.select_mode()
 end
 
 function M.switch_to_next_mode()
-  local modes = require('opencode.info').get_opencode_modes()
+  local modes = require('opencode.config_file').get_opencode_modes()
 
   local current_index = util.index_of(modes, state.current_mode)
 
@@ -252,7 +252,7 @@ function M.help()
 end
 
 function M.mcp()
-  local info = require('opencode.info')
+  local info = require('opencode.config_file')
   local mcp = info.get_mcp_servers()
   if not mcp then
     ui.notify('No MCP configuration found. Please check your opencode config file.', 'warn')

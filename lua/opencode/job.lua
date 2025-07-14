@@ -62,6 +62,12 @@ function M.execute(prompt, handlers)
       end)
     end,
     on_exit = function(data, code)
+      if code == nil then
+        vim.schedule(function()
+          handlers.on_interrupt()
+        end)
+        return
+      end
       if code ~= 0 then
         vim.schedule(function()
           handlers.on_error(util.strip_ansi(table.concat(data._stderr_results, '\n')))

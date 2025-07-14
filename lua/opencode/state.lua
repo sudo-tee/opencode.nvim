@@ -9,6 +9,7 @@ M.last_output_window_position = nil
 M.last_code_win_before_opencode = nil
 M.display_route = nil
 M.current_mode = require('opencode.config').get().default_mode
+M.was_interrupted = false
 
 -- context
 M.last_sent_context = nil

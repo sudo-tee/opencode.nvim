@@ -74,6 +74,7 @@ function M.run(prompt, opts)
   vim.defer_fn(function()
     job.execute(prompt, {
       on_start = function()
+        state.was_interrupted = false
         M.after_run(prompt)
       end,
       on_output = function(_)
@@ -94,6 +95,14 @@ function M.run(prompt, opts)
         state.opencode_run_job = nil
         require('opencode.review').check_cleanup_breakpoint()
         ui.render_output()
+      end,
+      on_interrupt = function()
+        state.opencode_run_job = nil
+        state.was_interrupted = true
+
+        require('opencode.review').check_cleanup_breakpoint()
+        ui.render_output()
+        vim.notify('Opencode run interrupted by user', vim.log.levels.WARN)
       end,
     })
   end, 10)

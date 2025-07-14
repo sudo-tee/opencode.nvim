@@ -56,6 +56,7 @@ function M.format_session(session)
     end
   end
 
+  M.output:add_empty_line()
   return M.output:get_lines()
 end
 

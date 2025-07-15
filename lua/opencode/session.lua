@@ -5,6 +5,7 @@ local M = {}
 ---@field description string
 ---@field modified number
 ---@field name string
+---@field parentID string|nil
 ---@field path string
 ---@field messages_path string
 ---@field parts_path string
@@ -80,6 +81,7 @@ function M.get_all_sessions()
       description = session.title or '',
       modified = session.time.updated,
       name = session.id,
+      parentID = session.parentID,
       path = sessions_dir .. '/info/' .. session.id .. '.json',
       messages_path = sessions_dir .. '/message/' .. session.id,
       parts_path = sessions_dir .. '/part/' .. session.id .. '/',
@@ -108,7 +110,10 @@ function M.get_last_workspace_session()
   if not sessions then
     return nil
   end
-  return sessions[1]
+  local main_sessions = vim.tbl_filter(function(session)
+    return session.parentID == nil --- we don't want child sessions
+  end, sessions)
+  return main_sessions[1]
 end
 
 ---@param name string

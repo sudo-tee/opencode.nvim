@@ -94,14 +94,12 @@ function M.run(prompt, opts)
       end,
       on_exit = function()
         state.opencode_run_job = nil
-        require('opencode.review').check_cleanup_breakpoint()
         ui.render_output()
       end,
       on_interrupt = function()
         state.opencode_run_job = nil
         state.was_interrupted = true
 
-        require('opencode.review').check_cleanup_breakpoint()
         ui.render_output()
         vim.notify('Opencode run interrupted by user', vim.log.levels.WARN)
       end,
@@ -110,7 +108,6 @@ function M.run(prompt, opts)
 end
 
 function M.after_run(prompt)
-  require('opencode.review').set_breakpoint()
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
   require('opencode.history').write(prompt)

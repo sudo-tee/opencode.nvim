@@ -36,7 +36,7 @@ function M.format_session(session)
     M._format_message_header(msg, i)
 
     for j, part in ipairs(msg.parts or {}) do
-      M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type }
+      M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type, snapshot = part.snapshot }
       M.output:add_metadata(M._current)
 
       if part.type == 'text' and part.text then
@@ -47,6 +47,9 @@ function M.format_session(session)
         end
       elseif part.type == 'tool' then
         M._format_tool(part)
+      elseif part.type == 'snapshot' and part.snapshot then
+        M.output:add_empty_line()
+        M._format_action('💾 **Created Snapshot**', vim.trim(part.snapshot))
       end
       M.output:add_empty_line()
     end

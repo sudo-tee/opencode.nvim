@@ -3,7 +3,7 @@ local util = require('opencode.util')
 
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
-local review = require('opencode.review')
+local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 
 local M = {}
@@ -100,31 +100,55 @@ function M.toggle_pane()
 end
 
 function M.diff_open()
-  review.review()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.review()
 end
 
 function M.diff_next()
-  review.next_diff()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.next_diff()
 end
 
 function M.diff_prev()
-  review.prev_diff()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.prev_diff()
 end
 
 function M.diff_close()
-  review.close_diff()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.close_diff()
 end
 
 function M.diff_revert_all()
-  review.revert_all()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.revert_all()
 end
 
 function M.diff_revert_this()
-  review.revert_current()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.revert_current()
 end
 
 function M.set_review_breakpoint()
-  review.set_breakpoint()
+  git_review.set_breakpoint()
 end
 
 function M.prev_history()

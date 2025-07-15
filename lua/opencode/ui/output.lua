@@ -96,6 +96,14 @@ function Output:get_first_snapshot()
   return metadata and metadata.snapshot or nil
 end
 
+---@return string|nil Snapshot commit hash if available
+function Output:get_last_snapshot()
+  local metadata = self:get_nearest_metadata(#self.lines, function(metadata)
+    return metadata.snapshot ~= nil
+  end, 'previous')
+  return metadata and metadata.snapshot or nil
+end
+
 ---Merge text into an existing line
 ---@param idx number
 ---@param text string

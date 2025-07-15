@@ -17,6 +17,7 @@ local git = {
 
     local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
     M.__is_git_project = git_dir:exists() and git_dir:is_dir()
+
     return M.__is_git_project
   end,
 
@@ -73,6 +74,18 @@ local function require_git_project(fn, silent)
     if not git.is_project() then
       if not silent then
         vim.notify('Error: Not in a git project.')
+      end
+      return
+    end
+    if not state.active_session then
+      if not silent then
+        vim.notify('Error: No active session found.')
+      end
+      return
+    end
+    if not state.active_session.snapshot_path or vim.fn.isdirectory(state.active_session.snapshot_path) == 0 then
+      if not silent then
+        vim.notify('Error: No snapshot path for the active session.')
       end
       return
     end

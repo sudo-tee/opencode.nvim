@@ -117,11 +117,14 @@
 --- @field timeout? number Optional timeout in seconds (max 120)
 
 --- @class MessagePart
---- @field type 'text'|'tool'|'step-start' Type of the message part
+--- @field type 'text'|'tool'|'step-start'|'snapshot' Type of the message part
 --- @field text string|nil Text content for text parts
 --- @field id string|nil Unique identifier for tool use parts
 --- @field tool string|nil Name of the tool being used
 --- @field state MessagePartState|nil State information for tool use parts
+--- @field snapshot string|nil Snapshot commit hash
+--- @field sessionID string|nil Session identifier
+--- @field messageID string|nil Message identifier
 
 --- @class MessageTokenCount
 --- @field reasoning number
@@ -134,6 +137,7 @@
 ---@field part_idx number|nil Part index in message
 ---@field role 'user'|'assistant'|'system'|nil Message role
 ---@field type 'text'|'tool'|'header'|nil Message part type
+---@field snapshot? string|nil snapshot commit hash
 
 ---@alias OutputExtmark vim.api.keyset.set_extmark
 

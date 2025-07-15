@@ -8,6 +8,7 @@ local M = {}
 ---@field path string
 ---@field messages_path string
 ---@field parts_path string
+---@field snapshot_path string
 
 ---@param dir string Directory path to read JSON files from
 ---@return table[]|nil Array of decoded JSON objects
@@ -47,6 +48,11 @@ function M.get_workspace_session_path(workspace)
   return vim.fn.expand('$HOME/.local/share/opencode/project/' .. workspace .. '/storage/session')
 end
 
+function M.get_workspace_snapshot_path(workspace)
+  workspace = workspace or M.workspace_slug()
+  return vim.fn.expand('$HOME/.local/share/opencode/project/' .. workspace .. '/snapshot/')
+end
+
 ---@return Session[]|nil
 function M.get_all_sessions()
   local sessions_dir = M.get_workspace_session_path()
@@ -77,6 +83,7 @@ function M.get_all_sessions()
       path = sessions_dir .. '/info/' .. session.id .. '.json',
       messages_path = sessions_dir .. '/message/' .. session.id,
       parts_path = sessions_dir .. '/part/' .. session.id .. '/',
+      snapshot_path = M.get_workspace_snapshot_path() .. session.id .. '/',
     }
   end, sessions)
 end

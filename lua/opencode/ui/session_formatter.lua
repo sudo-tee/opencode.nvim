@@ -63,18 +63,16 @@ end
 ---@param line number Buffer line number
 ---@return {message: Message, part: MessagePart, type: string, msg_idx: number, part_idx: number}|nil
 function M.get_message_at_line(line)
-  for i = line, 1, -1 do
-    local metadata = M.output:get_metadata(i)
-    if metadata and metadata.msg_idx and metadata.part_idx then
-      local msg = M._messages[metadata.msg_idx]
-      local part = msg.parts[metadata.part_idx]
-      return {
-        message = msg,
-        part = part,
-        msg_idx = metadata.msg_idx,
-        part_idx = metadata.part_idx,
-      }
-    end
+  local metadata = M.output:get_nearest_metadata(line)
+  if metadata and metadata.msg_idx and metadata.part_idx then
+    local msg = M._messages[metadata.msg_idx]
+    local part = msg.parts[metadata.part_idx]
+    return {
+      message = msg,
+      part = part,
+      msg_idx = metadata.msg_idx,
+      part_idx = metadata.part_idx,
+    }
   end
 end
 

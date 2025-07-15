@@ -45,10 +45,55 @@ function Output:get_metadata(idx)
   return vim.deepcopy(self.metadata[idx])
 end
 
+---@param idx number
+---@param predicate? fun(metadata: OutputMetadata): boolean Optional predicate to filter metadata
+---@param direction? 'next'|'previous' Optional direction to search for metadata
+---@return OutputMetadata|nil
+function Output:get_nearest_metadata(idx, predicate, direction)
+  local step = direction == 'next' and 1 or -1
+  local limit = step == 1 and #self.lines or 1
+  for i = idx, limit, step do
+    local metadata = self.metadata[i]
+    if predicate and metadata then
+      if predicate(metadata) then
+        return vim.deepcopy(metadata)
+      end
+    elseif not predicate and metadata then
+      return vim.deepcopy(metadata)
+    end
+  end
+end
+
 ---Get metadata for all lines
 ---@return OutputMetadata[]
 function Output:get_all_metadata()
   return vim.deepcopy(self.metadata or {})
+end
+
+---@param line number Buffer line number
+---@return string|nil Snapshot commit hash if available
+function Output:get_previous_snapshot(line)
+  local metadata = self:get_nearest_metadata(line, function(metadata)
+    return metadata.snapshot ~= nil
+  end, 'previous')
+  return metadata and metadata.snapshot or nil
+end
+
+---@param line number Buffer line number
+---@return string|nil Snapshot commit hash if available
+function Output:get_next_snapshot(line)
+  local metadata = self:get_nearest_metadata(line, function(metadata)
+    return metadata.snapshot ~= nil
+  end, 'next')
+  return metadata and metadata.snapshot or nil
+end
+
+---@return string|nil Snapshot commit hash if available
+function Output:get_first_snapshot()
+  local metadata = self:get_nearest_metadata(1, function(metadata)
+    return metadata.snapshot ~= nil
+  end, 'next')
+  return metadata and metadata.snapshot or nil
 end
 
 ---Merge text into an existing line

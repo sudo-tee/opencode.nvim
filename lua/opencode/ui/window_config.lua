@@ -28,6 +28,7 @@ function M.setup_options(windows)
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
   vim.b[windows.input_buf].completion = false
+  vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
 
   -- Output window/buffer options
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
@@ -37,6 +38,7 @@ function M.setup_options(windows)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
 end
 
 function M.refresh_placeholder(windows, input_lines)

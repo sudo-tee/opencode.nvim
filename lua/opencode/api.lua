@@ -404,6 +404,7 @@ M.commands = {
     fn = function(opts)
       M.run(opts.args)
     end,
+    args = true,
   },
 
   run_new_session = {
@@ -412,6 +413,7 @@ M.commands = {
     fn = function(opts)
       M.run_new_session(opts.args)
     end,
+    args = true,
   },
 
   -- Updated diff command names
@@ -527,13 +529,11 @@ M.commands = {
 }
 
 function M.setup()
-  -- Register commands without arguments
-  for key, cmd in pairs(M.commands) do
-    if key ~= 'run' and key ~= 'run_new_session' then
-      vim.api.nvim_create_user_command(cmd.name, cmd.fn, {
-        desc = cmd.desc,
-      })
-    end
+  for _, cmd in pairs(M.commands) do
+    vim.api.nvim_create_user_command(cmd.name, cmd.fn, {
+      desc = cmd.desc,
+      nargs = cmd.args and '+' or 0,
+    })
   end
 
   -- Register commands with arguments

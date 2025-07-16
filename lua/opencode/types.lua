@@ -121,6 +121,7 @@
 --- @class GrepToolInput
 --- @field pattern string The glob pattern to match
 --- @field path? string Optional directory to search in
+--- @field include? string Optional file type to include (e.g., '*.lua')
 
 --- @class WebFetchToolInput
 --- @field url string The URL to fetch content from

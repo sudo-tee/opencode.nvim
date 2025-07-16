@@ -246,7 +246,7 @@ end
 ---@param input GrepToolInput data for the tool
 ---@param metadata GrepToolMetadata Metadata for the tool use
 function M._format_grep_tool(input, metadata)
-  M._format_action('🔍 grep', input and input.path .. ' ' .. input.pattern)
+  M._format_action('🔍 grep', input and (input.path or input.include or '') .. '` `' .. input.pattern)
   if not config.ui.output.tools.show_output then
     return
   end

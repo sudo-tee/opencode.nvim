@@ -243,6 +243,17 @@ function M._format_glob_tool(input, metadata)
   M.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
 end
 
+---@param input GrepToolInput data for the tool
+---@param metadata GrepToolMetadata Metadata for the tool use
+function M._format_grep_tool(input, metadata)
+  M._format_action('🔍 grep', input and input.path .. ' ' .. input.pattern)
+  if not config.ui.output.tools.show_output then
+    return
+  end
+  local prefix = metadata.truncated and ' more than' or ''
+  M.output:add_line(string.format('Found%s `%d` match', prefix, metadata.matches or 0))
+end
+
 ---@param input WebFetchToolInput data for the tool
 function M._format_webfetch_tool(input)
   M._format_action('🌐 fetch', input and input.url)
@@ -268,8 +279,12 @@ function M._format_tool(part)
     M._format_todo_tool(part.state.title, input --[[@as TodoToolInput]])
   elseif tool == 'glob' then
     M._format_glob_tool(input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]])
+  elseif tool == 'grep' then
+    M._format_grep_tool(input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]])
   elseif tool == 'webfetch' then
     M._format_webfetch_tool(input --[[@as WebFetchToolInput]])
+  elseif tool == 'task' then
+    M._format_task_tool(input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]])
   else
     M._format_action('🔧 tool', tool)
   end
@@ -283,6 +298,24 @@ function M._format_tool(part)
   local end_line = M.output:get_line_count()
   if end_line - start_line > 1 then
     M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
+  end
+end
+
+---@param input TaskToolInput data for the tool
+---@param metadata TaskToolMetadata Metadata for the tool use
+function M._format_task_tool(input, metadata)
+  M._format_action('💻 task', input and input.description)
+
+  if not config.ui.output.tools.show_output then
+    return
+  end
+
+  if metadata.summary and type(metadata.summary) == 'table' then
+    for _, sub_part in ipairs(metadata.summary) do
+      if sub_part.type == 'tool' and sub_part.tool then
+        M._format_tool(sub_part)
+      end
+    end
   end
 end
 

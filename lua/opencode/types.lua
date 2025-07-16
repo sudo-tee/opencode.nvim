@@ -68,8 +68,8 @@
 --- @field debug OpencodeDebugConfig
 
 --- @class MessagePartState
---- @field input BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|WebFetchToolInput Input data for the tool
---- @field metadata ToolMetadataBase Metadata for the tool use
+--- @field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput Input data for the tool
+--- @field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata Metadata about the tool execution
 --- @field time { start: number, end: number } Timestamps for tool use
 --- @field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
 --- @field title string Title of the tool use
@@ -79,6 +79,9 @@
 --- @class ToolMetadataBase
 --- @field error boolean|nil Whether the tool execution resulted in an error
 --- @field message string|nil Optional status or error message
+
+--- @class TaskToolMetadata: ToolMetadataBase
+--- @field summary MessagePart[]
 
 --- @class WebFetchToolMetadata: ToolMetadataBase
 --- @field http_status number|nil HTTP response status code
@@ -96,6 +99,10 @@
 --- @field truncated boolean|nil
 --- @field count number|nil
 
+--- @class GrepToolMetadata: ToolMetadataBase
+--- @field truncated boolean|nil
+--- @field matches number|nil
+
 --- @class BashToolInput
 --- @field command string The command to execute
 --- @field description string Description of what the command does
@@ -111,10 +118,18 @@
 --- @field pattern string The glob pattern to match
 --- @field path? string Optional directory to search in
 
+--- @class GrepToolInput
+--- @field pattern string The glob pattern to match
+--- @field path? string Optional directory to search in
+
 --- @class WebFetchToolInput
 --- @field url string The URL to fetch content from
 --- @field format 'text'|'markdown'|'html'
 --- @field timeout? number Optional timeout in seconds (max 120)
+
+--- @class TaskToolInput
+--- @field prompt string The subtask prompt
+--- @field description string Description of the subtask
 
 --- @class MessagePart
 --- @field type 'text'|'tool'|'step-start'|'snapshot' Type of the message part

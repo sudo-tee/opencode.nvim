@@ -171,14 +171,7 @@ local function show_file_diff(file_path, snapshot_path)
   vim.api.nvim_create_autocmd('WinClosed', {
     group = augroup,
     pattern = tostring(tab_windows[1]) .. ',' .. tostring(tab_windows[2]),
-    callback = function()
-      if M.__diff_tab and vim.api.nvim_tabpage_is_valid(M.__diff_tab) then
-        pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeGitDiffCleanup' .. M.__diff_tab)
-        vim.api.nvim_set_current_tabpage(M.__diff_tab)
-        pcall(vim.cmd, 'tabclose')
-      end
-      M.__diff_tab = nil
-    end,
+    callback = close_diff_tab,
   })
 end
 

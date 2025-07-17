@@ -36,6 +36,7 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 - [Configuration](#️-configuration)
 - [Usage](#-usage)
 - [Context](#-context)
+  - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
 - [Setting up opencode](#-setting-up-opencode)
 
 ## ⚠️Caution
@@ -234,6 +235,34 @@ You can create custom modes through your opencode config file. Each mode can hav
 - And more
 
 See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full configuration options.
+
+## 📸 Contextual Actions for Snapshots
+
+Opencode.nvim automatically creates **snapshots** of your workspace at key moments (such as after running prompts or making changes). These snapshots are like lightweight git commits, allowing you to review, compare, and restore your project state at any time.
+
+**Contextual actions** for snapshots are available directly in the output window. When a snapshot is referenced in the conversation, you can trigger actions on it via keymaps displayed by the UI.
+
+#### Available Snapshot Actions
+
+- **Diff Changes:** See the changes introduced by a snapshot compared to the previous state.
+- **Diff Current:** View the differences for the current file as it was at the snapshot.
+- **Revert:** Revert your changed files to the state captured by a snapshot.
+
+#### How to Use
+
+- When a message in the output references a snapshot (look for 📸 **Created Snapshot** or similar), move your cursor to that line and a little menu will be displayed above.
+
+#### Example
+
+When you see a snapshot in the output:
+
+```
+<img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
+
+📸 **Created Snapshot** `b9f0147`
+```
+
+> **Tip:** Snapshots are stored per session and can be listed, diffed, or restored at any time, making it easy to experiment and undo changes.
 
 ### Highlight Groups
 

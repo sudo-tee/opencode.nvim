@@ -15,7 +15,7 @@ M.separator = {
   '',
 }
 
----@param session string|nil Session ID
+---@param session Session Session ID
 ---@return string[]|nil Formatted session lines
 function M.format_session(session)
   if not session or session == '' then
@@ -29,7 +29,7 @@ function M.format_session(session)
   M.output:add_line('')
   M.output:add_line('')
 
-  for i, msg in ipairs(M._messages) do
+  for i, msg in ipairs(state.messages) do
     M.output:add_lines(M.separator)
     state.current_message = msg
 
@@ -90,7 +90,7 @@ end
 ---@param part MessagePart
 function M._format_snapshot(part)
   M.output:add_empty_line()
-  M._format_action('💾 **Created Snapshot**', vim.trim(part.snapshot))
+  M._format_action('📸 **Created Snapshot**', vim.trim(part.snapshot))
   M.output:add_action({
     text = '[R]evert',
     type = 'diff_revert_all',

@@ -183,7 +183,7 @@ function M.open_configuration_file()
 
     vim.cmd('edit ' .. config_path)
   else
-    ui.notify('Configuration file not found: ' .. config_path, 'error')
+    vim.notify('Configuration file not found: ' .. config_path, 'error')
   end
 end
 

@@ -6,10 +6,12 @@ M.ConfigKeys = {
   MODEL = 'model',
 }
 
-function M.parse_opencode_config()
+function M.setup()
   local home = vim.uv.os_homedir()
   M.config_file = home .. '/.config/opencode/config.json'
+end
 
+function M.parse_opencode_config()
   if vim.fn.filereadable(M.config_file) == 0 then
     vim.notify('Opencode config file not found: ' .. M.config_file, vim.log.levels.WARN)
     return nil

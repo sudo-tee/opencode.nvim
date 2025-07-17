@@ -38,7 +38,7 @@ M.defaults = {
       diff_close = '<leader>oc',
       diff_revert_all = '<leader>ora',
       diff_revert_this = '<leader>ort',
-      open_configuration_file = '<leader>oc',
+      open_configuration_file = '<leader>oC',
     },
     window = {
       submit = '<cr>',

@@ -101,6 +101,7 @@ require('opencode').setup({
       diff_close = '<leader>oc',             -- Close diff view tab and return to normal editing
       diff_revert_all = '<leader>ora',       -- Revert all file changes since the last opencode prompt
       diff_revert_this = '<leader>ort',      -- Revert current file changes since the last opencode prompt
+      open_configuration_file = '<leader>oC',-- Open opencode configuration file
     },
     window = {
       submit = '<cr>',                     -- Submit prompt (normal mode)

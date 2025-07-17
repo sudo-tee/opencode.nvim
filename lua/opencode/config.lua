@@ -21,6 +21,7 @@ M.defaults = {
   prefered_picker = nil,
   default_global_keymaps = true,
   default_mode = 'build',
+  config_file_path = nil,
   keymap = {
     global = {
       toggle = '<leader>og',

@@ -84,6 +84,7 @@ require('opencode').setup({
   prefered_picker = nil,                     -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
   default_global_keymaps = true,             -- If false, disables all default global keymaps
   default_mode = 'build',                    -- 'build' or 'plan' or any custom configured. @see [OpenCode Modes](https://opencode.ai/docs/modes/)
+  config_file_path = nil,                    -- Path to opencode configuration file if different from the default `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json`
   keymap = {
     global = {
       toggle = '<leader>oa',                 -- Open opencode. Close if opened
@@ -264,4 +265,4 @@ If you're new to opencode:
 
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
-   - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` file
+   - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/config.json` file

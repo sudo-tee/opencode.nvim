@@ -60,6 +60,7 @@
 --- @field prefered_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
 --- @field default_global_keymaps boolean
 --- @field default_mode 'build' | 'plan' | string -- Default mode
+--- @field config_file_path string|nil Path to the configuration file
 --- @field keymap OpencodeKeymap
 --- @field ui OpencodeUIConfig
 --- @field providers OpencodeProviders

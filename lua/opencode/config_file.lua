@@ -1,3 +1,4 @@
+local state = require('opencode.state')
 local M = {}
 
 ---@enum OpencodeConfigKeys
@@ -5,9 +6,14 @@ M.ConfigKeys = {
   MODEL = 'model',
 }
 
-M.config_file = vim.fn.expand('$HOME/.config/opencode/config.json')
-
 function M.parse_opencode_config()
+  local home = vim.uv.os_homedir()
+  M.config_file = home .. '/.config/opencode/config.json'
+
+  if vim.fn.filereadable(M.config_file) == 0 then
+    vim.notify('Opencode config file not found: ' .. M.config_file, vim.log.levels.WARN)
+    return nil
+  end
   local content = vim.fn.readfile(M.config_file)
   local success, json = pcall(vim.json.decode, table.concat(content, '\n'))
 
@@ -51,9 +57,12 @@ end
 ---@param provider string
 ---@param model string
 function M.set_provider(provider, model)
+  local model_str = string.format('%s/%s', provider, model)
   local content = table.concat(vim.fn.readfile(M.config_file), '\n')
-  local updated = content:gsub('"model": "[^"]+"', string.format('"model": "%s/%s"', provider, model))
+  local updated = content:gsub('"model": "[^"]+"', string.format('"model": "%s"', model_str))
   local success, err = pcall(vim.fn.writefile, vim.split(updated, '\n'), M.config_file)
+
+  state.current_model = model_str
 
   if not success then
     vim.notify('Could not write to opencode config file: ' .. err, vim.log.levels.ERROR)

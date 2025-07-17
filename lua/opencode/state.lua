@@ -17,6 +17,7 @@ M.last_sent_context = nil
 -- session
 M.active_session = nil
 M.new_session_name = nil
+M.current_model = nil
 
 -- job
 M.opencode_run_job = nil

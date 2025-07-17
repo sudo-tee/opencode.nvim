@@ -29,10 +29,13 @@ function M.format_session(session)
   M.output:add_line('')
   M.output:add_line('')
 
-  for i = 1, #M._messages do
+  for i, msg in ipairs(M._messages) do
     M.output:add_lines(M.separator)
 
-    local msg = M._messages[i]
+    if msg.providerID and msg.providerID ~= '' then
+      M.current_model = msg.providerID .. '/' .. msg.modelID
+    end
+
     M._format_message_header(msg, i)
 
     for j, part in ipairs(msg.parts or {}) do

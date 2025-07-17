@@ -7,13 +7,17 @@ local LABELS = {
 }
 
 local function format_model_info()
-  local info = require('opencode.config_file').parse_opencode_config()
+  if not state.current_model or state.current_model == '' then
+    local info = require('opencode.config_file').parse_opencode_config()
+    state.current_model = info and info.model
+  end
+
   local config = require('opencode.config').get()
   local parts = {}
 
-  if config.ui.display_model and info then
-    if info.model ~= '' then
-      table.insert(parts, info.model)
+  if config.ui.display_model and state.current_model then
+    if state.current_model ~= '' then
+      table.insert(parts, state.current_model)
     end
   end
 

@@ -133,6 +133,8 @@ function M.get_by_name(name)
   return nil
 end
 
+---@param session Session
+---@return Message[]|nil
 function M.get_messages(session)
   if not session then
     return nil
@@ -152,9 +154,26 @@ function M.get_messages(session)
   return messages
 end
 
+---@param message Message
+---@param session Session
 function M.get_message_parts(message, session)
   local parts_path = session.parts_path .. message.id
   return M.read_json_dir(parts_path)
+end
+
+---@param message Message
+---@return string[]|nil
+function M.get_message_snapshot_ids(message)
+  if not message then
+    return nil
+  end
+  local snapshot_ids = {}
+  for _, part in ipairs(message.parts or {}) do
+    if part.snapshot and not vim.tbl_contains(snapshot_ids, part.snapshot) then
+      table.insert(snapshot_ids, part.snapshot)
+    end
+  end
+  return #snapshot_ids > 0 and snapshot_ids or nil
 end
 
 return M

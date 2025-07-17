@@ -22,20 +22,21 @@ function M.format_session(session)
     return nil
   end
 
-  M._messages = require('opencode.session').get_messages(session) or {}
+  state.messages = require('opencode.session').get_messages(session) or {}
 
   M.output:clear()
 
   M.output:add_line('')
   M.output:add_line('')
 
-  for i = 1, #M._messages do
+  for i = 1, #state.messages do
     M.output:add_lines(M.separator)
 
-    local msg = M._messages[i]
+    local msg = state.messages[i]
     M._format_message_header(msg, i)
 
     for j, part in ipairs(msg.parts or {}) do
+      state.current_message = msg
       M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type, snapshot = part.snapshot }
       M.output:add_metadata(M._current)
 
@@ -48,8 +49,7 @@ function M.format_session(session)
       elseif part.type == 'tool' then
         M._format_tool(part)
       elseif part.type == 'snapshot' and part.snapshot then
-        M.output:add_empty_line()
-        M._format_action('💾 **Created Snapshot**', vim.trim(part.snapshot))
+        M._format_snapshot(part)
       end
       M.output:add_empty_line()
     end
@@ -68,7 +68,7 @@ end
 function M.get_message_at_line(line)
   local metadata = M.output:get_nearest_metadata(line)
   if metadata and metadata.msg_idx and metadata.part_idx then
-    local msg = M._messages[metadata.msg_idx]
+    local msg = state.messages[metadata.msg_idx]
     local part = msg.parts[metadata.part_idx]
     return {
       message = msg,
@@ -82,6 +82,45 @@ end
 ---@return string[] Lines from the current output
 function M.get_lines()
   return M.output:get_lines()
+end
+
+---@param part MessagePart
+function M._format_snapshot(part)
+  M.output:add_empty_line()
+  M._format_action('💾 **Created Snapshot**', vim.trim(part.snapshot))
+  M.output:add_action({
+    text = '[R]evert',
+    type = 'diff_revert_all',
+    args = { part.snapshot },
+    key = 'R',
+    range = {
+      from = M.output:get_line_count(),
+      to = M.output:get_line_count(),
+    },
+    display_line = M.output:get_line_count() - 1,
+  })
+  M.output:add_action({
+    text = 'Diff [C]urrent',
+    type = 'diff_open',
+    args = { part.snapshot },
+    key = 'C',
+    range = {
+      from = M.output:get_line_count(),
+      to = M.output:get_line_count(),
+    },
+    display_line = M.output:get_line_count() - 1,
+  })
+  M.output:add_action({
+    text = '[D]iff Changes',
+    type = 'diff_open',
+    args = { part.snapshot, -1 },
+    key = 'D',
+    range = {
+      from = M.output:get_line_count(),
+      to = M.output:get_line_count(),
+    },
+    display_line = M.output:get_line_count() - 1,
+  })
 end
 
 ---@param message Message

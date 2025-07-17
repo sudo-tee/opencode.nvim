@@ -4,14 +4,16 @@ Output.__index = Output
 
 ---@class Output
 ---@field lines table<number, string>
----@field metadata table<number, table>
----@field extmarks table<number, table> -- Stores extmarks for each line
+---@field metadata table<number, OutputMetadata>
+---@field extmarks table<number, OutputExtmark> -- Stores extmarks for each line
+---@field actions table<number, OutputAction[]> -- Stores contextual actions for each line range
 ---@return self Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}
   self.metadata = {}
   self.extmarks = {}
+  self.actions = {}
   return self
 end
 
@@ -155,6 +157,7 @@ function Output:clear()
   self.lines = {}
   self.metadata = {}
   self.extmarks = {}
+  self.actions = {}
 end
 
 ---Get the number of lines
@@ -183,6 +186,39 @@ end
 ---@return table<number, table[]>
 function Output:get_extmarks()
   return vim.deepcopy(self.extmarks)
+end
+
+---Add contextual actions
+---@param actions OutputAction[] The actions to add
+function Output:add_actions(actions)
+  for _, action in ipairs(actions) do
+    table.insert(self.actions, action)
+  end
+end
+
+---Add contextual action
+---@param action OutputAction The actions to add
+function Output:add_action(action)
+  table.insert(self.actions, action)
+end
+
+---Get actions for a line matching a range
+---@param line number The line index to check
+---@return OutputAction[]|nil
+function Output:get_actions_for_line(line)
+  local actions = {}
+  for _, action in pairs(self.actions) do
+    if not action.range then
+      if line == action.display_line then
+        table.insert(actions, vim.deepcopy(action))
+      end
+    elseif action.range then
+      if line >= action.range.from and line <= action.range.to then
+        table.insert(actions, vim.deepcopy(action))
+      end
+    end
+  end
+  return #actions > 0 and actions or nil
 end
 
 return Output

@@ -198,6 +198,7 @@ function M.render(windows, force_refresh)
   end
   render()
   require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
+  require('opencode.ui.contextual_actions').setup_contextual_actions()
   require('opencode.ui.topbar').render()
 
   vim.schedule(function()

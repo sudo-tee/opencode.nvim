@@ -18,6 +18,10 @@ M.last_sent_context = nil
 M.active_session = nil
 M.new_session_name = nil
 
+-- messages
+M.messages = nil
+M.current_message = nil
+
 -- job
 M.opencode_run_job = nil
 

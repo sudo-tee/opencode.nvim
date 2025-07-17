@@ -1,6 +1,6 @@
 local M = {}
 
-local INPUT_PLACEHOLDER = 'Plan, search, ask, / for custom commands'
+local INPUT_PLACEHOLDER = 'Plan, search, ask, and code with AI! Type your prompt here...'
 local config = require('opencode.config').get()
 local state = require('opencode.state')
 local ui_util = require('opencode.ui.util')

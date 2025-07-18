@@ -40,18 +40,26 @@ end
 
 function M.workspace_slug()
   local workspace = vim.fn.getcwd()
-  local separator = package.config:sub(1, 1) -- Get the path separator (either "/" or "\")
-  return workspace:gsub(separator, '-'):gsub('%.', '-'):sub(2)
+  local sep = package.config:sub(1, 1)
+  local slug = workspace
+    :gsub(vim.pesc(sep), '-')
+    :gsub('[^A-Za-z0-9_-]', '-') -- Replace non-alphanumeric characters with dashes
+    :gsub('%-+', '-') -- Replace multiple dashes with a single dash
+    :gsub('^%-+', '') -- Remove leading dashes
+    :gsub('%-+$', '') -- Remove trailing dashes
+  return slug
 end
 
 function M.get_workspace_session_path(workspace)
   workspace = workspace or M.workspace_slug()
-  return vim.fn.expand('$HOME/.local/share/opencode/project/' .. workspace .. '/storage/session')
+  local home = vim.uv.os_homedir()
+  return home .. '/.local/share/opencode/project/' .. workspace .. '/storage/session'
 end
 
 function M.get_workspace_snapshot_path(workspace)
   workspace = workspace or M.workspace_slug()
-  return vim.fn.expand('$HOME/.local/share/opencode/project/' .. workspace .. '/snapshot/')
+  local home = vim.uv.os_homedir()
+  return home .. '.local/share/opencode/project/' .. workspace .. '/snapshot/'
 end
 
 ---@return Session[]|nil

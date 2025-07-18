@@ -38,13 +38,12 @@ function M.read_json_dir(dir)
   return decoded_items
 end
 
-function M.workspace_slug()
-  local workspace = vim.fn.getcwd()
+function M.workspace_slug(path)
+  local workspace = path or vim.fn.getcwd()
   local sep = package.config:sub(1, 1)
   local slug = workspace
     :gsub(vim.pesc(sep), '-')
     :gsub('[^A-Za-z0-9_-]', '-') -- Replace non-alphanumeric characters with dashes
-    :gsub('%-+', '-') -- Replace multiple dashes with a single dash
     :gsub('^%-+', '') -- Remove leading dashes
     :gsub('%-+$', '') -- Remove trailing dashes
   return slug

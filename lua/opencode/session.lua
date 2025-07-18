@@ -1,3 +1,4 @@
+local util = require('opencode.util')
 local M = {}
 
 ---@class Session
@@ -10,14 +11,17 @@ local M = {}
 ---@field messages_path string
 ---@field parts_path string
 ---@field snapshot_path string
+---@field workplace_slug string
 
 ---@param dir string Directory path to read JSON files from
+---@param max_items? number Maximum number of items to read
 ---@return table[]|nil Array of decoded JSON objects
-function M.read_json_dir(dir)
+function M.read_json_dir(dir, max_items)
   if not dir or vim.fn.isdirectory(dir) == 0 then
     return nil
   end
 
+  local count = 0
   local decoded_items = {}
   for file, file_type in vim.fs.dir(dir) do
     if file_type == 'file' and file:match('%.json$') then
@@ -30,6 +34,10 @@ function M.read_json_dir(dir)
         end
       end
     end
+    count = count + 1
+    if max_items and count >= max_items then
+      break
+    end
   end
 
   if #decoded_items == 0 then
@@ -39,6 +47,11 @@ function M.read_json_dir(dir)
 end
 
 function M.workspace_slug(path)
+  local is_git_project = util.is_git_project()
+  if not is_git_project then
+    return 'global'
+  end
+
   local workspace = path or vim.fn.getcwd()
   local sep = package.config:sub(1, 1)
   local slug = workspace
@@ -46,6 +59,7 @@ function M.workspace_slug(path)
     :gsub('[^A-Za-z0-9_-]', '-') -- Replace non-alphanumeric characters with dashes
     :gsub('^%-+', '') -- Remove leading dashes
     :gsub('%-+$', '') -- Remove trailing dashes
+
   return slug
 end
 
@@ -93,6 +107,7 @@ function M.get_all_sessions()
       messages_path = sessions_dir .. '/message/' .. session.id,
       parts_path = sessions_dir .. '/part/' .. session.id .. '/',
       snapshot_path = M.get_workspace_snapshot_path() .. session.id .. '/',
+      workplace_slug = M.workspace_slug(),
     }
   end, sessions)
 end
@@ -108,6 +123,18 @@ function M.get_all_workspace_sessions()
     return a.modified > b.modified
   end)
 
+  if not util.is_git_project() then
+    -- we only want sessions that are in the current workspace_folder
+    sessions = vim.tbl_filter(function(session)
+      local first_messages = M.get_messages(session, false, 2)
+      if first_messages and #first_messages > 1 then
+        local first_assistant_message = first_messages[2]
+        return first_assistant_message.path and first_assistant_message.path.root == vim.fn.getcwd()
+      end
+      return false
+    end, sessions)
+  end
+
   return sessions
 end
 
@@ -117,9 +144,13 @@ function M.get_last_workspace_session()
   if not sessions then
     return nil
   end
+
   local main_sessions = vim.tbl_filter(function(session)
     return session.parentID == nil --- we don't want child sessions
   end, sessions)
+
+  -- read the first messages to ensure they have the right path
+
   return main_sessions[1]
 end
 
@@ -140,7 +171,11 @@ function M.get_by_name(name)
   return nil
 end
 
-function M.get_messages(session)
+---@param session Session
+---@param include_parts? boolean Whether to include message parts
+---@param max_items? number Maximum number of messages to return
+function M.get_messages(session, include_parts, max_items)
+  include_parts = include_parts == nil and true or include_parts
   if not session then
     return nil
   end
@@ -152,7 +187,7 @@ function M.get_messages(session)
 
   for _, message in ipairs(messages) do
     if not message.parts or #message.parts == 0 then
-      message.parts = M.get_message_parts(message, session)
+      message.parts = include_parts and M.get_message_parts(message, session) or {}
     end
   end
 

@@ -1,3 +1,4 @@
+local Path = require('plenary.path')
 local M = {}
 
 function M.template(str, vars)
@@ -180,6 +181,11 @@ function M.index_of(tbl, value)
     end
   end
   return nil
+end
+
+function M.is_git_project()
+  local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
+  return git_dir:exists() and git_dir:is_dir()
 end
 
 return M

@@ -535,17 +535,6 @@ function M.setup()
       nargs = cmd.args and '+' or 0,
     })
   end
-
-  -- Register commands with arguments
-  vim.api.nvim_create_user_command(M.commands.run.name, M.commands.run.fn, {
-    desc = M.commands.run.desc,
-    nargs = '+',
-  })
-
-  vim.api.nvim_create_user_command(M.commands.run_new_session.name, M.commands.run_new_session.fn, {
-    desc = M.commands.run_new_session.desc,
-    nargs = '+',
-  })
 end
 
 return M

@@ -72,7 +72,7 @@ end
 function M.get_workspace_snapshot_path(workspace)
   workspace = workspace or M.workspace_slug()
   local home = vim.uv.os_homedir()
-  return home .. '.local/share/opencode/project/' .. workspace .. '/snapshot/'
+  return home .. '/.local/share/opencode/project/' .. workspace .. '/snapshot/'
 end
 
 ---@return Session[]|nil

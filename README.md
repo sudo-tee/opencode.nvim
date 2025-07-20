@@ -257,10 +257,11 @@ Opencode.nvim automatically creates **snapshots** of your workspace at key momen
 When you see a snapshot in the output:
 
 ```
-<img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
 
 📸 **Created Snapshot** `b9f0147`
 ```
+
+<img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
 
 > **Tip:** Snapshots are stored per session and can be listed, diffed, or restored at any time, making it easy to experiment and undo changes.
 

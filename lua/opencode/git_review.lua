@@ -126,6 +126,8 @@ end
 
 local function get_changed_files()
   local files = {}
+  local temp_files = {}
+
   local git_files = git.list_changed_files()
 
   for _, file in ipairs(git_files) do
@@ -140,15 +142,24 @@ local function get_changed_files()
 
       local snapshot_path = git.get_file_content_at_ref(file, M.__last_ref)
       if snapshot_path then
-        table.insert(files, { temp_file_path or abs_path, snapshot_path, file_type = file_type })
+        if temp_file_path then
+          table.insert(temp_files, { temp_file_path, snapshot_path, file_type = file_type })
+        else
+          table.insert(files, { abs_path, snapshot_path, file_type = file_type })
+        end
       else
-        table.insert(files, { temp_file_path or abs_path, nil, file_type = file_type })
+        if temp_file_path then
+          table.insert(temp_files, { temp_file_path, nil, file_type = file_type })
+        else
+          table.insert(files, { abs_path, nil, file_type = file_type })
+        end
       end
     end
   end
 
   M.__changed_files = files
-  return files
+
+  return vim.list_extend(files, temp_files)
 end
 
 local function display_file_at_index(idx)

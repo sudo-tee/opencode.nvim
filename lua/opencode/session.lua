@@ -84,20 +84,23 @@ function M.get_all_sessions()
     return nil
   end
 
-  return vim.tbl_map(function(session)
-    return {
-      workspace = vim.fn.getcwd(),
-      description = session.title or '',
-      modified = session.time.updated,
-      name = session.id,
-      parentID = session.parentID,
-      path = sessions_dir .. '/info/' .. session.id .. '.json',
-      messages_path = sessions_dir .. '/message/' .. session.id,
-      parts_path = sessions_dir .. '/part/' .. session.id .. '/',
-      snapshot_path = M.get_workspace_snapshot_path() .. session.id .. '/',
-      workplace_slug = M.workspace_slug(),
-    }
-  end, sessions)
+  return vim.tbl_map(M.create_session_object, sessions)
+end
+
+function M.create_session_object(session_json)
+  local sessions_dir = M.get_workspace_session_path()
+  return {
+    workspace = vim.fn.getcwd(),
+    description = session_json.title or '',
+    modified = session_json.time and session_json.time.updated or os.time(),
+    name = session_json.id,
+    parentID = session_json.parentID,
+    path = sessions_dir .. '/info/' .. session_json.id .. '.json',
+    messages_path = sessions_dir .. '/message/' .. session_json.id,
+    parts_path = sessions_dir .. '/part/' .. session_json.id .. '/',
+    snapshot_path = M.get_workspace_snapshot_path() .. session_json.id .. '/',
+    workplace_slug = M.workspace_slug(),
+  }
 end
 
 ---@return Session[]|nil
@@ -143,27 +146,34 @@ function M.get_last_workspace_session()
 end
 
 local _session_by_name = {}
+local _session_last_modified = {}
 
 ---@param name string
 ---@return Session|nil
 function M.get_by_name(name)
-  if _session_by_name[name] then
-    return _session_by_name[name]
-  end
-
-  local sessions = M.get_all_sessions()
-  if not sessions then
+  local sessions_dir = M.get_workspace_session_path()
+  local info_dir = sessions_dir .. '/info'
+  local file = info_dir .. '/' .. name .. '.json'
+  local _, stat = pcall(vim.uv.fs_stat, file)
+  if not stat then
     return nil
   end
 
-  for _, session in ipairs(sessions) do
-    _session_by_name[name] = session
-    if session.name == name then
-      return session
-    end
+  if _session_by_name[name] and _session_last_modified[name] == stat.mtime.sec then
+    return _session_by_name[name]
   end
 
-  return nil
+  local content = table.concat(vim.fn.readfile(file), '\n')
+  local ok, session_json = pcall(vim.json.decode, content)
+  if not ok or not session_json then
+    return nil
+  end
+
+  local session = M.create_session_object(session_json)
+  _session_by_name[name] = session
+  _session_last_modified[name] = stat.mtime.sec
+
+  return session
 end
 
 ---@param session Session

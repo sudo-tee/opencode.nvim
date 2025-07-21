@@ -89,7 +89,7 @@ function M._read_session(force_refresh)
 end
 
 function M._update_loading_animation(windows)
-  if not M._animation.loading_line then
+  if not M._animation.loading_line or not windows.output_buf then
     return false
   end
 
@@ -174,6 +174,10 @@ function M._animate_loading(windows)
 end
 
 function M.render(windows, force_refresh)
+  if not windows or not windows.output_buf then
+    return
+  end
+
   local function render()
     if not state.active_session and not state.new_session_name then
       return
@@ -258,8 +262,10 @@ function M.handle_loading(windows, output_lines)
   else
     M._animation.loading_line = nil
 
-    local ns_id = vim.api.nvim_create_namespace('loading_animation')
-    vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+    if windows and windows.output_buf then
+      local ns_id = vim.api.nvim_create_namespace('loading_animation')
+      vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+    end
 
     if M._animation.timer then
       pcall(vim.fn.timer_stop, M._animation.timer)
@@ -274,6 +280,9 @@ function M.handle_loading(windows, output_lines)
 end
 
 function M.write_output(windows, output_lines)
+  if not windows or not windows.output_buf then
+    return
+  end
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })

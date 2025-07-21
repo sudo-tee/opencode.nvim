@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local config = require('opencode.config').get()
 local Output = {}
 Output.__index = Output
 
@@ -22,7 +23,7 @@ end
 ---@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
 function Output:add_line(line, fit)
-  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
+  local win_width = state.windows and vim.api.nvim_win_get_width(state.windows.output_win) or config.ui.window_width
   if fit and #line > win_width then
     line = vim.fn.strcharpart(line, 0, win_width - 7) .. '...'
   end

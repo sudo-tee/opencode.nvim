@@ -263,7 +263,7 @@ When you see a snapshot in the output:
 
 <img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
 
-> **Tip:** Snapshots are stored per session and can be listed, diffed, or restored at any time, making it easy to experiment and undo changes.
+> **Tip:** Reverting a snapshot will restore all files to the state they were in at that snapshot, so use it with caution!
 
 ### Highlight Groups
 

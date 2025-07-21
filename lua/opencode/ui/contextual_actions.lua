@@ -68,10 +68,6 @@ end
 function M.show_contextual_actions_menu(buf, line_num, actions, ns_id)
   clear_keymaps(buf)
 
-  local action_texts = vim.tbl_map(function(action)
-    return action.key and string.format('%s', action.text) or action.text
-  end, actions)
-
   for _, action in ipairs(actions) do
     ---@type OutputExtmark
     local mark = {

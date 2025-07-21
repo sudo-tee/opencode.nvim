@@ -132,13 +132,23 @@ function M.diff_close()
   git_review.close_diff()
 end
 
----@param snapshot_id? string
-function M.diff_revert_all(snapshot_id)
+---@param from_snapshot_id? string
+---@param to_snapshot_id? string
+function M.diff_revert_all(from_snapshot_id, to_snapshot_id)
   if not state.windows then
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.revert_all(snapshot_id)
+  git_review.revert_all(from_snapshot_id, to_snapshot_id)
+end
+---@param from_snapshot_id? string
+---@param to_snapshot_id? string
+function M.diff_revert_selected_file(from_snapshot_id, to_snapshot_id)
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.revert_selected_file(from_snapshot_id, to_snapshot_id)
 end
 
 function M.diff_revert_all_last_prompt()

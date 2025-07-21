@@ -158,7 +158,7 @@
 
 ---@class OutputAction
 ---@field text string Action text
----@field type 'diff_revert_all'|'diff_open' Type of action
+---@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open' Type of action
 ---@field args? string[] Optional arguments for the command
 ---@field key string keybinding for the action
 ---@field display_line number Line number to display the action

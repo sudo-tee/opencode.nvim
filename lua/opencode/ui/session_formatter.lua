@@ -93,8 +93,8 @@ function M._format_snapshot(part)
   M._format_action('📸 **Created Snapshot**', vim.trim(part.snapshot))
   M.output:add_action({
     text = '[R]evert',
-    type = 'diff_revert_all',
-    args = { part.snapshot },
+    type = 'diff_revert_selected_file',
+    args = { part.snapshot, -1 },
     key = 'R',
     range = {
       from = M.output:get_line_count(),

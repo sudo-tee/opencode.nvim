@@ -9,6 +9,7 @@ local LABELS = {
 
 M._cache = {
   last_modified = 0,
+  last_output = 0,
   output_lines = nil,
   session_path = nil,
   check_counter = 0,
@@ -33,7 +34,12 @@ function M._should_refresh_content()
     return true
   end
 
-  local session_path = state.active_session.messages_path
+  if state.last_output and state.last_output > (M._cache.last_output or 0) then
+    M._cache.last_output = state.last_output
+    return true
+  end
+
+  local session_path = state.active_session.parts_path
 
   if session_path ~= M._cache.session_path then
     M._cache.session_path = session_path
@@ -223,6 +229,7 @@ function M.stop()
     output_lines = nil,
     session_path = nil,
     check_counter = 0,
+    last_output = 0,
   }
 end
 

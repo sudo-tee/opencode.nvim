@@ -78,13 +78,17 @@ function M.run(prompt, opts)
         state.was_interrupted = false
         M.after_run(prompt)
       end,
-      on_output = function(_)
+      on_output = function(output)
         -- Reload all modified file buffers
         vim.cmd('checktime')
-        if not state.active_session then
-          state.active_session = session.get_last_workspace_session()
-          state.new_session_name = state.active_session.name
+
+        if output and not state.active_session then
+          local found = string.match(output, 'sessionID=(ses_%w+)')
+          if found then
+            state.active_session = session.get_by_name(found)
+          end
         end
+        state.last_output = os.time()
         ui.render_output()
       end,
       on_error = function(err)

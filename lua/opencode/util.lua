@@ -183,9 +183,14 @@ function M.index_of(tbl, value)
   return nil
 end
 
+local _is_git_project = nil
 function M.is_git_project()
+  if _is_git_project ~= nil then
+    return _is_git_project
+  end
   local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
-  return git_dir:exists() and git_dir:is_dir()
+  _is_git_project = git_dir:exists() and git_dir:is_dir()
+  return _is_git_project
 end
 
 return M

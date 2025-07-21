@@ -1,18 +1,6 @@
 local util = require('opencode.util')
 local M = {}
 
----@class Session
----@field workspace string
----@field description string
----@field modified number
----@field name string
----@field parentID string|nil
----@field path string
----@field messages_path string
----@field parts_path string
----@field snapshot_path string
----@field workplace_slug string
-
 ---@param dir string Directory path to read JSON files from
 ---@param max_items? number Maximum number of items to read
 ---@return table[]|nil Array of decoded JSON objects
@@ -154,15 +142,22 @@ function M.get_last_workspace_session()
   return main_sessions[1]
 end
 
+local _session_by_name = {}
+
 ---@param name string
 ---@return Session|nil
 function M.get_by_name(name)
+  if _session_by_name[name] then
+    return _session_by_name[name]
+  end
+
   local sessions = M.get_all_sessions()
   if not sessions then
     return nil
   end
 
   for _, session in ipairs(sessions) do
+    _session_by_name[name] = session
     if session.name == name then
       return session
     end
@@ -185,9 +180,14 @@ function M.get_messages(session, include_parts, max_items)
     return nil
   end
 
+  local count = 0
   for _, message in ipairs(messages) do
+    count = count + 1
     if not message.parts or #message.parts == 0 then
       message.parts = include_parts and M.get_message_parts(message, session) or {}
+    end
+    if max_items and count >= max_items then
+      break
     end
   end
 

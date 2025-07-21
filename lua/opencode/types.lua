@@ -1,4 +1,16 @@
 
+---@class Session
+---@field workspace string
+---@field description string
+---@field modified number
+---@field name string
+---@field parentID string|nil
+---@field path string
+---@field messages_path string
+---@field parts_path string
+---@field snapshot_path string
+---@field workplace_slug string
+
 --- @class OpencodeKeymapGlobal
 --- @field toggle string
 --- @field open_input string

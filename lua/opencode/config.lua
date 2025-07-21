@@ -37,8 +37,10 @@ M.defaults = {
       diff_next = '<leader>o]',
       diff_prev = '<leader>o[',
       diff_close = '<leader>oc',
-      diff_revert_all = '<leader>ora',
-      diff_revert_this = '<leader>ort',
+      diff_revert_all_last_prompt = '<leader>ora',
+      diff_revert_this_last_prompt = '<leader>ort',
+      diff_revert_all = '<leader>orA',
+      diff_revert_this = '<leader>orT',
       open_configuration_file = '<leader>oC',
     },
     window = {

@@ -19,6 +19,10 @@ M.active_session = nil
 M.new_session_name = nil
 M.current_model = nil
 
+-- messages
+M.messages = nil
+M.current_message = nil
+
 -- job
 M.opencode_run_job = nil
 

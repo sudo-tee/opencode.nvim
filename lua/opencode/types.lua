@@ -13,8 +13,8 @@
 --- @field diff_next string
 --- @field diff_prev string
 --- @field diff_close string
---- @field diff_revert_all string
---- @field diff_revert_this string
+--- @field diff_revert_all_last_prompt string
+--- @field diff_revert_this_last_prompt string
 
 --- @class OpencodeKeymapWindow
 --- @field submit string
@@ -155,6 +155,14 @@
 ---@field role 'user'|'assistant'|'system'|nil Message role
 ---@field type 'text'|'tool'|'header'|nil Message part type
 ---@field snapshot? string|nil snapshot commit hash
+
+---@class OutputAction
+---@field text string Action text
+---@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open' Type of action
+---@field args? string[] Optional arguments for the command
+---@field key string keybinding for the action
+---@field display_line number Line number to display the action
+---@field range? { from: number, to: number } Optional range for the action
 
 ---@alias OutputExtmark vim.api.keyset.set_extmark
 

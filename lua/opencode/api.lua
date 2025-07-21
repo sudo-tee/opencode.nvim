@@ -1,5 +1,6 @@
 local core = require('opencode.core')
 local util = require('opencode.util')
+local session = require('opencode.session')
 
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
@@ -7,8 +8,6 @@ local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 
 local M = {}
-
--- Core API functions
 
 function M.open_input()
   core.open({ new_session = false, focus = 'input' })
@@ -99,12 +98,14 @@ function M.toggle_pane()
   ui.toggle_pane()
 end
 
-function M.diff_open()
-  if not state.windows then
+---@param from_snapshot_id? string
+---@param to_snapshot_id? string|number
+function M.diff_open(from_snapshot_id, to_snapshot_id)
+  if not state.messages or not state.active_session then
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.review()
+  git_review.review(from_snapshot_id, to_snapshot_id)
 end
 
 function M.diff_next()
@@ -131,24 +132,64 @@ function M.diff_close()
   git_review.close_diff()
 end
 
-function M.diff_revert_all()
+---@param from_snapshot_id? string
+---@param to_snapshot_id? string
+function M.diff_revert_all(from_snapshot_id, to_snapshot_id)
   if not state.windows then
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.revert_all()
+  git_review.revert_all(from_snapshot_id, to_snapshot_id)
+end
+---@param from_snapshot_id? string
+---@param to_snapshot_id? string
+function M.diff_revert_selected_file(from_snapshot_id, to_snapshot_id)
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.revert_selected_file(from_snapshot_id, to_snapshot_id)
 end
 
-function M.diff_revert_this()
+function M.diff_revert_all_last_prompt()
   if not state.windows then
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.revert_current()
+  local snapshots = session.get_message_snapshot_ids(state.current_message)
+  local snapshot_id = snapshots and snapshots[1]
+  if not snapshot_id then
+    vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
+    return
+  end
+  git_review.revert_all(snapshot_id)
+end
+
+function M.diff_revert_this(snapshot_id)
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.revert_current(snapshot_id)
+end
+
+function M.diff_revert_this_last_prompt()
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  local snapshots = session.get_message_snapshot_ids(state.current_message)
+  local snapshot_id = snapshots and snapshots[1]
+  if not snapshot_id then
+    vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
+    return
+  end
+  -- git_review.revert_current(snapshot_id)
 end
 
 function M.set_review_breakpoint()
-  git_review.set_breakpoint()
+  vim.notify('Setting review breakpoint is not implemented yet', vim.log.levels.WARN)
+  git_review.create_snapshot()
 end
 
 function M.prev_history()
@@ -416,7 +457,6 @@ M.commands = {
     args = true,
   },
 
-  -- Updated diff command names
   diff_open = {
     name = 'OpencodeDiff',
     desc = 'Opens a diff tab of a modified file since the last opencode prompt',
@@ -449,20 +489,62 @@ M.commands = {
     end,
   },
 
-  diff_revert_all = {
-    name = 'OpencodeRevertAll',
+  diff_revert_all_last_prompt = {
+    name = 'OpencodeRevertAllLastPrompt',
     desc = 'Revert all file changes since the last opencode prompt',
     fn = function()
-      M.diff_revert_all()
+      M.diff_revert_all_last_prompt()
     end,
   },
 
-  diff_revert_this = {
-    name = 'OpencodeRevertThis',
+  diff_revert_this_last_prompt = {
+    name = 'OpencodeRevertThisLastPrompt',
     desc = 'Revert current file changes since the last opencode prompt',
     fn = function()
-      M.diff_revert_this()
+      M.diff_revert_this_last_prompt()
     end,
+  },
+
+  diff_revert_all_session = {
+    name = 'OpencodeRevertAllSession',
+    desc = 'Revert all file changes since the last session',
+    fn = function()
+      M.diff_revert_all_session()
+    end,
+  },
+
+  diff_revert_this_session = {
+    name = 'OpencodeRevertThisSession',
+    desc = 'Revert current file changes since the last session',
+    fn = function()
+      M.diff_revert_this_session()
+    end,
+  },
+
+  diff_revert_all_to_snapshot = {
+    name = 'OpencodeRevertAllToSnapshot',
+    desc = 'Revert all file changes to a specific snapshot',
+    fn = function(snapshot)
+      if not snapshot then
+        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+        return
+      end
+      M.diff_revert_all(snapshot)
+    end,
+    args = true,
+  },
+
+  diff_revert_this_to_snapshot = {
+    name = 'OpencodeRevertThisToSnapshot',
+    desc = 'Revert all file changes to a specific snapshot',
+    fn = function(snapshot)
+      if not snapshot then
+        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+        return
+      end
+      M.diff_revert_this(snapshot)
+    end,
+    args = true,
   },
 
   set_review_breakpoint = {

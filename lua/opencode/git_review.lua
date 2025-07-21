@@ -2,6 +2,38 @@ local Path = require('plenary.path')
 local state = require('opencode.state')
 
 local M = {}
+local diff_tab = require('opencode.ui.diff_tab')
+
+local function write_to_temp_file(content)
+  local temp_file = vim.fn.tempname()
+  local f = io.open(temp_file, 'w')
+  if not f then
+    vim.notify('Failed to open temp file: ' .. temp_file)
+    return nil
+  end
+  f:write(content)
+  f:close()
+  return temp_file
+end
+
+---@param cmd_args string[]
+---@param opts? vim.SystemOpts
+---@return string|nil, string|nil
+local function snapshot_git(cmd_args, opts)
+  local snapshot_dir = state.active_session and state.active_session.snapshot_path
+  if not snapshot_dir then
+    vim.notify('No snapshot path for the active session.')
+    return nil, nil
+  end
+  local args = { 'git', '-C', snapshot_dir }
+  vim.list_extend(args, cmd_args)
+  local result = vim.system(args, opts or {}):wait()
+  if result and result.code == 0 then
+    return vim.trim(result.stdout), result.stderr
+  else
+    return nil, result and result.stderr or nil
+  end
+end
 
 M.__changed_files = nil
 M.__current_file_index = nil
@@ -23,9 +55,8 @@ local git = {
 
   list_changed_files = function(unstaged_only)
     if unstaged_only then
-      local snapshot_dir = state.active_session.snapshot_path
-      local result = vim.fn.system('git -C "' .. snapshot_dir .. '" ls-files --modified')
-      return vim.split(result, '\n'), nil
+      local out = snapshot_git({ 'ls-files', '--modified' })
+      return vim.split(out or '', '\n'), nil
     end
 
     if not M.__current_ref then
@@ -33,42 +64,43 @@ local git = {
     end
     local last_ref = M.__last_ref or 'HEAD'
 
-    local snapshot_dir = state.active_session.snapshot_path
-    local current = vim.fn.system('git -C "' .. snapshot_dir .. '" rev-parse ' .. last_ref):gsub('\n', '')
-    local result =
-      vim.fn.system('git -C "' .. snapshot_dir .. '" diff --name-only ' .. M.__current_ref .. ' ' .. current)
-    return vim.split(result, '\n'), M.__current_ref
+    local current = snapshot_git({ 'rev-parse', last_ref }) or ''
+
+    local result = snapshot_git({ 'diff', '--name-only', M.__current_ref, current })
+    return vim.split(result or '', '\n'), M.__current_ref
   end,
 
   get_file_content_at_ref = function(file_path, ref)
     if not ref then
       return nil
     end
-
-    local snapshot_dir = state.active_session.snapshot_path
-    local temp_file = vim.fn.tempname()
-    vim.fn.system('git -C "' .. snapshot_dir .. '" show ' .. ref .. ':' .. file_path .. ' > ' .. temp_file)
-    return temp_file
+    local out, err = snapshot_git({ 'show', ref .. ':' .. file_path })
+    if out then
+      return write_to_temp_file(out)
+    else
+      vim.notify('Failed to get file content at ref: ' .. (err or 'unknown error'))
+      return nil
+    end
   end,
 
   is_tracked = function(file_path)
-    local snapshot_dir = state.active_session.snapshot_path
-    local success =
-      os.execute('git -C "' .. snapshot_dir .. '" ls-files --error-unmatch "' .. file_path .. '" > /dev/null 2>&1')
-    return success == 0
+    local out = snapshot_git({ 'ls-files', '--error-unmatch', file_path })
+    return out ~= nil
   end,
 
   get_first_commit = function()
     if not state.active_session then
       return nil
     end
-
-    local snapshot_dir = state.active_session.snapshot_path
-    local result = vim.fn.system('git -C "' .. snapshot_dir .. '" rev-list --max-parents=0 HEAD')
-    return vim.trim(result)
+    local out = snapshot_git({ 'rev-list', '--max-parents=0', 'HEAD' })
+    return vim.trim(out or '')
   end,
 }
 
+---@generic T
+---@param fn T
+---@param silent any
+---@return T
 local function require_git_project(fn, silent)
   return function(...)
     if not git.is_project() then
@@ -95,96 +127,65 @@ end
 
 local function get_changed_files()
   local files = {}
-  local git_files, ref = git.list_changed_files()
+  local temp_files = {}
+
+  local git_files = git.list_changed_files()
 
   for _, file in ipairs(git_files) do
     if file ~= '' then
-      local file_path = vim.fn.getcwd() .. '/' .. file
-      local snapshot_path = git.get_file_content_at_ref(file, ref)
+      local abs_path = vim.fn.getcwd() .. '/' .. file
+      local file_type = vim.fn.fnamemodify(file, ':e')
+
+      local temp_file_path = nil
+      if M.__last_ref ~= 'HEAD' then
+        temp_file_path = git.get_file_content_at_ref(file, M.__current_ref)
+      end
+
+      local snapshot_path = git.get_file_content_at_ref(file, M.__last_ref)
       if snapshot_path then
-        table.insert(files, { file_path, snapshot_path })
+        if temp_file_path then
+          table.insert(temp_files, { temp_file_path, snapshot_path, path = abs_path, file_type = file_type })
+        else
+          table.insert(files, { abs_path, snapshot_path, path = abs_path, file_type = file_type })
+        end
       else
-        table.insert(files, { file_path, nil })
+        if temp_file_path then
+          table.insert(temp_files, { temp_file_path, nil, path = abs_path, file_type = file_type })
+        else
+          table.insert(files, { abs_path, nil, path = abs_path, file_type = file_type })
+        end
       end
     end
   end
 
   M.__changed_files = files
-  return files
-end
 
-local function close_diff_tab()
-  if M.__diff_tab and vim.api.nvim_tabpage_is_valid(M.__diff_tab) then
-    pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeDiffCleanup' .. M.__diff_tab)
-
-    local windows = vim.api.nvim_tabpage_list_wins(M.__diff_tab)
-
-    local buffers = {}
-    for _, win in ipairs(windows) do
-      local buf = vim.api.nvim_win_get_buf(win)
-      table.insert(buffers, buf)
-    end
-
-    vim.api.nvim_set_current_tabpage(M.__diff_tab)
-    pcall(vim.cmd, 'tabclose')
-
-    for _, buf in ipairs(buffers) do
-      if vim.api.nvim_buf_is_valid(buf) then
-        local visible = false
-        for _, win in ipairs(vim.api.nvim_list_wins()) do
-          if vim.api.nvim_win_get_buf(win) == buf then
-            visible = true
-            break
-          end
-        end
-
-        if not visible then
-          pcall(vim.api.nvim_buf_delete, buf, { force = true })
-        end
-      end
-    end
-  end
-  M.__diff_tab = nil
-end
-
-local function show_file_diff(file_path, snapshot_path)
-  close_diff_tab()
-
-  vim.cmd('tabnew')
-  M.__diff_tab = vim.api.nvim_get_current_tabpage()
-
-  if snapshot_path then
-    vim.cmd('edit ' .. vim.fn.fnameescape(snapshot_path))
-    vim.cmd('setlocal readonly buftype=nofile nomodifiable')
-    vim.cmd('setlocal filetype=' .. vim.fn.fnamemodify(file_path, ':e'))
-    vim.cmd('diffthis')
-
-    vim.cmd('vsplit ' .. vim.fn.fnameescape(file_path))
-    vim.cmd('diffthis')
-  else
-    vim.cmd('edit ' .. vim.fn.fnameescape(file_path))
-  end
-
-  -- Set up auto-cleanup
-  local augroup = vim.api.nvim_create_augroup('OpencodeGitDiffCleanup' .. M.__diff_tab, { clear = true })
-  local tab_windows = vim.api.nvim_tabpage_list_wins(M.__diff_tab)
-  vim.api.nvim_create_autocmd('WinClosed', {
-    group = augroup,
-    pattern = tostring(tab_windows[1]) .. ',' .. tostring(tab_windows[2]),
-    callback = close_diff_tab,
-  })
+  return vim.list_extend(files, temp_files)
 end
 
 local function display_file_at_index(idx)
   local file_data = M.__changed_files[idx]
   local file_name = vim.fn.fnamemodify(file_data[1], ':t')
+  local file_type = vim.fn.fnamemodify(file_data[1], ':e')
   vim.notify(string.format('Showing file %d of %d: %s', idx, #M.__changed_files, file_name))
-  show_file_diff(file_data[1], file_data[2])
+  diff_tab.open_diff_tab(file_data[1], file_data[2], file_type)
+end
+
+---@param rev string
+---@param n? number
+---@return string|nil
+local function get_git_rev(rev, n)
+  if n == 0 or n == nil then
+    return snapshot_git({ 'rev-parse', rev })
+  elseif n < 0 then
+    return snapshot_git({ 'rev-parse', string.format('%s~%d', rev, math.abs(n)) })
+  end
+  return nil
 end
 
 M.review = require_git_project(function(ref, last_ref)
   M.__current_ref = ref or git.get_first_commit()
-  M.__last_ref = last_ref or 'HEAD'
+  last_ref = get_git_rev(ref, last_ref) or 'HEAD'
   local files = get_changed_files()
 
   if #files == 0 then
@@ -194,7 +195,7 @@ M.review = require_git_project(function(ref, last_ref)
 
   if #files == 1 then
     M.__current_file_index = 1
-    show_file_diff(files[1][1], files[1][2])
+    diff_tab.open_diff_tab(files[1][1], files[1][2], files[1].file_type)
   else
     vim.ui.select(
       vim.tbl_map(function(f)
@@ -206,7 +207,7 @@ M.review = require_git_project(function(ref, last_ref)
           return
         end
         M.__current_file_index = idx
-        show_file_diff(files[idx][1], files[idx][2])
+        diff_tab.open_diff_tab(files[idx][1], files[idx][2], files[idx].file_type)
       end
     )
   end
@@ -214,7 +215,7 @@ end)
 
 M.next_diff = require_git_project(function(ref, last_ref)
   M.__current_ref = ref or git.get_first_commit()
-  M.__last_ref = last_ref or 'HEAD'
+  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
   if not M.__changed_files or not M.__current_file_index or M.__current_file_index >= #M.__changed_files then
     local files = get_changed_files()
     if #files == 0 then
@@ -231,7 +232,7 @@ end)
 
 M.prev_diff = require_git_project(function(ref, last_ref)
   M.__current_ref = ref or git.get_first_commit()
-  M.__last_ref = last_ref or 'HEAD'
+  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
   if not M.__changed_files or #M.__changed_files == 0 then
     local files = get_changed_files()
     if #files == 0 then
@@ -250,58 +251,109 @@ M.prev_diff = require_git_project(function(ref, last_ref)
   display_file_at_index(M.__current_file_index)
 end)
 
-M.revert_current = require_git_project(function(ref, last_ref)
-  M.__current_ref = ref or M.get_first_commit()
-  M.__last_ref = last_ref or 'HEAD'
+M.create_snapshot = require_git_project(function(title)
+  title = title or ('Snapshot' .. os.date(' %Y-%m-%d %H:%M:%S'))
 
-  local files = get_changed_files()
-  local current_file = vim.fn.expand('%:p')
-  local abs_path = vim.fn.fnamemodify(current_file, ':p')
+  local result = snapshot_git({ 'add', '.' })
+  result = snapshot_git({ 'commit', '-m', title, '--author=opencode.nvim --no-gpg-sign <mail@opencode.nvim>' })
 
-  local changed_file = nil
-  for _, file_data in ipairs(files) do
-    if file_data[1] == abs_path then
-      changed_file = file_data
-      break
+  if not result then
+    vim.notify('Error creating snapshot: ' .. result, vim.log.levels.ERROR)
+    return false
+  end
+
+  vim.notify('Created snapshot [' .. title .. '].')
+  local snapshot_commit = snapshot_git({ 'rev-parse', 'HEAD' })
+  return true, snapshot_commit
+end)
+
+M.revert_current = require_git_project(
+  ---@param current_ref? string|nil
+  ---@param last_ref? string|nil
+  function(current_ref, last_ref)
+    M.__current_ref = current_ref or M.get_first_commit()
+    M.__last_ref = last_ref or 'HEAD'
+
+    local files = get_changed_files()
+    local current_file = vim.fn.expand('%:p')
+    local abs_path = vim.fn.fnamemodify(current_file, ':p')
+
+    local changed_file = nil
+    for _, file_data in ipairs(files) do
+      if file_data[1] == abs_path then
+        changed_file = file_data
+        break
+      end
+    end
+
+    if not changed_file then
+      vim.notify('No changes to revert.')
+      return
+    end
+
+    if vim.fn.input('Revert current file? (y/n): '):lower() ~= 'y' then
+      return
+    end
+
+    if M.revert_file(changed_file[1], current_ref) then
+      vim.cmd('e!')
+      vim.cmd('checktime')
     end
   end
-
-  if not changed_file then
-    vim.notify('No changes to revert.')
-    return
-  end
-
-  if vim.fn.input('Revert current file? (y/n): '):lower() ~= 'y' then
-    return
-  end
-
-  if M.revert_file(changed_file[1], ref) then
-    vim.cmd('e!')
-  end
-end)
+)
 
 M.revert_file = require_git_project(function(file_path, ref)
   if not file_path then
     vim.notify('Invalid file path or snapshot path.')
     return false
   end
-
-  local snapshot_dir = state.active_session.snapshot_path
-  local revert_cmd = 'git -C "' .. snapshot_dir .. '" checkout ' .. (ref or 'HEAD') .. ' -- "' .. file_path .. '"'
-  local result = vim.fn.system(revert_cmd)
-
-  if vim.v.shell_error ~= 0 then
-    vim.notify('Error reverting file: ' .. result, vim.log.levels.ERROR)
+  local out, raw = snapshot_git({ 'checkout', ref or 'HEAD', '--', file_path })
+  if not out then
+    vim.notify('Error reverting file: ' .. (raw or ''), vim.log.levels.ERROR)
     return false
   end
-
   vim.notify('Reverted file: ' .. file_path .. ' at rev ' .. ref .. ' successfully.')
   return true
 end)
 
+M.revert_selected_file = require_git_project(function(ref, last_ref)
+  M.__current_ref = ref or M.get_first_commit()
+  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
+
+  local files = get_changed_files()
+
+  if #files == 0 then
+    vim.notify('No changes to revert.')
+    return
+  end
+
+  if #files == 1 then
+    if M.revert_file(files[1].path, ref) then
+      vim.cmd('checktime')
+    end
+    return
+  end
+
+  vim.ui.select(
+    vim.tbl_map(function(f)
+      return vim.fn.fnamemodify(f.path, ':.')
+    end, files),
+    { prompt = 'Select a file to revert:' },
+    function(choice, idx)
+      if not choice then
+        return
+      end
+      local file_data = files[idx]
+      if M.revert_file(file_data.path, ref) then
+        vim.cmd('checktime')
+      end
+    end
+  )
+end)
+
 M.revert_all = require_git_project(function(ref, last_ref)
   M.__current_ref = ref or M.get_first_commit()
-  M.__last_ref = last_ref or 'HEAD'
+  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
 
   local files = get_changed_files()
 
@@ -314,9 +366,12 @@ M.revert_all = require_git_project(function(ref, last_ref)
     return
   end
 
+  M.create_snapshot('Before Revert snapshot [' .. M.__current_ref .. ']')
+
   local success_count = 0
   for _, file_data in ipairs(files) do
     if M.revert_file(file_data[1], ref) then
+      vim.cmd('checktime')
       success_count = success_count + 1
     end
   end
@@ -325,12 +380,7 @@ M.revert_all = require_git_project(function(ref, last_ref)
 end)
 
 M.close_diff = function()
-  if M.__diff_tab and vim.api.nvim_tabpage_is_valid(M.__diff_tab) then
-    pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeGitDiffCleanup' .. M.__diff_tab)
-    vim.api.nvim_set_current_tabpage(M.__diff_tab)
-    pcall(vim.cmd, 'tabclose')
-    M.__diff_tab = nil
-  end
+  diff_tab.close_diff_tab()
 end
 
 M.reset_git_status = function()

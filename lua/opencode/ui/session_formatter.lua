@@ -231,7 +231,7 @@ function M._format_bash_tool(input, metadata)
   end
 
   if metadata.stdout then
-    M._format_code(vim.split('> ' .. input.command .. '\n\n' .. metadata.stdout, '\n'), 'bash')
+    M._format_code(vim.split('> ' .. input.command or '' .. '\n\n' .. metadata.stdout, '\n'), 'bash')
   end
 end
 
@@ -288,7 +288,11 @@ end
 ---@param input GrepToolInput data for the tool
 ---@param metadata GrepToolMetadata Metadata for the tool use
 function M._format_grep_tool(input, metadata)
-  M._format_action('🔍 grep', input and (input.path or input.include or '') .. '` `' .. input.pattern or '')
+  input = input or { path = '', include = '', pattern = '' }
+
+  local grep_str = string.format('%s `` %s', (input.path or input.include) or '', input.pattern or '')
+
+  M._format_action('🔍 grep', grep_str)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -310,7 +314,7 @@ function M._format_tool(part)
   end
 
   local start_line = M.output:get_line_count() + 1
-  local input = part.state and part.state.input
+  local input = part.state and part.state.input or {}
   local metadata = part.state.metadata or {}
 
   if tool == 'bash' then

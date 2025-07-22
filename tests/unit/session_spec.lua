@@ -9,8 +9,11 @@ local session = require('opencode.session')
 local helpers = require('tests.helpers')
 -- Use the existing mock data
 local session_list_mock = require('tests.mocks.session_list')
+local util = require('opencode.util')
 
 describe('opencode.session', function()
+  local original_is_git_project
+  local original_fs_stat
   local original_readfile
   local original_workspace
   local session_files = {}
@@ -23,6 +26,8 @@ describe('opencode.session', function()
       'old-1.json',
     }
     -- Save the original functions
+    original_fs_stat = vim.uv.fs_stat
+    original_is_git_project = util.is_git_project
     original_readfile = vim.fn.readfile
     original_fs_dir = vim.fs.dir
     original_workspace = vim.fn.getcwd
@@ -54,7 +59,7 @@ describe('opencode.session', function()
       end
       return original_fs_dir(path)
     end
-    
+
     vim.fn.isdirectory = function(path)
       if mock_data.valid_dirs and vim.tbl_contains(mock_data.valid_dirs, path) then
         return 1
@@ -65,7 +70,7 @@ describe('opencode.session', function()
     vim.fn.readfile = function(file)
       local session_dir = session.get_workspace_session_path()
       local info_prefix = session_dir .. '/info/'
-      
+
       -- Handle session info files
       if vim.startswith(file, info_prefix) then
         local filename = file:sub(#info_prefix + 1)
@@ -80,7 +85,7 @@ describe('opencode.session', function()
           return vim.split(data, '\n')
         end
       end
-      
+
       -- Handle message files
       if mock_data.messages and vim.startswith(file, session_dir .. '/message/new-8/') then
         local msg_name = vim.fn.fnamemodify(file, ':t:r')
@@ -88,7 +93,7 @@ describe('opencode.session', function()
           return vim.split(mock_data.messages[msg_name], '\n')
         end
       end
-      
+
       -- Handle part files
       if mock_data.parts and vim.startswith(file, session_dir .. '/part/new-8/msg1/') then
         local part_name = vim.fn.fnamemodify(file, ':t:r')
@@ -96,7 +101,7 @@ describe('opencode.session', function()
           return vim.split(mock_data.parts[part_name], '\n')
         end
       end
-      
+
       -- Fall back to original for other commands
       return original_readfile(file)
     end
@@ -104,6 +109,23 @@ describe('opencode.session', function()
     -- Mock getcwd - defaulting to match the working directory in the mock data
     vim.fn.getcwd = function()
       return mock_data.workspace or DEFAULT_WORKSPACE
+    end
+
+    vim.uv.fs_stat = function(path)
+      if path:find(DEFAULT_WORKSPACE_SLUG, 1, true) then
+        -- Simulate a valid session file
+        if vim.tbl_contains(session_files, path:match('([^/]+)$')) then
+          return { type = 'file', mtime = { sec = os.time() } }
+        end
+        -- Simulate a valid directory for messages or parts
+        if mock_data.valid_dirs and vim.tbl_contains(mock_data.valid_dirs, path) then
+          return { type = 'directory', mtime = { sec = os.time() } }
+        end
+      end
+    end
+
+    util.is_git_project = function()
+      return true
     end
   end)
 
@@ -114,6 +136,8 @@ describe('opencode.session', function()
     vim.fn.getcwd = original_workspace
     vim.fs.dir = original_fs_dir
     vim.fn.isdirectory = original_isdirectory
+    vim.uv.fs_stat = original_fs_stat
+    util.is_git_project = original_is_git_project
     mock_data = {}
   end)
 
@@ -220,9 +244,9 @@ describe('opencode.session', function()
       mock_data.valid_dirs = { dir }
       mock_data.message_files = { 'msg1.json' }
       mock_data.messages = {
-        msg1 = '{"id": "msg1", "content": "test message"}'
+        msg1 = '{"id": "msg1", "content": "test message"}',
       }
-      
+
       local result = session.read_json_dir(dir)
       assert.is_not_nil(result)
       assert.equals(1, #result)
@@ -236,16 +260,16 @@ describe('opencode.session', function()
       mock_data.message_files = { 'valid.json', 'invalid.json' }
       mock_data.messages = {
         valid = '{"id": "valid"}',
-        invalid = 'not json'
+        invalid = 'not json',
       }
-      
+
       local result = session.read_json_dir(dir)
       assert.is_not_nil(result)
       assert.equals(1, #result)
       assert.equals('valid', result[1].id)
     end)
   end)
-  
+
   describe('get_messages', function()
     it('returns nil when session is nil', function()
       local result = session.get_messages(nil)
@@ -261,23 +285,23 @@ describe('opencode.session', function()
       local session_dir = session.get_workspace_session_path()
       local messages_dir = session_dir .. '/message/new-8'
       local parts_dir = session_dir .. '/part/new-8/msg1'
-      
+
       mock_data.valid_dirs = { messages_dir, parts_dir }
       mock_data.message_files = { 'msg1.json' }
       mock_data.part_files = { 'part1.json', 'part2.json' }
       mock_data.messages = {
-        msg1 = '{"id": "msg1", "content": "test message"}'
+        msg1 = '{"id": "msg1", "content": "test message"}',
       }
       mock_data.parts = {
         part1 = '{"id": "part1", "content": "part 1"}',
-        part2 = '{"id": "part2", "content": "part 2"}'
+        part2 = '{"id": "part2", "content": "part 2"}',
       }
-      
+
       local test_session = {
         messages_path = messages_dir,
-        parts_path = session_dir .. '/part/new-8/'
+        parts_path = session_dir .. '/part/new-8/',
       }
-      
+
       local result = session.get_messages(test_session)
       assert.is_not_nil(result)
       assert.equals(1, #result)

@@ -132,7 +132,7 @@
 --- @field path? string Optional directory to search in
 
 --- @class GrepToolInput
---- @field pattern string The glob pattern to match
+--- @field pattern? string The glob pattern to match
 --- @field path? string Optional directory to search in
 --- @field include? string Optional file type to include (e.g., '*.lua')
 

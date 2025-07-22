@@ -25,6 +25,11 @@ function M.build_args(prompt)
     table.insert(args, state.current_mode)
   end
 
+  if state.current_model then
+    table.insert(args, '--model')
+    table.insert(args, state.current_model)
+  end
+
   table.insert(args, '--print-logs')
 
   return args

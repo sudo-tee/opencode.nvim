@@ -142,7 +142,7 @@ function M.add_file_to_context()
 end
 
 function M.configure_provider()
-  local info_mod = require('opencode.config_file')
+  local cfg = require('opencode.config_file')
   require('opencode.provider').select(function(selection)
     if not selection then
       if state.windows then
@@ -150,8 +150,7 @@ function M.configure_provider()
       end
       return
     end
-
-    info_mod.set_provider(selection.provider, selection.model)
+    cfg.set_model(selection.provider, selection.model)
 
     if state.windows then
       require('opencode.ui.topbar').render()

@@ -140,19 +140,20 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
 
     M.handle_loading(windows)
 
-    M.write_output(windows, output_lines)
-    require('opencode.ui.footer').render(windows)
+    local output_changed = M.write_output(windows, output_lines)
 
-    M.handle_auto_scroll(windows)
+    if output_changed then
+      vim.schedule(function()
+        M.handle_auto_scroll(windows)
+        M.render_markdown()
+      end)
+    end
+    require('opencode.ui.footer').render(windows)
   end
   render()
   require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
   require('opencode.ui.contextual_actions').setup_contextual_actions()
   require('opencode.ui.topbar').render()
-
-  vim.schedule(function()
-    M.render_markdown()
-  end)
 end)
 
 function M.stop()
@@ -181,14 +182,26 @@ end
 
 function M.write_output(windows, output_lines)
   if not windows or not windows.output_buf then
-    return
+    return false
   end
 
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  local prev_lines = M._cache.prev_rendered_lines or {}
+  local changed = false
+  if #prev_lines ~= #output_lines then
+    changed = true
+  elseif #output_lines > 0 and prev_lines[#prev_lines] ~= output_lines[#output_lines] then
+    changed = true
+  end
 
-  M.apply_output_extmarks(windows)
+  if changed then
+    vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
+    vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
+    vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+    M._cache.prev_rendered_lines = vim.deepcopy(output_lines)
+    M.apply_output_extmarks(windows)
+  end
+
+  return changed
 end
 
 function M.apply_output_extmarks(windows)

@@ -55,6 +55,8 @@
 --- @field layout string
 --- @field floating_height number
 --- @field display_model boolean
+--- @field display_context_size boolean
+--- @field display_cost boolean
 --- @field window_highlight string
 --- @field output { tools: { show_output: boolean } }
 
@@ -128,7 +130,7 @@
 --- @field todos { id: string, content: string, status: 'pending'|'in_progress'|'completed'|'cancelled', priority: 'high'|'medium'|'low' }[]
 
 --- @class GlobToolInput
---- @field pattern string The glob pattern to match
+--- @field pattern? string The glob pattern to match
 --- @field path? string Optional directory to search in
 
 --- @class GrepToolInput

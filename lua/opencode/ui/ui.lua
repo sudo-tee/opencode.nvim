@@ -12,6 +12,7 @@ function M.scroll_to_bottom()
   end, 200)
 end
 
+---@param windows OpencodeWindowState
 function M.close_windows(windows)
   if not windows then
     return
@@ -28,6 +29,7 @@ function M.close_windows(windows)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
+  require('opencode.ui.footer').close()
 
   -- Clear autocmd groups
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -49,7 +51,9 @@ function M.setup_buffers()
 
   vim.api.nvim_set_option_value('filetype', 'opencode_input', { buf = input_buf })
   vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
-  return { input_buf = input_buf, output_buf = output_buf }
+
+  local footer_buf = require('opencode.ui.footer').create_buf()
+  return { input_buf = input_buf, output_buf = output_buf, footer_buf = footer_buf }
 end
 
 function M.create_floating_windows(input_buf, output_buf, opts)
@@ -88,16 +92,17 @@ function M.create_windows()
       and M.create_floating_windows(buffers.input_buf, buffers.output_buf, configurator.floating_win_opts)
     or M.create_split_windows(buffers.input_buf, buffers.output_buf)
 
+  ---@type OpencodeWindowState
   local wins_and_bufs = vim.tbl_extend('error', buffers, windows)
 
   configurator.setup_options(wins_and_bufs)
   configurator.refresh_placeholder(wins_and_bufs)
-  configurator.setup_autocmds(wins_and_bufs)
   configurator.setup_resize_handler(wins_and_bufs)
   configurator.setup_keymaps(wins_and_bufs)
   configurator.setup_after_actions(wins_and_bufs)
   configurator.configure_window_dimensions(wins_and_bufs)
-
+  require('opencode.ui.footer').create_window(wins_and_bufs)
+  configurator.setup_autocmds(wins_and_bufs)
   return wins_and_bufs
 end
 
@@ -107,7 +112,7 @@ function M.focus_input(opts)
   vim.api.nvim_set_current_win(windows.input_win)
 
   if opts.restore_position and state.last_input_window_position then
-    vim.api.nvim_win_set_cursor(0, state.last_input_window_position)
+    pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
   end
 end
 
@@ -118,7 +123,7 @@ function M.focus_output(opts)
   vim.api.nvim_set_current_win(windows.output_win)
 
   if opts.restore_position and state.last_output_window_position then
-    vim.api.nvim_win_set_cursor(0, state.last_output_window_position)
+    pcall(vim.api.nvim_win_set_cursor, 0, state.last_output_window_position)
   end
 end
 
@@ -149,21 +154,14 @@ function M.clear_output()
   local windows = state.windows
 
   -- Clear any extmarks/namespaces first
-  local ns_id = vim.api.nvim_create_namespace('loading_animation')
-  vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+  local out_ns_id = vim.api.nvim_create_namespace('opencode_output')
+  vim.api.nvim_buf_clear_namespace(windows.output_buf, out_ns_id, 0, -1)
 
   -- Stop any running timers in the output module
-  if renderer._animation.timer then
-    pcall(vim.fn.timer_stop, renderer._animation.timer)
-    renderer._animation.timer = nil
-  end
   if renderer._refresh_timer then
     pcall(vim.fn.timer_stop, renderer._refresh_timer)
     renderer._refresh_timer = nil
   end
-
-  -- Reset animation state
-  renderer._animation.loading_line = nil
 
   -- Clear cache to force refresh on next render
   renderer._cache = {
@@ -178,6 +176,7 @@ function M.clear_output()
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, {})
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 
+  require('opencode.ui.footer').clear_footer()
   require('opencode.ui.topbar').render()
   renderer.render_markdown()
 end
@@ -264,7 +263,7 @@ function M.toggle_pane()
       -- Clear placeholder if there's text in the buffer
       vim.api.nvim_buf_clear_namespace(
         state.windows.input_buf,
-        vim.api.nvim_create_namespace('input-placeholder'),
+        vim.api.nvim_create_namespace('input_placeholder'),
         0,
         -1
       )

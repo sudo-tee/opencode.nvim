@@ -51,7 +51,7 @@ function M.refresh_placeholder(windows, input_lines)
   end
 
   if #input_lines == 1 and input_lines[1] == '' then
-    local ns_id = vim.api.nvim_create_namespace('input-placeholder')
+    local ns_id = vim.api.nvim_create_namespace('input_placeholder')
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local placeholder_len = vim.fn.strwidth(INPUT_PLACEHOLDER)
     local padding = string.rep(' ', win_width - placeholder_len)
@@ -60,7 +60,7 @@ function M.refresh_placeholder(windows, input_lines)
       virt_text_pos = 'overlay',
     })
   else
-    vim.api.nvim_buf_clear_namespace(windows.input_buf, vim.api.nvim_create_namespace('input-placeholder'), 0, -1)
+    vim.api.nvim_buf_clear_namespace(windows.input_buf, vim.api.nvim_create_namespace('input_placeholder'), 0, -1)
   end
 end
 
@@ -97,14 +97,13 @@ function M.setup_autocmds(windows)
     end,
   })
 
+  local wins = { windows.input_win, windows.output_win, windows.footer_win }
   vim.api.nvim_create_autocmd('WinClosed', {
     group = group,
-    pattern = tostring(windows.input_win) .. ',' .. tostring(windows.output_win),
+    pattern = table.concat(wins, ','),
     callback = function(opts)
-      -- Get the window that was closed
       local closed_win = tonumber(opts.match)
-      -- If either window is closed, close both
-      if closed_win == windows.input_win or closed_win == windows.output_win then
+      if vim.tbl_contains(wins, closed_win) then
         vim.schedule(function()
           require('opencode.ui.ui').close_windows(windows)
         end)
@@ -207,6 +206,7 @@ function M.setup_resize_handler(windows)
   local function cb()
     M.configure_window_dimensions(windows)
     require('opencode.ui.topbar').render()
+    require('opencode.ui.footer').update_window(windows)
   end
 
   vim.api.nvim_create_autocmd('VimResized', {

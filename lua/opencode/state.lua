@@ -1,7 +1,15 @@
 local config = require('opencode.config').get()
 local M = {}
+---@class OpencodeWindowState
+---@field input_win number|nil
+---@field output_win number|nil
+---@field footer_win number|nil
+---@field footer_buf number|nil
+---@field input_buf number|nil
+---@field output_buf number|nil
 
 -- ui
+---@type OpencodeWindowState
 M.windows = nil
 M.input_content = {}
 M.last_focused_opencode_window = nil
@@ -24,6 +32,8 @@ M.current_model = nil
 -- messages
 M.messages = nil
 M.current_message = nil
+M.cost = 0
+M.tokens_count = 0
 
 -- job
 M.opencode_run_job = nil

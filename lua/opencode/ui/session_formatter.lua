@@ -34,7 +34,15 @@ function M.format_session(session)
     state.current_message = msg
 
     if msg.providerID and msg.providerID ~= '' then
-      M.current_model = msg.providerID .. '/' .. msg.modelID
+      state.current_model = msg.providerID .. '/' .. msg.modelID
+    end
+
+    if msg.tokens and msg.tokens.input > 0 then
+      state.tokens_count = msg.tokens.input + msg.tokens.output + msg.tokens.cache.read + msg.tokens.cache.write
+    end
+
+    if msg.cost and type(msg.cost) == 'number' then
+      state.cost = msg.cost
     end
 
     M._format_message_header(msg, i)

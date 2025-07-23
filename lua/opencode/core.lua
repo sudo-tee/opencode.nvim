@@ -36,7 +36,6 @@ function M.open(opts)
     return
   end
 
-  state.was_interrupted = false
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
@@ -86,6 +85,7 @@ function M.run(prompt, opts)
           local found = string.match(output, 'sessionID=(ses_%w+)')
           if found then
             state.active_session = session.get_by_name(found)
+            state.new_session_name = found
           end
         end
         state.last_output = os.time()

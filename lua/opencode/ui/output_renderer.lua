@@ -1,7 +1,9 @@
+local Timer = require('opencode.ui.timer')
 local M = {}
 
 local state = require('opencode.state')
 local formatter = require('opencode.ui.session_formatter')
+local loading_animation = require('opencode.ui.loading_animation')
 
 local LABELS = {
   GENERATING_RESPONSE = 'Thinking...',
@@ -13,14 +15,6 @@ M._cache = {
   output_lines = nil,
   session_path = nil,
   check_counter = 0,
-}
-
-M._animation = {
-  frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
-  current_frame = 1,
-  timer = nil,
-  loading_line = nil,
-  fps = 10,
 }
 
 function M.render_markdown()
@@ -88,92 +82,36 @@ function M._read_session(force_refresh)
   return output_lines
 end
 
-function M._update_loading_animation(windows)
-  if not M._animation.loading_line or not windows.output_buf then
-    return false
-  end
+function M._start_refresh_timer(windows)
+  M._stop_refresh_timer()
 
-  local buffer_line_count = vim.api.nvim_buf_line_count(windows.output_buf)
-  if M._animation.loading_line <= 0 or M._animation.loading_line >= buffer_line_count then
-    return false
-  end
-
-  local zero_index = M._animation.loading_line - 1
-  local loading_text = LABELS.GENERATING_RESPONSE .. ' ' .. M._animation.frames[M._animation.current_frame]
-
-  local ns_id = vim.api.nvim_create_namespace('loading_animation')
-  vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, zero_index, zero_index + 1)
-
-  vim.api.nvim_buf_set_extmark(windows.output_buf, ns_id, zero_index, 0, {
-    virt_text = { { loading_text, 'Comment' } },
-    virt_text_pos = 'overlay',
-    hl_mode = 'replace',
+  M._refresh_timer = Timer.new({
+    interval = 300,
+    on_tick = function()
+      if state.opencode_run_job then
+        if M._should_refresh_content() then
+          M.render(windows, true)
+        end
+        return true
+      else
+        M._stop_refresh_timer()
+        M.render(windows, true)
+        return false
+      end
+    end,
+    repeat_timer = true,
   })
-
-  return true
+  M._refresh_timer:start()
 end
 
-M._refresh_timer = nil
-
-function M._start_content_refresh_timer(windows)
+function M._stop_refresh_timer()
   if M._refresh_timer then
-    pcall(vim.fn.timer_stop, M._refresh_timer)
+    M._refresh_timer:stop()
     M._refresh_timer = nil
   end
-
-  M._refresh_timer = vim.fn.timer_start(300, function()
-    if state.opencode_run_job then
-      if M._should_refresh_content() then
-        vim.schedule(function()
-          local current_frame = M._animation.current_frame
-          M.render(windows, true)
-          M._animation.current_frame = current_frame
-        end)
-      end
-
-      if state.opencode_run_job then
-        M._start_content_refresh_timer(windows)
-      end
-    else
-      if M._refresh_timer then
-        pcall(vim.fn.timer_stop, M._refresh_timer)
-        M._refresh_timer = nil
-      end
-      vim.schedule(function()
-        M.render(windows, true)
-      end)
-    end
-  end)
 end
 
-function M._animate_loading(windows)
-  local function start_animation_timer()
-    if M._animation.timer then
-      pcall(vim.fn.timer_stop, M._animation.timer)
-      M._animation.timer = nil
-    end
-
-    M._animation.timer = vim.fn.timer_start(math.floor(1000 / M._animation.fps), function()
-      M._animation.current_frame = (M._animation.current_frame % #M._animation.frames) + 1
-
-      vim.schedule(function()
-        M._update_loading_animation(windows)
-      end)
-
-      if state.opencode_run_job then
-        start_animation_timer()
-      else
-        M._animation.timer = nil
-      end
-    end)
-  end
-
-  M._start_content_refresh_timer(windows)
-
-  start_animation_timer()
-end
-
-function M.render(windows, force_refresh)
+M.render = vim.schedule_wrap(function(windows, force_refresh)
   if not windows or not windows.output_buf then
     return
   end
@@ -183,7 +121,7 @@ function M.render(windows, force_refresh)
       return
     end
 
-    if not force_refresh and M._animation.loading_line then
+    if not force_refresh and loading_animation.is_running() then
       return
     end
 
@@ -200,9 +138,10 @@ function M.render(windows, force_refresh)
       state.new_session_name = nil
     end
 
-    M.handle_loading(windows, output_lines)
+    M.handle_loading(windows)
 
     M.write_output(windows, output_lines)
+    require('opencode.ui.footer').render(windows)
 
     M.handle_auto_scroll(windows)
   end
@@ -214,20 +153,13 @@ function M.render(windows, force_refresh)
   vim.schedule(function()
     M.render_markdown()
   end)
-end
+end)
 
 function M.stop()
-  if M._animation and M._animation.timer then
-    pcall(vim.fn.timer_stop, M._animation.timer)
-    M._animation.timer = nil
-  end
+  loading_animation.stop()
 
-  if M._refresh_timer then
-    pcall(vim.fn.timer_stop, M._refresh_timer)
-    M._refresh_timer = nil
-  end
+  M._stop_refresh_timer()
 
-  M._animation.loading_line = nil
   M._cache = {
     last_modified = 0,
     output_lines = nil,
@@ -237,45 +169,13 @@ function M.stop()
   }
 end
 
-function M.handle_loading(windows, output_lines)
+function M.handle_loading(windows)
   if state.opencode_run_job then
-    if #output_lines > 2 then
-      for _, line in ipairs(formatter.separator) do
-        table.insert(output_lines, line)
-      end
-    end
-
-    -- Replace this line with our extmark animation
-    local empty_loading_line = ' ' -- Just needs to be a non-empty string for the extmark to attach to
-    table.insert(output_lines, empty_loading_line)
-    table.insert(output_lines, '')
-
-    M._animation.loading_line = #output_lines - 1
-
-    -- Always ensure animation is running when there's an active job
-    -- This is the key fix - we always start animation for an active job
-    M._animate_loading(windows)
-
-    vim.schedule(function()
-      M._update_loading_animation(windows)
-    end)
+    M._start_refresh_timer(windows)
+    loading_animation.start(windows)
   else
-    M._animation.loading_line = nil
-
-    if windows and windows.output_buf then
-      local ns_id = vim.api.nvim_create_namespace('loading_animation')
-      vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
-    end
-
-    if M._animation.timer then
-      pcall(vim.fn.timer_stop, M._animation.timer)
-      M._animation.timer = nil
-    end
-
-    if M._refresh_timer then
-      pcall(vim.fn.timer_stop, M._refresh_timer)
-      M._refresh_timer = nil
-    end
+    loading_animation.stop()
+    M._stop_refresh_timer()
   end
 end
 
@@ -283,6 +183,7 @@ function M.write_output(windows, output_lines)
   if not windows or not windows.output_buf then
     return
   end
+
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
@@ -295,18 +196,8 @@ function M.apply_output_extmarks(windows)
     return
   end
 
-  if state.was_interrupted then
-    formatter.output:add_extmark(formatter.output:get_line_count(), {
-      virt_text = { { 'Session was interrupted', 'Error' } },
-      virt_text_pos = 'overlay',
-      hl_mode = 'combine',
-    })
-    state.was_interrupted = false
-  end
-
   local extmarks = formatter.output:get_extmarks()
   local ns_id = vim.api.nvim_create_namespace('opencode_output')
-
   vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
 
   for line_num, marks in pairs(extmarks) do

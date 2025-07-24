@@ -1,27 +1,6 @@
 local state = require('opencode.state')
+local util = require('opencode.util')
 local M = {}
-
-local function format_context_size(n)
-  if not n or n <= 0 then
-    return nil
-  end
-
-  if n >= 1e6 then
-    return string.format('%.1fM', n / 1e6)
-  elseif n >= 1e3 then
-    return string.format('%.1fK', n / 1e3)
-  else
-    return tostring(n)
-  end
-end
-
-local function format_percentage(n)
-  return n and n > 0 and string.format('%.1f%%', n * 100) or nil
-end
-
-local function format_cost(c)
-  return c and c > 0 and string.format('$%.2f', c) or nil
-end
 
 function M.render(windows)
   if not windows or not windows.output_win or not windows.footer_buf then
@@ -39,9 +18,9 @@ function M.render(windows)
     local provider, model = state.current_model:match('^(.-)/(.+)$')
     local model_info = models.get(provider, model)
     local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
-    append_to_footer(format_context_size(state.tokens_count))
-    append_to_footer(format_percentage(limit > 0 and state.tokens_count / limit))
-    append_to_footer(format_cost(state.cost))
+    append_to_footer(util.format_number(state.tokens_count))
+    append_to_footer(util.format_percentage(limit > 0 and state.tokens_count / limit))
+    append_to_footer(util.format_cost(state.cost))
   end
 
   local win_width = vim.api.nvim_win_get_width(windows.output_win)
@@ -62,8 +41,8 @@ function M.render(windows)
 end
 
 ---@param windows OpencodeWindowState
-function M.create_window(windows)
-  windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, {
+function M._build_footer_win_config(windows)
+  return {
     relative = 'win',
     win = windows.output_win,
     anchor = 'SW',
@@ -75,21 +54,20 @@ function M.create_window(windows)
     style = 'minimal',
     border = 'none',
     zindex = 50,
-  })
-  vim.api.nvim_win_set_option(windows.footer_win, 'winhl', 'Normal:Comment')
+  }
+end
+
+function M.create_window(windows)
+  windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
+  vim.api.nvim_set_option_value('winhl', 'Normal:Comment', { win = windows.footer_win })
 end
 
 function M.update_window(windows)
-  if not windows or not windows.footer_win or not windows.footer_buf then
+  if not windows then
     return
   end
 
-  local win_width = vim.api.nvim_win_get_width(windows.output_win)
-  vim.api.nvim_win_set_config(windows.footer_win, {
-    width = win_width,
-    col = 0,
-  })
-
+  vim.api.nvim_win_set_config(windows.footer_win, M._build_footer_win_config(windows))
   M.render(windows)
 end
 

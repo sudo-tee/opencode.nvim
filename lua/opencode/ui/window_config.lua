@@ -203,15 +203,21 @@ function M.configure_floating_window_dimensions(windows)
 end
 
 function M.setup_resize_handler(windows)
-  local function cb()
-    M.configure_window_dimensions(windows)
-    require('opencode.ui.topbar').render()
-    require('opencode.ui.footer').update_window(windows)
-  end
-
+  local resize_group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true })
   vim.api.nvim_create_autocmd('VimResized', {
-    group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true }),
-    callback = cb,
+    group = resize_group,
+    callback = function()
+      M.configure_window_dimensions(windows)
+      require('opencode.ui.topbar').render()
+      require('opencode.ui.footer').update_window(windows)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('WinResized', {
+    group = resize_group,
+    callback = function()
+      require('opencode.ui.footer').update_window(windows)
+    end,
   })
 end
 

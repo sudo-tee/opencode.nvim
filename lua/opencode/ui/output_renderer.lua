@@ -5,10 +5,6 @@ local state = require('opencode.state')
 local formatter = require('opencode.ui.session_formatter')
 local loading_animation = require('opencode.ui.loading_animation')
 
-local LABELS = {
-  GENERATING_RESPONSE = 'Thinking...',
-}
-
 M._cache = {
   last_modified = 0,
   last_output = 0,

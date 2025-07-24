@@ -193,4 +193,26 @@ function M.is_git_project()
   return _is_git_project
 end
 
+function M.format_number(n)
+  if not n or n <= 0 then
+    return nil
+  end
+
+  if n >= 1e6 then
+    return string.format('%.1fM', n / 1e6)
+  elseif n >= 1e3 then
+    return string.format('%.1fK', n / 1e3)
+  else
+    return tostring(n)
+  end
+end
+
+function M.format_percentage(n)
+  return n and n > 0 and string.format('%.1f%%', n * 100) or nil
+end
+
+function M.format_cost(c)
+  return c and c > 0 and string.format('$%.2f', c) or nil
+end
+
 return M

@@ -227,7 +227,6 @@ function M.setup_resize_handler(windows)
       util.debounce(function()
         require('opencode.ui.topbar').render()
         require('opencode.ui.footer').update_window(windows)
-        require('opencode.ui.output_renderer').apply_output_extmarks(windows)
       end, 50)()
     end,
   })

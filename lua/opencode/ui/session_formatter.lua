@@ -427,11 +427,18 @@ function M._format_diff(code, file_type)
       M.output:add_line(' ' .. line:sub(2))
       local line_idx = M.output:get_line_count()
       M.output:add_extmark(line_idx, function()
-        local cur_win_width = vim.api.nvim_win_get_width(state.windows.output_win)
         return {
-          virt_text = { { line .. string.rep(' ', cur_win_width - #line), hl_group } },
+          end_col = 0,
+          end_row = line_idx + 1,
+          virt_text = { { first_char, { hl_group } } },
+          hl_group = hl_group,
+          hl_eol = true,
+          priority = 5000,
+          right_gravity = true,
+          end_right_gravity = false,
+          virt_text_hide = false,
           virt_text_pos = 'overlay',
-          hl_mode = 'combine',
+          virt_text_repeat_linebreak = false,
         }
       end)
     else

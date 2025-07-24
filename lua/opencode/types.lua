@@ -83,8 +83,8 @@
 --- @field debug OpencodeDebugConfig
 
 --- @class MessagePartState
---- @field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput Input data for the tool
---- @field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata Metadata about the tool execution
+--- @field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput Input data for the tool
+--- @field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata Metadata about the tool execution
 --- @field time { start: number, end: number } Timestamps for tool use
 --- @field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
 --- @field title string Title of the tool use
@@ -129,9 +129,19 @@
 --- @class TodoToolInput
 --- @field todos { id: string, content: string, status: 'pending'|'in_progress'|'completed'|'cancelled', priority: 'high'|'medium'|'low' }[]
 
+---@class ListToolInput
+---@field path string The directory path to list
+
+---@class ListToolMetadata: ToolMetadataBase
+---@field truncated boolean|nil
+---@field count number|nil
+
 --- @class GlobToolInput
 --- @field pattern? string The glob pattern to match
 --- @field path? string Optional directory to search in
+
+---@class ListToolOutput
+---@field output string The raw output string from the list tool
 
 --- @class GrepToolInput
 --- @field pattern? string The glob pattern to match

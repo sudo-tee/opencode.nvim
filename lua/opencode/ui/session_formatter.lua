@@ -175,7 +175,8 @@ function M._format_callout(callout, text, title)
   title = title and title .. ' ' or ''
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
   if #text > win_width - 4 then
-    text = vim.fn.substitute(text, '\\v(.{1,' .. (win_width - 8) .. '})', '\\1\\n', 'g')
+    local ok, substituted = pcall(vim.fn.substitute, text, '\v(.{' .. (win_width - 8) .. '})', '\1\n', 'g')
+    text = ok and substituted or text
   end
 
   local lines = vim.split(text, '\n')
@@ -313,6 +314,33 @@ function M._format_webfetch_tool(input)
   M._format_action('🌐 fetch', input and input.url)
 end
 
+---@param input ListToolInput
+---@param metadata ListToolMetadata
+---@param output string
+function M._format_list_tool(input, metadata, output)
+  M._format_action('📂 list', input and input.path or '')
+  if not config.ui.output.tools.show_output then
+    return
+  end
+  local lines = vim.split(vim.trim(output or ''), '\n')
+  if #lines < 1 or metadata.count == 0 then
+    M.output:add_line('No files found.')
+    return
+  end
+  if #lines > 1 then
+    M.output:add_line('Files:')
+    for i = 2, #lines do
+      local file = vim.trim(lines[i])
+      if file ~= '' then
+        M.output:add_line('  • ' .. file)
+      end
+    end
+  end
+  if metadata.truncated then
+    M.output:add_line(string.format('Results truncated, showing first %d files', metadata.count or '?'))
+  end
+end
+
 ---@param part MessagePart
 function M._format_tool(part)
   M.output:add_empty_line()
@@ -324,6 +352,7 @@ function M._format_tool(part)
   local start_line = M.output:get_line_count() + 1
   local input = part.state and part.state.input or {}
   local metadata = part.state.metadata or {}
+  local output = part.state and part.state.output or ''
 
   if tool == 'bash' then
     M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
@@ -333,6 +362,8 @@ function M._format_tool(part)
     M._format_todo_tool(part.state.title, input --[[@as TodoToolInput]])
   elseif tool == 'glob' then
     M._format_glob_tool(input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]])
+  elseif tool == 'list' then
+    M._format_list_tool(input --[[@as ListToolInput]], metadata --[[@as ListToolMetadata]], output)
   elseif tool == 'grep' then
     M._format_grep_tool(input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]])
   elseif tool == 'webfetch' then

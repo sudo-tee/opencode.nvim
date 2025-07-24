@@ -13,7 +13,7 @@ end
 
 function M.is_current_buf_a_file()
   local bufnr = vim.api.nvim_get_current_buf()
-  local buftype = vim.api.nvim_buf_get_option(bufnr, 'buftype')
+  local buftype = vim.bo[bufnr].buftype
   local filepath = vim.fn.expand('%:p')
 
   -- Valid files have empty buftype
@@ -25,7 +25,7 @@ function M.indent_code_block(text)
   if not text then
     return nil
   end
-  local lines = vim.split(text, '\n', true)
+  local lines = vim.split(text, '\n', { plain = true })
 
   local first, last = nil, nil
   for i, line in ipairs(lines) do
@@ -213,6 +213,19 @@ end
 
 function M.format_cost(c)
   return c and c > 0 and string.format('$%.2f', c) or nil
+end
+
+function M.debounce(func, delay)
+  local timer = nil
+  return function(...)
+    if timer then
+      timer:stop()
+    end
+    local args = { ... }
+    timer = vim.defer_fn(function()
+      func(unpack(args))
+    end, delay or 100)
+  end
 end
 
 return M

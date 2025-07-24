@@ -175,7 +175,7 @@ end
 
 ---Add an extmark for a specific line
 ---@param idx number The line index
----@param extmark OutputExtmark The extmark data {virt_text = {...}, virt_text_pos = '...', etc}
+---@param extmark OutputExtmark|fun(): OutputExtmark  The extmark data or a function returning it
 function Output:add_extmark(idx, extmark)
   if not self.extmarks[idx] then
     self.extmarks[idx] = {}

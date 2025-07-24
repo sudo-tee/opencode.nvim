@@ -97,12 +97,12 @@ function M.create_windows()
 
   configurator.setup_options(wins_and_bufs)
   configurator.refresh_placeholder(wins_and_bufs)
-  configurator.setup_resize_handler(wins_and_bufs)
   configurator.setup_keymaps(wins_and_bufs)
   configurator.setup_after_actions(wins_and_bufs)
   configurator.configure_window_dimensions(wins_and_bufs)
   require('opencode.ui.footer').create_window(wins_and_bufs)
   configurator.setup_autocmds(wins_and_bufs)
+  configurator.setup_resize_handler(wins_and_bufs)
   return wins_and_bufs
 end
 

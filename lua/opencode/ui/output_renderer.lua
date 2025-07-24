@@ -211,7 +211,11 @@ function M.apply_output_extmarks(windows)
 
   for line_num, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do
-      vim.api.nvim_buf_set_extmark(windows.output_buf, ns_id, line_num - 1, 0, mark)
+      local actual_mark = mark
+      if type(mark) == 'function' then
+        actual_mark = mark()
+      end
+      vim.api.nvim_buf_set_extmark(windows.output_buf, ns_id, line_num - 1, 0, actual_mark)
     end
   end
 end

@@ -1,3 +1,4 @@
+local util = require('opencode.util')
 local M = {}
 
 local INPUT_PLACEHOLDER = 'Plan, search, ask, and code with AI! Type your prompt here...'
@@ -203,6 +204,8 @@ function M.configure_floating_window_dimensions(windows)
 end
 
 function M.setup_resize_handler(windows)
+  local original_win_width = vim.api.nvim_win_get_width(windows.output_win)
+  local original_win_height = vim.api.nvim_win_get_height(windows.output_win)
   local resize_group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true })
   vim.api.nvim_create_autocmd('VimResized', {
     group = resize_group,
@@ -216,7 +219,16 @@ function M.setup_resize_handler(windows)
   vim.api.nvim_create_autocmd('WinResized', {
     group = resize_group,
     callback = function()
-      require('opencode.ui.footer').update_window(windows)
+      local current_width = vim.api.nvim_win_get_width(windows.output_win)
+      local current_height = vim.api.nvim_win_get_height(windows.output_win)
+      if current_width == original_win_width and current_height == original_win_height then
+        return
+      end
+      util.debounce(function()
+        require('opencode.ui.topbar').render()
+        require('opencode.ui.footer').update_window(windows)
+        require('opencode.ui.output_renderer').apply_output_extmarks(windows)
+      end, 50)()
     end,
   })
 end

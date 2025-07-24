@@ -413,7 +413,6 @@ function M._format_code(lines, language)
 end
 
 function M._format_diff(code, file_type)
-  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
   M.output:add_empty_line()
   M.output:add_line('```' .. file_type)
   local lines = vim.split(code, '\n')
@@ -427,11 +426,14 @@ function M._format_diff(code, file_type)
       local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
       M.output:add_line(' ' .. line:sub(2))
       local line_idx = M.output:get_line_count()
-      M.output:add_extmark(line_idx, {
-        virt_text = { { line .. string.rep(' ', win_width - #line), hl_group } },
-        virt_text_pos = 'overlay',
-        hl_mode = 'combine',
-      })
+      M.output:add_extmark(line_idx, function()
+        local cur_win_width = vim.api.nvim_win_get_width(state.windows.output_win)
+        return {
+          virt_text = { { line .. string.rep(' ', cur_win_width - #line), hl_group } },
+          virt_text_pos = 'overlay',
+          hl_mode = 'combine',
+        }
+      end)
     else
       M.output:add_line(line)
     end

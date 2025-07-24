@@ -29,9 +29,9 @@ function M.render(windows)
 
   M.set_content({ footer_text })
 
+  local ns_id = vim.api.nvim_create_namespace('opencode_footer')
+  vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
   if state.was_interrupted then
-    local ns_id = vim.api.nvim_create_namespace('opencode_footer')
-    vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
     vim.api.nvim_buf_set_extmark(windows.footer_buf, ns_id, 0, 0, {
       virt_text = { { 'Session was interrupted', 'Error' } },
       virt_text_pos = 'overlay',

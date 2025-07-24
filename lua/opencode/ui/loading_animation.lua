@@ -64,6 +64,11 @@ function M._clear_animation_timer()
   if M._animation.timer then
     M._animation.timer:stop()
     M._animation.timer = nil
+
+    if state.windows.footer_buf then
+      local ns_id = vim.api.nvim_create_namespace('loading_animation')
+      vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, ns_id, 0, -1)
+    end
   end
 end
 
@@ -75,11 +80,6 @@ end
 function M.stop()
   M._clear_animation_timer()
   M._animation.current_frame = 1
-
-  local ns_id = vim.api.nvim_create_namespace('loading_animation')
-  if state.windows and state.windows.footer_buf and type(state.windows.footer_buf) == 'number' then
-    vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, ns_id, 0, -1)
-  end
 end
 
 function M.is_running()

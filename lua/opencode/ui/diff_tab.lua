@@ -50,6 +50,7 @@ function M.open_diff_tab(file_path, snapshot_path, file_type)
     end
   else
     vim.cmd('edit ' .. vim.fn.fnameescape(file_path))
+    vim.cmd('setlocal filetype=' .. file_type)
   end
   local augroup = vim.api.nvim_create_augroup('OpencodeGitDiffCleanup' .. M.__diff_tab, { clear = true })
   local tab_windows = vim.api.nvim_tabpage_list_wins(M.__diff_tab)

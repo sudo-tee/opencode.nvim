@@ -74,11 +74,10 @@ local git = {
     if not ref then
       return nil
     end
-    local out, err = snapshot_git({ 'show', ref .. ':' .. file_path })
+    local out, err = snapshot_git({ 'show', ref .. ':' .. file_path }, nil)
     if out then
       return write_to_temp_file(out)
     else
-      vim.notify('Failed to get file content at ref: ' .. (err or 'unknown error'))
       return nil
     end
   end,
@@ -199,7 +198,7 @@ M.review = require_git_project(function(ref, last_ref)
   else
     vim.ui.select(
       vim.tbl_map(function(f)
-        return vim.fn.fnamemodify(f[1], ':.')
+        return vim.fn.fnamemodify(f.path, ':.')
       end, files),
       { prompt = 'Select a file to review:' },
       function(choice, idx)
@@ -207,6 +206,7 @@ M.review = require_git_project(function(ref, last_ref)
           return
         end
         M.__current_file_index = idx
+
         diff_tab.open_diff_tab(files[idx][1], files[idx][2], files[idx].file_type)
       end
     )

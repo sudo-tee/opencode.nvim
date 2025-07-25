@@ -4,7 +4,7 @@
   <img src="https://opencode.ai/_astro/logo-dark.NCybiIc5.svg" alt="Opencode logo" width="30%" />
 </div>
 
-> neovim integration with opencode - work with a powerful AI agent without leaving your editor
+> neovim frontend for opencode - a terminal-based AI coding agent
 
 <div align="center">
 
@@ -238,6 +238,10 @@ See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full con
 
 ## 📸 Contextual Actions for Snapshots
 
+> [!WARNING] **Snapshots are an experimental feature**
+> in opencode and sometimes the dev team may disable them or change their behavior.
+> This repository will be updated to match the latest opencode changes as soon as possible.
+
 Opencode.nvim automatically creates **snapshots** of your workspace at key moments (such as after running prompts or making changes). These snapshots are like lightweight git commits, allowing you to review, compare, and restore your project state at any time.
 
 **Contextual actions** for snapshots are available directly in the output window. When a snapshot is referenced in the conversation, you can trigger actions on it via keymaps displayed by the UI.
@@ -255,11 +259,6 @@ Opencode.nvim automatically creates **snapshots** of your workspace at key momen
 #### Example
 
 When you see a snapshot in the output:
-
-```
-
-📸 **Created Snapshot** `b9f0147`
-```
 
 <img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
 

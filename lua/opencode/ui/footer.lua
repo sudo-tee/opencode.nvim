@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local config = require('opencode.config').get()
 local util = require('opencode.util')
 local M = {}
 
@@ -12,6 +13,12 @@ function M.render(windows)
 
   local append_to_footer = function(text)
     return text and text ~= '' and table.insert(segments, text)
+  end
+
+  if state.opencode_run_job then
+    local cancel_keymap = config.keymap.window.stop or '<C-c>'
+    local legend = string.format(' %s to cancel', cancel_keymap)
+    append_to_footer(legend)
   end
 
   if state.current_model then
@@ -29,14 +36,19 @@ function M.render(windows)
 
   M.set_content({ footer_text })
 
-  local ns_id = vim.api.nvim_create_namespace('opencode_footer')
-  vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
   if state.was_interrupted then
+    local ns_id = vim.api.nvim_create_namespace('opencode_footer')
+    vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
     vim.api.nvim_buf_set_extmark(windows.footer_buf, ns_id, 0, 0, {
       virt_text = { { 'Session was interrupted', 'Error' } },
       virt_text_pos = 'overlay',
       hl_mode = 'replace',
     })
+  end
+
+  local loading_animation = require('opencode.ui.loading_animation')
+  if loading_animation.is_running() then
+    loading_animation.render(windows)
   end
 end
 
@@ -80,9 +92,6 @@ end
 
 function M.clear_footer()
   local windows = state.windows
-
-  local ns_id = vim.api.nvim_create_namespace('loading_animation')
-  vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')
   vim.api.nvim_buf_clear_namespace(windows.footer_buf, foot_ns_id, 0, -1)

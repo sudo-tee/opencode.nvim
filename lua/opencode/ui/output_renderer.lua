@@ -142,14 +142,14 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
       vim.schedule(function()
         M.handle_auto_scroll(windows)
         M.render_markdown()
+        require('opencode.ui.topbar').render()
       end)
     end
-    require('opencode.ui.footer').render(windows)
   end
   render()
   require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
   require('opencode.ui.contextual_actions').setup_contextual_actions()
-  require('opencode.ui.topbar').render()
+  require('opencode.ui.footer').render(windows)
 end)
 
 function M.stop()
@@ -169,10 +169,14 @@ end
 function M.handle_loading(windows)
   if state.opencode_run_job then
     M._start_refresh_timer(windows)
-    loading_animation.start(windows)
+    if not loading_animation.is_running() then
+      loading_animation.start(windows)
+    end
   else
-    loading_animation.stop()
     M._stop_refresh_timer()
+    if loading_animation.is_running() then
+      loading_animation.stop()
+    end
   end
 end
 

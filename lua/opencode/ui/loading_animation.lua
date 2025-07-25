@@ -9,6 +9,8 @@ M._animation = {
   current_frame = 1,
   timer = nil,
   fps = 10,
+  extmark_id = nil,
+  ns_id = vim.api.nvim_create_namespace('opencode_loading_animation'),
 }
 
 M.render = vim.schedule_wrap(function(windows)
@@ -21,12 +23,15 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
+  if not state.opencode_run_job then
+    M.stop()
+    return false
+  end
+
   local loading_text = M._animation.text .. M._animation.frames[M._animation.current_frame]
 
-  local ns_id = vim.api.nvim_create_namespace('loading_animation')
-  vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
-
-  vim.api.nvim_buf_set_extmark(windows.footer_buf, ns_id, 0, 0, {
+  M._animation.extmark_id = vim.api.nvim_buf_set_extmark(windows.footer_buf, M._animation.ns_id, 0, 0, {
+    id = M._animation.extmark_id or nil,
     virt_text = { { loading_text, 'Comment' } },
     virt_text_pos = 'overlay',
     hl_mode = 'replace',
@@ -64,11 +69,6 @@ function M._clear_animation_timer()
   if M._animation.timer then
     M._animation.timer:stop()
     M._animation.timer = nil
-
-    if state.windows.footer_buf then
-      local ns_id = vim.api.nvim_create_namespace('loading_animation')
-      vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, ns_id, 0, -1)
-    end
   end
 end
 
@@ -80,6 +80,9 @@ end
 function M.stop()
   M._clear_animation_timer()
   M._animation.current_frame = 1
+  if state.windows and state.windows.footer_buf then
+    vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, M._animation.ns_id, 0, -1)
+  end
 end
 
 function M.is_running()

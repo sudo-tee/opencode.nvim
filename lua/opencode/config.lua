@@ -61,7 +61,7 @@ M.defaults = {
     },
   },
   ui = {
-    position = 'left',
+    position = 'right',
     window_width = 0.40,
     input_height = 0.15,
     display_model = true,

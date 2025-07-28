@@ -196,6 +196,9 @@ function M.write_output(windows, output_lines)
   if changed then
     vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
     vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
+
+    -- Add padding to the end of the buffer for the footer
+    vim.api.nvim_buf_set_text(windows.output_buf, #output_lines - 1, 0, #output_lines - 1, 0, { '', '' })
     vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
     M._cache.prev_rendered_lines = vim.deepcopy(output_lines)
     M.apply_output_extmarks(windows)

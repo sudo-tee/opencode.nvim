@@ -59,26 +59,30 @@ function M.create_split_windows(input_buf, output_buf)
   if state.windows then
     M.close_windows(state.windows)
   end
-  local position = config.get('ui').position or 'right'
-  if position == 'left' then
-    vim.cmd('vsplit')
-    vim.cmd('wincmd H')
-    local output_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(output_win, output_buf)
-    vim.cmd('split')
-    local input_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(input_win, input_buf)
-    return { input_win = input_win, output_win = output_win }
+
+  local ui_conf = config.get('ui')
+
+  vim.cmd('vsplit')
+  vim.cmd(ui_conf.position == 'left' and 'wincmd h' or 'wincmd l')
+
+  local first_win = vim.api.nvim_get_current_win()
+  vim.cmd('split')
+  local second_win = vim.api.nvim_get_current_win()
+
+  local input_win, output_win
+
+  if ui_conf.input_position == 'top' then
+    input_win = first_win
+    output_win = second_win
   else
-    vim.cmd('wincmd l')
-    vim.cmd('vsplit')
-    local output_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(output_win, output_buf)
-    vim.cmd('split')
-    local input_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(input_win, input_buf)
-    return { input_win = input_win, output_win = output_win }
+    input_win = second_win
+    output_win = first_win
   end
+
+  vim.api.nvim_win_set_buf(input_win, input_buf)
+  vim.api.nvim_win_set_buf(output_win, output_buf)
+
+  return { input_win = input_win, output_win = output_win }
 end
 
 function M.create_windows()
@@ -238,6 +242,7 @@ function M.swap_position()
   local ui_conf = config.get('ui')
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
   config.values.ui.position = new_pos
+
   if state.windows then
     M.close_windows(state.windows)
   end

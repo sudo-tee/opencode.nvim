@@ -124,6 +124,7 @@ require('opencode').setup({
   },
    ui = {
      position = 'right',                    -- 'right' (default) or 'left'. Position of the UI split
+     input_position = 'bottom',             -- 'bottom' (default) or 'top'. Position of the input window
      window_width = 0.40,                   -- Width as percentage of editor width
      input_height = 0.15,                   -- Input height as percentage of window height
      display_model = true,                  -- Display model name on top winbar
@@ -186,7 +187,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Navigate to previous prompt in history           | `<up>`         | -                                 | `require('opencode.api').prev_history()`                 |
 | Navigate to next prompt in history               | `<down>`       | -                                 | `require('opencode.api').next_history()`                 |
 | Toggle input/output panes                        | `<tab>`        | -                                 | -                                                        |
-| Swap Opencode pane left/right                    | `<leader>ox`   | `:OpencodeSwapPosition`           | `require('opencode.api').swap_position()`                 |
+| Swap Opencode pane left/right                    | `<leader>ox`   | `:OpencodeSwapPosition`           | `require('opencode.api').swap_position()`                |
 
 ## 📝 Context
 

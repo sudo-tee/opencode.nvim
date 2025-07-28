@@ -26,6 +26,7 @@
 --- @field diff_close string
 --- @field diff_revert_all_last_prompt string
 --- @field diff_revert_this_last_prompt string
+--- @field swap_position string # Swap Opencode pane left/right
 
 --- @class OpencodeKeymapWindow
 --- @field submit string
@@ -47,6 +48,7 @@
 --- @field window OpencodeKeymapWindow
 
 --- @class OpencodeUIConfig
+--- @field position 'right'|'left' # Position of the UI (default: 'right')
 --- @field window_width number
 --- @field input_height number
 --- @field display_model boolean

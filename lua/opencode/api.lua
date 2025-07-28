@@ -10,6 +10,10 @@ local history = require('opencode.history')
 
 local M = {}
 
+function M.swap_position()
+  require('opencode.ui.ui').swap_position()
+end
+
 function M.open_input()
   core.open({ new_session = false, focus = 'input' })
   vim.cmd('startinsert')
@@ -344,6 +348,13 @@ end
 
 -- Command definitions that call the API functions
 M.commands = {
+  swap_position = {
+    name = 'OpencodeSwapPosition',
+    desc = 'Swap Opencode pane left/right',
+    fn = function()
+      M.swap_position()
+    end,
+  },
   toggle = {
     name = 'Opencode',
     desc = 'Open opencode. Close if opened',

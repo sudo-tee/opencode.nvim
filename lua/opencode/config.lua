@@ -41,6 +41,7 @@ M.defaults = {
       diff_revert_all = '<leader>orA',
       diff_revert_this = '<leader>orT',
       open_configuration_file = '<leader>oC',
+      swap_position = '<leader>ox', -- Swap Opencode pane left/right
     },
     window = {
       submit = '<cr>',
@@ -60,6 +61,7 @@ M.defaults = {
     },
   },
   ui = {
+    position = 'left',
     window_width = 0.40,
     input_height = 0.15,
     display_model = true,

@@ -59,14 +59,26 @@ function M.create_split_windows(input_buf, output_buf)
   if state.windows then
     M.close_windows(state.windows)
   end
-  vim.cmd('wincmd l')
-  vim.cmd('vsplit')
-  local output_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(output_win, output_buf)
-  vim.cmd('split')
-  local input_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(input_win, input_buf)
-  return { input_win = input_win, output_win = output_win }
+  local position = config.get('ui').position or 'right'
+  if position == 'left' then
+    vim.cmd('vsplit')
+    vim.cmd('wincmd H')
+    local output_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(output_win, output_buf)
+    vim.cmd('split')
+    local input_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(input_win, input_buf)
+    return { input_win = input_win, output_win = output_win }
+  else
+    vim.cmd('wincmd l')
+    vim.cmd('vsplit')
+    local output_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(output_win, output_buf)
+    vim.cmd('split')
+    local input_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(input_win, input_buf)
+    return { input_win = input_win, output_win = output_win }
+  end
 end
 
 function M.create_windows()
@@ -220,6 +232,18 @@ function M.toggle_pane()
   else
     require('opencode.ui.input_window').focus_input()
   end
+end
+
+function M.swap_position()
+  local ui_conf = config.get('ui')
+  local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
+  config.values.ui.position = new_pos
+  if state.windows then
+    M.close_windows(state.windows)
+  end
+  vim.schedule(function()
+    require('opencode.api').toggle()
+  end)
 end
 
 return M

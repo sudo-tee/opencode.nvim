@@ -87,25 +87,25 @@ require('opencode').setup({
   default_mode = 'build',                    -- 'build' or 'plan' or any custom configured. @see [OpenCode Modes](https://opencode.ai/docs/modes/)
   config_file_path = nil,                    -- Path to opencode configuration file if different from the default `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json`
   keymap = {
-    global = {
-      toggle = '<leader>oa',                       -- Open opencode. Close if opened
-      open_input = '<leader>oi',                   -- Opens and focuses on input window on insert mode
-      open_input_new_session = '<leader>oI',       -- Opens and focuses on input window on insert mode. Creates a new session
-      open_output = '<leader>oo',                  -- Opens and focuses on output window
-      toggle_focus = '<leader>ot',                 -- Toggle focus between opencode and last window
-      close = '<leader>oq',                        -- Close UI windows
-      select_session = '<leader>os',               -- Select and load a opencode session
-      configure_provider = '<leader>op',           -- Quick provider and model switch from predefined list
-      diff_open = '<leader>od',                    -- Opens a diff tab of a modified file since the last opencode prompt
-      diff_next = '<leader>o]',                    -- Navigate to next file diff
-      diff_prev = '<leader>o[',                    -- Navigate to previous file diff
-      diff_close = '<leader>oc',                   -- Close diff view tab and return to normal editing
-      diff_revert_all_last_prompt = '<leader>ora', -- Revert all file changes since the last opencode prompt
-      diff_revert_this_last_prompt = '<leader>ort',-- Revert current file changes since the last opencode prompt
-      diff_revert_all = '<leader>orA',             -- Revert all file changes since the last opencode session
-      diff_revert_this = '<leader>orT',            -- Revert current file changes since the last opencode session
-    },
-    window = {
+     global = {
+       toggle = '<leader>oa',                       -- Open opencode. Close if opened
+       open_input = '<leader>oi',                   -- Opens and focuses on input window on insert mode
+       open_input_new_session = '<leader>oI',       -- Opens and focuses on input window on insert mode. Creates a new session
+       open_output = '<leader>oo',                  -- Opens and focuses on output window
+       toggle_focus = '<leader>ot',                 -- Toggle focus between opencode and last window
+       close = '<leader>oq',                        -- Close UI windows
+       select_session = '<leader>os',               -- Select and load a opencode session
+       configure_provider = '<leader>op',           -- Quick provider and model switch from predefined list
+       diff_open = '<leader>od',                    -- Opens a diff tab of a modified file since the last opencode prompt
+       diff_next = '<leader>o]',                    -- Navigate to next file diff
+       diff_prev = '<leader>o[',                    -- Navigate to previous file diff
+       diff_close = '<leader>oc',                   -- Close diff view tab and return to normal editing
+       diff_revert_all_last_prompt = '<leader>ora', -- Revert all file changes since the last opencode prompt
+       diff_revert_this_last_prompt = '<leader>ort',-- Revert current file changes since the last opencode prompt
+       diff_revert_all = '<leader>orA',             -- Revert all file changes since the last opencode session
+       diff_revert_this = '<leader>orT',            -- Revert current file changes since the last opencode session
+       swap_position = '<leader>ox',                -- Swap Opencode pane left/right
+     },    window = {
       submit = '<cr>',                     -- Submit prompt (normal mode)
       submit_insert = '<C-s>',             -- Submit prompt (insert mode)
       close = '<esc>',                     -- Close UI windows
@@ -122,18 +122,18 @@ require('opencode').setup({
       debug_output = '<leader>oO',         -- Open raw output in new buffer for debugging
     }
   },
-  ui = {
-    window_width = 0.40,                   -- Width as percentage of editor width
-    input_height = 0.15,                   -- Input height as percentage of window height
-    display_model = true,                  -- Display model name on top winbar
-    window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
-    output = {
-      tools = {
-        show_output = true,                -- Show tools output [diffs, cmd output, etc.] (default: true)
-      },
-    }
-  },
-  context = {
+   ui = {
+     position = 'right',                    -- 'right' (default) or 'left'. Position of the UI split
+     window_width = 0.40,                   -- Width as percentage of editor width
+     input_height = 0.15,                   -- Input height as percentage of window height
+     display_model = true,                  -- Display model name on top winbar
+     window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
+     output = {
+       tools = {
+         show_output = true,                -- Show tools output [diffs, cmd output, etc.] (default: true)
+       },
+     }
+   },  context = {
     cursor_data = true,                    -- send cursor position and current line to opencode
     diagnostics = {
       info = false,                        -- Include diagnostics info in the context (default to false
@@ -186,6 +186,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Navigate to previous prompt in history           | `<up>`         | -                                 | `require('opencode.api').prev_history()`                 |
 | Navigate to next prompt in history               | `<down>`       | -                                 | `require('opencode.api').next_history()`                 |
 | Toggle input/output panes                        | `<tab>`        | -                                 | -                                                        |
+| Swap Opencode pane left/right                    | `<leader>ox`   | `:OpencodeSwapPosition`           | `require('opencode.api').swap_position()`                 |
 
 ## 📝 Context
 

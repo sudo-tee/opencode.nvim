@@ -1,4 +1,3 @@
-local util = require('opencode.util')
 local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
 local M = {}
@@ -36,8 +35,6 @@ function M.setup_autocmds(windows)
 end
 
 function M.setup_resize_handler(windows)
-  local original_win_width = vim.api.nvim_win_get_width(windows.output_win)
-  local original_win_height = vim.api.nvim_win_get_height(windows.output_win)
   local resize_group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true })
   vim.api.nvim_create_autocmd('VimResized', {
     group = resize_group,
@@ -51,16 +48,19 @@ function M.setup_resize_handler(windows)
 
   vim.api.nvim_create_autocmd('WinResized', {
     group = resize_group,
-    callback = function()
-      local current_width = vim.api.nvim_win_get_width(windows.output_win)
-      local current_height = vim.api.nvim_win_get_height(windows.output_win)
-      if current_width == original_win_width and current_height == original_win_height then
+    callback = function(args)
+      local win = tonumber(args.match)
+      if not win or not vim.api.nvim_win_is_valid(win) or not windows or not windows.output_win then
         return
       end
-      util.debounce(function()
-        require('opencode.ui.topbar').render()
-        require('opencode.ui.footer').update_window(windows)
-      end, 50)()
+
+      local floating = vim.api.nvim_win_get_config(win).relative ~= ''
+      if floating then
+        return
+      end
+
+      require('opencode.ui.topbar').render()
+      require('opencode.ui.footer').update_window(windows)
     end,
   })
 end

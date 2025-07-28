@@ -18,7 +18,6 @@
 --- @field open_output string
 --- @field toggle_focus string
 --- @field close string
---- @field toggle_fullscreen string
 --- @field select_session string
 --- @field configure_provider string
 --- @field diff_open string
@@ -48,12 +47,8 @@
 --- @field window OpencodeKeymapWindow
 
 --- @class OpencodeUIConfig
---- @field floating boolean
 --- @field window_width number
 --- @field input_height number
---- @field fullscreen boolean
---- @field layout string
---- @field floating_height number
 --- @field display_model boolean
 --- @field display_context_size boolean
 --- @field display_cost boolean

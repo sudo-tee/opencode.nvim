@@ -2,6 +2,9 @@ local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
 local renderer = require('opencode.ui.output_renderer')
+local output_window = require('opencode.ui.output_window')
+local input_window = require('opencode.ui.input_window')
+local footer = require('opencode.ui.footer')
 
 function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
@@ -46,20 +49,10 @@ function M.return_to_last_code_win()
 end
 
 function M.setup_buffers()
-  local input_buf = vim.api.nvim_create_buf(false, true)
-  local output_buf = vim.api.nvim_create_buf(false, true)
-
-  vim.api.nvim_set_option_value('filetype', 'opencode_input', { buf = input_buf })
-  vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
-
+  local input_buf = input_window.create_buf()
+  local output_buf = output_window.create_buf()
   local footer_buf = require('opencode.ui.footer').create_buf()
   return { input_buf = input_buf, output_buf = output_buf, footer_buf = footer_buf }
-end
-
-function M.create_floating_windows(input_buf, output_buf, opts)
-  local input_win = vim.api.nvim_open_win(input_buf, false, opts)
-  local output_win = vim.api.nvim_open_win(output_buf, false, opts)
-  return { input_win = input_win, output_win = output_win }
 end
 
 function M.create_split_windows(input_buf, output_buf)
@@ -80,7 +73,7 @@ function M.create_windows()
   require('opencode.ui.highlight').setup()
   vim.treesitter.language.register('markdown', 'opencode_output')
 
-  local configurator = require('opencode.ui.window_config')
+  local autocmds = require('opencode.ui.autocmds')
 
   if not require('opencode.ui.ui').is_opencode_focused() then
     require('opencode.context').load()
@@ -88,22 +81,20 @@ function M.create_windows()
   end
 
   local buffers = M.setup_buffers()
-  local windows = config.get('ui').floating
-      and M.create_floating_windows(buffers.input_buf, buffers.output_buf, configurator.floating_win_opts)
-    or M.create_split_windows(buffers.input_buf, buffers.output_buf)
+  local windows = buffers
+  local win_ids = M.create_split_windows(buffers.input_buf, buffers.output_buf)
 
-  ---@type OpencodeWindowState
-  local wins_and_bufs = vim.tbl_extend('error', buffers, windows)
+  windows.input_win = win_ids.input_win
+  windows.output_win = win_ids.output_win
 
-  configurator.setup_options(wins_and_bufs)
-  configurator.refresh_placeholder(wins_and_bufs)
-  configurator.setup_keymaps(wins_and_bufs)
-  configurator.setup_after_actions(wins_and_bufs)
-  configurator.configure_window_dimensions(wins_and_bufs)
-  require('opencode.ui.footer').create_window(wins_and_bufs)
-  configurator.setup_autocmds(wins_and_bufs)
-  configurator.setup_resize_handler(wins_and_bufs)
-  return wins_and_bufs
+  input_window.setup(windows)
+  output_window.setup(windows)
+  footer.setup(windows)
+
+  autocmds.setup_autocmds(windows)
+  autocmds.setup_resize_handler(windows)
+
+  return windows
 end
 
 function M.focus_input(opts)
@@ -194,27 +185,6 @@ function M.stop_render_output()
   renderer.stop()
 end
 
-function M.toggle_fullscreen()
-  local windows = state.windows
-  if not windows then
-    return
-  end
-
-  local ui_config = require('opencode.config').get('ui')
-  if not ui_config.floating then
-    vim.notify('Fullscreen mode is only available in floating window mode', vim.log.levels.WARN)
-    return
-  end
-  ui_config.fullscreen = not ui_config.fullscreen
-
-  require('opencode.ui.window_config').configure_floating_window_dimensions(windows)
-  require('opencode.ui.topbar').render()
-
-  if not M.is_opencode_focused() then
-    vim.api.nvim_set_current_win(windows.output_win)
-  end
-end
-
 function M.select_session(sessions, cb)
   local util = require('opencode.util')
 
@@ -246,67 +216,10 @@ end
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
   if current_win == state.windows.input_win then
-    -- When moving from input to output, exit insert mode first
-    vim.cmd('stopinsert')
-    vim.api.nvim_set_current_win(state.windows.output_win)
+    require('opencode.ui.output_window').focus_output(true)
   else
-    -- When moving from output to input, just change window
-    -- (don't automatically enter insert mode)
-    vim.api.nvim_set_current_win(state.windows.input_win)
-
-    -- Fix placeholder text when switching to input window
-    local lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
-    if #lines == 1 and lines[1] == '' then
-      -- Only show placeholder if the buffer is empty
-      require('opencode.ui.window_config').refresh_placeholder(state.windows)
-    else
-      -- Clear placeholder if there's text in the buffer
-      vim.api.nvim_buf_clear_namespace(
-        state.windows.input_buf,
-        vim.api.nvim_create_namespace('input_placeholder'),
-        0,
-        -1
-      )
-    end
+    require('opencode.ui.input_window').focus_input()
   end
-end
-
-function M.write_to_input(text, windows)
-  if not windows then
-    windows = state.windows
-  end
-  if not windows then
-    return
-  end
-
-  -- Check if input_buf is valid
-  if
-    not windows.input_buf
-    or type(windows.input_buf) ~= 'number'
-    or not vim.api.nvim_buf_is_valid(windows.input_buf)
-  then
-    return
-  end
-
-  local lines
-
-  -- Check if text is already a table/list of lines
-  if type(text) == 'table' then
-    lines = text
-  else
-    -- If it's a string, split it into lines
-    lines = {}
-    for line in (text .. '\n'):gmatch('(.-)\n') do
-      table.insert(lines, line)
-    end
-
-    -- If no newlines were found (empty result), use the original text
-    if #lines == 0 then
-      lines = { text }
-    end
-  end
-
-  vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
 return M

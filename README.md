@@ -94,7 +94,6 @@ require('opencode').setup({
       open_output = '<leader>oo',                  -- Opens and focuses on output window
       toggle_focus = '<leader>ot',                 -- Toggle focus between opencode and last window
       close = '<leader>oq',                        -- Close UI windows
-      toggle_fullscreen = '<leader>of',            -- Toggle between normal and fullscreen mode
       select_session = '<leader>os',               -- Select and load a opencode session
       configure_provider = '<leader>op',           -- Quick provider and model switch from predefined list
       diff_open = '<leader>od',                    -- Opens a diff tab of a modified file since the last opencode prompt
@@ -124,12 +123,8 @@ require('opencode').setup({
     }
   },
   ui = {
-    floating = false,                      -- Use floating windows for input and output
     window_width = 0.40,                   -- Width as percentage of editor width
     input_height = 0.15,                   -- Input height as percentage of window height
-    fullscreen = false,                    -- Start in fullscreen mode (default: false)
-    layout = "right",                      -- Options: "center" or "right"
-    floating_height = 0.8,                 -- Height as percentage of editor height for "center" layout
     display_model = true,                  -- Display model name on top winbar
     window_highlight = "Normal:OpencodeBackground,FloatBorder:OpencodeBorder", -- Highlight group for the opencode window
     output = {
@@ -166,7 +161,6 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Open output window                               | `<leader>oo`   | `:OpencodeOpenOutput`             | `require('opencode.api').open_output()`                  |
 | Toggle focus opencode / last window              | `<leader>ot`   | `:OpencodeToggleFocus`            | `require('opencode.api').toggle_focus()`                 |
 | Close UI windows                                 | `<leader>oq`   | `:OpencodeClose`                  | `require('opencode.api').close()`                        |
-| Toggle fullscreen mode                           | `<leader>of`   | `:OpencodeToggleFullscreen`       | `require('opencode.api').toggle_fullscreen()`            |
 | Select and load session                          | `<leader>os`   | `:OpencodeSelectSession`          | `require('opencode.api').select_session()`               |
 | Configure provider and model                     | `<leader>op`   | `:OpencodeConfigureProvider`      | `require('opencode.api').configure_provider()`           |
 | Open diff view of changes                        | `<leader>od`   | `:OpencodeDiff`                   | `require('opencode.api').diff_open()`                    |

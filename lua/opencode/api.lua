@@ -1,6 +1,7 @@
 local core = require('opencode.core')
 local util = require('opencode.util')
 local session = require('opencode.session')
+local input_window = require('opencode.ui.input_window')
 
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
@@ -75,14 +76,6 @@ function M.run_new_session(prompt)
     new_session = true,
     focus = 'output',
   })
-end
-
-function M.toggle_fullscreen()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  ui.toggle_fullscreen()
 end
 
 function M.select_session()
@@ -195,14 +188,14 @@ end
 function M.prev_history()
   local prev_prompt = history.prev()
   if prev_prompt then
-    ui.write_to_input(prev_prompt)
+    input_window.set_content(prev_prompt)
   end
 end
 
 function M.next_history()
   local next_prompt = history.next()
   if next_prompt then
-    ui.write_to_input(next_prompt)
+    input_window.set_content(next_prompt)
   end
 end
 
@@ -404,14 +397,6 @@ M.commands = {
     desc = 'Stop opencode while it is running',
     fn = function()
       M.stop()
-    end,
-  },
-
-  toggle_fullscreen = {
-    name = 'OpencodeToggleFullscreen',
-    desc = 'Toggle between normal and fullscreen mode',
-    fn = function()
-      M.toggle_fullscreen()
     end,
   },
 

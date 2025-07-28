@@ -4,6 +4,7 @@ local context = require('opencode.context')
 local session = require('opencode.session')
 local ui = require('opencode.ui.ui')
 local job = require('opencode.job')
+local input_window = require('opencode.ui.input_window')
 
 function M.select_session()
   local all_sessions = session.get_all_workspace_sessions() or {}
@@ -169,7 +170,7 @@ function M.stop()
   if state.windows then
     ui.stop_render_output()
     ui.render_output()
-    ui.write_to_input({})
+    input_window.set_content('')
     require('opencode.history').index = nil
     ui.focus_input()
   end

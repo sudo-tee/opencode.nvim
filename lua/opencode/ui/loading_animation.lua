@@ -44,7 +44,7 @@ function M._next_frame()
   return (M._animation.current_frame % #M._animation.frames) + 1
 end
 
-function M._start_animation_timer(windows, on_frame)
+function M._start_animation_timer(windows)
   M._clear_animation_timer()
 
   local interval = math.floor(1000 / M._animation.fps)

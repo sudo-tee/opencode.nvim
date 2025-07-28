@@ -1,0 +1,126 @@
+local state = require('opencode.state')
+local config = require('opencode.config').get()
+local Output = require('opencode.ui.output')
+
+local M = {}
+
+function M.create_buf()
+  local output_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
+  return output_buf
+end
+
+function M._build_output_win_config()
+  return {
+    relative = 'editor',
+    width = config.ui.window_width or 80,
+    row = 2,
+    col = 2,
+    style = 'minimal',
+    border = 'rounded',
+    zindex = 40,
+  }
+end
+
+function M.create_window(windows)
+  windows.output_win = vim.api.nvim_open_win(windows.output_buf, true, M._build_output_win_config())
+end
+
+function M.setup(windows)
+  vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
+  vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
+  vim.api.nvim_set_option_value('number', false, { win = windows.output_win })
+  vim.api.nvim_set_option_value('relativenumber', false, { win = windows.output_win })
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
+
+  M.update_dimensions(windows)
+  M.setup_keymaps(windows)
+end
+
+function M.update_dimensions(windows)
+  local total_width = vim.api.nvim_get_option_value('columns', {})
+  local width = math.floor(total_width * config.ui.window_width)
+
+  vim.api.nvim_win_set_config(windows.output_win, { width = width })
+end
+
+function M.render()
+  local output_model = state.output_model or Output.new()
+  local lines = output_model:get_lines()
+  M.set_content(lines)
+end
+
+function M.set_content(lines)
+  local windows = state.windows
+  if not windows or not windows.output_buf then
+    return
+  end
+  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
+  vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+end
+
+function M.focus_output(should_stop_insert)
+  if should_stop_insert then
+    vim.cmd('stopinsert')
+  end
+  vim.api.nvim_set_current_win(state.windows.output_win)
+end
+
+function M.close()
+  if not state.windows then
+    return
+  end
+  pcall(vim.api.nvim_win_close, state.windows.output_win, true)
+  pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
+end
+
+function M.setup_keymaps(windows)
+  local ui = require('opencode.ui.ui')
+  local api = require('opencode.api')
+  local map = require('opencode.keymap').buf_keymap
+  local nav = require('opencode.ui.navigation')
+
+  local keymaps = config.keymap.window
+  local input_buf = windows.input_buf
+  local output_buf = windows.output_buf
+  local both_bufs = { input_buf, output_buf }
+
+  -- Close handlers
+  map(keymaps.close, api.close, both_bufs, 'n')
+
+  -- Message navigation
+  map(keymaps.next_message, nav.goto_next_message, both_bufs, 'n')
+  map(keymaps.prev_message, nav.goto_prev_message, both_bufs, 'n')
+
+  map(keymaps.stop, api.stop, both_bufs, { 'n', 'i' })
+
+  map(keymaps.toggle_pane, api.toggle_pane, both_bufs, { 'n', 'i' })
+
+  map(keymaps.focus_input, ui.focus_input, output_buf, 'n')
+
+  map(keymaps.switch_mode, api.switch_to_next_mode, output_buf, 'n')
+
+  if config.debug.enabled then
+    local debug_helper = require('opencode.ui.debug_helper')
+    map(keymaps.debug_output, debug_helper.debug_output, output_buf, 'n')
+    map(keymaps.debug_message, debug_helper.debug_message, output_buf, 'n')
+  end
+end
+
+function M.setup_autocmds(windows, group)
+  vim.api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      vim.cmd('stopinsert')
+      state.last_focused_opencode_window = 'output'
+      require('opencode.ui.input_window').refresh_placeholder(windows)
+    end,
+  })
+end
+
+return M

@@ -69,13 +69,13 @@ function M._build_footer_win_config(windows)
   }
 end
 
-function M.create_window(windows)
+function M.setup(windows)
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
   vim.api.nvim_set_option_value('winhl', 'Normal:Comment', { win = windows.footer_win })
 end
 
 function M.update_window(windows)
-  if not windows then
+  if not windows or not vim.api.nvim_win_is_valid(windows.footer_win) then
     return
   end
 

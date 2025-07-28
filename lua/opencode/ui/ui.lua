@@ -55,33 +55,31 @@ function M.setup_buffers()
   return { input_buf = input_buf, output_buf = output_buf, footer_buf = footer_buf }
 end
 
+---@param direction 'left' | 'right' | 'top' | 'bottom'
+---@param type 'vertical' | 'horizontal'
+local function open_split(direction, type)
+  if type == 'vertical' then
+    vim.cmd((direction == 'left' and 'leftabove' or 'rightbelow') .. ' vsplit')
+  else
+    vim.cmd((direction == 'top' and 'aboveleft' or 'belowright') .. ' split')
+  end
+  return vim.api.nvim_get_current_win()
+end
+
 function M.create_split_windows(input_buf, output_buf)
   if state.windows then
     M.close_windows(state.windows)
   end
-
   local ui_conf = config.get('ui')
 
-  vim.cmd('vsplit')
-  vim.cmd(ui_conf.position == 'left' and 'wincmd h' or 'wincmd l')
+  local main_win = open_split(ui_conf.position, 'vertical')
+  vim.api.nvim_set_current_win(main_win)
 
-  local first_win = vim.api.nvim_get_current_win()
-  vim.cmd('split')
-  local second_win = vim.api.nvim_get_current_win()
-
-  local input_win, output_win
-
-  if ui_conf.input_position == 'top' then
-    input_win = first_win
-    output_win = second_win
-  else
-    input_win = second_win
-    output_win = first_win
-  end
+  local input_win = open_split(ui_conf.input_position, 'horizontal')
+  local output_win = main_win
 
   vim.api.nvim_win_set_buf(input_win, input_buf)
   vim.api.nvim_win_set_buf(output_win, output_buf)
-
   return { input_win = input_win, output_win = output_win }
 end
 

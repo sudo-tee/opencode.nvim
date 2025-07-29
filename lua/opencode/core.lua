@@ -99,11 +99,13 @@ function M.run(prompt, opts)
       end,
       on_exit = function()
         state.opencode_run_job = nil
+        state.last_output = os.time()
         ui.render_output()
       end,
       on_interrupt = function()
         state.opencode_run_job = nil
         state.was_interrupted = true
+        state.last_output = os.time()
 
         ui.render_output()
         vim.notify('Opencode run interrupted by user', vim.log.levels.WARN)

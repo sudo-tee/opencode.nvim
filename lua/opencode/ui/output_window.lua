@@ -85,22 +85,20 @@ function M.setup_keymaps(windows)
   local nav = require('opencode.ui.navigation')
 
   local keymaps = config.keymap.window
-  local input_buf = windows.input_buf
   local output_buf = windows.output_buf
-  local both_bufs = { input_buf, output_buf }
 
-  -- Close handlers
-  map(keymaps.close, api.close, both_bufs, 'n')
+  map(keymaps.close, api.close, output_buf, 'n')
 
-  -- Message navigation
-  map(keymaps.next_message, nav.goto_next_message, both_bufs, 'n')
-  map(keymaps.prev_message, nav.goto_prev_message, both_bufs, 'n')
+  map(keymaps.next_message, nav.goto_next_message, output_buf, 'n')
+  map(keymaps.prev_message, nav.goto_prev_message, output_buf, 'n')
 
-  map(keymaps.stop, api.stop, both_bufs, { 'n', 'i' })
+  map(keymaps.stop, api.stop, output_buf, { 'n' })
 
-  map(keymaps.toggle_pane, api.toggle_pane, both_bufs, { 'n', 'i' })
+  map(keymaps.toggle_pane, api.toggle_pane, output_buf, { 'n' })
 
-  map(keymaps.focus_input, ui.focus_input, output_buf, 'n')
+  map(keymaps.focus_input, function()
+    ui.focus_input({ restore_position = true, start_insert = true })
+  end, output_buf, 'n')
 
   map(keymaps.switch_mode, api.switch_to_next_mode, output_buf, 'n')
 

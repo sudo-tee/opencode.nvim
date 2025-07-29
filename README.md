@@ -236,7 +236,8 @@ See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full con
 
 ## 📸 Contextual Actions for Snapshots
 
-> [!WARNING] **Snapshots are an experimental feature**
+> [!WARNING]
+> **Snapshots are an experimental feature**
 > in opencode and sometimes the dev team may disable them or change their behavior.
 > This repository will be updated to match the latest opencode changes as soon as possible.
 

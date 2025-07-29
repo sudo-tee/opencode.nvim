@@ -310,6 +310,7 @@ function M.help()
     table.insert(msg, string.format('| %-10s | %s |', def.name, desc))
   end
 
+  table.insert(msg, '')
   ui.render_lines(msg)
 end
 
@@ -326,15 +327,15 @@ function M.mcp()
   local msg = M.with_header({
     '### Available MCP servers',
     '',
-    '| Name   | type | cmd|',
-    '|--------|------|----|',
+    '| Name   | Type | cmd |',
+    '|--------|------|-----|',
   })
 
   for name, def in pairs(mcp) do
     table.insert(
       msg,
       string.format(
-        '| %s %-10s | %s |%s|',
+        '| %s %-10s | %s | %s |',
         def.enabled and '🟢' or '⚫',
         name,
         def.type,
@@ -343,6 +344,7 @@ function M.mcp()
     )
   end
 
+  table.insert(msg, '')
   ui.render_lines(msg)
 end
 

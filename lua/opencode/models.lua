@@ -11,15 +11,23 @@ local cache_file = vim.fn.stdpath('cache') .. '/opencode/opencode_models.json'
 local curl = require('plenary.curl')
 
 function M.setup()
+  M.ensure_cache_dir()
+  M.load()
+end
+
+function M.ensure_cache_dir()
   local cache_dir = vim.fn.stdpath('cache') .. '/opencode'
   if vim.fn.isdirectory(cache_dir) == 0 then
-    vim.fn.mkdir(cache_dir, 'p')
+    local ok, err = pcall(vim.fn.mkdir, cache_dir, 'p')
+    if not ok then
+      error('Failed to create cache directory: ' .. err)
+    end
   end
-  M.load()
 end
 
 -- Download models.json and write to cache
 function M.download_models()
+  M.ensure_cache_dir()
   vim.notify('[Opencode.nvim] Downloading models from ' .. url .. '...', vim.log.levels.INFO)
   local result = curl.get(url, { timeout = 10000 })
   if result.status ~= 200 or not result.body then

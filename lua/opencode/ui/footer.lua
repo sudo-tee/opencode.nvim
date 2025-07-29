@@ -22,12 +22,16 @@ function M.render(windows)
   end
 
   if state.current_model then
-    local provider, model = state.current_model:match('^(.-)/(.+)$')
-    local model_info = models.get(provider, model)
-    local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
-    append_to_footer(util.format_number(state.tokens_count))
-    append_to_footer(util.format_percentage(limit > 0 and state.tokens_count / limit))
-    append_to_footer(util.format_cost(state.cost))
+    if config.ui.display_context_size then
+      local provider, model = state.current_model:match('^(.-)/(.+)$')
+      local model_info = models.get(provider, model)
+      local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
+      append_to_footer(util.format_number(state.tokens_count))
+      append_to_footer(util.format_percentage(limit > 0 and state.tokens_count / limit))
+    end
+    if config.ui.display_cost then
+      append_to_footer(util.format_cost(state.cost))
+    end
   end
 
   local win_width = vim.api.nvim_win_get_width(windows.output_win)

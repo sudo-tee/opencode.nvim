@@ -36,7 +36,7 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 - [Configuration](#️-configuration)
 - [Usage](#-usage)
 - [Context](#-context)
-  - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
+- [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
 - [Setting up opencode](#-setting-up-opencode)
 
 ## ⚠️Caution
@@ -113,6 +113,7 @@ require('opencode').setup({
       next_message = ']]',                 -- Navigate to next message in the conversation
       prev_message = '[[',                 -- Navigate to previous message in the conversation
       mention_file = '@',                  -- Pick a file and add to context. See File Mentions section
+      slash_command = '/',                 -- Pick a command to run in the input window
       toggle_pane = '<tab>',               -- Toggle between input and output panes
       prev_prompt_history = '<up>',        -- Navigate to previous prompt in history
       next_prompt_history = '<down>',      -- Navigate to next prompt in history
@@ -236,8 +237,7 @@ See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full con
 
 ## 📸 Contextual Actions for Snapshots
 
-> [!WARNING]
-> **Snapshots are an experimental feature**
+> [!WARNING] > _Snapshots are an experimental feature_
 > in opencode and sometimes the dev team may disable them or change their behavior.
 > This repository will be updated to match the latest opencode changes as soon as possible.
 
@@ -279,6 +279,8 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeModePlan`: Mode indicator in winbar for Plan mode (default: #61AFEF background)
 - `OpencodeModeBuild`: Mode indicator in winbar for Build mode (default: #616161 background)
 - `OpencodeModeCustom`: Mode indicator in winbar for custom modes (default: #3b4261 background)
+- `OpencodeContestualAction`: Highlight for contextual actions in the output window (default: #3b4261 background)
+- `OpencodeInpuutLegend`: Highlight for input window legend (default: #CCCCCC background)
 
 ## 🔧 Setting up Opencode
 
@@ -296,4 +298,4 @@ If you're new to opencode:
 
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
-   - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/config.json` file
+   - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file

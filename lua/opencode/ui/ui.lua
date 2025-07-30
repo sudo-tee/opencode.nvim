@@ -196,6 +196,7 @@ end
 function M.render_lines(lines)
   M.clear_output()
   renderer.write_output(state.windows, lines)
+  renderer.render_markdown()
 end
 
 function M.stop_render_output()

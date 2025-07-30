@@ -79,7 +79,6 @@ function M.run(prompt, opts)
         M.after_run(prompt)
       end,
       on_output = function(output)
-        -- Reload all modified file buffers
         vim.cmd('checktime')
 
         if output and not state.active_session then
@@ -141,6 +140,40 @@ function M.add_file_to_context()
       mention_cb(file.name)
       context.add_file(file.path)
     end)
+  end)
+end
+
+function M.select_slash_commands()
+  local custom_command_key = require('opencode.config').get('keymap').window.slash_commands
+  if not input_window.is_empty() then
+    if #custom_command_key == 1 then
+      vim.api.nvim_feedkeys(custom_command_key, 'n', false)
+    end
+    return
+  end
+
+  local api = require('opencode.api')
+  local commands = api.get_slash_commands() or {}
+
+  local cmd_len = 0
+  for _, cmd in ipairs(commands) do
+    cmd_len = math.max(cmd_len, #cmd.slash_cmd)
+  end
+
+  vim.ui.select(commands, {
+    prompt = 'Select command:',
+    format_item = function(item)
+      return string.format('%-' .. cmd_len .. 's │ %s', item.slash_cmd, item.desc)
+    end,
+  }, function(selection)
+    if selection and selection.fn then
+      selection.fn()
+    else
+      if #custom_command_key == 1 then
+        vim.cmd('startinsert')
+        vim.api.nvim_feedkeys(custom_command_key, 'n', false)
+      end
+    end
   end)
 end
 

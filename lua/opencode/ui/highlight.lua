@@ -14,6 +14,7 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'OpencodeModeBuild', { bg = '#616161', fg = '#FFFFFF', bold = true })
   vim.api.nvim_set_hl(0, 'OpencodeModeCustom', { bg = '#3b4261', fg = '#FFFFFF', bold = true })
   vim.api.nvim_set_hl(0, 'OpencodeContextualActions', { bg = '#3b4261', fg = '#61AFEF', bold = true })
+  vim.api.nvim_set_hl(0, 'OpencodeInputLegend', { bg = '#616161', fg = '#CCCCCC', bold = false })
 end
 
 return M

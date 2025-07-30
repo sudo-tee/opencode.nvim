@@ -2,8 +2,6 @@ local state = require('opencode.state')
 local config = require('opencode.config').get()
 local M = {}
 
-local INPUT_PLACEHOLDER = 'Plan, search, ask, and code with AI! Type your prompt here...'
-
 function M.create_buf()
   local input_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('filetype', 'opencode_input', { buf = input_buf })
@@ -42,14 +40,11 @@ function M.handle_submit()
     modeline = false,
   })
 
-  -- Switch to the output window
   vim.api.nvim_set_current_win(windows.output_win)
 
-  -- Always scroll to the bottom when submitting a new prompt
   local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
   vim.api.nvim_win_set_cursor(windows.output_win, { line_count, 0 })
 
-  -- Run the command with the input content
   require('opencode.core').run(input_content)
 end
 
@@ -93,10 +88,16 @@ function M.refresh_placeholder(windows, input_lines)
   if #input_lines == 1 and input_lines[1] == '' then
     local ns_id = vim.api.nvim_create_namespace('input_placeholder')
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
-    local placeholder_len = vim.fn.strwidth(INPUT_PLACEHOLDER)
-    local padding = string.rep(' ', win_width - placeholder_len)
+    local padding = string.rep(' ', win_width)
+    local keys = config.keymap.window
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
-      virt_text = { { INPUT_PLACEHOLDER .. padding, 'Comment' } },
+      virt_text = {
+        { 'Type your prompt here... ', 'Comment' },
+        { keys.slash_commands, 'OpencodeInputLegend' },
+        { ' for commands ', 'Comment' },
+        { keys.mention_file, 'OpencodeInputLegend' },
+        { ' to mention files' .. padding, 'Comment' },
+      },
       virt_text_pos = 'overlay',
     })
   else
@@ -138,6 +139,16 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
+function M.is_empty()
+  local windows = state.windows
+  if not windows or not windows.input_buf then
+    return true
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+  return #lines == 0 or (#lines == 1 and lines[1] == '')
+end
+
 function M.setup_keymaps(windows)
   local map = require('opencode.keymap').buf_keymap
   local nav_history = require('opencode.ui.util').navigate_history
@@ -152,6 +163,7 @@ function M.setup_keymaps(windows)
   map(keymaps.submit_insert, M.handle_submit, input_buf, 'i')
 
   map(keymaps.mention_file, core.add_file_to_context, input_buf, 'i')
+  map(keymaps.slash_commands, core.select_slash_commands, input_buf, 'i')
 
   map(keymaps.prev_prompt_history, nav_history(keymaps.prev_prompt_history, 'prev'), input_buf, { 'n', 'i' })
   map(keymaps.next_prompt_history, nav_history(keymaps.next_prompt_history, 'next'), input_buf, { 'n', 'i' })
@@ -162,6 +174,7 @@ function M.setup_keymaps(windows)
   map(keymaps.prev_message, nav.goto_prev_message, input_buf, 'n')
 
   map(keymaps.close, api.close, input_buf, 'n')
+  map(keymaps.close, api.stop, input_buf, 'n')
   map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
 end
 

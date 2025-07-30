@@ -181,7 +181,6 @@ function M.diff_revert_this_last_prompt()
     vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
     return
   end
-  -- git_review.revert_current(snapshot_id)
 end
 
 function M.set_review_breakpoint()
@@ -383,6 +382,7 @@ M.commands = {
 
   open_input_new_session = {
     name = 'OpencodeOpenInputNewSession',
+    slash_cmd = '/new',
     desc = 'Opens and focuses on input window on insert mode. Creates a new session',
     fn = function()
       M.open_input_new_session()
@@ -415,6 +415,7 @@ M.commands = {
 
   select_session = {
     name = 'OpencodeSelectSession',
+    slash_cmd = '/sessions',
     desc = 'Select and load a opencode session',
     fn = function()
       M.select_session()
@@ -431,6 +432,7 @@ M.commands = {
 
   configure_provider = {
     name = 'OpencodeConfigureProvider',
+    slash_cmd = '/models',
     desc = 'Quick provider and model switch from predefined list',
     fn = function()
       M.configure_provider()
@@ -555,6 +557,7 @@ M.commands = {
 
   init = {
     name = 'OpencodeInit',
+    slash_cmd = '/init',
     desc = 'Initialize/Update AGENTS.md file',
     fn = function()
       M.initialize()
@@ -562,6 +565,7 @@ M.commands = {
   },
   help = {
     name = 'OpencodeHelp',
+    slash_cmd = '/help',
     desc = 'Display help message',
     fn = function()
       M.open_input()
@@ -570,7 +574,8 @@ M.commands = {
   },
   mcp = {
     name = 'OpencodeMCP',
-    desc = 'Display list od mcp servers',
+    slash_cmd = '/mcp',
+    desc = 'Display list of mcp servers',
     fn = function()
       M.open_input()
       M.mcp()
@@ -601,12 +606,23 @@ M.commands = {
   },
   open_code_select_mode = {
     name = 'OpencodeModeSelect',
+    slash_cmd = '/mode',
     desc = 'Select opencode mode',
     fn = function()
       M.select_mode()
     end,
   },
 }
+
+function M.get_slash_commands()
+  local commands = vim.tbl_filter(function(cmd)
+    return cmd.slash_cmd and cmd.slash_cmd ~= ''
+  end, M.commands)
+  table.sort(commands, function(a, b)
+    return a.slash_cmd < b.slash_cmd
+  end)
+  return commands
+end
 
 function M.setup()
   for _, cmd in pairs(M.commands) do

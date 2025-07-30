@@ -36,6 +36,7 @@
 --- @field next_message string
 --- @field prev_message string
 --- @field mention_file string
+--- @field slash_commands string
 --- @field toggle_pane string
 --- @field prev_prompt_history string
 --- @field next_prompt_history string

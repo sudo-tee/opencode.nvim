@@ -78,8 +78,8 @@ function M._read_session(force_refresh)
   return output_lines
 end
 
-function M._start_refresh_timer(windows)
-  M._stop_refresh_timer()
+function M.start_refresh_timer(windows)
+  M.stop_refresh_timer()
 
   M._refresh_timer = Timer.new({
     interval = 300,
@@ -90,7 +90,7 @@ function M._start_refresh_timer(windows)
         end
         return true
       else
-        M._stop_refresh_timer()
+        M.stop_refresh_timer()
         M.render(windows, true)
         return false
       end
@@ -100,7 +100,7 @@ function M._start_refresh_timer(windows)
   M._refresh_timer:start()
 end
 
-function M._stop_refresh_timer()
+function M.stop_refresh_timer()
   if M._refresh_timer then
     M._refresh_timer:stop()
     M._refresh_timer = nil
@@ -155,7 +155,7 @@ end)
 function M.stop()
   loading_animation.stop()
 
-  M._stop_refresh_timer()
+  M.stop_refresh_timer()
 
   M._cache = {
     last_modified = 0,
@@ -168,12 +168,12 @@ end
 
 function M.handle_loading(windows)
   if state.opencode_run_job then
-    M._start_refresh_timer(windows)
+    M.start_refresh_timer(windows)
     if not loading_animation.is_running() then
       loading_animation.start(windows)
     end
   else
-    M._stop_refresh_timer()
+    M.stop_refresh_timer()
     if loading_animation.is_running() then
       loading_animation.stop()
     end

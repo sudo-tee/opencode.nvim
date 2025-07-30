@@ -121,4 +121,9 @@ function M.setup_autocmds(windows, group)
   })
 end
 
+function M.clear()
+  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, -1, 0, -1)
+  M.set_content({})
+end
+
 return M

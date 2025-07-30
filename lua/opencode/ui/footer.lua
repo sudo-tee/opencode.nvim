@@ -94,7 +94,7 @@ function M.create_buf()
   return footer_buf
 end
 
-function M.clear_footer()
+function M.clear()
   local windows = state.windows
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')

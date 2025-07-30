@@ -124,12 +124,16 @@ function M.after_run(prompt)
 end
 
 function M.before_run(opts)
+  local is_new_session = opts.new_session or not state.active_session
   M.stop()
+  if is_new_session then
+    ui.clear_output()
+  end
 
   opts = opts or {}
 
   M.open({
-    new_session = opts.new_session or not state.active_session,
+    new_session = is_new_session,
   })
 end
 

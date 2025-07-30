@@ -5,6 +5,7 @@ local renderer = require('opencode.ui.output_renderer')
 local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
+local topbar = require('opencode.ui.topbar')
 
 function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
@@ -32,7 +33,7 @@ function M.close_windows(windows)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
-  require('opencode.ui.footer').close()
+  footer.close()
 
   -- Clear autocmd groups
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -51,7 +52,7 @@ end
 function M.setup_buffers()
   local input_buf = input_window.create_buf()
   local output_buf = output_window.create_buf()
-  local footer_buf = require('opencode.ui.footer').create_buf()
+  local footer_buf = footer.create_buf()
   return { input_buf = input_buf, output_buf = output_buf, footer_buf = footer_buf }
 end
 
@@ -159,33 +160,10 @@ function M.is_output_empty()
 end
 
 function M.clear_output()
-  local windows = state.windows
-
-  -- Clear any extmarks/namespaces first
-  local out_ns_id = vim.api.nvim_create_namespace('opencode_output')
-  vim.api.nvim_buf_clear_namespace(windows.output_buf, out_ns_id, 0, -1)
-
-  -- Stop any running timers in the output module
-  if renderer._refresh_timer then
-    pcall(vim.fn.timer_stop, renderer._refresh_timer)
-    renderer._refresh_timer = nil
-  end
-
-  -- Clear cache to force refresh on next render
-  renderer._cache = {
-    last_modified = 0,
-    output_lines = nil,
-    session_path = nil,
-    check_counter = 0,
-  }
-
-  -- Clear all buffer content
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, {})
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
-
-  require('opencode.ui.footer').clear_footer()
-  require('opencode.ui.topbar').render()
+  renderer.stop()
+  output_window.clear()
+  footer.clear()
+  topbar.render()
   renderer.render_markdown()
 end
 
@@ -234,9 +212,9 @@ end
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
   if current_win == state.windows.input_win then
-    require('opencode.ui.output_window').focus_output(true)
+    output_window.focus_output(true)
   else
-    require('opencode.ui.input_window').focus_input()
+    input_window.focus_input()
   end
 end
 

@@ -40,19 +40,20 @@ function M.close()
   ui.close_windows(state.windows)
 end
 
-function M.toggle()
+function M.toggle(new_session)
   if state.windows == nil then
     local focus = state.last_focused_opencode_window or 'input'
-    core.open({ new_session = false, focus = focus })
+
+    core.open({ new_session = new_session == true, focus = focus })
   else
     M.close()
   end
 end
 
-function M.toggle_focus()
+function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
     local focus = state.last_focused_opencode_window or 'input'
-    core.open({ new_session = false, focus = focus })
+    core.open({ new_session = new_session == true, focus = focus })
   else
     ui.return_to_last_code_win()
   end

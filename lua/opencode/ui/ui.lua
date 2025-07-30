@@ -227,7 +227,7 @@ function M.swap_position()
     M.close_windows(state.windows)
   end
   vim.schedule(function()
-    require('opencode.api').toggle()
+    require('opencode.api').toggle(state.active_session == nil)
   end)
 end
 

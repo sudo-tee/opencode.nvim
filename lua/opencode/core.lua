@@ -124,7 +124,7 @@ function M.after_run(prompt)
 end
 
 function M.before_run(opts)
-  local is_new_session = opts.new_session or not state.active_session
+  local is_new_session = opts and opts.new_session or not state.active_session
   M.stop()
   if is_new_session then
     ui.clear_output()

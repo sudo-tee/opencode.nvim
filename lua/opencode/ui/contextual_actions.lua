@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local keymap = require('opencode.keymap')
+local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
@@ -44,11 +45,7 @@ function M.setup_contextual_actions()
     buffer = state.windows.output_buf,
     callback = function()
       vim.schedule(function()
-        if
-          not state.windows
-          or not state.windows.output_buf
-          or not vim.api.nvim_buf_is_valid(state.windows.output_buf)
-        then
+        if not output_window.mounted() then
           return
         end
         local line_num = vim.api.nvim_win_get_cursor(0)[1]

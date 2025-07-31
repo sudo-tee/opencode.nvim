@@ -50,7 +50,7 @@ function M.setup_resize_handler(windows)
     group = resize_group,
     callback = function(args)
       local win = tonumber(args.match)
-      if not win or not vim.api.nvim_win_is_valid(win) or not windows or not windows.output_win then
+      if not win or not vim.api.nvim_win_is_valid(win) or not output_window.mounted() then
         return
       end
 

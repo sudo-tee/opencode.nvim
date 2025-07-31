@@ -1,10 +1,11 @@
 local state = require('opencode.state')
 local config = require('opencode.config').get()
 local util = require('opencode.util')
+local output_window = require('opencode.ui.output_window')
 local M = {}
 
 function M.render(windows)
-  if not windows or not windows.output_win or not windows.footer_buf then
+  if not output_window.mounted(windows) or not M.mounted(windows) then
     return
   end
 
@@ -78,8 +79,13 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('winhl', 'Normal:Comment', { win = windows.footer_win })
 end
 
+function M.mounted(windows)
+  windows = state.windows
+  return windows and windows.footer_win and vim.api.nvim_win_is_valid(windows.footer_win)
+end
+
 function M.update_window(windows)
-  if not windows or not vim.api.nvim_win_is_valid(windows.footer_win) then
+  if not M.mounted(windows) then
     return
   end
 
@@ -109,7 +115,7 @@ end
 
 function M.set_content(lines)
   local windows = state.windows
-  if not windows or not windows.footer_buf then
+  if not M.mounted() then
     return
   end
 

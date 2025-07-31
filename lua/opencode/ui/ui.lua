@@ -140,7 +140,6 @@ function M.is_opencode_focused()
   if not state.windows then
     return false
   end
-  -- are we in a opencode window?
   local current_win = vim.api.nvim_get_current_win()
   return M.is_opencode_window(current_win)
 end

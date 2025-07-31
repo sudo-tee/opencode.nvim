@@ -26,6 +26,15 @@ function M.create_window(windows)
   windows.output_win = vim.api.nvim_open_win(windows.output_buf, true, M._build_output_win_config())
 end
 
+function M.mounted(windows)
+  windows = windows or state.windows
+  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
+    return false
+  end
+
+  return true
+end
+
 function M.setup(windows)
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
   vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
@@ -54,12 +63,26 @@ function M.render()
 end
 
 function M.set_content(lines)
-  local windows = state.windows
-  if not windows or not windows.output_buf then
+  if not M.mounted() then
     return
   end
+
+  local windows = state.windows
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  M.append_content({ '', '' })
+end
+
+function M.append_content(lines)
+  if not M.mounted() then
+    return
+  end
+
+  local windows = state.windows
+  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
+  local current_lines = vim.api.nvim_buf_get_lines(windows.output_buf, 0, -1, false)
+  vim.api.nvim_buf_set_lines(windows.output_buf, #current_lines, -1, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 end
 
@@ -71,7 +94,7 @@ function M.focus_output(should_stop_insert)
 end
 
 function M.close()
-  if not state.windows then
+  if M.mounted() then
     return
   end
   pcall(vim.api.nvim_win_close, state.windows.output_win, true)

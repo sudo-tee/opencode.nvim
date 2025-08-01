@@ -1,39 +1,6 @@
 local util = require('opencode.util')
 local M = {}
 
----@param dir string Directory path to read JSON files from
----@param max_items? number Maximum number of items to read
----@return table[]|nil Array of decoded JSON objects
-function M.read_json_dir(dir, max_items)
-  if not dir or vim.fn.isdirectory(dir) == 0 then
-    return nil
-  end
-
-  local count = 0
-  local decoded_items = {}
-  for file, file_type in vim.fs.dir(dir) do
-    if file_type == 'file' and file:match('%.json$') then
-      local file_ok, content = pcall(vim.fn.readfile, dir .. '/' .. file)
-      if file_ok then
-        local lines = table.concat(content, '\n')
-        local ok, data = pcall(vim.json.decode, lines)
-        if ok and data then
-          table.insert(decoded_items, data)
-        end
-      end
-    end
-    count = count + 1
-    if max_items and count >= max_items then
-      break
-    end
-  end
-
-  if #decoded_items == 0 then
-    return nil
-  end
-  return decoded_items
-end
-
 function M.workspace_slug(path)
   local is_git_project = util.is_git_project()
   if not is_git_project then
@@ -60,7 +27,7 @@ end
 function M.get_workspace_snapshot_path(workspace)
   workspace = workspace or M.workspace_slug()
   local home = vim.uv.os_homedir()
-  return home .. '/.local/share/opencode/project/' .. workspace .. '/snapshot/'
+  return home .. '/.local/share/opencode/project/' .. workspace .. '/snapshots/'
 end
 
 ---@return Session[]|nil
@@ -98,7 +65,8 @@ function M.create_session_object(session_json)
     path = sessions_dir .. '/info/' .. session_json.id .. '.json',
     messages_path = sessions_dir .. '/message/' .. session_json.id,
     parts_path = sessions_dir .. '/part/' .. session_json.id .. '/',
-    snapshot_path = M.get_workspace_snapshot_path() .. session_json.id .. '/',
+    cache_path = vim.fn.stdpath('cache') .. '/opencode/session/' .. session_json.id .. '/',
+    snapshot_path = M.get_workspace_snapshot_path(),
     workplace_slug = M.workspace_slug(),
   }
 end
@@ -151,6 +119,9 @@ local _session_last_modified = {}
 ---@param name string
 ---@return Session|nil
 function M.get_by_name(name)
+  if not name or name == '' then
+    return nil
+  end
   local sessions_dir = M.get_workspace_session_path()
   local info_dir = sessions_dir .. '/info'
   local file = info_dir .. '/' .. name .. '.json'
@@ -185,7 +156,7 @@ function M.get_messages(session, include_parts, max_items)
     return nil
   end
 
-  local messages = M.read_json_dir(session.messages_path)
+  local messages = util.read_json_dir(session.messages_path)
   if not messages then
     return nil
   end
@@ -208,7 +179,7 @@ end
 ---@param session Session
 function M.get_message_parts(message, session)
   local parts_path = session.parts_path .. message.id
-  return M.read_json_dir(parts_path)
+  return util.read_json_dir(parts_path)
 end
 
 ---@param message Message
@@ -219,8 +190,8 @@ function M.get_message_snapshot_ids(message)
   end
   local snapshot_ids = {}
   for _, part in ipairs(message.parts or {}) do
-    if part.snapshot and not vim.tbl_contains(snapshot_ids, part.snapshot) then
-      table.insert(snapshot_ids, part.snapshot)
+    if part.type == 'patch' and part.hash and not vim.tbl_contains(snapshot_ids, part.hash) then
+      table.insert(snapshot_ids, part.hash)
     end
   end
   return #snapshot_ids > 0 and snapshot_ids or nil

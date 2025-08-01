@@ -40,6 +40,8 @@ M.defaults = {
       diff_revert_this_last_prompt = '<leader>ort',
       diff_revert_all = '<leader>orA',
       diff_revert_this = '<leader>orT',
+      diff_restore_snapshot_file = '<leader>orr',
+      diff_restore_snapshot_all = '<leader>orR',
       open_configuration_file = '<leader>oC',
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
     },

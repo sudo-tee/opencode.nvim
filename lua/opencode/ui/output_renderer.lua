@@ -210,7 +210,7 @@ function M.apply_output_extmarks(windows)
 
   local extmarks = formatter.output:get_extmarks()
   local ns_id = vim.api.nvim_create_namespace('opencode_output')
-  vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, ns_id, 0, -1)
 
   for line_num, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do

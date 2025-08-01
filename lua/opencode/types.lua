@@ -9,6 +9,7 @@
 ---@field messages_path string
 ---@field parts_path string
 ---@field snapshot_path string
+---@field cache_path string
 ---@field workplace_slug string
 
 --- @class OpencodeKeymapGlobal
@@ -129,19 +130,19 @@
 --- @class TodoToolInput
 --- @field todos { id: string, content: string, status: 'pending'|'in_progress'|'completed'|'cancelled', priority: 'high'|'medium'|'low' }[]
 
----@class ListToolInput
----@field path string The directory path to list
+--- @class ListToolInput
+--- @field path string The directory path to list
 
----@class ListToolMetadata: ToolMetadataBase
----@field truncated boolean|nil
----@field count number|nil
+--- @class ListToolMetadata: ToolMetadataBase
+--- @field truncated boolean|nil
+--- @field count number|nil
 
 --- @class GlobToolInput
---- @field pattern? string The glob pattern to match
+--
 --- @field path? string Optional directory to search in
 
----@class ListToolOutput
----@field output string The raw output string from the list tool
+--- @class ListToolOutput
+--- @field output string The raw output string from the list tool
 
 --- @class GrepToolInput
 --- @field pattern? string The glob pattern to match
@@ -158,7 +159,7 @@
 --- @field description string Description of the subtask
 
 --- @class MessagePart
---- @field type 'text'|'tool'|'step-start'|'snapshot' Type of the message part
+--- @field type 'text'|'tool'|'step-start'|'patch' Type of the message part
 --- @field text string|nil Text content for text parts
 --- @field id string|nil Unique identifier for tool use parts
 --- @field tool string|nil Name of the tool being used
@@ -166,6 +167,8 @@
 --- @field snapshot string|nil Snapshot commit hash
 --- @field sessionID string|nil Session identifier
 --- @field messageID string|nil Message identifier
+--- @field hash string|nil Hash identifier for patch parts
+--- @field files string[]|nil List of file paths for patch parts
 
 --- @class MessageTokenCount
 --- @field reasoning number
@@ -173,22 +176,22 @@
 --- @field output number
 --- @field cache { write: number, read: number }
 
----@class OutputMetadata
----@field msg_idx number|nil Message index in session
----@field part_idx number|nil Part index in message
----@field role 'user'|'assistant'|'system'|nil Message role
----@field type 'text'|'tool'|'header'|nil Message part type
----@field snapshot? string|nil snapshot commit hash
+--- @class OutputMetadata
+--- @field msg_idx number|nil Message index in session
+--- @field part_idx number|nil Part index in message
+--- @field role 'user'|'assistant'|'system'|nil Message role
+--- @field type 'text'|'tool'|'header'|nil Message part type
+--- @field snapshot? string|nil snapshot commit hash
 
----@class OutputAction
----@field text string Action text
----@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open' Type of action
----@field args? string[] Optional arguments for the command
----@field key string keybinding for the action
----@field display_line number Line number to display the action
----@field range? { from: number, to: number } Optional range for the action
+--- @class OutputAction
+--- @field text string Action text
+--- @field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open'|'diff_restore_snapshot_file'|'diff_restore_snapshot_all' Type of action
+--- @field args? string[] Optional arguments for the command
+--- @field key string keybinding for the action
+--- @field display_line number Line number to display the action
+--- @field range? { from: number, to: number } Optional range for the action
 
----@alias OutputExtmark vim.api.keyset.set_extmark
+--- @alias OutputExtmark vim.api.keyset.set_extmark
 
 --- @class Message
 --- @field id string Unique message identifier
@@ -204,3 +207,14 @@
 --- @field role 'user'|'assistant'|'system' Role of the message sender
 --- @field system_role string|nil Role defined in system messages
 --- @field error table
+
+--- @class RestorePoint
+--- @field id string Unique restore point identifier
+--- @field from_snapshot_id string|nil ID of the snapshot this restore point is based on
+--- @field files string[] List of file paths included in the restore point
+--- @field deleted_files string[] List of files that were deleted in this restore point
+--- @field created_at number Timestamp when the restore point was created
+
+--- @class OpencodeSnapshotPatch
+--- @field hash string Unique identifier for the snapshot
+--- @field files string[] List of file paths included in the snapshot

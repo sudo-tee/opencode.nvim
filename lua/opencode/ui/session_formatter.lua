@@ -3,11 +3,13 @@ local util = require('opencode.util')
 local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 local config = require('opencode.config').get()
+local snapshot = require('opencode.snapshot')
 
 local M = {
   output = Output.new(),
   _messages = {},
   _current = nil,
+  _snapshots = {},
 }
 
 M.separator = {
@@ -23,6 +25,7 @@ function M.format_session(session)
   end
 
   state.messages = require('opencode.session').get_messages(session) or {}
+  M._snapshots = {}
 
   M.output:clear()
 
@@ -59,8 +62,11 @@ function M.format_session(session)
         end
       elseif part.type == 'tool' then
         M._format_tool(part)
-      elseif part.type == 'snapshot' and part.snapshot then
-        M._format_snapshot(part)
+      elseif part.type == 'patch' and part.hash then
+        if M._snapshots[#M._snapshots] ~= part.hash then
+          table.insert(M._snapshots, part.hash)
+        end
+        M._format_patch(part)
       end
       M.output:add_empty_line()
     end
@@ -95,43 +101,52 @@ function M.get_lines()
   return M.output:get_lines()
 end
 
----@param part MessagePart
-function M._format_snapshot(part)
+function M._format_patch(part)
+  local restore_points = snapshot.get_restore_points_by_parent(part.hash)
   M.output:add_empty_line()
-  M._format_action('📸 **Created Snapshot**', vim.trim(part.snapshot))
+  M._format_action('📸 **Created Snapshot**', vim.trim(part.hash:sub(1, 8)))
   M.output:add_action({
-    text = '[R]evert',
+    text = '[R]evert file',
     type = 'diff_revert_selected_file',
-    args = { part.snapshot, -1 },
+    args = { part.hash },
     key = 'R',
-    range = {
-      from = M.output:get_line_count(),
-      to = M.output:get_line_count(),
-    },
-    display_line = M.output:get_line_count() - 1,
   })
   M.output:add_action({
-    text = 'Diff [C]urrent',
-    type = 'diff_open',
-    args = { part.snapshot },
-    key = 'C',
-    range = {
-      from = M.output:get_line_count(),
-      to = M.output:get_line_count(),
-    },
-    display_line = M.output:get_line_count() - 1,
+    text = 'Revert [A]ll',
+    type = 'diff_revert_all',
+    args = { part.hash },
+    key = 'A',
   })
   M.output:add_action({
-    text = '[D]iff Changes',
+    text = '[D]iff',
     type = 'diff_open',
-    args = { part.snapshot, -1 },
+    args = { part.hash },
     key = 'D',
-    range = {
-      from = M.output:get_line_count(),
-      to = M.output:get_line_count(),
-    },
-    display_line = M.output:get_line_count() - 1,
   })
+
+  if #restore_points > 0 then
+    for _, restore_point in ipairs(restore_points) do
+      M.output:add_line(
+        string.format(
+          '  🕛 Restore point `%s` - %s',
+          restore_point.id:sub(1, 8),
+          util.time_ago(restore_point.created_at)
+        )
+      )
+      M.output:add_action({
+        text = 'Restore [A]ll',
+        type = 'diff_restore_snapshot_all',
+        args = { part.hash },
+        key = 'A',
+      })
+      M.output:add_action({
+        text = '[R]estore file',
+        type = 'diff_restore_snapshot_file',
+        args = { part.hash },
+        key = 'R',
+      })
+    end
+  end
 end
 
 ---@param message Message

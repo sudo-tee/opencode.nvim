@@ -200,6 +200,12 @@ end
 ---Add contextual action
 ---@param action OutputAction The actions to add
 function Output:add_action(action)
+  if not action.display_line then
+    action.display_line = #self.lines - 1
+  end
+  if not action.range then
+    action.range = { from = #self.lines, to = #self.lines }
+  end
   table.insert(self.actions, action)
 end
 

@@ -131,14 +131,14 @@ function M.diff_close()
 end
 
 ---@param from_snapshot_id? string
----@param to_snapshot_id? string
-function M.diff_revert_all(from_snapshot_id, to_snapshot_id)
+function M.diff_revert_all(from_snapshot_id)
   if not state.windows then
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.revert_all(from_snapshot_id, to_snapshot_id)
+  git_review.revert_all(from_snapshot_id)
 end
+
 ---@param from_snapshot_id? string
 ---@param to_snapshot_id? string
 function M.diff_revert_selected_file(from_snapshot_id, to_snapshot_id)
@@ -146,7 +146,25 @@ function M.diff_revert_selected_file(from_snapshot_id, to_snapshot_id)
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.revert_selected_file(from_snapshot_id, to_snapshot_id)
+  git_review.revert_selected_file(from_snapshot_id)
+end
+
+---@param restore_point_id? string
+function M.diff_restore_snapshot_file(restore_point_id)
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.restore_snapshot_file(restore_point_id)
+end
+
+---@param restore_point_id? string
+function M.diff_restore_snapshot_all(restore_point_id)
+  if not state.windows then
+    core.open({ new_session = false, focus = 'output' })
+  end
+
+  git_review.restore_snapshot_all(restore_point_id)
 end
 
 function M.diff_revert_all_last_prompt()
@@ -544,6 +562,32 @@ M.commands = {
         return
       end
       M.diff_revert_this(snapshot)
+    end,
+    args = true,
+  },
+
+  diff_restore_snapshot_file = {
+    name = 'OpencodeRestoreSnapshotFile',
+    desc = 'Restore a file to a specific restore point',
+    fn = function(snapshot)
+      if not snapshot then
+        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+        return
+      end
+      M.diff_restore_snapshot_file(snapshot)
+    end,
+    args = true,
+  },
+
+  diff_restore_snapshot_all = {
+    name = 'OpencodeRestoreSnapshotAll',
+    desc = 'Restore all files to a specific restore point',
+    fn = function(snapshot)
+      if not snapshot then
+        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+        return
+      end
+      M.diff_restore_snapshot_all(snapshot)
     end,
     args = true,
   },

@@ -8,6 +8,7 @@ local M = {
   output = Output.new(),
   _messages = {},
   _current = nil,
+  _snapshots = {},
 }
 
 M.separator = {
@@ -23,6 +24,7 @@ function M.format_session(session)
   end
 
   state.messages = require('opencode.session').get_messages(session) or {}
+  M._snapshots = {}
 
   M.output:clear()
 
@@ -61,6 +63,11 @@ function M.format_session(session)
         M._format_tool(part)
       elseif part.type == 'snapshot' and part.snapshot then
         M._format_snapshot(part)
+      elseif part.type == 'patch' and part.hash then
+        if M._snapshots[#M._snapshots] ~= part.hash then
+          table.insert(M._snapshots, part.hash)
+        end
+        M._format_patch(part)
       end
       M.output:add_empty_line()
     end
@@ -125,6 +132,33 @@ function M._format_snapshot(part)
     text = '[D]iff Changes',
     type = 'diff_open',
     args = { part.snapshot, -1 },
+    key = 'D',
+    range = {
+      from = M.output:get_line_count(),
+      to = M.output:get_line_count(),
+    },
+    display_line = M.output:get_line_count() - 1,
+  })
+end
+
+function M._format_patch(part)
+  M.output:add_empty_line()
+  M._format_action('📸 **Created Snapshot**', vim.trim(part.hash:sub(1, 8)))
+  M.output:add_action({
+    text = '[R]evert',
+    type = 'diff_revert_selected_file',
+    args = { part.hash },
+    key = 'R',
+    range = {
+      from = M.output:get_line_count(),
+      to = M.output:get_line_count(),
+    },
+    display_line = M.output:get_line_count() - 1,
+  })
+  M.output:add_action({
+    text = '[D]iff',
+    type = 'diff_open',
+    args = { part.hash },
     key = 'D',
     range = {
       from = M.output:get_line_count(),

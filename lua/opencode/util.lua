@@ -228,4 +228,37 @@ function M.debounce(func, delay)
   end
 end
 
+---@param dir string Directory path to read JSON files from
+---@param max_items? number Maximum number of items to read
+---@return table[]|nil Array of decoded JSON objects
+function M.read_json_dir(dir, max_items)
+  if not dir or vim.fn.isdirectory(dir) == 0 then
+    return nil
+  end
+
+  local count = 0
+  local decoded_items = {}
+  for file, file_type in vim.fs.dir(dir) do
+    if file_type == 'file' and file:match('%.json$') then
+      local file_ok, content = pcall(vim.fn.readfile, dir .. '/' .. file)
+      if file_ok then
+        local lines = table.concat(content, '\n')
+        local ok, data = pcall(vim.json.decode, lines)
+        if ok and data then
+          table.insert(decoded_items, data)
+        end
+      end
+    end
+    count = count + 1
+    if max_items and count >= max_items then
+      break
+    end
+  end
+
+  if #decoded_items == 0 then
+    return nil
+  end
+  return decoded_items
+end
+
 return M

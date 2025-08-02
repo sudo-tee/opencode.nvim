@@ -50,6 +50,7 @@ end
 
 function M.setup(windows)
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.input_win })
+  vim.api.nvim_set_option_value('wrap', config.ui.input.text.wrap, { win = windows.input_win })
   vim.api.nvim_set_option_value('signcolumn', 'yes', { win = windows.input_win })
   vim.api.nvim_set_option_value('cursorline', false, { win = windows.input_win })
   vim.api.nvim_set_option_value('number', false, { win = windows.input_win })

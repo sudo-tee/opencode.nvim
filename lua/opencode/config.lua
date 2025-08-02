@@ -75,6 +75,11 @@ M.defaults = {
         show_output = true,
       },
     },
+    input = {
+      text = {
+        wrap = false,
+      },
+    },
   },
   context = {
     cursor_data = false,

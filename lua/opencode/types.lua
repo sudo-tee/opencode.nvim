@@ -58,6 +58,7 @@
 --- @field display_cost boolean
 --- @field window_highlight string
 --- @field output { tools: { show_output: boolean } }
+--- @field input { text: { wrap: boolean } }
 
 --- @class OpencodeContextConfig
 --- @field cursor_data boolean

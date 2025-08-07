@@ -312,13 +312,14 @@ M.restore_snapshot = require_git_project(function(ref)
     return
   end
 
-  M.with_restore_point(ref, function(restore_point_id)
-    if not restore_point_id then
+  M.with_restore_point(ref, function(restore_point)
+    if not restore_point then
       vim.notify('No restore point selected.')
       return
     end
 
-    snapshot.restore(restore_point_id)
+    snapshot.restore(restore_point.id)
+    vim.cmd('checktime')
   end)
 end)
 

@@ -109,6 +109,7 @@ function M.get_restore_points()
   return state.restore_points
 end
 
+---@return OpencodeSnapshotPatch|nil
 function M.patch(snapshot_id)
   local result = M._opencode({ 'patch', snapshot_id })
   if result then
@@ -150,23 +151,29 @@ function M.revert(snapshot_id)
   end
   local deleted_files = {}
   for _, file in ipairs(patch.files) do
-    local res, err = snapshot_git({ 'checkout', snapshot_id .. '--', file.path })
+    local relative_path = file:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
+    local res, err = snapshot_git({ 'checkout', snapshot_id, '--', relative_path })
     if not res then
       vim.notify(
-        'file not found in history, deleting: ' .. file.path .. ' - ' .. (err or 'unknown error'),
+        'file not found in history, deleting: ' .. file .. ' - ' .. (err or 'unknown error'),
         vim.log.levels.WARN
       )
-      vim.fn.delete(file.path)
-      table.insert(deleted_files, file.path)
+      vim.fn.delete(file)
+      table.insert(deleted_files, file)
     end
+    vim.cmd('checktime')
   end
   M.save_restore_point(restore_point_id, snapshot_id, deleted_files)
   return restore_point_id, deleted_files
 end
 
+---@param snapshot_id string
+---@param file_path string
+---@return string|nil, string[]
 function M.revert_file(snapshot_id, file_path)
   local restore_point_id = M.create()
-  local res, err = snapshot_git({ 'checkout', snapshot_id .. '--', file_path })
+  local relative_path = file_path:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
+  local res, err = snapshot_git({ 'checkout', snapshot_id, '--', relative_path })
   local deleted_files = {}
 
   if not res then
@@ -177,10 +184,12 @@ function M.revert_file(snapshot_id, file_path)
     vim.fn.delete(file_path)
     table.insert(deleted_files, file_path)
   end
+  vim.cmd('checktime')
   M.save_restore_point(restore_point_id, snapshot_id, deleted_files)
   return restore_point_id, deleted_files
 end
 
+---@param snapshot_id string
 function M.restore(snapshot_id)
   local read_tree_out, read_tree_err = snapshot_git({ 'read-tree', snapshot_id })
   if not read_tree_out then

@@ -183,17 +183,14 @@ function M.index_of(tbl, value)
   return nil
 end
 
-local _is_git_cache = {}
-
+local _is_git_project = nil
 function M.is_git_project()
-  local cwd = vim.fn.getcwd()
-  if _is_git_cache[cwd] ~= nil then
-    return _is_git_cache[cwd]
+  if _is_git_project ~= nil then
+    return _is_git_project
   end
-  local result = vim.system({ 'git', 'rev-parse', '--show-toplevel' }, { cwd = cwd }):wait()
-  local is_git = result.code == 0 and result.stdout
-  _is_git_cache[cwd] = is_git and true or false
-  return _is_git_cache[cwd]
+  local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
+  _is_git_project = git_dir:exists()
+  return _is_git_project
 end
 
 function M.format_number(n)

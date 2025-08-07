@@ -189,7 +189,7 @@ function M.is_git_project()
     return _is_git_project
   end
   local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
-  _is_git_project = git_dir:exists() and git_dir:is_dir()
+  _is_git_project = git_dir:exists()
   return _is_git_project
 end
 

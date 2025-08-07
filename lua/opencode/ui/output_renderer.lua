@@ -4,6 +4,7 @@ local M = {}
 local state = require('opencode.state')
 local formatter = require('opencode.ui.session_formatter')
 local loading_animation = require('opencode.ui.loading_animation')
+local output_window = require('opencode.ui.output_window')
 
 M._cache = {
   last_modified = 0,
@@ -108,7 +109,7 @@ function M.stop_refresh_timer()
 end
 
 M.render = vim.schedule_wrap(function(windows, force_refresh)
-  if not windows or not windows.output_buf then
+  if not output_window.mounted(windows) then
     return
   end
 
@@ -181,8 +182,8 @@ function M.handle_loading(windows)
 end
 
 function M.write_output(windows, output_lines)
-  if not windows or not windows.output_buf then
-    return false
+  if not output_window.mounted(windows) then
+    return
   end
 
   local prev_lines = M._cache.prev_rendered_lines or {}
@@ -194,12 +195,7 @@ function M.write_output(windows, output_lines)
   end
 
   if changed then
-    vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-    vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, output_lines)
-
-    -- Add padding to the end of the buffer for the footer
-    vim.api.nvim_buf_set_text(windows.output_buf, #output_lines - 1, 0, #output_lines - 1, 0, { '', '' })
-    vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+    output_window.set_content(output_lines)
     M._cache.prev_rendered_lines = vim.deepcopy(output_lines)
     M.apply_output_extmarks(windows)
   end
@@ -214,7 +210,7 @@ function M.apply_output_extmarks(windows)
 
   local extmarks = formatter.output:get_extmarks()
   local ns_id = vim.api.nvim_create_namespace('opencode_output')
-  vim.api.nvim_buf_clear_namespace(windows.output_buf, ns_id, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, ns_id, 0, -1)
 
   for line_num, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do

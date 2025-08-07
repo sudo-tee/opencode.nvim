@@ -1,6 +1,5 @@
 local state = require('opencode.state')
 local config = require('opencode.config').get()
-local Output = require('opencode.ui.output')
 
 local M = {}
 
@@ -26,6 +25,15 @@ function M.create_window(windows)
   windows.output_win = vim.api.nvim_open_win(windows.output_buf, true, M._build_output_win_config())
 end
 
+function M.mounted(windows)
+  windows = windows or state.windows
+  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
+    return false
+  end
+
+  return true
+end
+
 function M.setup(windows)
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
   vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
@@ -38,6 +46,10 @@ function M.setup(windows)
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)
+  state.subscribe('restore_points', function(_, new_val, old_val)
+    local outout_renderer = require('opencode.ui.output_renderer')
+    outout_renderer.render(windows, true)
+  end)
 end
 
 function M.update_dimensions(windows)
@@ -47,19 +59,33 @@ function M.update_dimensions(windows)
   vim.api.nvim_win_set_config(windows.output_win, { width = width })
 end
 
-function M.render()
-  local output_model = state.output_model or Output.new()
-  local lines = output_model:get_lines()
-  M.set_content(lines)
-end
-
 function M.set_content(lines)
+  if not M.mounted() then
+    return
+  end
+
   local windows = state.windows
   if not windows or not windows.output_buf then
     return
   end
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  M.append_content({ '', '' })
+end
+
+function M.append_content(lines)
+  if not M.mounted() then
+    return
+  end
+
+  local windows = state.windows
+  if not windows or not windows.output_buf then
+    return
+  end
+  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
+  local current_lines = vim.api.nvim_buf_get_lines(windows.output_buf, 0, -1, false)
+  vim.api.nvim_buf_set_lines(windows.output_buf, #current_lines, -1, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 end
 
@@ -71,7 +97,7 @@ function M.focus_output(should_stop_insert)
 end
 
 function M.close()
-  if not state.windows then
+  if M.mounted() then
     return
   end
   pcall(vim.api.nvim_win_close, state.windows.output_win, true)
@@ -110,7 +136,17 @@ function M.setup_keymaps(windows)
 end
 
 function M.setup_autocmds(windows, group)
-  vim.api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
+  vim.api.nvim_create_autocmd('WinEnter', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      vim.cmd('stopinsert')
+      state.last_focused_opencode_window = 'output'
+      require('opencode.ui.input_window').refresh_placeholder(windows)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('BufEnter', {
     group = group,
     buffer = windows.output_buf,
     callback = function()

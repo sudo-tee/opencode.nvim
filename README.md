@@ -252,25 +252,37 @@ Opencode.nvim automatically creates **snapshots** of your workspace at key momen
 
 **Contextual actions** for snapshots are available directly in the output window. When a snapshot is referenced in the conversation, you can trigger actions on it via keymaps displayed by the UI.
 
-#### Available Snapshot Actions
+### Available Snapshot Actions
 
-- **Diff Changes:** See the changes introduced by a snapshot compared to the previous state.
-- **Diff Current:** View the differences for the current file as it was at the snapshot.
-- **Revert:** Revert your changed files to the state captured by a snapshot.
+- **Diff:** View the differences between the current state and the snapshot.
+- **Revert file:** Revert the selected file to the state it was in at the snapshot.
+- **Revert all files:** Revert all files in the workspace to the state they were
 
-#### How to Use
+### How to Use
 
 - When a message in the output references a snapshot (look for 📸 **Created Snapshot** or similar), move your cursor to that line and a little menu will be displayed above.
 
-#### Example
+### Example
 
 When you see a snapshot in the output:
 
-<img src="https://i.imgur.com/XYAGy4t.png" alt="Opencode.nvim contextual actions" width="90%" />
+<img src="https://imgur.com/a/wu5PmLM" alt="Opencode.nvim contextual actions" width="90%" />
 
 > **Tip:** Reverting a snapshot will restore all files to the state they were in at that snapshot, so use it with caution!
 
-### Highlight Groups
+## 🕛 Contextual Restore points
+
+Opencode.nvim automatically creates restore points before a revet operation. This allows you to undo a revert if needed.
+
+You will see restore points under the Snapshot line like so:
+<img src="https://imgur.com/DKCOdt0" alt="Opencode.nvim restore points" width="90%" />
+
+### Available Restore Actions
+
+- **Restore file:** Restore the selected file to the state it was in before the last revert operation.
+- **Restore all :** Restore all files in the workspace to the state they were in before the revert action
+
+## Highlight Groups
 
 The plugin defines several highlight groups that can be customized to match your colorscheme:
 

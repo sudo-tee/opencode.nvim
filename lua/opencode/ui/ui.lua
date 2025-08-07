@@ -6,6 +6,7 @@ local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
+local snapshot = require('opencode.snapshot')
 
 function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
@@ -140,7 +141,6 @@ function M.is_opencode_focused()
   if not state.windows then
     return false
   end
-  -- are we in a opencode window?
   local current_win = vim.api.nvim_get_current_win()
   return M.is_opencode_window(current_win)
 end
@@ -165,6 +165,7 @@ function M.clear_output()
   footer.clear()
   topbar.render()
   renderer.render_markdown()
+  -- state.restore_points = {}
 end
 
 function M.render_output()

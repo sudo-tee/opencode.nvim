@@ -23,10 +23,20 @@ function M.create_window(windows)
   windows.input_win = vim.api.nvim_open_win(windows.input_buf, true, M._build_input_win_config())
 end
 
+function M.mounted(windows)
+  windows = windows or state.windows
+  if not windows or not windows.input_buf or not windows.input_win then
+    return false
+  end
+
+  return true
+end
+
 function M.close()
-  if not state.windows then
+  if not M.mounted() then
     return
   end
+
   pcall(vim.api.nvim_win_close, state.windows.input_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
 end
@@ -67,7 +77,7 @@ function M.setup(windows)
 end
 
 function M.update_dimensions(windows)
-  if not windows or not windows.input_win or not windows.input_buf then
+  if not M.mounted(windows) then
     return
   end
 
@@ -80,9 +90,10 @@ function M.update_dimensions(windows)
 end
 
 function M.refresh_placeholder(windows, input_lines)
-  if vim.api.nvim_win_is_valid(windows.input_win) == false or vim.api.nvim_buf_is_valid(windows.input_buf) == false then
+  if not M.mounted(windows) then
     return
   end
+
   if not input_lines then
     input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   end
@@ -131,7 +142,7 @@ end
 
 function M.set_content(text, windows)
   windows = windows or state.windows
-  if not windows or not windows.input_buf then
+  if not M.mounted(windows) then
     return
   end
 
@@ -142,7 +153,7 @@ end
 
 function M.is_empty()
   local windows = state.windows
-  if not windows or not windows.input_buf then
+  if not M.mounted() then
     return true
   end
 

@@ -1,5 +1,5 @@
 local config = require('opencode.config').get()
-local M = {}
+
 ---@class OpencodeWindowState
 ---@field input_win number|nil
 ---@field output_win number|nil
@@ -8,34 +8,158 @@ local M = {}
 ---@field input_buf number|nil
 ---@field output_buf number|nil
 
--- ui
----@type OpencodeWindowState
-M.windows = nil
-M.input_content = {}
-M.last_focused_opencode_window = nil
-M.last_input_window_position = nil
-M.last_output_window_position = nil
-M.last_code_win_before_opencode = nil
-M.display_route = nil
-M.current_mode = config.default_mode
-M.was_interrupted = false
-M.last_output = 0
+---@class OpencodeState
+---@field windows OpencodeWindowState|nil
+---@field input_content table
+---@field last_focused_opencode_window string|nil
+---@field last_input_window_position number|nil
+---@field last_output_window_position number|nil
+---@field last_code_win_before_opencode number|nil
+---@field display_route any|nil
+---@field current_mode string
+---@field was_interrupted boolean
+---@field last_output number
+---@field last_sent_context any
+---@field active_session Session|nil
+---@field new_session_name string|nil
+---@field restore_points table<string, any>
+---@field current_model string|nil
+---@field messages Message[]|nil
+---@field current_message Message|nil
+---@field cost number
+---@field tokens_count number
+---@field opencode_run_job any
+---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
+---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
+---@field append fun( key:string, value:any)
 
--- context
-M.last_sent_context = nil
+-- Internal raw state table
+local _state = {
+  -- ui
+  windows = nil, ---@type OpencodeWindowState
+  input_content = {},
+  last_focused_opencode_window = nil,
+  last_input_window_position = nil,
+  last_output_window_position = nil,
+  last_code_win_before_opencode = nil,
+  display_route = nil,
+  current_mode = config.default_mode,
+  was_interrupted = false,
+  last_output = 0,
+  -- context
+  last_sent_context = nil,
+  -- session
+  active_session = nil,
+  new_session_name = nil,
+  restore_points = {},
+  current_model = nil,
+  -- messages
+  messages = nil,
+  current_message = nil,
+  cost = 0,
+  tokens_count = 0,
+  -- job
+  opencode_run_job = nil,
+}
 
--- session
-M.active_session = nil
-M.new_session_name = nil
-M.current_model = nil
+-- Listener registry: { [key] = {cb1, cb2, ...}, ['*'] = {cb1, ...} }
+local _listeners = {}
 
--- messages
-M.messages = nil
-M.current_message = nil
-M.cost = 0
-M.tokens_count = 0
+--- Subscribe to changes for a key (or all keys with '*').
+---@param key string|nil If nil or '*', listens to all keys
+---@param cb fun(key:string, new_val:any, old_val:any)
+---@usage
+---   state.subscribe('foo', function(key, new, old) ... end)
+---   state.subscribe('*', function(key, new, old) ... end)
+local function subscribe(key, cb)
+  key = key or '*'
+  if not _listeners[key] then
+    _listeners[key] = {}
+  end
+  table.insert(_listeners[key], cb)
+end
 
--- job
-M.opencode_run_job = nil
+--- Unsubscribe a callback for a key (or all keys)
+---@param key string|nil
+---@param cb fun(key:string, new_val:any, old_val:any)
+local function unsubscribe(key, cb)
+  key = key or '*'
+  local list = _listeners[key]
+  if not list then
+    return
+  end
+  for i, fn in ipairs(list) do
+    if fn == cb then
+      table.remove(list, i)
+      break
+    end
+  end
+end
+
+-- Notify listeners
+local function _notify(key, new_val, old_val)
+  if _listeners[key] then
+    for _, cb in ipairs(_listeners[key]) do
+      pcall(cb, key, new_val, old_val)
+    end
+  end
+  if _listeners['*'] then
+    for _, cb in ipairs(_listeners['*']) do
+      pcall(cb, key, new_val, old_val)
+    end
+  end
+end
+
+local function set(key, value)
+  local old = _state[key]
+  _state[key] = value
+  if not vim.deep_equal(old, value) then
+    _notify(key, value, old)
+  end
+end
+
+local function append(key, value)
+  if type(value) ~= 'table' then
+    error('Value must be a table to append')
+  end
+  if not _state[key] then
+    _state[key] = {}
+  end
+  local old = vim.deepcopy(_state[key])
+  table.insert(_state[key], value)
+  _notify(key, _state[key], old)
+end
+
+--- Observable state proxy. All reads/writes go through this table.
+--- Use `state.subscribe(key, cb)` to listen for changes.
+--- Use `state.unsubscribe(key, cb)` to remove listeners.
+---
+--- Example:
+---   state.subscribe('foo', function(key, new, old) print(key, new, old) end)
+---   state.foo = 42 -- triggers callback
+---@type OpencodeState
+local M = {}
+setmetatable(M, {
+  __index = function(_, k)
+    return _state[k]
+  end,
+  __newindex = function(_, k, v)
+    local old = _state[k]
+    _state[k] = v
+    if not vim.deep_equal(old, v) then
+      _notify(k, v, old)
+    end
+  end,
+  __pairs = function()
+    return pairs(_state)
+  end,
+  __ipairs = function()
+    return ipairs(_state)
+  end,
+})
+
+M.append = append
+M.subscribe = subscribe
+M.unsubscribe = unsubscribe
 
 return M

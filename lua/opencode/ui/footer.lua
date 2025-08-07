@@ -1,10 +1,12 @@
 local state = require('opencode.state')
 local config = require('opencode.config').get()
 local util = require('opencode.util')
+local output_window = require('opencode.ui.output_window')
+local snapshot = require('opencode.snapshot')
 local M = {}
 
 function M.render(windows)
-  if not windows or not windows.output_win or not windows.footer_buf then
+  if not output_window.mounted(windows) or not M.mounted(windows) then
     return
   end
 
@@ -32,6 +34,11 @@ function M.render(windows)
     if config.ui.display_cost then
       append_to_footer(util.format_cost(state.cost))
     end
+  end
+  local restore_points = snapshot.get_restore_points()
+  if restore_points and #restore_points > 0 then
+    local restore_point_text = string.format('🕐 %d', #restore_points)
+    append_to_footer(restore_point_text)
   end
 
   local win_width = vim.api.nvim_win_get_width(windows.output_win)
@@ -76,10 +83,18 @@ end
 function M.setup(windows)
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
   vim.api.nvim_set_option_value('winhl', 'Normal:Comment', { win = windows.footer_win })
+  state.subscribe('restore_points', function(_, new_val, old_val)
+    M.render(windows)
+  end)
+end
+
+function M.mounted(windows)
+  windows = state.windows
+  return windows and windows.footer_win and vim.api.nvim_win_is_valid(windows.footer_win)
 end
 
 function M.update_window(windows)
-  if not windows or not vim.api.nvim_win_is_valid(windows.footer_win) then
+  if not M.mounted(windows) then
     return
   end
 
@@ -109,7 +124,7 @@ end
 
 function M.set_content(lines)
   local windows = state.windows
-  if not windows or not windows.footer_buf then
+  if not M.mounted() then
     return
   end
 

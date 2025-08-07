@@ -1,13 +1,13 @@
 local M = {}
 
-local mentions_namespace = vim.api.nvim_create_namespace("OpencodeMentions")
+local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
 
 function M.highlight_all_mentions(buf)
   -- Pattern for mentions
-  local mention_pattern = "@[%w_%-%.][%w_%-%.]*"
+  local mention_pattern = '@[%w_%-%.][%w_%-%.]*'
 
   -- Clear existing extmarks
-  vim.api.nvim_buf_clear_namespace(buf, mentions_namespace, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, buf, mentions_namespace, 0, -1)
 
   -- Get all lines in buffer
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -17,12 +17,14 @@ function M.highlight_all_mentions(buf)
     -- Find all mentions in the line
     while true do
       local mention_start, mention_end = line:find(mention_pattern, start_idx)
-      if not mention_start then break end
+      if not mention_start then
+        break
+      end
 
       -- Add extmark for this mention
       vim.api.nvim_buf_set_extmark(buf, mentions_namespace, row - 1, mention_start - 1, {
         end_col = mention_end,
-        hl_group = "OpencodeMention",
+        hl_group = 'OpencodeMention',
       })
 
       -- Move to search for the next mention
@@ -34,7 +36,7 @@ end
 local function insert_mention(windows, row, col, name)
   local current_line = vim.api.nvim_buf_get_lines(windows.input_buf, row - 1, row, false)[1]
 
-  local insert_name = '@' .. name .. " "
+  local insert_name = '@' .. name .. ' '
 
   local new_line = current_line:sub(1, col) .. insert_name .. current_line:sub(col + 2)
   vim.api.nvim_buf_set_lines(windows.input_buf, row - 1, row, false, { new_line })

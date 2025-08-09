@@ -21,7 +21,7 @@ function M.build_args(prompt)
   end
 
   if state.current_mode then
-    table.insert(args, '--mode')
+    table.insert(args, '--agent')
     table.insert(args, state.current_mode)
   end
 

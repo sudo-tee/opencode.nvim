@@ -43,13 +43,13 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 
 This plugin is in early development and may have bugs and breaking changes. It is not recommended for production use yet. Please report any issues you encounter on the [GitHub repository](https://github.com/sudo-tee/opencode.nvim/issues).
 
-[Opencode](https://github.com/sst/opencode) is also in early development and may have breaking changes. Ensure you are using a compatible version of the Opencode CLI (v0.3.4+ or more).
+[Opencode](https://github.com/sst/opencode) is also in early development and may have breaking changes. Ensure you are using a compatible version of the Opencode CLI (v0.4.2+ or more).
 
 If your upgrade breaks the plugin, please open an issue or downgrade to the last working version.
 
 ## 📋 Requirements
 
-- Opencode (v0.3.4+ or more) CLI installed and available (see [Setting up opencode](#-setting-up-opencode) below)
+- Opencode (v0.4.2+ or more) CLI installed and available (see [Setting up opencode](#-setting-up-opencode) below)
 
 ## 🚀 Installation
 
@@ -133,6 +133,10 @@ require('opencode').setup({
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
+    icons = {
+      preset = 'emoji', -- 'emoji' | 'ascii'. Choose UI icon style (default: 'emoji')
+      overrides = {},   -- Optional per-key overrides, see section below
+    },
     output = {
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
@@ -157,6 +161,49 @@ require('opencode').setup({
   },
 })
 ```
+
+### UI icons (disable emojis or customize)
+
+By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `ascii` preset or override icons individually.
+
+Minimal config to disable emojis everywhere:
+
+```lua
+require('opencode').setup({
+  ui = {
+    icons = {
+      preset = 'ascii', -- switch all icons to ASCII
+    },
+  },
+})
+```
+
+Override specific icons while keeping the preset:
+
+```lua
+require('opencode').setup({
+  ui = {
+    icons = {
+      preset = 'emoji',
+      overrides = {
+        header_user = '> U',
+        header_assistant = 'AI',
+        search = 'FIND',
+        border = '|',
+      },
+    },
+  },
+})
+```
+
+Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29):
+
+- header_user, header_assistant
+- run, task, read, edit, write
+- plan, search, web, list, tool
+- snapshot, restore_point, restore_count, file
+- status_on, status_off
+- border, bullet
 
 ## 🧰 Usage
 

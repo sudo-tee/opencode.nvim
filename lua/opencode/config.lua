@@ -72,6 +72,10 @@ M.defaults = {
     display_context_size = true,
     display_cost = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
+    icons = {
+      preset = 'emoji',
+      overrides = {},
+    },
     output = {
       tools = {
         show_output = true,

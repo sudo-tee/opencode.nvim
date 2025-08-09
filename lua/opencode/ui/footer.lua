@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local config = require('opencode.config').get()
 local util = require('opencode.util')
+local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
 local M = {}
@@ -37,7 +38,7 @@ function M.render(windows)
   end
   local restore_points = snapshot.get_restore_points()
   if restore_points and #restore_points > 0 then
-    local restore_point_text = string.format('🕐 %d', #restore_points)
+    local restore_point_text = string.format('%s %d', icons.get('restore_point'), #restore_points)
     append_to_footer(restore_point_text)
   end
 

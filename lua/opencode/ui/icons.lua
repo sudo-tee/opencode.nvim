@@ -1,0 +1,74 @@
+-- Centralized icon utility with presets and overrides
+local M = {}
+
+local presets = {
+  emoji = {
+    -- headers
+    header_user = '▌💬',
+    header_assistant = '🤖',
+    -- actions/tools
+    run = '💻',
+    task = '💻',
+    read = '👀',
+    edit = '✏️',
+    write = '📝',
+    plan = '📃',
+    search = '🔍',
+    web = '🌐',
+    list = '📂',
+    tool = '🔧',
+    snapshot = '📸',
+    restore_point = '🕛',
+    file = '📄',
+    -- statuses
+    status_on = '🟢',
+    status_off = '⚫',
+    -- borders and misc
+    border = '▌',
+  },
+  text = {
+    -- headers
+    header_user = '▌$ ',
+    header_assistant = '@ ',
+    -- actions/tools
+    run = '::',
+    task = '::',
+    read = '::',
+    edit = '::',
+    write = '::',
+    plan = '::',
+    search = '::',
+    web = '::',
+    list = '::',
+    tool = '::',
+    snapshot = '::',
+    restore_point = '::',
+    file = '::',
+    -- statuses
+    status_on = 'ON',
+    status_off = 'OFF',
+    -- borders and misc
+    border = '▌',
+  },
+}
+
+---Get icon by key, honoring preset and user overrides
+---@param key string
+---@return string
+function M.get(key)
+  local config = require('opencode.config').get()
+  local ui = (config.ui or {})
+  local icons_cfg = ui.icons or {}
+  local preset_name = icons_cfg.preset or 'emoji'
+  local preset = presets[preset_name] or presets.emoji
+
+  -- user overrides table: icons = { overrides = { key = 'value' } }
+  local override = icons_cfg.overrides and icons_cfg.overrides[key]
+  if override ~= nil then
+    return override
+  end
+
+  return preset[key] or ''
+end
+
+return M

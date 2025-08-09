@@ -14,7 +14,7 @@ M._animation = {
 }
 
 M.render = vim.schedule_wrap(function(windows)
-  if not windows.footer_buf and not windows.output_buf then
+  if not windows.footer_buf and not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
     return false
   end
 

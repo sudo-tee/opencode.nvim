@@ -368,7 +368,7 @@ function M.with_restore_point(restore_point_id, fn)
   vim.ui.select(restore_points, {
     prompt = 'Select a restore point to restore:',
     format_item = function(item)
-      return ('📄[+%d,-%d] %s - %s (from: %s)'):format(
+      return (require('opencode.ui.icons').get('file') .. '[+%d,-%d] %s - %s (from: %s)'):format(
         item.files and #item.files or 0,
         item.deleted_files and #item.deleted_files or 0,
         item.id:sub(1, 8),

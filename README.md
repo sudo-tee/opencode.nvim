@@ -134,7 +134,7 @@ require('opencode').setup({
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     icons = {
-      preset = 'emoji', -- 'emoji' | 'ascii'. Choose UI icon style (default: 'emoji')
+      preset = 'emoji', -- 'emoji' | 'text'. Choose UI icon style (default: 'emoji')
       overrides = {},   -- Optional per-key overrides, see section below
     },
     output = {
@@ -164,7 +164,7 @@ require('opencode').setup({
 
 ### UI icons (disable emojis or customize)
 
-By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `ascii` preset or override icons individually.
+By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `text` preset or override icons individually.
 
 Minimal config to disable emojis everywhere:
 
@@ -172,7 +172,7 @@ Minimal config to disable emojis everywhere:
 require('opencode').setup({
   ui = {
     icons = {
-      preset = 'ascii', -- switch all icons to ASCII
+      preset = 'text', -- switch all icons to text
     },
   },
 })

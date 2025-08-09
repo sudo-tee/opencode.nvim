@@ -4,6 +4,7 @@ local session = require('opencode.session')
 local input_window = require('opencode.ui.input_window')
 
 local ui = require('opencode.ui.ui')
+local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
@@ -354,7 +355,7 @@ function M.mcp()
       msg,
       string.format(
         '| %s %-10s | %s | %s |',
-        def.enabled and '🟢' or '⚫',
+        (def.enabled and icons.get('status_on') or icons.get('status_off')),
         name,
         def.type,
         table.concat(def.command, ' ')

@@ -84,7 +84,7 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 require('opencode').setup({
   prefered_picker = nil, -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
   default_global_keymaps = true, -- If false, disables all default global keymaps
-  default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Modes](https://opencode.ai/docs/modes/)
+  default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
   config_file_path = nil, -- Path to opencode configuration file if different from the default `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json`
   keymap = {
     global = {
@@ -282,7 +282,7 @@ Press `<M-m>` (Alt+M) in the input window to switch between agents during a sess
 
 You can create custom agents through your opencode config file. Each agent can have its own:
 
-- Model configuration
+- Agentl configuration
 - Custom prompt
 - Enabled/disabled tools
 - And more
@@ -342,9 +342,9 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeMessageRoleUser`: User message highlight (linked to `Question`)
 - `OpencodeDiffAdd`: Highlight for added line in diffs (default: #2B3328)
 - `OpencodeDiffDelete`: Highlight for deleted line in diffs (default: #43242B)
-- `OpencodeModePlan`: Mode indicator in winbar for Plan mode (default: #61AFEF background)
-- `OpencodeModeBuild`: Mode indicator in winbar for Build mode (default: #616161 background)
-- `OpencodeModeCustom`: Mode indicator in winbar for custom modes (default: #3b4261 background)
+- `OpencodeAgentPlan`: Agent indicator in winbar for Plan mode (default: #61AFEF background)
+- `OpencodeAgentBuild`: Agent indicator in winbar for Build mode (default: #616161 background)
+- `OpencodeAgentCustom`: Agent indicator in winbar for custom modes (default: #3b4261 background)
 - `OpencodeContestualAction`: Highlight for contextual actions in the output window (default: #3b4261 background)
 - `OpencodeInpuutLegend`: Highlight for input window legend (default: #CCCCCC background)
 

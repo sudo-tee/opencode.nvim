@@ -21,7 +21,7 @@ end
 ---@param lhs string The left-hand side of the mapping
 ---@param rhs function|string The right-hand side of the mapping
 ---@param bufnrs number|number[] Buffer number(s) to set the mapping for
----@param mode string|string[] Mode(s) for the mapping
+---@param mode string|string[] Agent(s) for the mapping
 ---@param opts? table Additional options for vim.keymap.set
 function M.buf_keymap(lhs, rhs, bufnrs, mode, opts)
   opts = opts or { silent = true }

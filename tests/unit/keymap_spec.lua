@@ -70,7 +70,7 @@ describe('opencode.keymap', function()
       for action, key in pairs(test_keymap.global) do
         local km = keymaps_by_key[key]
         assert.is_not_nil(km, 'Keymap for key ' .. key .. ' not found')
-        assert.same({ 'n', 'v' }, km.modes, 'Modes for ' .. key .. ' should be n and v')
+        assert.same({ 'n', 'v' }, km.modes, 'Agents for ' .. key .. ' should be n and v')
         assert.is_function(km.callback, 'Callback for ' .. key .. ' should be a function')
         assert.is_table(km.opts, 'Options for ' .. key .. ' should be a table')
       end

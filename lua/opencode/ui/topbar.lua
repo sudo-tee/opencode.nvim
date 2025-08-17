@@ -31,11 +31,11 @@ end
 local function get_mode_highlight()
   local mode = state.current_mode:lower()
   if mode == 'build' then
-    return '%#OpencodeModeBuild#'
+    return '%#OpencodeAgentBuild#'
   elseif mode == 'plan' then
-    return '%#OpencodeModePlan#'
+    return '%#OpencodeAgentPlan#'
   else
-    return '%#OpencodeModeCustom#'
+    return '%#OpencodeAgentCustom#'
   end
 end
 

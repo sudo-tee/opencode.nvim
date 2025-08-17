@@ -53,18 +53,18 @@ function M.get_opencode_modes()
     return {}
   end
 
-  local modes = {}
-  for mode, _ in pairs(cfg.mode or {}) do
-    table.insert(modes, mode)
+  local agents = {}
+  for mode, _ in pairs(cfg.agent or {}) do
+    table.insert(agents, mode)
   end
 
   for _, mode in ipairs({ 'build', 'plan' }) do
-    if not vim.tbl_contains(modes, mode) then
-      table.insert(modes, mode)
+    if not vim.tbl_contains(agents, mode) then
+      table.insert(agents, mode)
     end
   end
 
-  return modes
+  return agents
 end
 
 function M.get_mcp_servers()

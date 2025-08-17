@@ -244,17 +244,17 @@ function M.open_configuration_file()
   end
 end
 
-function M.mode_plan()
+function M.agent_plan()
   state.current_mode = 'plan'
   require('opencode.ui.topbar').render()
 end
 
-function M.mode_build()
+function M.agent_build()
   state.current_mode = 'build'
   require('opencode.ui.topbar').render()
 end
 
-function M.select_mode()
+function M.select_agent()
   local modes = require('opencode.config_file').get_opencode_modes()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
@@ -636,26 +636,26 @@ M.commands = {
   },
 
   opencode_mode_plan = {
-    name = 'OpencodeModePlan',
-    desc = 'Set opencode mode to `plan`. (Tool calling disabled. No editor context besides selections)',
+    name = 'OpencodeAgentPlan',
+    desc = 'Set opencode agent to `plan`. (Tool calling disabled. No editor context besides selections)',
     fn = function()
-      M.mode_plan()
+      M.agent_plan()
     end,
   },
 
   opencode_mode_build = {
-    name = 'OpencodeModeBuild',
-    desc = 'Set opencode mode to `build`. (Default mode with full agent capabilities)',
+    name = 'OpencodeAgentBuild',
+    desc = 'Set opencode agent to `build`. (Default with full agent capabilities)',
     fn = function()
-      M.mode_build()
+      M.agent_build()
     end,
   },
   open_code_select_mode = {
-    name = 'OpencodeModeSelect',
-    slash_cmd = '/mode',
-    desc = 'Select opencode mode',
+    name = 'OpencodeAgentSelect',
+    slash_cmd = '/agent',
+    desc = 'Select opencode agent',
     fn = function()
-      M.select_mode()
+      M.select_agent()
     end,
   },
 }

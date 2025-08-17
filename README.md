@@ -234,9 +234,9 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Run prompt (new session)                         | -              | `:OpencodeRunNewSession <prompt>` | `require('opencode.api').run_new_session("prompt")`      |
 | Open config file                                 | -              | `:OpencodeConfigFile`             | `require('opencode.api').open_configuration_file()`      |
 | Stop opencode while it is running                | `<C-c>`        | `:OpencodeStop`                   | `require('opencode.api').stop()`                         |
-| Set mode to Build                                | -              | `:OpencodeModeBuild`              | `require('opencode.api').mode_build()`                   |
-| Set mode to Plan                                 | -              | `:OpencodeModePlan`               | `require('opencode.api').mode_plan()`                    |
-| Select and switch mode                           | -              | `:OpencodeModeSelect`             | `require('opencode.api').select_mode()`                  |
+| Set mode to Build                                | -              | `:OpencodeAgentBuild`             | `require('opencode.api').mode_build()`                   |
+| Set mode to Plan                                 | -              | `:OpencodeAgentPlan`              | `require('opencode.api').mode_plan()`                    |
+| Select and switch mode/agent                     | -              | `:OpencodeAgentSelect`            | `require('opencode.api').select_agent()`                 |
 | Display list of availale mcp servers             | -              | `:OpencodeMCP`                    | `require('opencode.api').list_mcp_servers()`             |
 | [Pick a file and add to context](#file-mentions) | `@`            | -                                 | -                                                        |
 | Navigate to next message                         | `]]`           | -                                 | -                                                        |
@@ -265,29 +265,29 @@ The following editor context is automatically captured and included in your conv
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
-## 🔄 Modes
+## 🔄 Agents
 
-Opencode provides two built-in modes and supports custom ones:
+Opencode provides two built-in agents and supports custom ones:
 
-### Built-in Modes
+### Built-in Agents
 
-- **Build** (default): Full development mode with all tools enabled for making code changes
-- **Plan**: Restricted mode for planning and analysis without making file changes. Useful for code review and understanding code without modifications
+- **Build** (default): Full development agent with all tools enabled for making code changes
+- **Plan**: Restricted agent for planning and analysis without making file changes. Useful for code review and understanding code without modifications
 
-### Switching Modes
+### Switching Agent
 
-Press `<M-m>` (Alt+M) in the input window to switch between modes during a session.
+Press `<M-m>` (Alt+M) in the input window to switch between agents during a session.
 
-### Custom Modes
+### Custom Agents
 
-You can create custom modes through your opencode config file. Each mode can have its own:
+You can create custom agents through your opencode config file. Each agent can have its own:
 
 - Model configuration
 - Custom prompt
 - Enabled/disabled tools
 - And more
 
-See [Opencode Modes Documentation](https://opencode.ai/docs/modes/) for full configuration options.
+See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
 
 ## 📸 Contextual Actions for Snapshots
 

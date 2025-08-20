@@ -32,6 +32,8 @@ local config = require('opencode.config').get()
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field append fun( key:string, value:any)
+---@field required_version string
+---@field opencode_cli_version string|nil
 
 -- Internal raw state table
 local _state = {
@@ -60,6 +62,10 @@ local _state = {
   tokens_count = 0,
   -- job
   opencode_run_job = nil,
+
+  -- versions
+  required_version = '0.4.2',
+  opencode_cli_version = nil,
 }
 
 -- Listener registry: { [key] = {cb1, cb2, ...}, ['*'] = {cb1, ...} }

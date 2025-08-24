@@ -255,7 +255,7 @@ function M.agent_build()
 end
 
 function M.select_agent()
-  local modes = require('opencode.config_file').get_opencode_modes()
+  local modes = require('opencode.config_file').get_opencode_agents()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
@@ -269,7 +269,7 @@ function M.select_agent()
 end
 
 function M.switch_to_next_mode()
-  local modes = require('opencode.config_file').get_opencode_modes()
+  local modes = require('opencode.config_file').get_opencode_agents()
 
   local current_index = util.index_of(modes, state.current_mode)
 

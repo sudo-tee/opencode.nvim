@@ -47,7 +47,28 @@ function M.parse_opencode_config()
   return json.data
 end
 
-function M.get_opencode_modes()
+---@param dir string
+---@param list string[]
+local function add_agents_from(dir, list)
+  if vim.fn.isdirectory(dir) ~= 1 then
+    return
+  end
+  local ok, files = pcall(vim.fn.readdir, dir)
+  if not ok then
+    return
+  end
+  for _, file in ipairs(files) do
+    local name = file:match('^(.*)%.md$')
+    if name then
+      if not vim.tbl_contains(list, name) then
+        table.insert(list, name)
+      end
+    end
+  end
+end
+
+function M.get_opencode_agents()
+  local home = vim.uv.os_homedir()
   local cfg = M.parse_opencode_config()
   if not cfg then
     return {}
@@ -63,6 +84,9 @@ function M.get_opencode_modes()
       table.insert(agents, mode)
     end
   end
+
+  add_agents_from(home .. '/.config/opencode/agent', agents)
+  add_agents_from('.opencode/agent', agents)
 
   return agents
 end

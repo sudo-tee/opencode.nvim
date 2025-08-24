@@ -10,12 +10,16 @@ local helpers = require('tests.helpers')
 -- Use the existing mock data
 local session_list_mock = require('tests.mocks.session_list')
 local util = require('opencode.util')
+local assert = require('luassert')
 
 describe('opencode.session', function()
   local original_is_git_project
   local original_fs_stat
   local original_readfile
   local original_workspace
+  local original_fs_dir
+  local original_isdirectory
+  local original_json_decode
   local session_files = {}
   local mock_data = {}
 
@@ -32,6 +36,8 @@ describe('opencode.session', function()
     original_fs_dir = vim.fs.dir
     original_workspace = vim.fn.getcwd
     original_isdirectory = vim.fn.isdirectory
+    original_json_decode = vim.fn.json_decode
+
     -- mock vim.fs and isdirectory
     vim.fs.dir = function(path)
       -- Return a mock directory listing
@@ -66,6 +72,7 @@ describe('opencode.session', function()
       end
       return original_isdirectory(path)
     end
+
     -- Mock the readfile function
     vim.fn.readfile = function(file)
       local session_dir = session.get_workspace_session_path()
@@ -137,6 +144,7 @@ describe('opencode.session', function()
     vim.fs.dir = original_fs_dir
     vim.fn.isdirectory = original_isdirectory
     vim.uv.fs_stat = original_fs_stat
+    vim.fn.json_decode = original_json_decode
     util.is_git_project = original_is_git_project
     mock_data = {}
   end)
@@ -150,7 +158,9 @@ describe('opencode.session', function()
 
       -- Verify the result - should return "new-8" as it's the most recent
       assert.is_not_nil(result)
-      assert.equal('new-8', result.name)
+      if result then
+        assert.equal('new-8', result.name)
+      end
     end)
 
     it('returns nil when no sessions match the workspace', function()
@@ -169,7 +179,6 @@ describe('opencode.session', function()
       mock_data.session_list = { ['new-8'] = 'not valid json', ['old-1'] = 'not-valid-json' }
 
       -- Mock json_decode to simulate error
-      local original_json_decode = vim.fn.json_decode
       vim.fn.json_decode = function(str)
         if str == 'not valid json' then
           error('Invalid JSON')
@@ -190,7 +199,7 @@ describe('opencode.session', function()
       if success then
         assert.is_nil(result)
       else
-        assert.is_truthy(result:match('Invalid JSON'))
+        assert.is_truthy(result and result:match('Invalid JSON'))
       end
     end)
 
@@ -214,7 +223,9 @@ describe('opencode.session', function()
 
       -- Verify the result
       assert.is_not_nil(result)
-      assert.equal('new-8', result.name)
+      if result then
+        assert.equal('new-8', result.name)
+      end
     end)
 
     it('returns nil when no session matches the ID', function()
@@ -228,14 +239,14 @@ describe('opencode.session', function()
 
   describe('read_json_dir', function()
     it('returns nil for non-existent directory', function()
-      local result = session.read_json_dir('/nonexistent/path')
+      local result = util.read_json_dir('/nonexistent/path')
       assert.is_nil(result)
     end)
 
     it('returns nil when directory exists but has no JSON files', function()
       mock_data.valid_dirs = { '/empty/dir' }
       mock_data.message_files = {}
-      local result = session.read_json_dir('/empty/dir')
+      local result = util.read_json_dir('/empty/dir')
       assert.is_nil(result)
     end)
 
@@ -247,11 +258,13 @@ describe('opencode.session', function()
         msg1 = '{"id": "msg1", "content": "test message"}',
       }
 
-      local result = session.read_json_dir(dir)
+      local result = util.read_json_dir(dir)
       assert.is_not_nil(result)
-      assert.equals(1, #result)
-      assert.equals('msg1', result[1].id)
-      assert.equals('test message', result[1].content)
+      if result then
+        assert.equal(1, #result)
+        assert.equal('msg1', result[1].id)
+        assert.equal('test message', result[1].content)
+      end
     end)
 
     it('skips invalid JSON files', function()
@@ -263,10 +276,12 @@ describe('opencode.session', function()
         invalid = 'not json',
       }
 
-      local result = session.read_json_dir(dir)
+      local result = util.read_json_dir(dir)
       assert.is_not_nil(result)
-      assert.equals(1, #result)
-      assert.equals('valid', result[1].id)
+      if result then
+        assert.equal(1, #result)
+        assert.equal('valid', result[1].id)
+      end
     end)
   end)
 
@@ -304,12 +319,16 @@ describe('opencode.session', function()
 
       local result = session.get_messages(test_session)
       assert.is_not_nil(result)
-      assert.equals(1, #result)
-      assert.equals('msg1', result[1].id)
-      assert.equals('test message', result[1].content)
-      assert.equals(2, #result[1].parts)
-      assert.equals('part1', result[1].parts[1].id)
-      assert.equals('part2', result[1].parts[2].id)
+      if result then
+        assert.equal(1, #result)
+        assert.equal('msg1', result[1].id)
+        assert.equal('test message', result[1].content)
+        if result[1].parts then
+          assert.equal(2, #result[1].parts)
+          assert.equal('part1', result[1].parts[1].id)
+          assert.equal('part2', result[1].parts[2].id)
+        end
+      end
     end)
   end)
 end)

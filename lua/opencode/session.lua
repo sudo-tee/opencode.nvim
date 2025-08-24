@@ -36,13 +36,20 @@ function M.get_all_sessions()
   local info_dir = sessions_dir .. '/info'
 
   local sessions = {}
-  for name, type_ in vim.fs.dir(info_dir) do
+  local ok_iter, iter = pcall(vim.fs.dir, info_dir)
+  if not ok_iter or not iter then
+    return nil
+  end
+  for name, type_ in iter do
     if type_ == 'file' then
       local file = info_dir .. '/' .. name
-      local content = table.concat(vim.fn.readfile(file), '\n')
-      local ok, session = pcall(vim.json.decode, content)
-      if ok and session then
-        table.insert(sessions, session)
+      local content_ok, content = pcall(vim.fn.readfile, file)
+      if content_ok then
+        local joined = table.concat(content, '\n')
+        local ok, session = pcall(vim.json.decode, joined)
+        if ok and session then
+          table.insert(sessions, session)
+        end
       end
     end
   end

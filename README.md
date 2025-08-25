@@ -36,6 +36,8 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 - [Configuration](#️-configuration)
 - [Usage](#-usage)
 - [Context](#-context)
+- [Agents](#-agents)
+- [User Commands](#user-commands)
 - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
 - [Setting up opencode](#-setting-up-opencode)
 
@@ -290,6 +292,21 @@ You can create custom agents through your opencode config file. Each agent can h
 
 See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
 
+## User Commands
+
+You can run predefined user commands from the input window by typing `/`. This will open a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
+
+To configure user commands
+
+### Store command files in these locations:
+
+`.opencode/command/` - Project-specific commands
+`command/` - Global commands in config directory
+
+<img src="https://i.imgur.com/YQhhoPS.png" alt="Opencode.nvim contextual actions" width="90%" />
+
+See [User Commands Documentation](https://opencode.ai/docs/user-commands/) for more details details.
+
 ## 📸 Contextual Actions for Snapshots
 
 > [!WARNING] > _Snapshots are an experimental feature_
@@ -314,7 +331,7 @@ Opencode.nvim automatically creates **snapshots** of your workspace at key momen
 
 When you see a snapshot in the output:
 
-<img src="https://imgur.com/a/wu5PmLM" alt="Opencode.nvim contextual actions" width="90%" />
+<img src="https://i.imgur.com/eKOjhTN.png" alt="Opencode.nvim contextual actions" width="90%" />
 
 > **Tip:** Reverting a snapshot will restore all files to the state they were in at that snapshot, so use it with caution!
 
@@ -323,7 +340,7 @@ When you see a snapshot in the output:
 Opencode.nvim automatically creates restore points before a revet operation. This allows you to undo a revert if needed.
 
 You will see restore points under the Snapshot line like so:
-<img src="https://imgur.com/DKCOdt0" alt="Opencode.nvim restore points" width="90%" />
+<img src="https://i.imgur.com/DKCOdt0.png" alt="Opencode.nvim restore points" width="90%" />
 
 ### Available Restore Actions
 

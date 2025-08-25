@@ -3,6 +3,7 @@ local config = require('opencode.config')
 local state = require('opencode.state')
 local Job = require('plenary.job')
 local helpers = require('tests.helpers')
+local assert = require('luassert')
 
 describe('opencode.job', function()
   local test_file, buf_id
@@ -53,6 +54,16 @@ describe('opencode.job', function()
     assert.truthy(#args >= 2, 'Args table should have at least 2 elements')
     assert.equal('run', args[1])
     assert.equal(prompt, args[2])
+  end)
+
+  it('uses the raw prompt when opts.no_context is true', function()
+    local prompt = 'Just the prompt, please!'
+    local args = job.build_args(prompt, { no_context = true })
+    assert.is_not_nil(args)
+    assert.equal('run', args[1])
+    assert.equal(prompt, args[2])
+    -- Should not contain context template markers
+    assert.is_nil(string.find(args[2], 'user-query', 1, true))
   end)
 
   it('builds a command with the provided session opt', function()

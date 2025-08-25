@@ -1,6 +1,3 @@
--- opencode.nvim/lua/opencode/job.lua
--- Contains opencode job execution logic
-
 local context = require('opencode.context')
 local state = require('opencode.state')
 local util = require('opencode.util')
@@ -8,11 +5,13 @@ local Job = require('plenary.job')
 
 local M = {}
 
-function M.build_args(prompt)
+---@param opts? {no_context: boolean} Optional settings for execution
+function M.build_args(prompt, opts)
+  opts = opts or {}
   if not prompt then
     return nil
   end
-  local message = context.format_message(prompt)
+  local message = opts.no_context == true and prompt or context.format_message(prompt)
   local args = { 'run', message }
 
   if state.active_session then
@@ -35,12 +34,16 @@ function M.build_args(prompt)
   return args
 end
 
-function M.execute(prompt, handlers)
+--- Executes the opencode command with the given prompt and handlers
+---@param prompt string The user prompt to send to opencode
+---@param handlers table A table containing handler functions
+---@param opts? {no_context: boolean} Optional settings for execution
+function M.execute(prompt, handlers, opts)
   if not prompt then
     return nil
   end
 
-  local args = M.build_args(prompt)
+  local args = M.build_args(prompt, opts)
 
   state.opencode_run_job = Job:new({
     interactive = false,

@@ -238,6 +238,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Set mode to Plan                                 | -              | `:OpencodeAgentPlan`              | `require('opencode.api').mode_plan()`                    |
 | Select and switch mode/agent                     | -              | `:OpencodeAgentSelect`            | `require('opencode.api').select_agent()`                 |
 | Display list of availale mcp servers             | -              | `:OpencodeMCP`                    | `require('opencode.api').list_mcp_servers()`             |
+| Run user commands                                | -              | `:RunUserCommand`                 | `require('opencode.api').run_user_command()`             |
 | [Pick a file and add to context](#file-mentions) | `@`            | -                                 | -                                                        |
 | Navigate to next message                         | `]]`           | -                                 | -                                                        |
 | Navigate to previous message                     | `[[`           | -                                 | -                                                        |

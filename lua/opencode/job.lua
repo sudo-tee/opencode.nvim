@@ -5,7 +5,7 @@ local Job = require('plenary.job')
 
 local M = {}
 
----@param opts? {no_context: boolean, model?: string} Optional settings for execution
+---@param opts? {no_context: boolean, model?: string, agent?: string} Optional settings for execution
 function M.build_args(prompt, opts)
   opts = opts or {}
   if not prompt then
@@ -19,9 +19,9 @@ function M.build_args(prompt, opts)
     table.insert(args, state.active_session.name)
   end
 
-  if state.current_mode then
+  if opts.agent or state.current_mode then
     table.insert(args, '--agent')
-    table.insert(args, state.current_mode)
+    table.insert(args, opts.agent or state.current_mode)
   end
 
   if opts.model or state.current_model then
@@ -37,7 +37,7 @@ end
 --- Executes the opencode command with the given prompt and handlers
 ---@param prompt string The user prompt to send to opencode
 ---@param handlers table A table containing handler functions
----@param opts? {no_context: boolean, model?: string} Optional settings for execution
+---@param opts? {no_context: boolean, model?: string, agent?: string} Optional settings for execution
 function M.execute(prompt, handlers, opts)
   if not prompt then
     return nil

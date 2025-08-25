@@ -30,6 +30,7 @@ function M.select_session()
   end)
 end
 
+---@param opts? OpenOpts
 function M.open(opts)
   opts = opts or { focus = 'input', new_session = false }
 
@@ -65,6 +66,8 @@ function M.open(opts)
   end
 end
 
+---@param prompt string
+---@param opts? RunOpts
 function M.run(prompt, opts)
   if not M.opencode_ok() then
     return false
@@ -109,7 +112,7 @@ function M.run(prompt, opts)
         ui.render_output()
         vim.notify('Opencode run interrupted by user', vim.log.levels.WARN)
       end,
-    })
+    }, opts and { no_context = opts.no_context or false, model = opts.model, agent = opts.agent } or nil)
   end, 10)
 end
 
@@ -123,6 +126,7 @@ function M.after_run(prompt)
   end
 end
 
+---@param opts? RunOpts
 function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   M.stop()

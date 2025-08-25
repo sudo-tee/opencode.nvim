@@ -1,4 +1,9 @@
 
+---@class OpencodeUserCommandFrontMatter
+---@field description string
+---@field agent string
+---@field model string
+
 ---@class Session
 ---@field workspace string
 ---@field description string
@@ -219,3 +224,13 @@
 --- @class OpencodeSnapshotPatch
 --- @field hash string Unique identifier for the snapshot
 --- @field files string[] List of file paths included in the snapshot
+
+---@class OpenOpts
+---@field focus? 'input' | 'output'
+---@field new_session? boolean
+
+---@class RunOpts
+---@field new_session? boolean
+---@field no_context? boolean
+---@field model? string
+---@field agent? string

@@ -11,7 +11,9 @@ M.ConfigKeys = {
 
 local config_files_names = {
   'config.json',
+  'config.jsonc',
   'opencode.json',
+  'opencode.jsonc',
 }
 
 function M.setup()

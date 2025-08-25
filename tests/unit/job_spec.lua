@@ -83,6 +83,23 @@ describe('opencode.job', function()
     assert.equal(test_model, args[model_index + 1], 'Model should match the provided model')
   end)
 
+  it('includes the agent flag when an agent is specified in opts', function()
+    local prompt = 'Use the agent to help me'
+    local test_agent = 'code-assistant'
+    local args = job.build_args(prompt, { agent = test_agent })
+
+    -- Find the "--agent" argument and check value
+    local agent_index = nil
+    for i, arg in ipairs(args) do
+      if arg == '--agent' then
+        agent_index = i
+      end
+    end
+
+    assert.truthy(agent_index, 'Should include --agent argument')
+    assert.equal(test_agent, args[agent_index + 1], 'Agent should match the provided agent')
+  end)
+
   it('builds a command with the provided session opt', function()
     local test_session = {
       name = 'test-session-123',

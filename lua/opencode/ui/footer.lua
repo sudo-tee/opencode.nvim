@@ -83,7 +83,7 @@ end
 
 function M.setup(windows)
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
-  vim.api.nvim_set_option_value('winhl', 'Normal:Comment', { win = windows.footer_win })
+  vim.api.nvim_set_option_value('winhl', 'Normal:OpenCodeHint', { win = windows.footer_win })
   state.subscribe('restore_points', function(_, new_val, old_val)
     M.render(windows)
   end)

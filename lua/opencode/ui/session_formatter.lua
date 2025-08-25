@@ -177,7 +177,7 @@ function M._format_message_header(message, msg_idx)
       { icon, role_hl },
       { ' ' },
       { role:upper(), role_hl },
-      { time_text, 'Comment' },
+      { time_text, 'OpenCodeHint' },
     },
     virt_text_win_col = -3,
     priority = 10,

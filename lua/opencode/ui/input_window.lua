@@ -104,11 +104,11 @@ function M.refresh_placeholder(windows, input_lines)
     local keys = config.keymap.window
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
-        { 'Type your prompt here... ', 'Comment' },
+        { 'Type your prompt here... ', 'OpenCodeHint' },
         { keys.slash_commands, 'OpencodeInputLegend' },
-        { ' for commands ', 'Comment' },
+        { ' for commands ', 'OpenCodeHint' },
         { keys.mention_file, 'OpencodeInputLegend' },
-        { ' to mention files' .. padding, 'Comment' },
+        { ' to mention files' .. padding, 'OpenCodeHint' },
       },
       virt_text_pos = 'overlay',
     })

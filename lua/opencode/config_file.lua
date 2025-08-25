@@ -67,6 +67,25 @@ local function add_agents_from(dir, list)
   end
 end
 
+local function add_user_commands_from(dir, list)
+  if vim.fn.isdirectory(dir) ~= 1 then
+    return
+  end
+  local ok, files = pcall(vim.fn.readdir, dir)
+  if not ok then
+    return
+  end
+  for _, file in ipairs(files) do
+    local name = file:match('^(.*)%.md$')
+    if name then
+      local cmd = { name = name, path = dir .. '/' .. file }
+      if not vim.tbl_contains(list, cmd) then
+        table.insert(list, cmd)
+      end
+    end
+  end
+end
+
 function M.get_opencode_agents()
   local home = vim.uv.os_homedir()
   local cfg = M.parse_opencode_config()
@@ -89,6 +108,14 @@ function M.get_opencode_agents()
   add_agents_from('.opencode/agent', agents)
 
   return agents
+end
+
+function M.get_user_commands()
+  local commands = {}
+
+  add_user_commands_from(vim.uv.os_homedir() .. '/.config/opencode/command', commands)
+  add_user_commands_from('.opencode/command', commands)
+  return commands
 end
 
 function M.get_mcp_servers()

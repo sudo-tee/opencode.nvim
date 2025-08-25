@@ -367,6 +367,32 @@ function M.mcp()
   ui.render_lines(msg)
 end
 
+function M.run_user_command(name)
+  M.open_input()
+
+  local user_commands_files = require('opencode.config_file').get_user_commands()
+  local cmd_file = vim.tbl_filter(function(cmd)
+    return cmd.name == name
+  end, user_commands_files)[1]
+
+  if not cmd_file then
+    vim.notify('User command not found: ' .. name, vim.log.levels.ERROR)
+    return
+  end
+
+  local ok, lines = pcall(vim.fn.readfile, cmd_file.path)
+  if not ok then
+    vim.notify('Failed to read user command file: ' .. cmd_file.path, vim.log.levels.ERROR)
+    return
+  end
+
+  local parsed = util.parse_front_matter_file(table.concat(lines, '\n')) --[[@as {front_matter: OpencodeUserCommandFrontMatter, body: string}]]
+  core.run(
+    parsed.body or '',
+    { no_context = true, model = parsed.front_matter.model, agent = parsed.front_matter.agent }
+  )
+end
+
 -- Command definitions that call the API functions
 M.commands = {
   swap_position = {
@@ -376,6 +402,7 @@ M.commands = {
       M.swap_position()
     end,
   },
+
   toggle = {
     name = 'Opencode',
     desc = 'Open opencode. Close if opened',
@@ -609,6 +636,7 @@ M.commands = {
       M.initialize()
     end,
   },
+
   help = {
     name = 'OpencodeHelp',
     slash_cmd = '/help',
@@ -618,6 +646,7 @@ M.commands = {
       M.help()
     end,
   },
+
   mcp = {
     name = 'OpencodeMCP',
     slash_cmd = '/mcp',
@@ -627,6 +656,7 @@ M.commands = {
       M.mcp()
     end,
   },
+
   open_configuration_file = {
     name = 'OpencodeConfigFile',
     desc = 'Open opencode configuration file',
@@ -650,6 +680,7 @@ M.commands = {
       M.agent_build()
     end,
   },
+
   open_code_select_mode = {
     name = 'OpencodeAgentSelect',
     slash_cmd = '/agent',
@@ -658,15 +689,42 @@ M.commands = {
       M.select_agent()
     end,
   },
+
+  run_user_command = {
+    name = 'OpencodeRunUserCommand',
+    desc = 'Run a user-defined Opencode command by name',
+    fn = function(opts)
+      local name = opts.args and opts.args:match('^%s*(%S+)')
+      if not name or name == '' then
+        vim.notify('User command name required. Usage: :OpencodeRunUserCommand <name>', vim.log.levels.ERROR)
+        return
+      end
+      M.run_user_command(name)
+    end,
+    args = true,
+  },
 }
 
 function M.get_slash_commands()
   local commands = vim.tbl_filter(function(cmd)
     return cmd.slash_cmd and cmd.slash_cmd ~= ''
   end, M.commands)
+
+  local user_commands = require('opencode.config_file').get_user_commands()
+  for _, cmd in ipairs(user_commands) do
+    table.insert(commands, {
+      slash_cmd = '/' .. cmd.name,
+      desc = 'Run user command: ' .. cmd.name,
+      fn = function()
+        M.commands.run_user_command.fn({ args = cmd.name })
+      end,
+    })
+  end
+
   table.sort(commands, function(a, b)
     return a.slash_cmd < b.slash_cmd
   end)
+
   return commands
 end
 

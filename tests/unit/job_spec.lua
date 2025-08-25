@@ -3,6 +3,7 @@ local config = require('opencode.config')
 local state = require('opencode.state')
 local Job = require('plenary.job')
 local helpers = require('tests.helpers')
+local assert = require('luassert')
 
 describe('opencode.job', function()
   local test_file, buf_id
@@ -53,6 +54,50 @@ describe('opencode.job', function()
     assert.truthy(#args >= 2, 'Args table should have at least 2 elements')
     assert.equal('run', args[1])
     assert.equal(prompt, args[2])
+  end)
+
+  it('uses the raw prompt when opts.no_context is true', function()
+    local prompt = 'Just the prompt, please!'
+    local args = job.build_args(prompt, { no_context = true })
+    assert.is_not_nil(args)
+    assert.equal('run', args[1])
+    assert.equal(prompt, args[2])
+    -- Should not contain context template markers
+    assert.is_nil(string.find(args[2], 'user-query', 1, true))
+  end)
+
+  it('includes the model flag when a model is specified in opts', function()
+    local prompt = 'Analyze this code snippet'
+    local test_model = 'gpt-4'
+    local args = job.build_args(prompt, { model = test_model })
+
+    -- Find the "--model" argument and check value
+    local model_index = nil
+    for i, arg in ipairs(args) do
+      if arg == '--model' then
+        model_index = i
+      end
+    end
+
+    assert.truthy(model_index, 'Should include --model argument')
+    assert.equal(test_model, args[model_index + 1], 'Model should match the provided model')
+  end)
+
+  it('includes the agent flag when an agent is specified in opts', function()
+    local prompt = 'Use the agent to help me'
+    local test_agent = 'code-assistant'
+    local args = job.build_args(prompt, { agent = test_agent })
+
+    -- Find the "--agent" argument and check value
+    local agent_index = nil
+    for i, arg in ipairs(args) do
+      if arg == '--agent' then
+        agent_index = i
+      end
+    end
+
+    assert.truthy(agent_index, 'Should include --agent argument')
+    assert.equal(test_agent, args[agent_index + 1], 'Agent should match the provided agent')
   end)
 
   it('builds a command with the provided session opt', function()

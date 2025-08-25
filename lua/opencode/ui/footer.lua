@@ -91,7 +91,10 @@ end
 
 function M.mounted(windows)
   windows = state.windows
-  return windows and windows.footer_win and vim.api.nvim_win_is_valid(windows.footer_win)
+  return windows
+    and windows.footer_win
+    and vim.api.nvim_win_is_valid(windows.footer_win)
+    and vim.api.nvim_win_is_valid(windows.output_win)
 end
 
 function M.update_window(windows)

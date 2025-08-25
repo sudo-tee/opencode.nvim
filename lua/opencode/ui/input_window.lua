@@ -69,6 +69,8 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
   vim.b[windows.input_buf].completion = false
   vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
+  vim.api.nvim_set_option_value('winfixheight', true, { win = windows.input_win })
+  vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.input_win })
 
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)

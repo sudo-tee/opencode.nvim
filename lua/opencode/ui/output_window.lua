@@ -43,6 +43,8 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
   vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
+  vim.api.nvim_set_option_value('winfixheight', true, { win = windows.output_win })
+  vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.output_win })
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)

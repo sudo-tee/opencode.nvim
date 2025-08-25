@@ -664,9 +664,13 @@ function M.get_slash_commands()
   local commands = vim.tbl_filter(function(cmd)
     return cmd.slash_cmd and cmd.slash_cmd ~= ''
   end, M.commands)
+  local user_commands = require('opencode.config_file').get_user_commands()
+  vim.list_extend(commands, user_commands)
+
   table.sort(commands, function(a, b)
     return a.slash_cmd < b.slash_cmd
   end)
+
   return commands
 end
 

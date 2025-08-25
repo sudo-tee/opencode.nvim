@@ -66,6 +66,23 @@ describe('opencode.job', function()
     assert.is_nil(string.find(args[2], 'user-query', 1, true))
   end)
 
+  it('includes the model flag when a model is specified in opts', function()
+    local prompt = 'Analyze this code snippet'
+    local test_model = 'gpt-4'
+    local args = job.build_args(prompt, { model = test_model })
+
+    -- Find the "--model" argument and check value
+    local model_index = nil
+    for i, arg in ipairs(args) do
+      if arg == '--model' then
+        model_index = i
+      end
+    end
+
+    assert.truthy(model_index, 'Should include --model argument')
+    assert.equal(test_model, args[model_index + 1], 'Model should match the provided model')
+  end)
+
   it('builds a command with the provided session opt', function()
     local test_session = {
       name = 'test-session-123',

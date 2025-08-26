@@ -133,4 +133,21 @@ describe('opencode.keymap', function()
       end
     end)
   end)
+
+  describe('buf_keymap', function()
+    it('does not set keymaps when lhs is false', function()
+      local bufnr = vim.api.nvim_create_buf(false, true)
+
+      -- Should not set any keymap
+      keymap.buf_keymap(false, function() end, bufnr, 'n')
+      assert.equal(0, #set_keymaps, 'No keymaps should be set when lhs is false')
+
+      -- Should set keymap
+      keymap.buf_keymap('<leader>test', function() end, bufnr, 'n')
+      assert.equal(1, #set_keymaps, 'Keymap should be set when lhs is valid')
+      assert.equal('<leader>test', set_keymaps[1].key, 'Keymap key should match provided lhs')
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
 end)

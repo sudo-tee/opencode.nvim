@@ -18,12 +18,16 @@ function M.setup(keymap)
   end
 end
 
----@param lhs string The left-hand side of the mapping
+---@param lhs string|false The left-hand side of the mapping, `false` disables keymaps
 ---@param rhs function|string The right-hand side of the mapping
 ---@param bufnrs number|number[] Buffer number(s) to set the mapping for
 ---@param mode string|string[] Agent(s) for the mapping
 ---@param opts? table Additional options for vim.keymap.set
 function M.buf_keymap(lhs, rhs, bufnrs, mode, opts)
+  if not lhs then
+    return
+  end
+
   opts = opts or { silent = true }
   bufnrs = type(bufnrs) == 'table' and bufnrs or { bufnrs }
 

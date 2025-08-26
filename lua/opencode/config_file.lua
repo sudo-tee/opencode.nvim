@@ -1,13 +1,6 @@
-local state = require('opencode.state')
 local config = require('opencode.config').get()
-local OrderedJson = require('opencode.ordered_json')
 
 local M = {}
-
----@enum OpencodeConfigKeys
-M.ConfigKeys = {
-  MODEL = 'model',
-}
 
 local config_files_names = {
   'config.json',
@@ -38,13 +31,20 @@ function M.setup()
 end
 
 function M.parse_opencode_config()
-  local json = OrderedJson.new():read(M.config_file)
-  if not json or not json.data then
+  local ok, json = pcall(function()
+    local _, content = pcall(vim.fn.readfile, M.config_file or '')
+    if content then
+      local json_ok, json_content = pcall(vim.json.decode, table.concat(content, '\n'))
+      return json_ok and json_content
+    end
+    return nil
+  end)
+  if not ok or not json then
     vim.notify('Failed to parse opencode config file', vim.log.levels.ERROR)
     return nil
   end
 
-  return json.data
+  return json
 end
 
 ---@param dir string
@@ -125,31 +125,6 @@ function M.get_mcp_servers()
   end
 
   return cfg.mcp
-end
-
----@param provider string
----@param model string
-function M.set_model(provider, model)
-  local model_str = string.format('%s/%s', provider, model)
-  local encoder = OrderedJson.new()
-  local json = encoder:read(M.config_file)
-  if not json or type(json.data) ~= 'table' then
-    vim.notify('Failed to parse opencode config file for model update', vim.log.levels.ERROR)
-    return false
-  end
-
-  json.data.model = model_str
-  state.current_model = model_str
-
-  local updated = encoder:encode(json)
-  local success, err = pcall(vim.fn.writefile, vim.split(updated, '\n'), M.config_file)
-
-  vim.cmd('checktime')
-
-  if not success then
-    vim.notify('Could not write to opencode config file: ' .. err, vim.log.levels.ERROR)
-    return false
-  end
 end
 
 return M

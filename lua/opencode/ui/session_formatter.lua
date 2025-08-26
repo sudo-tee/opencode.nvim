@@ -37,7 +37,7 @@ function M.format_session(session)
     M.output:add_lines(M.separator)
     state.current_message = msg
 
-    if msg.providerID and msg.providerID ~= '' then
+    if not state.current_model and msg.providerID and msg.providerID ~= '' then
       state.current_model = msg.providerID .. '/' .. msg.modelID
     end
 

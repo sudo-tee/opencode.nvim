@@ -230,7 +230,6 @@ function M.select_slash_commands()
 end
 
 function M.configure_provider()
-  local cfg = require('opencode.config_file')
   require('opencode.provider').select(function(selection)
     if not selection then
       if state.windows then
@@ -238,7 +237,8 @@ function M.configure_provider()
       end
       return
     end
-    cfg.set_model(selection.provider, selection.model)
+    local model_str = string.format('%s/%s', selection.provider, selection.model)
+    state.current_model = model_str
 
     if state.windows then
       require('opencode.ui.topbar').render()

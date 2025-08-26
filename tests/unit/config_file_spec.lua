@@ -11,31 +11,6 @@ local function cleanup()
   vim.fn.delete('.opencode', 'rf')
 end
 
-describe('config_file.set_model', function()
-  before_each(function()
-    cleanup()
-    -- Write config without model
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{"other_key": "value"}')
-    f:close()
-    config_file.config_file = tmpfile
-  end)
-
-  after_each(function()
-    cleanup()
-  end)
-
-  it('adds model key if missing', function()
-    config_file.set_model('provider', 'modelname')
-    local f = assert(io.open(tmpfile, 'r'))
-    local content = f:read('*a')
-    f:close()
-    local json = vim.json.decode(content)
-    assert.are.equal(json.model, 'provider/modelname')
-    assert.are.equal(json.other_key, 'value')
-  end)
-end)
-
 describe('config_file.get_opencode_agents', function()
   before_each(function()
     cleanup()
@@ -90,7 +65,7 @@ describe('config_file.get_opencode_agents', function()
     -- Create the expected directory structure
     local home_agent_dir = tmpdir .. '/.config/opencode/agent'
     local local_agent_dir = '.opencode/agent'
-    
+
     vim.fn.mkdir(home_agent_dir, 'p')
     vim.fn.mkdir(local_agent_dir, 'p')
 
@@ -100,14 +75,16 @@ describe('config_file.get_opencode_agents', function()
     local agent3 = local_agent_dir .. '/local-agent.md'
     local non_agent = home_agent_dir .. '/not-an-agent.txt'
 
-    vim.fn.writefile({'# File Agent'}, agent1)
-    vim.fn.writefile({'# Code Reviewer'}, agent2)
-    vim.fn.writefile({'# Local Agent'}, agent3)
-    vim.fn.writefile({'Not an agent file'}, non_agent)
+    vim.fn.writefile({ '# File Agent' }, agent1)
+    vim.fn.writefile({ '# Code Reviewer' }, agent2)
+    vim.fn.writefile({ '# Local Agent' }, agent3)
+    vim.fn.writefile({ 'Not an agent file' }, non_agent)
 
     -- Mock the home directory
     local original_homedir = vim.uv.os_homedir
-    vim.uv.os_homedir = function() return tmpdir end
+    vim.uv.os_homedir = function()
+      return tmpdir
+    end
 
     local agents = config_file.get_opencode_agents()
 
@@ -136,11 +113,13 @@ describe('config_file.get_opencode_agents', function()
 
     -- Create agent file with same name
     local agent_file = home_agent_dir .. '/duplicate-agent.md'
-    vim.fn.writefile({'# Duplicate Agent'}, agent_file)
+    vim.fn.writefile({ '# Duplicate Agent' }, agent_file)
 
     -- Mock homedir to point to our test directory
     local original_homedir = vim.uv.os_homedir
-    vim.uv.os_homedir = function() return tmpdir end
+    vim.uv.os_homedir = function()
+      return tmpdir
+    end
 
     local agents = config_file.get_opencode_agents()
 

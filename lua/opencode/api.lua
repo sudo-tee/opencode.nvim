@@ -370,27 +370,10 @@ end
 function M.run_user_command(name)
   M.open_input()
 
-  local user_commands_files = require('opencode.config_file').get_user_commands()
-  local cmd_file = vim.tbl_filter(function(cmd)
-    return cmd.name == name
-  end, user_commands_files)[1]
-
-  if not cmd_file then
-    vim.notify('User command not found: ' .. name, vim.log.levels.ERROR)
-    return
-  end
-
-  local ok, lines = pcall(vim.fn.readfile, cmd_file.path)
-  if not ok then
-    vim.notify('Failed to read user command file: ' .. cmd_file.path, vim.log.levels.ERROR)
-    return
-  end
-
-  local parsed = util.parse_front_matter_file(table.concat(lines, '\n')) --[[@as {front_matter: OpencodeUserCommandFrontMatter, body: string}]]
-  core.run(
-    parsed.body or '',
-    { no_context = true, model = parsed.front_matter.model, agent = parsed.front_matter.agent }
-  )
+  core.run_server_api('/session/' .. state.active_session.name .. '/command', 'POST', {
+    command = name,
+    arguments = '',
+  })
 end
 
 -- Command definitions that call the API functions

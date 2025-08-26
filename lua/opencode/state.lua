@@ -29,6 +29,7 @@ local config = require('opencode.config').get()
 ---@field cost number
 ---@field tokens_count number
 ---@field opencode_run_job any
+---@field opencode_server_job any
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field append fun( key:string, value:any)
@@ -62,6 +63,7 @@ local _state = {
   tokens_count = 0,
   -- job
   opencode_run_job = nil,
+  opencode_server_job = nil,
 
   -- versions
   required_version = '0.4.2',

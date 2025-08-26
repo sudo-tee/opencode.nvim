@@ -141,6 +141,50 @@ function M.before_run(opts)
   })
 end
 
+local server_job = require('opencode.server_job')
+
+---@param endpoint string
+---@param method string
+---@param body table|nil
+---@param opts? {cwd: string, on_done: fun(result: any), on_error: fun(err: any)}
+function M.run_server_api(endpoint, method, body, opts)
+  if state.opencode_run_job then
+    return
+  end
+
+  opts = opts or {}
+  M.before_run(opts)
+
+  state.opencode_run_job = server_job.run(endpoint, method, body, {
+    cwd = opts.cwd,
+    on_done = function(result)
+      state.opencode_run_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+      if opts.on_done then
+        opts.on_done(result)
+      end
+    end,
+    on_error = function(err)
+      state.opencode_run_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+      vim.notify(err, vim.log.levels.ERROR)
+      if opts.on_error then
+        opts.on_error(err)
+      end
+    end,
+    on_exit = function()
+      state.opencode_run_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+    end,
+  })
+
+  state.was_interrupted = false
+  M.after_run(endpoint)
+end
+
 function M.add_file_to_context()
   local picker = require('opencode.ui.file_picker')
   require('opencode.ui.mention').mention(function(mention_cb)

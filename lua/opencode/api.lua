@@ -312,6 +312,7 @@ end
 
 function M.help()
   state.display_route = '/help'
+  M.open_input()
   local msg = M.with_header({
     '### Available Commands',
     '',
@@ -342,6 +343,7 @@ function M.mcp()
   end
 
   state.display_route = '/mcp'
+  M.open_input()
 
   local msg = M.with_header({
     '### Available MCP servers',
@@ -625,7 +627,6 @@ M.commands = {
     slash_cmd = '/help',
     desc = 'Display help message',
     fn = function()
-      M.open_input()
       M.help()
     end,
   },
@@ -635,7 +636,6 @@ M.commands = {
     slash_cmd = '/mcp',
     desc = 'Display list of mcp servers',
     fn = function()
-      M.open_input()
       M.mcp()
     end,
   },
@@ -694,12 +694,12 @@ function M.get_slash_commands()
   end, M.commands)
 
   local user_commands = require('opencode.config_file').get_user_commands()
-  for _, cmd in ipairs(user_commands) do
+  for name, _ in pairs(user_commands) do
     table.insert(commands, {
-      slash_cmd = '/' .. cmd.name,
-      desc = 'Run user command: ' .. cmd.name,
+      slash_cmd = '/' .. name,
+      desc = 'Run user command: ' .. name,
       fn = function()
-        M.commands.run_user_command.fn({ args = cmd.name })
+        M.commands.run_user_command.fn({ args = name })
       end,
     })
   end

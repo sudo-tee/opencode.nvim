@@ -53,7 +53,7 @@ function M.open(opts)
       state.active_session = session.get_last_workspace_session()
     end
 
-    if are_windows_closed or ui.is_output_empty() then
+    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
       ui.render_output()
       ui.scroll_to_bottom()
     end
@@ -146,14 +146,16 @@ local server_job = require('opencode.server_job')
 ---@param endpoint string
 ---@param method string
 ---@param body table|nil
----@param opts? {cwd: string, on_done: fun(result: any), on_error: fun(err: any)}
+---@param opts? {cwd: string, background: boolean, on_done: fun(result: any), on_error: fun(err: any)}
 function M.run_server_api(endpoint, method, body, opts)
   if state.opencode_run_job then
     return
   end
 
   opts = opts or {}
-  M.before_run(opts)
+  if not opts.background then
+    M.before_run(opts)
+  end
 
   state.opencode_run_job = server_job.run(endpoint, method, body, {
     cwd = opts.cwd,

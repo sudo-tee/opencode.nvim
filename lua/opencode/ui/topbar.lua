@@ -8,7 +8,7 @@ local LABELS = {
 
 local function format_model_info()
   if not state.current_model or state.current_model == '' then
-    local info = require('opencode.config_file').parse_opencode_config()
+    local info = require('opencode.config_file').get_opencode_config()
     state.current_model = info and info.model
   end
 

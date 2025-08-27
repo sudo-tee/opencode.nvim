@@ -160,6 +160,9 @@ function M.setup_autocmds(windows, group)
 end
 
 function M.clear()
+  if not M.mounted() then
+    return
+  end
   vim.api.nvim_buf_clear_namespace(state.windows.output_buf, -1, 0, -1)
   M.set_content({})
 end

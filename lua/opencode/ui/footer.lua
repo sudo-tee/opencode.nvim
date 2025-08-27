@@ -114,6 +114,9 @@ function M.create_buf()
 end
 
 function M.clear()
+  if not M.mounted() then
+    return
+  end
   local windows = state.windows
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')

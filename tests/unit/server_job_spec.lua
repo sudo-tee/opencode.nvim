@@ -1,65 +1,108 @@
-local server_job = require('opencode.server_job')
-local stub = require('luassert.stub')
+-- Mock vim.system before requiring any modules to prevent real process spawning
 
--- These tests are basic and mock the Job interface, since we can't actually spawn the server in CI.
+-- Mock opencode_server before requiring server_job to prevent any real server spawning
+local opencode_server = require('opencode.opencode_server')
+local original_opencode_server_new = opencode_server.new
+opencode_server.new = function()
+  return {
+    spawn = function() end,
+    shutdown = function() end,
+  }
+end
+
+local server_job = require('opencode.server_job')
+
 describe('server_job', function()
-  it('should expose spawn_server, call_api, and run', function()
-    assert.is_function(server_job.spawn_server)
+  local original_curl_request
+
+  before_each(function()
+    -- Mock curl.request
+    local curl = require('plenary.curl')
+    original_curl_request = curl.request
+  end)
+
+  after_each(function()
+    if original_curl_request then
+      local curl = require('plenary.curl')
+      curl.request = original_curl_request
+    end
+    -- Reset opencode_server.new to default mock
+    opencode_server.new = function()
+      return {
+        spawn = function() end,
+        shutdown = function() end,
+      }
+    end
+  end)
+
+  it('should expose call_api and run', function()
     assert.is_function(server_job.call_api)
     assert.is_function(server_job.run)
   end)
 
-  it('should call on_ready with url when server outputs ready line', function()
-    local called, url_val = false, nil
-    local opts = {
-      on_ready = function(_, url)
-        called = true
-        url_val = url
+  it('should call on_ready and make API call, then shutdown', function()
+    local curl = require('plenary.curl')
+    local shutdown_called = false
+    local spawn_called = false
+    local fake_server = {
+      spawn = function(self, opts)
+        spawn_called = true
+        -- Simulate server ready
+        opts.on_ready(self, 'http://127.0.0.1:41961')
+      end,
+      shutdown = function(self)
+        shutdown_called = true
       end,
     }
-    local fake_job = { start = function() end }
-    stub(fake_job, 'start')
-    -- Add on_stdout field to fake_job
-    fake_job.on_stdout = function(_, data)
-      if data:find('listening') then
-        opts.on_ready(fake_job, data:match('listening on ([^%s]+)'))
-      end
+    opencode_server.new = function()
+      return fake_server
     end
-
-    local Job = stub(require('plenary.job'), 'new')
-    Job.returns(fake_job)
-    local job = server_job.spawn_server(opts)
-    job.on_stdout(nil, 'opencode server listening on http://127.0.0.1:41961')
-    assert.is_true(called)
-    assert.are.same('http://127.0.0.1:41961', url_val)
-    Job:revert()
+    curl.request = function(opts)
+      -- Simulate successful API response
+      vim.schedule(function()
+        opts.callback({ status = 200, body = '{"ok":true}' })
+      end)
+    end
+    local done_called, done_result
+    server_job.run('/api/test', 'GET', nil, {
+      cwd = '.',
+      on_done = function(result)
+        done_called = true
+        done_result = result
+      end,
+      on_error = function(err)
+        assert(false, 'Should not error: ' .. tostring(err))
+      end,
+      on_exit = function()
+        -- not used in this test
+      end,
+    })
+    vim.wait(100, function()
+      return done_called
+    end, 10)
+    assert.is_true(spawn_called)
+    assert.is_true(shutdown_called)
+    assert.is_true(done_called)
+    assert.same({ ok = true }, done_result)
   end)
 
-  it('should call API and invoke callback', function(done)
-    local Job = stub(require('plenary.job'), 'new')
-    local captured_on_exit
-    local fake_job = {
-      start = function()
-        -- Simulate async job completion
-        vim.schedule(function()
-          if captured_on_exit then
-            captured_on_exit(fake_job, 0)
-          end
-        end)
-      end,
-      result = function()
-        return { '{"ok":true}' }
-      end,
-    }
-    Job.invokes(function(args)
-      captured_on_exit = args.on_exit
-      return fake_job
-    end)
+  it('should call API and invoke callback', function()
+    local curl = require('plenary.curl')
+    local cb_called, cb_err, cb_result
+    curl.request = function(opts)
+      vim.schedule(function()
+        opts.callback({ status = 200, body = '{"ok":true}' })
+      end)
+    end
     server_job.call_api('http://localhost:8080/api/test', 'GET', nil, function(err, result)
-      assert.is_nil(err)
-      assert.are.same('{"ok":true}', result)
-      Job:revert()
-      done()
+      cb_called = true
+      cb_err = err
+      cb_result = result
     end)
+    vim.wait(100, function()
+      return cb_called
+    end, 10)
+    assert.is_nil(cb_err)
+    assert.same({ ok = true }, cb_result)
   end)
 end)

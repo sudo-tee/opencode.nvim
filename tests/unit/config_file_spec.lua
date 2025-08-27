@@ -8,6 +8,8 @@ describe('config_file.setup', function()
     config_file._cache = nil
     local core = require('opencode.core')
     original_run_server_api = core.run_server_api
+    -- Set up mock immediately to prevent any real API calls
+    core.run_server_api = function() end
   end)
 
   after_each(function()

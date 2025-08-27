@@ -261,4 +261,14 @@ function M.read_json_dir(dir, max_items)
   return decoded_items
 end
 
+--- Safely call a function if it exists.
+--- @param fn function|nil
+--- @param ... any
+function M.safe_call(fn, ...)
+  local arg = { ... }
+  return fn and vim.schedule(function()
+    fn(unpack(arg))
+  end)
+end
+
 return M

@@ -1,27 +1,9 @@
-local Job = require('plenary.job')
+local util = require('opencode.util')
+local safe_call = util.safe_call
 local curl = require('plenary.curl')
-local state = require('opencode.state')
+local opencode_server = require('opencode.opencode_server')
 
 local M = {}
-
---- Safely call a function if it exists.
---- @param fn function|nil
---- @param ... any
-local function safe_call(fn, ...)
-  local arg = { ... }
-  return fn and vim.schedule(function()
-    fn(unpack(arg))
-  end)
-end
-
-local function cleanup_server_job()
-  if state.opencode_server_job then
-    pcall(function()
-      state.opencode_server_job:shutdown()
-    end)
-    state.opencode_server_job = nil
-  end
-end
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -33,44 +15,6 @@ local function handle_api_response(response, cb)
   else
     cb(success and json_body or response.body, nil)
   end
-end
-
---- @class OpencodeServerSpawnOpts
---- @field cwd string
---- @field on_ready fun(job: any, url: string)
---- @field on_error fun(err: any)
---- @field on_exit fun(code: integer)
-
---- Spawn the opencode server as a background job.
---- @param opts OpencodeServerSpawnOpts
---- @return any job The spawned job object
-function M.spawn_server(opts)
-  opts = opts or {}
-  local job = nil
-  job = Job:new({
-    command = 'opencode',
-    args = { 'serve' },
-    cwd = opts.cwd,
-    on_stdout = function(_, data)
-      local url = (data or ''):match('opencode server listening on ([^%s]+)')
-      if url then
-        safe_call(opts.on_ready, job, url)
-      end
-    end,
-    on_stderr = function(_, data)
-      if data then
-        safe_call(opts.on_error, data)
-      end
-    end,
-    on_exit = function(_, code)
-      state.opencode_run_job = nil
-      safe_call(opts.on_exit, code)
-    end,
-  })
-
-  job:start()
-  state.opencode_server_job = job
-  return job
 end
 
 --- Make an HTTP API call to the opencode server.
@@ -89,7 +33,9 @@ function M.call_api(url, method, body, cb)
     end,
   }
 
-  opts.body = body and vim.json.encode(body)
+  if body then
+    opts.body = body and vim.json.encode(body)
+  end
 
   curl.request(opts)
 end
@@ -106,15 +52,18 @@ end
 --- @param method string|nil HTTP method
 --- @param body table|nil Request body
 --- @param opts OpencodeServerRunOpts
+--- @return OpencodeServer server_job The server job instance
 function M.run(endpoint, method, body, opts)
   opts = opts or {}
 
-  state.opencode_server_job = M.spawn_server({
+  local server_job = opencode_server.new()
+
+  server_job:spawn({
     cwd = opts.cwd,
     on_ready = function(_, base_url)
       local url = base_url and (base_url .. endpoint) or endpoint
       M.call_api(url, method, body, function(err, result)
-        cleanup_server_job()
+        server_job:shutdown()
         if err then
           safe_call(opts.on_error, err)
         else
@@ -123,7 +72,7 @@ function M.run(endpoint, method, body, opts)
       end)
     end,
     on_error = function(err)
-      cleanup_server_job()
+      server_job:shutdown()
       safe_call(opts.on_error, err)
     end,
     on_exit = function(code)
@@ -134,7 +83,8 @@ function M.run(endpoint, method, body, opts)
       end
     end,
   })
-  return state.opencode_server_job
+
+  return server_job
 end
 
 return M

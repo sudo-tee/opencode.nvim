@@ -87,9 +87,25 @@ describe('opencode.core', function()
     end)
   end)
   local original_state
+  local original_system
+  local original_executable
 
   before_each(function()
     original_state = vim.deepcopy(state)
+    original_system = vim.system
+    original_executable = vim.fn.executable
+
+    -- Mock vim.system and executable for opencode_ok() calls
+    vim.fn.executable = function(_)
+      return 1
+    end
+    vim.system = function(_cmd, _opts)
+      return {
+        wait = function()
+          return { stdout = 'opencode 0.4.3' }
+        end,
+      }
+    end
 
     -- Mock required functions
     ui.create_windows = function()
@@ -120,6 +136,9 @@ describe('opencode.core', function()
     for k, v in pairs(original_state) do
       state[k] = v
     end
+    -- Restore vim functions
+    vim.system = original_system
+    vim.fn.executable = original_executable
   end)
 
   describe('open', function()

@@ -178,6 +178,9 @@ function M.get_messages(session, include_parts, max_items)
       break
     end
   end
+  table.sort(messages, function(a, b)
+    return a.time.created < b.time.created
+  end)
 
   return messages
 end

@@ -8,6 +8,7 @@ local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
+local id = require('opencode.id')
 
 local M = {}
 
@@ -104,7 +105,7 @@ function M.diff_open(from_snapshot_id, to_snapshot_id)
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.review(from_snapshot_id, to_snapshot_id)
+  git_review.review(from_snapshot_id)
 end
 
 function M.diff_next()
@@ -222,13 +223,42 @@ function M.next_history()
   end
 end
 
-function M.initialize()
-  local script_path = debug.getinfo(1, 'S').source:sub(2)
-  local script_dir = vim.fn.fnamemodify(script_path, ':p:h')
-  local p = vim.fn.readfile(script_dir .. '/prompts/initialize.txt')
-  core.run(table.concat(p, '\n'), {
-    new_session = true,
+---@param title string
+---@param cb fun(session: Session)?
+function M.create_new_session(title, cb)
+  core.run_server_api('/session', 'POST', { title = title }, {
+    on_error = function(err)
+      vim.notify(err, vim.log.levels.ERROR)
+    end,
+    on_done = function(data)
+      if data and data.id then
+        local new_session = session.get_by_name(data.id)
+        if new_session and cb then
+          cb(new_session)
+          return
+        end
+      else
+        vim.notify('Failed to create new session: Invalid response from server', vim.log.levels.ERROR)
+      end
+    end,
   })
+end
+
+function M.initialize()
+  M.create_new_session('AGENTS.md Initialization', function(new_session)
+    local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+    if not providerId or not modelId then
+      vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
+      return
+    end
+    state.active_session = new_session
+    M.open_input()
+    core.run_server_api('/session/' .. state.active_session.name .. '/init', 'POST', {
+      providerID = providerId,
+      modelID = modelId,
+      messageID = id.ascending('message'),
+    })
+  end)
 end
 
 function M.open_configuration_file()
@@ -427,6 +457,23 @@ M.commands = {
     fn = function()
       M.open_output()
     end,
+  },
+
+  create_new_session = {
+    name = 'OpencodeCreateNewSession',
+    desc = 'Create a new opencode session',
+    fn = function(opts)
+      local title = opts.args and opts.args:match('^%s*(.+)')
+      if title and title ~= '' then
+        M.create_new_session(title, function(new_session)
+          state.active_session = new_session
+          M.open_input()
+        end)
+      else
+        vim.notify('Session title cannot be empty', vim.log.levels.ERROR)
+      end
+    end,
+    args = true,
   },
 
   close = {
@@ -694,14 +741,16 @@ function M.get_slash_commands()
   end, M.commands)
 
   local user_commands = require('opencode.config_file').get_user_commands()
-  for name, _ in pairs(user_commands) do
-    table.insert(commands, {
-      slash_cmd = '/' .. name,
-      desc = 'Run user command: ' .. name,
-      fn = function()
-        M.commands.run_user_command.fn({ args = name })
-      end,
-    })
+  if user_commands then
+    for name, _ in pairs(user_commands) do
+      table.insert(commands, {
+        slash_cmd = '/' .. name,
+        desc = 'Run user command: ' .. name,
+        fn = function()
+          M.commands.run_user_command.fn({ args = name })
+        end,
+      })
+    end
   end
 
   table.sort(commands, function(a, b)

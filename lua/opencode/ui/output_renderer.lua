@@ -88,11 +88,11 @@ function M.start_refresh_timer(windows)
         end
         return true
       else
-        M.stop_refresh_timer()
         M.render(windows, true)
         vim.defer_fn(function()
           M.render(windows, true)
-        end, 100)
+        end, 300)
+        M.stop_refresh_timer()
         return false
       end
     end,
@@ -139,7 +139,7 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
 
     local output_changed = M.write_output(windows, output_lines)
 
-    if output_changed then
+    if output_changed or force_refresh then
       vim.schedule(function()
         M.handle_auto_scroll(windows)
         M.render_markdown()

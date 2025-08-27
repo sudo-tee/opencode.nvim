@@ -25,6 +25,14 @@ function M._should_refresh_content()
     return true
   end
 
+  -- If any job is running, force refresh every 3rd tick
+  if state.is_job_running() then
+    M._cache.check_counter = (M._cache.check_counter + 1) % 3
+    if M._cache.check_counter == 0 then
+      return true
+    end
+  end
+
   if state.last_output and state.last_output > (M._cache.last_output or 0) then
     M._cache.last_output = state.last_output
     return true
@@ -44,17 +52,6 @@ function M._should_refresh_content()
   local stat = vim.loop.fs_stat(session_path)
   if not stat then
     return false
-  end
-
-  if state.opencode_run_job then
-    M._cache.check_counter = (M._cache.check_counter + 1) % 3
-    if M._cache.check_counter == 0 then
-      local has_file_changed = stat.mtime.sec > M._cache.last_modified
-      if has_file_changed then
-        M._cache.last_modified = stat.mtime.sec
-        return true
-      end
-    end
   end
 
   if stat.mtime.sec > M._cache.last_modified then
@@ -85,7 +82,7 @@ function M.start_refresh_timer(windows)
   M._refresh_timer = Timer.new({
     interval = 300,
     on_tick = function()
-      if state.opencode_run_job then
+      if state.is_job_running() then
         if M._should_refresh_content() then
           M.render(windows, true)
         end
@@ -93,6 +90,9 @@ function M.start_refresh_timer(windows)
       else
         M.stop_refresh_timer()
         M.render(windows, true)
+        vim.defer_fn(function()
+          M.render(windows, true)
+        end, 100)
         return false
       end
     end,
@@ -168,7 +168,7 @@ function M.stop()
 end
 
 function M.handle_loading(windows)
-  if state.opencode_run_job then
+  if state.is_job_running() then
     M.start_refresh_timer(windows)
     if not loading_animation.is_running() then
       loading_animation.start(windows)

@@ -5,6 +5,7 @@ local session = require('opencode.session')
 local ui = require('opencode.ui.ui')
 local job = require('opencode.job')
 local input_window = require('opencode.ui.input_window')
+local util = require('opencode.util')
 
 function M.select_session()
   local all_sessions = session.get_all_workspace_sessions() or {}
@@ -148,7 +149,7 @@ local server_job = require('opencode.server_job')
 ---@param body table|nil
 ---@param opts? {cwd: string, background: boolean, on_done: fun(result: any), on_error: fun(err: any)}
 function M.run_server_api(endpoint, method, body, opts)
-  if state.opencode_run_job then
+  if state.opencode_server_job then
     return
   end
 
@@ -157,29 +158,36 @@ function M.run_server_api(endpoint, method, body, opts)
     M.before_run(opts)
   end
 
-  state.opencode_run_job = server_job.run(endpoint, method, body, {
+  state.opencode_server_job = server_job.run(endpoint, method, body, {
     cwd = opts.cwd,
-    on_done = function(result)
-      state.opencode_run_job = nil
+    on_ready = function(_, url)
       state.last_output = os.time()
       ui.render_output()
-      if opts.on_done then
-        opts.on_done(result)
-      end
+    end,
+    on_done = function(result)
+      state.opencode_server_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+      util.safe_call(opts.on_done, result)
     end,
     on_error = function(err)
-      state.opencode_run_job = nil
+      state.opencode_server_job = nil
       state.last_output = os.time()
       ui.render_output()
       vim.notify(err, vim.log.levels.ERROR)
-      if opts.on_error then
-        opts.on_error(err)
-      end
+      util.safe_call(opts.on_error, err)
     end,
     on_exit = function()
-      state.opencode_run_job = nil
+      state.opencode_server_job = nil
       state.last_output = os.time()
       ui.render_output()
+    end,
+    on_interrupt = function()
+      state.opencode_server_job = nil
+      state.was_interrupted = true
+      state.last_output = os.time()
+      ui.render_output()
+      vim.notify('Opencode server API call interrupted by user', vim.log.levels.WARN)
     end,
   })
 

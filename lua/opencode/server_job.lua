@@ -42,6 +42,7 @@ end
 
 --- @class OpencodeServerRunOpts
 --- @field cwd string
+--- @field on_ready fun(job: any, url: string)
 --- @field on_done fun(result: any)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(err: any)
@@ -62,6 +63,7 @@ function M.run(endpoint, method, body, opts)
     cwd = opts.cwd,
     on_ready = function(_, base_url)
       local url = base_url and (base_url .. endpoint) or endpoint
+      safe_call(opts.on_ready, server_job, url)
       M.call_api(url, method, body, function(err, result)
         server_job:shutdown()
         if err then

@@ -43,6 +43,10 @@ end
 
 function M.handle_submit()
   local windows = state.windows
+  if not windows or not M.mounted(windows) or M.is_empty() then
+    return
+  end
+
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
   vim.api.nvim_exec_autocmds('TextChanged', {
@@ -155,7 +159,7 @@ end
 
 function M.is_empty()
   local windows = state.windows
-  if not M.mounted() then
+  if not windows or not M.mounted() then
     return true
   end
 

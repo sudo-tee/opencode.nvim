@@ -198,7 +198,6 @@ function M.run_server_api(endpoint, method, body, opts)
   })
 
   state.was_interrupted = false
-  M.after_run(endpoint, opts.background)
 end
 
 function M.add_file_to_context()

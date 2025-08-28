@@ -31,6 +31,9 @@ function M.call_api(url, method, body, cb)
     callback = function(response)
       handle_api_response(response, cb)
     end,
+    on_error = function(err)
+      cb(err, nil)
+    end,
   }
 
   if body then

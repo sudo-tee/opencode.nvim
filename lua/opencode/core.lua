@@ -4,6 +4,7 @@ local context = require('opencode.context')
 local session = require('opencode.session')
 local ui = require('opencode.ui.ui')
 local job = require('opencode.job')
+local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 
@@ -145,8 +146,6 @@ function M.before_run(opts)
   })
 end
 
-local server_job = require('opencode.server_job')
-
 ---@param endpoint string
 ---@param method string
 ---@param body table|nil
@@ -163,7 +162,7 @@ function M.run_server_api(endpoint, method, body, opts)
 
   state.opencode_server_job = server_job.run(endpoint, method, body, {
     cwd = opts.cwd,
-    on_ready = function(_, url)
+    on_ready = function(_)
       state.last_output = os.time()
       ui.render_output()
     end,
@@ -176,8 +175,12 @@ function M.run_server_api(endpoint, method, body, opts)
     on_error = function(err)
       state.opencode_server_job = nil
       state.last_output = os.time()
+      if err.exit == 52 then
+        state.was_interrupted = true
+        return
+      end
       ui.render_output()
-      vim.notify(err, vim.log.levels.ERROR)
+      vim.notify(err.message, vim.log.levels.ERROR)
       util.safe_call(opts.on_error, err)
     end,
     on_exit = function()
@@ -267,6 +270,11 @@ function M.stop()
     job.stop(state.opencode_run_job)
   end
   state.opencode_run_job = nil
+  if state.opencode_server_job then
+    state.opencode_server_job:shutdown()
+  end
+  state.opencode_server_job = nil
+
   if state.windows then
     ui.stop_render_output()
     ui.render_output()

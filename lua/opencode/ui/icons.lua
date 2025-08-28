@@ -1,4 +1,6 @@
 -- Centralized icon utility with presets and overrides
+local config = require('opencode.config').get()
+
 local M = {}
 
 local presets = {
@@ -56,7 +58,6 @@ local presets = {
 ---@param key string
 ---@return string
 function M.get(key)
-  local config = require('opencode.config').get()
   local ui = (config.ui or {})
   local icons_cfg = ui.icons or {}
   local preset_name = icons_cfg.preset or 'emoji'

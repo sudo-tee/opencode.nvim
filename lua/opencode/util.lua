@@ -271,4 +271,35 @@ function M.safe_call(fn, ...)
   end)
 end
 
+---@param version string
+---@return number|nil, number|nil, number|nil
+function M.parse_semver(version)
+  if not version or version == '' then
+    return nil
+  end
+  local major, minor, patch = version:match('(%d+)%.(%d+)%.?(%d*)')
+  if not major then
+    return nil
+  end
+  return tonumber(major) or 0, tonumber(minor) or 0, tonumber(patch) or 0
+end
+
+---@param version string
+---@param required_version string
+---@return boolean
+function M.is_version_greater_or_equal(version, required_version)
+  local major, minor, patch = M.parse_semver(version)
+  local req_major, req_minor, req_patch = M.parse_semver(required_version)
+  if not major or not req_major then
+    return false
+  end
+  if major ~= req_major then
+    return major > req_major
+  end
+  if minor ~= req_minor then
+    return minor > req_minor
+  end
+  return patch >= req_patch
+end
+
 return M

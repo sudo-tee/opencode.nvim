@@ -119,14 +119,6 @@ local function _notify(key, new_val, old_val)
   end
 end
 
-local function set(key, value)
-  local old = _state[key]
-  _state[key] = value
-  if not vim.deep_equal(old, value) then
-    _notify(key, value, old)
-  end
-end
-
 local function append(key, value)
   if type(value) ~= 'table' then
     error('Value must be a table to append')
@@ -134,8 +126,12 @@ local function append(key, value)
   if not _state[key] then
     _state[key] = {}
   end
-  local old = vim.deepcopy(_state[key])
-  table.insert(_state[key], value)
+  if type(_state[key]) ~= 'table' then
+    error('State key is not a table: ' .. key)
+  end
+
+  local old = vim.deepcopy(_state[key] --[[@as table]])
+  table.insert(_state[key] --[[@as table]], value)
   _notify(key, _state[key], old)
 end
 

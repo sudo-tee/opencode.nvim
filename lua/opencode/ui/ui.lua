@@ -6,7 +6,6 @@ local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
-local snapshot = require('opencode.snapshot')
 
 function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
@@ -116,6 +115,10 @@ end
 function M.focus_input(opts)
   opts = opts or {}
   local windows = state.windows
+  if not windows then
+    return
+  end
+
   vim.api.nvim_set_current_win(windows.input_win)
 
   if opts.restore_position and state.last_input_window_position then
@@ -128,8 +131,11 @@ end
 
 function M.focus_output(opts)
   opts = opts or {}
-
   local windows = state.windows
+  if not windows then
+    return
+  end
+
   vim.api.nvim_set_current_win(windows.output_win)
 
   if opts.restore_position and state.last_output_window_position then
@@ -147,6 +153,9 @@ end
 
 function M.is_opencode_window(win)
   local windows = state.windows
+  if not windows then
+    return false
+  end
   return win == windows.input_win or win == windows.output_win
 end
 

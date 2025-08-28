@@ -276,37 +276,6 @@ function M.stop()
   end
 end
 
----@param version string
----@return number|nil, number|nil, number|nil
-local function parse_semver(version)
-  if not version or version == '' then
-    return nil
-  end
-  local major, minor, patch = version:match('(%d+)%.(%d+)%.?(%d*)')
-  if not major then
-    return nil
-  end
-  return tonumber(major) or 0, tonumber(minor) or 0, tonumber(patch) or 0
-end
-
----@param version string
----@param required_version string
----@return boolean
-local function is_version_greater_or_equal(version, required_version)
-  local major, minor, patch = parse_semver(version)
-  local req_major, req_minor, req_patch = parse_semver(required_version)
-  if not major or not req_major then
-    return false
-  end
-  if major ~= req_major then
-    return major > req_major
-  end
-  if minor ~= req_minor then
-    return minor > req_minor
-  end
-  return patch >= req_patch
-end
-
 function M.opencode_ok()
   if vim.fn.executable('opencode') == 0 then
     vim.notify(
@@ -330,7 +299,7 @@ function M.opencode_ok()
     return false
   end
 
-  if not is_version_greater_or_equal(current_version, required) then
+  if not util.is_version_greater_or_equal(current_version, required) then
     vim.notify(
       string.format('Unsupported opencode CLI version: %s. Requires >= %s', current_version, required),
       vim.log.levels.ERROR

@@ -117,13 +117,16 @@ function M.run(prompt, opts)
   end, 10)
 end
 
-function M.after_run(prompt)
+function M.after_run(prompt, background)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
-  require('opencode.history').write(prompt)
+  if not background then
+    ui.focus_output()
+    require('opencode.history').write(prompt)
 
-  if state.windows then
-    ui.render_output()
+    if state.windows then
+      ui.render_output()
+    end
   end
 end
 
@@ -192,7 +195,7 @@ function M.run_server_api(endpoint, method, body, opts)
   })
 
   state.was_interrupted = false
-  M.after_run(endpoint)
+  M.after_run(endpoint, opts.background)
 end
 
 function M.add_file_to_context()

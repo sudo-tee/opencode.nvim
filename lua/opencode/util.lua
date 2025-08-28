@@ -261,32 +261,14 @@ function M.read_json_dir(dir, max_items)
   return decoded_items
 end
 
---- Parse a file with YAML-like front matter and a body.
---- @generic T
---- @param content string The file contents to parse
---- @return { front_matter: T, body: string }
-function M.parse_front_matter_file(content)
-  local fm_start, fm_start_end = content:find('^%-%-%-%s*\n')
-  if not fm_start then
-    return { front_matter = {}, body = content }
-  end
-  local fm_end_start, fm_end_end = content:find('\n%-%-%-%s*\n', fm_start_end + 1)
-  if not fm_end_start then
-    return { front_matter = {}, body = content }
-  end
-
-  local front_matter_str = content:sub(fm_start_end + 1, fm_end_start - 1)
-  local body = content:sub(fm_end_end + 1)
-
-  local front_matter = {}
-  for line in front_matter_str:gmatch('[^\r\n]+') do
-    local key, value = line:match('^%s*([%w_%-]+)%s*:%s*(.-)%s*$')
-    if key and value then
-      front_matter[key] = value
-    end
-  end
-
-  return { front_matter = front_matter, body = body }
+--- Safely call a function if it exists.
+--- @param fn function|nil
+--- @param ... any
+function M.safe_call(fn, ...)
+  local arg = { ... }
+  return fn and vim.schedule(function()
+    fn(unpack(arg))
+  end)
 end
 
 return M

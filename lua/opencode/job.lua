@@ -37,7 +37,7 @@ end
 --- Executes the opencode command with the given prompt and handlers
 ---@param prompt string The user prompt to send to opencode
 ---@param handlers table A table containing handler functions
----@param opts? {no_context: boolean, model?: string, agent?: string} Optional settings for execution
+---@param opts? RunOpts Optional settings for execution
 function M.execute(prompt, handlers, opts)
   if not prompt then
     return nil

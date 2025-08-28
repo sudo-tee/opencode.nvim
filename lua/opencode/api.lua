@@ -8,6 +8,7 @@ local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
+local id = require('opencode.id')
 
 local M = {}
 
@@ -104,7 +105,7 @@ function M.diff_open(from_snapshot_id, to_snapshot_id)
     core.open({ new_session = false, focus = 'output' })
   end
 
-  git_review.review(from_snapshot_id, to_snapshot_id)
+  git_review.review(from_snapshot_id)
 end
 
 function M.diff_next()
@@ -222,13 +223,42 @@ function M.next_history()
   end
 end
 
-function M.initialize()
-  local script_path = debug.getinfo(1, 'S').source:sub(2)
-  local script_dir = vim.fn.fnamemodify(script_path, ':p:h')
-  local p = vim.fn.readfile(script_dir .. '/prompts/initialize.txt')
-  core.run(table.concat(p, '\n'), {
-    new_session = true,
+---@param title string
+---@param cb fun(session: Session)?
+function M.create_new_session(title, cb)
+  core.run_server_api('/session', 'POST', { title = title }, {
+    on_error = function(err)
+      vim.notify(err, vim.log.levels.ERROR)
+    end,
+    on_done = function(data)
+      if data and data.id then
+        local new_session = session.get_by_name(data.id)
+        if new_session and cb then
+          cb(new_session)
+          return
+        end
+      else
+        vim.notify('Failed to create new session: Invalid response from server', vim.log.levels.ERROR)
+      end
+    end,
   })
+end
+
+function M.initialize()
+  M.create_new_session('AGENTS.md Initialization', function(new_session)
+    local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+    if not providerId or not modelId then
+      vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
+      return
+    end
+    state.active_session = new_session
+    M.open_input()
+    core.run_server_api('/session/' .. state.active_session.name .. '/init', 'POST', {
+      providerID = providerId,
+      modelID = modelId,
+      messageID = id.ascending('message'),
+    })
+  end)
 end
 
 function M.open_configuration_file()
@@ -312,6 +342,7 @@ end
 
 function M.help()
   state.display_route = '/help'
+  M.open_input()
   local msg = M.with_header({
     '### Available Commands',
     '',
@@ -342,6 +373,7 @@ function M.mcp()
   end
 
   state.display_route = '/mcp'
+  M.open_input()
 
   local msg = M.with_header({
     '### Available MCP servers',
@@ -370,27 +402,10 @@ end
 function M.run_user_command(name)
   M.open_input()
 
-  local user_commands_files = require('opencode.config_file').get_user_commands()
-  local cmd_file = vim.tbl_filter(function(cmd)
-    return cmd.name == name
-  end, user_commands_files)[1]
-
-  if not cmd_file then
-    vim.notify('User command not found: ' .. name, vim.log.levels.ERROR)
-    return
-  end
-
-  local ok, lines = pcall(vim.fn.readfile, cmd_file.path)
-  if not ok then
-    vim.notify('Failed to read user command file: ' .. cmd_file.path, vim.log.levels.ERROR)
-    return
-  end
-
-  local parsed = util.parse_front_matter_file(table.concat(lines, '\n')) --[[@as {front_matter: OpencodeUserCommandFrontMatter, body: string}]]
-  core.run(
-    parsed.body or '',
-    { no_context = true, model = parsed.front_matter.model, agent = parsed.front_matter.agent }
-  )
+  core.run_server_api('/session/' .. state.active_session.name .. '/command', 'POST', {
+    command = name,
+    arguments = '',
+  })
 end
 
 -- Command definitions that call the API functions
@@ -442,6 +457,23 @@ M.commands = {
     fn = function()
       M.open_output()
     end,
+  },
+
+  create_new_session = {
+    name = 'OpencodeCreateNewSession',
+    desc = 'Create a new opencode session',
+    fn = function(opts)
+      local title = opts.args and opts.args:match('^%s*(.+)')
+      if title and title ~= '' then
+        M.create_new_session(title, function(new_session)
+          state.active_session = new_session
+          M.open_input()
+        end)
+      else
+        vim.notify('Session title cannot be empty', vim.log.levels.ERROR)
+      end
+    end,
+    args = true,
   },
 
   close = {
@@ -642,7 +674,6 @@ M.commands = {
     slash_cmd = '/help',
     desc = 'Display help message',
     fn = function()
-      M.open_input()
       M.help()
     end,
   },
@@ -652,7 +683,6 @@ M.commands = {
     slash_cmd = '/mcp',
     desc = 'Display list of mcp servers',
     fn = function()
-      M.open_input()
       M.mcp()
     end,
   },
@@ -711,14 +741,16 @@ function M.get_slash_commands()
   end, M.commands)
 
   local user_commands = require('opencode.config_file').get_user_commands()
-  for _, cmd in ipairs(user_commands) do
-    table.insert(commands, {
-      slash_cmd = '/' .. cmd.name,
-      desc = 'Run user command: ' .. cmd.name,
-      fn = function()
-        M.commands.run_user_command.fn({ args = cmd.name })
-      end,
-    })
+  if user_commands then
+    for name, _ in pairs(user_commands) do
+      table.insert(commands, {
+        slash_cmd = '/' .. name,
+        desc = 'Run user command: ' .. name,
+        fn = function()
+          M.commands.run_user_command.fn({ args = name })
+        end,
+      })
+    end
   end
 
   table.sort(commands, function(a, b)

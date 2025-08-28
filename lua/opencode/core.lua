@@ -5,6 +5,7 @@ local session = require('opencode.session')
 local ui = require('opencode.ui.ui')
 local job = require('opencode.job')
 local input_window = require('opencode.ui.input_window')
+local util = require('opencode.util')
 
 function M.select_session()
   local all_sessions = session.get_all_workspace_sessions() or {}
@@ -53,7 +54,7 @@ function M.open(opts)
       state.active_session = session.get_last_workspace_session()
     end
 
-    if are_windows_closed or ui.is_output_empty() then
+    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
       ui.render_output()
       ui.scroll_to_bottom()
     end
@@ -116,13 +117,16 @@ function M.run(prompt, opts)
   end, 10)
 end
 
-function M.after_run(prompt)
+function M.after_run(prompt, background)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
-  require('opencode.history').write(prompt)
+  if not background then
+    ui.focus_output()
+    require('opencode.history').write(prompt)
 
-  if state.windows then
-    ui.render_output()
+    if state.windows then
+      ui.render_output()
+    end
   end
 end
 
@@ -139,6 +143,59 @@ function M.before_run(opts)
   M.open({
     new_session = is_new_session,
   })
+end
+
+local server_job = require('opencode.server_job')
+
+---@param endpoint string
+---@param method string
+---@param body table|nil
+---@param opts? {cwd: string, background: boolean, on_done: fun(result: any), on_error: fun(err: any)}
+function M.run_server_api(endpoint, method, body, opts)
+  if state.opencode_server_job then
+    return
+  end
+
+  opts = opts or {}
+  if not opts.background then
+    M.before_run(opts)
+  end
+
+  state.opencode_server_job = server_job.run(endpoint, method, body, {
+    cwd = opts.cwd,
+    on_ready = function(_, url)
+      state.last_output = os.time()
+      ui.render_output()
+    end,
+    on_done = function(result)
+      state.opencode_server_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+      util.safe_call(opts.on_done, result)
+    end,
+    on_error = function(err)
+      state.opencode_server_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+      vim.notify(err, vim.log.levels.ERROR)
+      util.safe_call(opts.on_error, err)
+    end,
+    on_exit = function()
+      state.opencode_server_job = nil
+      state.last_output = os.time()
+      ui.render_output()
+    end,
+    on_interrupt = function()
+      state.opencode_server_job = nil
+      state.was_interrupted = true
+      state.last_output = os.time()
+      ui.render_output()
+      vim.notify('Opencode server API call interrupted by user', vim.log.levels.WARN)
+    end,
+  })
+
+  state.was_interrupted = false
+  M.after_run(endpoint, opts.background)
 end
 
 function M.add_file_to_context()
@@ -186,7 +243,6 @@ function M.select_slash_commands()
 end
 
 function M.configure_provider()
-  local cfg = require('opencode.config_file')
   require('opencode.provider').select(function(selection)
     if not selection then
       if state.windows then
@@ -194,7 +250,8 @@ function M.configure_provider()
       end
       return
     end
-    cfg.set_model(selection.provider, selection.model)
+    local model_str = string.format('%s/%s', selection.provider, selection.model)
+    state.current_model = model_str
 
     if state.windows then
       require('opencode.ui.topbar').render()

@@ -1,65 +1,144 @@
 local config_file = require('opencode.config_file')
-local state = require('opencode.state')
-local tmpfile = '/tmp/opencode_test_config.json'
-local tmpdir = '/tmp/opencode_test_agents'
-local local_tmpdir = '/tmp/opencode_test_local_agents'
+local assert = require('luassert')
 
-local function cleanup()
-  os.remove(tmpfile)
-  vim.fn.delete(tmpdir, 'rf')
-  vim.fn.delete(local_tmpdir, 'rf')
-  vim.fn.delete('.opencode', 'rf')
-end
+describe('config_file.setup', function()
+  local original_run_server_api
 
-describe('config_file.set_model', function()
   before_each(function()
-    cleanup()
-    -- Write config without model
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{"other_key": "value"}')
-    f:close()
-    config_file.config_file = tmpfile
+    config_file._cache = nil
+    local core = require('opencode.core')
+    original_run_server_api = core.run_server_api
+    -- Set up mock immediately to prevent any real API calls
+    core.run_server_api = function() end
   end)
 
   after_each(function()
-    cleanup()
+    if original_run_server_api then
+      local core = require('opencode.core')
+      core.run_server_api = original_run_server_api
+    end
+    config_file._cache = nil
   end)
 
-  it('adds model key if missing', function()
-    config_file.set_model('provider', 'modelname')
-    local f = assert(io.open(tmpfile, 'r'))
-    local content = f:read('*a')
-    f:close()
-    local json = vim.json.decode(content)
-    assert.are.equal(json.model, 'provider/modelname')
-    assert.are.equal(json.other_key, 'value')
+  it('calls core.run_server_api with correct parameters', function()
+    local core = require('opencode.core')
+    local api_calls = {}
+
+    core.run_server_api = function(path, method, data, opts)
+      table.insert(api_calls, {
+        path = path,
+        method = method,
+        data = data,
+        opts = opts,
+      })
+    end
+
+    config_file.setup()
+
+    vim.wait(10)
+
+    assert.are.equal(1, #api_calls)
+    assert.are.equal('/config', api_calls[1].path)
+    assert.are.equal('GET', api_calls[1].method)
+    assert.is_nil(api_calls[1].data)
+    assert.True(api_calls[1].opts.background)
+    assert.is_function(api_calls[1].opts.on_done)
+    assert.is_function(api_calls[1].opts.on_error)
+  end)
+
+  it('caches response on successful API call', function()
+    local core = require('opencode.core')
+    local test_config = { agent = { ['test-agent'] = {} } }
+
+    core.run_server_api = function(path, method, data, opts)
+      vim.schedule(function()
+        opts.on_done(test_config)
+      end)
+    end
+
+    config_file.setup()
+
+    vim.wait(50)
+
+    assert.are.same(test_config, config_file._cache)
+  end)
+
+  it('handles API error correctly', function()
+    local core = require('opencode.core')
+    local notifications = {}
+
+    local original_notify = vim.notify
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    core.run_server_api = function(path, method, data, opts)
+      vim.schedule(function()
+        opts.on_error('Connection failed')
+      end)
+    end
+
+    config_file.setup()
+
+    vim.wait(50)
+
+    vim.notify = original_notify
+
+    assert.are.equal(1, #notifications)
+    assert.is_not_nil(string.find(notifications[1].msg, 'Error fetching config file from server'))
+    assert.are.equal(vim.log.levels.ERROR, notifications[1].level)
+    assert.is_nil(config_file._cache)
+  end)
+
+  it('handles nil response correctly', function()
+    local core = require('opencode.core')
+    local notifications = {}
+
+    local original_notify = vim.notify
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    core.run_server_api = function(path, method, data, opts)
+      vim.schedule(function()
+        opts.on_done(nil)
+      end)
+    end
+
+    config_file.setup()
+
+    vim.wait(50)
+
+    vim.notify = original_notify
+
+    assert.are.equal(1, #notifications)
+    assert.is_not_nil(string.find(notifications[1].msg, 'Failed to parse config file from server response'))
+    assert.are.equal(vim.log.levels.ERROR, notifications[1].level)
+    assert.is_nil(config_file._cache)
   end)
 end)
 
 describe('config_file.get_opencode_agents', function()
   before_each(function()
-    cleanup()
-    -- Create test directories
-    vim.fn.mkdir(tmpdir, 'p')
-    vim.fn.mkdir(local_tmpdir, 'p')
+    config_file._cache = nil
   end)
 
   after_each(function()
-    cleanup()
+    config_file._cache = nil
   end)
 
-  it('returns empty table when no config file exists', function()
-    config_file.config_file = '/nonexistent/path'
+  it('returns empty table when no config is cached', function()
     local agents = config_file.get_opencode_agents()
     assert.are.same({}, agents)
   end)
 
-  it('returns agents from config file', function()
-    -- Write config with agent definitions
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{"agent": {"custom-agent": {}, "another-agent": {}}}')
-    f:close()
-    config_file.config_file = tmpfile
+  it('returns agents from cached config', function()
+    config_file._cache = {
+      agent = {
+        ['custom-agent'] = {},
+        ['another-agent'] = {},
+      },
+    }
 
     local agents = config_file.get_opencode_agents()
     assert.True(vim.tbl_contains(agents, 'custom-agent'))
@@ -69,92 +148,10 @@ describe('config_file.get_opencode_agents', function()
   end)
 
   it('includes default build and plan agents', function()
-    -- Write minimal config
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{}')
-    f:close()
-    config_file.config_file = tmpfile
+    config_file._cache = {}
 
     local agents = config_file.get_opencode_agents()
     assert.True(vim.tbl_contains(agents, 'build'))
     assert.True(vim.tbl_contains(agents, 'plan'))
-  end)
-
-  it('discovers agents from filesystem directories', function()
-    -- Write minimal config
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{}')
-    f:close()
-    config_file.config_file = tmpfile
-
-    -- Create the expected directory structure
-    local home_agent_dir = tmpdir .. '/.config/opencode/agent'
-    local local_agent_dir = '.opencode/agent'
-    
-    vim.fn.mkdir(home_agent_dir, 'p')
-    vim.fn.mkdir(local_agent_dir, 'p')
-
-    -- Create agent files
-    local agent1 = home_agent_dir .. '/file-agent.md'
-    local agent2 = home_agent_dir .. '/code-reviewer.md'
-    local agent3 = local_agent_dir .. '/local-agent.md'
-    local non_agent = home_agent_dir .. '/not-an-agent.txt'
-
-    vim.fn.writefile({'# File Agent'}, agent1)
-    vim.fn.writefile({'# Code Reviewer'}, agent2)
-    vim.fn.writefile({'# Local Agent'}, agent3)
-    vim.fn.writefile({'Not an agent file'}, non_agent)
-
-    -- Mock the home directory
-    local original_homedir = vim.uv.os_homedir
-    vim.uv.os_homedir = function() return tmpdir end
-
-    local agents = config_file.get_opencode_agents()
-
-    -- Restore original function
-    vim.uv.os_homedir = original_homedir
-
-    -- Clean up the local directory we created
-    vim.fn.delete('.opencode', 'rf')
-
-    assert.True(vim.tbl_contains(agents, 'file-agent'))
-    assert.True(vim.tbl_contains(agents, 'code-reviewer'))
-    assert.True(vim.tbl_contains(agents, 'local-agent'))
-    assert.False(vim.tbl_contains(agents, 'not-an-agent'))
-  end)
-
-  it('deduplicates agent names', function()
-    -- Write config with agent that also exists as file
-    local f = assert(io.open(tmpfile, 'w'))
-    f:write('{"agent": {"duplicate-agent": {}}}')
-    f:close()
-    config_file.config_file = tmpfile
-
-    -- Create the expected directory structure
-    local home_agent_dir = tmpdir .. '/.config/opencode/agent'
-    vim.fn.mkdir(home_agent_dir, 'p')
-
-    -- Create agent file with same name
-    local agent_file = home_agent_dir .. '/duplicate-agent.md'
-    vim.fn.writefile({'# Duplicate Agent'}, agent_file)
-
-    -- Mock homedir to point to our test directory
-    local original_homedir = vim.uv.os_homedir
-    vim.uv.os_homedir = function() return tmpdir end
-
-    local agents = config_file.get_opencode_agents()
-
-    -- Restore original function
-    vim.uv.os_homedir = original_homedir
-
-    -- Count occurrences of the duplicate agent
-    local count = 0
-    for _, agent in ipairs(agents) do
-      if agent == 'duplicate-agent' then
-        count = count + 1
-      end
-    end
-
-    assert.are.equal(1, count)
   end)
 end)

@@ -25,6 +25,14 @@ function M._should_refresh_content()
     return true
   end
 
+  -- If any job is running, force refresh every 3rd tick
+  if state.is_job_running() then
+    M._cache.check_counter = (M._cache.check_counter + 1) % 3
+    if M._cache.check_counter == 0 then
+      return true
+    end
+  end
+
   if state.last_output and state.last_output > (M._cache.last_output or 0) then
     M._cache.last_output = state.last_output
     return true
@@ -44,17 +52,6 @@ function M._should_refresh_content()
   local stat = vim.loop.fs_stat(session_path)
   if not stat then
     return false
-  end
-
-  if state.opencode_run_job then
-    M._cache.check_counter = (M._cache.check_counter + 1) % 3
-    if M._cache.check_counter == 0 then
-      local has_file_changed = stat.mtime.sec > M._cache.last_modified
-      if has_file_changed then
-        M._cache.last_modified = stat.mtime.sec
-        return true
-      end
-    end
   end
 
   if stat.mtime.sec > M._cache.last_modified then
@@ -80,21 +77,27 @@ function M._read_session(force_refresh)
 end
 
 function M.start_refresh_timer(windows)
-  M.stop_refresh_timer()
-
+  if M._refresh_timer then
+    return
+  end
   M._refresh_timer = Timer.new({
     interval = 300,
     on_tick = function()
-      if state.opencode_run_job then
+      if state.is_job_running() then
         if M._should_refresh_content() then
           M.render(windows, true)
         end
         return true
       else
         M.stop_refresh_timer()
-        M.render(windows, true)
         return false
       end
+    end,
+    on_stop = function()
+      M.render(windows, true)
+      vim.defer_fn(function()
+        M.render(windows, true)
+      end, 300)
     end,
     repeat_timer = true,
   })
@@ -139,7 +142,7 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
 
     local output_changed = M.write_output(windows, output_lines)
 
-    if output_changed then
+    if output_changed or force_refresh then
       vim.schedule(function()
         M.handle_auto_scroll(windows)
         M.render_markdown()
@@ -168,7 +171,7 @@ function M.stop()
 end
 
 function M.handle_loading(windows)
-  if state.opencode_run_job then
+  if state.is_job_running() then
     M.start_refresh_timer(windows)
     if not loading_animation.is_running() then
       loading_animation.start(windows)
@@ -181,19 +184,28 @@ function M.handle_loading(windows)
   end
 end
 
+function M._last_n_lines_equal(prev_lines, current_lines, n)
+  n = n or 5
+  if #prev_lines ~= #current_lines then
+    return false
+  end
+  local len = #prev_lines
+  local start = math.max(1, len - n + 1)
+  for i = start, len do
+    if prev_lines[i] ~= current_lines[i] then
+      return false
+    end
+  end
+  return true
+end
+
 function M.write_output(windows, output_lines)
   if not output_window.mounted(windows) then
     return
   end
 
   local prev_lines = M._cache.prev_rendered_lines or {}
-  local changed = false
-  if #prev_lines ~= #output_lines then
-    changed = true
-  elseif #output_lines > 0 and prev_lines[#prev_lines] ~= output_lines[#output_lines] then
-    changed = true
-  end
-
+  local changed = not M._last_n_lines_equal(prev_lines, output_lines, 5)
   if changed then
     output_window.set_content(output_lines)
     M._cache.prev_rendered_lines = vim.deepcopy(output_lines)

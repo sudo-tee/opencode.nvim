@@ -42,7 +42,9 @@ describe('opencode.state (observable)', function()
 
   it('can unregister listeners', function()
     local called = 0
-    local cb = function() called = called + 1 end
+    local cb = function()
+      called = called + 1
+    end
     state.subscribe('foo', cb)
     state.foo = 1
     state.unsubscribe('foo', cb)
@@ -54,7 +56,9 @@ describe('opencode.state (observable)', function()
 
   it('does not notify if value is unchanged', function()
     local called = false
-    state.subscribe('bar', function() called = true end)
+    state.subscribe('bar', function()
+      called = true
+    end)
     state.bar = 42
     called = false
     state.bar = 42 -- set to same value

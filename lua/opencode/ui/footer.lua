@@ -18,7 +18,7 @@ function M.render(windows)
     return text and text ~= '' and table.insert(segments, text)
   end
 
-  if state.opencode_run_job then
+  if state.is_job_running() then
     local cancel_keymap = config.keymap.window.stop or '<C-c>'
     local legend = string.format(' %s to cancel', cancel_keymap)
     append_to_footer(legend)
@@ -114,6 +114,9 @@ function M.create_buf()
 end
 
 function M.clear()
+  if not M.mounted() then
+    return
+  end
   local windows = state.windows
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')

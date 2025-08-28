@@ -7,18 +7,6 @@ local session = require('opencode.session')
 
 local M = {}
 
-local function write_to_temp_file(content)
-  local temp_file = vim.fn.tempname()
-  local f = io.open(temp_file, 'w')
-  if not f then
-    vim.notify('Failed to open temp file: ' .. temp_file)
-    return nil
-  end
-  f:write(content)
-  f:close()
-  return temp_file
-end
-
 ---@param cmd_args string[]
 ---@param opts? vim.SystemOpts
 ---@return string|nil, string|nil

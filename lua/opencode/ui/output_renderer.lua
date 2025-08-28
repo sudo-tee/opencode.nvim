@@ -77,8 +77,9 @@ function M._read_session(force_refresh)
 end
 
 function M.start_refresh_timer(windows)
-  M.stop_refresh_timer()
-
+  if M._refresh_timer then
+    return
+  end
   M._refresh_timer = Timer.new({
     interval = 300,
     on_tick = function()
@@ -88,13 +89,15 @@ function M.start_refresh_timer(windows)
         end
         return true
       else
-        M.render(windows, true)
-        vim.defer_fn(function()
-          M.render(windows, true)
-        end, 300)
         M.stop_refresh_timer()
         return false
       end
+    end,
+    on_stop = function()
+      M.render(windows, true)
+      vim.defer_fn(function()
+        M.render(windows, true)
+      end, 300)
     end,
     repeat_timer = true,
   })
@@ -181,19 +184,28 @@ function M.handle_loading(windows)
   end
 end
 
+function M._last_n_lines_equal(prev_lines, current_lines, n)
+  n = n or 5
+  if #prev_lines ~= #current_lines then
+    return false
+  end
+  local len = #prev_lines
+  local start = math.max(1, len - n + 1)
+  for i = start, len do
+    if prev_lines[i] ~= current_lines[i] then
+      return false
+    end
+  end
+  return true
+end
+
 function M.write_output(windows, output_lines)
   if not output_window.mounted(windows) then
     return
   end
 
   local prev_lines = M._cache.prev_rendered_lines or {}
-  local changed = false
-  if #prev_lines ~= #output_lines then
-    changed = true
-  elseif #output_lines > 0 and prev_lines[#prev_lines] ~= output_lines[#output_lines] then
-    changed = true
-  end
-
+  local changed = not M._last_n_lines_equal(prev_lines, output_lines, 5)
   if changed then
     output_window.set_content(output_lines)
     M._cache.prev_rendered_lines = vim.deepcopy(output_lines)

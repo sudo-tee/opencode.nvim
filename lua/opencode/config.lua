@@ -6,6 +6,8 @@
 --- @field setup fun(opts?: OpencodeConfig): nil
 --- @field get fun(key: nil): OpencodeConfig
 --- @field get fun(key: "prefered_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
+--- @field get fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
+--- @field get fun(key: "default_mode"): 'build' | 'plan' |
 --- @field get fun(key: "default_global_keymaps"): boolean
 --- @field get fun(key: "keymap"): OpencodeKeymap
 --- @field get fun(key: "ui"): OpencodeUIConfig
@@ -19,6 +21,7 @@ local M = {} ---@type OpencodeConfigModule
 ---@type OpencodeConfig
 M.defaults = {
   prefered_picker = nil,
+  preferred_completion = nil,
   default_global_keymaps = true,
   default_mode = 'build',
   config_file_path = nil,
@@ -52,7 +55,8 @@ M.defaults = {
       stop = '<C-c>',
       next_message = ']]',
       prev_message = '[[',
-      mention_file = '@',
+      mention_file = '~',
+      mention = '@',
       slash_commands = '/',
       toggle_pane = '<tab>',
       prev_prompt_history = '<up>',

@@ -4,7 +4,7 @@ local M = {}
 
 function M.create_buf()
   local input_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_set_option_value('filetype', 'opencode_input', { buf = input_buf })
+  vim.api.nvim_set_option_value('filetype', 'opencode', { buf = input_buf })
   return input_buf
 end
 
@@ -43,6 +43,9 @@ end
 
 function M.handle_submit()
   local windows = state.windows
+  if not windows or not M.mounted(windows) then
+    return
+  end
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
   vim.api.nvim_exec_autocmds('TextChanged', {
@@ -67,7 +70,7 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('relativenumber', false, { win = windows.input_win })
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
-  vim.b[windows.input_buf].completion = false
+  -- vim.b[windows.input_buf].completion = false
   vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
   vim.api.nvim_set_option_value('winfixheight', true, { win = windows.input_win })
   vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.input_win })
@@ -108,10 +111,13 @@ function M.refresh_placeholder(windows, input_lines)
       virt_text = {
         { 'Type your prompt here... ', 'OpenCodeHint' },
         { keys.slash_commands, 'OpencodeInputLegend' },
-        { ' for commands ', 'OpenCodeHint' },
+        { ' commands ', 'OpenCodeHint' },
+        { keys.mention, 'OpencodeInputLegend' },
+        { ' mentions ', 'OpenCodeHint' },
         { keys.mention_file, 'OpencodeInputLegend' },
-        { ' to mention files' .. padding, 'OpenCodeHint' },
+        { ' to pick files' .. padding, 'OpenCodeHint' },
       },
+
       virt_text_pos = 'overlay',
     })
   else
@@ -155,7 +161,7 @@ end
 
 function M.is_empty()
   local windows = state.windows
-  if not M.mounted() then
+  if not windows or not M.mounted() then
     return true
   end
 
@@ -169,15 +175,16 @@ function M.setup_keymaps(windows)
   local nav = require('opencode.ui.navigation')
   local core = require('opencode.core')
   local api = require('opencode.api')
+  local completion = require('opencode.ui.completion')
   local keymaps = config.keymap.window
   local input_buf = windows.input_buf
 
-  -- Submit handlers
   map(keymaps.submit, M.handle_submit, input_buf, 'n')
   map(keymaps.submit_insert, M.handle_submit, input_buf, 'i')
 
+  map(keymaps.mention, completion.trigger_completion(keymaps.mention), input_buf, 'i')
+  map(keymaps.slash_commands, completion.trigger_completion(keymaps.slash_commands), input_buf, 'i')
   map(keymaps.mention_file, core.add_file_to_context, input_buf, 'i')
-  map(keymaps.slash_commands, core.select_slash_commands, input_buf, 'i')
 
   map(keymaps.prev_prompt_history, nav_history(keymaps.prev_prompt_history, 'prev'), input_buf, { 'n', 'i' })
   map(keymaps.next_prompt_history, nav_history(keymaps.next_prompt_history, 'next'), input_buf, { 'n', 'i' })

@@ -41,7 +41,8 @@
 --- @field stop string
 --- @field next_message string
 --- @field prev_message string
---- @field mention_file string
+--- @field mention_file string # mention files with a file picker
+--- @field mention string # mention subagents or files with a completion popup
 --- @field slash_commands string
 --- @field toggle_pane string
 --- @field prev_prompt_history string
@@ -79,6 +80,7 @@
 
 --- @class OpencodeConfig
 --- @field prefered_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
+--- @field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
 --- @field default_global_keymaps boolean
 --- @field default_mode 'build' | 'plan' | string -- Default mode
 --- @field config_file_path string|nil Path to the configuration file
@@ -144,7 +146,7 @@
 --- @field count number|nil
 
 --- @class GlobToolInput
---
+--- @field pattern string The glob pattern to match files against
 --- @field path? string Optional directory to search in
 
 --- @class ListToolOutput

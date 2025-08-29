@@ -5,7 +5,9 @@
 --- @field values OpencodeConfig
 --- @field setup fun(opts?: OpencodeConfig): nil
 --- @field get fun(key: nil): OpencodeConfig
---- @field get fun(key: "prefered_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
+--- @field get fun(key: "preferred_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
+--- @field get fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
+--- @field get fun(key: "default_mode"): 'build' | 'plan' |
 --- @field get fun(key: "default_global_keymaps"): boolean
 --- @field get fun(key: "keymap"): OpencodeKeymap
 --- @field get fun(key: "ui"): OpencodeUIConfig
@@ -18,7 +20,8 @@ local M = {} ---@type OpencodeConfigModule
 -- Default configuration
 ---@type OpencodeConfig
 M.defaults = {
-  prefered_picker = nil,
+  preferred_picker = nil,
+  preferred_completion = nil,
   default_global_keymaps = true,
   default_mode = 'build',
   config_file_path = nil,
@@ -52,7 +55,8 @@ M.defaults = {
       stop = '<C-c>',
       next_message = ']]',
       prev_message = '[[',
-      mention_file = '@',
+      mention_file = '~',
+      mention = '@',
       slash_commands = '/',
       toggle_pane = '<tab>',
       prev_prompt_history = '<up>',
@@ -84,6 +88,39 @@ M.defaults = {
     input = {
       text = {
         wrap = false,
+      },
+    },
+    completion = {
+      file_sources = {
+        enabled = true,
+        preferred_cli_tool = 'fd',
+        ignore_patterns = {
+          '^%.git/',
+          '^%.svn/',
+          '^%.hg/',
+          'node_modules/',
+          '%.pyc$',
+          '%.o$',
+          '%.obj$',
+          '%.exe$',
+          '%.dll$',
+          '%.so$',
+          '%.dylib$',
+          '%.class$',
+          '%.jar$',
+          '%.war$',
+          '%.ear$',
+          'target/',
+          'build/',
+          'dist/',
+          'out/',
+          'deps/',
+          '%.tmp$',
+          '%.temp$',
+          '%.log$',
+          '%.cache$',
+        },
+        max_files = 10,
       },
     },
   },

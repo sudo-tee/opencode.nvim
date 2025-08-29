@@ -84,7 +84,8 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 ```lua
 -- Default configuration with all available options
 require('opencode').setup({
-  prefered_picker = nil, -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
+  preferred_picker = nil, -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker
+  prefered_completion = nil, -- 'blip', 'nvim-cmp','vim_complete' if nil, it will use the best available completion
   default_global_keymaps = true, -- If false, disables all default global keymaps
   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
   config_file_path = nil, -- Path to opencode configuration file if different from the default `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json`
@@ -147,6 +148,39 @@ require('opencode').setup({
     input = {
       text = {
         wrap = false, -- Wraps text inside input window
+      },
+    },
+    completion = {
+      file_sources = {
+        enabled = true,
+        preferred_cli_tool = 'fd', -- 'fd','fdfind','rg','git','find' if nil, it will use the best available tool
+        ignore_patterns = {
+          '^%.git/',
+          '^%.svn/',
+          '^%.hg/',
+          'node_modules/',
+          '%.pyc$',
+          '%.o$',
+          '%.obj$',
+          '%.exe$',
+          '%.dll$',
+          '%.so$',
+          '%.dylib$',
+          '%.class$',
+          '%.jar$',
+          '%.war$',
+          '%.ear$',
+          'target/',
+          'build/',
+          'dist/',
+          'out/',
+          'deps/',
+          '%.tmp$',
+          '%.temp$',
+          '%.log$',
+          '%.cache$',
+        },
+        max_files = 10,
       },
     },
   },

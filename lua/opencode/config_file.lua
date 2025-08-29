@@ -78,8 +78,8 @@ function M.get_opencode_agents()
     return {}
   end
   local agents = {}
-  for mode, _ in pairs(cfg.agent or {}) do
-    table.insert(agents, mode)
+  for agent, _ in pairs(cfg.agent or {}) do
+    table.insert(agents, agent)
   end
   for _, mode in ipairs({ 'build', 'plan' }) do
     if not vim.tbl_contains(agents, mode) then
@@ -87,6 +87,23 @@ function M.get_opencode_agents()
     end
   end
   return agents
+end
+
+function M.get_subagents()
+  local cfg = M.get_opencode_config()
+  if not cfg then
+    return {}
+  end
+
+  local subagents = {}
+  for agent, opts in pairs(cfg.agent or {}) do
+    if opts.mode ~= 'primary' then
+      table.insert(subagents, agent)
+    end
+  end
+  table.insert(subagents, 1, 'general')
+
+  return subagents
 end
 
 function M.get_user_commands()

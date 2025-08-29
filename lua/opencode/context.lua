@@ -15,6 +15,7 @@ M.context = {
   mentioned_files = nil,
   selections = nil,
   linter_errors = nil,
+  mentioned_subagents = nil,
 }
 
 function M.unload_attachments()
@@ -103,6 +104,16 @@ function M.add_file(file)
   end
 end
 
+function M.add_subagent(subagent)
+  if not M.context.mentioned_subagents then
+    M.context.mentioned_subagents = {}
+  end
+
+  if not vim.tbl_contains(M.context.mentioned_subagents, subagent) then
+    table.insert(M.context.mentioned_subagents, subagent)
+  end
+end
+
 function M.delta_context()
   local context = vim.deepcopy(M.context)
   local last_context = require('opencode.state').last_sent_context
@@ -113,6 +124,14 @@ function M.delta_context()
   -- no need to send file context again
   if context.current_file and context.current_file.name == last_context and last_context.current_file.name then
     context.current_file = nil
+  end
+  -- no need to send subagents again
+  if
+    context.mentioned_subagents
+    and last_context.mentioned_subagents
+    and vim.deep_equal(context.mentioned_subagents, last_context.mentioned_subagents)
+  then
+    context.mentioned_subagents = nil
   end
 
   return context

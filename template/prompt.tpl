@@ -54,6 +54,13 @@
           </linter-errors>
         <? end ?>
       </attached-files>
+      <? if mentioned_subagents then ?>
+        <? for x, subagent in ipairs(mentioned_subagents) do ?>
+          <mentioned-subagents>
+            Use the above message and context to generate a prompt and call the task tool with subagent: Use the above message and context to generate a prompt and call the task tool with subagent: <%= subagent %>
+          </mentioned-subagents>
+        <? end ?>
+      <? end ?>
     <? end ?>
   </additional-data>
   <user-query>

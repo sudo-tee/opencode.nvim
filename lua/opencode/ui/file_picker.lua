@@ -3,9 +3,9 @@ local M = {}
 local function get_best_picker()
   local config = require('opencode.config')
 
-  local prefered_picker = config.get('prefered_picker')
-  if prefered_picker and prefered_picker ~= '' then
-    return prefered_picker
+  local preferred_picker = config.get('preferred_picker')
+  if preferred_picker and preferred_picker ~= '' then
+    return preferred_picker
   end
 
   if pcall(require, 'telescope') then

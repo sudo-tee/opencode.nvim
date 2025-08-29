@@ -230,7 +230,7 @@ function M.apply_output_extmarks(windows)
       if type(mark) == 'function' then
         actual_mark = mark()
       end
-      vim.api.nvim_buf_set_extmark(windows.output_buf, ns_id, line_num - 1, 0, actual_mark)
+      pcall(vim.api.nvim_buf_set_extmark, windows.output_buf, ns_id, line_num - 1, 0, actual_mark)
     end
   end
 end

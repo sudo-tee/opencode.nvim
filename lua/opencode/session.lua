@@ -1,48 +1,55 @@
 local util = require('opencode.util')
 local M = {}
 
-function M.workspace_slug(path)
-  local is_git_project = util.is_git_project()
-  if not is_git_project then
-    return 'global'
+---Get the current OpenCode project ID
+---@return string|nil
+function M.project_id()
+  local config_file = require('opencode.config_file')
+  local project = config_file.get_opencode_project()
+  if not project then
+    vim.notify('No OpenCode project found in the current directory', vim.log.levels.ERROR)
+    return nil
   end
-
-  local workspace = path or vim.fn.getcwd()
-  local sep = package.config:sub(1, 1)
-  local slug = workspace
-    :gsub(vim.pesc(sep), '-')
-    :gsub('[^A-Za-z0-9_-]', '-') -- Replace non-alphanumeric characters with dashes
-    :gsub('^%-+', '') -- Remove leading dashes
-    :gsub('%-+$', '') -- Remove trailing dashes
-
-  return slug
+  return project.id
 end
 
-function M.get_workspace_session_path(workspace)
-  workspace = workspace or M.workspace_slug()
+---Get the base storage path for OpenCode
+---@return string
+function M.get_storage_path()
   local home = vim.uv.os_homedir()
-  return home .. '/.local/share/opencode/project/' .. workspace .. '/storage/session'
+  return home .. '/.local/share/opencode/storage'
 end
 
-function M.get_workspace_snapshot_path(workspace)
-  workspace = workspace or M.workspace_slug()
+---Get the session storage path for the current workspace
+---@return string
+function M.get_workspace_session_path(project_id)
+  project_id = project_id or M.project_id()
   local home = vim.uv.os_homedir()
-  return home .. '/.local/share/opencode/project/' .. workspace .. '/snapshots/'
+  return home .. '/.local/share/opencode/storage/session/' .. project_id
+end
+
+---Get the snapshot storage path for the current workspace
+---@return string
+function M.get_workspace_snapshot_path()
+  local project_id = M.project_id()
+  local home = vim.uv.os_homedir()
+  return home .. '/.local/share/opencode/snapshot/' .. project_id
 end
 
 ---@return Session[]|nil
+---Get all sessions for the current workspace
+---@return Session[]|nil
 function M.get_all_sessions()
   local sessions_dir = M.get_workspace_session_path()
-  local info_dir = sessions_dir .. '/info'
 
   local sessions = {}
-  local ok_iter, iter = pcall(vim.fs.dir, info_dir)
+  local ok_iter, iter = pcall(vim.fs.dir, sessions_dir)
   if not ok_iter or not iter then
     return nil
   end
   for name, type_ in iter do
     if type_ == 'file' then
-      local file = info_dir .. '/' .. name
+      local file = sessions_dir .. '/' .. name
       local content_ok, content = pcall(vim.fn.readfile, file)
       if content_ok then
         local joined = table.concat(content, '\n')
@@ -61,23 +68,29 @@ function M.get_all_sessions()
   return vim.tbl_map(M.create_session_object, sessions)
 end
 
+---Create a Session object from JSON
+---@param session_json table
+---@return Session
 function M.create_session_object(session_json)
   local sessions_dir = M.get_workspace_session_path()
+  local storage_path = M.get_storage_path()
   return {
     workspace = vim.fn.getcwd(),
     description = session_json.title or '',
     modified = session_json.time and session_json.time.updated or os.time(),
     name = session_json.id,
     parentID = session_json.parentID,
-    path = sessions_dir .. '/info/' .. session_json.id .. '.json',
-    messages_path = sessions_dir .. '/message/' .. session_json.id,
-    parts_path = sessions_dir .. '/part/' .. session_json.id .. '/',
-    cache_path = vim.fn.stdpath('cache') .. '/opencode/session/' .. session_json.id .. '/',
+    path = sessions_dir .. '/' .. session_json.id .. '.json',
+    messages_path = storage_path .. '/message/' .. session_json.id,
+    parts_path = storage_path .. '/part',
+    cache_path = vim.fn.stdpath('cache') .. '/opencode/session/' .. session_json.id,
     snapshot_path = M.get_workspace_snapshot_path(),
-    workplace_slug = M.workspace_slug(),
+    project_id = M.project_id(),
   }
 end
 
+---@return Session[]|nil
+---Get all workspace sessions, sorted and filtered
 ---@return Session[]|nil
 function M.get_all_workspace_sessions()
   local sessions = M.get_all_sessions()
@@ -105,6 +118,8 @@ function M.get_all_workspace_sessions()
 end
 
 ---@return Session|nil
+---Get the most recent main workspace session
+---@return Session|nil
 function M.get_last_workspace_session()
   local sessions = M.get_all_workspace_sessions()
   if not sessions then
@@ -123,6 +138,7 @@ end
 local _session_by_name = {}
 local _session_last_modified = {}
 
+---Get a session by its name
 ---@param name string
 ---@return Session|nil
 function M.get_by_name(name)
@@ -130,8 +146,7 @@ function M.get_by_name(name)
     return nil
   end
   local sessions_dir = M.get_workspace_session_path()
-  local info_dir = sessions_dir .. '/info'
-  local file = info_dir .. '/' .. name .. '.json'
+  local file = sessions_dir .. '/' .. name .. '.json'
   local _, stat = pcall(vim.uv.fs_stat, file)
   if not stat then
     return nil
@@ -154,9 +169,11 @@ function M.get_by_name(name)
   return session
 end
 
+---Get messages for a session
 ---@param session Session
 ---@param include_parts? boolean Whether to include message parts
 ---@param max_items? number Maximum number of messages to return
+---@return Message[]|nil
 function M.get_messages(session, include_parts, max_items)
   include_parts = include_parts == nil and true or include_parts
   if not session then
@@ -185,13 +202,16 @@ function M.get_messages(session, include_parts, max_items)
   return messages
 end
 
+---Get parts for a message
 ---@param message Message
 ---@param session Session
+---@return MessagePart[]|nil
 function M.get_message_parts(message, session)
-  local parts_path = session.parts_path .. message.id
+  local parts_path = session.parts_path .. '/' .. message.id
   return util.read_json_dir(parts_path)
 end
 
+---Get snapshot IDs from a message's parts
 ---@param message Message
 ---@return string[]|nil
 function M.get_message_snapshot_ids(message)

@@ -102,7 +102,7 @@ describe('opencode.core', function()
     vim.system = function(_cmd, _opts)
       return {
         wait = function()
-          return { stdout = 'opencode 0.4.3' }
+          return { stdout = 'opencode 0.6.3' }
         end,
       }
     end

@@ -2,6 +2,7 @@
 -- Integration tests for the full plugin
 
 local core = require('opencode.core')
+local server_job = require('opencode.server_job')
 
 describe('opencode.nvim plugin', function()
   local original_run_server_api
@@ -14,6 +15,13 @@ describe('opencode.nvim plugin', function()
     end
     -- Mock core.run_server_api to prevent server spawning
     original_run_server_api = core.run_server_api
+    server_job.with_server = function(cb, opts)
+      vim.schedule(function()
+        cb({
+          shutdown = function() end,
+        }, 'http://localhost:1234')
+      end)
+    end
     core.run_server_api = function(_, _m, _b, opts)
       -- Mock successful response
       if opts.on_done then

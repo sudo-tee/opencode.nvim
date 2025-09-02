@@ -2,15 +2,15 @@
 -- Tests for the session module
 
 local DEFAULT_WORKSPACE = '/Users/jimmy/myproject1'
-local DEFAULT_WORKSPACE_SLUG = 'Users-jimmy-myproject1'
+local DEFAULT_WORKSPACE_ID = 'Users-jimmy-myproject1'
 local NON_EXISTENT_WORKSPACE = '/non/existent/path'
 
 local session = require('opencode.session')
-local helpers = require('tests.helpers')
 -- Use the existing mock data
 local session_list_mock = require('tests.mocks.session_list')
 local util = require('opencode.util')
 local assert = require('luassert')
+local config_file = require('opencode.config_file')
 
 describe('opencode.session', function()
   local original_is_git_project
@@ -20,6 +20,7 @@ describe('opencode.session', function()
   local original_fs_dir
   local original_isdirectory
   local original_json_decode
+  local original_get_opencode_project
   local session_files = {}
   local mock_data = {}
 
@@ -37,31 +38,36 @@ describe('opencode.session', function()
     original_workspace = vim.fn.getcwd
     original_isdirectory = vim.fn.isdirectory
     original_json_decode = vim.fn.json_decode
-
+    original_get_opencode_project = config_file.get_opencode_project
     -- mock vim.fs and isdirectory
+    config_file.get_opencode_project = function()
+      return { id = DEFAULT_WORKSPACE_ID }
+    end
+
     vim.fs.dir = function(path)
       -- Return a mock directory listing
       local session_dir = session.get_workspace_session_path()
-      if path:find(DEFAULT_WORKSPACE_SLUG, 1, true) then
-        if path == session_dir .. '/info' then
+      if path:find(DEFAULT_WORKSPACE_ID, 1, true) then
+        if path == session_dir then
           return coroutine.wrap(function()
             for _, file in ipairs(session_files) do
               coroutine.yield(file, 'file')
             end
           end)
-        elseif mock_data.message_files and path:match('/message/new%-8$') then
-          return coroutine.wrap(function()
-            for _, file in ipairs(mock_data.message_files) do
-              coroutine.yield(file, 'file')
-            end
-          end)
-        elseif mock_data.part_files and path:match('/part/new%-8/msg1$') then
-          return coroutine.wrap(function()
-            for _, file in ipairs(mock_data.part_files) do
-              coroutine.yield(file, 'file')
-            end
-          end)
         end
+      end
+      if mock_data.message_files and path:match('/message/new%-8$') then
+        return coroutine.wrap(function()
+          for _, file in ipairs(mock_data.message_files) do
+            coroutine.yield(file, 'file')
+          end
+        end)
+      elseif mock_data.part_files and path:match('/part/new%-8/msg1$') then
+        return coroutine.wrap(function()
+          for _, file in ipairs(mock_data.part_files) do
+            coroutine.yield(file, 'file')
+          end
+        end)
       end
       return original_fs_dir(path)
     end
@@ -76,11 +82,11 @@ describe('opencode.session', function()
     -- Mock the readfile function
     vim.fn.readfile = function(file)
       local session_dir = session.get_workspace_session_path()
-      local info_prefix = session_dir .. '/info/'
+      local storage_path = session.get_storage_path()
 
       -- Handle session info files
-      if vim.startswith(file, info_prefix) then
-        local filename = file:sub(#info_prefix + 1)
+      if vim.startswith(file, session_dir) then
+        local filename = file:sub(#session_dir + 2)
         local session_name = filename:sub(1, -6) -- Remove '.json' extension
         if vim.tbl_contains(session_files, filename) then
           local data
@@ -94,7 +100,7 @@ describe('opencode.session', function()
       end
 
       -- Handle message files
-      if mock_data.messages and vim.startswith(file, session_dir .. '/message/new-8/') then
+      if mock_data.messages and vim.startswith(file, storage_path .. '/message/new-8/') then
         local msg_name = vim.fn.fnamemodify(file, ':t:r')
         if mock_data.messages[msg_name] then
           return vim.split(mock_data.messages[msg_name], '\n')
@@ -102,7 +108,7 @@ describe('opencode.session', function()
       end
 
       -- Handle part files
-      if mock_data.parts and vim.startswith(file, session_dir .. '/part/new-8/msg1/') then
+      if mock_data.parts and vim.startswith(file, storage_path .. '/part/new-8/msg1/') then
         local part_name = vim.fn.fnamemodify(file, ':t:r')
         if mock_data.parts[part_name] then
           return vim.split(mock_data.parts[part_name], '\n')
@@ -119,7 +125,7 @@ describe('opencode.session', function()
     end
 
     vim.uv.fs_stat = function(path)
-      if path:find(DEFAULT_WORKSPACE_SLUG, 1, true) then
+      if path:find(DEFAULT_WORKSPACE_ID, 1, true) then
         -- Simulate a valid session file
         if vim.tbl_contains(session_files, path:match('([^/]+)$')) then
           return { type = 'file', mtime = { sec = os.time() } }
@@ -146,6 +152,7 @@ describe('opencode.session', function()
     vim.uv.fs_stat = original_fs_stat
     vim.fn.json_decode = original_json_decode
     util.is_git_project = original_is_git_project
+    config_file.get_opencode_project = original_get_opencode_project
     mock_data = {}
   end)
 
@@ -167,6 +174,9 @@ describe('opencode.session', function()
       -- Mock a workspace with no sessions
       mock_data.workspace = NON_EXISTENT_WORKSPACE
 
+      config_file.get_opencode_project = function()
+        return { id = NON_EXISTENT_WORKSPACE }
+      end
       -- Call the function
       local result = session.get_last_workspace_session()
 
@@ -251,7 +261,7 @@ describe('opencode.session', function()
     end)
 
     it('returns decoded JSON content from directory', function()
-      local dir = session.get_workspace_session_path() .. '/message/new-8'
+      local dir = session.get_storage_path() .. '/message/new-8'
       mock_data.valid_dirs = { dir }
       mock_data.message_files = { 'msg1.json' }
       mock_data.messages = {
@@ -268,7 +278,7 @@ describe('opencode.session', function()
     end)
 
     it('skips invalid JSON files', function()
-      local dir = session.get_workspace_session_path() .. '/message/new-8'
+      local dir = session.get_storage_path() .. '/message/new-8'
       mock_data.valid_dirs = { dir }
       mock_data.message_files = { 'valid.json', 'invalid.json' }
       mock_data.messages = {
@@ -297,9 +307,9 @@ describe('opencode.session', function()
     end)
 
     it('returns messages with their parts', function()
-      local session_dir = session.get_workspace_session_path()
-      local messages_dir = session_dir .. '/message/new-8'
-      local parts_dir = session_dir .. '/part/new-8/msg1'
+      local storage_path = session.get_storage_path()
+      local messages_dir = storage_path .. '/message/new-8'
+      local parts_dir = storage_path .. '/part/new-8/msg1'
 
       mock_data.valid_dirs = { messages_dir, parts_dir }
       mock_data.message_files = { 'msg1.json' }
@@ -314,7 +324,7 @@ describe('opencode.session', function()
 
       local test_session = {
         messages_path = messages_dir,
-        parts_path = session_dir .. '/part/new-8/',
+        parts_path = storage_path .. '/part/new-8',
       }
 
       local result = session.get_messages(test_session)

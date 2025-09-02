@@ -60,21 +60,31 @@ end
 function M.run(endpoint, method, body, opts)
   opts = opts or {}
 
+  return M.with_server(function(server_job, base_url)
+    local url = base_url .. endpoint
+    M.call_api(url, method, body, function(err, result)
+      if err then
+        safe_call(opts.on_error, err)
+      else
+        safe_call(opts.on_done, result)
+      end
+      server_job:shutdown()
+    end)
+  end, opts)
+end
+
+--- Spawn an opencode server, and invoke a callback when it's ready.
+--- @param cb fun(job: OpencodeServer, url: string)
+--- @param opts OpencodeServerRunOpts
+--- @return OpencodeServer server_job The server job instance
+function M.with_server(cb, opts)
+  opts = opts or {}
   local server_job = opencode_server.new()
 
   server_job:spawn({
     cwd = opts.cwd,
     on_ready = function(_, base_url)
-      local url = base_url and (base_url .. endpoint) or endpoint
-      safe_call(opts.on_ready, server_job, url)
-      M.call_api(url, method, body, function(err, result)
-        server_job:shutdown()
-        if err then
-          safe_call(opts.on_error, err)
-        else
-          safe_call(opts.on_done, result)
-        end
-      end)
+      safe_call(cb, server_job, base_url)
     end,
     on_error = function(err)
       server_job:shutdown()
@@ -86,6 +96,7 @@ function M.run(endpoint, method, body, opts)
       elseif code and code ~= 0 then
         safe_call(opts.on_error, 'Server exited with code ' .. tostring(code))
       end
+      server_job:shutdown()
     end,
   })
 

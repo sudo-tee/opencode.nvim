@@ -45,13 +45,13 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 
 This plugin is in early development and may have bugs and breaking changes. It is not recommended for production use yet. Please report any issues you encounter on the [GitHub repository](https://github.com/sudo-tee/opencode.nvim/issues).
 
-[Opencode](https://github.com/sst/opencode) is also in early development and may have breaking changes. Ensure you are using a compatible version of the Opencode CLI (v0.4.2+ or more).
+[Opencode](https://github.com/sst/opencode) is also in early development and may have breaking changes. Ensure you are using a compatible version of the Opencode CLI (v0.6.3+ or more).
 
 If your upgrade breaks the plugin, please open an issue or downgrade to the last working version.
 
 ## 📋 Requirements
 
-- Opencode (v0.4.2+ or more) CLI installed and available (see [Setting up opencode](#-setting-up-opencode) below)
+- Opencode (v0.6.3+ or more) CLI installed and available (see [Setting up opencode](#-setting-up-opencode) below)
 
 ## 🚀 Installation
 

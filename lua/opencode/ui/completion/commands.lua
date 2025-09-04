@@ -2,20 +2,20 @@ local M = {}
 
 local function get_available_commands()
   local api = require('opencode.api')
-  local commands = {}
+  local commands = api.get_slash_commands()
 
-  for key, cmd_info in pairs(api.commands) do
-    if cmd_info.slash_cmd then
-      table.insert(commands, {
-        name = cmd_info.slash_cmd,
-        description = cmd_info.desc,
-        documentation = 'Opencode command: ' .. cmd_info.slash_cmd,
-        command_key = key,
-      })
-    end
+  local results = {}
+  for key, cmd_info in ipairs(commands) do
+    table.insert(results, {
+      name = cmd_info.slash_cmd,
+      description = cmd_info.desc,
+      documentation = 'Opencode command: ' .. cmd_info.slash_cmd,
+      command_key = key,
+      fn = cmd_info.fn,
+    })
   end
 
-  return commands
+  return results
 end
 
 ---@type CompletionSource
@@ -52,6 +52,7 @@ local command_source = {
           source_name = 'commands',
           data = {
             name = command.name,
+            fn = command.fn,
           },
         }
 
@@ -65,14 +66,9 @@ local command_source = {
     return items
   end,
   on_complete = function(item)
-    local api = require('opencode.api')
-
     if item.kind == 'command' then
-      local command = vim.tbl_filter(function(cmd)
-        return cmd.slash_cmd == item.label
-      end, api.commands)[1]
-      if command then
-        command.fn()
+      if item.data.fn then
+        item.data.fn()
         require('opencode.ui.input_window').set_content('')
       else
         vim.notify('Command not found: ' .. item.label, vim.log.levels.ERROR)

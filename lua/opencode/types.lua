@@ -270,6 +270,7 @@
 ---@field trigger_char string The character that triggered completion
 ---@field input string The current input text
 ---@field cursor_pos number Current cursor position
+---@field line string The full current line text
 
 ---@class CompletionItem
 ---@field label string Display text for the completion item

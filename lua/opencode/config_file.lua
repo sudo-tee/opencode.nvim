@@ -44,7 +44,11 @@ end
 function M.fetch_opencode_project(base_url, on_done)
   server_job.call_api(base_url .. '/project/current', 'GET', nil, function(err, response)
     if not response or err then
-      vim.notify('Error fetching project info from server', vim.log.levels.ERROR)
+      vim.notify(
+        'Error fetching project info from server. Ensure you have compatible version of opencode',
+        vim.log.levels.ERROR
+      )
+
       return
     end
     M.project_cache = response

@@ -23,7 +23,7 @@ end
 ---Get the session storage path for the current workspace
 ---@return string
 function M.get_workspace_session_path(project_id)
-  project_id = project_id or M.project_id()
+  project_id = project_id or M.project_id() or ''
   local home = vim.uv.os_homedir()
   return home .. '/.local/share/opencode/storage/session/' .. project_id
 end

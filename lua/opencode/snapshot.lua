@@ -1,3 +1,6 @@
+-- This file is a port of the snapshot management logic from the original OpenCode
+--- @see https://github.com/sst/opencode/blob/dev/packages/opencode/src/snapshot/index.ts
+
 local M = {}
 local state = require('opencode.state')
 local util = require('opencode.util')
@@ -15,7 +18,7 @@ local function snapshot_git(cmd_args, opts)
   vim.list_extend(args, cmd_args)
   local result = vim.system(args, opts or {}):wait()
   if result and result.code == 0 then
-    return vim.trim(result.stdout), result.stderr
+    return vim.trim(result.stdout), nil
   else
     return nil, result and result.stderr or nil
   end
@@ -33,29 +36,34 @@ local function write_to_temp_file(content)
   return temp_file
 end
 
-function M._opencode(cmd_args, opts)
-  if not state.active_session then
-    vim.notify('No active session', vim.log.levels.ERROR)
-    return
-  end
-  local args = { 'opencode', 'debug', 'snapshot' }
-  vim.list_extend(args, cmd_args)
-  local result = vim.system(args, opts or {}):wait()
-  if result.code == 0 then
-    local output = (result.stdout or ''):gsub('\n', '')
-    return output
-  else
-    return nil, (result.stderr or ''):gsub('\n', '')
-  end
-end
-
-function M.create()
+function M.track()
   if not state.active_session then
     vim.notify('No active session', vim.log.levels.ERROR)
     return nil
   end
 
-  return M._opencode({ 'track' })
+  local snapshot_dir = state.active_session.snapshot_path
+  if not snapshot_dir then
+    vim.notify('No snapshot path for the active session.')
+    return nil
+  end
+
+  local _, add_err = snapshot_git({ 'add', '.' })
+  if add_err then
+    vim.notify('Failed to add files: ' .. add_err, vim.log.levels.WARN)
+  end
+
+  local hash_output, write_tree_err = snapshot_git({ 'write-tree' })
+  if not hash_output then
+    vim.notify('Failed to write tree: ' .. (write_tree_err or 'unknown error'), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return vim.trim(hash_output)
+end
+
+function M.create()
+  return M.track()
 end
 
 function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
@@ -64,11 +72,11 @@ function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
     return nil
   end
 
-  local patch = M._opencode({ 'patch', snapshot_id }) --[[@as OpencodeSnapshotPatch|nil]]
+  local patch_result = M.patch(snapshot_id)
   local snapshot = {
     id = snapshot_id,
     from_snapshot_id = from_snapshot_id or nil,
-    files = patch and patch.files or {},
+    files = patch_result and patch_result.files or {},
     deleted_files = deleted_files or {},
     created_at = os.time(),
   }
@@ -81,7 +89,7 @@ function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
   local snapshot_file = path .. snapshot_id .. '.json'
   local ok, err = pcall(vim.fn.writefile, { vim.json.encode(snapshot) }, snapshot_file)
   if not ok then
-    vim.notify('Failed to write resotore point: ' .. err, vim.log.levels.ERROR)
+    vim.notify('Failed to write restore point: ' .. err, vim.log.levels.ERROR)
     return nil
   end
 
@@ -110,29 +118,51 @@ function M.get_restore_points()
 end
 
 ---@return OpencodeSnapshotPatch|nil
-function M.patch(snapshot_id)
-  local result = M._opencode({ 'patch', snapshot_id })
-  if result then
-    local ok, json = pcall(vim.json.decode, result)
-    if ok then
-      return json
-    else
-      -- JSON returned by opencode might not be properly formatted
-      -- Add quotes around keys
-      result = result:gsub('([%{%[,]%s*)([%w_]+)%s*:', '%1"%2":')
-      -- Remove trailing commas before } or ]
-      result = result:gsub(',%s*([}%]])', '%1')
-      local _ok, _json = pcall(vim.json.decode, result)
-      if _ok then
-        return _json
-      end
-      vim.notify('Failed to decode JSON: ' .. json, vim.log.levels.ERROR)
+function M.patch(hash)
+  if not state.active_session then
+    vim.notify('No active session', vim.log.levels.ERROR)
+    return nil
+  end
+
+  local _, add_err = snapshot_git({ 'add', '.' })
+  if add_err then
+    vim.notify('Failed to add files: ' .. add_err .. _, vim.log.levels.WARN)
+  end
+
+  local files_output, diff_err = snapshot_git({ 'diff', '--name-only', hash, '--', '.' })
+  if not files_output then
+    vim.notify('Failed to get diff: ' .. (diff_err or 'unknown error'), vim.log.levels.ERROR)
+    return nil
+  end
+
+  local files = {}
+  local cwd = vim.fn.getcwd()
+  for line in files_output:gmatch('[^\r\n]+') do
+    local trimmed = vim.trim(line)
+    if trimmed ~= '' then
+      table.insert(files, cwd .. '/' .. trimmed)
     end
   end
+
+  return {
+    hash = hash,
+    files = files,
+  }
 end
 
-function M.diff(snapshot_id)
-  return M._opencode({ 'diff', snapshot_id })
+function M.diff(hash)
+  if not state.active_session then
+    vim.notify('No active session', vim.log.levels.ERROR)
+    return nil
+  end
+
+  local result, err = snapshot_git({ 'diff', hash, '--', '.' })
+  if not result then
+    vim.notify('Failed to get diff: ' .. (err or 'unknown error'), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return vim.trim(result)
 end
 
 function M.diff_file(snapshot_id, file_path)
@@ -145,13 +175,13 @@ end
 
 function M.revert(snapshot_id)
   local restore_point_id = M.create()
-  local patch = M.patch(snapshot_id)
-  if not patch then
+  local patch_result = M.patch(snapshot_id)
+  if not patch_result then
     vim.notify('Failed to revert snapshot: ' .. snapshot_id, vim.log.levels.ERROR)
     return
   end
   local deleted_files = {}
-  for _, file in ipairs(patch.files) do
+  for _, file in ipairs(patch_result.files) do
     local relative_path = file:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
     local res, err = snapshot_git({ 'checkout', snapshot_id, '--', relative_path })
     if not res then

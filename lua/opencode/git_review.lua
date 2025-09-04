@@ -173,6 +173,7 @@ M.next_diff = require_git_project(function(ref, last_ref)
       vim.notify('No changes to review.')
       return
     end
+    M.__changed_files = files
     M.__current_file_index = 1
   else
     M.__current_file_index = M.__current_file_index + 1

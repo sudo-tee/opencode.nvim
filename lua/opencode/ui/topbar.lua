@@ -89,12 +89,11 @@ function M.render()
     return
   end
 
-  local win = state.windows.output_win
-
   vim.schedule(function()
     if not state.windows then
       return
     end
+    local win = state.windows.output_win
     vim.wo[win].winbar =
       create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
 

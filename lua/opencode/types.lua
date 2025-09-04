@@ -110,7 +110,7 @@
 --- @field content_type string|nil Content type of the response
 
 --- @class BashToolMetadata: ToolMetadataBase
---- @field stdout string|nil
+--- @field output string|nil
 
 --- @class FileToolMetadata: ToolMetadataBase
 --- @field diff string|nil The diff of changes made to the file

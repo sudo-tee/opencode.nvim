@@ -1,7 +1,7 @@
 # 🤖 opencode.nvim
 
 <div align="center">
-  <img src="https://opencode.ai/_astro/logo-dark.NCybiIc5.svg" alt="Opencode logo" width="30%" />
+  <img src="https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg" alt="Opencode logo" width="30%" />
 </div>
 
 > neovim frontend for opencode - a terminal-based AI coding agent

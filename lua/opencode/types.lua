@@ -75,7 +75,7 @@
 
 --- @class OpencodeCompletionFileSourcesConfig
 --- @field enabled boolean
---- @field preferred_cli_tool 'fd'|'fdfind'|'rg'|'git'|'find'
+--- @field preferred_cli_tool 'fd'|'fdfind'|'rg'|'git'
 --- @field ignore_patterns string[]
 --- @field max_files number
 --- @field cache_timeout number

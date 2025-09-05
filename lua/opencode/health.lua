@@ -182,7 +182,7 @@ end
 local function check_finder_cli_tools()
   health.start('Finder CLI Tools')
 
-  local find_cmds = { 'fd', 'rg', 'git', 'find' }
+  local find_cmds = { 'fd', 'rg', 'git' }
   local found = false
   for _, cmd in ipairs(find_cmds) do
     if command_exists(cmd) then

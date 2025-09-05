@@ -26,7 +26,7 @@ function Source:get_completions(ctx, callback)
   local before_cursor = line:sub(1, col - 1)
 
   local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
-  local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
+  local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
 
   if not trigger_match then
     callback({ is_incomplete_forward = false, items = {} })

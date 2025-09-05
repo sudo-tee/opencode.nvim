@@ -162,7 +162,7 @@ require('opencode').setup({
     completion = {
       file_sources = {
         enabled = true,
-        preferred_cli_tool = 'fd', -- 'fd','fdfind','rg','git','find' if nil, it will use the best available tool
+        preferred_cli_tool = 'fd', -- 'fd','fdfind','rg','git' if nil, it will use the best available tool
         ignore_patterns = {
           '^%.git/',
           '^%.svn/',

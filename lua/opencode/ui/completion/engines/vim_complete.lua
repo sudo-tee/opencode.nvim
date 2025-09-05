@@ -60,7 +60,7 @@ function M._update()
   local before_cursor = line:sub(1, col)
   local trigger_char, trigger_match = M._get_trigger(before_cursor)
 
-  if not trigger_match then
+  if not trigger_char then
     completion_active = false
     return
   end

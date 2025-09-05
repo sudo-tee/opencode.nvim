@@ -26,14 +26,10 @@ local function find_files_fast(pattern)
   local max = file_config.max_files or 10
 
   local commands = {
-    fd = string.format(' --type f --max-results %d %s 2>/dev/null', max, pattern),
-    fdfind = string.format(' --type f --max-results %d %s 2>/dev/null', max, pattern),
-    rg = string.format(' --files --glob %s 2>/dev/null | head -%d', ('*' .. pattern .. '*'), max),
-    git = string.format(' ls-files --cached --others --exclude-standard | grep %s | head -%d', pattern, max),
-    find = string.format(
-      ' . -type f -name %s 2>/dev/null | sed "s|^\\./||"',
-      '*' .. (pattern ~= '.' and pattern or '') .. '*'
-    ),
+    fd = string.format(' --type f --full-path -i %s --max-results %d 2>/dev/null', pattern, max),
+    fdfind = string.format(' --type f --full-path -i %s --max-results %d 2>/dev/null', pattern, max),
+    rg = string.format(' --files | grep -i %s 2>/dev/null | head -%d', pattern, max),
+    git = string.format(' ls-files --cached --others --exclude-standard | grep -i %s | head -%d', pattern, max),
   }
 
   local tools_to_try = commands[cli_tool] and { [cli_tool] = commands[cli_tool] } or commands
@@ -46,6 +42,7 @@ local function find_files_fast(pattern)
       end
     end
   end
+  vim.notify('No suitable file search tool found. Please install fd, rg, or git.', vim.log.levels.WARN)
   return {}
 end
 
@@ -56,15 +53,16 @@ local function create_file_item(file)
   local dir = vim.fn.fnamemodify(file, ':h')
   local display_path = dir == '.' and filename or dir .. '/' .. filename
   local detail = dir == '.' and filename or dir .. '/' .. filename
+  local full_path = vim.fn.fnamemodify(file, ':p')
 
   return {
     label = display_path,
     kind = 'file',
     detail = detail,
     documentation = 'Path: ' .. detail,
-    insert_text = filename,
+    insert_text = display_path,
     source_name = 'files',
-    data = { name = filename, full_path = vim.fn.fnamemodify(file, ':p') },
+    data = { name = filename, full_path = full_path },
   }
 end
 
@@ -86,7 +84,8 @@ local file_source = {
       return recent_files
     end
 
-    local items = vim.tbl_map(create_file_item, find_files_fast(input))
+    local files_and_dirs = find_files_fast(input)
+    local items = vim.tbl_map(create_file_item, files_and_dirs)
     sort_util.sort_by_relevance(items, input, function(item)
       return vim.fn.fnamemodify(item.label, ':t')
     end, function(a, b)

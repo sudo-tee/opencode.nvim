@@ -4,7 +4,7 @@ local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
 
 function M.highlight_all_mentions(buf)
   -- Pattern for mentions
-  local mention_pattern = '@[%w_%-%.][%w_%-%.]*'
+  local mention_pattern = '@[%w_%-%./][%w_%-%./]*'
 
   -- Clear existing extmarks
   pcall(vim.api.nvim_buf_clear_namespace, buf, mentions_namespace, 0, -1)

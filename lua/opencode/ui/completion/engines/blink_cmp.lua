@@ -57,7 +57,7 @@ function Source:get_completions(ctx, callback)
     end
   end
 
-  callback({ is_incomplete_forward = true, items = items })
+  callback({ is_incomplete_forward = true, is_incomplete_backward = true, items = items })
 end
 
 function Source:execute(ctx, item, callback, default_implementation)

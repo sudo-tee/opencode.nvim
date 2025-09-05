@@ -2,10 +2,11 @@
 -- Integration tests for the full plugin
 
 local core = require('opencode.core')
+local Promise = require('opencode.promise')
 local server_job = require('opencode.server_job')
 
 describe('opencode.nvim plugin', function()
-  local original_run_server_api
+  local original_call_api
   local original_schedule
 
   before_each(function()
@@ -13,8 +14,15 @@ describe('opencode.nvim plugin', function()
     vim.schedule = function(fn)
       fn()
     end
-    -- Mock core.run_server_api to prevent server spawning
-    original_run_server_api = core.run_server_api
+    original_call_api = server_job.call_api
+
+    server_job.call_api = function(url, method, body)
+      if url:find('/config') then
+        return Promise.new():resolve({ agent = {} })
+      elseif url:find('/project/current') then
+        return Promise.new():resolve({ name = 'TestProject', path = '/path/to/project' })
+      end
+    end
     server_job.with_server = function(cb, opts)
       vim.schedule(function()
         cb({
@@ -22,18 +30,12 @@ describe('opencode.nvim plugin', function()
         }, 'http://localhost:1234')
       end)
     end
-    core.run_server_api = function(_, _m, _b, opts)
-      -- Mock successful response
-      if opts.on_done then
-        opts.on_done({ agents = {} })
-      end
-    end
   end)
 
   after_each(function()
     -- Restore original function
-    if original_run_server_api then
-      core.run_server_api = original_run_server_api
+    if original_call_api then
+      server_job.call_api = original_call_api
     end
     vim.schedule = original_schedule
   end)

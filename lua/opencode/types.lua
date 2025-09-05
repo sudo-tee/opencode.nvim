@@ -1,4 +1,22 @@
 
+---@class OpencodeConfigFile
+---@field theme string
+---@field autoshare boolean
+---@field autoupdate boolean
+---@field model string
+---@field agent table<string, table>
+---@field mcp table<string, table>
+---@field mode table<string, table>
+---@field command table<string, table>
+---@field plugin table[]
+---@field username string
+
+---@class OpencodeProject
+---@field id string
+---@field worktree string
+---@field vcs string
+---@field time { created: number }
+
 ---@class OpencodeUserCommandFrontMatter
 ---@field description string
 ---@field agent string
@@ -144,7 +162,6 @@
 --- @field count number|nil
 
 --- @class GlobToolInput
---
 --- @field path? string Optional directory to search in
 
 --- @class ListToolOutput

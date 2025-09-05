@@ -86,23 +86,20 @@ describe('server_job', function()
     assert.same({ ok = true }, done_result)
   end)
 
-  it('should call API and invoke callback', function()
+  it('should call API and and return a promise', function()
     local curl = require('plenary.curl')
-    local cb_called, cb_err, cb_result
+    local cb_result
     curl.request = function(opts)
       vim.schedule(function()
         opts.callback({ status = 200, body = '{"ok":true}' })
       end)
     end
-    server_job.call_api('http://localhost:8080/api/test', 'GET', nil, function(err, result)
-      cb_called = true
-      cb_err = err
-      cb_result = result
-    end)
-    vim.wait(100, function()
-      return cb_called
-    end, 10)
-    assert.is_nil(cb_err)
+    server_job
+      .call_api('http://localhost:8080/api/test', 'GET', nil)
+      :and_then(function(result)
+        cb_result = result
+      end)
+      :wait()
     assert.same({ ok = true }, cb_result)
   end)
 end)

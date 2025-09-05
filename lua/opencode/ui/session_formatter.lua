@@ -445,7 +445,7 @@ function M._format_diff(code, file_type)
       M.output:add_extmark(line_idx, function()
         return {
           end_col = 0,
-          end_row = line_idx + 1,
+          end_row = line_idx,
           virt_text = { { first_char, { hl_group } } },
           hl_group = hl_group,
           hl_eol = true,

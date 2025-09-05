@@ -1,6 +1,7 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
 local curl = require('plenary.curl')
+local promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
 local M = {}
@@ -18,21 +19,29 @@ local function handle_api_response(response, cb)
 end
 
 --- Make an HTTP API call to the opencode server.
+--- @generic T
 --- @param url string The API endpoint URL
 --- @param method string|nil HTTP method (default: 'GET')
 --- @param body table|nil Request body (will be JSON encoded)
---- @param cb fun(err: any, result: any) Callback for response
-function M.call_api(url, method, body, cb)
+--- @return Promise<T> promise A promise that resolves with the result or rejects with an error
+function M.call_api(url, method, body)
+  local p = promise.new()
   local opts = {
     url = url,
     method = method or 'GET',
     headers = { ['Content-Type'] = 'application/json' },
     proxy = '',
     callback = function(response)
-      handle_api_response(response, cb)
+      handle_api_response(response, function(err, result)
+        if err then
+          p:reject(err)
+        else
+          p:resolve(result)
+        end
+      end)
     end,
     on_error = function(err)
-      cb(err, nil)
+      p:reject(err)
     end,
   }
 
@@ -41,6 +50,7 @@ function M.call_api(url, method, body, cb)
   end
 
   curl.request(opts)
+  return p
 end
 
 --- @class OpencodeServerRunOpts
@@ -62,14 +72,15 @@ function M.run(endpoint, method, body, opts)
 
   return M.with_server(function(server_job, base_url)
     local url = base_url .. endpoint
-    M.call_api(url, method, body, function(err, result)
-      if err then
-        safe_call(opts.on_error, err)
-      else
+    M.call_api(url, method, body)
+      :and_then(function(result)
         safe_call(opts.on_done, result)
-      end
-      server_job:shutdown()
-    end)
+        server_job:shutdown()
+      end)
+      :catch(function(err)
+        safe_call(opts.on_error, err)
+        server_job:shutdown()
+      end)
   end, opts)
 end
 

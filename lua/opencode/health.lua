@@ -159,6 +159,42 @@ local function check_integrations()
   else
     health.info('snacks.nvim not found')
   end
+
+  local blink_ok, _ = pcall(require, 'blink.cmp')
+  if blink_ok then
+    health.ok('blink found (enhanced completion available)')
+  else
+    health.info('blink not found')
+  end
+
+  local cmp_ok, _ = pcall(require, 'cmp')
+  if cmp_ok then
+    health.ok('nvim-cmp found (enhanced completion available)')
+  else
+    health.info('nvim-cmp not found')
+  end
+
+  if not blink_ok and not cmp_ok then
+    health.warn('No completion engine found, will fallback to vim_complete (consider installing blink or nvim-cmp)')
+  end
+end
+
+local function check_finder_cli_tools()
+  health.start('Finder CLI Tools')
+
+  local find_cmds = { 'fd', 'rg', 'git', 'find' }
+  local found = false
+  for _, cmd in ipairs(find_cmds) do
+    if command_exists(cmd) then
+      health.ok(string.format('Found file finder command: %s', cmd))
+      found = true
+      break
+    end
+  end
+
+  if not found then
+    health.warn('No file finder command found (consider installing fd, rg, git, or find)')
+  end
 end
 
 function M.check()
@@ -167,6 +203,7 @@ function M.check()
   check_configuration()
   check_environment()
   check_integrations()
+  check_finder_cli_tools()
 end
 
 return M

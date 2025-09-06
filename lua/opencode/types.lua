@@ -59,7 +59,8 @@
 --- @field stop string
 --- @field next_message string
 --- @field prev_message string
---- @field mention_file string
+--- @field mention_file string # mention files with a file picker
+--- @field mention string # mention subagents or files with a completion popup
 --- @field slash_commands string
 --- @field toggle_pane string
 --- @field prev_prompt_history string
@@ -71,6 +72,16 @@
 --- @class OpencodeKeymap
 --- @field global OpencodeKeymapGlobal
 --- @field window OpencodeKeymapWindow
+
+--- @class OpencodeCompletionFileSourcesConfig
+--- @field enabled boolean
+--- @field preferred_cli_tool 'fd'|'fdfind'|'rg'|'git'|'find'
+--- @field ignore_patterns string[]
+--- @field max_files number
+--- @field cache_timeout number
+
+--- @class OpencodeCompletionConfig
+--- @field file_sources OpencodeCompletionFileSourcesConfig
 
 --- @class OpencodeUIConfig
 --- @field position 'right'|'left' # Position of the UI (default: 'right')
@@ -84,6 +95,7 @@
 --- @field icons { preset: 'emoji'|'text', overrides: table<string,string> }
 --- @field output { tools: { show_output: boolean } }
 --- @field input { text: { wrap: boolean } }
+--- @field completion OpencodeCompletionConfig
 
 --- @class OpencodeContextConfig
 --- @field cursor_data boolean
@@ -96,7 +108,8 @@
 --- @field [string] string[]
 
 --- @class OpencodeConfig
---- @field prefered_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
+--- @field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
+--- @field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
 --- @field default_global_keymaps boolean
 --- @field default_mode 'build' | 'plan' | string -- Default mode
 --- @field config_file_path string|nil Path to the configuration file
@@ -162,6 +175,7 @@
 --- @field count number|nil
 
 --- @class GlobToolInput
+--- @field pattern string The glob pattern to match files against
 --- @field path? string Optional directory to search in
 
 --- @class ListToolOutput
@@ -251,3 +265,38 @@
 ---@field no_context? boolean
 ---@field model? string
 ---@field agent? string
+
+---@class CompletionContext
+---@field trigger_char string The character that triggered completion
+---@field input string The current input text
+---@field cursor_pos number Current cursor position
+---@field line string The full current line text
+
+---@class CompletionItem
+---@field label string Display text for the completion item
+---@field kind string Type of completion item (e.g., 'file', 'subagent')
+---@field detail string Additional detail text
+---@field documentation string Documentation text
+---@field insert_text string Text to insert when selected
+---@field source_name string Name of the completion source
+---@field data table Additional data associated with the item
+
+---@class CompletionSource
+---@field name string Name of the completion source
+---@field priority number Priority for ordering sources
+---@field complete fun(context: CompletionContext): CompletionItem[] Function to generate completion items
+---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
+
+---@class OpencodeContext
+---@field current_file { path: string, name: string, extension: string }|nil
+---@field current_cursor { line: number, column: number, content: string }|nil
+---@field mentioned_files string[]|nil
+---@field mentioned_subagents string[]|nil
+---@field selections { file: string, content: string, lines: { from: number, to: number } }[]|nil
+---@field linter_errors string|nil
+
+---@class OpencodeProject
+---@field id string
+---@field worktree string
+---@field vcs? string
+---@field time { created: number }

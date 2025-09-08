@@ -56,7 +56,7 @@ function M.format_session(session)
       M.output:add_metadata(M._current)
 
       if part.type == 'text' and part.text then
-        if msg.role == 'user' then
+        if msg.role == 'user' and not part.synthetic == true then
           M._format_user_message(vim.trim(part.text))
         elseif msg.role == 'assistant' then
           M._format_assistant_message(vim.trim(part.text))

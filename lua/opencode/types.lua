@@ -206,6 +206,7 @@
 --- @field messageID string|nil Message identifier
 --- @field hash string|nil Hash identifier for patch parts
 --- @field files string[]|nil List of file paths for patch parts
+--- @field synthetic boolean|nil Whether the message was generated synthetically
 
 --- @class MessageTokenCount
 --- @field reasoning number

@@ -23,7 +23,7 @@ function M.select_session()
     end
     state.active_session = selected_session
     if state.windows then
-      ui.render_output()
+      ui.render_output(true)
       ui.scroll_to_bottom()
       ui.focus_input()
     else

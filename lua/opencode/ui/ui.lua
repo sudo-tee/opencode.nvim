@@ -177,8 +177,9 @@ function M.clear_output()
   -- state.restore_points = {}
 end
 
-function M.render_output()
-  renderer.render(state.windows, false)
+function M.render_output(force)
+  force = force or false
+  renderer.render(state.windows, force)
 end
 
 function M.render_lines(lines)

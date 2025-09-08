@@ -110,7 +110,13 @@ describe('config_file.setup', function()
       local server_job = require('opencode.server_job')
       server_job.call_api = function(url, method, body)
         if url:find('/config') then
-          return Promise.new():resolve({ agent = { ['custom-agent'] = {}, ['another-agent'] = {} } })
+          return Promise.new():resolve({
+            agent = {
+              ['custom-agent'] = { mode = 'primary' },
+              ['another-agent'] = { mode = 'primary' },
+              ['no-subagent'] = { mode = 'subagent' },
+            },
+          })
         end
         if url:find('/project/current') then
           return Promise.new():resolve({ name = 'Test Project' })

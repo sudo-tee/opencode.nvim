@@ -26,17 +26,17 @@ local function find_files_fast(pattern)
   local max = file_config.max_files or 10
 
   local commands = {
-    fd = string.format(' --type f --full-path -i %s --max-results %d 2>/dev/null', pattern, max),
-    fdfind = string.format(' --type f --full-path -i %s --max-results %d 2>/dev/null', pattern, max),
-    rg = string.format(' --files | grep -i %s 2>/dev/null | head -%d', pattern, max),
-    git = string.format(' ls-files --cached --others --exclude-standard | grep -i %s | head -%d', pattern, max),
+    fd = ' --type f --type l --full-path  --color=never -E .git -E node_modules -i %s --max-results %d 2>/dev/null',
+    fdfind = ' --type f --type l --color=never -E .git -E node_modules --full-path -i %s --max-results %d 2>/dev/null',
+    rg = ' --files --no-messages --color=never | grep -i %s 2>/dev/null | head -%d',
+    git = ' ls-files --cached --others --exclude-standard | grep -i %s | head -%d',
   }
 
   local tools_to_try = commands[cli_tool] and { [cli_tool] = commands[cli_tool] } or commands
 
   for tool, args in pairs(tools_to_try) do
     if vim.fn.executable(tool) then
-      local result = run_systemlist(tool .. args)
+      local result = run_systemlist(tool .. string.format(args, pattern, max))
       if result then
         return vim.tbl_filter(should_keep(file_config.ignore_patterns or {}), result)
       end

@@ -96,6 +96,40 @@ describe('opencode.context', function()
   end)
 
   describe('format_message', function()
+    it('populates mentioned_files_content with file content', function()
+      -- Mock template.render_template to capture variables
+      local original_render = template.render_template
+      local called_with_vars = nil
+      template.render_template = function(vars)
+        called_with_vars = vars
+        return 'rendered template with mentioned_files_content'
+      end
+
+      -- Create a temp file and add to mentioned_files
+      local file_content = 'foo\nbar\nbaz'
+      local temp_file = helpers.create_temp_file(file_content)
+      context.context.mentioned_files = { temp_file }
+      context.context.mentioned_files_content = nil
+
+      -- Call format_message
+      local prompt = 'Show me the file content'
+      local message = context.format_message(prompt)
+
+      -- Restore original function and cleanup
+      template.render_template = original_render
+      helpers.delete_temp_file(temp_file)
+
+      -- Check mentioned_files_content is present and correct
+      assert.truthy(called_with_vars)
+      assert.truthy(called_with_vars.mentioned_files_content)
+      assert.truthy(called_with_vars.mentioned_files_content[temp_file])
+      -- Should contain line numbers and file content
+      assert.match('000001 | foo', called_with_vars.mentioned_files_content[temp_file])
+      assert.match('000002 | bar', called_with_vars.mentioned_files_content[temp_file])
+      assert.match('000003 | baz', called_with_vars.mentioned_files_content[temp_file])
+      assert.equal('rendered template with mentioned_files_content', message)
+    end)
+
     it('formats message with file path and prompt', function()
       -- Mock template.render_template to verify it's called with right params
       local original_render = template.render_template

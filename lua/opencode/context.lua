@@ -13,6 +13,7 @@ M.context = {
 
   -- attachments
   mentioned_files = nil,
+  mentioned_files_content = nil,
   selections = nil,
   linter_errors = nil,
   mentioned_subagents = nil,
@@ -20,6 +21,7 @@ M.context = {
 
 function M.unload_attachments()
   M.context.mentioned_files = nil
+  M.context.mentioned_files_content = nil
   M.context.selections = nil
   M.context.linter_errors = nil
 end
@@ -198,6 +200,10 @@ function M.format_message(prompt)
   context = M.delta_context()
 
   context.prompt = prompt
+  for _, file in ipairs(context.mentioned_files or {}) do
+    context.mentioned_files_content = context.mentioned_files_content or {}
+    context.mentioned_files_content[file] = util.read_file_content(file, true)
+  end
   return template.render_template(context)
 end
 

@@ -1,15 +1,6 @@
 <? if current_file or mentioned_files or selections or linter_errors then ?>
   <additional-data>
     Below is context that may help answer the user query. Ignore if not relevant
-    <rules>
-      When attached-files are present
-        - read them
-        - analyze them
-        - use them to answer the user query
-      When answering the user query, please:
-        - format code snippets using the language of the file in a markdown code block
-        - use the file path and line numbers to refer to code snippets
-    </rules>
     <? if current_file then ?>
       <current-file>
         Path: <%= current_file.path %>
@@ -44,7 +35,10 @@
         <? if mentioned_files then ?>
           <? for x, path in ipairs(mentioned_files) do ?>
             <mentioned-file>
-              Path: <%= path %>
+              Called the Read tool with the following input: {"filePath":"<%= path %>"}
+              <file>
+                <%= mentioned_files_content[path] or "" %>  
+              </file>
             </mentioned-file>
           <? end ?>
         <? end ?>

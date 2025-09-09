@@ -1,4 +1,5 @@
 local core = require('opencode.core')
+local context = require('opencode.context')
 local util = require('opencode.util')
 local session = require('opencode.session')
 local input_window = require('opencode.ui.input_window')
@@ -9,6 +10,7 @@ local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 local id = require('opencode.id')
+local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -70,19 +72,11 @@ function M.stop()
 end
 
 function M.run(prompt)
-  core.run(prompt, {
-    ensure_ui = true,
-    new_session = false,
-    focus = 'output',
-  })
+  core.send_message(prompt, { new_session = false, focus = 'output' })
 end
 
 function M.run_new_session(prompt)
-  core.run(prompt, {
-    ensure_ui = true,
-    new_session = true,
-    focus = 'output',
-  })
+  core.send_message(prompt, { new_session = true, focus = 'output' })
 end
 
 function M.select_session()
@@ -223,42 +217,24 @@ function M.next_history()
   end
 end
 
----@param title string
----@param cb fun(session: Session)?
-function M.create_new_session(title, cb)
-  core.run_server_api('/session', 'POST', { title = title }, {
-    on_error = function(err)
-      vim.notify(err, vim.log.levels.ERROR)
-    end,
-    on_done = function(data)
-      if data and data.id then
-        local new_session = session.get_by_name(data.id)
-        if new_session and cb then
-          cb(new_session)
-          return
-        end
-      else
-        vim.notify('Failed to create new session: Invalid response from server', vim.log.levels.ERROR)
-      end
-    end,
-  })
-end
-
 function M.initialize()
-  M.create_new_session('AGENTS.md Initialization', function(new_session)
-    local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
-    if not providerId or not modelId then
-      vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
-      return
-    end
-    state.active_session = new_session
-    M.open_input()
-    core.run_server_api('/session/' .. state.active_session.name .. '/init', 'POST', {
-      providerID = providerId,
-      modelID = modelId,
-      messageID = id.ascending('message'),
-    })
-  end)
+  local new_session = core.create_new_session('AGENTS.md Initialization'):wait()
+  if not new_session then
+    vim.notify('Failed to create new session', vim.log.levels.ERROR)
+    return
+  end
+  local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+  if not providerId or not modelId then
+    vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
+    return
+  end
+  state.active_session = new_session
+  M.open_input()
+  core.run_server_api('/session/' .. state.active_session.name .. '/init', 'POST', {
+    providerID = providerId,
+    modelID = modelId,
+    messageID = id.ascending('message'),
+  })
 end
 
 function M.open_configuration_file()
@@ -465,7 +441,7 @@ M.commands = {
     fn = function(opts)
       local title = opts.args and opts.args:match('^%s*(.+)')
       if title and title ~= '' then
-        M.create_new_session(title, function(new_session)
+        core.create_new_session(title, function(new_session)
           state.active_session = new_session
           M.open_input()
         end)

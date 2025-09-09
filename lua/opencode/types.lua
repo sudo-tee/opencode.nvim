@@ -261,7 +261,7 @@
 ---@field focus? 'input' | 'output'
 ---@field new_session? boolean
 
----@class RunOpts
+---@class SendMessageOpts
 ---@field new_session? boolean
 ---@field no_context? boolean
 ---@field model? string
@@ -289,15 +289,45 @@
 ---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
 
 ---@class OpencodeContext
----@field current_file { path: string, name: string, extension: string }|nil
----@field current_cursor { line: number, column: number, content: string }|nil
+---@field current_file OpencodeContextFile|nil
+---@field cursor_data OpencodeContextCursorData|nil
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
----@field selections { file: string, content: string, lines: { from: number, to: number } }[]|nil
+---@field selections OpencodeContextSelection[]|nil
 ---@field linter_errors string|nil
 
----@class OpencodeProject
----@field id string
----@field worktree string
----@field vcs? string
----@field time { created: number }
+---@class OpencodeContextSelection
+---@field file OpencodeContextFile
+---@field content string|nil
+---@field lines string|nil
+
+---@class OpencodeContextCursorData
+---@field line number
+---@field column number
+---@field line_content string
+
+---@class OpencodeContextFile
+---@field path string
+---@field name string
+---@field extension string
+
+---@class OpencodeMessagePartSourceText
+---@field start number
+---@field value string
+---@field ['end'] number
+
+---@class OpencodeMessagePartSource
+---@field path string|nil
+---@field type string|nil
+---@field text OpencodeMessagePartSourceText|nil
+---@field value string|nil
+
+---@class OpencodeMessagePart
+---@field type 'text'|'file'|'agent'|string
+---@field text string|nil
+---@field filename string|nil
+---@field mime string|nil
+---@field url string|nil
+---@field source OpencodeMessagePartSource|nil
+---@field name string|nil
+---@field synthetic boolean|nil

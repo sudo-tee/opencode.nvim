@@ -57,7 +57,7 @@ function M.format_session(session)
 
       if part.type == 'text' and part.text then
         if msg.role == 'user' and not part.synthetic == true then
-          M._format_user_message(vim.trim(part.text))
+          M._format_user_message(vim.trim(part.text), msg)
         elseif msg.role == 'assistant' then
           M._format_assistant_message(vim.trim(part.text))
         end
@@ -206,8 +206,15 @@ function M._format_callout(callout, text, title)
 end
 
 ---@param text string
-function M._format_user_message(text)
-  local context = context_module.extract_from_message(text)
+---@param message Message
+function M._format_user_message(text, message)
+  local context = nil
+  if vim.startswith(text, '<additional-data>') then
+    context = context_module.extract_from_message_legacy(text)
+  else
+    context = context_module.extract_from_opencode_message(message)
+  end
+
   local start_line = M.output:get_line_count() - 1
 
   M.output:add_empty_line()
@@ -219,7 +226,7 @@ function M._format_user_message(text)
 
   if context.current_file then
     M.output:add_empty_line()
-    local path = context.current_file
+    local path = context.current_file or ''
     if vim.startswith(path, vim.fn.getcwd()) then
       path = path:sub(#vim.fn.getcwd() + 2)
     end

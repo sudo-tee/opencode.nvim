@@ -22,10 +22,10 @@ end
 --- @generic T
 --- @param url string The API endpoint URL
 --- @param method string|nil HTTP method (default: 'GET')
---- @param body table|nil Request body (will be JSON encoded)
+--- @param body table|nil|boolean Request body (will be JSON encoded)
 --- @return Promise<T> promise A promise that resolves with the result or rejects with an error
 function M.call_api(url, method, body)
-  local p = promise.new()
+  local call_promise = promise.new()
   local opts = {
     url = url,
     method = method or 'GET',
@@ -34,23 +34,23 @@ function M.call_api(url, method, body)
     callback = function(response)
       handle_api_response(response, function(err, result)
         if err then
-          p:reject(err)
+          call_promise:reject(err)
         else
-          p:resolve(result)
+          call_promise:resolve(result)
         end
       end)
     end,
     on_error = function(err)
-      p:reject(err)
+      call_promise:reject(err)
     end,
   }
 
-  if body then
-    opts.body = body and vim.json.encode(body)
+  if body ~= nil then
+    opts.body = body and vim.json.encode(body) or '{}'
   end
 
   curl.request(opts)
-  return p
+  return call_promise
 end
 
 --- @class OpencodeServerRunOpts
@@ -64,7 +64,7 @@ end
 --- Run an opencode API call by spawning a server, making the call, and cleaning up.
 --- @param endpoint string The API endpoint path (e.g. '/v1/foo')
 --- @param method string|nil HTTP method
---- @param body table|nil Request body
+--- @param body table|nil|boolean Request body
 --- @param opts OpencodeServerRunOpts
 --- @return OpencodeServer server_job The server job instance
 function M.run(endpoint, method, body, opts)
@@ -78,6 +78,11 @@ function M.run(endpoint, method, body, opts)
         server_job:shutdown()
       end)
       :catch(function(err)
+        if err.exit == 52 then
+          server_job:on_interrupt()
+          safe_call(opts.on_interrupt)
+          return
+        end
         safe_call(opts.on_error, err)
         server_job:shutdown()
       end)

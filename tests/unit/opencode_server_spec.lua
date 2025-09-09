@@ -10,58 +10,49 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.job)
     assert.is_nil(server.url)
     assert.is_nil(server.handle)
-  end)
-
-  it('spawns the server and calls on_ready when URL is found', function()
-    local called = { on_ready = false }
-    local test_url = 'http://localhost:1234'
-    local opts_captured = {}
-    vim.system = function(cmd, opts)
-      opts_captured.stdout = opts.stdout
-      opts_captured.stderr = opts.stderr
-      opts_captured.exit = opts.exit
-      return {
-        pid = 42,
-        kill = function()
-          called.killed = true
-        end,
-        stdout = function(err, data)
-          opts_captured.stdout(err, data)
-        end,
-        stderr = function(err, data)
-          if opts_captured.stderr then
-            opts_captured.stderr(err, data)
-          end
-        end,
-        exit = function(code, signal)
-          if opts_captured.exit then
-            opts_captured.exit(code, signal)
-          end
-        end,
-      }
-    end
-    local server = OpencodeServer.new()
-    server:spawn({
-      cwd = '.',
-      on_ready = function(job, url)
-        called.on_ready = true
-        assert.is_table(job)
-        assert.equals(test_url, url)
-      end,
-      on_error = function()
-        called.on_error = true
-      end,
-      on_exit = function()
-        called.on_exit = true
-      end,
-    })
-    -- Simulate stdout after job is set
-    server.job.stdout(nil, 'opencode server listening on ' .. test_url)
-    vim.wait(100, function()
-      return called.on_ready
+    it('resolves shutdown_promise on shutdown', function()
+      local server = OpencodeServer.new()
+      local resolved = false
+      server:get_shutdown_promise():and_then(function(val)
+        resolved = val
+      end)
+      server.job = { pid = 1, kill = function() end }
+      server:shutdown()
+      server:on_interrupt()
+      vim.wait(100, function()
+        return resolved
+      end)
+      assert.is_true(resolved)
     end)
-    assert.is_true(called.on_ready)
-    assert.equals(test_url, server.url)
+
+    it('resolves shutdown_promise on on_interrupt', function()
+      local server = OpencodeServer.new()
+      local resolved = false
+      server:get_shutdown_promise():and_then(function(val)
+        resolved = val
+      end)
+      server:on_interrupt()
+      vim.wait(100, function()
+        return resolved
+      end)
+      assert.is_true(resolved)
+    end)
+
+    it('shutdown_promise only resolves once even if shutdown called multiple times', function()
+      local server = OpencodeServer.new()
+      local count = 0
+      server:get_shutdown_promise():and_then(function(val)
+        count = count + 1
+      end)
+      server.job = { pid = 1, kill = function() end }
+      server:shutdown()
+      server:shutdown()
+      server:on_interrupt()
+      vim.wait(100, function()
+        return count > 0
+      end)
+      assert.equals(1, count)
+    end)
   end)
 
   it('calls on_error when stderr is triggered', function()

@@ -3,10 +3,10 @@ local state = require('opencode.state')
 local context = require('opencode.context')
 local session = require('opencode.session')
 local ui = require('opencode.ui.ui')
-local job = require('opencode.job')
 local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
+local Promise = require('opencode.promise')
 
 function M.select_session()
   local all_sessions = session.get_all_workspace_sessions() or {}
@@ -68,73 +68,74 @@ function M.open(opts)
   end
 end
 
----@param prompt string
----@param opts? RunOpts
-function M.run(prompt, opts)
-  if not M.opencode_ok() then
-    return false
+--- Sends a message to the active session, creating one if necessary.
+--- @param prompt string The message prompt to send.
+--- @param opts? SendMessageOpts
+function M.send_message(prompt, opts)
+  opts = opts or {}
+  if not state.active_session or opts.new_session then
+    state.active_session = M.create_new_session(nil):wait()
   end
-  M.before_run(opts)
 
-  -- Add small delay to ensure stop is complete
-  vim.defer_fn(function()
-    job.execute(prompt, {
-      on_start = function()
-        state.was_interrupted = false
-        M.after_run(prompt)
-      end,
-      on_output = function(output)
-        vim.cmd('checktime')
-
-        if output and not state.active_session then
-          local found = string.match(output, 'sessionID=(ses_%w+)')
-          if found then
-            state.active_session = session.get_by_name(found)
-            state.new_session_name = found
-          end
-        end
-        state.last_output = os.time()
-        ui.render_output()
-      end,
-      on_error = function(err)
-        vim.notify(err, vim.log.levels.ERROR)
-
-        ui.close_windows(state.windows)
-      end,
-      on_exit = function()
-        state.opencode_run_job = nil
-        state.last_output = os.time()
-        ui.render_output()
-      end,
-      on_interrupt = function()
-        state.opencode_run_job = nil
-        state.was_interrupted = true
-        state.last_output = os.time()
-
-        ui.render_output()
-        vim.notify('Opencode run interrupted by user', vim.log.levels.WARN)
-      end,
-    }, opts and { no_context = opts.no_context or false, model = opts.model, agent = opts.agent } or nil)
-  end, 10)
+  local message_parts = opts.no_context and { { type = 'text', text = prompt } } or context.format_message(prompt)
+  M.run_server_api('/session/' .. state.active_session.name .. '/message', 'POST', {
+    parts = message_parts,
+  }, {
+    on_done = function()
+      M.after_run(prompt)
+    end,
+    on_error = function(err)
+      vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    end,
+  })
 end
 
-function M.after_run(prompt, background)
+---@param title? string
+---@param cb fun(session: Session)?
+---@return Promise<Session>
+function M.create_new_session(title, cb)
+  ---@type Promise<Session>
+  local promise = Promise.new()
+  M.run_server_api('/session', 'POST', title and { title = title } or false, {
+    on_error = function(err)
+      promise:reject(err)
+      vim.notify(vim.inspect(err), vim.log.levels.ERROR)
+    end,
+    on_done = function(data)
+      if data and data.id then
+        local new_session = session.get_by_name(data.id)
+        if new_session then
+          if cb then
+            cb(new_session)
+          end
+          promise:resolve(new_session)
+          return
+        end
+      else
+        vim.notify('Failed to create new session: Invalid response from server', vim.log.levels.ERROR)
+      end
+    end,
+  })
+  return promise
+end
+
+---@param prompt string
+function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
-  if not background then
-    ui.focus_output()
-    require('opencode.history').write(prompt)
+  ui.focus_output()
+  require('opencode.history').write(prompt)
 
-    if state.windows then
-      ui.render_output()
-    end
+  if state.windows then
+    ui.render_output()
   end
 end
 
----@param opts? RunOpts
+---@param opts? SendMessageOpts
 function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   M.stop()
+
   if is_new_session then
     ui.clear_output()
   end
@@ -148,13 +149,9 @@ end
 
 ---@param endpoint string
 ---@param method string
----@param body table|nil
+---@param body table|nil|boolean
 ---@param opts? {cwd: string, background: boolean, on_done: fun(result: any), on_error: fun(err: any)}
 function M.run_server_api(endpoint, method, body, opts)
-  if state.opencode_server_job then
-    return
-  end
-
   opts = opts or {}
   if not opts.background then
     M.before_run(opts)
@@ -175,10 +172,6 @@ function M.run_server_api(endpoint, method, body, opts)
     on_error = function(err)
       state.opencode_server_job = nil
       state.last_output = os.time()
-      if err.exit == 52 then
-        state.was_interrupted = true
-        return
-      end
       ui.render_output()
       vim.notify(err.message, vim.log.levels.ERROR)
       util.safe_call(opts.on_error, err)
@@ -210,40 +203,6 @@ function M.add_file_to_context()
   end)
 end
 
-function M.select_slash_commands()
-  local custom_command_key = require('opencode.config').get('keymap').window.slash_commands
-  if not input_window.is_empty() then
-    if #custom_command_key == 1 then
-      vim.api.nvim_feedkeys(custom_command_key, 'n', false)
-    end
-    return
-  end
-
-  local api = require('opencode.api')
-  local commands = api.get_slash_commands() or {}
-
-  local cmd_len = 0
-  for _, cmd in ipairs(commands) do
-    cmd_len = math.max(cmd_len, #cmd.slash_cmd)
-  end
-
-  vim.ui.select(commands, {
-    prompt = 'Select command:',
-    format_item = function(item)
-      return string.format('%-' .. cmd_len .. 's │ %s', item.slash_cmd, item.desc)
-    end,
-  }, function(selection)
-    if selection and selection.fn then
-      selection.fn()
-    else
-      if #custom_command_key == 1 then
-        vim.cmd('startinsert')
-        vim.api.nvim_feedkeys(custom_command_key, 'n', false)
-      end
-    end
-  end)
-end
-
 function M.configure_provider()
   require('opencode.provider').select(function(selection)
     if not selection then
@@ -265,16 +224,13 @@ function M.configure_provider()
 end
 
 function M.stop()
-  if state.opencode_run_job then
-    job.stop(state.opencode_run_job)
-  end
-  state.opencode_run_job = nil
   if state.opencode_server_job then
-    state.opencode_server_job:shutdown()
+    state.opencode_server_job:shutdown():wait()
   end
   state.opencode_server_job = nil
 
   if state.windows then
+    require('opencode.ui.footer').clear()
     ui.stop_render_output()
     ui.render_output()
     input_window.set_content('')

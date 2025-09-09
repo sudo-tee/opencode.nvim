@@ -1,10 +1,12 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
+local Promise = require('opencode.promise')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
 --- @field url string|nil The server URL once ready
 --- @field handle any Compatibility property for job.stop interface
+--- @field shutdown_promise Promise|nil
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -15,6 +17,7 @@ function OpencodeServer.new()
     job = nil,
     url = nil,
     handle = nil,
+    shutdown_promise = Promise.new(),
   }, OpencodeServer)
 end
 
@@ -28,6 +31,11 @@ function OpencodeServer:shutdown()
   self.job = nil
   self.url = nil
   self.handle = nil
+  return self.shutdown_promise
+end
+
+function OpencodeServer:on_interrupt()
+  self.shutdown_promise:resolve(true)
 end
 
 --- @class OpencodeServerSpawnOpts
@@ -69,14 +77,18 @@ function OpencodeServer:spawn(opts)
       self.job = nil
       self.url = nil
       self.handle = nil
+      self.shutdown_promise:resolve(true)
       safe_call(opts.on_exit, code)
     end,
   })
 
-  -- Set handle for compatibility with job.stop interface
   self.handle = self.job and self.job.pid
 
   return self
+end
+
+function OpencodeServer:get_shutdown_promise()
+  return self.shutdown_promise
 end
 
 return OpencodeServer

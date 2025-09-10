@@ -79,7 +79,7 @@ function M.get_opencode_agents()
   end
   local agents = {}
   for agent, opts in pairs(cfg.agent or {}) do
-    if opts.mode == 'primary' then
+    if opts.mode == 'primary' or opts.mode == 'all' then
       table.insert(agents, agent)
     end
   end
@@ -99,7 +99,7 @@ function M.get_subagents()
 
   local subagents = {}
   for agent, opts in pairs(cfg.agent or {}) do
-    if opts.mode ~= 'primary' then
+    if opts.mode ~= 'primary' or opts.mode == 'all' then
       table.insert(subagents, agent)
     end
   end

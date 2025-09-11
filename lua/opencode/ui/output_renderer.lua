@@ -85,6 +85,7 @@ function M.start_refresh_timer(windows)
     on_tick = function()
       if state.is_job_running() then
         if M._should_refresh_content() then
+          vim.cmd('checktime')
           M.render(windows, true)
         end
         return true
@@ -97,6 +98,7 @@ function M.start_refresh_timer(windows)
       M.render(windows, true)
       vim.defer_fn(function()
         M.render(windows, true)
+        vim.cmd('checktime')
       end, 300)
     end,
     repeat_timer = true,

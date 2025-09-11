@@ -50,7 +50,7 @@ function M.setup(windows)
   M.setup_keymaps(windows)
   state.subscribe('restore_points', function(_, new_val, old_val)
     local outout_renderer = require('opencode.ui.output_renderer')
-    outout_renderer.render(windows, true)
+    outout_renderer.render(state.windows, true)
   end)
 end
 

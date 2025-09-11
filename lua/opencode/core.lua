@@ -164,6 +164,7 @@ function M.run_server_api(endpoint, method, body, opts)
       ui.render_output()
     end,
     on_done = function(result)
+      state.was_interrupted = false
       state.opencode_server_job = nil
       state.last_output = os.time()
       ui.render_output()
@@ -225,7 +226,8 @@ end
 
 function M.stop()
   if state.opencode_server_job then
-    state.opencode_server_job:shutdown():wait()
+    state.opencode_server_job:shutdown()
+    state.opencode_server_job:get_interrupt_promise():wait()
   end
   state.opencode_server_job = nil
 

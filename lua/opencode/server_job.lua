@@ -106,11 +106,12 @@ function M.with_server(cb, opts)
       server_job:shutdown()
       safe_call(opts.on_error, err)
     end,
-    on_exit = function(code)
+    on_exit = function(exit_opts)
+      local code = exit_opts.code
       if code == nil then
         safe_call(opts.on_interrupt)
       elseif code and code ~= 0 then
-        safe_call(opts.on_error, 'Server exited with code ' .. tostring(code))
+        safe_call(opts.on_error, 'Server exited with code ' .. vim.inspect(code))
       end
       server_job:shutdown()
     end,

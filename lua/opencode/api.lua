@@ -237,19 +237,6 @@ function M.initialize()
   })
 end
 
-function M.open_configuration_file()
-  local config_path = require('opencode.config_file').config_file
-  if vim.fn.filereadable(config_path) == 1 then
-    if ui.is_opencode_focused() then
-      vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
-    end
-
-    vim.cmd('edit ' .. config_path)
-  else
-    vim.notify('Configuration file not found: ' .. config_path, 'error')
-  end
-end
-
 function M.agent_plan()
   state.current_mode = 'plan'
   require('opencode.ui.topbar').render()
@@ -660,14 +647,6 @@ M.commands = {
     desc = 'Display list of mcp servers',
     fn = function()
       M.mcp()
-    end,
-  },
-
-  open_configuration_file = {
-    name = 'OpencodeConfigFile',
-    desc = 'Open opencode configuration file',
-    fn = function()
-      M.open_configuration_file()
     end,
   },
 

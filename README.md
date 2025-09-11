@@ -278,7 +278,6 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Initialize/update AGENTS.md file                 | -              | `:OpencodeInit`                   | `require('opencode.api').initialize()`                   |
 | Run prompt (continue session)                    | -              | `:OpencodeRun <prompt>`           | `require('opencode.api').run("prompt")`                  |
 | Run prompt (new session)                         | -              | `:OpencodeRunNewSession <prompt>` | `require('opencode.api').run_new_session("prompt")`      |
-| Open config file                                 | -              | `:OpencodeConfigFile`             | `require('opencode.api').open_configuration_file()`      |
 | Stop opencode while it is running                | `<C-c>`        | `:OpencodeStop`                   | `require('opencode.api').stop()`                         |
 | Set mode to Build                                | -              | `:OpencodeAgentBuild`             | `require('opencode.api').mode_build()`                   |
 | Set mode to Plan                                 | -              | `:OpencodeAgentPlan`              | `require('opencode.api').mode_plan()`                    |

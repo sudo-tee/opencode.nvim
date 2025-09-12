@@ -10,7 +10,10 @@ function M.highlight_all_mentions(buf)
   pcall(vim.api.nvim_buf_clear_namespace, buf, mentions_namespace, 0, -1)
 
   -- Get all lines in buffer
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local ok_lines, lines = pcall(vim.api.nvim_buf_get_lines, buf, 0, -1, false)
+  if not ok_lines then
+    return
+  end
 
   for row, line in ipairs(lines) do
     local start_idx = 1

@@ -55,6 +55,39 @@ local function check_opencode_cli()
   health.ok(string.format('opencode CLI version: %s (>= %s required)', version, required_version))
 end
 
+local function check_opencode_server()
+  health.start('OpenCode Server')
+  local opencode_server = require('opencode.opencode_server').new()
+  local server = opencode_server:spawn():wait() --[[@as OpencodeServer]]
+  if server and server.url then
+    health.ok('opencode server started successfully at ' .. server.url)
+  else
+    health.error('Failed to start opencode server')
+  end
+
+  -- Ensure the server is really running by making a simple request
+  local server_job = require('opencode.server_job')
+  local result = server_job.call_api(server.url .. '/config', 'GET', nil):wait()
+  if result and result then
+    health.ok('opencode server is reachable')
+    if result['$schema'] then
+      health.ok('opencode server configuration available')
+    else
+      health.error('opencode server configuration not available')
+    end
+  else
+    health.error('opencode server did not respond as expected')
+  end
+
+  local shutdown_promise = server:shutdown()
+  shutdown_promise:wait()
+  if shutdown_promise:is_resolved() then
+    health.ok('opencode server shut down successfully')
+  else
+    health.error('Failed to shut down opencode server')
+  end
+end
+
 local function check_dependencies()
   health.start('Dependencies')
 
@@ -199,6 +232,7 @@ end
 
 function M.check()
   check_opencode_cli()
+  check_opencode_server()
   check_dependencies()
   check_configuration()
   check_environment()

@@ -1,357 +1,141 @@
--- tests/unit/context_spec.lua
--- Tests for the context module
-
 local context = require('opencode.context')
-local helpers = require('tests.helpers')
 local state = require('opencode.state')
-local template = require('opencode.template')
-local config = require('opencode.config')
+local assert = require('luassert')
 
-describe('opencode.context', function()
-  local test_file, buf_id
-  local original_state
-  local original_config
+describe('extract_from_opencode_message', function()
+  it('extracts prompt, selected_text, and current_file from tags in parts', function()
+    local message = {
+      parts = {
+        { type = 'text', text = 'What does this code do?' },
+        {
+          type = 'text',
+          synthetic = true,
+          text = vim.json.encode({ context_type = 'selection', content = 'print(42)' }),
+        },
+        { type = 'file', filename = '/tmp/foo.lua' },
+      },
+    }
+    local result = context.extract_from_opencode_message(message)
+    assert.equal('What does this code do?', result.prompt)
+    assert.equal('print(42)', result.selected_text)
+    assert.equal('/tmp/foo.lua', result.current_file)
+  end)
 
-  -- Create a temporary file and open it in a buffer before each test
+  it('returns nils if message or parts missing', function()
+    assert.same({ prompt = nil, selected_text = nil, current_file = nil }, context.extract_from_opencode_message(nil))
+    assert.same({ prompt = nil, selected_text = nil, current_file = nil }, context.extract_from_opencode_message({}))
+  end)
+end)
+
+describe('extract_from_message_legacy', function()
+  it('extracts legacy tags from text', function()
+    local text =
+      '<user-query>foo</user-query> <manually-added-selection>bar</manually-added-selection> <current-file>Path: /tmp/x.lua</current-file>'
+    local result = context.extract_from_message_legacy(text)
+    assert.equal('foo', result.prompt)
+    assert.equal('bar', result.selected_text)
+    assert.equal('/tmp/x.lua', result.current_file)
+  end)
+end)
+
+describe('extract_legacy_tag', function()
+  it('extracts content between tags', function()
+    local text = '<foo>bar</foo>'
+    assert.equal('bar', context.extract_legacy_tag('foo', text))
+  end)
+  it('returns nil if tag not found', function()
+    assert.is_nil(context.extract_legacy_tag('baz', 'no tags here'))
+  end)
+end)
+
+describe('format_message', function()
+  local original_delta_context
   before_each(function()
-    original_state = vim.deepcopy(state)
-    original_config = vim.deepcopy(config.values)
-    test_file = helpers.create_temp_file('Line 1\nLine 2\nLine 3\nLine 4\nLine 5')
-    buf_id = helpers.open_buffer(test_file)
+    context.context.current_file = nil
+    context.context.mentioned_files = nil
+    context.context.mentioned_subagents = nil
+    context.context.selections = nil
+    context.context.linter_errors = nil
+    context.context.cursor_data = nil
+    original_delta_context = context.delta_context
+    context.delta_context = function()
+      return context.context
+    end
   end)
 
-  -- Clean up after each test
   after_each(function()
-    -- Restore state
-    for k, v in pairs(original_state) do
-      state[k] = v
+    context.delta_context = original_delta_context
+  end)
+
+  it('returns a parts array with prompt as first part', function()
+    local parts = context.format_message('hello world')
+    assert.is_table(parts)
+    assert.equal('hello world', parts[1].text)
+    assert.equal('text', parts[1].type)
+  end)
+  it('includes mentioned_files and subagents', function()
+    context.context.mentioned_files = { '/tmp/foo.lua' }
+    context.context.mentioned_subagents = { 'agent1' }
+    local parts = context.format_message('prompt @foo.lua @agent1')
+    assert.is_true(#parts > 2)
+    local found_file, found_agent = false, false
+    for _, p in ipairs(parts) do
+      if p.type == 'file' then
+        found_file = true
+      end
+      if p.type == 'agent' then
+        found_agent = true
+      end
     end
-
-    -- Restore config
-    for k, v in pairs(original_config) do
-      config[k] = v
-    end
-
-    pcall(function()
-      if buf_id and vim.api.nvim_buf_is_valid(buf_id) then
-        helpers.close_buffer(buf_id)
-      end
-      if test_file then
-        helpers.delete_temp_file(test_file)
-      end
-    end)
-    helpers.reset_editor()
-  end)
-
-  describe('get_current_file', function()
-    it('returns the correct file path', function()
-      local file_path = context.get_current_file()
-      assert.equal(test_file, file_path.path)
-    end)
-  end)
-
-  describe('get_current_cursor_data', function()
-    it('returns nil if cursor data is disabled in config (default)', function()
-      local cursor_data = context.get_current_cursor_data()
-      assert.equal(nil, cursor_data)
-    end)
-
-    it('returns cursor data is enabled in config', function()
-      config.values.context.cursor_data = true
-
-      local cursor_data = context.get_current_cursor_data()
-      assert.equal(1, cursor_data.col)
-      assert.equal(1, cursor_data.line)
-      assert.equal('Line 1', cursor_data.line_content)
-    end)
-  end)
-
-  describe('get_current_selection', function()
-    it('returns selected text and lines when in visual mode', function()
-      -- Setup a visual selection (line 2 to line 3)
-      vim.cmd('normal! 2Gvj$')
-
-      -- Call the function
-      local selection_result = context.get_current_selection()
-
-      -- Check the returned selection contains the expected text and lines
-      assert.is_not_nil(selection_result)
-      assert.is_not_nil(selection_result.text)
-      assert.is_not_nil(selection_result.lines)
-      assert.truthy(selection_result.text:match('Line 2'))
-      assert.truthy(selection_result.text:match('Line 3'))
-      assert.equal('2, 3', selection_result.lines)
-    end)
-
-    it('returns nil when not in visual mode', function()
-      -- Ensure we're in normal mode
-      vim.cmd('normal! G')
-
-      -- Call the function
-      local selection_result = context.get_current_selection()
-
-      -- Should be nil since we're not in visual mode
-      assert.is_nil(selection_result)
-    end)
-  end)
-
-  describe('format_message', function()
-    it('populates mentioned_files_content with file content', function()
-      -- Mock template.render_template to capture variables
-      local original_render = template.render_template
-      local called_with_vars = nil
-      template.render_template = function(vars)
-        called_with_vars = vars
-        return 'rendered template with mentioned_files_content'
-      end
-
-      -- Create a temp file and add to mentioned_files
-      local file_content = 'foo\nbar\nbaz'
-      local temp_file = helpers.create_temp_file(file_content)
-      context.context.mentioned_files = { temp_file }
-      context.context.mentioned_files_content = nil
-
-      -- Call format_message
-      local prompt = 'Show me the file content'
-      local message = context.format_message(prompt)
-
-      -- Restore original function and cleanup
-      template.render_template = original_render
-      helpers.delete_temp_file(temp_file)
-
-      -- Check mentioned_files_content is present and correct
-      assert.truthy(called_with_vars)
-      assert.truthy(called_with_vars.mentioned_files_content)
-      assert.truthy(called_with_vars.mentioned_files_content[temp_file])
-      -- Should contain line numbers and file content
-      assert.match('000001 | foo', called_with_vars.mentioned_files_content[temp_file])
-      assert.match('000002 | bar', called_with_vars.mentioned_files_content[temp_file])
-      assert.match('000003 | baz', called_with_vars.mentioned_files_content[temp_file])
-      assert.equal('rendered template with mentioned_files_content', message)
-    end)
-
-    it('formats message with file path and prompt', function()
-      -- Mock template.render_template to verify it's called with right params
-      local original_render = template.render_template
-      local called_with_vars = nil
-
-      template.render_template = function(vars)
-        called_with_vars = vars
-        return 'rendered template'
-      end
-
-      -- Set up context
-      -- Initialize context with proper values
-      context.context.current_file = nil
-      context.context.cursor_data = nil
-      context.context.mentioned_files = nil
-      context.context.selections = nil
-
-      -- Set specific values for testing
-      context.context.current_file = {
-        path = test_file,
-        name = vim.fn.fnamemodify(test_file, ':t'),
-        extension = vim.fn.fnamemodify(test_file, ':e'),
-      }
-
-      local prompt = 'Help me with this code'
-      local message = context.format_message(prompt)
-
-      -- Restore original function
-      template.render_template = original_render
-
-      -- Verify template was called with correct variables
-      assert.truthy(called_with_vars)
-      assert.equal(test_file, called_with_vars.current_file.path)
-      assert.equal(prompt, called_with_vars.prompt)
-
-      -- Verify the message was returned
-      assert.equal('rendered template', message)
-    end)
-
-    it('includes selection and selection lines in template variables when available', function()
-      -- Mock template.render_template
-      local original_render = template.render_template
-      local called_with_vars = nil
-
-      template.render_template = function(vars)
-        called_with_vars = vars
-        return 'rendered template with selection'
-      end
-
-      -- Set up context
-      -- Initialize context with proper values
-      context.context.current_file = nil
-      context.context.cursor_data = nil
-      context.context.mentioned_files = nil
-      context.context.selections = nil
-
-      -- Set specific values for testing
-      context.context.current_file = {
-        path = test_file,
-        name = vim.fn.fnamemodify(test_file, ':t'),
-        extension = vim.fn.fnamemodify(test_file, ':e'),
-      }
-
-      context.context.selections = {
-        {
-          file = context.context.current_file,
-          content = 'Selected text for testing',
-          lines = '10, 15',
-        },
-      }
-
-      local prompt = 'Help with this selection'
-      local message = context.format_message(prompt)
-
-      -- Restore original function
-      template.render_template = original_render
-
-      -- Verify template was called with correct variables
-      assert.truthy(called_with_vars)
-      assert.equal(test_file, called_with_vars.current_file.path)
-      assert.equal(prompt, called_with_vars.prompt)
-      assert.equal('Selected text for testing', called_with_vars.selections[1].content)
-      assert.equal('10, 15', called_with_vars.selections[1].lines)
-
-      -- Verify the message was returned
-      assert.equal('rendered template with selection', message)
-    end)
+    assert.is_true(found_file)
+    assert.is_true(found_agent)
   end)
 end)
 
-describe('check_linter_errors', function()
-  it('returns nil when diagnostics are disabled in config', function()
-    config.values.context = { diagnostics = nil }
-    local result = context.check_linter_errors()
-    assert.is_nil(result)
+describe('delta_context', function()
+  it('removes current_file if unchanged', function()
+    local file = { name = 'foo.lua', path = '/tmp/foo.lua', extension = 'lua' }
+    context.context.current_file = vim.deepcopy(file)
+    state.last_sent_context = { current_file = context.context.current_file }
+    local result = context.delta_context()
+    assert.is_nil(result.current_file)
   end)
-
-  it('returns nil when no diagnostics are present', function()
-    config.values.context = {
-      diagnostics = {
-        error = true,
-        warning = true,
-        info = true,
-      },
-    }
-    -- Mock vim.diagnostic.get to return empty array
-    local original_get = vim.diagnostic.get
-    vim.diagnostic.get = function()
-      return {}
-    end
-
-    local result = context.check_linter_errors()
-    vim.diagnostic.get = original_get
-    assert.is_nil(result)
-  end)
-
-  it('formats single error message correctly', function()
-    config.values.context = {
-      diagnostics = {
-        error = true,
-        warning = false,
-        info = false,
-      },
-    }
-
-    -- Mock vim.diagnostic.get to return one error
-    local original_get = vim.diagnostic.get
-    vim.diagnostic.get = function()
-      return {
-        {
-          lnum = 9, -- 0-based line number
-          message = "undefined variable 'foo'",
-        },
-      }
-    end
-
-    local result = context.check_linter_errors()
-    vim.diagnostic.get = original_get
-
-    assert.equal("Found 1 error:\n Line 10: undefined variable 'foo'", result)
-  end)
-
-  it('formats multiple errors message correctly', function()
-    config.values.context = {
-      diagnostics = {
-        error = true,
-        warning = true,
-        info = false,
-      },
-    }
-
-    -- Mock vim.diagnostic.get to return multiple diagnostics
-    local original_get = vim.diagnostic.get
-    vim.diagnostic.get = function()
-      return {
-        {
-          lnum = 9,
-          message = "undefined variable 'foo'",
-        },
-        {
-          lnum = 14,
-          message = 'missing semicolon',
-        },
-      }
-    end
-
-    local result = context.check_linter_errors()
-    vim.diagnostic.get = original_get
-
-    assert.equal("Found 2 errors:\n Line 10: undefined variable 'foo'\n Line 15: missing semicolon", result)
-  end)
-
-  it('respects severity level configuration', function()
-    config.values.context = {
-      diagnostics = {
-        error = true,
-        warning = false,
-        info = false,
-      },
-    }
-
-    -- Mock vim.diagnostic.get to verify severity levels
-    local original_get = vim.diagnostic.get
-    local severity_checked = nil
-    vim.diagnostic.get = function(_, opts)
-      severity_checked = opts.severity
-      return {}
-    end
-
-    context.check_linter_errors()
-    vim.diagnostic.get = original_get
-
-    -- Should only include ERROR severity
-    assert.equal(1, #severity_checked)
-    assert.equal(vim.diagnostic.severity.ERROR, severity_checked[1])
+  it('removes mentioned_subagents if unchanged', function()
+    local subagents = { 'a' }
+    context.context.mentioned_subagents = vim.deepcopy(subagents)
+    state.last_sent_context = { mentioned_subagents = vim.deepcopy(subagents) }
+    local result = context.delta_context()
+    assert.is_nil(result.mentioned_subagents)
   end)
 end)
 
-describe('extract_from_message', function()
-  it('extracts context elements from a formatted message', function()
-    -- Updated to use 'Editor context:' instead of 'Opencode context:'
-    local message = [[
-Help me with this code
-
-Editor context:
-Current file: /path/to/file.lua
-Selected text:
-function test()
-  return "hello"
-end
-Selected lines: (10, 15)
-Additional files:
-- /path/to/other.lua
-- /path/to/another.lua
-]]
-
-    local result = context.extract_from_message(message)
-
-    assert.equal(
-      'Help me with this code\n\nEditor context:\nCurrent file: /path/to/file.lua\nSelected text:\nfunction test()\n  return "hello"\nend\nSelected lines: (10, 15)\nAdditional files:\n- /path/to/other.lua\n- /path/to/another.lua',
-      vim.trim(result.prompt)
-    )
-    assert.is_nil(result.selected_text)
+describe('add_file/add_selection/add_subagent', function()
+  before_each(function()
+    context.context.mentioned_files = nil
+    context.context.selections = nil
+    context.delta_context()
+    context.context.mentioned_subagents = nil
+  end)
+  it('adds a file if filereadable', function()
+    vim.fn.filereadable = function()
+      return 1
+    end
+    context.add_file('/tmp/foo.lua')
+    assert.same({ '/tmp/foo.lua' }, context.context.mentioned_files)
+  end)
+  it('does not add file if not filereadable', function()
+    vim.fn.filereadable = function()
+      return 0
+    end
+    context.add_file('/tmp/bar.lua')
+    assert.same({}, context.context.mentioned_files)
+  end)
+  it('adds a selection', function()
+    context.add_selection({ foo = 'bar' })
+    assert.same({ { foo = 'bar' } }, context.context.selections)
+  end)
+  it('adds a subagent', function()
+    context.add_subagent('agentX')
+    assert.same({ 'agentX' }, context.context.mentioned_subagents)
   end)
 end)

@@ -58,7 +58,7 @@ function M.handle_submit()
   local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
   vim.api.nvim_win_set_cursor(windows.output_win, { line_count, 0 })
 
-  require('opencode.core').run(input_content)
+  require('opencode.core').send_message(input_content)
 end
 
 function M.setup(windows)

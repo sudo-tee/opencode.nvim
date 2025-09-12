@@ -2,32 +2,29 @@ local api = require('opencode.api')
 local core = require('opencode.core')
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
+local stub = require('luassert.stub')
 
 describe('opencode.api', function()
   local created_commands = {}
-  local original_create_command
 
   before_each(function()
     created_commands = {}
-    original_create_command = vim.api.nvim_create_user_command
-
-    vim.api.nvim_create_user_command = function(name, fn, opts)
+    stub(vim.api, 'nvim_create_user_command').invokes(function(name, fn, opts)
       table.insert(created_commands, {
         name = name,
         fn = fn,
         opts = opts,
       })
-    end
-
-    -- Mock core functions that commands call
-    core.open = function() end
-    core.run = function() end
-    core.stop = function() end
-    ui.close_windows = function() end
+    end)
+    stub(core, 'open')
+    stub(core, 'run')
+    stub(core, 'stop')
+    stub(core, 'send_message')
+    stub(ui, 'close_windows')
   end)
 
   after_each(function()
-    vim.api.nvim_create_user_command = original_create_command
+    -- luassert.stub automatically restores originals after each test
   end)
 
   describe('commands table', function()
@@ -83,153 +80,75 @@ describe('opencode.api', function()
         stored_fns[name] = fn
       end
 
-      -- Spy on core functions
-      local core_open_called = false
-      local core_stop_called = false
-      local core_run_called = false
-      local ui_close_called = false
-      local core_open_args = nil
-      local core_run_args = nil
-      local core_run_opts = nil
-
-      core.open = function(args)
-        core_open_called = true
-        core_open_args = args
-      end
-
-      core.run = function(args, opts)
-        core_run_called = true
-        core_run_args = args
-        core_run_opts = opts
-      end
-
-      core.stop = function()
-        core_stop_called = true
-      end
-
-      ui.close_windows = function()
-        ui_close_called = true
-      end
+      -- All core/ui methods are stubbed in before_each; no need for local spies or wrappers
 
       api.setup()
 
       -- Test open_input command
       stored_fns['OpencodeOpenInput']()
-      assert.truthy(core_open_called, 'Should call core.open')
-      assert.same({ new_session = false, focus = 'input' }, core_open_args)
-
-      -- Reset
-      core_open_called = false
-      core_open_args = nil
+      assert.stub(core.open).was_called()
+      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input' })
 
       -- Test open_input_new_session command
       stored_fns['OpencodeOpenInputNewSession']()
-      assert.truthy(core_open_called, 'Should call core.open')
-      assert.same({ new_session = true, focus = 'input' }, core_open_args)
+      assert.stub(core.open).was_called()
+      assert.stub(core.open).was_called_with({ new_session = true, focus = 'input' })
 
       -- Test stop command
       stored_fns['OpencodeStop']()
-      assert.truthy(core_stop_called, 'Should call core.stop')
+      assert.stub(core.stop).was_called()
 
       -- Test close command
       stored_fns['OpencodeClose']()
-      assert.truthy(ui_close_called, 'Should call ui.close_windows')
+      assert.stub(ui.close_windows).was_called()
 
       -- Test run command
       local test_args = { args = 'test prompt' }
       stored_fns['OpencodeRun'](test_args)
-      assert.truthy(core_run_called, 'Should call core.run')
-      assert.equal('test prompt', core_run_args)
-      assert.same({
-        ensure_ui = true,
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt', {
         new_session = false,
         focus = 'output',
-      }, core_run_opts)
-
-      -- Reset
-      core_run_called = false
-      core_run_args = nil
-      core_run_opts = nil
+      })
 
       -- Test run_new_session command
       test_args = { args = 'test prompt new' }
       stored_fns['OpencodeRunNewSession'](test_args)
-      assert.truthy(core_run_called, 'Should call core.run')
-      assert.equal('test prompt new', core_run_args)
-      assert.same({
-        ensure_ui = true,
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt new', {
         new_session = true,
         focus = 'output',
-      }, core_run_opts)
+      })
     end)
   end)
 
   describe('Lua API', function()
     it('provides callable functions that match commands', function()
-      -- Mock core functions
-      local core_open_called = false
-      local core_run_called = false
-      local core_stop_called = false
-      local ui_close_called = false
-      local core_open_args = nil
-      local core_run_args = nil
-      local core_run_opts = nil
-
-      core.open = function(args)
-        core_open_called = true
-        core_open_args = args
-      end
-
-      core.run = function(args, opts)
-        core_run_called = true
-        core_run_args = args
-        core_run_opts = opts
-      end
-
-      core.stop = function()
-        core_stop_called = true
-      end
-
-      ui.close_windows = function()
-        ui_close_called = true
-      end
+      -- All core/ui methods are stubbed in before_each; no need for local spies or wrappers
 
       -- Test the exported functions
       assert.is_function(api.open_input, 'Should export open_input')
       api.open_input()
-      assert.truthy(core_open_called, 'Should call core.open')
-      assert.same({ new_session = false, focus = 'input' }, core_open_args)
-
-      -- Reset
-      core_open_called = false
-      core_open_args = nil
+      assert.stub(core.open).was_called()
+      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input' })
 
       -- Test run function
       assert.is_function(api.run, 'Should export run')
       api.run('test prompt')
-      assert.truthy(core_run_called, 'Should call core.run')
-      assert.equal('test prompt', core_run_args)
-      assert.same({
-        ensure_ui = true,
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt', {
         new_session = false,
         focus = 'output',
-      }, core_run_opts)
-
-      -- Reset
-      core_run_called = false
-      core_run_args = nil
-      core_run_opts = nil
+      })
 
       -- Test run_new_session function
       assert.is_function(api.run_new_session, 'Should export run_new_session')
       api.run_new_session('test prompt new')
-      assert.truthy(core_run_called, 'Should call core.run')
-      assert.equal('test prompt new', core_run_args)
-      assert.same({
-        ensure_ui = true,
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt new', {
         new_session = true,
         focus = 'output',
-      }, core_run_opts)
+      })
     end)
   end)
 end)

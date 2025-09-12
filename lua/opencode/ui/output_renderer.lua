@@ -85,6 +85,7 @@ function M.start_refresh_timer(windows)
     on_tick = function()
       if state.is_job_running() then
         if M._should_refresh_content() then
+          vim.cmd('checktime')
           M.render(windows, true)
         end
         return true
@@ -97,6 +98,7 @@ function M.start_refresh_timer(windows)
       M.render(windows, true)
       vim.defer_fn(function()
         M.render(windows, true)
+        vim.cmd('checktime')
       end, 300)
     end,
     repeat_timer = true,
@@ -150,10 +152,12 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
       end)
     end
   end
-  render()
-  require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
-  require('opencode.ui.contextual_actions').setup_contextual_actions()
-  require('opencode.ui.footer').render(windows)
+  pcall(function()
+    render()
+    require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
+    require('opencode.ui.contextual_actions').setup_contextual_actions()
+    require('opencode.ui.footer').render(windows)
+  end)
 end)
 
 function M.stop()
@@ -236,7 +240,11 @@ function M.apply_output_extmarks(windows)
 end
 
 function M.handle_auto_scroll(windows)
-  local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, windows.output_buf)
+  if not ok then
+    return
+  end
+
   local botline = vim.fn.line('w$', windows.output_win)
 
   local prev_line_count = vim.b[windows.output_buf].prev_line_count or 0

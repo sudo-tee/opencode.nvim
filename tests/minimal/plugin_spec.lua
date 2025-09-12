@@ -1,7 +1,6 @@
 -- tests/minimal/plugin_spec.lua
 -- Integration tests for the full plugin
 
-local core = require('opencode.core')
 local Promise = require('opencode.promise')
 local server_job = require('opencode.server_job')
 
@@ -46,10 +45,9 @@ describe('opencode.nvim plugin', function()
     assert.truthy(opencode, 'Plugin should be loaded')
     assert.is_function(opencode.setup, 'setup function should be available')
 
-    local job = require('opencode.job')
-    assert.truthy(job, 'job module should be loaded')
-    assert.is_function(job.build_args, 'build_args function should be available')
-    assert.is_function(job.execute, 'execute function should be available')
+    local job = require('opencode.server_job')
+    assert.truthy(job, 'server_job job module should be loaded')
+    assert.is_function(job.run, 'run function should be available')
   end)
 
   it('can be set up with custom config', function()

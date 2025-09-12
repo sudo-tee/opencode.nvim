@@ -1,8 +1,8 @@
 -- Gathers editor context
 
-local template = require('opencode.template')
 local util = require('opencode.util')
 local config = require('opencode.config')
+local state = require('opencode.state')
 
 local M = {}
 
@@ -64,15 +64,15 @@ function M.check_linter_errors()
     return nil
   end
 
-  local message = 'Found ' .. #diagnostics .. ' error' .. (#diagnostics > 1 and 's' or '') .. ':'
+  local lines = { 'Found ' .. #diagnostics .. ' error' .. (#diagnostics > 1 and 's' or '') .. ':' }
 
-  for i, diagnostic in ipairs(diagnostics) do
-    local line_number = diagnostic.lnum + 1 -- Convert to 1-based line numbers
+  for _, diagnostic in ipairs(diagnostics) do
+    local line_number = diagnostic.lnum + 1
     local short_message = diagnostic.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
-    message = message .. '\n Line ' .. line_number .. ': ' .. short_message
+    table.insert(lines, string.format(' Line %d: %s', line_number, short_message))
   end
 
-  return message
+  return table.concat(lines, '\n')
 end
 
 function M.new_selection(file, content, lines)
@@ -118,15 +118,20 @@ end
 
 function M.delta_context()
   local context = vim.deepcopy(M.context)
-  local last_context = require('opencode.state').last_sent_context
+  local last_context = state.last_sent_context
   if not last_context then
     return context
   end
 
   -- no need to send file context again
-  if context.current_file and context.current_file.name == last_context and last_context.current_file.name then
+  if
+    context.current_file
+    and last_context.current_file
+    and context.current_file.name == last_context.current_file.name
+  then
     context.current_file = nil
   end
+
   -- no need to send subagents again
   if
     context.mentioned_subagents
@@ -194,27 +199,182 @@ function M.get_current_selection()
   }
 end
 
-function M.format_message(prompt)
-  local context = nil
+local function format_file_part(path, prompt)
+  local rel_path = vim.fn.fnamemodify(path, ':~:.')
+  local mention = '@' .. rel_path
+  local pos = prompt and prompt:find(mention)
+  pos = pos and pos - 1 or 0 -- convert to 0-based index
 
-  context = M.delta_context()
-
-  context.prompt = prompt
-  for _, file in ipairs(context.mentioned_files or {}) do
-    context.mentioned_files_content = context.mentioned_files_content or {}
-    context.mentioned_files_content[file] = util.read_file_content(file, true)
+  local file_part = { filename = rel_path, type = 'file', mime = 'text/plain', url = 'file://' .. path }
+  if prompt then
+    file_part.source = {
+      path = path,
+      type = 'file',
+      text = { start = pos, value = mention, ['end'] = pos + #mention - 1 },
+    }
   end
-  return template.render_template(context)
+  return file_part
 end
 
-function M.extract_from_message(text)
-  local current_file = template.extract_tag('current-file', text)
+---@param selection OpencodeContextSelection
+local function format_selection_part(selection)
+  local lang = selection.file and selection.file.extension or ''
+
+  return {
+    type = 'text',
+    text = vim.json.encode({
+      context_type = 'selection',
+      file = selection.file,
+      content = string.format('```%s\n%s\n```', lang, selection.content),
+      lines = selection.lines,
+    }),
+    synthetic = true,
+  }
+end
+
+local function format_diagnostics_part(diagnostics)
+  return {
+    type = 'text',
+    text = vim.json.encode({ context_type = 'diagnostics', content = diagnostics }),
+    synthetic = true,
+  }
+end
+
+local function format_cursor_data_part(cursor_data)
+  return {
+    type = 'text',
+    text = vim.json.encode({ context_type = 'cursor-data', line = cursor_data.line, column = cursor_data.column }),
+    synthetic = true,
+  }
+end
+
+local function format_subagents_part(agent, prompt)
+  local mention = '@' .. agent
+  local pos = prompt:find(mention)
+  pos = pos and pos - 1 or 0 -- convert to 0-based index
+
+  return {
+    type = 'agent',
+    name = agent,
+    source = { value = mention, start = pos, ['end'] = pos + #mention },
+  }
+end
+
+--- Formats a prompt and context into message with parts for the opencode API
+---@param prompt string
+---@return OpencodeMessagePart[]
+function M.format_message(prompt)
+  local context = M.delta_context()
+  context.prompt = prompt
+
+  local parts = { { type = 'text', text = prompt } }
+
+  for _, path in ipairs(context.mentioned_files or {}) do
+    table.insert(parts, format_file_part(path, prompt))
+  end
+
+  for _, agent in ipairs(context.mentioned_subagents or {}) do
+    table.insert(parts, format_subagents_part(agent, prompt))
+  end
+
+  if context.current_file then
+    table.insert(parts, format_file_part(context.current_file.path))
+  end
+
+  for _, sel in ipairs(context.selections or {}) do
+    table.insert(parts, format_selection_part(sel))
+  end
+
+  if context.linter_errors then
+    table.insert(parts, format_diagnostics_part(context.linter_errors))
+  end
+
+  if context.cursor_data then
+    table.insert(parts, format_cursor_data_part(context.cursor_data))
+  end
+
+  return parts
+end
+
+---@param part OpencodeMessagePart
+---@param context_type string|nil
+local function decode_json_context(part, context_type)
+  local ok, result = pcall(vim.json.decode, part.text)
+  if not ok or (context_type and result.context_type ~= context_type) then
+    return nil
+  end
+  return result
+end
+
+--- Extracts context from an OpencodeMessage (with parts)
+---@param message { parts: OpencodeMessagePart[] }
+---@return { prompt: string, selected_text: string|nil, current_file: string|nil, mentioned_files: string[]|nil}
+function M.extract_from_opencode_message(message)
+  local ctx = { prompt = nil, selected_text = nil, current_file = nil }
+
+  local handlers = {
+    text = function(part)
+      ctx.prompt = ctx.prompt or part.text or ''
+    end,
+    text_context = function(part)
+      local json = decode_json_context(part, 'selection')
+      ctx.selected_text = json and json.content or ctx.selected_text
+    end,
+    file = function(part)
+      if not part.source then
+        ctx.current_file = part.filename
+      end
+    end,
+  }
+
+  for _, part in ipairs(message and message.parts or {}) do
+    local handler = handlers[part.type .. (part.synthetic and '_context' or '')]
+    if handler then
+      handler(part)
+    end
+
+    if ctx.prompt and ctx.selected_text and ctx.current_file then
+      break
+    end
+  end
+
+  return ctx
+end
+
+function M.extract_from_message_legacy(text)
+  local current_file = M.extract_legacy_tag('current-file', text)
   local context = {
-    prompt = template.extract_tag('user-query', text) or text,
-    selected_text = template.extract_tag('manually-added-selection', text),
+    prompt = M.extract_legacy_tag('user-query', text) or text,
+    selected_text = M.extract_legacy_tag('manually-added-selection', text),
     current_file = current_file and current_file:match('Path: (.+)') or nil,
   }
   return context
+end
+
+function M.extract_legacy_tag(tag, text)
+  local start_tag = '<' .. tag .. '>'
+  local end_tag = '</' .. tag .. '>'
+
+  -- Use pattern matching to find the content between the tags
+  -- Make search start_tag and end_tag more robust with pattern escaping
+  local pattern = vim.pesc(start_tag) .. '(.-)' .. vim.pesc(end_tag)
+  local content = text:match(pattern)
+
+  if content then
+    return vim.trim(content)
+  end
+
+  -- Fallback to the original method if pattern matching fails
+  local query_start = text:find(start_tag)
+  local query_end = text:find(end_tag)
+
+  if query_start and query_end then
+    -- Extract and trim the content between the tags
+    local query_content = text:sub(query_start + #start_tag, query_end - 1)
+    return vim.trim(query_content)
+  end
+
+  return nil
 end
 
 return M

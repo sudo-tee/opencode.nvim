@@ -1,7 +1,7 @@
 -- Gathers editor context
 
 local util = require('opencode.util')
-local config = require('opencode.config')
+local config = require('opencode.config').get()
 local state = require('opencode.state')
 
 local M = {}
@@ -44,7 +44,7 @@ function M.load()
 end
 
 function M.check_linter_errors()
-  local diagnostic_conf = config.get('context') and config.get('context').diagnostics
+  local diagnostic_conf = config.context and config.context.diagnostics
   if not diagnostic_conf then
     return nil
   end
@@ -145,6 +145,9 @@ function M.delta_context()
 end
 
 function M.get_current_file()
+  if not (config.context and config.context.current_file and config.context.current_file.enabled) then
+    return nil
+  end
   local file = vim.fn.expand('%:p')
   if not file or file == '' or vim.fn.filereadable(file) ~= 1 then
     return nil
@@ -157,7 +160,7 @@ function M.get_current_file()
 end
 
 function M.get_current_cursor_data()
-  if not (config.get('context') and config.get('context').cursor_data) then
+  if not (config.context and config.context.cursor_data) then
     return nil
   end
 

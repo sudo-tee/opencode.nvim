@@ -200,6 +200,9 @@ require('opencode').setup({
       warn = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
     },
+    current_file = {
+      enabled = true, -- Include current file path and content in the context
+    }
   },
   debug = {
     enabled = false, -- Enable debug messages in the output window

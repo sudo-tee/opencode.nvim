@@ -131,6 +131,9 @@ M.defaults = {
       warning = true,
       error = true,
     },
+    current_file = {
+      enabled = true,
+    },
   },
   debug = {
     enabled = false,

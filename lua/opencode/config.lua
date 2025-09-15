@@ -134,6 +134,9 @@ M.defaults = {
     current_file = {
       enabled = true,
     },
+    selection = {
+      enabled = true,
+    },
   },
   debug = {
     enabled = false,

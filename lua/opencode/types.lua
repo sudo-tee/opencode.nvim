@@ -101,6 +101,7 @@
 --- @field cursor_data boolean
 --- @field diagnostics { info: boolean, warning: boolean, error: boolean }
 --- @field current_file { enabled: boolean }
+--- @field selection { enabled: boolean }
 
 --- @class OpencodeDebugConfig
 --- @field enabled boolean

@@ -194,7 +194,7 @@ require('opencode').setup({
     },
   },
   context = {
-    cursor_data = true, -- send cursor position and current line to opencode
+    cursor_data = false, -- send cursor position and current line to opencode
     diagnostics = {
       info = false, -- Include diagnostics info in the context (default to false
       warn = true, -- Include diagnostics warnings in the context
@@ -202,7 +202,10 @@ require('opencode').setup({
     },
     current_file = {
       enabled = true, -- Include current file path and content in the context
-    }
+    },
+    selection = {
+      enabled = true, -- Include selected text in the context
+    },
   },
   debug = {
     enabled = false, -- Enable debug messages in the output window

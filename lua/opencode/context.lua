@@ -170,6 +170,9 @@ function M.get_current_cursor_data()
 end
 
 function M.get_current_selection()
+  if not (config.context and config.context.selection and config.context.selection.enabled) then
+    return nil
+  end
   -- Return nil if not in a visual mode
   if not vim.fn.mode():match('[vV\022]') then
     return nil

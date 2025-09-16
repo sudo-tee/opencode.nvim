@@ -7,6 +7,7 @@ local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
+local config = require('opencode.config').get()
 
 function M.select_session()
   local all_sessions = session.get_all_workspace_sessions() or {}
@@ -73,14 +74,27 @@ end
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
   opts = opts or {}
+  opts.context = opts.context or config.context
+  opts.model = opts.model or state.current_model
+  opts.agent = opts.agent or state.current_mode or config.default_mode
+
+  local params = {}
+
+  if opts.model then
+    local provider, model = opts.model:match('^(.-)/(.+)$')
+    params.model = { providerID = provider, modelID = model }
+  end
+
+  if opts.agent then
+    params.agent = opts.agent
+  end
+
   if not state.active_session or opts.new_session then
     state.active_session = M.create_new_session(nil):wait()
   end
 
-  local message_parts = opts.no_context and { { type = 'text', text = prompt } } or context.format_message(prompt)
-  M.run_server_api('/session/' .. state.active_session.name .. '/message', 'POST', {
-    parts = message_parts,
-  }, {
+  params.parts = context.format_message(prompt, opts.context)
+  M.run_server_api('/session/' .. state.active_session.name .. '/message', 'POST', params, {
     on_done = function()
       M.after_run(prompt)
     end,
@@ -273,6 +287,33 @@ function M.opencode_ok()
   end
 
   return true
+end
+
+--- Parse arguments in the form of key=value, supporting dot notation for nested tables.
+--- Example: "context.selection.enabled=false options
+function M.parse_dot_args(args_str)
+  local result = {}
+  for arg in string.gmatch(args_str, '[^%s]+') do
+    local key, value = arg:match('([^=]+)=([^=]+)')
+    if key and value then
+      local parts = vim.split(key, '.', { plain = true })
+      local t = result
+      for i = 1, #parts - 1 do
+        t[parts[i]] = t[parts[i]] or {}
+        t = t[parts[i]]
+      end
+      -- Convert value to boolean if possible
+      if value == 'true' then
+        value = true
+      elseif value == 'false' then
+        value = false
+      elseif tonumber(value) then
+        value = tonumber(value)
+      end
+      t[parts[#parts]] = value
+    end
+  end
+  return result
 end
 
 return M

@@ -319,4 +319,32 @@ function M.read_file_content(filepath, with_lines_numbers)
   return table.concat(content, '\n')
 end
 
+--- Parse arguments in the form of key=value, supporting dot notation for nested tables.
+--- Example: "context.selection.enabled=false options
+--- @param args_str string
+--- @return table
+function M.parse_dot_args(args_str)
+  local result = {}
+  for arg in string.gmatch(args_str, '[^%s]+') do
+    local key, value = arg:match('([^=]+)=([^=]+)')
+    if key and value then
+      local parts = vim.split(key, '.', { plain = true })
+      local t = result
+      for i = 1, #parts - 1 do
+        t[parts[i]] = t[parts[i]] or {}
+        t = t[parts[i]]
+      end
+      if value == 'true' then
+        value = true
+      elseif value == 'false' then
+        value = false
+      elseif tonumber(value) then
+        value = tonumber(value)
+      end
+      t[parts[#parts]] = value
+    end
+  end
+  return result
+end
+
 return M

@@ -118,6 +118,7 @@ end
 
 ---@param opts OpencodeContextConfig
 function M.delta_context(opts)
+  opts = opts or config.context
   if opts.enabled == false then
     return {
       current_file = nil,

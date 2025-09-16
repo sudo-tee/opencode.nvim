@@ -10,7 +10,6 @@ local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 local id = require('opencode.id')
-local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -71,11 +70,17 @@ function M.stop()
   core.stop()
 end
 
-function M.run(prompt)
-  core.send_message(prompt, { new_session = false, focus = 'output' })
+---@param prompt string
+---@param opts? SendMessageOpts
+function M.run(prompt, opts)
+  opts = vim.tbl_deep_extend('force', { new_session = false, focus = 'output' }, opts or {})
+  core.send_message(prompt, opts)
 end
 
-function M.run_new_session(prompt)
+---@param prompt string
+---@param opts? SendMessageOpts
+function M.run_new_session(prompt, opts)
+  opts = vim.tbl_deep_extend('force', { new_session = true, focus = 'output' }, opts or {})
   core.send_message(prompt, { new_session = true, focus = 'output' })
 end
 
@@ -485,7 +490,10 @@ M.commands = {
     name = 'OpencodeRun',
     desc = 'Run opencode with a prompt (continue last session)',
     fn = function(opts)
-      M.run(opts.args)
+      local prompt, rest = opts.args:match('^(.-)%s+(%S+=%S.*)$')
+      prompt = vim.trim(prompt or opts.args)
+      local extra_args = util.parse_dot_args(rest or '')
+      M.run(prompt, extra_args)
     end,
     args = true,
   },
@@ -494,7 +502,10 @@ M.commands = {
     name = 'OpencodeRunNewSession',
     desc = 'Run opencode with a prompt (new session)',
     fn = function(opts)
-      M.run_new_session(opts.args)
+      local prompt, rest = opts.args:match('^(.-)%s+(%S+=%S.*)$')
+      prompt = vim.trim(prompt or opts.args)
+      local extra_args = util.parse_dot_args(rest or '')
+      M.run_new_session(prompt, extra_args)
     end,
     args = true,
   },

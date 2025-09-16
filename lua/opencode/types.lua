@@ -98,7 +98,8 @@
 --- @field completion OpencodeCompletionConfig
 
 --- @class OpencodeContextConfig
---- @field cursor_data boolean
+--- @field enabled boolean
+--- @field cursor_data { enabled: boolean }
 --- @field diagnostics { info: boolean, warning: boolean, error: boolean }
 --- @field current_file { enabled: boolean }
 --- @field selection { enabled: boolean }
@@ -265,7 +266,7 @@
 
 ---@class SendMessageOpts
 ---@field new_session? boolean
----@field no_context? boolean
+---@field context? OpencodeContextConfig
 ---@field model? string
 ---@field agent? string
 

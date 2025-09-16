@@ -125,7 +125,10 @@ M.defaults = {
     },
   },
   context = {
-    cursor_data = false,
+    enabled = true,
+    cursor_data = {
+      enabled = false,
+    },
     diagnostics = {
       info = false,
       warning = true,

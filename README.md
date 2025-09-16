@@ -194,7 +194,10 @@ require('opencode').setup({
     },
   },
   context = {
-    cursor_data = false, -- send cursor position and current line to opencode
+    enabled = true, -- Enable automatic context capturing
+    cursor_data = {
+      enabled = false, -- Include cursor position and line content in the context
+    },
     diagnostics = {
       info = false, -- Include diagnostics info in the context (default to false
       warn = true, -- Include diagnostics warnings in the context

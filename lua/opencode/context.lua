@@ -116,7 +116,19 @@ function M.add_subagent(subagent)
   end
 end
 
-function M.delta_context()
+---@param opts OpencodeContextConfig
+function M.delta_context(opts)
+  if opts.enabled == false then
+    return {
+      current_file = nil,
+      mentioned_files = nil,
+      selections = nil,
+      linter_errors = nil,
+      cursor_data = nil,
+      mentioned_subagents = nil,
+    }
+  end
+
   local context = vim.deepcopy(M.context)
   local last_context = state.last_sent_context
   if not last_context then
@@ -145,7 +157,14 @@ function M.delta_context()
 end
 
 function M.get_current_file()
-  if not (config.context and config.context.current_file and config.context.current_file.enabled) then
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.current_file
+      and config.context.current_file.enabled
+    )
+  then
     return nil
   end
   local file = vim.fn.expand('%:p')
@@ -160,7 +179,14 @@ function M.get_current_file()
 end
 
 function M.get_current_cursor_data()
-  if not (config.context and config.context.cursor_data) then
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.cursor_data
+      and config.context.cursor_data.enabled
+    )
+  then
     return nil
   end
 
@@ -170,7 +196,9 @@ function M.get_current_cursor_data()
 end
 
 function M.get_current_selection()
-  if not (config.context and config.context.selection and config.context.selection.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.selection and config.context.selection.enabled)
+  then
     return nil
   end
   -- Return nil if not in a visual mode
@@ -268,9 +296,11 @@ end
 
 --- Formats a prompt and context into message with parts for the opencode API
 ---@param prompt string
+---@param opts? OpencodeContextConfig|nil
 ---@return OpencodeMessagePart[]
-function M.format_message(prompt)
-  local context = M.delta_context()
+function M.format_message(prompt, opts)
+  opts = opts or config.context
+  local context = M.delta_context(opts)
   context.prompt = prompt
 
   local parts = { { type = 'text', text = prompt } }

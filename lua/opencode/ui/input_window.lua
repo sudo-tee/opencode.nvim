@@ -195,7 +195,7 @@ function M.setup_keymaps(windows)
   map(keymaps.prev_message, nav.goto_prev_message, input_buf, 'n')
 
   map(keymaps.close, api.close, input_buf, 'n')
-  map(keymaps.close, api.stop, input_buf, 'n')
+  map(keymaps.stop, api.stop, input_buf, 'n')
   map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
 end
 

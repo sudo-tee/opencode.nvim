@@ -164,6 +164,7 @@ function M._format_message_header(message, msg_idx)
   local time = message.time and message.time.created or nil
   local time_text = (time and ' (' .. util.time_ago(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
+  local moder_text = message.modelID and ' ' .. message.modelID or ''
 
   M.output:add_empty_line()
   M.output:add_metadata({
@@ -177,6 +178,7 @@ function M._format_message_header(message, msg_idx)
       { icon, role_hl },
       { ' ' },
       { role:upper(), role_hl },
+      { moder_text, 'OpencodeHint' },
       { time_text, 'OpenCodeHint' },
     },
     virt_text_win_col = -3,

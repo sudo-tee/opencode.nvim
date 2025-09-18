@@ -56,11 +56,10 @@ end
 
 function M.mention(get_name)
   local windows = require('opencode.state').windows
-
   local mention_key = require('opencode.config').get('keymap').window.mention_file
-  -- insert @ in case we just want the character
-  if mention_key == '@' then
-    vim.api.nvim_feedkeys('@', 'in', true)
+
+  if mention_key == '~' then
+    vim.api.nvim_feedkeys('~', 'in', true)
   end
 
   local cursor_pos = vim.api.nvim_win_get_cursor(windows.input_win)

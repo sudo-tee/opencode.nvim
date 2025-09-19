@@ -166,7 +166,7 @@ function M.diff(hash)
 end
 
 function M.diff_file(snapshot_id, file_path)
-  local relative_path = file_path:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
+  local relative_path = vim.fn.fnamemodify(file_path, ':.')
   local file_at_snapshot = snapshot_git({ 'show', snapshot_id .. ':' .. relative_path })
   local temp_file = write_to_temp_file(file_at_snapshot or '')
   local file_type = vim.fn.fnamemodify(file_path, ':e')
@@ -203,7 +203,7 @@ end
 ---@return string|nil, string[]
 function M.revert_file(snapshot_id, file_path)
   local restore_point_id = M.create()
-  local relative_path = file_path:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
+  local relative_path = vim.fn.fnamemodify(file_path, ':.')
   local res, err = snapshot_git({ 'checkout', snapshot_id, '--', relative_path })
   local deleted_files = {}
 

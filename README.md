@@ -190,6 +190,7 @@ require('opencode').setup({
           '%.cache$',
         },
         max_files = 10,
+        max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with "..."
       },
     },
   },

@@ -121,6 +121,7 @@ M.defaults = {
           '%.cache$',
         },
         max_files = 10,
+        max_display_length = 50,
       },
     },
   },

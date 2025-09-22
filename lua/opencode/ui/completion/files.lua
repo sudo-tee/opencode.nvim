@@ -51,16 +51,23 @@ end
 local function create_file_item(file)
   local filename = vim.fn.fnamemodify(file, ':t')
   local dir = vim.fn.fnamemodify(file, ':h')
-  local display_path = dir == '.' and filename or dir .. '/' .. filename
+  local file_path = dir == '.' and filename or dir .. '/' .. filename
   local detail = dir == '.' and filename or dir .. '/' .. filename
   local full_path = vim.fn.fnamemodify(file, ':p')
+  local display_label = file_path
+
+  local file_config = config.ui.completion.file_sources
+  local max_display_len = file_config.max_display_length or 50
+  if #display_label > max_display_len then
+    display_label = '...' .. display_label:sub(-(max_display_len - 3))
+  end
 
   return {
-    label = display_path,
+    label = display_label,
     kind = 'file',
     detail = detail,
     documentation = 'Path: ' .. detail,
-    insert_text = display_path,
+    insert_text = file_path,
     source_name = 'files',
     data = { name = filename, full_path = full_path },
   }

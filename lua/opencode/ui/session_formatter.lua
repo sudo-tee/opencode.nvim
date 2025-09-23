@@ -406,25 +406,34 @@ end
 ---@param metadata TaskToolMetadata Metadata for the tool use
 ---@param output string
 function M._format_task_tool(input, metadata, output)
+  local start_line = M.output:get_line_count() + 1
   M._format_action(icons.get('task') .. ' task', input and input.description)
 
-  if not config.ui.output.tools.show_output then
-    return
-  end
+  if config.ui.output.tools.show_output then
+    if output and output ~= '' then
+      M.output:add_empty_line()
+      M.output:add_lines(vim.split(output, '\n'))
+      M.output:add_empty_line()
+    end
 
-  if output and output ~= '' then
-    M.output:add_empty_line()
-    M.output:add_lines(vim.split(output, '\n'))
-    M.output:add_empty_line()
-  end
-
-  if metadata.summary and type(metadata.summary) == 'table' then
-    for _, sub_part in ipairs(metadata.summary) do
-      if sub_part.type == 'tool' and sub_part.tool then
-        M._format_tool(sub_part)
+    if metadata.summary and type(metadata.summary) == 'table' then
+      for _, sub_part in ipairs(metadata.summary) do
+        if sub_part.type == 'tool' and sub_part.tool then
+          M._format_tool(sub_part)
+        end
       end
     end
   end
+
+  local end_line = M.output:get_line_count()
+  M.output:add_action({
+    text = '[S]elct Child Session',
+    type = 'select_child_session',
+    args = {},
+    key = 'S',
+    display_line = start_line - 1,
+    range = { from = start_line, to = end_line },
+  })
 end
 
 function M._format_code(lines, language)

@@ -385,7 +385,7 @@ function M._format_tool(part)
   elseif tool == 'webfetch' then
     M._format_webfetch_tool(input --[[@as WebFetchToolInput]])
   elseif tool == 'task' then
-    M._format_task_tool(input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]])
+    M._format_task_tool(input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], output)
   else
     M._format_action(icons.get('tool') .. ' tool', tool)
   end
@@ -404,11 +404,18 @@ end
 
 ---@param input TaskToolInput data for the tool
 ---@param metadata TaskToolMetadata Metadata for the tool use
-function M._format_task_tool(input, metadata)
+---@param output string
+function M._format_task_tool(input, metadata, output)
   M._format_action(icons.get('task') .. ' task', input and input.description)
 
   if not config.ui.output.tools.show_output then
     return
+  end
+
+  if output and output ~= '' then
+    M.output:add_empty_line()
+    M.output:add_lines(vim.split(output, '\n'))
+    M.output:add_empty_line()
   end
 
   if metadata.summary and type(metadata.summary) == 'table' then

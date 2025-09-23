@@ -10,7 +10,6 @@ local M = {
   output = Output.new(),
   _messages = {},
   _current = nil,
-  _snapshots = {},
 }
 
 M.separator = {
@@ -26,7 +25,6 @@ function M.format_session(session)
   end
 
   state.messages = require('opencode.session').get_messages(session) or {}
-  M._snapshots = {}
 
   M.output:clear()
 
@@ -64,9 +62,6 @@ function M.format_session(session)
       elseif part.type == 'tool' then
         M._format_tool(part)
       elseif part.type == 'patch' and part.hash then
-        if M._snapshots[#M._snapshots] ~= part.hash then
-          table.insert(M._snapshots, part.hash)
-        end
         M._format_patch(part)
       end
       M.output:add_empty_line()
@@ -129,7 +124,8 @@ function M._format_patch(part)
     for _, restore_point in ipairs(restore_points) do
       M.output:add_line(
         string.format(
-          '  ' .. icons.get('restore_point') .. ' Restore point `%s` - %s',
+          '  %s Restore point `%s` - %s',
+          icons.get('restore_point'),
           restore_point.id:sub(1, 8),
           util.time_ago(restore_point.created_at)
         )
@@ -167,12 +163,7 @@ function M._format_message_header(message, msg_idx)
   local moder_text = message.modelID and ' ' .. message.modelID or ''
 
   M.output:add_empty_line()
-  M.output:add_metadata({
-    msg_idx = msg_idx,
-    part_idx = 1,
-    role = role,
-    type = 'header',
-  })
+  M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
   M.output:add_extmark(M.output:get_line_count(), {
     virt_text = {
       { icon, role_hl },

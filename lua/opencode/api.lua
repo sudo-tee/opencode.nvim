@@ -84,8 +84,13 @@ function M.run_new_session(prompt, opts)
   core.send_message(prompt, { new_session = true, focus = 'output' })
 end
 
-function M.select_session()
-  core.select_session()
+---@param parent_id? string
+function M.select_session(parent_id)
+  core.select_session(parent_id)
+end
+
+function M.select_child_session()
+  core.select_session(state.active_session and state.active_session.name or nil)
 end
 
 function M.toggle_pane()
@@ -466,6 +471,15 @@ M.commands = {
     desc = 'Select and load a opencode session',
     fn = function()
       M.select_session()
+    end,
+  },
+
+  select_child_session = {
+    name = 'OpencodeSelectChildSession',
+    slash_cmd = '/child-sessions',
+    desc = 'Select and load a child session of the current session',
+    fn = function()
+      M.select_child_session()
     end,
   },
 

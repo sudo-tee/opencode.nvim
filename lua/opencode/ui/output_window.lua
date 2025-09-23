@@ -130,6 +130,8 @@ function M.setup_keymaps(windows)
 
   map(keymaps.switch_mode, api.switch_to_next_mode, output_buf, 'n')
 
+  map(keymaps.select_child_session, api.select_child_session, output_buf, 'n')
+
   if config.debug.enabled then
     local debug_helper = require('opencode.ui.debug_helper')
     map(keymaps.debug_output, debug_helper.debug_output, output_buf, 'n')

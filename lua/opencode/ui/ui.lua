@@ -11,6 +11,12 @@ function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
   vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
 
+  vim.schedule(function()
+    vim.api.nvim_win_call(state.windows.output_win, function()
+      vim.cmd('normal! zb')
+    end)
+  end)
+
   vim.defer_fn(function()
     renderer.render_markdown()
   end, 200)

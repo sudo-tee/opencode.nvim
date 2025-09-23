@@ -63,6 +63,7 @@ M.defaults = {
       next_prompt_history = '<down>',
       switch_mode = '<M-m>',
       focus_input = '<C-i>',
+      select_child_session = '<leader>oS',
       debug_message = '<leader>oD',
       debug_output = '<leader>oO',
     },
@@ -137,6 +138,11 @@ M.defaults = {
     },
     current_file = {
       enabled = true,
+      show_full_path = true,
+    },
+    files = {
+      enabled = true,
+      show_full_path = true,
     },
     selection = {
       enabled = true,

@@ -132,6 +132,7 @@ require('opencode').setup({
       next_prompt_history = '<down>', -- Navigate to next prompt in history
       switch_mode = '<M-m>', -- Switch between modes (build/plan)
       focus_input = '<C-i>', -- Focus on input window and enter insert mode at the end of the input from the output window
+      select_child_session = '<leader>oS', -- Select and load a child session
       debug_messages = '<leader>oD', -- Open raw message in new buffer for debugging
       debug_output = '<leader>oO', -- Open raw output in new buffer for debugging
     },
@@ -276,6 +277,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Toggle focus opencode / last window                 | `<leader>ot`   | `:OpencodeToggleFocus`                   | `require('opencode.api').toggle_focus()`                  |
 | Close UI windows                                    | `<leader>oq`   | `:OpencodeClose`                         | `require('opencode.api').close()`                         |
 | Select and load session                             | `<leader>os`   | `:OpencodeSelectSession`                 | `require('opencode.api').select_session()`                |
+| **Select and load child session**                   | `<leader>ocj`  | `:OpencodeSelectChildSession`            | `require('opencode.api').select_child_session()`          |
 | Configure provider and model                        | `<leader>op`   | `:OpencodeConfigureProvider`             | `require('opencode.api').configure_provider()`            |
 | Open diff view of changes                           | `<leader>od`   | `:OpencodeDiff`                          | `require('opencode.api').diff_open()`                     |
 | Navigate to next file diff                          | `<leader>o]`   | `:OpencodeDiffNext`                      | `require('opencode.api').diff_next()`                     |
@@ -449,12 +451,10 @@ The plugin defines several highlight groups that can be customized to match your
 If you're new to opencode:
 
 1. **What is Opencode?**
-
    - Opencode is an AI coding agent built for the terminal
    - It offers powerful AI assistance with extensible configurations such as LLMs and MCP servers
 
 2. **Installation:**
-
    - Visit [Install Opencode](https://opencode.ai/docs/#install) for installation and configuration instructions
    - Ensure the `opencode` command is available after installation
 

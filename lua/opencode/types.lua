@@ -69,6 +69,7 @@
 ---@field debug_message string
 ---@field debug_output string
 ---@field switch_mode string
+---@field select_child_session string
 ---@class OpencodeKeymap
 ---@field global OpencodeKeymapGlobal
 ---@field window OpencodeKeymapWindow

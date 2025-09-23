@@ -9,10 +9,11 @@ local util = require('opencode.util')
 local Promise = require('opencode.promise')
 local config = require('opencode.config').get()
 
-function M.select_session()
+---@param parent_id string?
+function M.select_session(parent_id)
   local all_sessions = session.get_all_workspace_sessions() or {}
   local filtered_sessions = vim.tbl_filter(function(s)
-    return s.description ~= '' and s ~= nil
+    return s.description ~= '' and s ~= nil and s.parentID == parent_id
   end, all_sessions)
 
   ui.select_session(filtered_sessions, function(selected_session)
@@ -24,6 +25,7 @@ function M.select_session()
     end
     state.active_session = selected_session
     if state.windows then
+      state.restore_points = {}
       ui.render_output(true)
       ui.scroll_to_bottom()
       ui.focus_input()

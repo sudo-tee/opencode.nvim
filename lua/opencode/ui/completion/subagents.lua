@@ -25,7 +25,7 @@ local subagent_source = {
           insert_text = subagent,
           source_name = 'subagents',
           data = {
-            name = subagent.name,
+            name = subagent,
           },
         }
 

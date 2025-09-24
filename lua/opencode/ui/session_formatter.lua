@@ -427,7 +427,7 @@ function M._format_task_tool(input, metadata, output)
 
   local end_line = M.output:get_line_count()
   M.output:add_action({
-    text = '[S]elct Child Session',
+    text = '[S]elect Child Session',
     type = 'select_child_session',
     args = {},
     key = 'S',

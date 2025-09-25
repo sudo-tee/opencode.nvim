@@ -94,7 +94,7 @@ end
 ---@type CompletionSource
 local file_source = {
   name = 'files',
-  priority = 0,
+  priority = 2,
   complete = function(context)
     local sort_util = require('opencode.ui.completion.sort')
     local file_config = config.ui.completion.file_sources

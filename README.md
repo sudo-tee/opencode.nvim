@@ -127,6 +127,7 @@ require('opencode').setup({
       mention = '@', -- Insert mention (file/agent)
       mention_file = '~', -- Pick a file and add to context. See File Mentions section
       slash_commands = '/', -- Pick a command to run in the input window
+      context_items = '#', -- Select context items (Current File, Selection, Diagnostics, etc.)
       toggle_pane = '<tab>', -- Toggle between input and output panes
       prev_prompt_history = '<up>', -- Navigate to previous prompt in history
       next_prompt_history = '<down>', -- Navigate to next prompt in history
@@ -347,6 +348,18 @@ The following editor context is automatically captured and included in your conv
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
+### Context Items Completion
+
+You can quickly reference available context items by typing `#` in the input window. This will show a completion menu with all available context items:
+
+- **Current File** - The currently focused file in the editor
+- **Selection** - Currently selected text in visual mode
+- **Diagnostics** - LSP diagnostics from the current file
+- **Cursor Data** - Current cursor position and line content
+- **[filename]** - Files that have been mentioned in the conversation
+
+Context items that are not currently available will be shown as disabled in the completion menu.
+
 ## 🔄 Agents
 
 Opencode provides two built-in agents and supports custom ones:
@@ -451,12 +464,10 @@ The plugin defines several highlight groups that can be customized to match your
 If you're new to opencode:
 
 1. **What is Opencode?**
-
    - Opencode is an AI coding agent built for the terminal
    - It offers powerful AI assistance with extensible configurations such as LLMs and MCP servers
 
 2. **Installation:**
-
    - Visit [Install Opencode](https://opencode.ai/docs/#install) for installation and configuration instructions
    - Ensure the `opencode` command is available after installation
 

@@ -13,7 +13,7 @@ function M.setup(completion_sources)
 
   function source:get_trigger_characters()
     local config = require('opencode.config').get()
-    return { config.keymap.window.mention, config.keymap.window.slash_commands }
+    return { config.keymap.window.mention, config.keymap.window.slash_commands, '#' }
   end
 
   function source:is_available()
@@ -41,16 +41,19 @@ function M.setup(completion_sources)
     }
 
     local items = {}
-    for i, completion_source in ipairs(completion_sources) do
+    for _, completion_source in ipairs(completion_sources) do
       local source_items = completion_source.complete(context)
       for j, item in ipairs(source_items) do
         table.insert(items, {
           label = item.label,
           kind = item.kind == 'file' and cmp.lsp.CompletionItemKind.File or cmp.lsp.CompletionItemKind.Text,
+          cmp = {
+            kind_text = item.kind_icon,
+          },
           detail = item.detail,
           documentation = item.documentation,
           insertText = item.insert_text or item.label,
-          sortText = string.format('%03d_%03d_%s', i, j, item.label),
+          sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, j, item.label),
           data = {
             original_item = item,
           },

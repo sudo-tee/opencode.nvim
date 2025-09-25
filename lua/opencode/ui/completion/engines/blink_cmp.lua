@@ -10,7 +10,7 @@ end
 
 function Source:get_trigger_characters()
   local config = require('opencode.config').get()
-  return { config.keymap.window.mention, config.keymap.window.slash_commands }
+  return { config.keymap.window.mention, config.keymap.window.slash_commands, '#' }
 end
 
 function Source:is_available()
@@ -43,13 +43,16 @@ function Source:get_completions(ctx, callback)
   local items = {}
   for _, completion_source in ipairs(completion_sources) do
     local source_items = completion_source.complete(context)
-    for _, item in ipairs(source_items) do
+    for i, item in ipairs(source_items) do
       table.insert(items, {
         label = item.label,
         kind = item.kind == 'file' and 17 or 1, -- 17: File, 1: Text
+        kind_icon = item.kind_icon,
         detail = item.detail,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,
+        sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, i, item.label),
+        score_offset = -(completion_source.priority or 999) * 1000,
         data = {
           original_item = item,
         },

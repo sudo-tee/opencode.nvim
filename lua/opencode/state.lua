@@ -11,15 +11,19 @@ local config = require('opencode.config').get()
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
 ---@field input_content table
+---@field opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
 ---@field last_input_window_position number|nil
 ---@field last_output_window_position number|nil
 ---@field last_code_win_before_opencode number|nil
+---@field current_code_buf number|nil
 ---@field display_route any|nil
 ---@field current_mode string
 ---@field was_interrupted boolean
 ---@field last_output number
----@field last_sent_context any
+---@field last_sent_context OpencodeContext|nil
+---@field current_context_config OpencodeContextConfig|nil
+---@field context_updated_at number|nil
 ---@field active_session Session|nil
 ---@field new_session_name string|nil
 ---@field restore_points table<string, any>
@@ -29,7 +33,7 @@ local config = require('opencode.config').get()
 ---@field cost number
 ---@field tokens_count number
 ---@field opencode_server_job OpencodeServer
----@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
+---@field subscribe fun( key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_job_running fun():boolean
 ---@field append fun( key:string, value:any)
@@ -41,16 +45,20 @@ local _state = {
   -- ui
   windows = nil, ---@type OpencodeWindowState
   input_content = {},
+  opencode_focused = false,
   last_focused_opencode_window = nil,
   last_input_window_position = nil,
   last_output_window_position = nil,
   last_code_win_before_opencode = nil,
+  current_code_buf = nil,
   display_route = nil,
   current_mode = config.default_mode,
   was_interrupted = false,
   last_output = 0,
   -- context
   last_sent_context = nil,
+  current_context_config = {},
+  context_updated_at = nil,
   -- session
   active_session = nil,
   new_session_name = nil,
@@ -73,12 +81,18 @@ local _state = {
 local _listeners = {}
 
 --- Subscribe to changes for a key (or all keys with '*').
----@param key string|nil If nil or '*', listens to all keys
+---@param key string|string[]|nil If nil or '*', listens to all keys
 ---@param cb fun(key:string, new_val:any, old_val:any)
 ---@usage
 ---   state.subscribe('foo', function(key, new, old) ... end)
 ---   state.subscribe('*', function(key, new, old) ... end)
 local function subscribe(key, cb)
+  if type(key) == 'table' then
+    for _, k in ipairs(key) do
+      subscribe(k, cb)
+    end
+    return
+  end
   key = key or '*'
   if not _listeners[key] then
     _listeners[key] = {}
@@ -105,16 +119,18 @@ end
 
 -- Notify listeners
 local function _notify(key, new_val, old_val)
-  if _listeners[key] then
-    for _, cb in ipairs(_listeners[key]) do
-      pcall(cb, key, new_val, old_val)
+  vim.schedule(function()
+    if _listeners[key] then
+      for _, cb in ipairs(_listeners[key]) do
+        pcall(cb, key, new_val, old_val)
+      end
     end
-  end
-  if _listeners['*'] then
-    for _, cb in ipairs(_listeners['*']) do
-      pcall(cb, key, new_val, old_val)
+    if _listeners['*'] then
+      for _, cb in ipairs(_listeners['*']) do
+        pcall(cb, key, new_val, old_val)
+      end
     end
-  end
+  end)
 end
 
 local function append(key, value)

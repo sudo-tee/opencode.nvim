@@ -10,7 +10,7 @@ local presets = {
     header_assistant = '🤖',
     -- actions/tools
     run = '💻',
-    task = '💻',
+    task = '🧰',
     read = '👀',
     edit = '✏️',
     write = '📝',
@@ -22,11 +22,19 @@ local presets = {
     snapshot = '📸',
     restore_point = '🕛',
     file = '📄',
+    attached_file = '📎',
+    agent = '🤖',
     -- statuses
     status_on = '🟢',
     status_off = '⚫',
     -- borders and misc
     border = '▌',
+    -- context bar
+    cursor_data = '📍',
+    context = '📚 ',
+    error = '⛔ ',
+    warning = '⚠️',
+    info = 'ℹ️',
   },
   nerdfonts = {
     -- headers
@@ -46,11 +54,19 @@ local presets = {
     snapshot = '󰻛 ',
     restore_point = '󱗚 ',
     file = ' ',
+    attached_file = '󰌷 ',
+    agent = '󰚩 ',
     -- statuses
     status_on = ' ',
     status_off = ' ',
     -- borders and misc
     border = '▌',
+    -- context bar
+    cursor_data = '󰗧 ',
+    context = ' ',
+    error = ' ',
+    warning = ' ',
+    info = ' ',
   },
   text = {
     -- headers
@@ -69,12 +85,20 @@ local presets = {
     tool = '::',
     snapshot = '::',
     restore_point = '::',
-    file = '::',
+    file = '@',
+    attached_file = '@',
+    agent = '@',
     -- statuses
     status_on = 'ON',
     status_off = 'OFF',
     -- borders and misc
     border = '▌',
+    -- context bar
+    cursor_data = '[|] ',
+    context = '[Ctx] ',
+    error = '[E]',
+    warning = '[W]',
+    info = '[I] ',
   },
 }
 

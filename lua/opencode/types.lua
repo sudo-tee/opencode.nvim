@@ -62,6 +62,7 @@
 ---@field mention_file string # mention files with a file picker
 ---@field mention string # mention subagents or files with a completion popup
 ---@field slash_commands string
+---@field context_items string # select context items with a completion popup
 ---@field toggle_pane string
 ---@field prev_prompt_history string
 ---@field next_prompt_history string
@@ -102,9 +103,10 @@
 ---@class OpencodeContextConfig
 ---@field enabled boolean
 ---@field cursor_data { enabled: boolean }
----@field diagnostics { info: boolean, warning: boolean, error: boolean }
+---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
+---@field subagents { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -280,6 +282,7 @@
 ---@class CompletionItem
 ---@field label string Display text for the completion item
 ---@field kind string Type of completion item (e.g., 'file', 'subagent')
+---@field kind_icon string Icon representing the kind
 ---@field detail string Additional detail text
 ---@field documentation string Documentation text
 ---@field insert_text string Text to insert when selected
@@ -298,7 +301,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
----@field linter_errors string|nil
+---@field linter_errors vim.Diagnostic[]|nil
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

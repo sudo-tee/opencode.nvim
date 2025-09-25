@@ -31,8 +31,12 @@ function M._get_trigger(before_cursor)
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
   local triggers = {}
-  if mention_key then table.insert(triggers, mention_key) end
-  if slash_key then table.insert(triggers, slash_key) end
+  if mention_key then
+    table.insert(triggers, mention_key)
+  end
+  if slash_key then
+    table.insert(triggers, slash_key)
+  end
   local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
   local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
   return trigger_char, trigger_match

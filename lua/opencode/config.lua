@@ -148,6 +148,7 @@ M.defaults = {
       enabled = false,
     },
     diagnostics = {
+      enabled = false,
       info = false,
       warning = true,
       error = true,
@@ -161,6 +162,9 @@ M.defaults = {
       show_full_path = true,
     },
     selection = {
+      enabled = true,
+    },
+    agents = {
       enabled = true,
     },
   },

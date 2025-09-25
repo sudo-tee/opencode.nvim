@@ -11,10 +11,10 @@ function M.uid()
   return tostring(os.time()) .. '-' .. tostring(math.random(1000, 9999))
 end
 
-function M.is_current_buf_a_file()
-  local bufnr = vim.api.nvim_get_current_buf()
+function M.is_buf_a_file(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
   local buftype = vim.bo[bufnr].buftype
-  local filepath = vim.fn.expand('%:p')
+  local filepath = vim.api.nvim_buf_get_name(bufnr)
 
   -- Valid files have empty buftype
   -- This excludes special buffers like help, terminal, nofile, etc.

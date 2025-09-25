@@ -66,6 +66,28 @@
 ---@field accept_all string
 ---@field deny string
 
+<<<<<<< HEAD
+=======
+---@class OpencodeKeymapWindow
+---@field submit string
+---@field submit_insert string
+---@field close string
+---@field stop string
+---@field next_message string
+---@field prev_message string
+---@field mention_file string # mention files with a file picker
+---@field mention string # mention subagents or files with a completion popup
+---@field slash_commands string
+---@field context_items string # select context items with a completion popup
+---@field toggle_pane string
+---@field prev_prompt_history string
+---@field next_prompt_history string
+---@field focus_input string
+---@field debug_message string
+---@field debug_output string
+---@field switch_mode string
+---@field select_child_session string
+>>>>>>> 31b9b62 (wip: context bar)
 ---@class OpencodeKeymap
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
@@ -118,9 +140,15 @@
 ---@class OpencodeContextConfig
 ---@field enabled boolean
 ---@field cursor_data { enabled: boolean }
+<<<<<<< HEAD
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean, show_full_path: boolean }
+=======
+---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
+---@field current_file { enabled: boolean }
+>>>>>>> 31b9b62 (wip: context bar)
 ---@field selection { enabled: boolean }
+---@field subagents { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -296,6 +324,7 @@
 ---@class CompletionItem
 ---@field label string Display text for the completion item
 ---@field kind string Type of completion item (e.g., 'file', 'subagent')
+---@field kind_icon string Icon representing the kind
 ---@field detail string Additional detail text
 ---@field documentation string Documentation text
 ---@field insert_text string Text to insert when selected
@@ -314,7 +343,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
----@field linter_errors string|nil
+---@field linter_errors vim.Diagnostic[]|nil
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

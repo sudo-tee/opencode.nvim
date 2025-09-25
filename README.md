@@ -132,6 +132,8 @@ require('opencode').setup({
       ['~'] = { 'mention_file', mode = 'i' }, -- Pick a file and add to context. See File Mentions section
       ['@'] = { 'mention', mode = 'i' }, -- Insert mention (file/agent)
       ['/'] = { 'slash_commands', mode = 'i' }, -- Pick a command to run in the input window
+      ['#'] = { 'context_items', mode = 'i' }, -- Manage context items (current file, selection, diagnostics, mentioned files)
+      ['<C-i>'] = { 'focus_input', mode = { 'n', 'i' } }, -- Focus on input window and enter insert mode at the end of the input from the output window
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } }, -- Navigate to next prompt in history
@@ -424,6 +426,18 @@ The following editor context is automatically captured and included in your conv
 
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+
+### Context Items Completion
+
+You can quickly reference available context items by typing `#` in the input window. This will show a completion menu with all available context items:
+
+- **Current File** - The currently focused file in the editor
+- **Selection** - Currently selected text in visual mode
+- **Diagnostics** - LSP diagnostics from the current file
+- **Cursor Data** - Current cursor position and line content
+- **[filename]** - Files that have been mentioned in the conversation
+
+Context items that are not currently available will be shown as disabled in the completion menu.
 
 ## 🔄 Agents
 

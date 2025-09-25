@@ -16,10 +16,13 @@ local config = require('opencode.config')
 ---@field last_input_window_position number|nil
 ---@field last_output_window_position number|nil
 ---@field last_code_win_before_opencode number|nil
+---@field current_code_buf number|nil
 ---@field display_route any|nil
 ---@field current_mode string
 ---@field last_output number
----@field last_sent_context any
+---@field last_sent_context OpencodeContext|nil
+---@field current_context_config OpencodeContextConfig|nil
+---@field context_updated_at number|nil
 ---@field active_session Session|nil
 ---@field restore_points RestorePoint[]
 ---@field current_model string|nil
@@ -39,6 +42,8 @@ local config = require('opencode.config')
 ---@field append fun( key:string, value:any)
 ---@field remove fun( key:string, idx:number)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
+---@field opencode_server_job OpencodeServer
+---@field subscribe fun( key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
 
@@ -52,11 +57,14 @@ local _state = {
   last_input_window_position = nil,
   last_output_window_position = nil,
   last_code_win_before_opencode = nil,
+  current_code_buf = nil,
   display_route = nil,
   current_mode = nil,
   last_output = 0,
   -- context
   last_sent_context = nil,
+  current_context_config = {},
+  context_updated_at = nil,
   -- session
   active_session = nil,
   restore_points = {},
@@ -84,12 +92,18 @@ local _state = {
 local _listeners = {}
 
 --- Subscribe to changes for a key (or all keys with '*').
----@param key string|nil If nil or '*', listens to all keys
+---@param key string|string[]|nil If nil or '*', listens to all keys
 ---@param cb fun(key:string, new_val:any, old_val:any)
 ---@usage
 ---   state.subscribe('foo', function(key, new, old) ... end)
 ---   state.subscribe('*', function(key, new, old) ... end)
 local function subscribe(key, cb)
+  if type(key) == 'table' then
+    for _, k in ipairs(key) do
+      subscribe(k, cb)
+    end
+    return
+  end
   key = key or '*'
   if not _listeners[key] then
     _listeners[key] = {}

@@ -101,6 +101,8 @@ function M.add_file(file)
     return
   end
 
+  file = vim.fn.fnamemodify(file, ':p')
+
   if not vim.tbl_contains(M.context.mentioned_files, file) then
     table.insert(M.context.mentioned_files, file)
   end

@@ -22,11 +22,22 @@ local presets = {
     snapshot = '📸',
     restore_point = '🕛',
     file = '📄',
+    attached_file = '📎',
     -- statuses
     status_on = '🟢',
     status_off = '⚫',
     -- borders and misc
     border = '▌',
+  },
+  glyphs = {
+    file = ' ',
+    attached_file = '󰌷 ',
+    cursor_data = '󰗧 ',
+    agent = ' ',
+    context = ' ',
+    error = ' ',
+    warning = ' ',
+    info = ' ',
   },
   text = {
     -- headers
@@ -70,6 +81,10 @@ function M.get(key)
   end
 
   return preset[key] or ''
+end
+
+function M.get_glyph(name)
+  return presets.glyphs[name] or M.get(name)
 end
 
 return M

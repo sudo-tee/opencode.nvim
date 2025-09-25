@@ -33,7 +33,7 @@ function M.load()
 
     M.context.current_file = current_file
     M.context.cursor_data = cursor_data
-    M.context.linter_errors = M.check_linter_errors()
+    M.context.linter_errors = M.get_diagnostics()
   end
 
   local current_selection = M.get_current_selection()
@@ -43,7 +43,7 @@ function M.load()
   end
 end
 
-function M.check_linter_errors()
+function M.get_diagnostics()
   local diagnostic_conf = config.context and config.context.diagnostics
   if not diagnostic_conf then
     return nil
@@ -64,15 +64,7 @@ function M.check_linter_errors()
     return nil
   end
 
-  local lines = { 'Found ' .. #diagnostics .. ' error' .. (#diagnostics > 1 and 's' or '') .. ':' }
-
-  for _, diagnostic in ipairs(diagnostics) do
-    local line_number = diagnostic.lnum + 1
-    local short_message = diagnostic.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
-    table.insert(lines, string.format(' Line %d: %s', line_number, short_message))
-  end
-
-  return table.concat(lines, '\n')
+  return diagnostics
 end
 
 function M.new_selection(file, content, lines)
@@ -116,7 +108,7 @@ function M.add_subagent(subagent)
   end
 end
 
----@param opts OpencodeContextConfig
+---@param opts? OpencodeContextConfig
 function M.delta_context(opts)
   opts = opts or config.context
   if opts.enabled == false then
@@ -392,8 +384,6 @@ function M.extract_legacy_tag(tag, text)
   local start_tag = '<' .. tag .. '>'
   local end_tag = '</' .. tag .. '>'
 
-  -- Use pattern matching to find the content between the tags
-  -- Make search start_tag and end_tag more robust with pattern escaping
   local pattern = vim.pesc(start_tag) .. '(.-)' .. vim.pesc(end_tag)
   local content = text:match(pattern)
 
@@ -406,7 +396,6 @@ function M.extract_legacy_tag(tag, text)
   local query_end = text:find(end_tag)
 
   if query_start and query_end then
-    -- Extract and trim the content between the tags
     local query_content = text:sub(query_start + #start_tag, query_end - 1)
     return vim.trim(query_content)
   end

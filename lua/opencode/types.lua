@@ -299,7 +299,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
----@field linter_errors string|nil
+---@field linter_errors vim.Diagnostic[]|nil
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

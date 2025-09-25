@@ -1,8 +1,10 @@
+local icons = require('opencode.ui.icons')
 local M = {}
 
 ---@type CompletionSource
 local subagent_source = {
   name = 'subagents',
+  priority = 1,
   complete = function(context)
     local subagents = require('opencode.config_file').get_subagents()
     local config = require('opencode.config')
@@ -22,6 +24,7 @@ local subagent_source = {
         local item = {
           label = subagent .. ' (agent)',
           kind = 'subagent',
+          kind_icon = icons.get('agent'),
           detail = 'Subagent',
           documentation = 'Use the "' .. subagent .. '" subagent for this task.',
           insert_text = subagent,

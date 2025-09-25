@@ -13,27 +13,34 @@ M.context = {
 
   -- attachments
   mentioned_files = nil,
-  mentioned_files_content = nil,
-  selections = nil,
-  linter_errors = nil,
-  mentioned_subagents = nil,
+  selections = {},
+  linter_errors = {},
+  mentioned_subagents = {},
 }
 
 function M.unload_attachments()
   M.context.mentioned_files = nil
-  M.context.mentioned_files_content = nil
   M.context.selections = nil
   M.context.linter_errors = nil
 end
 
+function M.get_current_buf()
+  local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
+  if util.is_buf_a_file(curr_buf) then
+    return curr_buf, state.last_code_win_before_opencode or vim.api.nvim_get_current_win()
+  end
+end
+
 function M.load()
-  if util.is_current_buf_a_file() then
-    local current_file = M.get_current_file()
-    local cursor_data = M.get_current_cursor_data()
+  local buf, win = M.get_current_buf()
+
+  if buf then
+    local current_file = M.get_current_file(buf)
+    local cursor_data = M.get_current_cursor_data(buf, win)
 
     M.context.current_file = current_file
     M.context.cursor_data = cursor_data
-    M.context.linter_errors = M.check_linter_errors()
+    M.context.linter_errors = M.get_diagnostics(buf)
   end
 
   local current_selection = M.get_current_selection()
@@ -41,13 +48,23 @@ function M.load()
     local selection = M.new_selection(M.context.current_file, current_selection.text, current_selection.lines)
     M.add_selection(selection)
   end
+  state.context_updated_at = vim.uv.now()
 end
 
-function M.check_linter_errors()
-  local diagnostic_conf = config.context and config.context.diagnostics
-  if not diagnostic_conf then
+function M.is_context_enabled(context_key)
+  local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')
+  local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
+
+  return is_state_enabled ~= nil and is_state_enabled or is_enabled
+end
+
+function M.get_diagnostics(buf)
+  if not M.is_context_enabled('diagnostics') then
     return nil
   end
+
+  local diagnostic_conf = config.context and state.current_context_config.diagnostics or config.context.diagnostics
+
   local severity_levels = {}
   if diagnostic_conf.error then
     table.insert(severity_levels, vim.diagnostic.severity.ERROR)
@@ -59,20 +76,12 @@ function M.check_linter_errors()
     table.insert(severity_levels, vim.diagnostic.severity.INFO)
   end
 
-  local diagnostics = vim.diagnostic.get(0, { severity = severity_levels })
+  local diagnostics = vim.diagnostic.get(buf, { severity = severity_levels })
   if #diagnostics == 0 then
-    return nil
+    return {}
   end
 
-  local lines = { 'Found ' .. #diagnostics .. ' error' .. (#diagnostics > 1 and 's' or '') .. ':' }
-
-  for _, diagnostic in ipairs(diagnostics) do
-    local line_number = diagnostic.lnum + 1
-    local short_message = diagnostic.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
-    table.insert(lines, string.format(' Line %d: %s', line_number, short_message))
-  end
-
-  return table.concat(lines, '\n')
+  return diagnostics
 end
 
 function M.new_selection(file, content, lines)
@@ -89,6 +98,8 @@ function M.add_selection(selection)
   end
 
   table.insert(M.context.selections, selection)
+
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.add_file(file)
@@ -113,9 +124,19 @@ function M.add_file(file)
   end
 end
 
-M.clear_files = function()
-  M.context.mentioned_files = nil
-  M.context.mentioned_files_content = nil
+function M.remove_file(file)
+  file = vim.fn.fnamemodify(file, ':p')
+  if not M.context.mentioned_files then
+    return
+  end
+
+  for i, f in ipairs(M.context.mentioned_files) do
+    if f == file then
+      table.remove(M.context.mentioned_files, i)
+      break
+    end
+  end
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.add_subagent(subagent)
@@ -126,13 +147,24 @@ function M.add_subagent(subagent)
   if not vim.tbl_contains(M.context.mentioned_subagents, subagent) then
     table.insert(M.context.mentioned_subagents, subagent)
   end
+  state.context_updated_at = vim.uv.now()
 end
 
-M.clear_subagents = function()
-  M.context.mentioned_subagents = nil
+function M.remove_subagent(subagent)
+  if not M.context.mentioned_subagents then
+    return
+  end
+
+  for i, a in ipairs(M.context.mentioned_subagents) do
+    if a == subagent then
+      table.remove(M.context.mentioned_subagents, i)
+      break
+    end
+  end
+  state.context_updated_at = vim.uv.now()
 end
 
----@param opts OpencodeContextConfig
+---@param opts? OpencodeContextConfig
 function M.delta_context(opts)
   opts = opts or config.context
   if opts.enabled == false then
@@ -173,18 +205,11 @@ function M.delta_context(opts)
   return context
 end
 
-function M.get_current_file()
-  if
-    not (
-      config.context
-      and config.context.enabled
-      and config.context.current_file
-      and config.context.current_file.enabled
-    )
-  then
+function M.get_current_file(buf)
+  if not M.is_context_enabled('current_file') then
     return nil
   end
-  local file = vim.fn.expand('%:p')
+  local file = vim.api.nvim_buf_get_name(buf)
   if not file or file == '' or vim.fn.filereadable(file) ~= 1 then
     return nil
   end
@@ -195,29 +220,21 @@ function M.get_current_file()
   }
 end
 
-function M.get_current_cursor_data()
-  if
-    not (
-      config.context
-      and config.context.enabled
-      and config.context.cursor_data
-      and config.context.cursor_data.enabled
-    )
-  then
+function M.get_current_cursor_data(buf, win)
+  if not M.is_context_enabled('cursor_data') then
     return nil
   end
 
-  local cursor_pos = vim.fn.getcurpos()
-  local cursor_content = vim.trim(vim.api.nvim_get_current_line())
+  local cursor_pos = vim.fn.getcurpos(win)
+  local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, cursor_pos[2] - 1, cursor_pos[2], false)[1] or '')
   return { line = cursor_pos[2], col = cursor_pos[3], line_content = cursor_content }
 end
 
 function M.get_current_selection()
-  if
-    not (config.context and config.context.enabled and config.context.selection and config.context.selection.enabled)
-  then
+  if not M.is_context_enabled('selection') then
     return nil
   end
+
   -- Return nil if not in a visual mode
   if not vim.fn.mode():match('[vV\022]') then
     return nil
@@ -411,8 +428,6 @@ function M.extract_legacy_tag(tag, text)
   local start_tag = '<' .. tag .. '>'
   local end_tag = '</' .. tag .. '>'
 
-  -- Use pattern matching to find the content between the tags
-  -- Make search start_tag and end_tag more robust with pattern escaping
   local pattern = vim.pesc(start_tag) .. '(.-)' .. vim.pesc(end_tag)
   local content = text:match(pattern)
 
@@ -425,12 +440,39 @@ function M.extract_legacy_tag(tag, text)
   local query_end = text:find(end_tag)
 
   if query_start and query_end then
-    -- Extract and trim the content between the tags
     local query_content = text:sub(query_start + #start_tag, query_end - 1)
     return vim.trim(query_content)
   end
 
   return nil
+end
+
+function M.setup()
+  state.subscribe({ 'current_code_buf', 'current_context_config', 'opencode_focused' }, function()
+    M.load()
+  end)
+
+  vim.api.nvim_create_autocmd('BufWritePost', {
+    pattern = '*',
+    callback = function(args)
+      local buf = args.buf
+      local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
+      if buf == curr_buf and util.is_buf_a_file(buf) then
+        M.load()
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('DiagnosticChanged', {
+    pattern = '*',
+    callback = function(args)
+      local buf = args.buf
+      local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
+      if buf == curr_buf and util.is_buf_a_file(buf) and M.is_context_enabled('diagnostics') then
+        M.load()
+      end
+    end,
+  })
 end
 
 return M

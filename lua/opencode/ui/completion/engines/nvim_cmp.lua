@@ -50,7 +50,7 @@ function M.setup(completion_sources)
     }
 
     local items = {}
-    for i, completion_source in ipairs(completion_sources) do
+    for _, completion_source in ipairs(completion_sources) do
       local source_items = completion_source.complete(context)
       for j, item in ipairs(source_items) do
         table.insert(items, {
@@ -58,6 +58,9 @@ function M.setup(completion_sources)
           kind = item.kind == 'file' and cmp.lsp.CompletionItemKind.File
             or item.kind == 'folder' and cmp.lsp.CompletionItemKind.Folder
             or cmp.lsp.CompletionItemKind.Text,
+          cmp = {
+            kind_text = item.kind_icon,
+          },
           detail = item.detail,
           documentation = item.documentation,
           insertText = item.insert_text or item.label,

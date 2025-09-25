@@ -56,6 +56,7 @@ function Source:get_completions(ctx, callback)
       table.insert(items, {
         label = item.label,
         kind = item.kind == 'file' and 17 or item.kind == 'folder' and 19 or 1, -- 17: File, 19: Folder, 1: Text
+        kind_icon = item.kind_icon,
         detail = item.detail,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,

@@ -82,9 +82,9 @@ function M.create_windows()
 
   local autocmds = require('opencode.ui.autocmds')
 
-  if not M.is_opencode_focused() then
-    require('opencode.context').load()
+  if not require('opencode.ui.ui').is_opencode_focused() then
     state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
+    state.current_code_buf = vim.api.nvim_get_current_buf()
   end
 
   local buffers = M.setup_buffers()

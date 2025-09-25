@@ -49,6 +49,7 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.output_win })
   vim.api.nvim_set_option_value('signcolumn', 'yes', { scope = 'local', win = windows.output_win })
   vim.api.nvim_set_option_value('list', false, { scope = 'local', win = windows.output_win })
+  vim.api.nvim_set_option_value('statuscolumn', '', { win = windows.output_win })
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)

@@ -44,9 +44,20 @@ local function telescope_ui(callback, path)
   local opts = {
     attach_mappings = function(prompt_bufnr, map)
       actions.select_default:replace(function()
+        local picker = action_state.get_current_picker(prompt_bufnr)
+        local multi = picker and picker:get_multi_selection() or {}
+        if multi and #multi > 0 then
+          actions.close(prompt_bufnr)
+          for _, entry in ipairs(multi) do
+            if entry and entry.value and callback then
+              callback(entry.value)
+            end
+          end
+          return
+        end
+
         local selection = action_state.get_selected_entry()
         actions.close(prompt_bufnr)
-
         if selection and callback then
           callback(selection.value)
         end
@@ -72,10 +83,11 @@ local function fzf_ui(callback, path)
           return
         end
 
-        local file = fzf_lua.path.entry_to_file(selected[1])
-
-        if file and file.path and callback then
-          callback(file.path)
+        for _, sel in ipairs(selected) do
+          local file = fzf_lua.path.entry_to_file(sel)
+          if file and file.path and callback then
+            callback(file.path)
+          end
         end
       end,
     },
@@ -116,8 +128,12 @@ local function snacks_picker_ui(callback, path)
       local items = picker:selected({ fallback = true })
       picker:close()
 
-      if items and items[1] and callback then
-        callback(items[1].file)
+      if items and callback then
+        for _, it in ipairs(items) do
+          if it and it.file then
+            callback(it.file)
+          end
+        end
       end
     end,
   }

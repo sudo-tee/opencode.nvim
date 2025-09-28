@@ -44,29 +44,25 @@ local function insert_mention(windows, row, col, name)
   local new_line = current_line:sub(1, col) .. insert_name .. current_line:sub(col + 2)
   vim.api.nvim_buf_set_lines(windows.input_buf, row - 1, row, false, { new_line })
 
-  -- Highlight all mentions in the updated buffer
   M.highlight_all_mentions(windows.input_buf)
 
-  vim.defer_fn(function()
-    vim.cmd('startinsert')
-    vim.api.nvim_set_current_win(windows.input_win)
-    vim.api.nvim_win_set_cursor(windows.input_win, { row, col + 1 + #insert_name + 1 })
-  end, 100)
+  vim.cmd('startinsert')
+  vim.api.nvim_set_current_win(windows.input_win)
+  vim.api.nvim_win_set_cursor(windows.input_win, { row, col + 1 + #insert_name + 1 })
 end
 
 function M.mention(get_name)
   local windows = require('opencode.state').windows
-  local mention_key = require('opencode.config').get('keymap').window.mention_file
-
-  if mention_key == '~' then
-    vim.api.nvim_feedkeys('~', 'in', true)
-  end
-
-  local cursor_pos = vim.api.nvim_win_get_cursor(windows.input_win)
-  local row, col = cursor_pos[1], cursor_pos[2]
 
   get_name(function(name)
-    insert_mention(windows, row, col, name)
+    vim.schedule(function()
+      if not windows or not name then
+        return
+      end
+      local cursor_pos = vim.api.nvim_win_get_cursor(windows.input_win)
+      local row, col = cursor_pos[1], cursor_pos[2]
+      insert_mention(windows, row, col, name)
+    end)
   end)
 end
 

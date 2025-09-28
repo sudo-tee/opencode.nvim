@@ -97,7 +97,6 @@ require('opencode').setup({
   preferred_completion = nil, -- 'blink', 'nvim-cmp','vim_complete' if nil, it will use the best available completion
   default_global_keymaps = true, -- If false, disables all default global keymaps
   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
-  config_file_path = nil, -- Path to opencode configuration file if different from the default `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json`
   keymap = {
     global = {
       toggle = '<leader>og', -- Open opencode. Close if opened

@@ -1,6 +1,8 @@
 local config = require('opencode.config').get()
 local M = {}
 
+local last_successful_tool = nil
+
 local function should_keep(ignore_patterns)
   return function(path)
     for _, pattern in ipairs(ignore_patterns) do
@@ -17,14 +19,26 @@ local function run_systemlist(cmd)
   return ok and vim.v.shell_error == 0 and result or nil
 end
 
+local function try_tool(tool, args, pattern, max, ignore_patterns)
+  if vim.fn.executable(tool) then
+    local result = run_systemlist(tool .. string.format(args, pattern, max))
+    if result then
+      return vim.tbl_filter(should_keep(ignore_patterns), result)
+    end
+  end
+  return nil
+end
+
 ---@param pattern string
 ---@return string[]
 local function find_files_fast(pattern)
   pattern = vim.fn.shellescape(pattern) or '.'
   local file_config = config.ui.completion.file_sources
-  local cli_tool = file_config.preferred_cli_tool or 'fd'
+  local cli_tool = last_successful_tool or file_config.preferred_cli_tool or 'fd'
   local max = file_config.max_files or 10
+  local ignore_patterns = file_config.ignore_patterns or {}
 
+  local tools_order = { 'fd', 'fdfind', 'rg', 'git' }
   local commands = {
     fd = ' --type f --type l --full-path  --color=never -E .git -E node_modules -i %s --max-results %d 2>/dev/null',
     fdfind = ' --type f --type l --color=never -E .git -E node_modules --full-path -i %s --max-results %d 2>/dev/null',
@@ -32,14 +46,18 @@ local function find_files_fast(pattern)
     git = ' ls-files --cached --others --exclude-standard | grep -i %s | head -%d',
   }
 
-  local tools_to_try = commands[cli_tool] and { [cli_tool] = commands[cli_tool] } or commands
+  if cli_tool and commands[cli_tool] then
+    tools_order = vim.tbl_filter(function(t)
+      return t ~= cli_tool
+    end, tools_order)
+    table.insert(tools_order, 1, cli_tool)
+  end
 
-  for tool, args in pairs(tools_to_try) do
-    if vim.fn.executable(tool) then
-      local result = run_systemlist(tool .. string.format(args, pattern, max))
-      if result then
-        return vim.tbl_filter(should_keep(file_config.ignore_patterns or {}), result)
-      end
+  for _, tool in ipairs(tools_order) do
+    local result = try_tool(tool, commands[tool], pattern, max, ignore_patterns)
+    if result then
+      last_successful_tool = tool
+      return result
     end
   end
   vim.notify('No suitable file search tool found. Please install fd, rg, or git.', vim.log.levels.WARN)

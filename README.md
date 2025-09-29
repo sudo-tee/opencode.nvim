@@ -384,7 +384,7 @@ To configure user commands
 
 <img src="https://i.imgur.com/YQhhoPS.png" alt="Opencode.nvim contextual actions" width="90%" />
 
-See [User Commands Documentation](https://opencode.ai/docs/user-commands/) for more details details.
+See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details details.
 
 ## 📸 Contextual Actions for Snapshots
 

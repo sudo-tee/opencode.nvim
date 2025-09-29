@@ -94,7 +94,7 @@
 ---@field display_context_size boolean
 ---@field display_cost boolean
 ---@field window_highlight string
----@field icons { preset: 'emoji'|'text', overrides: table<string,string> }
+---@field icons { preset: 'emoji'|'text'|'nerdfonts', overrides: table<string,string> }
 ---@field output { tools: { show_output: boolean } }
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig

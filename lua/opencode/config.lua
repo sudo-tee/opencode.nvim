@@ -77,7 +77,7 @@ M.defaults = {
     display_cost = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
     icons = {
-      preset = 'emoji',
+      preset = 'nerdfonts',
       overrides = {},
     },
     output = {

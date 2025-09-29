@@ -28,6 +28,30 @@ local presets = {
     -- borders and misc
     border = '▌',
   },
+  nerdfonts = {
+    -- headers
+    header_user = '▌󰭻 ',
+    header_assistant = ' ',
+    -- actions/tools
+    run = ' ',
+    task = ' ',
+    read = ' ',
+    edit = ' ',
+    write = ' ',
+    plan = '󰝖 ',
+    search = ' ',
+    web = '󰖟 ',
+    list = ' ',
+    tool = ' ',
+    snapshot = '󰻛 ',
+    restore_point = '󱗚 ',
+    file = ' ',
+    -- statuses
+    status_on = ' ',
+    status_off = ' ',
+    -- borders and misc
+    border = '▌',
+  },
   text = {
     -- headers
     header_user = '▌$ ',

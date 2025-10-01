@@ -131,8 +131,12 @@ function OpencodeServer:_start_event_listener(base_url)
   self.event_listener = EventListener.new()
 
   self.event_listener:on('permission.updated', function(data)
+    vim.notify('🔔 Permission event received!', vim.log.levels.INFO)
+    vim.notify('Event data: ' .. vim.inspect(data), vim.log.levels.INFO)
     if self.permission_manager then
       self.permission_manager:handle_request(data)
+    else
+      vim.notify('❌ No permission_manager!', vim.log.levels.ERROR)
     end
   end)
 

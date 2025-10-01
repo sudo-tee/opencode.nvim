@@ -55,6 +55,10 @@ local function parse_sse_event(data)
 end
 
 function EventListener:_emit(event_type, data)
+  vim.schedule(function()
+    vim.notify('📡 SSE Event: ' .. event_type, vim.log.levels.INFO)
+  end)
+  
   if self.handlers[event_type] then
     for _, callback in ipairs(self.handlers[event_type]) do
       util.safe_call(callback, data)

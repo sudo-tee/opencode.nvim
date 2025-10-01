@@ -16,7 +16,10 @@ function PermissionManager.new(base_url)
 end
 
 function PermissionManager:handle_request(event_data)
+  vim.notify('📥 PermissionManager:handle_request called', vim.log.levels.INFO)
+  
   if not event_data or not event_data.id then
+    vim.notify('❌ Invalid event_data or missing id', vim.log.levels.WARN)
     return
   end
 
@@ -37,25 +40,35 @@ function PermissionManager:handle_request(event_data)
     time = os.time(),
   }
 
+  vim.notify('📝 Created request: ' .. vim.inspect(request), vim.log.levels.INFO)
   table.insert(self.pending_requests, request)
+  vim.notify('📋 Queue size: ' .. #self.pending_requests, vim.log.levels.INFO)
 
   self:process_queue()
 end
 
 function PermissionManager:process_queue()
+  vim.notify('🔄 process_queue called', vim.log.levels.INFO)
+  vim.notify('Processing: ' .. tostring(self.processing) .. ', Queue: ' .. #self.pending_requests, vim.log.levels.INFO)
+  
   if self.processing or #self.pending_requests == 0 then
+    vim.notify('⏭️  Skipping: processing=' .. tostring(self.processing) .. ', queue empty=' .. tostring(#self.pending_requests == 0), vim.log.levels.INFO)
     return
   end
 
   if permission_prompt.is_open() then
+    vim.notify('⏭️  Prompt already open', vim.log.levels.INFO)
     return
   end
 
   self.processing = true
   local request = table.remove(self.pending_requests, 1)
+  vim.notify('🎯 Processing request: ' .. vim.inspect(request), vim.log.levels.INFO)
 
   vim.schedule(function()
+    vim.notify('📢 Showing permission prompt...', vim.log.levels.INFO)
     permission_prompt.show(request, function(response)
+      vim.notify('✅ User responded: ' .. response, vim.log.levels.INFO)
       self:send_response(request, response)
       self.processing = false
       self:process_queue()

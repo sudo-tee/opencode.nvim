@@ -60,6 +60,7 @@ end
 --- @field on_error fun(err: any)
 --- @field on_exit fun(err: any)
 --- @field on_interrupt fun(err: any)
+--- @field persistent boolean If true, don't shutdown server after API call (for event-driven features)
 
 --- Run an opencode API call by spawning a server, making the call, and cleaning up.
 --- @param endpoint string The API endpoint path (e.g. '/v1/foo')
@@ -75,7 +76,9 @@ function M.run(endpoint, method, body, opts)
     M.call_api(url, method, body)
       :and_then(function(result)
         safe_call(opts.on_done, result)
-        server_job:shutdown()
+        if not opts.persistent then
+          server_job:shutdown()
+        end
       end)
       :catch(function(err)
         if err.exit == 52 then
@@ -84,7 +87,9 @@ function M.run(endpoint, method, body, opts)
           return
         end
         safe_call(opts.on_error, err)
-        server_job:shutdown()
+        if not opts.persistent then
+          server_job:shutdown()
+        end
       end)
   end, opts)
 end

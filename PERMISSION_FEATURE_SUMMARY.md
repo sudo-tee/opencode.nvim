@@ -141,9 +141,11 @@ All existing tests pass successfully:
 
 1. **Non-blocking Architecture**: Permission prompts don't block Neovim's main thread
 2. **Queue-based Processing**: Multiple permission requests are queued and shown one at a time
-3. **Graceful Error Handling**: Network errors, timeouts, and invalid data are handled without crashes
-4. **Zero Dependencies**: Uses only plenary.curl (already a plugin dependency) and native Neovim APIs
-5. **Circular Dependency Avoidance**: permission_manager uses curl directly instead of requiring server_job
+3. **Persistent Server Model**: Server + event listener stay alive during the entire session (not just one API call)
+4. **Graceful Error Handling**: Network errors, timeouts, and invalid data are handled without crashes
+5. **Zero Dependencies**: Uses only plenary.curl (already a plugin dependency) and native Neovim APIs
+6. **Circular Dependency Avoidance**: permission_manager uses curl directly instead of requiring server_job
+7. **Backwards Compatible**: Added `persistent` flag to server_job.run() - defaults to false for existing behavior
 
 ## Benefits
 
@@ -163,12 +165,53 @@ All existing tests pass successfully:
 - lua/opencode/permission_manager.lua (90 lines)
 
 **Modified:**
-- lua/opencode/types.lua (+28 lines)
-- lua/opencode/config.lua (+6 lines)
-- lua/opencode/opencode_server.lua (+32 lines)
-- README.md (+53 lines)
+- lua/opencode/types.lua (+28 lines - permission types)
+- lua/opencode/config.lua (+6 lines - permission_prompt config)
+- lua/opencode/opencode_server.lua (+32 lines - event listener lifecycle)
+- lua/opencode/server_job.lua (+3 lines - persistent flag)
+- lua/opencode/core.lua (+5 lines - persistent mode + proper shutdown)
+- README.md (+53 lines - permission documentation)
 
-**Total:** ~500 lines of new code, all following project conventions from AGENTS.md
+**Total:** ~510 lines of new/modified code, all following project conventions from AGENTS.md
+
+## Critical Fix: Persistent Server Architecture
+
+### The Problem
+Initially, the server was shutting down immediately after each API call, killing the event listener before permission events could arrive:
+
+```
+Timeline (BROKEN):
+─────────────────────────────────────────────────────────────
+0ms:   POST /session/123/message
+1ms:   API returns HTTP 200
+2ms:   server_job:shutdown() ❌ <-- Event listener killed
+100ms: Server emits permission.request
+       ❌ NO LISTENER ALIVE!
+```
+
+### The Solution
+Changed to persistent server model where the server stays alive during the session:
+
+```
+Timeline (FIXED):
+─────────────────────────────────────────────────────────────
+0ms:   POST /session/123/message (persistent=true)
+1ms:   API returns HTTP 200
+2ms:   Server stays alive ✅
+100ms: Server emits permission.request
+       ✅ Event listener receives it!
+       ✅ Permission prompt shows!
+```
+
+### Implementation
+- Added `persistent` flag to `server_job.run()` options
+- When `persistent=true`, server is NOT shutdown after API call completes
+- Server lifecycle is now managed at the session level (not API call level)
+- Server shuts down when:
+  - User explicitly stops opencode
+  - Session ends
+  - Error occurs
+  - User interrupts (Ctrl+C)
 
 ## Future Enhancements (Optional)
 

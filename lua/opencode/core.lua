@@ -175,18 +175,21 @@ function M.run_server_api(endpoint, method, body, opts)
 
   state.opencode_server_job = server_job.run(endpoint, method, body, {
     cwd = opts.cwd,
+    persistent = true,
     on_ready = function(_)
       state.last_output = os.time()
       ui.render_output()
     end,
     on_done = function(result)
       state.was_interrupted = false
-      state.opencode_server_job = nil
       state.last_output = os.time()
       ui.render_output()
       util.safe_call(opts.on_done, result)
     end,
     on_error = function(err)
+      if state.opencode_server_job then
+        state.opencode_server_job:shutdown()
+      end
       state.opencode_server_job = nil
       state.last_output = os.time()
       ui.render_output()
@@ -199,6 +202,9 @@ function M.run_server_api(endpoint, method, body, opts)
       ui.render_output()
     end,
     on_interrupt = function()
+      if state.opencode_server_job then
+        state.opencode_server_job:shutdown()
+      end
       state.opencode_server_job = nil
       state.was_interrupted = true
       state.last_output = os.time()

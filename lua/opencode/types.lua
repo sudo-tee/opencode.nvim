@@ -335,3 +335,26 @@
 ---@field source OpencodeMessagePartSource|nil
 ---@field name string|nil
 ---@field synthetic boolean|nil
+
+---@class PermissionRequest
+---@field id string Unique permission request ID
+---@field sessionID string Session ID
+---@field tool 'bash'|'edit'|'webfetch' Tool requiring permission
+---@field action string Specific action (command, file path, URL)
+---@field context string|nil Additional context
+---@field time number Timestamp
+
+---@class PermissionResponse
+---@field response 'allow'|'deny' User's decision
+
+---@class EventListener
+---@field connection any Connection handle
+---@field handlers table<string, function[]>
+---@field running boolean
+---@field base_url string
+---@field buffer string Buffer for incomplete SSE data
+
+---@class PermissionManager
+---@field server_job any Reference to the server job
+---@field pending_requests PermissionRequest[] Queue of pending requests
+---@field current_prompt any Currently displayed prompt

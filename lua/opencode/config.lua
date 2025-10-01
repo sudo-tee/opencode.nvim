@@ -124,6 +124,12 @@ M.defaults = {
         max_display_length = 50,
       },
     },
+    permission_prompt = {
+      enabled = true,
+      timeout = 60000,
+      width = 60,
+      height = 12,
+    },
   },
   context = {
     enabled = true,

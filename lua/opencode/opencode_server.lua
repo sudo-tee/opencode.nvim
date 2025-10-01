@@ -1,6 +1,8 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
 local Promise = require('opencode.promise')
+local EventListener = require('opencode.event_listener')
+local PermissionManager = require('opencode.permission_manager')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -9,6 +11,8 @@ local Promise = require('opencode.promise')
 --- @field spawn_promise Promise|nil
 --- @field interrupt_promise Promise|nil
 --- @field shutdown_promise Promise|nil
+--- @field event_listener EventListener|nil
+--- @field permission_manager PermissionManager|nil
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -22,12 +26,22 @@ function OpencodeServer.new()
     spawn_promise = Promise.new(),
     interrupt_promise = Promise.new(),
     shutdown_promise = Promise.new(),
+    event_listener = nil,
+    permission_manager = nil,
   }, OpencodeServer)
 end
 
 --- Clean up this server job
 --- @return Promise<boolean>
 function OpencodeServer:shutdown()
+  if self.event_listener then
+    self.event_listener:stop()
+    self.event_listener = nil
+  end
+  if self.permission_manager then
+    self.permission_manager:clear()
+    self.permission_manager = nil
+  end
   if self.job and self.job.pid then
     pcall(function()
       self.job:kill('sigterm')
@@ -74,6 +88,9 @@ function OpencodeServer:spawn(opts)
         if url then
           self.url = url
           self.spawn_promise:resolve(self)
+
+          self:_start_event_listener(url)
+
           safe_call(opts.on_ready, self.job, url)
         end
       end
@@ -85,6 +102,14 @@ function OpencodeServer:spawn(opts)
       end
     end,
   }, function(exit_opts)
+    if self.event_listener then
+      self.event_listener:stop()
+      self.event_listener = nil
+    end
+    if self.permission_manager then
+      self.permission_manager:clear()
+      self.permission_manager = nil
+    end
     self.job = nil
     self.url = nil
     self.handle = nil
@@ -95,6 +120,30 @@ function OpencodeServer:spawn(opts)
   self.handle = self.job and self.job.pid
 
   return self.spawn_promise
+end
+
+function OpencodeServer:_start_event_listener(base_url)
+  if not base_url or base_url == '' then
+    return
+  end
+
+  self.permission_manager = PermissionManager.new(base_url)
+  self.event_listener = EventListener.new()
+
+  self.event_listener:on('permission.request', function(data)
+    if self.permission_manager then
+      self.permission_manager:handle_request(data)
+    end
+  end)
+
+  self.event_listener:on('error', function(err)
+    vim.notify(
+      string.format('Event listener error: %s', err.message or vim.inspect(err)),
+      vim.log.levels.WARN
+    )
+  end)
+
+  self.event_listener:start(base_url)
 end
 
 function OpencodeServer:get_interrupt_promise()

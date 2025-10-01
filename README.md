@@ -194,6 +194,12 @@ require('opencode').setup({
         max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with "..."
       },
     },
+    permission_prompt = {
+      enabled = true, -- Enable permission prompts (default: true)
+      timeout = 60000, -- Auto-deny after 60 seconds if no response
+      width = 60, -- Width of the permission prompt window
+      height = 12, -- Height of the permission prompt window
+    },
   },
   context = {
     enabled = true, -- Enable automatic context capturing
@@ -370,6 +376,65 @@ You can create custom agents through your opencode config file. Each agent can h
 - And more
 
 See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
+
+## 🔒 Permission Handling
+
+opencode.nvim fully supports the [opencode permissions system](https://opencode.ai/docs/permissions/), allowing you to control what actions the AI agent can perform in your codebase.
+
+### How it Works
+
+When you configure permissions in your `opencode.json` file (e.g., `~/.config/opencode/opencode.json`), the plugin will display an interactive permission prompt whenever the AI needs to perform a restricted action.
+
+Example `opencode.json` configuration:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "edit": "ask",
+    "bash": "ask",
+    "webfetch": "allow"
+  }
+}
+```
+
+### Permission Prompt UI
+
+When a permission is required, a floating window will appear showing:
+
+- **Action type** (bash command, file edit, web fetch)
+- **Specific action** (the exact command or file being modified)
+- **Action buttons**: `[A]llow`, `[D]eny`, `<CR>` to allow, `<Esc>` to deny
+
+The prompt is non-blocking and allows you to approve or deny actions in real-time without interrupting your workflow.
+
+### Configuration
+
+You can customize the permission prompt behavior in your setup:
+
+```lua
+require('opencode').setup({
+  ui = {
+    permission_prompt = {
+      enabled = true,     -- Enable permission prompts (default: true)
+      timeout = 60000,    -- Auto-deny after 60 seconds if no response
+      width = 60,         -- Width of the permission prompt window
+      height = 12,        -- Height of the permission prompt window
+    },
+  },
+})
+```
+
+### Troubleshooting
+
+If opencode appears to hang with "Thinking..." and you have permissions configured:
+
+1. Ensure you're using a recent version of opencode CLI (v0.6.3+)
+2. Check that your `opencode.json` is valid JSON
+3. Verify the permission prompt window appears (it may be hidden behind other windows)
+4. Try temporarily setting permissions to `"allow"` to test if permission handling is the issue
+
+For more details on configuring permissions, see the [official opencode permissions documentation](https://opencode.ai/docs/permissions/).
 
 ## User Commands
 

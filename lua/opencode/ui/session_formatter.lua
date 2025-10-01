@@ -24,6 +24,7 @@ function M.format_session(session)
     return nil
   end
 
+  state.last_user_message = nil
   state.messages = require('opencode.session').get_messages(session) or {}
 
   M.output:clear()
@@ -47,6 +48,12 @@ function M.format_session(session)
       state.cost = msg.cost
     end
 
+    if session.revert and session.revert.messageID == msg.id then
+      local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
+      M._format_revert_message(revert_stats)
+      break
+    end
+
     M._format_message_header(msg, i)
 
     for j, part in ipairs(msg.parts or {}) do
@@ -55,6 +62,7 @@ function M.format_session(session)
 
       if part.type == 'text' and part.text then
         if msg.role == 'user' and not part.synthetic == true then
+          state.last_user_message = msg
           M._format_user_message(vim.trim(part.text), msg)
         elseif msg.role == 'assistant' then
           M._format_assistant_message(vim.trim(part.text))
@@ -95,6 +103,103 @@ end
 ---@return string[] Lines from the current output
 function M.get_lines()
   return M.output:get_lines()
+end
+
+---Calculate statistics for reverted messages and tool calls
+---@param messages Message[] All messages in the session
+---@param revert_index number Index of the message where revert occurred
+---@param revert_info SessionRevertInfo Revert information
+---@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}[]}
+function M._calculate_revert_stats(messages, revert_index, revert_info)
+  local stats = {
+    messages = 0,
+    tool_calls = 0,
+    files = {}, -- { [filename] = { additions = n, deletions = m } }
+  }
+
+  for i = revert_index, #messages do
+    local msg = messages[i]
+    if msg.role == 'user' then
+      stats.messages = stats.messages + 1
+    end
+    if msg.parts then
+      for _, part in ipairs(msg.parts) do
+        if part.type == 'tool' then
+          stats.tool_calls = stats.tool_calls + 1
+        end
+      end
+    end
+  end
+
+  if revert_info.diff then
+    local current_file = nil
+    for line in revert_info.diff:gmatch('[^\r\n]+') do
+      local file_a = line:match('^%-%-%- ([ab]/.+)')
+      local file_b = line:match('^%+%+%+ ([ab]/.+)')
+      if file_b then
+        current_file = file_b:gsub('^[ab]/', '')
+        if not stats.files[current_file] then
+          stats.files[current_file] = { additions = 0, deletions = 0 }
+        end
+      elseif file_a then
+        current_file = file_a:gsub('^[ab]/', '')
+        if not stats.files[current_file] then
+          stats.files[current_file] = { additions = 0, deletions = 0 }
+        end
+      elseif line:sub(1, 1) == '+' and not line:match('^%+%+%+') then
+        if current_file then
+          stats.files[current_file].additions = stats.files[current_file].additions + 1
+        end
+      elseif line:sub(1, 1) == '-' and not line:match('^%-%-%-') then
+        if current_file then
+          stats.files[current_file].deletions = stats.files[current_file].deletions + 1
+        end
+      end
+    end
+  end
+
+  return stats
+end
+
+---Format the revert callout with statistics
+---@param stats {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+function M._format_revert_message(stats)
+  local message_text = stats.messages == 1 and 'message' or 'messages'
+  local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
+
+  M.output:add_line(
+    string.format('> %d %s reverted, %d %s reverted', stats.messages, message_text, stats.tool_calls, tool_text)
+  )
+  M.output:add_line('>')
+  M.output:add_line('> type `/redo` to restore.')
+  M.output:add_empty_line()
+
+  if stats.files and next(stats.files) then
+    for file, fstats in pairs(stats.files) do
+      local file_diff = {}
+      if fstats.additions > 0 then
+        table.insert(file_diff, '+' .. fstats.additions)
+      end
+      if fstats.deletions > 0 then
+        table.insert(file_diff, '-' .. fstats.deletions)
+      end
+      if #file_diff > 0 then
+        local line_str = string.format(icons.get('file') .. '%s: %s', file, table.concat(file_diff, ' '))
+        local line_idx = M.output:add_line(line_str)
+        local col = #('  ' .. file .. ': ')
+        for _, diff in ipairs(file_diff) do
+          local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText'
+          M.output:add_extmark(line_idx, {
+            virt_text = { { diff, hl_group } },
+            virt_text_pos = 'inline',
+            virt_text_win_col = col,
+            priority = 1000,
+          })
+          col = col + #diff + 1
+        end
+      end
+    end
+  end
 end
 
 function M._format_patch(part)
@@ -160,7 +265,8 @@ function M._format_message_header(message, msg_idx)
   local time = message.time and message.time.created or nil
   local time_text = (time and ' (' .. util.time_ago(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
-  local moder_text = message.modelID and ' ' .. message.modelID or ''
+  local model_text = message.modelID and ' ' .. message.modelID or ''
+  local debug_text = config.debug and ' [' .. message.id .. ']' or ''
 
   M.output:add_empty_line()
   M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
@@ -169,8 +275,9 @@ function M._format_message_header(message, msg_idx)
       { icon, role_hl },
       { ' ' },
       { role:upper(), role_hl },
-      { moder_text, 'OpencodeHint' },
+      { model_text, 'OpencodeHint' },
       { time_text, 'OpenCodeHint' },
+      { debug_text, 'OpenCodeHint' },
     },
     virt_text_win_col = -3,
     priority = 10,

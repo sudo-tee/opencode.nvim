@@ -381,6 +381,129 @@ function M.run_user_command(name)
   })
 end
 
+--- Compacts the current session by removing unnecessary data.
+--- @param current_session? Session The session to compact. Defaults to the active session.
+function M.compact_session(current_session)
+  current_session = current_session or state.active_session
+  if not current_session then
+    vim.notify('No active session to compact', vim.log.levels.WARN)
+    return
+  end
+
+  local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+  core.run_server_api('/session/' .. current_session.name .. '/summarize', 'POST', {
+    providerID = providerId,
+    modelID = modelId,
+  }, {
+    on_done = function()
+      vim.schedule(function()
+        vim.notify('Session compacted successfully', vim.log.levels.INFO)
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        vim.notify('Failed to compact session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end,
+  })
+end
+
+function M.share()
+  if not state.active_session then
+    vim.notify('No active session to share', vim.log.levels.WARN)
+    return
+  end
+
+  core.run_server_api('/session/' .. state.active_session.name .. '/share', 'POST', {}, {
+    on_done = function(response)
+      vim.schedule(function()
+        if response and response.share.url then
+          vim.fn.setreg('+', response.share.url)
+          vim.notify('Session link copied to clipboard successfully: ' .. response.share.url, vim.log.levels.INFO)
+        else
+          vim.notify('Session shared but no link received', vim.log.levels.WARN)
+        end
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        vim.notify('Failed to share session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end,
+  })
+end
+
+function M.unshare()
+  if not state.active_session then
+    vim.notify('No active session to unshare', vim.log.levels.WARN)
+    return
+  end
+
+  core.run_server_api('/session/' .. state.active_session.name .. '/share', 'DELETE', {}, {
+    on_done = function()
+      vim.schedule(function()
+        vim.notify('Session unshared successfully', vim.log.levels.INFO)
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        vim.notify('Failed to unshare session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end,
+  })
+end
+
+function M.undo()
+  if not state.active_session then
+    vim.notify('No active session to undo', vim.log.levels.WARN)
+    return
+  end
+  local last_user_message = state.last_user_message
+  if not last_user_message then
+    vim.notify('No user message to undo', vim.log.levels.WARN)
+    return
+  end
+
+  core.run_server_api('/session/' .. state.active_session.name .. '/revert', 'POST', {
+    messageID = last_user_message.id,
+  }, {
+    on_done = function(response)
+      state.active_session.revert = response.revert
+      vim.schedule(function()
+        vim.notify('Last message undone successfully', vim.log.levels.INFO)
+        ui.render_output(true)
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end,
+  })
+end
+
+function M.redo()
+  if not state.active_session then
+    vim.notify('No active session to undo', vim.log.levels.WARN)
+    return
+  end
+
+  core.run_server_api('/session/' .. state.active_session.name .. '/unrevert', 'POST', {}, {
+    on_done = function(response)
+      state.active_session.revert = response.revert
+      vim.schedule(function()
+        vim.notify('Last message rerterted successfully', vim.log.levels.INFO)
+        ui.render_output(true)
+      end)
+    end,
+    on_error = function(err)
+      vim.schedule(function()
+        vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end,
+  })
+end
+
 -- Command definitions that call the API functions
 M.commands = {
   swap_position = {
@@ -712,6 +835,71 @@ M.commands = {
       M.run_user_command(name)
     end,
     args = true,
+  },
+
+  compact_session = {
+    name = 'OpencodeCompactSession',
+    desc = 'Compacts the current session by removing unnecessary data',
+    fn = function()
+      if not state.active_session then
+        vim.notify('No active session to compact', vim.log.levels.WARN)
+        return
+      end
+      M.compact_session(state.active_session)
+    end,
+    slash_cmd = '/compact',
+  },
+
+  share_session = {
+    name = 'OpencodeShareSession',
+    desc = 'Share the current session and get a shareable link',
+    fn = function()
+      if not state.active_session then
+        vim.notify('No active session to share', vim.log.levels.WARN)
+        return
+      end
+      M.share()
+    end,
+    slash_cmd = '/share',
+  },
+
+  unshare_session = {
+    name = 'OpencodeUnshareSession',
+    desc = 'Unshare the current session, disabling the shareable link',
+    fn = function()
+      if not state.active_session then
+        vim.notify('No active session to unshare', vim.log.levels.WARN)
+        return
+      end
+      M.unshare()
+    end,
+    slash_cmd = '/unshare',
+  },
+
+  undo = {
+    name = 'OpencodeUndo',
+    desc = 'Undo last opencode action',
+    fn = function()
+      if not state.active_session then
+        vim.notify('No active session to undo', vim.log.levels.WARN)
+        return
+      end
+      M.undo()
+    end,
+    slash_cmd = '/undo',
+  },
+
+  redo = {
+    name = 'OpencodeRedo',
+    desc = 'Redo last opencode action',
+    fn = function()
+      if not state.active_session then
+        vim.notify('No active session to undo', vim.log.levels.WARN)
+        return
+      end
+      M.redo()
+    end,
+    slash_cmd = '/redo',
   },
 }
 

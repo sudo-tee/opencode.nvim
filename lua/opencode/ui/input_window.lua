@@ -199,6 +199,12 @@ function M.setup_keymaps(windows)
   map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
 
   map(keymaps.select_child_session, api.select_child_session, input_buf, 'n')
+
+  if config.debug.enabled then
+    local debug_helper = require('opencode.ui.debug_helper')
+    map(keymaps.debug_output, debug_helper.debug_output, input_buf, 'n')
+    map(keymaps.debug_session, debug_helper.debug_session, input_buf, 'n')
+  end
 end
 
 function M.setup_autocmds(windows, group)

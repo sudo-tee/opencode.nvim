@@ -65,6 +65,7 @@ M.defaults = {
       select_child_session = '<leader>oS',
       debug_message = '<leader>oD',
       debug_output = '<leader>oO',
+      debug_session = '<leader>ods',
     },
   },
   ui = {

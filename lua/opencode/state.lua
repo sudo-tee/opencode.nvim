@@ -26,6 +26,7 @@ local config = require('opencode.config').get()
 ---@field current_model string|nil
 ---@field messages Message[]|nil
 ---@field current_message Message|nil
+---@field last_user_message Message|nil
 ---@field cost number
 ---@field tokens_count number
 ---@field opencode_server_job OpencodeServer
@@ -59,6 +60,7 @@ local _state = {
   -- messages
   messages = nil,
   current_message = nil,
+  last_user_message = nil,
   cost = 0,
   tokens_count = 0,
   -- job

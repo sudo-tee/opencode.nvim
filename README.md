@@ -265,7 +265,7 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 
 ### Available Actions
 
-The plugin provides the following actions that can be triggered via keymaps, commands, or the Lua API:
+The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:
 
 | Action                                              | Default keymap | Command                                  | API Function                                                                 |
 | --------------------------------------------------- | -------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
@@ -287,6 +287,10 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Revert current file changes last prompt             | `<leader>ort`  | `:OpencodeRevertThisLastPrompt`          | `require('opencode.api').diff_revert_this_last_prompt()`                     |
 | Revert all file changes since last session          | `<leader>orA`  | `:OpencodeRevertAllSession`              | `require('opencode.api').diff_revert_all_session()` **Not implemented yet**  |
 | Revert current file changes last session            | `<leader>orT`  | `:OpencodeRevertThisSession`             | `require('opencode.api').diff_revert_this_session()` **Not implemented yet** |
+| Revert all files to a specific snapshot             | -              | `:OpencodeRevertAllToSnapshot`           | `require('opencode.api').diff_revert_all(snapshot_id)`                       |
+| Revert current file to a specific snapshot          | -              | `:OpencodeRevertThisToSnapshot`          | `require('opencode.api').diff_revert_this(snapshot_id)`                      |
+| Restore a file to a restore point                   | -              | `:OpencodeRestoreSnapshotFile`           | `require('opencode.api').diff_restore_snapshot_file(restore_point_id)`       |
+| Restore all files to a restore point                | -              | `:OpencodeRestoreSnapshotAll`            | `require('opencode.api').diff_restore_snapshot_all(restore_point_id)`        |
 | Initialize/update AGENTS.md file                    | -              | `:OpencodeInit`                          | `require('opencode.api').initialize()`                                       |
 | Run prompt (continue session) [Run opts](#run-opts) | -              | `:OpencodeRun <prompt> <opts>`           | `require('opencode.api').run("prompt", opts)`                                |
 | Run prompt (new session) [Run opts](#run-opts)      | -              | `:OpencodeRunNewSession <prompt> <opts>` | `require('opencode.api').run_new_session("prompt", opts)`                    |
@@ -296,6 +300,11 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Select and switch mode/agent                        | -              | `:OpencodeAgentSelect`                   | `require('opencode.api').select_agent()`                                     |
 | Display list of availale mcp servers                | -              | `:OpencodeMCP`                           | `require('opencode.api').mcp()`                                              |
 | Run user commands                                   | -              | `:OpencodeRunUserCommand`                | `require('opencode.api').run_user_command()`                                 |
+| Share current session and get a link                | -              | `:OpencodeShareSession` / `/share`       | `require('opencode.api').share()`                                            |
+| Unshare current session (disable link)              | -              | `:OpencodeUnshareSession` / `/unshare`   | `require('opencode.api').unshare()`                                          |
+| Compact current session (summarize)                 | -              | `:OpencodeCompactSession` / `/compact`   | `require('opencode.api').compact_session()`                                  |
+| Undo last opencode action                           | -              | `:OpencodeUndo` / `/undo`                | `require('opencode.api').undo()`                                             |
+| Redo last opencode action                           | -              | `:OpencodeRedo` / `/redo`                | `require('opencode.api').redo()`                                             |
 | Insert mention (file/ agent)                        | `@`            | -                                        | -                                                                            |
 | [Pick a file and add to context](#file-mentions)    | `~`            | -                                        | -                                                                            |
 | Navigate to next message                            | `]]`           | -                                        | -                                                                            |
@@ -304,6 +313,8 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Navigate to next prompt in history                  | `<down>`       | -                                        | `require('opencode.api').next_history()`                                     |
 | Toggle input/output panes                           | `<tab>`        | -                                        | -                                                                            |
 | Swap Opencode pane left/right                       | `<leader>ox`   | `:OpencodeSwapPosition`                  | `require('opencode.api').swap_position()`                                    |
+
+---
 
 ### Run opts
 
@@ -371,20 +382,36 @@ You can create custom agents through your opencode config file. Each agent can h
 
 See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
 
-## User Commands
+## User Commands and Slash Commands
 
-You can run predefined user commands from the input window by typing `/`. This will open a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
+You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
 
-To configure user commands
+**Built-in slash commands** include:
 
-### Store command files in these locations:
+- `/share` — Share the current session and get a link
+- `/unshare` — Unshare the current session
+- `/compact` — Compact (summarize) the current session
+- `/undo` — Undo the last opencode action
+- `/redo` — Redo the last undone action
+- `/init` — Initialize/update AGENTS.md
+- `/help` — Show help
+- `/mcp` — Show MCP servers
+- `/models` — Switch provider/model
+- `/sessions` — Switch session
+- `/child-sessions` — Switch to a child session
+- `/agent` — Switch agent/mode
+- ...and more
 
-`.opencode/command/` - Project-specific commands
-`command/` - Global commands in config directory
+**User commands** are custom scripts you define. They are loaded from:
+
+- `.opencode/command/` (project-specific)
+- `command/` (global, in config directory)
+
+You can also run user commands by name with `:OpencodeRunUserCommand <name>` or `/run_user_command <name>`.
 
 <img src="https://i.imgur.com/YQhhoPS.png" alt="Opencode.nvim contextual actions" width="90%" />
 
-See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details details.
+See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details.
 
 ## 📸 Contextual Actions for Snapshots
 
@@ -451,12 +478,10 @@ The plugin defines several highlight groups that can be customized to match your
 If you're new to opencode:
 
 1. **What is Opencode?**
-
    - Opencode is an AI coding agent built for the terminal
    - It offers powerful AI assistance with extensible configurations such as LLMs and MCP servers
 
 2. **Installation:**
-
    - Visit [Install Opencode](https://opencode.ai/docs/#install) for installation and configuration instructions
    - Ensure the `opencode` command is available after installation
 

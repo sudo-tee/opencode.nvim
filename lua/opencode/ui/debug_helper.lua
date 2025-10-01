@@ -26,5 +26,15 @@ function M.debug_message()
   M.open_json_file(metadata.message)
 end
 
-return M
+function M.debug_session()
+  local session = require('opencode.session')
+  local session_path = session.get_workspace_session_path()
+  if not state.active_session then
+    print('No active session')
+    return
+  end
+  vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
+  vim.cmd('e ' .. session_path .. '/' .. state.active_session.name .. '.json')
+end
 
+return M

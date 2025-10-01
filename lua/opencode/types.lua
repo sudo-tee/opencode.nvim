@@ -22,6 +22,12 @@
 ---@field agent string
 ---@field model string
 
+---@class SessionRevertInfo
+---@field messageID string
+---@field partID? string
+---@field snapshot string
+---@field diff string
+
 ---@class Session
 ---@field workspace string
 ---@field description string
@@ -34,6 +40,7 @@
 ---@field snapshot_path string
 ---@field cache_path string
 ---@field workplace_slug string
+---@field revert? SessionRevertInfo
 
 ---@class OpencodeKeymapGlobal
 ---@field toggle string
@@ -67,6 +74,7 @@
 ---@field next_prompt_history string
 ---@field focus_input string
 ---@field debug_message string
+---@field debug_session string
 ---@field debug_output string
 ---@field switch_mode string
 ---@field select_child_session string

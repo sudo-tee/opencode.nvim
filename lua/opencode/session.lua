@@ -86,6 +86,7 @@ function M.create_session_object(session_json)
     cache_path = vim.fn.stdpath('cache') .. '/opencode/session/' .. session_json.id,
     snapshot_path = M.get_workspace_snapshot_path(),
     project_id = M.project_id(),
+    revert = session_json.revert or nil,
   }
 end
 

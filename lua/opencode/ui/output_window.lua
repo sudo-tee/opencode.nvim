@@ -136,6 +136,7 @@ function M.setup_keymaps(windows)
     local debug_helper = require('opencode.ui.debug_helper')
     map(keymaps.debug_output, debug_helper.debug_output, output_buf, 'n')
     map(keymaps.debug_message, debug_helper.debug_message, output_buf, 'n')
+    map(keymaps.debug_session, debug_helper.debug_session, output_buf, 'n')
   end
 end
 

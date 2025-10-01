@@ -130,7 +130,7 @@ function OpencodeServer:_start_event_listener(base_url)
   self.permission_manager = PermissionManager.new(base_url)
   self.event_listener = EventListener.new()
 
-  self.event_listener:on('permission.request', function(data)
+  self.event_listener:on('permission.updated', function(data)
     if self.permission_manager then
       self.permission_manager:handle_request(data)
     end

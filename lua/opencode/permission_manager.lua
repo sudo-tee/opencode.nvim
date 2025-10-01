@@ -20,11 +20,19 @@ function PermissionManager:handle_request(event_data)
     return
   end
 
+  local action = event_data.title 
+    or (event_data.metadata and event_data.metadata.command)
+    or event_data.action 
+    or event_data.command 
+    or (event_data.metadata and event_data.metadata.filePath)
+    or event_data.path 
+    or ''
+
   local request = {
     id = event_data.id,
     sessionID = event_data.sessionID,
-    tool = event_data.tool or 'unknown',
-    action = event_data.action or event_data.command or event_data.path or '',
+    tool = event_data.type or event_data.tool or 'unknown',
+    action = action,
     context = event_data.context,
     time = os.time(),
   }

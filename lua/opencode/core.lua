@@ -27,8 +27,8 @@ function M.select_session(parent_id)
     if state.windows then
       state.restore_points = {}
       ui.render_output(true)
-      ui.scroll_to_bottom()
       ui.focus_input()
+      ui.scroll_to_bottom()
     else
       M.open()
     end
@@ -139,7 +139,6 @@ end
 function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
-  ui.focus_output()
   require('opencode.history').write(prompt)
 
   if state.windows then

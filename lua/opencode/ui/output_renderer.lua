@@ -146,8 +146,8 @@ M.render = vim.schedule_wrap(function(windows, force_refresh)
 
     if output_changed or force_refresh then
       vim.schedule(function()
-        M.handle_auto_scroll(windows)
         M.render_markdown()
+        M.handle_auto_scroll(windows)
         require('opencode.ui.topbar').render()
       end)
     end
@@ -246,11 +246,17 @@ function M.handle_auto_scroll(windows)
   end
 
   local botline = vim.fn.line('w$', windows.output_win)
+  local cursor_pos = vim.fn.getcurpos(windows.output_win)
+  local is_focused = vim.api.nvim_get_current_win() == windows.output_win
 
   local prev_line_count = vim.b[windows.output_buf].prev_line_count or 0
   vim.b[windows.output_buf].prev_line_count = line_count
 
   local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
+
+  if is_focused and cursor_pos[2] < prev_line_count - 1 then
+    return
+  end
 
   if was_at_bottom then
     require('opencode.ui.ui').scroll_to_bottom()

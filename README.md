@@ -217,6 +217,79 @@ require('opencode').setup({
     selection = {
       enabled = true, -- Include selected text in the context
     },
+    -- Enhanced context options (all disabled by default)
+    marks = {
+      enabled = false, -- Include the 10 most recently accessed marks
+      limit = 10,
+    },
+    jumplist = {
+      enabled = false, -- Include the last 10 jumps
+      limit = 10,
+    },
+    recent_buffers = {
+      enabled = false, -- Include the 10 most recently accessed buffers
+      limit = 10,
+    },
+    undo_history = {
+      enabled = false, -- Include the last 10 undo branches/changesets
+      limit = 10,
+    },
+    windows_tabs = {
+      enabled = false, -- Include active windows and tabs information
+    },
+    highlights = {
+      enabled = false, -- Include buffer line highlights in current viewport
+    },
+    session_info = {
+      enabled = false, -- Include current session name if active
+    },
+    registers = {
+      enabled = false, -- Include contents of specified registers
+      include = { '"', '/', 'q' }, -- Registers to include
+    },
+    command_history = {
+      enabled = false, -- Include the last 5 executed commands
+      limit = 5,
+    },
+    search_history = {
+      enabled = false, -- Include the last 5 search patterns
+      limit = 5,
+    },
+    debug_data = {
+      enabled = false, -- Include active nvim-dap debugging sessions and breakpoints
+    },
+    lsp_context = {
+      enabled = false, -- Include LSP diagnostics and code actions
+      diagnostics_limit = 10, -- Max diagnostics to include
+      code_actions = false, -- Include available code actions at cursor
+    },
+    git_info = {
+      enabled = false, -- Include git branch, file diff, and recent changes
+      diff_limit = 10, -- Max lines of file diff to include
+      changes_limit = 5, -- Number of recent commits to include
+    },
+    fold_info = {
+      enabled = false, -- Include visible fold information in viewport
+    },
+    cursor_surrounding = {
+      enabled = false, -- Include lines around cursor position
+      lines_above = 3, -- Lines to include above cursor
+      lines_below = 3, -- Lines to include below cursor
+    },
+    quickfix_loclist = {
+      enabled = false, -- Include quickfix and location list entries
+      limit = 5,
+    },
+    macros = {
+      enabled = false, -- Include recorded macro content
+      register = 'q', -- Macro register to include
+    },
+    terminal_buffers = {
+      enabled = false, -- Include most recently used terminal buffer details
+    },
+    session_duration = {
+      enabled = false, -- Include time spent in current Neovim session
+    },
   },
   debug = {
     enabled = false, -- Enable debug messages in the output window
@@ -370,13 +443,59 @@ Opencode can issue permission requests for potentially destructive operations (f
 
 The following editor context is automatically captured and included in your conversations.
 
-| Context Type    | Description                                          |
-| --------------- | ---------------------------------------------------- |
-| Current file    | Path to the focused file before entering opencode    |
-| Selected text   | Text and lines currently selected in visual mode     |
-| Mentioned files | File info added through [mentions](#file-mentions)   |
-| Diagnostics     | Diagnostics from the current file (if any)           |
-| Cursor position | Current cursor position and line content in the file |
+### Core Context (Enabled by Default)
+
+| Context Type    | Description                                          | Configuration Key        |
+| --------------- | ---------------------------------------------------- | ------------------------ |
+| Current file    | Path to the focused file before entering opencode    | `current_file.enabled`   |
+| Selected text   | Text and lines currently selected in visual mode     | `selection.enabled`      |
+| Mentioned files | File info added through [mentions](#file-mentions)   | N/A (always available)   |
+| Diagnostics     | Diagnostics from the current file (if any)           | `diagnostics`            |
+| Cursor position | Current cursor position and line content in the file | `cursor_data.enabled`    |
+
+### Enhanced Context (Disabled by Default)
+
+These additional context types can be enabled to provide even more information to the AI:
+
+| Context Type       | Description                                                | Configuration Key          |
+| ------------------ | ---------------------------------------------------------- | -------------------------- |
+| Marks              | 10 most recently accessed marks                            | `marks.enabled`            |
+| Jumplist           | Last 10 jumps in the jump list                             | `jumplist.enabled`         |
+| Recent Buffers     | 10 most recently accessed buffers                          | `recent_buffers.enabled`   |
+| Undo History       | Last 10 undo branches or changesets                        | `undo_history.enabled`     |
+| Windows & Tabs     | Information about active windows and tabs                  | `windows_tabs.enabled`     |
+| Highlights         | Buffer line highlights in current viewport                 | `highlights.enabled`       |
+| Session Info       | Current Neovim session name if active                      | `session_info.enabled`     |
+| Registers          | Contents of specified registers (e.g., `"`, `/`, `q`)      | `registers.enabled`        |
+| Command History    | Last 5 executed Vim commands                               | `command_history.enabled`  |
+| Search History     | Last 5 search patterns                                     | `search_history.enabled`   |
+| Debug Data         | Active nvim-dap debugging sessions and breakpoints         | `debug_data.enabled`       |
+| LSP Context        | LSP diagnostics and available code actions                 | `lsp_context.enabled`      |
+| Git Info           | Current branch, file diff, and recent commits              | `git_info.enabled`         |
+| Fold Info          | Visible folds in current viewport                          | `fold_info.enabled`        |
+| Cursor Surrounding | Lines above and below cursor position                      | `cursor_surrounding.enabled`|
+| Quickfix/Loclist   | Quickfix and location list entries                         | `quickfix_loclist.enabled` |
+| Macros             | Recorded macro content from specified register             | `macros.enabled`           |
+| Terminal Buffers   | Most recently used terminal buffer details                 | `terminal_buffers.enabled` |
+| Session Duration   | Time spent in current Neovim session                       | `session_duration.enabled` |
+
+To enable any of these enhanced context types, add them to your configuration:
+
+```lua
+require('opencode').setup({
+  context = {
+    -- Enable specific enhanced context types
+    marks = { enabled = true, limit = 10 },
+    jumplist = { enabled = true, limit = 10 },
+    git_info = { enabled = true, diff_limit = 10, changes_limit = 5 },
+    lsp_context = { enabled = true, diagnostics_limit = 10, code_actions = true },
+    cursor_surrounding = { enabled = true, lines_above = 3, lines_below = 3 },
+    -- ... enable others as needed
+  },
+})
+```
+
+**Note:** Enhanced context types are disabled by default to minimize token usage and API costs. Enable only the context types that are relevant to your workflow.
 
 <a id="file-mentions"></a>
 

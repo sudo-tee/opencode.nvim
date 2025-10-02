@@ -1449,14 +1449,6 @@ local function setup_cache_invalidation()
       context_cache.clear('recent_buffers_' .. bufnr)
     end,
   })
-
-  -- Clear all caches on VimLeavePre for cleanup
-  vim.api.nvim_create_autocmd('VimLeavePre', {
-    group = group,
-    callback = function()
-      context_cache.clear()
-    end,
-  })
 end
 
 -- Initialize cache invalidation

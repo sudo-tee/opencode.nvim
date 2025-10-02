@@ -45,6 +45,10 @@ function M.close_windows(windows)
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
 
+  -- Cleanup idle detector
+  local autocmds = require('opencode.ui.autocmds')
+  autocmds.cleanup()
+
   state.windows = nil
 end
 

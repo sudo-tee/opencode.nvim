@@ -10,7 +10,7 @@ describe('extract_from_opencode_message', function()
         {
           type = 'text',
           synthetic = true,
-          text = vim.json.encode({ context_type = 'selection', content = 'print(42)' }),
+            text = vim.json.encode({ context_type = 'selection', content = 'print(42)' }),
         },
         { type = 'file', filename = '/tmp/foo.lua' },
       },
@@ -137,5 +137,91 @@ describe('add_file/add_selection/add_subagent', function()
   it('adds a subagent', function()
     context.add_subagent('agentX')
     assert.same({ 'agentX' }, context.context.mentioned_subagents)
+  end)
+end)
+
+describe('recent_buffers', function()
+  local config = require('opencode.config').get()
+  local original_get_active_clients
+
+  local function create_large_buffer(name, lines)
+    local buf = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_name(buf, name)
+    local content = {}
+    for i = 1, lines do
+      content[i] = 'line ' .. i
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+    return buf
+  end
+
+  before_each(function()
+    config.context.recent_buffers.enabled = true
+    config.context.recent_buffers.symbols_only = false
+    config.context.recent_buffers.max = 5
+    state.last_sent_context = nil
+    original_get_active_clients = vim.lsp.get_active_clients
+    local fake_client = {
+      server_capabilities = { documentSymbolProvider = true },
+      request_sync = function(_, method, params, timeout, bufnr)
+        if method == 'textDocument/documentSymbol' then
+          return { result = { { name = 'FuncA' }, { name = 'FuncB', children = { { name = 'Inner' } } } } }
+        end
+        return { result = {} }
+      end,
+    }
+    vim.lsp.get_active_clients = function(_) return { fake_client } end
+    local unique_name = 'recent_buffer_' .. tostring(math.random(100000)) .. '.lua'
+    create_large_buffer(unique_name, 150)
+  end)
+
+  after_each(function()
+    if original_get_active_clients then
+      vim.lsp.get_active_clients = original_get_active_clients
+    end
+  end)
+
+  local function find_recent_buffer_parts(parts)
+    local found = {}
+    for i = 2, #parts do
+      local p = parts[i]
+      if p.type == 'text' and p.synthetic and p.text then
+        local ok, decoded = pcall(vim.json.decode, p.text)
+        if ok and decoded and decoded.context_type == 'recent-buffer' then
+          table.insert(found, decoded)
+        end
+      end
+    end
+    return found
+  end
+
+  it('does not include recent buffers when disabled', function()
+    config.context.recent_buffers.enabled = false
+    local parts = context.format_message('prompt')
+    local rb = find_recent_buffer_parts(parts)
+    assert.equal(0, #rb)
+  end)
+
+  it('includes recent buffer preview when enabled and symbols_only = false', function()
+    config.context.recent_buffers.enabled = true
+    config.context.recent_buffers.symbols_only = false
+    local parts = context.format_message('prompt')
+    local rb = find_recent_buffer_parts(parts)
+    assert.is_true(#rb >= 1)
+    assert.is_not_nil(rb[1].preview)
+    assert.is_nil(rb[1].symbols)
+    assert.is_truthy(rb[1].line_count > 100)
+  end)
+
+  it('includes symbols list when symbols_only = true', function()
+    config.context.recent_buffers.enabled = true
+    config.context.recent_buffers.symbols_only = true
+    local parts = context.format_message('prompt')
+    local rb = find_recent_buffer_parts(parts)
+    assert.is_true(#rb >= 1)
+    assert.is_nil(rb[1].preview)
+    assert.is_not_nil(rb[1].symbols)
+    -- symbols list should exist (may be empty depending on LSP behavior in tests)
+    assert.is_not_nil(rb[1].symbols)
   end)
 end)

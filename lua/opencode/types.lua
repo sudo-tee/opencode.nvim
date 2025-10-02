@@ -113,6 +113,7 @@
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
+---@field recent_buffers { enabled: boolean, symbols_only: boolean, max: number }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean

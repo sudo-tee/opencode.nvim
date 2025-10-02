@@ -147,6 +147,11 @@ M.defaults = {
     selection = {
       enabled = true,
     },
+    recent_buffers = {
+      enabled = true,
+      symbols_only = false,
+      max = 5,
+    },
   },
   debug = {
     enabled = false,

@@ -6,6 +6,8 @@ local state = require('opencode.state')
 
 local M = {}
 
+local cache = { timestamp = 0, last_changedtick = 0, data = nil }
+
 local cwd = vim.fn.getcwd()
 
 local function is_in_cwd(path)
@@ -81,6 +83,15 @@ function M.unload_attachments()
 end
 
 function M.load()
+  local now = vim.uv.now()
+  local current_buf = vim.api.nvim_get_current_buf()
+  local current_changedtick = vim.b[current_buf].changedtick or 0
+  if cache.timestamp > 0 and now - cache.timestamp < 500 and current_changedtick == cache.last_changedtick then
+    if cache.data then
+      M.context = vim.deepcopy(cache.data)
+    end
+    return
+  end
   if util.is_current_buf_a_file() then
     local current_file = M.get_current_file()
     local cursor_data = M.get_current_cursor_data()
@@ -117,6 +128,9 @@ function M.load()
   M.context.macros = M.get_macros()
   M.context.terminal_buffers = M.get_terminal_buffers()
   M.context.session_duration = M.get_session_duration()
+  cache.timestamp = now
+  cache.data = vim.deepcopy(M.context)
+  cache.last_changedtick = current_changedtick
 end
 
 function M.check_linter_errors()
@@ -740,7 +754,7 @@ function M.get_lsp_context()
   local result = {}
 
   -- Get diagnostics with more details
-  local diagnostics = vim.diagnostic.get(bufnr)
+  local diagnostics = vim.diagnostic.get(bufnr) or {}
   local limit = config.context.lsp_context.diagnostics_limit or 10
 
   result.diagnostics = {}

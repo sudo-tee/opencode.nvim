@@ -2,6 +2,8 @@ local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
 local M = {}
 
+local last_update = 0
+
 function M.setup_autocmds(windows)
   local group = vim.api.nvim_create_augroup('OpencodeWindows', { clear = true })
   input_window.setup_autocmds(windows, group)
@@ -26,6 +28,11 @@ function M.setup_autocmds(windows)
     group = group,
     pattern = '*',
     callback = function()
+      local now = vim.uv.now()
+      if now - last_update < 1000 then
+        return
+      end
+      last_update = now
       if not require('opencode.ui.ui').is_opencode_focused() then
         require('opencode.context').load()
         require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()

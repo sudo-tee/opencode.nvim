@@ -147,6 +147,78 @@ M.defaults = {
     selection = {
       enabled = true,
     },
+    marks = {
+      enabled = false,
+      limit = 10,
+    },
+    jumplist = {
+      enabled = false,
+      limit = 10,
+    },
+    recent_buffers = {
+      enabled = false,
+      limit = 10,
+    },
+    undo_history = {
+      enabled = false,
+      limit = 10,
+    },
+    windows_tabs = {
+      enabled = false,
+    },
+    highlights = {
+      enabled = false,
+    },
+    session_info = {
+      enabled = false,
+    },
+    registers = {
+      enabled = false,
+      include = { '"', '/', 'q' },
+    },
+    command_history = {
+      enabled = false,
+      limit = 5,
+    },
+    search_history = {
+      enabled = false,
+      limit = 5,
+    },
+    debug_data = {
+      enabled = false,
+    },
+    lsp_context = {
+      enabled = false,
+      diagnostics_limit = 10,
+      code_actions = false,
+    },
+    git_info = {
+      enabled = false,
+      diff_limit = 10,
+      changes_limit = 5,
+    },
+    fold_info = {
+      enabled = false,
+    },
+    cursor_surrounding = {
+      enabled = false,
+      lines_above = 3,
+      lines_below = 3,
+    },
+    quickfix_loclist = {
+      enabled = false,
+      limit = 5,
+    },
+    macros = {
+      enabled = false,
+      register = 'q',
+    },
+    terminal_buffers = {
+      enabled = false,
+    },
+    session_duration = {
+      enabled = false,
+    },
   },
   debug = {
     enabled = false,

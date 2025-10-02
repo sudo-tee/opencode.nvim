@@ -139,3 +139,261 @@ describe('add_file/add_selection/add_subagent', function()
     assert.same({ 'agentX' }, context.context.mentioned_subagents)
   end)
 end)
+
+describe('get_marks', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.marks = { enabled = true, limit = 10 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.marks.enabled = false
+    local result = context.get_marks()
+    assert.is_nil(result)
+  end)
+  it('returns marks when enabled', function()
+    vim.fn.getmarklist = function()
+      return {
+        { mark = "'a", pos = { 1, 10, 5, 0 }, file = '/tmp/test.lua' },
+        { mark = "'b", pos = { 1, 20, 10, 0 } },
+      }
+    end
+    local result = context.get_marks()
+    assert.is_table(result)
+    assert.equal(2, #result)
+    assert.equal("'a", result[1].mark)
+    assert.equal(10, result[1].line)
+  end)
+end)
+
+describe('get_jumplist', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.jumplist = { enabled = true, limit = 10 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.jumplist.enabled = false
+    local result = context.get_jumplist()
+    assert.is_nil(result)
+  end)
+  it('returns jumplist when enabled', function()
+    vim.fn.getjumplist = function()
+      return { { bufnr = 1, lnum = 10, col = 5 }, { bufnr = 2, lnum = 20, col = 10 } }, 1
+    end
+    vim.fn.bufname = function(bufnr)
+      return '/tmp/file' .. bufnr .. '.lua'
+    end
+    local result = context.get_jumplist()
+    assert.is_table(result)
+    assert.is_table(result.jumps)
+    assert.equal(1, result.current)
+  end)
+end)
+
+describe('get_recent_buffers', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.recent_buffers = { enabled = true, limit = 10 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.recent_buffers.enabled = false
+    local result = context.get_recent_buffers()
+    assert.is_nil(result)
+  end)
+  it('returns recent buffers when enabled', function()
+    vim.fn.getbufinfo = function()
+      return {
+        { bufnr = 1, name = '/tmp/file1.lua', lastused = 1000, changed = 0 },
+        { bufnr = 2, name = '/tmp/file2.lua', lastused = 2000, changed = 1 },
+      }
+    end
+    local result = context.get_recent_buffers()
+    assert.is_table(result)
+    assert.equal(2, #result)
+    assert.equal(2000, result[1].lastused)
+  end)
+end)
+
+describe('get_command_history', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.command_history = { enabled = true, limit = 5 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.command_history.enabled = false
+    local result = context.get_command_history()
+    assert.is_nil(result)
+  end)
+  it('returns command history when enabled', function()
+    local commands = { 'echo 1', 'echo 2', 'echo 3' }
+    local idx = 1
+    vim.fn.histget = function(type, i)
+      if i < 0 then
+        local pos = #commands + i + 1
+        return commands[pos] or ''
+      end
+      return ''
+    end
+    local result = context.get_command_history()
+    assert.is_table(result)
+  end)
+end)
+
+describe('get_search_history', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.search_history = { enabled = true, limit = 5 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.search_history.enabled = false
+    local result = context.get_search_history()
+    assert.is_nil(result)
+  end)
+  it('returns search history when enabled', function()
+    local searches = { 'foo', 'bar', 'baz' }
+    vim.fn.histget = function(type, i)
+      if type == '/' and i < 0 then
+        local pos = #searches + i + 1
+        return searches[pos] or ''
+      end
+      return ''
+    end
+    local result = context.get_search_history()
+    assert.is_table(result)
+  end)
+end)
+
+describe('get_session_duration', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.session_duration = { enabled = true }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.session_duration.enabled = false
+    local result = context.get_session_duration()
+    assert.is_nil(result)
+  end)
+  it('returns session duration when enabled', function()
+    local result = context.get_session_duration()
+    assert.is_table(result)
+    assert.is_number(result.duration_seconds)
+    assert.is_number(result.duration_minutes)
+    assert.is_number(result.duration_hours)
+  end)
+end)
+
+describe('get_registers', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.registers = { enabled = true, include = { '"', '/', 'q' } }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.registers.enabled = false
+    local result = context.get_registers()
+    assert.is_nil(result)
+  end)
+  it('returns registers when enabled', function()
+    vim.fn.getreginfo = function(reg)
+      return { regcontents = { 'line1', 'line2' }, regtype = 'V' }
+    end
+    local result = context.get_registers()
+    assert.is_table(result)
+  end)
+end)
+
+describe('get_macros', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.macros = { enabled = true, register = 'q' }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.macros.enabled = false
+    local result = context.get_macros()
+    assert.is_nil(result)
+  end)
+  it('returns macro when enabled and register has content', function()
+    vim.fn.getreg = function(reg)
+      if reg == 'q' then
+        return 'iHello<Esc>'
+      end
+      return ''
+    end
+    local result = context.get_macros()
+    assert.is_table(result)
+    assert.equal('q', result.register)
+    assert.equal('iHello<Esc>', result.content)
+  end)
+  it('returns nil when register is empty', function()
+    vim.fn.getreg = function()
+      return ''
+    end
+    local result = context.get_macros()
+    assert.is_nil(result)
+  end)
+end)
+
+describe('get_git_info', function()
+  local config = require('opencode.config')
+  before_each(function()
+    config.values.context.git_info = { enabled = true, diff_limit = 10, changes_limit = 5 }
+  end)
+  it('returns nil when disabled', function()
+    config.values.context.git_info.enabled = false
+    local result = context.get_git_info()
+    assert.is_nil(result)
+  end)
+  it('returns git info when in a git repo', function()
+    vim.fn.systemlist = function(cmd)
+      if cmd:match('rev%-parse') then
+        return { 'main' }
+      elseif cmd:match('log') then
+        return { 'abc123 commit 1', 'def456 commit 2' }
+      end
+      return {}
+    end
+    local result = context.get_git_info()
+    if result then
+      assert.is_table(result)
+      assert.equal('main', result.branch)
+    end
+  end)
+end)
+
+describe('format_message with new context types', function()
+  local config = require('opencode.config')
+  local original_delta_context
+  before_each(function()
+    context.context.marks = { { mark = "'a", line = 10, col = 5 } }
+    context.context.jumplist = { jumps = {}, current = 0 }
+    context.context.session_duration = { duration_seconds = 120 }
+    original_delta_context = context.delta_context
+    context.delta_context = function()
+      return context.context
+    end
+  end)
+
+  after_each(function()
+    context.delta_context = original_delta_context
+    context.context.marks = nil
+    context.context.jumplist = nil
+    context.context.session_duration = nil
+  end)
+
+  it('includes new context types in message parts', function()
+    local parts = context.format_message('test prompt')
+    assert.is_table(parts)
+    -- Should have prompt + new context types
+    assert.is_true(#parts >= 1)
+    -- Check for synthetic context parts
+    local found_context = false
+    for _, part in ipairs(parts) do
+      if part.synthetic and part.text then
+        local ok, decoded = pcall(vim.json.decode, part.text)
+        if ok and decoded.context_type then
+          found_context = true
+          break
+        end
+      end
+    end
+    assert.is_true(found_context)
+  end)
+end)

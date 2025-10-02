@@ -17,13 +17,56 @@ M.context = {
   selections = nil,
   linter_errors = nil,
   mentioned_subagents = nil,
+
+  -- new context types
+  marks = nil,
+  jumplist = nil,
+  recent_buffers = nil,
+  undo_history = nil,
+  windows_tabs = nil,
+  highlights = nil,
+  session_info = nil,
+  registers = nil,
+  command_history = nil,
+  search_history = nil,
+  debug_data = nil,
+  lsp_context = nil,
+  git_info = nil,
+  fold_info = nil,
+  cursor_surrounding = nil,
+  quickfix_loclist = nil,
+  macros = nil,
+  terminal_buffers = nil,
+  session_duration = nil,
 }
+
+-- Track session start time for duration calculation
+M.session_start_time = vim.loop.hrtime()
 
 function M.unload_attachments()
   M.context.mentioned_files = nil
   M.context.mentioned_files_content = nil
   M.context.selections = nil
   M.context.linter_errors = nil
+  M.context.marks = nil
+  M.context.jumplist = nil
+  M.context.recent_buffers = nil
+  M.context.undo_history = nil
+  M.context.windows_tabs = nil
+  M.context.highlights = nil
+  M.context.session_info = nil
+  M.context.registers = nil
+  M.context.command_history = nil
+  M.context.search_history = nil
+  M.context.debug_data = nil
+  M.context.lsp_context = nil
+  M.context.git_info = nil
+  M.context.fold_info = nil
+  M.context.cursor_surrounding = nil
+  M.context.quickfix_loclist = nil
+  M.context.macros = nil
+  M.context.terminal_buffers = nil
+  M.context.session_duration = nil
 end
 
 function M.load()
@@ -41,6 +84,27 @@ function M.load()
     local selection = M.new_selection(M.context.current_file, current_selection.text, current_selection.lines)
     M.add_selection(selection)
   end
+
+  -- Load new context types
+  M.context.marks = M.get_marks()
+  M.context.jumplist = M.get_jumplist()
+  M.context.recent_buffers = M.get_recent_buffers()
+  M.context.undo_history = M.get_undo_history()
+  M.context.windows_tabs = M.get_windows_tabs()
+  M.context.highlights = M.get_highlights()
+  M.context.session_info = M.get_session_info()
+  M.context.registers = M.get_registers()
+  M.context.command_history = M.get_command_history()
+  M.context.search_history = M.get_search_history()
+  M.context.debug_data = M.get_debug_data()
+  M.context.lsp_context = M.get_lsp_context()
+  M.context.git_info = M.get_git_info()
+  M.context.fold_info = M.get_fold_info()
+  M.context.cursor_surrounding = M.get_cursor_surrounding()
+  M.context.quickfix_loclist = M.get_quickfix_loclist()
+  M.context.macros = M.get_macros()
+  M.context.terminal_buffers = M.get_terminal_buffers()
+  M.context.session_duration = M.get_session_duration()
 end
 
 function M.check_linter_errors()
@@ -129,6 +193,25 @@ function M.delta_context(opts)
       linter_errors = nil,
       cursor_data = nil,
       mentioned_subagents = nil,
+      marks = nil,
+      jumplist = nil,
+      recent_buffers = nil,
+      undo_history = nil,
+      windows_tabs = nil,
+      highlights = nil,
+      session_info = nil,
+      registers = nil,
+      command_history = nil,
+      search_history = nil,
+      debug_data = nil,
+      lsp_context = nil,
+      git_info = nil,
+      fold_info = nil,
+      cursor_surrounding = nil,
+      quickfix_loclist = nil,
+      macros = nil,
+      terminal_buffers = nil,
+      session_duration = nil,
     }
   end
 
@@ -236,6 +319,587 @@ function M.get_current_selection()
   }
 end
 
+-- Get marks (10 most recent)
+function M.get_marks()
+  if not (config.context and config.context.enabled and config.context.marks and config.context.marks.enabled) then
+    return nil
+  end
+
+  local marks = vim.fn.getmarklist()
+  local limit = config.context.marks.limit or 10
+  local result = {}
+
+  for i = 1, math.min(#marks, limit) do
+    local mark = marks[i]
+    if mark.mark and mark.pos then
+      table.insert(result, {
+        mark = mark.mark,
+        line = mark.pos[2],
+        col = mark.pos[3],
+        file = mark.file or vim.fn.bufname(mark.pos[1]),
+      })
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get jumplist (last 10 jumps)
+function M.get_jumplist()
+  if
+    not (config.context and config.context.enabled and config.context.jumplist and config.context.jumplist.enabled)
+  then
+    return nil
+  end
+
+  local jumplist, current = vim.fn.getjumplist()
+  local limit = config.context.jumplist.limit or 10
+  local result = {}
+
+  -- Get the most recent jumps
+  local start_idx = math.max(1, #jumplist - limit + 1)
+  for i = start_idx, #jumplist do
+    local jump = jumplist[i]
+    if jump.bufnr and jump.lnum then
+      table.insert(result, {
+        bufnr = jump.bufnr,
+        filename = vim.fn.bufname(jump.bufnr),
+        line = jump.lnum,
+        col = jump.col,
+      })
+    end
+  end
+
+  return #result > 0 and { jumps = result, current = current } or nil
+end
+
+-- Get recent buffers (10 most recently accessed)
+function M.get_recent_buffers()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.recent_buffers
+      and config.context.recent_buffers.enabled
+    )
+  then
+    return nil
+  end
+
+  local buffers = vim.fn.getbufinfo({ buflisted = true })
+  local limit = config.context.recent_buffers.limit or 10
+
+  -- Sort by last used time
+  table.sort(buffers, function(a, b)
+    return (a.lastused or 0) > (b.lastused or 0)
+  end)
+
+  local result = {}
+  for i = 1, math.min(#buffers, limit) do
+    local buf = buffers[i]
+    table.insert(result, {
+      bufnr = buf.bufnr,
+      name = buf.name,
+      lastused = buf.lastused,
+      changed = buf.changed == 1,
+    })
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get undo history (last 10 branches/changesets)
+function M.get_undo_history()
+  if
+    not (
+      config.context and config.context.enabled and config.context.undo_history and config.context.undo_history.enabled
+    )
+  then
+    return nil
+  end
+
+  local ok, undotree = pcall(vim.fn.undotree)
+  if not ok or not undotree or not undotree.entries then
+    return nil
+  end
+
+  local limit = config.context.undo_history.limit or 10
+  local result = {}
+
+  -- Get the most recent entries
+  local start_idx = math.max(1, #undotree.entries - limit + 1)
+  for i = start_idx, #undotree.entries do
+    local entry = undotree.entries[i]
+    table.insert(result, {
+      seq = entry.seq,
+      time = entry.time,
+      newhead = entry.newhead,
+    })
+  end
+
+  return #result > 0 and { entries = result, seq_cur = undotree.seq_cur } or nil
+end
+
+-- Get window and tab context
+function M.get_windows_tabs()
+  if
+    not (config.context and config.context.enabled and config.context.windows_tabs and config.context.windows_tabs.enabled)
+  then
+    return nil
+  end
+
+  local windows = {}
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local bufnr = vim.api.nvim_win_get_buf(win)
+    table.insert(windows, {
+      id = win,
+      bufnr = bufnr,
+      filename = vim.fn.bufname(bufnr),
+    })
+  end
+
+  local tabs = {}
+  for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+    table.insert(tabs, {
+      id = tab,
+      windows = vim.api.nvim_tabpage_list_wins(tab),
+    })
+  end
+
+  return { windows = windows, tabs = tabs, current_win = vim.api.nvim_get_current_win() }
+end
+
+-- Get buffer line highlights
+function M.get_highlights()
+  if not (config.context and config.context.enabled and config.context.highlights and config.context.highlights.enabled) then
+    return nil
+  end
+
+  local matches = vim.fn.getmatches()
+  local result = {}
+
+  for _, match in ipairs(matches) do
+    table.insert(result, {
+      group = match.group,
+      pattern = match.pattern,
+      priority = match.priority,
+    })
+  end
+
+  -- Also get extmarks from current buffer if available
+  local bufnr = vim.api.nvim_get_current_buf()
+  local ok, extmarks = pcall(vim.api.nvim_buf_get_extmarks, bufnr, -1, 0, -1, { details = true })
+  if ok and extmarks then
+    for _, extmark in ipairs(extmarks) do
+      if extmark[4] and extmark[4].hl_group then
+        table.insert(result, {
+          id = extmark[1],
+          line = extmark[2],
+          col = extmark[3],
+          hl_group = extmark[4].hl_group,
+        })
+      end
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get session information
+function M.get_session_info()
+  if
+    not (config.context and config.context.enabled and config.context.session_info and config.context.session_info.enabled)
+  then
+    return nil
+  end
+
+  local session_name = vim.v.this_session
+  if session_name and session_name ~= '' then
+    return {
+      name = session_name,
+      cwd = vim.fn.getcwd(),
+    }
+  end
+
+  return nil
+end
+
+-- Get registers
+function M.get_registers()
+  if not (config.context and config.context.enabled and config.context.registers and config.context.registers.enabled) then
+    return nil
+  end
+
+  local include = config.context.registers.include or { '"', '/', 'q' }
+  local result = {}
+
+  for _, reg in ipairs(include) do
+    local ok, reginfo = pcall(vim.fn.getreginfo, reg)
+    if ok and reginfo and reginfo.regcontents then
+      result[reg] = {
+        contents = reginfo.regcontents,
+        regtype = reginfo.regtype,
+      }
+    end
+  end
+
+  return vim.tbl_count(result) > 0 and result or nil
+end
+
+-- Get command history
+function M.get_command_history()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.command_history
+      and config.context.command_history.enabled
+    )
+  then
+    return nil
+  end
+
+  local limit = config.context.command_history.limit or 5
+  local result = {}
+
+  -- Get the last N commands
+  for i = -1, -limit, -1 do
+    local cmd = vim.fn.histget('cmd', i)
+    if cmd and cmd ~= '' then
+      table.insert(result, cmd)
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get search history
+function M.get_search_history()
+  if
+    not (
+      config.context and config.context.enabled and config.context.search_history and config.context.search_history.enabled
+    )
+  then
+    return nil
+  end
+
+  local limit = config.context.search_history.limit or 5
+  local result = {}
+
+  -- Get the last N searches
+  for i = -1, -limit, -1 do
+    local search = vim.fn.histget('/', i)
+    if search and search ~= '' then
+      table.insert(result, search)
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get debug data (nvim-dap)
+function M.get_debug_data()
+  if not (config.context and config.context.enabled and config.context.debug_data and config.context.debug_data.enabled) then
+    return nil
+  end
+
+  local ok, dap = pcall(require, 'dap')
+  if not ok then
+    return nil
+  end
+
+  local session = dap.session()
+  if not session then
+    return nil
+  end
+
+  local breakpoints = dap.breakpoints.get()
+  local result = {
+    session_active = true,
+    breakpoints = {},
+  }
+
+  for buf, bps in pairs(breakpoints) do
+    local bufname = vim.fn.bufname(buf)
+    for _, bp in ipairs(bps) do
+      table.insert(result.breakpoints, {
+        file = bufname,
+        line = bp.line,
+        condition = bp.condition,
+      })
+    end
+  end
+
+  return result
+end
+
+-- Get LSP context
+function M.get_lsp_context()
+  if
+    not (config.context and config.context.enabled and config.context.lsp_context and config.context.lsp_context.enabled)
+  then
+    return nil
+  end
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local result = {}
+
+  -- Get diagnostics
+  local diagnostics = vim.diagnostic.get(bufnr)
+  local limit = config.context.lsp_context.diagnostics_limit or 10
+
+  result.diagnostics = {}
+  for i = 1, math.min(#diagnostics, limit) do
+    local diag = diagnostics[i]
+    table.insert(result.diagnostics, {
+      line = diag.lnum,
+      col = diag.col,
+      severity = diag.severity,
+      message = diag.message,
+      source = diag.source,
+    })
+  end
+
+  -- Get code actions if enabled
+  if config.context.lsp_context.code_actions then
+    result.code_actions_available = false
+    -- Note: Getting code actions is async, so we just note if LSP is available
+    local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+    if #clients > 0 then
+      result.code_actions_available = true
+    end
+  end
+
+  return vim.tbl_count(result.diagnostics) > 0 or result.code_actions_available and result or nil
+end
+
+-- Get Git information
+function M.get_git_info()
+  if not (config.context and config.context.enabled and config.context.git_info and config.context.git_info.enabled) then
+    return nil
+  end
+
+  local result = {}
+
+  -- Get current branch
+  local branch_ok, branch = pcall(vim.fn.systemlist, 'git rev-parse --abbrev-ref HEAD 2>/dev/null')
+  if branch_ok and branch[1] and branch[1] ~= '' then
+    result.branch = branch[1]
+  else
+    return nil
+  end
+
+  -- Get file diff
+  local current_file = vim.fn.expand('%:p')
+  if current_file and current_file ~= '' then
+    local diff_limit = config.context.git_info.diff_limit or 10
+    local diff_ok, diff = pcall(vim.fn.systemlist, string.format('git diff HEAD -- %s 2>/dev/null', current_file))
+    if diff_ok and diff then
+      result.file_diff = {}
+      for i = 1, math.min(#diff, diff_limit) do
+        table.insert(result.file_diff, diff[i])
+      end
+    end
+  end
+
+  -- Get recent changes
+  local changes_limit = config.context.git_info.changes_limit or 5
+  local log_ok, log =
+    pcall(vim.fn.systemlist, string.format('git log --oneline -n %d 2>/dev/null', changes_limit))
+  if log_ok and log then
+    result.recent_changes = log
+  end
+
+  return result
+end
+
+-- Get fold information
+function M.get_fold_info()
+  if not (config.context and config.context.enabled and config.context.fold_info and config.context.fold_info.enabled) then
+    return nil
+  end
+
+  local result = {}
+  local win = vim.api.nvim_get_current_win()
+  local top = vim.fn.line('w0')
+  local bottom = vim.fn.line('w$')
+
+  for lnum = top, bottom do
+    local fold_level = vim.fn.foldlevel(lnum)
+    local fold_closed = vim.fn.foldclosed(lnum)
+
+    if fold_level > 0 then
+      table.insert(result, {
+        line = lnum,
+        level = fold_level,
+        closed = fold_closed ~= -1,
+        closed_start = fold_closed,
+      })
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get cursor surrounding context
+function M.get_cursor_surrounding()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.cursor_surrounding
+      and config.context.cursor_surrounding.enabled
+    )
+  then
+    return nil
+  end
+
+  local lines_above = config.context.cursor_surrounding.lines_above or 3
+  local lines_below = config.context.cursor_surrounding.lines_below or 3
+
+  local current_line = vim.fn.line('.')
+  local start_line = math.max(1, current_line - lines_above)
+  local end_line = math.min(vim.fn.line('$'), current_line + lines_below)
+
+  local ok, lines = pcall(vim.api.nvim_buf_get_lines, 0, start_line - 1, end_line, false)
+  if not ok then
+    return nil
+  end
+
+  return {
+    lines = lines,
+    start_line = start_line,
+    end_line = end_line,
+    current_line = current_line,
+  }
+end
+
+-- Get quickfix and location list
+function M.get_quickfix_loclist()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.quickfix_loclist
+      and config.context.quickfix_loclist.enabled
+    )
+  then
+    return nil
+  end
+
+  local limit = config.context.quickfix_loclist.limit or 5
+  local result = {}
+
+  -- Get quickfix list
+  local qflist = vim.fn.getqflist()
+  result.quickfix = {}
+  for i = 1, math.min(#qflist, limit) do
+    local item = qflist[i]
+    table.insert(result.quickfix, {
+      filename = vim.fn.bufname(item.bufnr),
+      lnum = item.lnum,
+      col = item.col,
+      text = item.text,
+      type = item.type,
+    })
+  end
+
+  -- Get location list
+  local loclist = vim.fn.getloclist(0)
+  result.loclist = {}
+  for i = 1, math.min(#loclist, limit) do
+    local item = loclist[i]
+    table.insert(result.loclist, {
+      filename = vim.fn.bufname(item.bufnr),
+      lnum = item.lnum,
+      col = item.col,
+      text = item.text,
+      type = item.type,
+    })
+  end
+
+  return (#result.quickfix > 0 or #result.loclist > 0) and result or nil
+end
+
+-- Get macros
+function M.get_macros()
+  if not (config.context and config.context.enabled and config.context.macros and config.context.macros.enabled) then
+    return nil
+  end
+
+  local register = config.context.macros.register or 'q'
+  local macro = vim.fn.getreg(register)
+
+  if macro and macro ~= '' then
+    return {
+      register = register,
+      content = macro,
+    }
+  end
+
+  return nil
+end
+
+-- Get terminal buffers
+function M.get_terminal_buffers()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.terminal_buffers
+      and config.context.terminal_buffers.enabled
+    )
+  then
+    return nil
+  end
+
+  local result = {}
+  local buffers = vim.fn.getbufinfo({ buflisted = true })
+
+  -- Sort by last used
+  table.sort(buffers, function(a, b)
+    return (a.lastused or 0) > (b.lastused or 0)
+  end)
+
+  for _, buf in ipairs(buffers) do
+    local name = buf.name
+    if name and name:match('^term://') then
+      table.insert(result, {
+        bufnr = buf.bufnr,
+        name = name,
+        lastused = buf.lastused,
+      })
+      break -- Only get the most recent
+    end
+  end
+
+  return #result > 0 and result or nil
+end
+
+-- Get session duration
+function M.get_session_duration()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.session_duration
+      and config.context.session_duration.enabled
+    )
+  then
+    return nil
+  end
+
+  local current_time = vim.loop.hrtime()
+  local duration_ns = current_time - M.session_start_time
+  local duration_seconds = duration_ns / 1e9
+
+  return {
+    duration_seconds = math.floor(duration_seconds),
+    duration_minutes = math.floor(duration_seconds / 60),
+    duration_hours = math.floor(duration_seconds / 3600),
+  }
+end
+
 local function format_file_part(path, prompt)
   local rel_path = vim.fn.fnamemodify(path, ':~:.')
   local mention = '@' .. rel_path
@@ -285,6 +949,15 @@ local function format_cursor_data_part(cursor_data)
   }
 end
 
+-- Format functions for new context types
+local function format_context_part(context_type, content)
+  return {
+    type = 'text',
+    text = vim.json.encode({ context_type = context_type, content = content }),
+    synthetic = true,
+  }
+end
+
 local function format_subagents_part(agent, prompt)
   local mention = '@' .. agent
   local pos = prompt:find(mention)
@@ -330,6 +1003,83 @@ function M.format_message(prompt, opts)
 
   if context.cursor_data then
     table.insert(parts, format_cursor_data_part(context.cursor_data))
+  end
+
+  -- Add new context types
+  if context.marks then
+    table.insert(parts, format_context_part('marks', context.marks))
+  end
+
+  if context.jumplist then
+    table.insert(parts, format_context_part('jumplist', context.jumplist))
+  end
+
+  if context.recent_buffers then
+    table.insert(parts, format_context_part('recent_buffers', context.recent_buffers))
+  end
+
+  if context.undo_history then
+    table.insert(parts, format_context_part('undo_history', context.undo_history))
+  end
+
+  if context.windows_tabs then
+    table.insert(parts, format_context_part('windows_tabs', context.windows_tabs))
+  end
+
+  if context.highlights then
+    table.insert(parts, format_context_part('highlights', context.highlights))
+  end
+
+  if context.session_info then
+    table.insert(parts, format_context_part('session_info', context.session_info))
+  end
+
+  if context.registers then
+    table.insert(parts, format_context_part('registers', context.registers))
+  end
+
+  if context.command_history then
+    table.insert(parts, format_context_part('command_history', context.command_history))
+  end
+
+  if context.search_history then
+    table.insert(parts, format_context_part('search_history', context.search_history))
+  end
+
+  if context.debug_data then
+    table.insert(parts, format_context_part('debug_data', context.debug_data))
+  end
+
+  if context.lsp_context then
+    table.insert(parts, format_context_part('lsp_context', context.lsp_context))
+  end
+
+  if context.git_info then
+    table.insert(parts, format_context_part('git_info', context.git_info))
+  end
+
+  if context.fold_info then
+    table.insert(parts, format_context_part('fold_info', context.fold_info))
+  end
+
+  if context.cursor_surrounding then
+    table.insert(parts, format_context_part('cursor_surrounding', context.cursor_surrounding))
+  end
+
+  if context.quickfix_loclist then
+    table.insert(parts, format_context_part('quickfix_loclist', context.quickfix_loclist))
+  end
+
+  if context.macros then
+    table.insert(parts, format_context_part('macros', context.macros))
+  end
+
+  if context.terminal_buffers then
+    table.insert(parts, format_context_part('terminal_buffers', context.terminal_buffers))
+  end
+
+  if context.session_duration then
+    table.insert(parts, format_context_part('session_duration', context.session_duration))
   end
 
   return parts

@@ -1,8 +1,9 @@
 local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
+local IdleDetector = require('opencode.idle')
 local M = {}
 
-local last_update = 0
+local idle_detector = nil
 
 function M.setup_autocmds(windows)
   local group = vim.api.nvim_create_augroup('OpencodeWindows', { clear = true })
@@ -24,22 +25,26 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  -- Based on CursorHold, update context if user is not focused on opencode window
-  vim.api.nvim_create_autocmd('CursorHold', {
-    group = group,
-    pattern = '*',
+  -- Setup idle detection for automatic context updates
+  if idle_detector then
+    idle_detector:stop()
+  end
+  
+  local config = require('opencode.config')
+  local threshold = config.get('context').idle_threshold or 10000
+  
+  idle_detector = IdleDetector.new({
+    threshold = threshold,
     callback = function()
-      local now = vim.uv.now()
-      if now - last_update < 1000 then
-        return
-      end
-      last_update = now
+      -- Update context only if user is not focused on opencode window
       if not require('opencode.ui.ui').is_opencode_focused() then
         require('opencode.context').load()
         require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()
       end
     end,
   })
+  
+  idle_detector:start()
 end
 
 function M.setup_resize_handler(windows)
@@ -71,6 +76,13 @@ function M.setup_resize_handler(windows)
       require('opencode.ui.footer').update_window(windows)
     end,
   })
+end
+
+function M.cleanup()
+  if idle_detector then
+    idle_detector:stop()
+    idle_detector = nil
+  end
 end
 
 return M

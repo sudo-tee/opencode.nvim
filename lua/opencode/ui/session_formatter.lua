@@ -314,30 +314,13 @@ function M._format_message_header(message, msg_idx)
   local display_name
   if role == 'assistant' then
     local mode = message.mode
-    if mode and mode ~= '' then
-      display_name = mode:upper()
+    -- For the most recent assistant message, show current_mode if mode is missing
+    -- This handles new messages that haven't been stamped yet
+    local is_last_message = msg_idx == #state.messages
+    if is_last_message and state.current_mode and state.current_mode ~= '' then
+      display_name = state.current_mode:upper()
     else
-<<<<<<< HEAD
-      -- For the most recent assistant message, show current_mode if mode is missing
-      -- This handles new messages that haven't been stamped yet
-      local is_last_message = msg_idx == #state.messages
-      if is_last_message and state.current_mode and state.current_mode ~= '' then
-        display_name = state.current_mode:upper()
-      else
-        display_name = 'ASSISTANT'
-      end
-||||||| parent of c08f7e3 (fix: show current mode for latest assistant message when assistant_mode is missing)
       display_name = 'ASSISTANT'
-=======
-      -- For the most recent assistant message, show current_mode if assistant_mode is missing
-      -- This handles new messages that haven't been stamped yet
-      local is_last_message = msg_idx == #state.messages
-      if is_last_message and state.current_mode and state.current_mode ~= '' then
-        display_name = state.current_mode:upper()
-      else
-        display_name = 'ASSISTANT'
-      end
->>>>>>> c08f7e3 (fix: show current mode for latest assistant message when assistant_mode is missing)
     end
   else
     display_name = role:upper()

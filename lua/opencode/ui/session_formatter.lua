@@ -32,6 +32,19 @@ function M.format_session(session)
   M.output:add_line('')
   M.output:add_line('')
 
+  -- Backfill assistant_mode for all assistant messages once so names remain stable
+  local last_seen_mode = state.current_mode
+  for _, amsg in ipairs(state.messages) do
+    if amsg.role == 'assistant' then
+      if amsg.assistant_mode and amsg.assistant_mode ~= '' then
+        last_seen_mode = amsg.assistant_mode
+      else
+        amsg.assistant_mode = last_seen_mode or state.current_mode or 'assistant'
+        last_seen_mode = amsg.assistant_mode
+      end
+    end
+  end
+
   for i, msg in ipairs(state.messages) do
     M.output:add_lines(M.separator)
     state.current_message = msg
@@ -209,10 +222,10 @@ function M._format_revert_message(stats)
       end
       if #file_diff > 0 then
         local line_str = string.format(icons.get('file') .. '%s: %s', file, table.concat(file_diff, ' '))
-        local line_idx = M.output:add_line(line_str)
-        local col = #('  ' .. file .. ': ')
+        local line_idx = M.output:add_line(line_str) ---@type number
+        local col = #('  ' .. file .. ': ') ---@type number
         for _, diff in ipairs(file_diff) do
-          local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText'
+          local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText' ---@type string
           M.output:add_extmark(line_idx, {
             virt_text = { { diff, hl_group } },
             virt_text_pos = 'inline',
@@ -379,7 +392,7 @@ function M._format_user_message(text, message)
     context = context_module.extract_from_opencode_message(message)
   end
 
-  local start_line = M.output:get_line_count() - 1
+  local start_line = M.output:get_line_count() - 1 ---@type number
 
   M.output:add_empty_line()
   M.output:add_lines(vim.split(context.prompt, '\n'))
@@ -397,7 +410,7 @@ function M._format_user_message(text, message)
     M.output:add_line(string.format('[%s](%s)', path, context.current_file))
   end
 
-  local end_line = M.output:get_line_count()
+  local end_line = M.output:get_line_count() ---@type number
 
   M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
@@ -576,7 +589,7 @@ function M._format_tool(part)
 
   M.output:add_empty_line()
 
-  local end_line = M.output:get_line_count()
+  local end_line = M.output:get_line_count() ---@type number
   if end_line - start_line > 1 then
     M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
   end
@@ -605,7 +618,7 @@ function M._format_task_tool(input, metadata, output)
     end
   end
 
-  local end_line = M.output:get_line_count()
+  local end_line = M.output:get_line_count() ---@type number
   M.output:add_action({
     text = '[S]elect Child Session',
     type = 'select_child_session',

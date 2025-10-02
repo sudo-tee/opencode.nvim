@@ -1179,6 +1179,16 @@ function M.format_message(prompt, opts)
 
   local parts = { { type = 'text', text = prompt } }
 
+  -- recent_buffers synthetic context
+  if config.context and config.context.recent_buffers and config.context.recent_buffers.enabled then
+    local ok, recent = pcall(M.get_recent_buffers, prompt, config.context.recent_buffers)
+    if ok and recent and #recent > 0 then
+      for _, rb in ipairs(recent) do
+        table.insert(parts, rb)
+      end
+    end
+  end
+
   for _, path in ipairs(context.mentioned_files or {}) do
     table.insert(parts, format_file_part(path, prompt))
   end
@@ -1366,6 +1376,164 @@ function M.extract_legacy_tag(tag, text)
   end
 
   return nil
+end
+
+---@param buf number
+---@return boolean
+local function is_valid_buffer(buf)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return false
+  end
+  if vim.bo[buf].buftype ~= '' then
+    return false
+  end
+  if not vim.bo[buf].modifiable then
+    return false
+  end
+  return true
+end
+
+---@param client table
+local function client_supports_symbols(client)
+  if not client or not client.server_capabilities then
+    return false
+  end
+  local caps = client.server_capabilities
+  return caps.documentSymbolProvider == true or (type(caps.documentSymbolProvider) == 'table')
+end
+
+---@param bufnr number
+---@return table[]|nil
+local function fetch_document_symbols(bufnr)
+  local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
+  local results = {}
+  local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+  local any = false
+  for _, client in ipairs(clients) do
+    if client_supports_symbols(client) then
+      any = true
+      local ok, resp = pcall(function()
+        return client.request_sync('textDocument/documentSymbol', params, 500, bufnr)
+      end)
+      if ok and resp and resp.result then
+        if vim.tbl_islist(resp.result) then
+          vim.list_extend(results, resp.result)
+        else
+          table.insert(results, resp.result)
+        end
+      end
+    end
+  end
+  if not any or #results == 0 then
+    return nil
+  end
+  return results
+end
+
+local function flatten_symbols(symbols, acc, parent)
+  acc = acc or {}
+  if not symbols then
+    return acc
+  end
+  for _, s in ipairs(symbols) do
+    local name = s.name or '<anonymous>'
+    local kind = s.kind or 0
+    table.insert(acc, { name = name, kind = kind, parent = parent })
+    if s.children then
+      flatten_symbols(s.children, acc, name)
+    end
+  end
+  return acc
+end
+
+---@param prompt string
+---@param opts { enabled: boolean, symbols_only: boolean, max: number }
+---@return OpencodeMessagePart[]|nil
+function M.get_recent_buffers(prompt, opts)
+  if not opts or not opts.enabled then
+    return nil
+  end
+
+  local bufs = vim.api.nvim_list_bufs()
+  local recent = {}
+
+  -- Collect candidate buffers (MRU ordering approximation by number)
+  for _, b in ipairs(bufs) do
+    if is_valid_buffer(b) then
+      local line_count = vim.api.nvim_buf_line_count(b)
+      if line_count > 100 then
+        local clients = vim.lsp.get_active_clients({ bufnr = b })
+        if #clients > 0 then
+          table.insert(recent, { bufnr = b, line_count = line_count })
+        end
+      end
+    end
+  end
+
+  if #recent == 0 then
+    return nil
+  end
+
+  table.sort(recent, function(a, b)
+    return a.bufnr > b.bufnr -- crude MRU heuristic
+  end)
+
+  local max_items = math.max(1, opts.max or 5)
+  local parts = {}
+  for i = 1, math.min(#recent, max_items) do
+    local b = recent[i].bufnr
+    local path = vim.api.nvim_buf_get_name(b)
+    local rel_path = vim.fn.fnamemodify(path, ':~:.')
+    local mention = '@' .. rel_path
+    local pos = prompt and prompt:find(mention)
+    pos = pos and pos - 1 or 0
+
+    local symbol_list
+    if opts.symbols_only then
+      local symbols = fetch_document_symbols(b)
+      if symbols then
+        local flat = flatten_symbols(symbols)
+        local names = {}
+        for _, s in ipairs(flat) do
+          table.insert(names, s.name)
+        end
+        symbol_list = names
+      end
+      -- Guarantee a symbols array exists (empty if none found) for a stable contract
+      if not symbol_list then
+        symbol_list = {}
+      end
+    end
+
+    local content
+    if not opts.symbols_only then
+      local first_lines = vim.api.nvim_buf_get_lines(b, 0, math.min(200, vim.api.nvim_buf_line_count(b)), false)
+      content = table.concat(first_lines, '\n')
+    end
+
+    local data = {
+      context_type = 'recent-buffer',
+      path = path,
+      relative = rel_path,
+      line_count = recent[i].line_count,
+      symbols = symbol_list,
+      preview = content and ('```\n' .. content .. '\n```') or nil,
+    }
+
+    local part = {
+      type = 'text',
+      text = vim.json.encode(data),
+      synthetic = true,
+      source = {
+        path = path,
+        type = 'file',
+        text = { start = pos, value = mention, ['end'] = pos + #mention - 1 },
+      },
+    }
+    table.insert(parts, part)
+  end
+
+  return parts
 end
 
 return M

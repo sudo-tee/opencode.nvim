@@ -293,14 +293,14 @@ function M._format_message_header(message, msg_idx)
   M.output:add_empty_line()
   M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
 
-  -- Use the assistant_mode stored on the message only (stable label)
+  -- Use the mode field from the message (stable label from CLI)
   local display_name
   if role == 'assistant' then
-    local mode = message.assistant_mode
+    local mode = message.mode or message.assistant_mode
     if mode and mode ~= '' then
       display_name = mode:upper()
     else
-      -- For the most recent assistant message, show current_mode if assistant_mode is missing
+      -- For the most recent assistant message, show current_mode if mode is missing
       -- This handles new messages that haven't been stamped yet
       local is_last_message = msg_idx == #state.messages
       if is_last_message and state.current_mode and state.current_mode ~= '' then

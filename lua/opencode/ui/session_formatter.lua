@@ -32,19 +32,6 @@ function M.format_session(session)
   M.output:add_line('')
   M.output:add_line('')
 
-  -- Backfill assistant_mode for all assistant messages once so names remain stable
-  local last_seen_mode = state.current_mode
-  for _, amsg in ipairs(state.messages) do
-    if amsg.role == 'assistant' then
-      if amsg.assistant_mode and amsg.assistant_mode ~= '' then
-        last_seen_mode = amsg.assistant_mode
-      else
-        amsg.assistant_mode = last_seen_mode or state.current_mode or 'assistant'
-        last_seen_mode = amsg.assistant_mode
-      end
-    end
-  end
-
   for i, msg in ipairs(state.messages) do
     M.output:add_lines(M.separator)
     state.current_message = msg

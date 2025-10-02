@@ -267,7 +267,7 @@
 ---@field msg_idx number|nil Message index in session
 ---@field part_idx number|nil Part index in message
 ---@field role 'user'|'assistant'|'system'|nil Message role
----@field type 'text'|'tool'|'header'|nil Message part type
+---@field type 'text'|'tool'|'header'|'patch'|'step-start'|nil Message part type
 ---@field snapshot? string|nil snapshot commit hash
 
 ---@class OutputAction
@@ -278,7 +278,7 @@
 ---@field display_line number Line number to display the action
 ---@field range? { from: number, to: number } Optional range for the action
 
----@alias OutputExtmark vim.api.keyset.set_extmark
+---@alias OutputExtmark vim.api.keyset.set_extmark|fun():vim.api.keyset.set_extmark
 
 ---@class Message
 ---@field id string Unique message identifier
@@ -293,6 +293,8 @@
 ---@field providerID string Provider identifier
 ---@field role 'user'|'assistant'|'system' Role of the message sender
 ---@field system_role string|nil Role defined in system messages
+---@field mode string|nil Agent/mode used to create this message (from CLI)
+---@field assistant_mode string|nil Assistant mode active when message was created (deprecated)
 ---@field error table
 
 ---@class RestorePoint

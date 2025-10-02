@@ -397,78 +397,103 @@ describe('format_message with new context types', function()
     assert.is_true(found_context)
   end)
 
-describe('get_recent_buffers with symbols', function()
-  local config = require('opencode.config')
-  before_each(function()
-    config.values.context.recent_buffers = { enabled = true, limit = 1, symbols_only = false }
-    vim.fn.getbufinfo = function()
-      return { { bufnr = 1, name = '/tmp/file.lua', lastused = 1000, changed = 0 } }
-    end
-  end)
+  describe('get_recent_buffers with symbols', function()
+    local config = require('opencode.config')
+    before_each(function()
+      config.values.context.recent_buffers = { enabled = true, limit = 1, symbols_only = false }
+      vim.fn.getbufinfo = function()
+        return { { bufnr = 1, name = '/tmp/file.lua', lastused = 1000, changed = 0 } }
+      end
+    end)
 
-  it('does not include symbols when symbols_only is false', function()
-    local result = context.get_recent_buffers()
-    assert.is_nil(result[1].symbols)
-  end)
+    it('does not include symbols when symbols_only is false', function()
+      local result = context.get_recent_buffers()
+      assert.is_nil(result[1].symbols)
+    end)
 
-  it('includes symbols when symbols_only enabled and constraints met', function()
-    config.values.context.recent_buffers.symbols_only = true
-    vim.api.nvim_buf_line_count = function() return 150 end
-    vim.lsp.get_active_clients = function() return { { name = 'lua_ls' } } end
-    vim.api.nvim_buf_get_option = function(_, opt) return opt == "readonly" and false end
-    vim.bo = { [1] = { buftype = '' } }
-    local mock_resp = {
-      [1] = {
-        result = {
-          {
-            name = 'setup',
-            kind = 6,  -- Function
-            range = { start = {1, 0}, ['end'] = {5, 0} },
-            detail = 'setup function'
-          }
-        }
+    it('includes symbols when symbols_only enabled and constraints met', function()
+      config.values.context.recent_buffers.symbols_only = true
+      vim.api.nvim_buf_line_count = function()
+        return 150
+      end
+      vim.lsp.get_active_clients = function()
+        return { { name = 'lua_ls' } }
+      end
+      vim.api.nvim_buf_get_option = function(_, opt)
+        return opt == 'readonly' and false
+      end
+      vim.bo = { [1] = { buftype = '' } }
+      local mock_resp = {
+        [1] = {
+          result = {
+            {
+              name = 'setup',
+              kind = 6, -- Function
+              range = { start = { 1, 0 }, ['end'] = { 5, 0 } },
+              detail = 'setup function',
+            },
+          },
+        },
       }
-    }
-    vim.lsp.buf_request_sync = function(_, _, _, _) return mock_resp end
-    local result = context.get_recent_buffers()
-    assert.is_table(result[1].symbols)
-    assert.equal(1, #result[1].symbols)
-    assert.equal('setup', result[1].symbols[1].name)
-  end)
+      vim.lsp.buf_request_sync = function(_, _, _, _)
+        return mock_resp
+      end
+      local result = context.get_recent_buffers()
+      assert.is_table(result[1].symbols)
+      assert.equal(1, #result[1].symbols)
+      assert.equal('setup', result[1].symbols[1].name)
+    end)
 
-  it('skips symbols if line count <= 100', function()
-    config.values.context.recent_buffers.symbols_only = true
-    vim.api.nvim_buf_line_count = function() return 50 end
-    local result = context.get_recent_buffers()
-    assert.is_nil(result[1].symbols)
-  end)
+    it('skips symbols if line count <= 100', function()
+      config.values.context.recent_buffers.symbols_only = true
+      vim.api.nvim_buf_line_count = function()
+        return 50
+      end
+      local result = context.get_recent_buffers()
+      assert.is_nil(result[1].symbols)
+    end)
 
-  it('skips symbols if no LSP attached', function()
-    config.values.context.recent_buffers.symbols_only = true
-    vim.api.nvim_buf_line_count = function() return 150 end
-    vim.lsp.get_active_clients = function() return {} end
-    local result = context.get_recent_buffers()
-    assert.is_nil(result[1].symbols)
-  end)
+    it('skips symbols if no LSP attached', function()
+      config.values.context.recent_buffers.symbols_only = true
+      vim.api.nvim_buf_line_count = function()
+        return 150
+      end
+      vim.lsp.get_active_clients = function()
+        return {}
+      end
+      local result = context.get_recent_buffers()
+      assert.is_nil(result[1].symbols)
+    end)
 
-  it('skips symbols if buffer is readonly', function()
-    config.values.context.recent_buffers.symbols_only = true
-    vim.api.nvim_buf_line_count = function() return 150 end
-    vim.lsp.get_active_clients = function() return { {} } end
-    vim.api.nvim_buf_get_option = function(_, opt) return opt == "readonly" and true end
-    local result = context.get_recent_buffers()
-    assert.is_nil(result[1].symbols)
-  end)
+    it('skips symbols if buffer is readonly', function()
+      config.values.context.recent_buffers.symbols_only = true
+      vim.api.nvim_buf_line_count = function()
+        return 150
+      end
+      vim.lsp.get_active_clients = function()
+        return { {} }
+      end
+      vim.api.nvim_buf_get_option = function(_, opt)
+        return opt == 'readonly' and true
+      end
+      local result = context.get_recent_buffers()
+      assert.is_nil(result[1].symbols)
+    end)
 
-  it('skips symbols if buffer is terminal', function()
-    config.values.context.recent_buffers.symbols_only = true
-    vim.api.nvim_buf_line_count = function() return 150 end
-    vim.lsp.get_active_clients = function() return { {} } end
-    vim.api.nvim_buf_get_option = function(_, opt) return false end
-    vim.bo = { [1] = { buftype = 'terminal' } }
-    local result = context.get_recent_buffers()
-    assert.is_nil(result[1].symbols)
+    it('skips symbols if buffer is terminal', function()
+      config.values.context.recent_buffers.symbols_only = true
+      vim.api.nvim_buf_line_count = function()
+        return 150
+      end
+      vim.lsp.get_active_clients = function()
+        return { {} }
+      end
+      vim.api.nvim_buf_get_option = function(_, opt)
+        return false
+      end
+      vim.bo = { [1] = { buftype = 'terminal' } }
+      local result = context.get_recent_buffers()
+      assert.is_nil(result[1].symbols)
+    end)
   end)
-end)
-
 end)

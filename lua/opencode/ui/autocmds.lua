@@ -9,7 +9,7 @@ function M.setup_autocmds(windows)
   input_window.setup_autocmds(windows, group)
   output_window.setup_autocmds(windows, group)
 
-  -- Only keep shared autocmds here (e.g., WinClosed, WinLeave for all windows)
+  -- Only keep shared autocmds here (e.g., WinClosed, CursorHold for all windows)
   local wins = { windows.input_win, windows.output_win, windows.footer_win }
   vim.api.nvim_create_autocmd('WinClosed', {
     group = group,
@@ -24,7 +24,8 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd('WinLeave', {
+  -- Based on CursorHold, update context if user is not focused on opencode window
+  vim.api.nvim_create_autocmd('CursorHold', {
     group = group,
     pattern = '*',
     callback = function()

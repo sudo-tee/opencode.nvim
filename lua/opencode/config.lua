@@ -7,7 +7,7 @@
 --- @field get fun(key: nil): OpencodeConfig
 --- @field get fun(key: "preferred_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
 --- @field get fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
---- @field get fun(key: "default_mode"): 'build' | 'plan' |
+--- @field get fun(key: "default_mode"): 'build' | 'plan'
 --- @field get fun(key: "default_global_keymaps"): boolean
 --- @field get fun(key: "keymap"): OpencodeKeymap
 --- @field get fun(key: "ui"): OpencodeUIConfig
@@ -20,6 +20,8 @@ local M = {} ---@type OpencodeConfigModule
 -- Default configuration
 ---@type OpencodeConfig
 M.defaults = {
+  providers = {},
+  custom_commands = {},
   preferred_picker = nil,
   preferred_completion = nil,
   default_global_keymaps = true,
@@ -97,11 +99,12 @@ M.defaults = {
     },
     input = {
       text = {
-        wrap = false,
+        wrap = true,
       },
     },
     completion = {
       file_sources = {
+        cache_timeout = 300, -- seconds
         enabled = true,
         preferred_cli_tool = 'fd',
         ignore_patterns = {
@@ -137,6 +140,10 @@ M.defaults = {
   },
   context = {
     enabled = true,
+    plugin_versions = {
+      enabled = false,
+      limit = 20,
+    },
     cursor_data = {
       enabled = false,
     },
@@ -157,44 +164,45 @@ M.defaults = {
       enabled = true,
     },
     marks = {
-      enabled = false,
-      limit = 10,
+      enabled = true,
+      limit = 5,
     },
     jumplist = {
-      enabled = false,
-      limit = 10,
+      enabled = true,
+      limit = 5,
     },
     recent_buffers = {
-      enabled = false,
-      limit = 10,
+      enabled = true,
+      limit = 3,
+      symbols_only = true,
     },
     undo_history = {
-      enabled = false,
-      limit = 10,
+      enabled = true,
+      limit = 3,
     },
     windows_tabs = {
-      enabled = false,
+      enabled = true,
     },
     highlights = {
-      enabled = false,
+      enabled = true,
     },
     session_info = {
       enabled = false,
     },
     registers = {
-      enabled = false,
-      include = { '"', '/', 'q' },
+      enabled = true,
+      include = { '"', '/', 'q', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '%', '#', '.' },
     },
     command_history = {
-      enabled = false,
-      limit = 5,
+      enabled = true,
+      limit = 3,
     },
     search_history = {
-      enabled = false,
-      limit = 5,
+      enabled = true,
+      limit = 3,
     },
     debug_data = {
-      enabled = false,
+      enabled = true,
     },
     lsp_context = {
       enabled = false,
@@ -202,20 +210,20 @@ M.defaults = {
       code_actions = false,
     },
     git_info = {
-      enabled = false,
+      enabled = true,
       diff_limit = 10,
       changes_limit = 5,
     },
     fold_info = {
-      enabled = false,
+      enabled = true,
     },
     cursor_surrounding = {
-      enabled = false,
-      lines_above = 3,
-      lines_below = 3,
+      enabled = true,
+      lines_above = 4,
+      lines_below = 4,
     },
     quickfix_loclist = {
-      enabled = false,
+      enabled = true,
       limit = 5,
     },
     macros = {
@@ -223,7 +231,7 @@ M.defaults = {
       register = 'q',
     },
     terminal_buffers = {
-      enabled = false,
+      enabled = true,
     },
     session_duration = {
       enabled = false,

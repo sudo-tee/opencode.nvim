@@ -57,6 +57,11 @@
 ---@field diff_close string
 ---@field diff_revert_all_last_prompt string
 ---@field diff_revert_this_last_prompt string
+---@field diff_revert_all string
+---@field diff_revert_this string
+---@field diff_restore_snapshot_file string
+---@field diff_restore_snapshot_all string
+---@field open_configuration_file string
 ---@field swap_position string # Swap Opencode pane left/right
 
 ---@class OpencodeKeymapWindow
@@ -72,12 +77,15 @@
 ---@field toggle_pane string
 ---@field prev_prompt_history string
 ---@field next_prompt_history string
----@field focus_input string
----@field debug_message string
----@field debug_session string
----@field debug_output string
 ---@field switch_mode string
+---@field focus_input string
 ---@field select_child_session string
+---@field debug_message string
+---@field debug_output string
+---@field debug_session string
+---@field debug_message string
+---@field debug_output string
+---@field debug_session string
 ---@class OpencodeKeymap
 ---@field global OpencodeKeymapGlobal
 ---@field window OpencodeKeymapWindow
@@ -109,6 +117,8 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
+---@field plugin_versions { enabled: boolean, limit: number }
+---@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean }

@@ -6,6 +6,15 @@ local state = require('opencode.state')
 
 local M = {}
 
+local cwd = vim.fn.getcwd()
+
+local function is_in_cwd(path)
+  if not path or path == '' then
+    return false
+  end
+  return vim.startswith(vim.fn.fnamemodify(path, ':p'), cwd)
+end
+
 M.context = {
   -- current file
   current_file = nil,
@@ -31,6 +40,7 @@ M.context = {
   search_history = nil,
   debug_data = nil,
   lsp_context = nil,
+  plugin_versions = nil,
   git_info = nil,
   fold_info = nil,
   cursor_surrounding = nil,
@@ -60,6 +70,7 @@ function M.unload_attachments()
   M.context.search_history = nil
   M.context.debug_data = nil
   M.context.lsp_context = nil
+  M.context.plugin_versions = nil
   M.context.git_info = nil
   M.context.fold_info = nil
   M.context.cursor_surrounding = nil
@@ -98,6 +109,7 @@ function M.load()
   M.context.search_history = M.get_search_history()
   M.context.debug_data = M.get_debug_data()
   M.context.lsp_context = M.get_lsp_context()
+  M.context.plugin_versions = M.get_plugin_versions()
   M.context.git_info = M.get_git_info()
   M.context.fold_info = M.get_fold_info()
   M.context.cursor_surrounding = M.get_cursor_surrounding()
@@ -205,6 +217,7 @@ function M.delta_context(opts)
       search_history = nil,
       debug_data = nil,
       lsp_context = nil,
+      plugin_versions = nil,
       git_info = nil,
       fold_info = nil,
       cursor_surrounding = nil,
@@ -332,11 +345,12 @@ function M.get_marks()
   for i = 1, math.min(#marks, limit) do
     local mark = marks[i]
     if mark.mark and mark.pos then
+      local file = vim.fn.fnamemodify(mark.file or vim.fn.bufname(mark.pos[1] or 0), ':p')
       table.insert(result, {
         mark = mark.mark,
         line = mark.pos[2],
         col = mark.pos[3],
-        file = mark.file or vim.fn.bufname(mark.pos[1]),
+        file = file,
       })
     end
   end
@@ -352,7 +366,10 @@ function M.get_jumplist()
     return nil
   end
 
-  local jumplist, current = vim.fn.getjumplist()
+  local ok, jumplist, current = pcall(vim.fn.getjumplist)
+  if not ok or type(jumplist) ~= 'table' then
+    return nil
+  end
   local limit = config.context.jumplist.limit or 10
   local result = {}
 
@@ -360,7 +377,7 @@ function M.get_jumplist()
   local start_idx = math.max(1, #jumplist - limit + 1)
   for i = start_idx, #jumplist do
     local jump = jumplist[i]
-    if jump.bufnr and jump.lnum then
+    if type(jump) == 'table' and jump.bufnr and jump.lnum then
       table.insert(result, {
         bufnr = jump.bufnr,
         filename = vim.fn.bufname(jump.bufnr),
@@ -405,6 +422,53 @@ function M.get_recent_buffers()
     })
   end
 
+  local recent_conf = config.context.recent_buffers
+  if recent_conf and recent_conf.symbols_only then
+    for _, buf_entry in ipairs(result) do
+      local bufnr = buf_entry.bufnr
+      local line_count = vim.api.nvim_buf_line_count(bufnr)
+      if line_count <= 100 then
+        goto continue
+      end
+
+      local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+      if #clients == 0 then
+        goto continue
+      end
+
+      if vim.api.nvim_buf_get_option(bufnr, 'readonly') or vim.bo[bufnr].buftype ~= '' then
+        goto continue
+      end
+
+      local ok, resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', {}, 1000)
+      if ok and resp and resp[1] and resp[1].result then
+        local symbols = resp[1].result
+        local flat = {}
+        local function flatten(s)
+          table.insert(flat, {
+            name = s.name,
+            kind = s.kind,
+            range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
+            detail = s.detail or '',
+          })
+          if s.children then
+            for _, c in ipairs(s.children) do
+              flatten(c)
+            end
+          end
+        end
+        for _, s in ipairs(symbols) do
+          flatten(s)
+        end
+        if #flat > 20 then
+          flat = vim.list_slice(flat, 1, 20)
+        end
+        buf_entry.symbols = flat
+      end
+      ::continue::
+    end
+  end
+
   return #result > 0 and result or nil
 end
 
@@ -412,7 +476,10 @@ end
 function M.get_undo_history()
   if
     not (
-      config.context and config.context.enabled and config.context.undo_history and config.context.undo_history.enabled
+      config.context
+      and config.context.enabled
+      and config.context.undo_history
+      and config.context.undo_history.enabled
     )
   then
     return nil
@@ -443,7 +510,12 @@ end
 -- Get window and tab context
 function M.get_windows_tabs()
   if
-    not (config.context and config.context.enabled and config.context.windows_tabs and config.context.windows_tabs.enabled)
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.windows_tabs
+      and config.context.windows_tabs.enabled
+    )
   then
     return nil
   end
@@ -451,11 +523,14 @@ function M.get_windows_tabs()
   local windows = {}
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local bufnr = vim.api.nvim_win_get_buf(win)
-    table.insert(windows, {
-      id = win,
-      bufnr = bufnr,
-      filename = vim.fn.bufname(bufnr),
-    })
+    local filename = vim.fn.bufname(bufnr)
+    if is_in_cwd(filename) or filename == '' then -- Include empty buffers
+      table.insert(windows, {
+        id = win,
+        bufnr = bufnr,
+        filename = filename,
+      })
+    end
   end
 
   local tabs = {}
@@ -471,7 +546,9 @@ end
 
 -- Get buffer line highlights
 function M.get_highlights()
-  if not (config.context and config.context.enabled and config.context.highlights and config.context.highlights.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.highlights and config.context.highlights.enabled)
+  then
     return nil
   end
 
@@ -508,7 +585,12 @@ end
 -- Get session information
 function M.get_session_info()
   if
-    not (config.context and config.context.enabled and config.context.session_info and config.context.session_info.enabled)
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.session_info
+      and config.context.session_info.enabled
+    )
   then
     return nil
   end
@@ -526,7 +608,9 @@ end
 
 -- Get registers
 function M.get_registers()
-  if not (config.context and config.context.enabled and config.context.registers and config.context.registers.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.registers and config.context.registers.enabled)
+  then
     return nil
   end
 
@@ -534,11 +618,12 @@ function M.get_registers()
   local result = {}
 
   for _, reg in ipairs(include) do
-    local ok, reginfo = pcall(vim.fn.getreginfo, reg)
-    if ok and reginfo and reginfo.regcontents then
+    local contents = vim.fn.getreg(reg)
+    local regtype = vim.fn.getregtype(reg)
+    if contents and contents ~= '' then
       result[reg] = {
-        contents = reginfo.regcontents,
-        regtype = reginfo.regtype,
+        contents = contents,
+        regtype = regtype,
       }
     end
   end
@@ -577,7 +662,10 @@ end
 function M.get_search_history()
   if
     not (
-      config.context and config.context.enabled and config.context.search_history and config.context.search_history.enabled
+      config.context
+      and config.context.enabled
+      and config.context.search_history
+      and config.context.search_history.enabled
     )
   then
     return nil
@@ -599,7 +687,9 @@ end
 
 -- Get debug data (nvim-dap)
 function M.get_debug_data()
-  if not (config.context and config.context.enabled and config.context.debug_data and config.context.debug_data.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.debug_data and config.context.debug_data.enabled)
+  then
     return nil
   end
 
@@ -636,7 +726,12 @@ end
 -- Get LSP context
 function M.get_lsp_context()
   if
-    not (config.context and config.context.enabled and config.context.lsp_context and config.context.lsp_context.enabled)
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.lsp_context
+      and config.context.lsp_context.enabled
+    )
   then
     return nil
   end
@@ -644,7 +739,7 @@ function M.get_lsp_context()
   local bufnr = vim.api.nvim_get_current_buf()
   local result = {}
 
-  -- Get diagnostics
+  -- Get diagnostics with more details
   local diagnostics = vim.diagnostic.get(bufnr)
   local limit = config.context.lsp_context.diagnostics_limit or 10
 
@@ -657,6 +752,8 @@ function M.get_lsp_context()
       severity = diag.severity,
       message = diag.message,
       source = diag.source,
+      code = diag.code,
+      user_data = vim.inspect(diag.user_data), -- Add variables/context if available
     })
   end
 
@@ -667,15 +764,53 @@ function M.get_lsp_context()
     local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
     if #clients > 0 then
       result.code_actions_available = true
+      result.lsp_clients = {}
+      for _, client in ipairs(clients) do
+        table.insert(result.lsp_clients, {
+          name = client.name,
+          id = client.id,
+          root_dir = client.config.root_dir,
+        })
+      end
     end
   end
 
-  return vim.tbl_count(result.diagnostics) > 0 or result.code_actions_available and result or nil
+  -- Get document symbols
+  local params = vim.lsp.util.make_position_params()
+  local ok_sym, symbols_resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', params, 1000)
+  if ok_sym and symbols_resp and symbols_resp[1] and symbols_resp[1].result then
+    local symbols = symbols_resp[1].result
+    local flat_symbols = {}
+    local function flatten(s)
+      table.insert(flat_symbols, {
+        name = s.name,
+        kind = s.kind,
+        range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
+        detail = s.detail or '',
+      })
+      if s.children then
+        for _, c in ipairs(s.children) do
+          flatten(c)
+        end
+      end
+    end
+    for _, s in ipairs(symbols) do
+      flatten(s)
+    end
+    if #flat_symbols > 20 then
+      flat_symbols = vim.list_slice(flat_symbols, 1, 20)
+    end
+    result.symbols = flat_symbols
+  end
+
+  return (#result.diagnostics > 0 or result.code_actions_available or (result.symbols and #result.symbols > 0)) and result or nil
 end
 
 -- Get Git information
 function M.get_git_info()
-  if not (config.context and config.context.enabled and config.context.git_info and config.context.git_info.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.git_info and config.context.git_info.enabled)
+  then
     return nil
   end
 
@@ -691,7 +826,7 @@ function M.get_git_info()
 
   -- Get file diff
   local current_file = vim.fn.expand('%:p')
-  if current_file and current_file ~= '' then
+  if current_file and current_file ~= '' and is_in_cwd(current_file) then
     local diff_limit = config.context.git_info.diff_limit or 10
     local diff_ok, diff = pcall(vim.fn.systemlist, string.format('git diff HEAD -- %s 2>/dev/null', current_file))
     if diff_ok and diff then
@@ -704,8 +839,7 @@ function M.get_git_info()
 
   -- Get recent changes
   local changes_limit = config.context.git_info.changes_limit or 5
-  local log_ok, log =
-    pcall(vim.fn.systemlist, string.format('git log --oneline -n %d 2>/dev/null', changes_limit))
+  local log_ok, log = pcall(vim.fn.systemlist, string.format('git log --oneline -n %d 2>/dev/null', changes_limit))
   if log_ok and log then
     result.recent_changes = log
   end
@@ -713,9 +847,58 @@ function M.get_git_info()
   return result
 end
 
+-- Get plugin versions from lazy-lock.json
+function M.get_plugin_versions()
+  if
+    not (
+      config.context
+      and config.context.enabled
+      and config.context.plugin_versions
+      and config.context.plugin_versions.enabled
+    )
+  then
+    return nil
+  end
+
+  local lock_path = vim.fn.stdpath('data') .. '/lazy/lazy-lock.json'
+  if vim.fn.filereadable(lock_path) ~= 1 then
+    return nil
+  end
+
+  local ok, content = pcall(vim.fn.readfile, lock_path)
+  if not ok then
+    return nil
+  end
+
+  local ok_decode, data = pcall(vim.json.decode, table.concat(content, '\n'))
+  if not ok_decode or type(data) ~= 'table' or not data.packages then
+    return nil
+  end
+
+  local result = {}
+  local limit = config.context.plugin_versions.limit or 20
+  local count = 0
+
+  for name, info in pairs(data.packages) do
+    if count >= limit then
+      break
+    end
+    table.insert(result, {
+      name = name,
+      version = info.version or 'unknown',
+      commit = info.commit and string.sub(info.commit, 1, 8) or 'none',
+    })
+    count = count + 1
+  end
+
+  return #result > 0 and result or nil
+end
+
 -- Get fold information
 function M.get_fold_info()
-  if not (config.context and config.context.enabled and config.context.fold_info and config.context.fold_info.enabled) then
+  if
+    not (config.context and config.context.enabled and config.context.fold_info and config.context.fold_info.enabled)
+  then
     return nil
   end
 
@@ -728,11 +911,11 @@ function M.get_fold_info()
     local fold_level = vim.fn.foldlevel(lnum)
     local fold_closed = vim.fn.foldclosed(lnum)
 
-    if fold_level > 0 then
+    if fold_level > 0 and fold_closed ~= -1 then
       table.insert(result, {
         line = lnum,
         level = fold_level,
-        closed = fold_closed ~= -1,
+        closed = true,
         closed_start = fold_closed,
       })
     end
@@ -816,6 +999,7 @@ function M.get_quickfix_loclist()
       text = item.text,
       type = item.type,
     })
+
   end
 
   return (#result.quickfix > 0 or #result.loclist > 0) and result or nil
@@ -1052,6 +1236,10 @@ function M.format_message(prompt, opts)
 
   if context.lsp_context then
     table.insert(parts, format_context_part('lsp_context', context.lsp_context))
+  end
+
+  if context.plugin_versions then
+    table.insert(parts, format_context_part('plugin_versions', context.plugin_versions))
   end
 
   if context.git_info then

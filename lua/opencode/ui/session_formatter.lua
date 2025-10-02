@@ -116,7 +116,7 @@ end
 ---@param messages Message[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
----@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+---@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}}
 function M._calculate_revert_stats(messages, revert_index, revert_info)
   local stats = {
     messages = 0,

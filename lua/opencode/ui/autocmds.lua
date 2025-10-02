@@ -3,6 +3,7 @@ local output_window = require('opencode.ui.output_window')
 local IdleDetector = require('opencode.idle')
 local M = {}
 
+---@type IdleDetector|nil
 local idle_detector = nil
 
 function M.setup_autocmds(windows)
@@ -18,33 +19,55 @@ function M.setup_autocmds(windows)
     callback = function(opts)
       local closed_win = tonumber(opts.match)
       if vim.tbl_contains(wins, closed_win) then
-        vim.schedule(function()
-          require('opencode.ui.ui').close_windows(windows)
-        end)
+        -- Guard against git commit workflows that manage their own buffers/windows
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+          if vim.api.nvim_win_is_valid(win) then
+            local buf = vim.api.nvim_win_get_buf(win)
+            local ft = vim.api.nvim_get_option_value('filetype', { buf = buf })
+            if ft == 'gitcommit' or ft == 'NeogitCommitMessage' then
+              return
+            end
+          end
+        end
+        -- Immediate protected close without schedule to avoid race conditions
+        pcall(require('opencode.ui.ui').close_windows, windows)
       end
     end,
   })
 
   -- Setup idle detection for automatic context updates
-  if idle_detector then
-    idle_detector:stop()
-  end
-  
-  local config = require('opencode.config')
-  local threshold = config.get('context').idle_threshold or 10000
-  
-  idle_detector = IdleDetector.new({
-    threshold = threshold,
+  -- if idle_detector ~= nil then
+  --   idle_detector:stop()
+  -- end
+  --
+  -- local config = require('opencode.config')
+  -- local threshold = config.get('context').idle_threshold or 10000
+  --
+  -- idle_detector = IdleDetector.new({
+  --   threshold = threshold,
+  --   callback = function()
+  --     -- Update context only if user is not focused on opencode window
+  --     if not require('opencode.ui.ui').is_opencode_focused() then
+  --       local ft = vim.api.nvim_get_option_value('filetype', { buf = 0 })
+  --       if ft == 'gitcommit' or ft == 'NeogitCommitMessage' then
+  --         return
+  --       end
+  --       require('opencode.context').load()
+  --       require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()
+  --     end
+  --   end,
+  -- })
+  --
+  -- idle_detector:start()
+
+  -- Defensive cleanup on exit in case window close didn't trigger
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    group = group,
+    once = true,
     callback = function()
-      -- Update context only if user is not focused on opencode window
-      if not require('opencode.ui.ui').is_opencode_focused() then
-        require('opencode.context').load()
-        require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()
-      end
+      M.cleanup()
     end,
   })
-  
-  idle_detector:start()
 end
 
 function M.setup_resize_handler(windows)
@@ -79,7 +102,7 @@ function M.setup_resize_handler(windows)
 end
 
 function M.cleanup()
-  if idle_detector then
+  if idle_detector ~= nil then
     idle_detector:stop()
     idle_detector = nil
   end

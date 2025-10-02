@@ -257,7 +257,8 @@
 ---@field providerID string Provider identifier
 ---@field role 'user'|'assistant'|'system' Role of the message sender
 ---@field system_role string|nil Role defined in system messages
----@field assistant_mode string|nil Assistant mode active when message was created
+---@field mode string|nil Agent/mode used to create this message (from CLI)
+---@field assistant_mode string|nil Assistant mode active when message was created (deprecated)
 ---@field error table
 
 ---@class RestorePoint

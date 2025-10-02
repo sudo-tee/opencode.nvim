@@ -26,7 +26,7 @@ function M._should_refresh_content()
   end
 
   -- If any job is running, force refresh every 3rd tick
-  if state.is_job_running() then
+  if state.is_running() then
     M._cache.check_counter = (M._cache.check_counter + 1) % 3
     if M._cache.check_counter == 0 then
       return true
@@ -83,7 +83,7 @@ function M.start_refresh_timer(windows)
   M._refresh_timer = Timer.new({
     interval = 300,
     on_tick = function()
-      if state.is_job_running() then
+      if state.is_running() then
         if M._should_refresh_content() then
           vim.cmd('checktime')
           M.render(windows, true)
@@ -175,7 +175,7 @@ function M.stop()
 end
 
 function M.handle_loading(windows)
-  if state.is_job_running() then
+  if state.is_running() then
     M.start_refresh_timer(windows)
     if not loading_animation.is_running() then
       loading_animation.start(windows)

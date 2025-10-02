@@ -1,5 +1,4 @@
 local core = require('opencode.core')
-local context = require('opencode.context')
 local util = require('opencode.util')
 local session = require('opencode.session')
 local input_window = require('opencode.ui.input_window')
@@ -90,7 +89,7 @@ function M.select_session(parent_id)
 end
 
 function M.select_child_session()
-  core.select_session(state.active_session and state.active_session.name or nil)
+  core.select_session(state.active_session and state.active_session.id or nil)
 end
 
 function M.toggle_pane()
@@ -228,7 +227,9 @@ function M.next_history()
 end
 
 function M.initialize()
-  local new_session = core.create_new_session('AGENTS.md Initialization'):wait()
+  ui.render_output(true)
+
+  local new_session = core.create_new_session('AGENTS.md Initialization')
   if not new_session then
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
@@ -240,7 +241,7 @@ function M.initialize()
   end
   state.active_session = new_session
   M.open_input()
-  core.run_server_api('/session/' .. state.active_session.name .. '/init', 'POST', {
+  state.api_client:init_session(state.active_session.id, {
     providerID = providerId,
     modelID = modelId,
     messageID = id.ascending('message'),
@@ -375,7 +376,8 @@ end
 function M.run_user_command(name)
   M.open_input()
 
-  core.run_server_api('/session/' .. state.active_session.name .. '/command', 'POST', {
+  ui.render_output(true)
+  state.api_client:send_command(state.active_session.id, {
     command = name,
     arguments = '',
   })
@@ -390,22 +392,23 @@ function M.compact_session(current_session)
     return
   end
 
+  ui.render_output(true)
   local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
-  core.run_server_api('/session/' .. current_session.name .. '/summarize', 'POST', {
-    providerID = providerId,
-    modelID = modelId,
-  }, {
-    on_done = function()
+  state.api_client
+    :summarize_session(current_session.id, {
+      providerID = providerId,
+      modelID = modelId,
+    })
+    :and_then(function()
       vim.schedule(function()
         vim.notify('Session compacted successfully', vim.log.levels.INFO)
       end)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to compact session: ' .. vim.inspect(err), vim.log.levels.ERROR)
       end)
-    end,
-  })
+    end)
 end
 
 function M.share()
@@ -414,23 +417,24 @@ function M.share()
     return
   end
 
-  core.run_server_api('/session/' .. state.active_session.name .. '/share', 'POST', {}, {
-    on_done = function(response)
+  ui.render_output(true)
+  state.api_client
+    :share_session(state.active_session.id)
+    :and_then(function(response)
       vim.schedule(function()
-        if response and response.share.url then
+        if response and response.share and response.share.url then
           vim.fn.setreg('+', response.share.url)
           vim.notify('Session link copied to clipboard successfully: ' .. response.share.url, vim.log.levels.INFO)
         else
           vim.notify('Session shared but no link received', vim.log.levels.WARN)
         end
       end)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to share session: ' .. vim.inspect(err), vim.log.levels.ERROR)
       end)
-    end,
-  })
+    end)
 end
 
 function M.unshare()
@@ -439,18 +443,19 @@ function M.unshare()
     return
   end
 
-  core.run_server_api('/session/' .. state.active_session.name .. '/share', 'DELETE', {}, {
-    on_done = function()
+  ui.render_output(true)
+  state.api_client
+    :unshare_session(state.active_session.id)
+    :and_then(function()
       vim.schedule(function()
         vim.notify('Session unshared successfully', vim.log.levels.INFO)
       end)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to unshare session: ' .. vim.inspect(err), vim.log.levels.ERROR)
       end)
-    end,
-  })
+    end)
 end
 
 function M.undo()
@@ -458,28 +463,30 @@ function M.undo()
     vim.notify('No active session to undo', vim.log.levels.WARN)
     return
   end
+
   local last_user_message = state.last_user_message
   if not last_user_message then
     vim.notify('No user message to undo', vim.log.levels.WARN)
     return
   end
 
-  core.run_server_api('/session/' .. state.active_session.name .. '/revert', 'POST', {
-    messageID = last_user_message.id,
-  }, {
-    on_done = function(response)
+  ui.render_output(true)
+  state.api_client
+    :revert_message(state.active_session.id, {
+      messageID = last_user_message.id,
+    })
+    :and_then(function(response)
       state.active_session.revert = response.revert
       vim.schedule(function()
         vim.notify('Last message undone successfully', vim.log.levels.INFO)
         ui.render_output(true)
       end)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
       end)
-    end,
-  })
+    end)
 end
 
 function M.redo()
@@ -487,24 +494,25 @@ function M.redo()
     vim.notify('No active session to undo', vim.log.levels.WARN)
     return
   end
+  ui.render_output(true)
 
-  core.run_server_api('/session/' .. state.active_session.name .. '/unrevert', 'POST', {}, {
-    on_done = function(response)
+  state.api_client
+    :unrevert_messages(state.active_session.id)
+    :and_then(function(response)
       state.active_session.revert = response.revert
       vim.schedule(function()
         vim.notify('Last message rerterted successfully', vim.log.levels.INFO)
         ui.render_output(true)
       end)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
       end)
-    end,
-  })
+    end)
 end
 
--- Command definitions that call the API functions
+-- Command def/compactinitions that call the API functions
 M.commands = {
   swap_position = {
     name = 'OpencodeSwapPosition',
@@ -561,10 +569,13 @@ M.commands = {
     fn = function(opts)
       local title = opts.args and opts.args:match('^%s*(.+)')
       if title and title ~= '' then
-        core.create_new_session(title, function(new_session)
-          state.active_session = new_session
-          M.open_input()
-        end)
+        local new_session = core.create_new_session(title)
+        if not new_session then
+          vim.notify('Failed to create new session', vim.log.levels.ERROR)
+          return
+        end
+        state.active_session = new_session
+        M.open_input()
       else
         vim.notify('Session title cannot be empty', vim.log.levels.ERROR)
       end

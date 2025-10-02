@@ -34,7 +34,7 @@ function M.debug_session()
     return
   end
   vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
-  vim.cmd('e ' .. session_path .. '/' .. state.active_session.name .. '.json')
+  vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
 end
 
 return M

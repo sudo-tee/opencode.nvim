@@ -18,7 +18,7 @@ function M.render(windows)
     return text and text ~= '' and table.insert(segments, text)
   end
 
-  if state.is_job_running() then
+  if state.is_running() then
     local cancel_keymap = config.keymap.window.stop or '<C-c>'
     local legend = string.format(' %s to cancel', cancel_keymap)
     append_to_footer(legend)
@@ -47,16 +47,6 @@ function M.render(windows)
   footer_text = string.rep(' ', win_width - #footer_text) .. footer_text
 
   M.set_content({ footer_text })
-
-  if state.was_interrupted then
-    local ns_id = vim.api.nvim_create_namespace('opencode_footer')
-    vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
-    vim.api.nvim_buf_set_extmark(windows.footer_buf, ns_id, 0, 0, {
-      virt_text = { { 'Session was interrupted', 'Error' } },
-      virt_text_pos = 'overlay',
-      hl_mode = 'replace',
-    })
-  end
 
   local loading_animation = require('opencode.ui.loading_animation')
   if loading_animation.is_running() then
@@ -124,7 +114,6 @@ function M.clear()
 
   M.set_content({})
 
-  state.was_interrupted = false
   state.tokens_count = 0
   state.cost = 0
 end

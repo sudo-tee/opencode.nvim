@@ -7,7 +7,6 @@ local Promise = require('opencode.promise')
 --- @field url string|nil The server URL once ready
 --- @field handle any Compatibility property for job.stop interface
 --- @field spawn_promise Promise|nil
---- @field interrupt_promise Promise|nil
 --- @field shutdown_promise Promise|nil
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
@@ -15,14 +14,27 @@ OpencodeServer.__index = OpencodeServer
 --- Create a new ServerJob instance
 --- @return OpencodeServer
 function OpencodeServer.new()
+  --- before quitting vim ensure we close opencode server
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
+    callback = function()
+      local state = require('opencode.state')
+      if state.opencode_server_job then
+        state.opencode_server_job:shutdown()
+      end
+    end,
+  })
   return setmetatable({
     job = nil,
     url = nil,
     handle = nil,
     spawn_promise = Promise.new(),
-    interrupt_promise = Promise.new(),
     shutdown_promise = Promise.new(),
   }, OpencodeServer)
+end
+
+function OpencodeServer:is_running()
+  return self.job and self.job.pid ~= nil
 end
 
 --- Clean up this server job
@@ -38,10 +50,6 @@ function OpencodeServer:shutdown()
   self.handle = nil
   self.shutdown_promise:resolve(true)
   return self.shutdown_promise
-end
-
-function OpencodeServer:on_interrupt()
-  self.interrupt_promise:resolve(true)
 end
 
 --- @class OpencodeServerSpawnOpts
@@ -95,10 +103,6 @@ function OpencodeServer:spawn(opts)
   self.handle = self.job and self.job.pid
 
   return self.spawn_promise
-end
-
-function OpencodeServer:get_interrupt_promise()
-  return self.interrupt_promise
 end
 
 function OpencodeServer:get_shutdown_promise()

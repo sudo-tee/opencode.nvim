@@ -1,6 +1,7 @@
 local M = {}
 
 local state = require('opencode.state')
+local config_file = require('opencode.config_file')
 
 local LABELS = {
   NEW_SESSION_TITLE = 'New session',
@@ -8,7 +9,7 @@ local LABELS = {
 
 local function format_model_info()
   if not state.current_model or state.current_model == '' then
-    local info = require('opencode.config_file').get_opencode_config()
+    local info = config_file.get_opencode_config()
     state.current_model = info and info.model
   end
 
@@ -75,7 +76,7 @@ local function get_session_desc()
   local session_desc = LABELS.NEW_SESSION_TITLE
 
   if state.active_session then
-    local session = require('opencode.session').get_by_name(state.active_session.name)
+    local session = require('opencode.session').get_by_name(state.active_session.id)
     if session and session.description ~= '' then
       session_desc = session.description
     end

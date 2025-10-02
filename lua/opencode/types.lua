@@ -57,6 +57,11 @@
 ---@field diff_close string
 ---@field diff_revert_all_last_prompt string
 ---@field diff_revert_this_last_prompt string
+---@field diff_revert_all string
+---@field diff_revert_this string
+---@field diff_restore_snapshot_file string
+---@field diff_restore_snapshot_all string
+---@field open_configuration_file string
 ---@field swap_position string # Swap Opencode pane left/right
 
 ---@class OpencodeKeymapWindow
@@ -72,12 +77,9 @@
 ---@field toggle_pane string
 ---@field prev_prompt_history string
 ---@field next_prompt_history string
----@field focus_input string
----@field debug_message string
----@field debug_session string
----@field debug_output string
 ---@field switch_mode string
----@field select_child_session string
+---@field focus_input string
+---@field select_child_session string\n---@field debug_message string\n---@field debug_output string\n---@field debug_session string
 ---@class OpencodeKeymap
 ---@field global OpencodeKeymapGlobal
 ---@field window OpencodeKeymapWindow
@@ -109,16 +111,51 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
+---@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
----@field current_file { enabled: boolean }
+---@field current_file { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
+---@field marks { enabled: boolean, limit: number }
+---@field jumplist { enabled: boolean, limit: number }
+---@field recent_buffers { enabled: boolean, limit: number, symbols_only: boolean }
+---@field undo_history { enabled: boolean, limit: number }
+---@field windows_tabs { enabled: boolean }
+---@field highlights { enabled: boolean }
+---@field session_info { enabled: boolean }
+---@field registers { enabled: boolean, include: string[] }
+---@field command_history { enabled: boolean, limit: number }
+---@field search_history { enabled: boolean, limit: number }
+---@field debug_data { enabled: boolean }
+---@field lsp_context { enabled: boolean, diagnostics_limit: number, code_actions: boolean }
+---@field git_info { enabled: boolean, diff_limit: number, changes_limit: number }
+---@field fold_info { enabled: boolean }
+---@field cursor_surrounding { enabled: boolean, lines_above: number, lines_below: number }
+---@field quickfix_loclist { enabled: boolean, limit: number }
+---@field macros { enabled: boolean, register: string }
+---@field terminal_buffers { enabled: boolean }
+---@field session_duration { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 
 --- @class OpencodeProviders
 --- @field [string] string[]
+
+---@class OpencodeConfigModule
+---@field defaults OpencodeConfig
+---@field values OpencodeConfig
+---@field setup fun(opts?: OpencodeConfig): nil
+---@overload fun(key: nil): OpencodeConfig
+---@overload fun(key: "preferred_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
+---@overload fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
+---@overload fun(key: "default_mode"): 'build' | 'plan'
+---@overload fun(key: "default_global_keymaps"): boolean
+---@overload fun(key: "keymap"): OpencodeKeymap
+---@overload fun(key: "ui"): OpencodeUIConfig
+---@overload fun(key: "providers"): OpencodeProviders
+---@overload fun(key: "context"): OpencodeContextConfig
+---@overload fun(key: "debug"): OpencodeDebugConfig
 
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
@@ -256,8 +293,7 @@
 ---@field providerID string Provider identifier
 ---@field role 'user'|'assistant'|'system' Role of the message sender
 ---@field system_role string|nil Role defined in system messages
----@field mode string|nil Agent/mode used to create this message (from CLI)
----@field assistant_mode string|nil Assistant mode active when message was created (deprecated)
+---@field mode string|nil Agent or mode identifier
 ---@field error table
 
 ---@class RestorePoint

@@ -192,10 +192,10 @@ function M._format_revert_message(stats)
       end
       if #file_diff > 0 then
         local line_str = string.format(icons.get('file') .. '%s: %s', file, table.concat(file_diff, ' '))
-        local line_idx = M.output:add_line(line_str) ---@type number
-        local col = #('  ' .. file .. ': ') ---@type number
+        local line_idx = M.output:add_line(line_str)
+        local col = #('  ' .. file .. ': ')
         for _, diff in ipairs(file_diff) do
-           local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText' ---@type string
+          local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText'
           M.output:add_extmark(line_idx, {
             virt_text = { { diff, hl_group } },
             virt_text_pos = 'inline',
@@ -251,7 +251,7 @@ function M._format_patch(part)
           util.time_ago(restore_point.created_at)
         )
       )
-      local restore_line = M.output:get_line_count() ---@type number
+      local restore_line = M.output:get_line_count()
       M.output:add_action({
         text = 'Restore [A]ll',
         type = 'diff_restore_snapshot_all',
@@ -293,10 +293,9 @@ function M._format_message_header(message, msg_idx)
   M.output:add_empty_line()
   M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
 
-  -- Use the mode field from the message (stable label from CLI)
   local display_name
   if role == 'assistant' then
-    local mode = message.mode or message.assistant_mode
+    local mode = message.mode
     if mode and mode ~= '' then
       display_name = mode:upper()
     else
@@ -360,7 +359,7 @@ function M._format_user_message(text, message)
     context = context_module.extract_from_opencode_message(message)
   end
 
-   local start_line = M.output:get_line_count() - 1 ---@type number
+  local start_line = M.output:get_line_count() - 1
 
   M.output:add_empty_line()
   M.output:add_lines(vim.split(context.prompt, '\n'))
@@ -378,7 +377,7 @@ function M._format_user_message(text, message)
     M.output:add_line(string.format('[%s](%s)', path, context.current_file))
   end
 
-     local end_line = M.output:get_line_count() ---@type number
+  local end_line = M.output:get_line_count()
 
   M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
@@ -519,12 +518,9 @@ function M._format_tool(part)
   end
 
   local start_line = M.output:get_line_count() + 1
-   ---@type TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput
-   local input = (part.state and part.state.input) or {}
-   ---@type ToolMetadataBase|TaskToolMetadata|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata
-   local metadata = (part.state and part.state.metadata) or {}
-   ---@type string
-   local output = (part.state and part.state.output) or ''
+  local input = (part.state and part.state.input) or {}
+  local metadata = (part.state and part.state.metadata) or {}
+  local output = (part.state and part.state.output) or ''
 
   if tool == 'bash' then
     M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
@@ -552,7 +548,7 @@ function M._format_tool(part)
 
   M.output:add_empty_line()
 
-     local end_line = M.output:get_line_count() ---@type number
+  local end_line = M.output:get_line_count()
   if end_line - start_line > 1 then
     M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
   end
@@ -581,7 +577,7 @@ function M._format_task_tool(input, metadata, output)
     end
   end
 
-     local end_line = M.output:get_line_count() ---@type number
+  local end_line = M.output:get_line_count()
   M.output:add_action({
     text = '[S]elect Child Session',
     type = 'select_child_session',

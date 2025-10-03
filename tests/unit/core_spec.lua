@@ -65,12 +65,14 @@ describe('opencode.core', function()
     end
     mock_api_client()
 
-    -- Seed config_file promises so any project/config lookups work without real api_client methods
-    local Promise = require('opencode.promise')
-    local cfg_p = Promise.new():resolve({ agent = { build = { mode = 'primary' } } })
-    local proj_p = Promise.new():resolve({ id = 'proj1' })
-    config_file.config_promise = cfg_p
-    config_file.project_promise = proj_p
+    -- Mock server job to avoid trying to start real server
+    state.opencode_server_job = {
+      is_running = function() return true end,
+      shutdown = function() end,
+      url = 'http://127.0.0.1:4000'
+    }
+
+    -- Config is now loaded lazily, so no need to pre-seed promises
   end)
 
   after_each(function()

@@ -4,13 +4,15 @@ local M = {
   providers_promise = nil,
 }
 
-function M.setup() end
+function M.setup()
+  -- No-op: Config is now loaded lazily when needed to avoid spawning server on plugin load
+end
 
 ---@return OpencodeConfigFile|nil
 function M.get_opencode_config()
   if not M.config_promise then
     local state = require('opencode.state')
-    M.config_promise = state.api_client:get_current_project()
+    M.config_promise = state.api_client:get_config()
   end
   return M.config_promise:wait() --[[@as OpencodeConfigFile|nil]]
 end

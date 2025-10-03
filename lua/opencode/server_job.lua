@@ -96,11 +96,11 @@ function M.stream_api(url, method, body, on_chunk)
 end
 
 function M.ensure_server()
-  local promise = Promise.new()
   if state.opencode_server_job and state.opencode_server_job:is_running() then
-    return promise:resolve(state.opencode_server_job)
+    return state.opencode_server_job
   end
 
+  local promise = Promise.new()
   state.opencode_server_job = opencode_server.new()
 
   state.opencode_server_job:spawn({

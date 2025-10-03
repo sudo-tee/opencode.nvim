@@ -8,7 +8,9 @@ describe('config_file.setup', function()
 
   before_each(function()
     original_schedule = vim.schedule
-    vim.schedule = function(fn) fn() end
+    vim.schedule = function(fn)
+      fn()
+    end
     original_api_client = state.api_client
     config_file.config_promise = nil
     config_file.project_promise = nil
@@ -33,16 +35,15 @@ describe('config_file.setup', function()
       end,
     }
 
-    config_file.setup()
     -- Promises should not be set up during setup (lazy loading)
     assert.falsy(config_file.config_promise)
     assert.falsy(config_file.project_promise)
-    
+
     -- Accessing config should trigger lazy loading
     local resolved_cfg = config_file.get_opencode_config()
     assert.same(cfg, resolved_cfg)
     assert.True(get_config_called)
-    
+
     -- Project should be loaded when accessed
     local project = config_file.get_opencode_project()
     assert.True(get_project_called)
@@ -57,7 +58,6 @@ describe('config_file.setup', function()
         return Promise.new():resolve({ id = 'p1' })
       end,
     }
-    -- No need to call setup() since config is loaded lazily
     local agents = config_file.get_opencode_agents()
     assert.True(vim.tbl_contains(agents, 'custom'))
     assert.True(vim.tbl_contains(agents, 'build'))
@@ -74,7 +74,6 @@ describe('config_file.setup', function()
         return Promise.new():resolve(project)
       end,
     }
-    -- No need to call setup() since project is loaded lazily
     local proj = config_file.get_opencode_project()
     assert.same(project, proj)
   end)

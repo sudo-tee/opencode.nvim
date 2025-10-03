@@ -27,7 +27,12 @@ end
 
 function M.mounted(windows)
   windows = windows or state.windows
-  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
+  if
+    not state.windows
+    or not state.windows.output_buf
+    or not state.windows.output_win
+    or not vim.api.nvim_win_is_valid(windows.output_win)
+  then
     return false
   end
 
@@ -147,7 +152,7 @@ function M.setup_autocmds(windows, group)
     callback = function()
       vim.cmd('stopinsert')
       state.last_focused_opencode_window = 'output'
-      require('opencode.ui.input_window').refresh_placeholder(windows)
+      require('opencode.ui.input_window').refresh_placeholder(state.windows)
     end,
   })
 
@@ -157,7 +162,7 @@ function M.setup_autocmds(windows, group)
     callback = function()
       vim.cmd('stopinsert')
       state.last_focused_opencode_window = 'output'
-      require('opencode.ui.input_window').refresh_placeholder(windows)
+      require('opencode.ui.input_window').refresh_placeholder(state.windows)
     end,
   })
 end

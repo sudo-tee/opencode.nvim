@@ -25,7 +25,12 @@ end
 
 function M.mounted(windows)
   windows = windows or state.windows
-  if not windows or not windows.input_buf or not windows.input_win then
+  if
+    not windows
+    or not windows.input_buf
+    or not windows.input_win
+    or not vim.api.nvim_win_is_valid(windows.input_win)
+  then
     return false
   end
 

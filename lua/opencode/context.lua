@@ -18,6 +18,63 @@ local function is_in_cwd(path)
   return vim.startswith(vim.fn.fnamemodify(path, ':p'), cwd)
 end
 
+-- Privacy filter: redact paths outside project root
+local function filter_path_privacy(path)
+  if not path or path == '' then
+    return path
+  end
+  
+  -- Check if privacy filtering is enabled in config
+  if config.context and config.context.privacy_filter and config.context.privacy_filter.enabled == false then
+    return path
+  end
+  
+  -- If path is within project, return as-is
+  if is_in_cwd(path) then
+    return path
+  end
+  
+  -- Redact paths outside project root
+  local basename = vim.fn.fnamemodify(path, ':t')
+  return '[EXTERNAL]/' .. basename
+end
+
+-- Secret detection: check if content contains likely secrets
+local function contains_secret(content)
+  if not content or content == '' then
+    return false
+  end
+  
+  -- Check if secret filtering is enabled in config
+  if config.context and config.context.secret_filter and config.context.secret_filter.enabled == false then
+    return false
+  end
+  
+  -- Common secret patterns
+  local secret_patterns = {
+    -- API keys and tokens (long alphanumeric strings)
+    '[%w%-_]+%.[%w%-_]+%.[%w%-_]+', -- JWT tokens (xxx.yyy.zzz)
+    'api[_%- ]?key[_%- ]?[:=][%s]*[\'"]?[%w%-_]+[\'"]?', -- API key assignments
+    'token[_%- ]?[:=][%s]*[\'"]?[%w%-_]+[\'"]?', -- Token assignments
+    'password[_%- ]?[:=][%s]*[\'"]?[%w%-_]+[\'"]?', -- Password assignments
+    'secret[_%- ]?[:=][%s]*[\'"]?[%w%-_]+[\'"]?', -- Secret assignments
+    -- Long hex strings (potential keys)
+    '[0-9a-fA-F]{32,}',
+    -- AWS-style keys
+    'AKIA[0-9A-Z]{16}',
+    -- Private keys
+    '%-%-%-%-%-BEGIN [%w%s]+ PRIVATE KEY%-%-%-%-%-',
+  }
+  
+  for _, pattern in ipairs(secret_patterns) do
+    if content:match(pattern) then
+      return true
+    end
+  end
+  
+  return false
+end
+
 M.context = {
   -- current file
   current_file = nil,
@@ -294,11 +351,30 @@ function M.get_current_file()
   if not file or file == '' or vim.fn.filereadable(file) ~= 1 then
     return nil
   end
-  return {
-    path = file,
+  
+  local bufnr = vim.api.nvim_get_current_buf()
+  local result = {
+    path = filter_path_privacy(file),
     name = vim.fn.fnamemodify(file, ':t'),
     extension = vim.fn.fnamemodify(file, ':e'),
   }
+  
+  -- Add filetype if available
+  local filetype = vim.bo[bufnr].filetype
+  if filetype and filetype ~= '' then
+    result.filetype = filetype
+  end
+  
+  -- Add LSP client names if available
+  local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+  if #clients > 0 then
+    result.lsp_clients = {}
+    for _, client in ipairs(clients) do
+      table.insert(result.lsp_clients, client.name)
+    end
+  end
+  
+  return result
 end
 
 function M.get_current_cursor_data()
@@ -404,7 +480,7 @@ function M.get_jumplist()
     if type(jump) == 'table' and jump.bufnr and jump.lnum then
       table.insert(result, {
         bufnr = jump.bufnr,
-        filename = vim.fn.bufname(jump.bufnr),
+        filename = filter_path_privacy(vim.fn.bufname(jump.bufnr)),
         line = jump.lnum,
         col = jump.col,
       })
@@ -414,97 +490,9 @@ function M.get_jumplist()
   return #result > 0 and { jumps = result, current = current } or nil
 end
 
--- Get recent buffers (10 most recently accessed)
-function M.get_recent_buffers()
-  if
-    not (
-      config.context
-      and config.context.enabled
-      and config.context.recent_buffers
-      and config.context.recent_buffers.enabled
-    )
-  then
-    return nil
-  end
-
-  local buffers = vim.fn.getbufinfo({ buflisted = true })
-  local limit = config.context.recent_buffers.limit or 10
-
-  -- Sort by last used time
-  table.sort(buffers, function(a, b)
-    return (a.lastused or 0) > (b.lastused or 0)
-  end)
-
-  local result = {}
-  for i = 1, math.min(#buffers, limit) do
-    local buf = buffers[i]
-    table.insert(result, {
-      bufnr = buf.bufnr,
-      name = buf.name,
-      lastused = buf.lastused,
-      changed = buf.changed == 1,
-    })
-  end
-
-  local recent_conf = config.context.recent_buffers
-  if recent_conf and recent_conf.symbols_only then
-    for _, buf_entry in ipairs(result) do
-      local bufnr = buf_entry.bufnr
-      local line_count = vim.api.nvim_buf_line_count(bufnr)
-      if line_count <= 100 then
-        goto continue
-      end
-
-      local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
-      if #clients == 0 then
-        goto continue
-      end
-
-      if vim.api.nvim_buf_get_option(bufnr, 'readonly') or vim.bo[bufnr].buftype ~= '' then
-        goto continue
-      end
-
-      -- Cache LSP symbols per buffer with changedtick
-      local changedtick = vim.b[bufnr].changedtick or 0
-      local cache_key = 'lsp_symbols_' .. bufnr .. '_' .. changedtick
-      local cached_symbols = context_cache.get(cache_key, get_cache_ttl('lsp_symbols', 10000))
-
-      if cached_symbols then
-        buf_entry.symbols = cached_symbols
-      else
-        local ok, resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', {}, 1000)
-        if ok and resp and resp[1] and resp[1].result then
-          local symbols = resp[1].result
-          local flat = {}
-          local function flatten(s)
-            table.insert(flat, {
-              name = s.name,
-              kind = s.kind,
-              range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
-              detail = s.detail or '',
-            })
-            if s.children then
-              for _, c in ipairs(s.children) do
-                flatten(c)
-              end
-            end
-          end
-          for _, s in ipairs(symbols) do
-            flatten(s)
-          end
-          if #flat > 20 then
-            flat = vim.list_slice(flat, 1, 20)
-          end
-          buf_entry.symbols = flat
-          context_cache.set(cache_key, flat)
-        end
-      end
-      ::continue::
-    end
-  end
-
-  return #result > 0 and result or nil
-end
+-- Get recent buffers - unified function supporting both legacy and new API
+-- Legacy API (no args): returns array of buffer info
+-- New API (prompt, opts): returns OpencodeMessagePart[] for synthetic context
 
 -- Get undo history (last 10 branches/changesets)
 function M.get_undo_history()
@@ -538,7 +526,30 @@ function M.get_undo_history()
     })
   end
 
-  return #result > 0 and { entries = result, seq_cur = undotree.seq_cur } or nil
+  -- Check if current buffer has unsaved changes
+  local bufnr = vim.api.nvim_get_current_buf()
+  local has_unsaved_changes = vim.bo[bufnr].modified
+  
+  -- Count total unsaved changes across all buffers
+  local unsaved_buffers = {}
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].modified then
+      local bufname = vim.api.nvim_buf_get_name(buf)
+      if bufname and bufname ~= '' then
+        table.insert(unsaved_buffers, {
+          bufnr = buf,
+          name = filter_path_privacy(bufname),
+        })
+      end
+    end
+  end
+
+  return #result > 0 and {
+    entries = result,
+    seq_cur = undotree.seq_cur,
+    current_buffer_modified = has_unsaved_changes,
+    unsaved_buffers = #unsaved_buffers > 0 and unsaved_buffers or nil,
+  } or nil
 end
 
 -- Get window and tab context
@@ -562,7 +573,7 @@ function M.get_windows_tabs()
       table.insert(windows, {
         id = win,
         bufnr = bufnr,
-        filename = filename,
+        filename = filter_path_privacy(filename),
       })
     end
   end
@@ -665,10 +676,18 @@ function M.get_registers()
     local contents = vim.fn.getreg(reg)
     local regtype = vim.fn.getregtype(reg)
     if contents and contents ~= '' then
-      result[reg] = {
-        contents = contents,
-        regtype = regtype,
-      }
+      -- Filter out registers containing secrets
+      if not contains_secret(contents) then
+        result[reg] = {
+          contents = contents,
+          regtype = regtype,
+        }
+      else
+        result[reg] = {
+          contents = '[REDACTED: Potential secret detected]',
+          regtype = regtype,
+        }
+      end
     end
   end
 
@@ -826,12 +845,15 @@ function M.get_lsp_context()
     local symbols = symbols_resp[1].result
     local flat_symbols = {}
     local function flatten(s)
-      table.insert(flat_symbols, {
-        name = s.name,
-        kind = s.kind,
-        range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
-        detail = s.detail or '',
-      })
+      -- Filter out structural noise symbols (e.g., "[1]", "[2]", etc.)
+      if s.name and not s.name:match('^%[%d+%]$') then
+        table.insert(flat_symbols, {
+          name = s.name,
+          kind = s.kind,
+          range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
+          detail = s.detail or '',
+        })
+      end
       if s.children then
         for _, c in ipairs(s.children) do
           flatten(c)
@@ -875,6 +897,45 @@ function M.get_git_info()
     result.branch = branch[1]
   else
     return nil
+  end
+
+  -- Get HEAD commit SHA (short form)
+  local sha_ok, sha = pcall(vim.fn.systemlist, 'git rev-parse --short HEAD 2>/dev/null')
+  if sha_ok and sha[1] and sha[1] ~= '' then
+    result.head_sha = sha[1]
+  end
+
+  -- Check if working tree is dirty
+  local status_ok, status = pcall(vim.fn.systemlist, 'git status --porcelain 2>/dev/null')
+  if status_ok and status then
+    result.is_dirty = #status > 0
+    
+    -- Count staged and unstaged changes
+    local staged_count = 0
+    local unstaged_count = 0
+    for _, line in ipairs(status) do
+      if line and line ~= '' then
+        local index_status = line:sub(1, 1)
+        local work_status = line:sub(2, 2)
+        
+        -- Staged changes (index column not space or ?)
+        if index_status ~= ' ' and index_status ~= '?' then
+          staged_count = staged_count + 1
+        end
+        
+        -- Unstaged changes (work tree column not space)
+        if work_status ~= ' ' then
+          unstaged_count = unstaged_count + 1
+        end
+      end
+    end
+    
+    if staged_count > 0 then
+      result.staged_changes = staged_count
+    end
+    if unstaged_count > 0 then
+      result.unstaged_changes = unstaged_count
+    end
   end
 
   -- Get file diff
@@ -1051,7 +1112,7 @@ function M.get_quickfix_loclist()
   for i = 1, math.min(#qflist, limit) do
     local item = qflist[i]
     table.insert(result.quickfix, {
-      filename = vim.fn.bufname(item.bufnr),
+      filename = filter_path_privacy(vim.fn.bufname(item.bufnr)),
       lnum = item.lnum,
       col = item.col,
       text = item.text,
@@ -1065,7 +1126,7 @@ function M.get_quickfix_loclist()
   for i = 1, math.min(#loclist, limit) do
     local item = loclist[i]
     table.insert(result.loclist, {
-      filename = vim.fn.bufname(item.bufnr),
+      filename = filter_path_privacy(vim.fn.bufname(item.bufnr)),
       lnum = item.lnum,
       col = item.col,
       text = item.text,
@@ -1495,7 +1556,10 @@ local function flatten_symbols(symbols, acc, parent)
   for _, s in ipairs(symbols) do
     local name = s.name or '<anonymous>'
     local kind = s.kind or 0
-    table.insert(acc, { name = name, kind = kind, parent = parent })
+    -- Filter out structural noise symbols (e.g., "[1]", "[2]", etc.)
+    if not name:match('^%[%d+%]$') then
+      table.insert(acc, { name = name, kind = kind, parent = parent })
+    end
     if s.children then
       flatten_symbols(s.children, acc, name)
     end
@@ -1503,10 +1567,147 @@ local function flatten_symbols(symbols, acc, parent)
   return acc
 end
 
----@param prompt string
----@param opts { enabled: boolean, symbols_only: boolean, max: number }
----@return OpencodeMessagePart[]|nil
+---Deduplicate symbol names preserving order
+---@param names string[]
+---@return string[]
+local function dedupe_symbol_names(names)
+  local seen = {}
+  local result = {}
+  for _, name in ipairs(names) do
+    if not seen[name] then
+      seen[name] = true
+      table.insert(result, name)
+    end
+  end
+  return result
+end
+
+---@param prompt? string
+---@param opts? { enabled: boolean, symbols_only: boolean, max: number }
+---@return OpencodeMessagePart[]|table[]|nil
 function M.get_recent_buffers(prompt, opts)
+  -- Legacy API: called with no arguments, uses config.context.recent_buffers
+  if prompt == nil and opts == nil then
+    if
+      not (
+        config.context
+        and config.context.enabled
+        and config.context.recent_buffers
+        and config.context.recent_buffers.enabled
+      )
+    then
+      return nil
+    end
+
+    local buffers = vim.fn.getbufinfo({ buflisted = true })
+    local limit = config.context.recent_buffers.limit or 10
+
+    -- Sort by last used time
+    table.sort(buffers, function(a, b)
+      return (a.lastused or 0) > (b.lastused or 0)
+    end)
+
+    local result = {}
+    for i = 1, math.min(#buffers, limit) do
+      local buf = buffers[i]
+      local buf_entry = {
+        bufnr = buf.bufnr,
+        name = filter_path_privacy(buf.name),
+        lastused = buf.lastused,
+        changed = buf.changed == 1,
+      }
+      
+      -- Add filetype if available (only for valid buffers)
+      if vim.api.nvim_buf_is_valid(buf.bufnr) then
+        local filetype = vim.bo[buf.bufnr].filetype
+        if filetype and filetype ~= '' then
+          buf_entry.filetype = filetype
+        end
+        
+        -- Add LSP client names if available
+        local clients = vim.lsp.get_active_clients({ bufnr = buf.bufnr })
+        if #clients > 0 then
+          buf_entry.lsp_clients = {}
+          for _, client in ipairs(clients) do
+          table.insert(buf_entry.lsp_clients, client.name)
+        end
+      end
+      end
+      
+      table.insert(result, buf_entry)
+    end
+
+    local recent_conf = config.context.recent_buffers
+    if recent_conf and recent_conf.symbols_only then
+      for _, buf_entry in ipairs(result) do
+        local bufnr = buf_entry.bufnr
+        
+        -- Skip if buffer is not valid
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+          goto continue
+        end
+        
+        local line_count = vim.api.nvim_buf_line_count(bufnr)
+        if line_count <= 100 then
+          goto continue
+        end
+
+        local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+        if #clients == 0 then
+          goto continue
+        end
+
+        if vim.api.nvim_buf_get_option(bufnr, 'readonly') or vim.bo[bufnr].buftype ~= '' then
+          goto continue
+        end
+
+        -- Cache LSP symbols per buffer with changedtick
+        local changedtick = vim.b[bufnr].changedtick or 0
+        local cache_key = 'lsp_symbols_' .. bufnr .. '_' .. changedtick
+        local cached_symbols = context_cache.get(cache_key, get_cache_ttl('lsp_symbols', 10000))
+
+        if cached_symbols then
+          buf_entry.symbols = cached_symbols
+        else
+          local ok, resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', {}, 1000)
+          if ok and resp and resp[1] and resp[1].result then
+            local symbols = resp[1].result
+            local flat = {}
+            local function flatten(s)
+              -- Filter out structural noise symbols (e.g., "[1]", "[2]", etc.)
+              -- These are often placeholder symbols from some LSP servers
+              if s.name and not s.name:match('^%[%d+%]$') then
+                table.insert(flat, {
+                  name = s.name,
+                  kind = s.kind,
+                  range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
+                  detail = s.detail or '',
+                })
+              end
+              if s.children then
+                for _, c in ipairs(s.children) do
+                  flatten(c)
+                end
+              end
+            end
+            for _, s in ipairs(symbols) do
+              flatten(s)
+            end
+            if #flat > 20 then
+              flat = vim.list_slice(flat, 1, 20)
+            end
+            buf_entry.symbols = flat
+            context_cache.set(cache_key, flat)
+          end
+        end
+        ::continue::
+      end
+    end
+
+    return #result > 0 and result or nil
+  end
+
+  -- New API: called with prompt and opts
   if not opts or not opts.enabled then
     return nil
   end
@@ -1554,7 +1755,7 @@ function M.get_recent_buffers(prompt, opts)
         for _, s in ipairs(flat) do
           table.insert(names, s.name)
         end
-        symbol_list = names
+        symbol_list = dedupe_symbol_names(names)
       end
       -- Guarantee a symbols array exists (empty if none found) for a stable contract
       if not symbol_list then

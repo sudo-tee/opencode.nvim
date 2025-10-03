@@ -258,7 +258,7 @@ function M.handle_auto_scroll(windows)
     return
   end
 
-  if was_at_bottom then
+  if was_at_bottom or not is_focused then
     require('opencode.ui.ui').scroll_to_bottom()
   end
 end

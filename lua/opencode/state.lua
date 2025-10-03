@@ -17,7 +17,6 @@ local config = require('opencode.config').get()
 ---@field last_code_win_before_opencode number|nil
 ---@field display_route any|nil
 ---@field current_mode string
----@field was_interrupted boolean
 ---@field last_output number
 ---@field last_sent_context any
 ---@field active_session Session|nil
@@ -29,10 +28,12 @@ local config = require('opencode.config').get()
 ---@field last_user_message Message|nil
 ---@field cost number
 ---@field tokens_count number
----@field opencode_server_job OpencodeServer
+---@field job_count number
+---@field opencode_server_job OpencodeServer|nil
+---@field api_client OpencodeApiClient
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
----@field is_job_running fun():boolean
+---@field is_running fun():boolean
 ---@field append fun( key:string, value:any)
 ---@field required_version string
 ---@field opencode_cli_version string|nil
@@ -48,7 +49,6 @@ local _state = {
   last_code_win_before_opencode = nil,
   display_route = nil,
   current_mode = config.default_mode,
-  was_interrupted = false,
   last_output = 0,
   -- context
   last_sent_context = nil,
@@ -64,7 +64,9 @@ local _state = {
   cost = 0,
   tokens_count = 0,
   -- job
+  job_count = 0,
   opencode_server_job = nil,
+  api_client = nil,
 
   -- versions
   required_version = '0.6.3',
@@ -170,8 +172,8 @@ M.unsubscribe = unsubscribe
 ---
 --- Returns true if any job (run or server) is running
 ---
-function M.is_job_running()
-  return M.opencode_server_job ~= nil
+function M.is_running()
+  return M.job_count > 0
 end
 
 return M

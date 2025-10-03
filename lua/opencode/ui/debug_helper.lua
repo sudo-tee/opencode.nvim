@@ -1,3 +1,8 @@
+---@class OpencodeDebugHelper
+---@field open_json_file fun(data: table)
+---@field debug_output fun()
+---@field debug_message fun()
+---@field debug_session fun()
 local M = {}
 
 local state = require('opencode.state')
@@ -34,7 +39,7 @@ function M.debug_session()
     return
   end
   vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
-  vim.cmd('e ' .. session_path .. '/' .. state.active_session.name .. '.json')
+  vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
 end
 
 return M

@@ -25,7 +25,12 @@ end
 
 function M.mounted(windows)
   windows = windows or state.windows
-  if not windows or not windows.input_buf or not windows.input_win then
+  if
+    not windows
+    or not windows.input_buf
+    or not windows.input_win
+    or not vim.api.nvim_win_is_valid(windows.input_win)
+  then
     return false
   end
 
@@ -52,11 +57,6 @@ function M.handle_submit()
     buffer = windows.input_buf,
     modeline = false,
   })
-
-  vim.api.nvim_set_current_win(windows.output_win)
-
-  local line_count = vim.api.nvim_buf_line_count(windows.output_buf)
-  vim.api.nvim_win_set_cursor(windows.output_win, { line_count, 0 })
 
   require('opencode.core').send_message(input_content)
 end

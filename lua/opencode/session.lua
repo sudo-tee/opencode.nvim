@@ -1,10 +1,10 @@
 local util = require('opencode.util')
+local config_file = require('opencode.config_file')
 local M = {}
 
 ---Get the current OpenCode project ID
 ---@return string|nil
 function M.project_id()
-  local config_file = require('opencode.config_file')
   local project = config_file.get_opencode_project()
   if not project then
     vim.notify('No OpenCode project found in the current directory', vim.log.levels.ERROR)
@@ -78,7 +78,7 @@ function M.create_session_object(session_json)
     workspace = vim.fn.getcwd(),
     description = session_json.title or '',
     modified = session_json.time and session_json.time.updated or os.time(),
-    name = session_json.id,
+    id = session_json.id,
     parentID = session_json.parentID,
     path = sessions_dir .. '/' .. session_json.id .. '.json',
     messages_path = storage_path .. '/message/' .. session_json.id,

@@ -1,7 +1,6 @@
-local util = require('opencode.util')
-local safe_call = util.safe_call
+local state = require('opencode.state')
 local curl = require('plenary.curl')
-local promise = require('opencode.promise')
+local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
 local M = {}
@@ -25,7 +24,8 @@ end
 --- @param body table|nil|boolean Request body (will be JSON encoded)
 --- @return Promise<T> promise A promise that resolves with the result or rejects with an error
 function M.call_api(url, method, body)
-  local call_promise = promise.new()
+  local call_promise = Promise.new()
+  state.job_count = state.job_count + 1
   local opts = {
     url = url,
     method = method or 'GET',
@@ -35,13 +35,16 @@ function M.call_api(url, method, body)
       handle_api_response(response, function(err, result)
         if err then
           call_promise:reject(err)
+          state.job_count = state.job_count - 1
         else
           call_promise:resolve(result)
+          state.job_count = state.job_count - 1
         end
       end)
     end,
     on_error = function(err)
       call_promise:reject(err)
+      state.job_count = state.job_count - 1
     end,
   }
 
@@ -53,71 +56,66 @@ function M.call_api(url, method, body)
   return call_promise
 end
 
---- @class OpencodeServerRunOpts
---- @field cwd string
---- @field on_ready fun(job: any, url: string)
---- @field on_done fun(result: any)
---- @field on_error fun(err: any)
---- @field on_exit fun(err: any)
---- @field on_interrupt fun(err: any)
-
---- Run an opencode API call by spawning a server, making the call, and cleaning up.
---- @param endpoint string The API endpoint path (e.g. '/v1/foo')
---- @param method string|nil HTTP method
---- @param body table|nil|boolean Request body
---- @param opts OpencodeServerRunOpts
---- @return OpencodeServer server_job The server job instance
-function M.run(endpoint, method, body, opts)
-  opts = opts or {}
-
-  return M.with_server(function(server_job, base_url)
-    local url = base_url .. endpoint
-    M.call_api(url, method, body)
-      :and_then(function(result)
-        safe_call(opts.on_done, result)
-        server_job:shutdown()
-      end)
-      :catch(function(err)
-        if err.exit == 52 then
-          server_job:on_interrupt()
-          safe_call(opts.on_interrupt)
-          return
-        end
-        safe_call(opts.on_error, err)
-        server_job:shutdown()
-      end)
-  end, opts)
-end
-
---- Spawn an opencode server, and invoke a callback when it's ready.
---- @param cb fun(job: OpencodeServer, url: string)
---- @param opts OpencodeServerRunOpts
---- @return OpencodeServer server_job The server job instance
-function M.with_server(cb, opts)
-  opts = opts or {}
-  local server_job = opencode_server.new()
-
-  server_job:spawn({
-    cwd = opts.cwd,
-    on_ready = function(_, base_url)
-      safe_call(cb, server_job, base_url)
+--- Make a streaming HTTP API call to the opencode server.
+--- @param url string The API endpoint URL
+--- @param method string|nil HTTP method (default: 'GET')
+--- @param body table|nil|boolean Request body (will be JSON encoded)
+--- @param on_chunk fun(chunk: string) Callback invoked for each chunk of data received
+--- @return Job job The underlying job instance
+function M.stream_api(url, method, body, on_chunk)
+  local opts = {
+    url = url,
+    method = method or 'GET',
+    headers = { ['Content-Type'] = 'application/json' },
+    proxy = '',
+    stream = function(err, chunk)
+      if chunk == nil or chunk == '' then
+        return
+      end
+      on_chunk(chunk)
     end,
     on_error = function(err)
-      server_job:shutdown()
-      safe_call(opts.on_error, err)
+      --This means the job was killed, so we can ignore it
+      if err.message:match('exit_code=nil') then
+        return
+      end
+      vim.notify('Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    end,
+    on_exit = function(code, signal)
+      if code ~= 0 then
+        vim.notify('Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
+      end
+    end,
+  }
+
+  if body ~= nil then
+    opts.body = body and vim.json.encode(body) or '{}'
+  end
+
+  return curl.request(opts)
+end
+
+function M.ensure_server()
+  if state.opencode_server_job and state.opencode_server_job:is_running() then
+    return state.opencode_server_job
+  end
+
+  local promise = Promise.new()
+  state.opencode_server_job = opencode_server.new()
+
+  state.opencode_server_job:spawn({
+    on_ready = function(_, base_url)
+      promise:resolve(state.opencode_server_job)
+    end,
+    on_error = function(err)
+      promise:reject(err)
     end,
     on_exit = function(exit_opts)
-      local code = exit_opts.code
-      if code == nil then
-        safe_call(opts.on_interrupt)
-      elseif code and code ~= 0 then
-        safe_call(opts.on_error, 'Server exited with code ' .. vim.inspect(code))
-      end
-      server_job:shutdown()
+      state.opencode_server_job:shutdown()
     end,
   })
 
-  return server_job
+  return promise:wait()
 end
 
 return M

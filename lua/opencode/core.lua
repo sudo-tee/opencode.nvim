@@ -1,3 +1,4 @@
+-- This file was written by an automated tool.
 local M = {}
 local state = require('opencode.state')
 local context = require('opencode.context')
@@ -39,6 +40,11 @@ end
 function M.open(opts)
   opts = opts or { focus = 'input', new_session = false }
 
+  local state = require('opencode.state')
+  if not state.opencode_server_job or not state.opencode_server_job:is_running() then
+    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+  end
+
   if not M.opencode_ok() then
     return
   end
@@ -52,6 +58,10 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
+    if not state.active_session or opts.new_session then
+      state.active_session = M.create_new_session()
+    end
+
     ui.clear_output()
   else
     if not state.active_session then
@@ -91,48 +101,37 @@ function M.send_message(prompt, opts)
     params.agent = opts.agent
   end
 
-  if not state.active_session or opts.new_session then
-    state.active_session = M.create_new_session(nil):wait()
-  end
-
   params.parts = context.format_message(prompt, opts.context)
-  M.run_server_api('/session/' .. state.active_session.name .. '/message', 'POST', params, {
-    on_done = function()
+
+  M.before_run(opts)
+
+  ui.render_output(true)
+  state.api_client
+    :create_message(state.active_session.id, params)
+    :and_then(function(response)
+      state.last_output = os.time()
+      ui.render_output()
       M.after_run(prompt)
-    end,
-    on_error = function(err)
+    end)
+    :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-    end,
-  })
+    end)
 end
 
 ---@param title? string
----@param cb fun(session: Session)?
----@return Promise<Session>
-function M.create_new_session(title, cb)
-  ---@type Promise<Session>
-  local promise = Promise.new()
-  M.run_server_api('/session', 'POST', title and { title = title } or false, {
-    on_error = function(err)
-      promise:reject(err)
-      vim.notify(vim.inspect(err), vim.log.levels.ERROR)
-    end,
-    on_done = function(data)
-      if data and data.id then
-        local new_session = session.get_by_name(data.id)
-        if new_session then
-          if cb then
-            cb(new_session)
-          end
-          promise:resolve(new_session)
-          return
-        end
-      else
-        vim.notify('Failed to create new session: Invalid response from server', vim.log.levels.ERROR)
-      end
-    end,
-  })
-  return promise
+---@return Session?
+function M.create_new_session(title)
+  local session_response = state.api_client
+    :create_session(title and { title = title } or false)
+    :catch(function(err)
+      vim.notify('Error creating new session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    end)
+    :wait()
+
+  if session_response and session_response.id then
+    local new_session = session.get_by_name(session_response.id)
+    return new_session
+  end
 end
 
 ---@param prompt string
@@ -149,64 +148,14 @@ end
 ---@param opts? SendMessageOpts
 function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
-  M.stop()
-
-  if is_new_session then
-    ui.clear_output()
-  end
-
   opts = opts or {}
+
+  M.stop()
+  ui.clear_output()
 
   M.open({
     new_session = is_new_session,
   })
-end
-
----@param endpoint string
----@param method string
----@param body table|nil|boolean
----@param opts? {cwd: string, background: boolean, on_done: fun(result: any), on_error: fun(err: any)}
-function M.run_server_api(endpoint, method, body, opts)
-  opts = opts or {}
-  if not opts.background then
-    M.before_run(opts)
-  end
-
-  state.opencode_server_job = server_job.run(endpoint, method, body, {
-    cwd = opts.cwd,
-    on_ready = function(_)
-      state.last_output = os.time()
-      ui.render_output()
-    end,
-    on_done = function(result)
-      state.was_interrupted = false
-      state.opencode_server_job = nil
-      state.last_output = os.time()
-      ui.render_output()
-      util.safe_call(opts.on_done, result)
-    end,
-    on_error = function(err)
-      state.opencode_server_job = nil
-      state.last_output = os.time()
-      ui.render_output()
-      vim.notify(err.message, vim.log.levels.ERROR)
-      util.safe_call(opts.on_error, err)
-    end,
-    on_exit = function()
-      state.opencode_server_job = nil
-      state.last_output = os.time()
-      ui.render_output()
-    end,
-    on_interrupt = function()
-      state.opencode_server_job = nil
-      state.was_interrupted = true
-      state.last_output = os.time()
-      ui.render_output()
-      vim.notify('Opencode server API call interrupted by user', vim.log.levels.WARN)
-    end,
-  })
-
-  state.was_interrupted = false
 end
 
 function M.add_file_to_context()
@@ -240,13 +189,11 @@ function M.configure_provider()
 end
 
 function M.stop()
-  if state.opencode_server_job then
-    state.opencode_server_job:shutdown()
-    state.opencode_server_job:get_interrupt_promise():wait()
-  end
-  state.opencode_server_job = nil
-
-  if state.windows then
+  if state.windows and state.active_session then
+    if state.is_running() then
+      vim.notify('Aborting current request...', vim.log.levels.WARN)
+      state.api_client:abort_session(state.active_session.id):wait()
+    end
     require('opencode.ui.footer').clear()
     ui.stop_render_output()
     ui.render_output()
@@ -288,6 +235,11 @@ function M.opencode_ok()
   end
 
   return true
+end
+
+function M.setup()
+  local OpencodeApiClient = require('opencode.api_client')
+  state.api_client = OpencodeApiClient.new() --[[@as OpencodeApiClient]]
 end
 
 return M

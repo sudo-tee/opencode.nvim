@@ -4,6 +4,7 @@ local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
+local config_file = require('opencode.config_file')
 local M = {}
 
 function M.render(windows)
@@ -11,14 +12,13 @@ function M.render(windows)
     return
   end
 
-  local models = require('opencode.models')
   local segments = {}
 
   local append_to_footer = function(text)
     return text and text ~= '' and table.insert(segments, text)
   end
 
-  if state.is_job_running() then
+  if state.is_running() then
     local cancel_keymap = config.keymap.window.stop or '<C-c>'
     local legend = string.format(' %s to cancel', cancel_keymap)
     append_to_footer(legend)
@@ -27,7 +27,7 @@ function M.render(windows)
   if state.current_model then
     if config.ui.display_context_size then
       local provider, model = state.current_model:match('^(.-)/(.+)$')
-      local model_info = models.get(provider, model)
+      local model_info = config_file.get_model_info(provider, model)
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
       append_to_footer(util.format_number(state.tokens_count))
       append_to_footer(util.format_percentage(limit > 0 and state.tokens_count / limit))
@@ -47,16 +47,6 @@ function M.render(windows)
   footer_text = string.rep(' ', win_width - #footer_text) .. footer_text
 
   M.set_content({ footer_text })
-
-  if state.was_interrupted then
-    local ns_id = vim.api.nvim_create_namespace('opencode_footer')
-    vim.api.nvim_buf_clear_namespace(windows.footer_buf, ns_id, 0, -1)
-    vim.api.nvim_buf_set_extmark(windows.footer_buf, ns_id, 0, 0, {
-      virt_text = { { 'Session was interrupted', 'Error' } },
-      virt_text_pos = 'overlay',
-      hl_mode = 'replace',
-    })
-  end
 
   local loading_animation = require('opencode.ui.loading_animation')
   if loading_animation.is_running() then
@@ -124,7 +114,6 @@ function M.clear()
 
   M.set_content({})
 
-  state.was_interrupted = false
   state.tokens_count = 0
   state.cost = 0
 end

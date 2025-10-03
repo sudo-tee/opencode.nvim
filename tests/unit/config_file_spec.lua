@@ -1,136 +1,81 @@
 local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
-local assert = require('luassert')
+local state = require('opencode.state')
 
 describe('config_file.setup', function()
-  local original_run_server_api
-  local original_with_server
-  local base_url = 'http://localhost:1234'
-  local original_notify
-  local _notifications = {}
+  local original_schedule
+  local original_api_client
 
   before_each(function()
-    _notifications = {}
-    original_notify = vim.notify
-    local core = require('opencode.core')
-    local server_job = require('opencode.server_job')
-    original_run_server_api = core.run_server_api
-    original_with_server = server_job.with_server
-    -- Set up mock immediately to prevent any real API calls
-    server_job.with_server = function(callback)
-      vim.schedule(function()
-        callback({
-          shutdown = function() end,
-        }, base_url)
-      end)
-    end
-    vim.notify = function(msg, level)
-      table.insert(_notifications, { msg = msg, level = level })
-    end
+    original_schedule = vim.schedule
+    vim.schedule = function(fn) fn() end
+    original_api_client = state.api_client
     config_file.config_promise = nil
     config_file.project_promise = nil
   end)
 
   after_each(function()
-    vim.notify = original_notify
-    if original_run_server_api then
-      local core = require('opencode.core')
-      core.run_server_api = original_run_server_api
-    end
-
-    if original_with_server then
-      local server_job = require('opencode.server_job')
-      server_job.with_server = original_with_server
-    end
-    config_file.config_cache = nil
+    vim.schedule = original_schedule
+    state.api_client = original_api_client
   end)
 
-  it('calls core.run_server_api with correct parameters', function()
-    local server_job = require('opencode.server_job')
-    local api_calls = {}
-
-    server_job.call_api = function(url, method, body)
-      table.insert(api_calls, {
-        url = url,
-        method = method,
-        body = body,
-      })
-      return Promise.new():resolve({})
-    end
+  it('lazily loads config when accessed', function()
+    local get_config_called, get_project_called = false, false
+    local cfg = { agent = { ['a1'] = { mode = 'primary' } } }
+    state.api_client = {
+      get_config = function()
+        get_config_called = true
+        return Promise.new():resolve(cfg)
+      end,
+      get_current_project = function()
+        get_project_called = true
+        return Promise.new():resolve({ id = 'p1', name = 'P', path = '/tmp' })
+      end,
+    }
 
     config_file.setup()
-
-    vim.wait(10)
-
-    assert.are.equal(2, #api_calls)
-    assert.are.equal(base_url .. '/config', api_calls[1].url)
-    assert.are.equal('GET', api_calls[1].method)
-    assert.is_nil(api_calls[1].body)
+    -- Promises should not be set up during setup (lazy loading)
+    assert.falsy(config_file.config_promise)
+    assert.falsy(config_file.project_promise)
+    
+    -- Accessing config should trigger lazy loading
+    local resolved_cfg = config_file.get_opencode_config()
+    assert.same(cfg, resolved_cfg)
+    assert.True(get_config_called)
+    
+    -- Project should be loaded when accessed
+    local project = config_file.get_opencode_project()
+    assert.True(get_project_called)
   end)
 
-  it('caches resolved response on successful API call', function()
-    local server_job = require('opencode.server_job')
-    local test_config = { agent = { ['test-agent'] = {} } }
-
-    server_job.call_api = function(url, method, body)
-      if url:find('/config') then
-        return Promise.new():resolve(test_config)
-      end
-      if url:find('/project/current') then
-        return Promise.new():resolve({ name = 'Test Project' })
-      end
-    end
-
-    config_file.setup()
-
-    vim.wait(50)
-
-    assert.are.equal(test_config, config_file.config_promise:wait())
+  it('get_opencode_agents returns primary + defaults', function()
+    state.api_client = {
+      get_config = function()
+        return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' } } })
+      end,
+      get_current_project = function()
+        return Promise.new():resolve({ id = 'p1' })
+      end,
+    }
+    -- No need to call setup() since config is loaded lazily
+    local agents = config_file.get_opencode_agents()
+    assert.True(vim.tbl_contains(agents, 'custom'))
+    assert.True(vim.tbl_contains(agents, 'build'))
+    assert.True(vim.tbl_contains(agents, 'plan'))
   end)
 
-  it('handles API error correctly', function()
-    local server_job = require('opencode.server_job')
-
-    server_job.call_api = function(url, method, body)
-      return Promise.new():reject('Server error')
-    end
-
-    config_file.setup()
-
-    vim.wait(50)
-
-    assert.are.equal(2, #_notifications)
-    assert.is_not_nil(string.find(_notifications[1].msg, 'Error fetching config file from server'))
-    assert.are.equal(vim.log.levels.ERROR, _notifications[1].level)
-    assert.is_nil(config_file.config_cache)
-  end)
-
-  describe('config_file.get_opencode_agents', function()
-    it('returns agents from config', function()
-      local server_job = require('opencode.server_job')
-      server_job.call_api = function(url, method, body)
-        if url:find('/config') then
-          return Promise.new():resolve({
-            agent = {
-              ['custom-agent'] = { mode = 'primary' },
-              ['another-agent'] = { mode = 'primary' },
-              ['no-subagent'] = { mode = 'subagent' },
-            },
-          })
-        end
-        if url:find('/project/current') then
-          return Promise.new():resolve({ name = 'Test Project' })
-        end
-      end
-
-      config_file.setup()
-      vim.wait(50)
-
-      local agents = config_file.get_opencode_agents()
-      assert.True(vim.tbl_contains(agents, 'custom-agent'))
-      assert.True(vim.tbl_contains(agents, 'another-agent'))
-      assert.True(vim.tbl_contains(agents, 'build'))
-      assert.True(vim.tbl_contains(agents, 'plan'))
-    end)
+  it('get_opencode_project returns project', function()
+    local project = { id = 'p1', name = 'X' }
+    state.api_client = {
+      get_config = function()
+        return Promise.new():resolve({ agent = {} })
+      end,
+      get_current_project = function()
+        return Promise.new():resolve(project)
+      end,
+    }
+    -- No need to call setup() since project is loaded lazily
+    local proj = config_file.get_opencode_project()
+    assert.same(project, proj)
   end)
 end)

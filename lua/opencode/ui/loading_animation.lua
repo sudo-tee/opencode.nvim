@@ -23,7 +23,7 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
-  if not state.is_job_running() then
+  if not state.is_running() then
     M.stop()
     return false
   end
@@ -53,7 +53,7 @@ function M._start_animation_timer(windows)
     on_tick = function()
       M._animation.current_frame = M._next_frame()
       M.render(windows)
-      if state.is_job_running() then
+      if state.is_running() then
         return true
       else
         M.stop()

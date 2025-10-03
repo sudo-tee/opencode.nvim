@@ -166,7 +166,7 @@ describe('opencode.session', function()
       -- Verify the result - should return "new-8" as it's the most recent
       assert.is_not_nil(result)
       if result then
-        assert.equal('new-8', result.name)
+        assert.equal('new-8', result.id)
       end
     end)
 
@@ -234,7 +234,7 @@ describe('opencode.session', function()
       -- Verify the result
       assert.is_not_nil(result)
       if result then
-        assert.equal('new-8', result.name)
+        assert.equal('new-8', result.id)
       end
     end)
 

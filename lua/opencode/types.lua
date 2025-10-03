@@ -17,10 +17,17 @@
 ---@field vcs string
 ---@field time { created: number }
 
----@class OpencodeUserCommandFrontMatter
+---@class OpencodePath
+---@field state string
+---@field config string
+---@field worktree string
+---@field directory string
+
+---@class OpencodeCommand
 ---@field description string
 ---@field agent string
 ---@field model string
+---@field template string
 
 ---@class SessionRevertInfo
 ---@field messageID string
@@ -32,7 +39,7 @@
 ---@field workspace string
 ---@field description string
 ---@field modified number
----@field name string
+---@field id string
 ---@field parentID string|nil
 ---@field path string
 ---@field messages_path string
@@ -381,3 +388,76 @@
 ---@field source OpencodeMessagePartSource|nil
 ---@field name string|nil
 ---@field synthetic boolean|nil
+
+---@class OpencodeModelModalities
+---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities
+---@field output ('text')[] Supported output modalities
+
+---@class OpencodeModelCost
+---@field input number Cost per input token
+---@field output number Cost per output token
+---@field cache_read number|nil Cost per cache read token
+---@field cache_write number|nil Cost per cache write token
+
+---@class OpencodeModelLimits
+---@field context number Maximum context length in tokens
+---@field output number Maximum output length in tokens
+
+---@class OpencodeModel
+---@field id string Unique identifier for the model
+---@field name string Human-readable name of the model
+---@field attachment boolean Whether the model supports file attachments
+---@field reasoning boolean Whether the model supports reasoning/thinking
+---@field temperature boolean Whether the model supports temperature parameter
+---@field tool_call boolean Whether the model supports tool calling
+---@field knowledge string|nil Knowledge cutoff date (e.g., "2024-04")
+---@field release_date string Release date in YYYY-MM-DD format
+---@field last_updated string Last updated date in YYYY-MM-DD format
+---@field modalities OpencodeModelModalities Supported input/output modalities
+---@field open_weights boolean Whether the model has open weights
+---@field limit OpencodeModelLimits Token limits for the model
+---@field cost OpencodeModelCost Pricing information for the model
+
+---@class OpencodeProvider
+---@field id string Unique identifier for the provider
+---@field env string[] Required environment variables for authentication
+---@field npm string NPM package name for the provider SDK
+---@field api string|nil Base API URL for the provider
+---@field name string Human-readable name of the provider
+---@field doc string|nil Documentation URL for the provider
+---@field models table<string, OpencodeModel> Map of model ID to model configuration
+
+---@class OpencodeProvidersResponse
+---@field providers OpencodeProvider[] List of available providers
+---@field default table<string, string> Map of provider ID to default model ID
+
+---@class OpencodeToolListItem
+---@field id string Tool identifier
+---@field description string Tool description
+---@field parameters any JSON schema parameters for the tool
+
+---@alias OpencodeToolList OpencodeToolListItem[]
+
+---@class OpencodeAgentPermissionBash
+---@field [string] string Permission level ('allow', 'deny', etc.)
+
+---@class OpencodeAgentPermission
+---@field edit string Permission level for edit operations
+---@field webfetch string Permission level for web fetch operations
+---@field bash OpencodeAgentPermissionBash Bash command permissions
+
+---@class OpencodeAgentModel
+---@field providerID string Provider identifier
+---@field modelID string Model identifier
+
+---@class OpencodeAgent
+---@field name string Unique identifier for the agent
+---@field description string Human-readable description of the agent
+---@field tools table<string, boolean> Map of tool names to availability
+---@field options table Additional configuration options
+---@field permission OpencodeAgentPermission Permissions for various operations
+---@field mode 'primary'|'subagent'|'all' Agent execution mode
+---@field builtIn boolean Whether this is a built-in agent
+---@field model OpencodeAgentModel|nil Optional model configuration
+---@field prompt string|nil Optional custom prompt for the agent
+---@field temperature number|nil Optional temperature setting

@@ -49,6 +49,7 @@ function M.format_session(session)
     end
 
     if session.revert and session.revert.messageID == msg.id then
+      ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
       local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
       M._format_revert_message(revert_stats)
       break
@@ -61,7 +62,7 @@ function M.format_session(session)
       M.output:add_metadata(M._current)
 
       if part.type == 'text' and part.text then
-        if msg.role == 'user' and not part.synthetic == true then
+        if msg.role == 'user' and part.synthetic ~= true then
           state.last_user_message = msg
           M._format_user_message(vim.trim(part.text), msg)
         elseif msg.role == 'assistant' then
@@ -85,12 +86,18 @@ function M.format_session(session)
 end
 
 ---@param line number Buffer line number
----@return {message: Message, part: MessagePart, type: string, msg_idx: number, part_idx: number}|nil
+---@return {message: Message, part: MessagePart, msg_idx: number, part_idx: number}|nil
 function M.get_message_at_line(line)
   local metadata = M.output:get_nearest_metadata(line)
   if metadata and metadata.msg_idx and metadata.part_idx then
-    local msg = state.messages[metadata.msg_idx]
+    local msg = state.messages and state.messages[metadata.msg_idx]
+    if not msg or not msg.parts then
+      return nil
+    end
     local part = msg.parts[metadata.part_idx]
+    if not part then
+      return nil
+    end
     return {
       message = msg,
       part = part,
@@ -109,7 +116,7 @@ end
 ---@param messages Message[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
----@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}[]}
+---@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}}
 function M._calculate_revert_stats(messages, revert_index, revert_info)
   local stats = {
     messages = 0,
@@ -206,23 +213,32 @@ function M._format_patch(part)
   local restore_points = snapshot.get_restore_points_by_parent(part.hash)
   M.output:add_empty_line()
   M._format_action(icons.get('snapshot') .. ' **Created Snapshot**', vim.trim(part.hash:sub(1, 8)))
+  local snapshot_header_line = M.output:get_line_count()
+
+  -- Anchor all snapshot-level actions to the snapshot header line
   M.output:add_action({
     text = '[R]evert file',
     type = 'diff_revert_selected_file',
     args = { part.hash },
     key = 'R',
+    display_line = snapshot_header_line,
+    range = { from = snapshot_header_line, to = snapshot_header_line },
   })
   M.output:add_action({
     text = 'Revert [A]ll',
     type = 'diff_revert_all',
     args = { part.hash },
     key = 'A',
+    display_line = snapshot_header_line,
+    range = { from = snapshot_header_line, to = snapshot_header_line },
   })
   M.output:add_action({
     text = '[D]iff',
     type = 'diff_open',
     args = { part.hash },
     key = 'D',
+    display_line = snapshot_header_line,
+    range = { from = snapshot_header_line, to = snapshot_header_line },
   })
 
   if #restore_points > 0 then
@@ -235,17 +251,22 @@ function M._format_patch(part)
           util.time_ago(restore_point.created_at)
         )
       )
+      local restore_line = M.output:get_line_count()
       M.output:add_action({
         text = 'Restore [A]ll',
         type = 'diff_restore_snapshot_all',
         args = { part.hash },
         key = 'A',
+        display_line = restore_line,
+        range = { from = restore_line, to = restore_line },
       })
       M.output:add_action({
         text = '[R]estore file',
         type = 'diff_restore_snapshot_file',
         args = { part.hash },
         key = 'R',
+        display_line = restore_line,
+        range = { from = restore_line, to = restore_line },
       })
     end
   end
@@ -258,6 +279,7 @@ function M._format_error(message)
 end
 
 ---@param message Message
+---@param msg_idx number Message index in the session
 function M._format_message_header(message, msg_idx)
   local role = message.role or 'unknown'
   local icon = message.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
@@ -270,14 +292,34 @@ function M._format_message_header(message, msg_idx)
 
   M.output:add_empty_line()
   M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
+
+  local display_name
+  if role == 'assistant' then
+    local mode = message.mode
+    if mode and mode ~= '' then
+      display_name = mode:upper()
+    else
+      -- For the most recent assistant message, show current_mode if mode is missing
+      -- This handles new messages that haven't been stamped yet
+      local is_last_message = msg_idx == #state.messages
+      if is_last_message and state.current_mode and state.current_mode ~= '' then
+        display_name = state.current_mode:upper()
+      else
+        display_name = 'ASSISTANT'
+      end
+    end
+  else
+    display_name = role:upper()
+  end
+
   M.output:add_extmark(M.output:get_line_count(), {
     virt_text = {
       { icon, role_hl },
       { ' ' },
-      { role:upper(), role_hl },
+      { display_name, role_hl },
       { model_text, 'OpencodeHint' },
-      { time_text, 'OpenCodeHint' },
-      { debug_text, 'OpenCodeHint' },
+      { time_text, 'OpencodeHint' },
+      { debug_text, 'OpencodeHint' },
     },
     virt_text_win_col = -3,
     priority = 10,
@@ -287,9 +329,11 @@ function M._format_message_header(message, msg_idx)
 end
 
 ---@param callout string Callout type (e.g., 'ERROR', 'TODO')
+---@param text string Callout text content
+---@param title? string Optional title for the callout
 function M._format_callout(callout, text, title)
   title = title and title .. ' ' or ''
-  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
+  local win_width = (state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win)) and vim.api.nvim_win_get_width(state.windows.output_win) or config.ui.window_width or 80
   if #text > win_width - 4 then
     local ok, substituted = pcall(vim.fn.substitute, text, '\v(.{' .. (win_width - 8) .. '})', '\1\n', 'g')
     text = ok and substituted or text
@@ -345,6 +389,7 @@ function M._format_assistant_message(text)
 end
 
 ---@param type string Tool type (e.g., 'run', 'read', 'edit', etc.)
+---@param value string Value associated with the action (e.g., filename, command)
 function M._format_action(type, value)
   if not type or not value then
     return
@@ -473,9 +518,9 @@ function M._format_tool(part)
   end
 
   local start_line = M.output:get_line_count() + 1
-  local input = part.state and part.state.input or {}
-  local metadata = part.state.metadata or {}
-  local output = part.state and part.state.output or ''
+  local input = (part.state and part.state.input) or {}
+  local metadata = (part.state and part.state.metadata) or {}
+  local output = (part.state and part.state.output) or ''
 
   if tool == 'bash' then
     M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
@@ -569,7 +614,7 @@ function M._format_diff(code, file_type)
         return {
           end_col = 0,
           end_row = line_idx,
-          virt_text = { { first_char, { hl_group } } },
+          virt_text = { { first_char, hl_group } },
           hl_group = hl_group,
           hl_eol = true,
           priority = 5000,

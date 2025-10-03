@@ -1,3 +1,8 @@
+---@class OpencodeDebugHelper
+---@field open_json_file fun(data: table)
+---@field debug_output fun()
+---@field debug_message fun()
+---@field debug_session fun()
 local M = {}
 
 local state = require('opencode.state')

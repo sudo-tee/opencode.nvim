@@ -28,7 +28,7 @@ local config = require('opencode.config').get()
 ---@field last_user_message Message|nil
 ---@field cost number
 ---@field tokens_count number
----@field is_job_running boolean
+---@field job_count number
 ---@field opencode_server_job OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
@@ -64,7 +64,7 @@ local _state = {
   cost = 0,
   tokens_count = 0,
   -- job
-  is_job_running = false,
+  job_count = 0,
   opencode_server_job = nil,
   api_client = nil,
 
@@ -173,7 +173,7 @@ M.unsubscribe = unsubscribe
 --- Returns true if any job (run or server) is running
 ---
 function M.is_running()
-  return M.is_job_running
+  return M.job_count > 0
 end
 
 return M

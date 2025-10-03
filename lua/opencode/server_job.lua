@@ -25,7 +25,7 @@ end
 --- @return Promise<T> promise A promise that resolves with the result or rejects with an error
 function M.call_api(url, method, body)
   local call_promise = Promise.new()
-  state.is_job_running = true
+  state.job_count = state.job_count + 1
   local opts = {
     url = url,
     method = method or 'GET',
@@ -35,16 +35,16 @@ function M.call_api(url, method, body)
       handle_api_response(response, function(err, result)
         if err then
           call_promise:reject(err)
-          state.is_job_running = false
+          state.job_count = state.job_count - 1
         else
           call_promise:resolve(result)
-          state.is_job_running = false
+          state.job_count = state.job_count - 1
         end
       end)
     end,
     on_error = function(err)
       call_promise:reject(err)
-      state.is_job_running = false
+      state.job_count = state.job_count - 1
     end,
   }
 

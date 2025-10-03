@@ -40,6 +40,11 @@ end
 function M.open(opts)
   opts = opts or { focus = 'input', new_session = false }
 
+  local state = require('opencode.state')
+  if not state.opencode_server_job or not state.opencode_server_job:is_running() then
+    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+  end
+
   if not M.opencode_ok() then
     return
   end

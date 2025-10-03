@@ -21,12 +21,10 @@ end
 --- @param query table|nil Query parameters
 --- @return Promise<any> promise
 function OpencodeApiClient:_call(endpoint, method, body, query)
-  local state = require('opencode.state')
-  if not state.opencode_server_job or not state.opencode_server_job:is_running() or not self.base_url then
-    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+  if not self.base_url then
+    local state = require('opencode.state')
     self.base_url = state.opencode_server_job.url:gsub('/$', '')
   end
-
   local url = self.base_url .. endpoint
 
   if query then
@@ -72,9 +70,9 @@ function OpencodeApiClient:get_config(directory)
 end
 
 --- Update config
---- @param config Config Config object to update
+--- @param config OpencodeConfig Config object to update
 --- @param directory string|nil Directory path
---- @return Promise<Config>
+--- @return Promise<OpencodeConfig>
 function OpencodeApiClient:update_config(config, directory)
   return self:_call('/config', 'PATCH', config, { directory = directory })
 end

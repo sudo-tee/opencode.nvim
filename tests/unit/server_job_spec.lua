@@ -30,14 +30,14 @@ describe('server_job', function()
     curl.request = function(opts)
       -- simulate async callback
       vim.schedule(function()
-        assert.True(state.is_job_running)
+        assert.equal(1, state.job_count)
         opts.callback({ status = 200, body = '{"hello":"world"}' })
       end)
     end
 
     local result = server_job.call_api('http://localhost:1234/test', 'GET'):wait()
     assert.same({ hello = 'world' }, result)
-    assert.False(state.is_job_running) -- reset
+    assert.equal(0, state.job_count) -- reset
   end)
 
   it('call_api rejects on non 2xx', function()
@@ -84,7 +84,9 @@ describe('server_job', function()
     local spawn_count = 0
     local fake = {
       url = 'http://127.0.0.1:4000',
-      is_running = function() return spawn_count > 0 end,
+      is_running = function()
+        return spawn_count > 0
+      end,
       spawn = function(self, opts)
         spawn_count = spawn_count + 1
         vim.schedule(function()

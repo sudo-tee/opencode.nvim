@@ -4,10 +4,6 @@ local M = {
   providers_promise = nil,
 }
 
-function M.setup()
-  -- No-op: Config is now loaded lazily when needed to avoid spawning server on plugin load
-end
-
 ---@return OpencodeConfigFile|nil
 function M.get_opencode_config()
   if not M.config_promise then

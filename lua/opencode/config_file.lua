@@ -1,24 +1,49 @@
 local M = {
   config_promise = nil,
   project_promise = nil,
+  providers_promise = nil,
 }
 
-function M.setup()
-  vim.schedule(function()
-    local state = require('opencode.state')
-    M.config_promise = state.api_client:get_config()
-    M.project_promise = state.api_client:get_current_project()
-  end)
-end
+function M.setup() end
 
 ---@return OpencodeConfigFile|nil
 function M.get_opencode_config()
+  if not M.config_promise then
+    local state = require('opencode.state')
+    M.config_promise = state.api_client:get_current_project()
+  end
   return M.config_promise:wait() --[[@as OpencodeConfigFile|nil]]
 end
 
 ---@return OpencodeProject|nil
 function M.get_opencode_project()
+  if not M.project_promise then
+    local state = require('opencode.state')
+    M.project_promise = state.api_client:get_current_project()
+  end
   return M.project_promise:wait() --[[@as OpencodeProject|nil]]
+end
+
+---@return OpencodeProvidersResponse|nil
+function M.get_opencode_providers()
+  if not M.providers_promise then
+    local state = require('opencode.state')
+    M.providers_promise = state.api_client:list_providers()
+  end
+  return M.providers_promise:wait() --[[@as OpencodeProvidersResponse|nil]]
+end
+
+function M.get_model_info(provider, model)
+  local config_file = require('opencode.config_file')
+  local providers = vim.tbl_filter(function(p)
+    return p.id == provider
+  end, config_file.get_opencode_providers().providers)
+
+  if #providers == 0 then
+    return nil
+  end
+
+  return providers[1] and providers[1].models and providers[1].models[model] or nil
 end
 
 function M.get_opencode_agents()

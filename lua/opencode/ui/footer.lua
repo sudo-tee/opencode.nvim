@@ -4,6 +4,7 @@ local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
+local config_file = require('opencode.config_file')
 local M = {}
 
 function M.render(windows)
@@ -11,7 +12,6 @@ function M.render(windows)
     return
   end
 
-  local models = require('opencode.models')
   local segments = {}
 
   local append_to_footer = function(text)
@@ -27,7 +27,7 @@ function M.render(windows)
   if state.current_model then
     if config.ui.display_context_size then
       local provider, model = state.current_model:match('^(.-)/(.+)$')
-      local model_info = models.get(provider, model)
+      local model_info = config_file.get_model_info(provider, model)
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
       append_to_footer(util.format_number(state.tokens_count))
       append_to_footer(util.format_percentage(limit > 0 and state.tokens_count / limit))

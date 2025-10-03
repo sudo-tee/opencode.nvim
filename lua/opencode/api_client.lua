@@ -6,11 +6,11 @@ local OpencodeApiClient = {}
 OpencodeApiClient.__index = OpencodeApiClient
 
 --- Create a new API client instance
---- @param base_url string The base URL of the opencode server
+--- @param base_url? string The base URL of the opencode server
 --- @return OpencodeApiClient
 function OpencodeApiClient.new(base_url)
   return setmetatable({
-    base_url = base_url:gsub('/$', ''), -- Remove trailing slash
+    base_url = base_url and base_url:gsub('/$', ''), -- Remove trailing slash
   }, OpencodeApiClient)
 end
 
@@ -21,6 +21,12 @@ end
 --- @param query table|nil Query parameters
 --- @return Promise<any> promise
 function OpencodeApiClient:_call(endpoint, method, body, query)
+  local state = require('opencode.state')
+  if not state.opencode_server_job or not state.opencode_server_job:is_running() or not self.base_url then
+    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+  end
+
   local url = self.base_url .. endpoint
 
   if query then
@@ -388,6 +394,8 @@ end
 local function create_client(base_url)
   return OpencodeApiClient.new(base_url)
 end
+
+local function instance() end
 
 return {
   new = OpencodeApiClient.new,

@@ -233,15 +233,8 @@ function M.opencode_ok()
 end
 
 function M.setup()
-  local promise = Promise.new()
-  vim.schedule(function()
-    local OpencodeApiClient = require('opencode.api_client')
-    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
-    state.api_client = OpencodeApiClient.new(state.opencode_server_job.url) --[[@as OpencodeApiClient]]
-    promise:resolve(true)
-  end)
-
-  return promise:wait()
+  local OpencodeApiClient = require('opencode.api_client')
+  state.api_client = OpencodeApiClient.new() --[[@as OpencodeApiClient]]
 end
 
 return M

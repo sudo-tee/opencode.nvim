@@ -23,17 +23,17 @@ local function filter_path_privacy(path)
   if not path or path == '' then
     return path
   end
-  
+
   -- Check if privacy filtering is enabled in config
   if config.context and config.context.privacy_filter and config.context.privacy_filter.enabled == false then
     return path
   end
-  
+
   -- If path is within project, return as-is
   if is_in_cwd(path) then
     return path
   end
-  
+
   -- Redact paths outside project root
   local basename = vim.fn.fnamemodify(path, ':t')
   return '[EXTERNAL]/' .. basename
@@ -44,12 +44,12 @@ local function contains_secret(content)
   if not content or content == '' then
     return false
   end
-  
+
   -- Check if secret filtering is enabled in config
   if config.context and config.context.secret_filter and config.context.secret_filter.enabled == false then
     return false
   end
-  
+
   -- Common secret patterns
   local secret_patterns = {
     -- API keys and tokens (long alphanumeric strings)
@@ -65,13 +65,13 @@ local function contains_secret(content)
     -- Private keys
     '%-%-%-%-%-BEGIN [%w%s]+ PRIVATE KEY%-%-%-%-%-',
   }
-  
+
   for _, pattern in ipairs(secret_patterns) do
     if content:match(pattern) then
       return true
     end
   end
-  
+
   return false
 end
 
@@ -351,20 +351,20 @@ function M.get_current_file()
   if not file or file == '' or vim.fn.filereadable(file) ~= 1 then
     return nil
   end
-  
+
   local bufnr = vim.api.nvim_get_current_buf()
   local result = {
     path = filter_path_privacy(file),
     name = vim.fn.fnamemodify(file, ':t'),
     extension = vim.fn.fnamemodify(file, ':e'),
   }
-  
+
   -- Add filetype if available
   local filetype = vim.bo[bufnr].filetype
   if filetype and filetype ~= '' then
     result.filetype = filetype
   end
-  
+
   -- Add LSP client names if available
   local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
   if #clients > 0 then
@@ -373,7 +373,7 @@ function M.get_current_file()
       table.insert(result.lsp_clients, client.name)
     end
   end
-  
+
   return result
 end
 
@@ -529,7 +529,7 @@ function M.get_undo_history()
   -- Check if current buffer has unsaved changes
   local bufnr = vim.api.nvim_get_current_buf()
   local has_unsaved_changes = vim.bo[bufnr].modified
-  
+
   -- Count total unsaved changes across all buffers
   local unsaved_buffers = {}
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -544,12 +544,14 @@ function M.get_undo_history()
     end
   end
 
-  return #result > 0 and {
-    entries = result,
-    seq_cur = undotree.seq_cur,
-    current_buffer_modified = has_unsaved_changes,
-    unsaved_buffers = #unsaved_buffers > 0 and unsaved_buffers or nil,
-  } or nil
+  return #result > 0
+      and {
+        entries = result,
+        seq_cur = undotree.seq_cur,
+        current_buffer_modified = has_unsaved_changes,
+        unsaved_buffers = #unsaved_buffers > 0 and unsaved_buffers or nil,
+      }
+    or nil
 end
 
 -- Get window and tab context
@@ -909,7 +911,7 @@ function M.get_git_info()
   local status_ok, status = pcall(vim.fn.systemlist, 'git status --porcelain 2>/dev/null')
   if status_ok and status then
     result.is_dirty = #status > 0
-    
+
     -- Count staged and unstaged changes
     local staged_count = 0
     local unstaged_count = 0
@@ -917,19 +919,19 @@ function M.get_git_info()
       if line and line ~= '' then
         local index_status = line:sub(1, 1)
         local work_status = line:sub(2, 2)
-        
+
         -- Staged changes (index column not space or ?)
         if index_status ~= ' ' and index_status ~= '?' then
           staged_count = staged_count + 1
         end
-        
+
         -- Unstaged changes (work tree column not space)
         if work_status ~= ' ' then
           unstaged_count = unstaged_count + 1
         end
       end
     end
-    
+
     if staged_count > 0 then
       result.staged_changes = staged_count
     end
@@ -1616,24 +1618,24 @@ function M.get_recent_buffers(prompt, opts)
         lastused = buf.lastused,
         changed = buf.changed == 1,
       }
-      
+
       -- Add filetype if available (only for valid buffers)
       if vim.api.nvim_buf_is_valid(buf.bufnr) then
         local filetype = vim.bo[buf.bufnr].filetype
         if filetype and filetype ~= '' then
           buf_entry.filetype = filetype
         end
-        
+
         -- Add LSP client names if available
         local clients = vim.lsp.get_active_clients({ bufnr = buf.bufnr })
         if #clients > 0 then
           buf_entry.lsp_clients = {}
           for _, client in ipairs(clients) do
-          table.insert(buf_entry.lsp_clients, client.name)
+            table.insert(buf_entry.lsp_clients, client.name)
+          end
         end
       end
-      end
-      
+
       table.insert(result, buf_entry)
     end
 
@@ -1641,12 +1643,12 @@ function M.get_recent_buffers(prompt, opts)
     if recent_conf and recent_conf.symbols_only then
       for _, buf_entry in ipairs(result) do
         local bufnr = buf_entry.bufnr
-        
+
         -- Skip if buffer is not valid
         if not vim.api.nvim_buf_is_valid(bufnr) then
           goto continue
         end
-        
+
         local line_count = vim.api.nvim_buf_line_count(bufnr)
         if line_count <= 100 then
           goto continue

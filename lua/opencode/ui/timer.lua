@@ -1,9 +1,9 @@
 ---@class TimerOptions
 ---@field interval number The interval in milliseconds
 ---@field on_tick function The function to call on each tick
----@field on_stop function The function to call when the timer stops
----@field repeat_timer boolean Whether the timer should repeat (default: true)
----@field args table Optional arguments to pass to the on_tick function
+---@field on_stop? function The function to call when the timer stops
+---@field repeat_timer? boolean Whether the timer should repeat (default: true)
+---@field args? table Optional arguments to pass to the on_tick function
 
 local Timer = {}
 Timer.__index = Timer

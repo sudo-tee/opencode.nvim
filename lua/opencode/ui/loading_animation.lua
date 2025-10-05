@@ -1,10 +1,11 @@
 local state = require('opencode.state')
+local config = require('opencode.config')
 
 local Timer = require('opencode.ui.timer')
 local M = {}
 
 M._animation = {
-  frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
+  frames = nil,
   text = 'Thinking... ',
   current_frame = 1,
   timer = nil,
@@ -12,6 +13,17 @@ M._animation = {
   extmark_id = nil,
   ns_id = vim.api.nvim_create_namespace('opencode_loading_animation'),
 }
+
+function M._get_frames()
+  if M._animation.frames then
+    return M._animation.frames
+  end
+  local ui_config = config.get('ui')
+  if ui_config and ui_config.loading_animation and ui_config.loading_animation.frames then
+    return ui_config.loading_animation.frames
+  end
+  return { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' }
+end
 
 M.render = vim.schedule_wrap(function(windows)
   if not windows.footer_buf and not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
@@ -28,7 +40,7 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
-  local loading_text = M._animation.text .. M._animation.frames[M._animation.current_frame]
+  local loading_text = M._animation.text .. M._get_frames()[M._animation.current_frame]
 
   M._animation.extmark_id = vim.api.nvim_buf_set_extmark(windows.footer_buf, M._animation.ns_id, 0, 0, {
     id = M._animation.extmark_id or nil,
@@ -41,7 +53,7 @@ M.render = vim.schedule_wrap(function(windows)
 end)
 
 function M._next_frame()
-  return (M._animation.current_frame % #M._animation.frames) + 1
+  return (M._animation.current_frame % #M._get_frames()) + 1
 end
 
 function M._start_animation_timer(windows)

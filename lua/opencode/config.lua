@@ -81,6 +81,9 @@ M.defaults = {
       preset = 'nerdfonts',
       overrides = {},
     },
+    loading_animation = {
+      frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
+    },
     output = {
       tools = {
         show_output = true,

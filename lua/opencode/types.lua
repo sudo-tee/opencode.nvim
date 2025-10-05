@@ -102,6 +102,9 @@
 ---@class OpencodeCompletionConfig
 ---@field file_sources OpencodeCompletionFileSourcesConfig
 
+---@class OpencodeLoadingAnimationConfig
+---@field frames string[]
+
 ---@class OpencodeUIConfig
 ---@field position 'right'|'left' # Position of the UI (default: 'right')
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
@@ -112,6 +115,7 @@
 ---@field display_cost boolean
 ---@field window_highlight string
 ---@field icons { preset: 'emoji'|'text'|'nerdfonts', overrides: table<string,string> }
+---@field loading_animation OpencodeLoadingAnimationConfig
 ---@field output { tools: { show_output: boolean } }
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig

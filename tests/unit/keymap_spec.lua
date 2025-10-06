@@ -2,6 +2,7 @@
 -- Tests for the keymap module
 
 local keymap = require('opencode.keymap')
+local assert = require('luassert')
 
 describe('opencode.keymap', function()
   -- Keep track of set keymaps to verify
@@ -147,6 +148,106 @@ describe('opencode.keymap', function()
       assert.equal(1, #set_keymaps, 'Keymap should be set when lhs is valid')
       assert.equal('<leader>test', set_keymaps[1].key, 'Keymap key should match provided lhs')
 
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  describe('setup_permisson_keymap', function()
+    it('sets up permission keymaps when there is a current permission', function()
+      local state = require('opencode.state')
+      state.current_permission = { id = 'test' }
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local config = require('opencode.config')
+      local original_get = config.get
+      config.get = function()
+        return {
+          keymap = {
+            window = {
+              permission_accept = 'a',
+              permission_accept_all = 'A',
+              permission_deny = 'd',
+            },
+          },
+        }
+      end
+
+      keymap.toggle_permission_keymap(bufnr)
+
+      assert.equal(3, #set_keymaps, 'Three permission keymaps should be set')
+
+      local keys_set = {}
+      for _, km in ipairs(set_keymaps) do
+        table.insert(keys_set, km.key)
+        assert.same({ 'n', 'i' }, km.modes, 'Permission keymaps should be set for n and i modes')
+        assert.is_function(km.callback, 'Permission keymap callback should be a function')
+      end
+
+      assert.is_true(vim.tbl_contains(keys_set, 'a'), 'Accept keymap should be set')
+      assert.is_true(vim.tbl_contains(keys_set, 'A'), 'Accept All keymap should be set')
+      assert.is_true(vim.tbl_contains(keys_set, 'd'), 'Deny keymap should be set')
+
+      config.get = original_get
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      state.current_permission = nil
+    end)
+
+    it('should delete existing permission keymaps if no current permission exists after being set', function()
+      local state = require('opencode.state')
+      state.current_permission = { id = 'test' } --
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local config = require('opencode.config')
+      local original_get = config.get
+      config.get = function()
+        return {
+          keymap = {
+            window = {
+              permission_accept = 'a',
+              permission_accept_all = 'A',
+              permission_deny = 'd',
+            },
+          },
+        }
+      end
+
+      keymap.toggle_permission_keymap(bufnr)
+      assert.equal(3, #set_keymaps, 'Three permission keymaps should be set')
+
+      set_keymaps = {}
+      state.current_permission = nil
+      keymap.toggle_permission_keymap(bufnr)
+      assert.equal(0, #set_keymaps, 'Permission keymaps should be cleared when there is no current permission')
+
+      config.get = original_get
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('does not set permission keymaps when there is no current permission', function()
+      local state = require('opencode.state')
+      state.current_permission = nil -- Ensure no current permission
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local config = require('opencode.config')
+      local original_get = config.get
+      config.get = function()
+        return {
+          keymap = {
+            window = {
+              permission_accept = 'a',
+              permission_accept_all = 'A',
+              permission_deny = 'd',
+            },
+          },
+        }
+      end
+
+      keymap.toggle_permission_keymap(bufnr)
+
+      assert.equal(0, #set_keymaps, 'No permission keymaps should be set when there is no current permission')
+
+      -- Cleanup
+      config.get = original_get
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
   end)

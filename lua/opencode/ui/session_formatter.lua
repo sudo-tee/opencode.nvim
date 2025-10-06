@@ -76,11 +76,32 @@ function M.format_session(session)
       M.output:add_empty_line()
     end
 
+    if state.current_permission and state.current_permission.messageID == msg.id then
+      return M._format_permission_request()
+    end
+
     if msg.error and msg.error ~= '' then
       M._format_error(msg)
     end
   end
 
+  M.output:add_empty_line()
+  return M.output:get_lines()
+end
+
+function M._format_permission_request()
+  local scope = require('opencode.ui.ui').is_opencode_focused() and 'window' or 'global'
+  M.output:add_empty_line()
+  M.output:add_line('> [!WARNING] Permission required to run this tool.')
+  M.output:add_line('>')
+  M.output:add_line(
+    string.format(
+      '> Accept `%s`    Always `%s`    Deny `%s`',
+      config.keymap[scope].permission_accept,
+      config.keymap[scope].permission_accept_all,
+      config.keymap[scope].permission_deny
+    )
+  )
   M.output:add_empty_line()
   return M.output:get_lines()
 end
@@ -116,7 +137,7 @@ end
 ---@param messages Message[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
----@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}}
+---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
 function M._calculate_revert_stats(messages, revert_index, revert_info)
   local stats = {
     messages = 0,
@@ -333,7 +354,10 @@ end
 ---@param title? string Optional title for the callout
 function M._format_callout(callout, text, title)
   title = title and title .. ' ' or ''
-  local win_width = (state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win)) and vim.api.nvim_win_get_width(state.windows.output_win) or config.ui.window_width or 80
+  local win_width = (state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win))
+      and vim.api.nvim_win_get_width(state.windows.output_win)
+    or config.ui.window_width
+    or 80
   if #text > win_width - 4 then
     local ok, substituted = pcall(vim.fn.substitute, text, '\v(.{' .. (win_width - 8) .. '})', '\1\n', 'g')
     text = ok and substituted or text

@@ -361,7 +361,14 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     url = url .. '?directory=' .. directory
   end
 
-  return server_job.stream_api(url, 'GET', nil, on_event)
+  return server_job.stream_api(url, 'GET', nil, function(chunk)
+    -- strip data: prefix if present
+    chunk = chunk:gsub('^data:%s*', '')
+    local ok, event = pcall(vim.json.decode, vim.trim(chunk))
+    if ok and event then
+      on_event(event)
+    end
+  end)
 end
 
 -- Tool endpoints

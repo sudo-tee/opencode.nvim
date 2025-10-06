@@ -1,8 +1,7 @@
 local server_job = require('opencode.server_job')
-local Promise = require('opencode.promise')
 
--- We stub plenary.curl.request so we don't do real HTTP
-local curl = require('plenary.curl')
+local curl = require('opencode.curl')
+local assert = require('luassert')
 
 describe('server_job', function()
   local original_curl_request

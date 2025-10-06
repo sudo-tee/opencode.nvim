@@ -70,6 +70,9 @@
 ---@field diff_restore_snapshot_all string
 ---@field open_configuration_file string
 ---@field swap_position string # Swap Opencode pane left/right
+---@field permission_accept string
+---@field permission_accept_all string
+---@field permission_deny string
 
 ---@class OpencodeKeymapWindow
 ---@field submit string
@@ -87,6 +90,13 @@
 ---@field switch_mode string
 ---@field focus_input string
 ---@field select_child_session string\n---@field debug_message string\n---@field debug_output string\n---@field debug_session string
+---@field debug_message string
+---@field debug_output string
+---@field debug_session string
+---@field permission_accept string
+---@field permission_accept_all string
+---@field permission_deny string
+
 ---@class OpencodeKeymap
 ---@field global OpencodeKeymapGlobal
 ---@field window OpencodeKeymapWindow

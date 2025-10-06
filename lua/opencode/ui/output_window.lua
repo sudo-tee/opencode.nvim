@@ -171,6 +171,10 @@ function M.setup_autocmds(windows, group)
       require('opencode.ui.input_window').refresh_placeholder(state.windows)
     end,
   })
+
+  state.subscribe('current_permission', function()
+    require('opencode.keymap').toggle_permission_keymap(windows.output_buf)
+  end)
 end
 
 function M.clear()

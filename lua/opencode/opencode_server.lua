@@ -62,9 +62,6 @@ end
 --- @param opts? OpencodeServerSpawnOpts
 --- @return Promise<OpencodeServer>
 function OpencodeServer:spawn(opts)
-  self.spawn_promise = Promise.new()
-  self.interrupt_promise = Promise.new()
-  self.shutdown_promise = Promise.new()
   opts = opts or {}
 
   self.job = vim.system({

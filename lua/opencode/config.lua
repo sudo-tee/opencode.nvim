@@ -46,6 +46,9 @@ M.defaults = {
       diff_restore_snapshot_all = '<leader>orR',
       open_configuration_file = '<leader>oC',
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
+      permission_accept = '<leader>opa',
+      permission_accept_all = '<leader>opA',
+      permission_deny = '<leader>opd',
     },
     window = {
       submit = '<cr>',
@@ -66,6 +69,9 @@ M.defaults = {
       debug_message = '<leader>oD',
       debug_output = '<leader>oO',
       debug_session = '<leader>ods',
+      permission_accept = 'a',
+      permission_accept_all = 'A',
+      permission_deny = 'd',
     },
   },
   ui = {

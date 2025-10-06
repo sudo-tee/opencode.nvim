@@ -12,8 +12,8 @@ function M.setup(opts)
     api.setup()
     keymap.setup(config.get('keymap'))
 
-    local completion = require('opencode.ui.completion')
-    completion.setup(config)
+    require('opencode.ui.completion').setup()
+    require('opencode.event_manager').setup()
   end)
 end
 

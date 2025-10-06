@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local curl = require('plenary.curl')
+local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
@@ -66,12 +66,8 @@ function M.stream_api(url, method, body, on_chunk)
   local opts = {
     url = url,
     method = method or 'GET',
-    headers = { ['Content-Type'] = 'application/json' },
     proxy = '',
     stream = function(err, chunk)
-      if chunk == nil or chunk == '' then
-        return
-      end
       on_chunk(chunk)
     end,
     on_error = function(err)

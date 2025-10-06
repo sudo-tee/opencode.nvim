@@ -116,6 +116,9 @@ require('opencode').setup({
       diff_revert_all = '<leader>orA', -- Revert all file changes since the last opencode session
       diff_revert_this = '<leader>orT', -- Revert current file changes since the last opencode session
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
+      permission_accept = '<leader>opa',  -- Accept permission request once
+      permission_accept_all = '<leader>opA', -- Accept all (for current tool)
+      permission_deny = '<leader>opd',-- Accept permission request once
     },
     window = {
       submit = '<cr>', -- Submit prompt (normal mode)
@@ -135,6 +138,9 @@ require('opencode').setup({
       select_child_session = '<leader>oS', -- Select and load a child session
       debug_message = '<leader>oD', -- Open raw message in new buffer for debugging
       debug_output = '<leader>oO', -- Open raw output in new buffer for debugging
+      permission_accept = 'a',  -- Accept permission request once (only available when there is a pending permission request)
+      permission_accept_all = 'A', -- Accept all (for current tool) permission request once (only available when there is a pending permission request)
+      permission_deny = 'd',-- Accept permission request once (only available when there is a pending permission request)
     },
   },
   ui = {
@@ -267,52 +273,55 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 
 The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:
 
-| Action                                              | Default keymap | Command                                  | API Function                                                                 |
-| --------------------------------------------------- | -------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
-| Open opencode. Close if opened                      | `<leader>og`   | `:Opencode`                              | `require('opencode.api').toggle()`                                           |
-| Open input window (current session)                 | `<leader>oi`   | `:OpencodeOpenInput`                     | `require('opencode.api').open_input()`                                       |
-| Open input window (new session)                     | `<leader>oI`   | `:OpencodeOpenInputNewSession`           | `require('opencode.api').open_input_new_session()`                           |
-| Open output window                                  | `<leader>oo`   | `:OpencodeOpenOutput`                    | `require('opencode.api').open_output()`                                      |
-| Create and switch to a named session                | -              | `:OpencodeCreateNewSession`              | `require('opencode.api').new_session()` **Not implemented yet**              |
-| Toggle focus opencode / last window                 | `<leader>ot`   | `:OpencodeToggleFocus`                   | `require('opencode.api').toggle_focus()`                                     |
-| Close UI windows                                    | `<leader>oq`   | `:OpencodeClose`                         | `require('opencode.api').close()`                                            |
-| Select and load session                             | `<leader>os`   | `:OpencodeSelectSession`                 | `require('opencode.api').select_session()`                                   |
-| **Select and load child session**                   | `<leader>oS`   | `:OpencodeSelectChildSession`            | `require('opencode.api').select_child_session()`                             |
-| Configure provider and model                        | `<leader>op`   | `:OpencodeConfigureProvider`             | `require('opencode.api').configure_provider()`                               |
-| Open diff view of changes                           | `<leader>od`   | `:OpencodeDiff`                          | `require('opencode.api').diff_open()`                                        |
-| Navigate to next file diff                          | `<leader>o]`   | `:OpencodeDiffNext`                      | `require('opencode.api').diff_next()`                                        |
-| Navigate to previous file diff                      | `<leader>o[`   | `:OpencodeDiffPrev`                      | `require('opencode.api').diff_prev()`                                        |
-| Close diff view tab                                 | `<leader>oc`   | `:OpencodeDiffClose`                     | `require('opencode.api').diff_close()`                                       |
-| Revert all file changes since last prompt           | `<leader>ora`  | `:OpencodeRevertAllLastPrompt`           | `require('opencode.api').diff_revert_all_last_prompt()`                      |
-| Revert current file changes last prompt             | `<leader>ort`  | `:OpencodeRevertThisLastPrompt`          | `require('opencode.api').diff_revert_this_last_prompt()`                     |
-| Revert all file changes since last session          | `<leader>orA`  | `:OpencodeRevertAllSession`              | `require('opencode.api').diff_revert_all_session()` **Not implemented yet**  |
-| Revert current file changes last session            | `<leader>orT`  | `:OpencodeRevertThisSession`             | `require('opencode.api').diff_revert_this_session()` **Not implemented yet** |
-| Revert all files to a specific snapshot             | -              | `:OpencodeRevertAllToSnapshot`           | `require('opencode.api').diff_revert_all(snapshot_id)`                       |
-| Revert current file to a specific snapshot          | -              | `:OpencodeRevertThisToSnapshot`          | `require('opencode.api').diff_revert_this(snapshot_id)`                      |
-| Restore a file to a restore point                   | -              | `:OpencodeRestoreSnapshotFile`           | `require('opencode.api').diff_restore_snapshot_file(restore_point_id)`       |
-| Restore all files to a restore point                | -              | `:OpencodeRestoreSnapshotAll`            | `require('opencode.api').diff_restore_snapshot_all(restore_point_id)`        |
-| Initialize/update AGENTS.md file                    | -              | `:OpencodeInit`                          | `require('opencode.api').initialize()`                                       |
-| Run prompt (continue session) [Run opts](#run-opts) | -              | `:OpencodeRun <prompt> <opts>`           | `require('opencode.api').run("prompt", opts)`                                |
-| Run prompt (new session) [Run opts](#run-opts)      | -              | `:OpencodeRunNewSession <prompt> <opts>` | `require('opencode.api').run_new_session("prompt", opts)`                    |
-| Stop opencode while it is running                   | `<C-c>`        | `:OpencodeStop`                          | `require('opencode.api').stop()`                                             |
-| Set mode to Build                                   | -              | `:OpencodeAgentBuild`                    | `require('opencode.api').agent_build()`                                      |
-| Set mode to Plan                                    | -              | `:OpencodeAgentPlan`                     | `require('opencode.api').agent_plan()`                                       |
-| Select and switch mode/agent                        | -              | `:OpencodeAgentSelect`                   | `require('opencode.api').select_agent()`                                     |
-| Display list of availale mcp servers                | -              | `:OpencodeMCP`                           | `require('opencode.api').mcp()`                                              |
-| Run user commands                                   | -              | `:OpencodeRunUserCommand`                | `require('opencode.api').run_user_command()`                                 |
-| Share current session and get a link                | -              | `:OpencodeShareSession` / `/share`       | `require('opencode.api').share()`                                            |
-| Unshare current session (disable link)              | -              | `:OpencodeUnshareSession` / `/unshare`   | `require('opencode.api').unshare()`                                          |
-| Compact current session (summarize)                 | -              | `:OpencodeCompactSession` / `/compact`   | `require('opencode.api').compact_session()`                                  |
-| Undo last opencode action                           | -              | `:OpencodeUndo` / `/undo`                | `require('opencode.api').undo()`                                             |
-| Redo last opencode action                           | -              | `:OpencodeRedo` / `/redo`                | `require('opencode.api').redo()`                                             |
-| Insert mention (file/ agent)                        | `@`            | -                                        | -                                                                            |
-| [Pick a file and add to context](#file-mentions)    | `~`            | -                                        | -                                                                            |
-| Navigate to next message                            | `]]`           | -                                        | -                                                                            |
-| Navigate to previous message                        | `[[`           | -                                        | -                                                                            |
-| Navigate to previous prompt in history              | `<up>`         | -                                        | `require('opencode.api').prev_history()`                                     |
-| Navigate to next prompt in history                  | `<down>`       | -                                        | `require('opencode.api').next_history()`                                     |
-| Toggle input/output panes                           | `<tab>`        | -                                        | -                                                                            |
-| Swap Opencode pane left/right                       | `<leader>ox`   | `:OpencodeSwapPosition`                  | `require('opencode.api').swap_position()`                                    |
+| Action                                              | Default keymap                        | Command                                  | API Function                                                           |
+| --------------------------------------------------- | ------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------- |
+| Open opencode. Close if opened                      | `<leader>og`                          | `:Opencode`                              | `require('opencode.api').toggle()`                                     |
+| Open input window (current session)                 | `<leader>oi`                          | `:OpencodeOpenInput`                     | `require('opencode.api').open_input()`                                 |
+| Open input window (new session)                     | `<leader>oI`                          | `:OpencodeOpenInputNewSession`           | `require('opencode.api').open_input_new_session()`                     |
+| Open output window                                  | `<leader>oo`                          | `:OpencodeOpenOutput`                    | `require('opencode.api').open_output()`                                |
+| Create and switch to a named session                | -                                     | `:OpencodeCreateNewSession`              | `:OpencodeCreateNewSession <name>` (user command)                      |
+| Toggle focus opencode / last window                 | `<leader>ot`                          | `:OpencodeToggleFocus`                   | `require('opencode.api').toggle_focus()`                               |
+| Close UI windows                                    | `<leader>oq`                          | `:OpencodeClose`                         | `require('opencode.api').close()`                                      |
+| Select and load session                             | `<leader>os`                          | `:OpencodeSelectSession`                 | `require('opencode.api').select_session()`                             |
+| **Select and load child session**                   | `<leader>oS`                          | `:OpencodeSelectChildSession`            | `require('opencode.api').select_child_session()`                       |
+| Configure provider and model                        | `<leader>op`                          | `:OpencodeConfigureProvider`             | `require('opencode.api').configure_provider()`                         |
+| Open diff view of changes                           | `<leader>od`                          | `:OpencodeDiff`                          | `require('opencode.api').diff_open()`                                  |
+| Navigate to next file diff                          | `<leader>o]`                          | `:OpencodeDiffNext`                      | `require('opencode.api').diff_next()`                                  |
+| Navigate to previous file diff                      | `<leader>o[`                          | `:OpencodeDiffPrev`                      | `require('opencode.api').diff_prev()`                                  |
+| Close diff view tab                                 | `<leader>oc`                          | `:OpencodeDiffClose`                     | `require('opencode.api').diff_close()`                                 |
+| Revert all file changes since last prompt           | `<leader>ora`                         | `:OpencodeRevertAllLastPrompt`           | `require('opencode.api').diff_revert_all_last_prompt()`                |
+| Revert current file changes last prompt             | `<leader>ort`                         | `:OpencodeRevertThisLastPrompt`          | `require('opencode.api').diff_revert_this_last_prompt()`               |
+| Revert all file changes since last session          | `<leader>orA`                         | `:OpencodeRevertAllSession`              | `require('opencode.api').diff_revert_all_session()`                    |
+| Revert current file changes last session            | `<leader>orT`                         | `:OpencodeRevertThisSession`             | `require('opencode.api').diff_revert_this_session()`                   |
+| Revert all files to a specific snapshot             | -                                     | `:OpencodeRevertAllToSnapshot`           | `require('opencode.api').diff_revert_all(snapshot_id)`                 |
+| Revert current file to a specific snapshot          | -                                     | `:OpencodeRevertThisToSnapshot`          | `require('opencode.api').diff_revert_this(snapshot_id)`                |
+| Restore a file to a restore point                   | -                                     | `:OpencodeRestoreSnapshotFile`           | `require('opencode.api').diff_restore_snapshot_file(restore_point_id)` |
+| Restore all files to a restore point                | -                                     | `:OpencodeRestoreSnapshotAll`            | `require('opencode.api').diff_restore_snapshot_all(restore_point_id)`  |
+| Initialize/update AGENTS.md file                    | -                                     | `:OpencodeInit`                          | `require('opencode.api').initialize()`                                 |
+| Run prompt (continue session) [Run opts](#run-opts) | -                                     | `:OpencodeRun <prompt> <opts>`           | `require('opencode.api').run("prompt", opts)`                          |
+| Run prompt (new session) [Run opts](#run-opts)      | -                                     | `:OpencodeRunNewSession <prompt> <opts>` | `require('opencode.api').run_new_session("prompt", opts)`              |
+| Stop opencode while it is running                   | `<C-c>`                               | `:OpencodeStop`                          | `require('opencode.api').stop()`                                       |
+| Set mode to Build                                   | -                                     | `:OpencodeAgentBuild`                    | `require('opencode.api').agent_build()`                                |
+| Set mode to Plan                                    | -                                     | `:OpencodeAgentPlan`                     | `require('opencode.api').agent_plan()`                                 |
+| Select and switch mode/agent                        | -                                     | `:OpencodeAgentSelect`                   | `require('opencode.api').select_agent()`                               |
+| Display list of availale mcp servers                | -                                     | `:OpencodeMCP`                           | `require('opencode.api').mcp()`                                        |
+| Run user commands                                   | -                                     | `:OpencodeRunUserCommand`                | `require('opencode.api').run_user_command()`                           |
+| Share current session and get a link                | -                                     | `:OpencodeShareSession` / `/share`       | `require('opencode.api').share()`                                      |
+| Unshare current session (disable link)              | -                                     | `:OpencodeUnshareSession` / `/unshare`   | `require('opencode.api').unshare()`                                    |
+| Compact current session (summarize)                 | -                                     | `:OpencodeCompactSession` / `/compact`   | `require('opencode.api').compact_session()`                            |
+| Undo last opencode action                           | -                                     | `:OpencodeUndo` / `/undo`                | `require('opencode.api').undo()`                                       |
+| Redo last opencode action                           | -                                     | `:OpencodeRedo` / `/redo`                | `require('opencode.api').redo()`                                       |
+| Respond to permission requests (accept once)        | `a` (window) / `<leader>opa` (global) | `:OpencodePermissionAccept`              | `require('opencode.api').permission_accept()`                          |
+| Respond to permission requests (accept all)         | `A` (window) / `<leader>opA` (global) | `:OpencodePermissionAcceptAll`           | `require('opencode.api').permission_accept_all()`                      |
+| Respond to permission requests (deny)               | `d` (window) / `<leader>opd` (global) | `:OpencodePermissionDeny`                | `require('opencode.api').permission_deny()`                            |
+| Insert mention (file/ agent)                        | `@`                                   | -                                        | -                                                                      |
+| [Pick a file and add to context](#file-mentions)    | `~`                                   | -                                        | -                                                                      |
+| Navigate to next message                            | `]]`                                  | -                                        | -                                                                      |
+| Navigate to previous message                        | `[[`                                  | -                                        | -                                                                      |
+| Navigate to previous prompt in history              | `<up>`                                | -                                        | `require('opencode.api').prev_history()`                               |
+| Navigate to next prompt in history                  | `<down>`                              | -                                        | `require('opencode.api').next_history()`                               |
+| Toggle input/output panes                           | `<tab>`                               | -                                        | -                                                                      |
+| Swap Opencode pane left/right                       | `<leader>ox`                          | `:OpencodeSwapPosition`                  | `require('opencode.api').swap_position()`                              |
 
 ---
 
@@ -338,6 +347,24 @@ Run a prompt in a new session using the Plan agent and disabling current file co
 :OpencodeRunNewSession "Please help me plan a new feature" agent=plan context.current_file.enabled=false
 :OpencodeRun "Fix the bug in the current file" model=github-copilot/claude-sonned-4
 ```
+
+##👮 Permissions
+
+Opencode can issue permission requests for potentially destructive operations (file edits, reverting files, running shell commands, or enabling persistent tool access). Permission requests appear inline in the output and must be responded to before the agent performs the action. Visit [Opencode Permissions Documentation](https://opencode.ai/docs/permissions/) for more details.
+
+<div align="center">
+  <img src="https://i.imgur.com/LkZDta5.png" alt="Opencode permission request" width="90%" />
+  <img src="https://i.imgur.com/4mJH1Xg.png" alt="Opencode permission request input window" width="90%" />
+</div>
+
+### Responding to Permission Requests
+
+- **Respond via keys:** In the input window press `a` to accept once, `A` to accept and remember (accept all), or `d` to deny. These window keys are configurable in `ui.keymap.window.permission_*`.
+- **Global keymaps:** There are also global keymaps to respond outside the input window: `<leader>opa` (accept once), `<leader>opA` (accept all), `<leader>opd` (deny). These are configurable in `keymap.global.permission_*`.
+- **API:** Programmatic responses are available: `require('opencode.api').permission_accept()`, `require('opencode.api').permission_accept_all()`, `require('opencode.api').permission_deny()` which map to responses `"once"`, `"always"`, and `"reject"` respectively.
+- **Behavior:** `accept once` allows the single requested action, `accept all` grants persistent permission for similar requests in the current session, and `deny` rejects the request.
+
+---
 
 ## 📝 Context
 

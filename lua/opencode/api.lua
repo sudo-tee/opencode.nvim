@@ -512,6 +512,42 @@ function M.redo()
     end)
 end
 
+---@param answer? 'once'|'always'|'reject'
+function M.respond_to_permission(answer)
+  answer = answer or 'once'
+  if not state.current_permission then
+    vim.notify('No permission request to accept', vim.log.levels.WARN)
+    return
+  end
+
+  ui.render_output(true)
+  state.api_client
+    :respond_to_permission(state.active_session.id, state.current_permission.id, { response = answer })
+    :and_then(function()
+      vim.schedule(function()
+        state.current_permission = nil
+        ui.render_output(true)
+      end)
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end)
+end
+
+function M.permission_accept()
+  M.respond_to_permission('once')
+end
+
+function M.permission_accept_all()
+  M.respond_to_permission('always')
+end
+
+function M.permission_deny()
+  M.respond_to_permission('reject')
+end
+
 -- Command def/compactinitions that call the API functions
 M.commands = {
   swap_position = {
@@ -911,6 +947,30 @@ M.commands = {
       M.redo()
     end,
     slash_cmd = '/redo',
+  },
+
+  permission_accept = {
+    name = 'OpencodePermissionAccept',
+    desc = 'Accept current permission request',
+    fn = function()
+      M.respond_to_permission('once')
+    end,
+  },
+
+  permission_accept_all = {
+    name = 'OpencodePermissionAcceptAll',
+    desc = 'Accept all permission requests',
+    fn = function()
+      M.respond_to_permission('always')
+    end,
+  },
+
+  permission_deny = {
+    name = 'OpencodePermissionDeny',
+    desc = 'Deny current permission request',
+    fn = function()
+      M.respond_to_permission('reject')
+    end,
   },
 }
 

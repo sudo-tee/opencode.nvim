@@ -225,6 +225,10 @@ function M.setup_autocmds(windows, group)
       M.refresh_placeholder(windows, input_lines)
     end,
   })
+
+  state.subscribe('current_permission', function()
+    require('opencode.keymap').toggle_permission_keymap(windows.input_buf)
+  end)
 end
 
 return M

@@ -1,11 +1,10 @@
-local api = require('opencode.api')
-
 local M = {}
 
 -- Binds a keymap config with its api fn
 -- Name of api fn & keymap global config should always be the same
 ---@param keymap OpencodeKeymap The keymap configuration table
 function M.setup(keymap)
+  local api = require('opencode.api')
   local cmds = api.commands
   local global = keymap.global
 
@@ -39,6 +38,49 @@ function M.buf_keymap(lhs, rhs, bufnrs, mode, opts)
       return
     end
     vim.keymap.set(mode, lhs, rhs, vim.tbl_extend('force', opts, { buffer = bufnr }))
+  end
+end
+
+function M.clear_permission_keymap(buf)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  local config = require('opencode.config').get()
+  local keymaps = config.keymap.window
+
+  pcall(function()
+    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_accept)
+    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_accept)
+    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_accept_all)
+    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_accept_all)
+    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_deny)
+    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_deny)
+  end)
+end
+
+function M.toggle_permission_keymap(buf)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  local state = require('opencode.state')
+  local config = require('opencode.config').get()
+  local keymaps = config.keymap.window
+  local api = require('opencode.api')
+
+  if state.current_permission then
+    M.buf_keymap(keymaps.permission_accept, function()
+      api.respond_to_permission('once')
+    end, buf, { 'n', 'i' })
+
+    M.buf_keymap(keymaps.permission_accept_all, function()
+      api.respond_to_permission('always')
+    end, buf, { 'n', 'i' })
+
+    M.buf_keymap(keymaps.permission_deny, function()
+      api.respond_to_permission('reject')
+    end, buf, { 'n', 'i' })
+  else
+    M.clear_permission_keymap(buf)
   end
 end
 

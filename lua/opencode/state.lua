@@ -26,11 +26,13 @@ local config = require('opencode.config').get()
 ---@field messages Message[]|nil
 ---@field current_message Message|nil
 ---@field last_user_message Message|nil
+---@field current_permission OpencodePermission|nil
 ---@field cost number
 ---@field tokens_count number
 ---@field job_count number
 ---@field opencode_server_job OpencodeServer|nil
 ---@field api_client OpencodeApiClient
+---@field event_manager EventManager|nil
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
@@ -61,12 +63,14 @@ local _state = {
   messages = nil,
   current_message = nil,
   last_user_message = nil,
+  current_permission = nil,
   cost = 0,
   tokens_count = 0,
   -- job
   job_count = 0,
   opencode_server_job = nil,
   api_client = nil,
+  event_manager = nil,
 
   -- versions
   required_version = '0.6.3',

@@ -3,6 +3,7 @@
 local util = require('opencode.util')
 local config = require('opencode.config').get()
 local state = require('opencode.state')
+local context_cache = require('opencode.context_cache')
 
 local M = {}
 
@@ -54,6 +55,15 @@ M.context = {
 
 -- Track session start time for duration calculation
 M.session_start_time = vim.loop.hrtime()
+
+-- Helper function to get cache TTL from config
+local function get_cache_ttl(key, default)
+  local cfg = require('opencode.config').get()
+  if cfg.context and cfg.context.cache_ttl and cfg.context.cache_ttl[key] then
+    return cfg.context.cache_ttl[key]
+  end
+  return default or context_cache.DEFAULT_TTL
+end
 
 function M.unload_attachments()
   M.context.mentioned_files = nil
@@ -454,30 +464,40 @@ function M.get_recent_buffers()
         goto continue
       end
 
-      local ok, resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', {}, 1000)
-      if ok and resp and resp[1] and resp[1].result then
-        local symbols = resp[1].result
-        local flat = {}
-        local function flatten(s)
-          table.insert(flat, {
-            name = s.name,
-            kind = s.kind,
-            range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
-            detail = s.detail or '',
-          })
-          if s.children then
-            for _, c in ipairs(s.children) do
-              flatten(c)
+      -- Cache LSP symbols per buffer with changedtick
+      local changedtick = vim.b[bufnr].changedtick or 0
+      local cache_key = 'lsp_symbols_' .. bufnr .. '_' .. changedtick
+      local cached_symbols = context_cache.get(cache_key, get_cache_ttl('lsp_symbols', 10000))
+
+      if cached_symbols then
+        buf_entry.symbols = cached_symbols
+      else
+        local ok, resp = pcall(vim.lsp.buf_request_sync, bufnr, 'textDocument/documentSymbol', {}, 1000)
+        if ok and resp and resp[1] and resp[1].result then
+          local symbols = resp[1].result
+          local flat = {}
+          local function flatten(s)
+            table.insert(flat, {
+              name = s.name,
+              kind = s.kind,
+              range = s.range or { start = { 0, 0 }, ['end'] = { 0, 0 } },
+              detail = s.detail or '',
+            })
+            if s.children then
+              for _, c in ipairs(s.children) do
+                flatten(c)
+              end
             end
           end
+          for _, s in ipairs(symbols) do
+            flatten(s)
+          end
+          if #flat > 20 then
+            flat = vim.list_slice(flat, 1, 20)
+          end
+          buf_entry.symbols = flat
+          context_cache.set(cache_key, flat)
         end
-        for _, s in ipairs(symbols) do
-          flatten(s)
-        end
-        if #flat > 20 then
-          flat = vim.list_slice(flat, 1, 20)
-        end
-        buf_entry.symbols = flat
       end
       ::continue::
     end
@@ -566,6 +586,15 @@ function M.get_highlights()
     return nil
   end
 
+  -- Cache based on buffer and changedtick to invalidate on buffer changes
+  local bufnr = vim.api.nvim_get_current_buf()
+  local changedtick = vim.b[bufnr].changedtick or 0
+  local cache_key = 'highlights_' .. bufnr .. '_' .. changedtick
+  local cached = context_cache.get(cache_key, get_cache_ttl('highlights', 2000))
+  if cached then
+    return cached
+  end
+
   local matches = vim.fn.getmatches()
   local result = {}
 
@@ -578,7 +607,6 @@ function M.get_highlights()
   end
 
   -- Also get extmarks from current buffer if available
-  local bufnr = vim.api.nvim_get_current_buf()
   local ok, extmarks = pcall(vim.api.nvim_buf_get_extmarks, bufnr, -1, 0, -1, { details = true })
   if ok and extmarks then
     for _, extmark in ipairs(extmarks) do
@@ -593,7 +621,9 @@ function M.get_highlights()
     end
   end
 
-  return #result > 0 and result or nil
+  local final_result = #result > 0 and result or nil
+  context_cache.set(cache_key, final_result)
+  return final_result
 end
 
 -- Get session information
@@ -817,7 +847,9 @@ function M.get_lsp_context()
     result.symbols = flat_symbols
   end
 
-  return (#result.diagnostics > 0 or result.code_actions_available or (result.symbols and #result.symbols > 0)) and result or nil
+  return (#result.diagnostics > 0 or result.code_actions_available or (result.symbols and #result.symbols > 0))
+      and result
+    or nil
 end
 
 -- Get Git information
@@ -826,6 +858,13 @@ function M.get_git_info()
     not (config.context and config.context.enabled and config.context.git_info and config.context.git_info.enabled)
   then
     return nil
+  end
+
+  -- Check cache first (5 second TTL for git info)
+  local cache_key = 'git_info'
+  local cached = context_cache.get(cache_key, get_cache_ttl('git_info', 5000))
+  if cached then
+    return cached
   end
 
   local result = {}
@@ -858,6 +897,8 @@ function M.get_git_info()
     result.recent_changes = log
   end
 
+  -- Cache the result
+  context_cache.set(cache_key, result)
   return result
 end
 
@@ -878,6 +919,21 @@ function M.get_plugin_versions()
   if vim.fn.filereadable(lock_path) ~= 1 then
     return nil
   end
+
+  -- Check cache first with file modification time
+  local cache_key = 'plugin_versions'
+  local stat = vim.loop.fs_stat(lock_path)
+  local lock_mtime = stat and stat.mtime.sec or 0
+
+  -- Use cache key with mtime to invalidate on file change
+  local cache_key_with_mtime = cache_key .. '_' .. lock_mtime
+  local cached = context_cache.get(cache_key_with_mtime, get_cache_ttl('plugin_versions', 60000))
+  if cached then
+    return cached
+  end
+
+  -- Clear old cache entries for this section
+  context_cache.clear(cache_key)
 
   local ok, content = pcall(vim.fn.readfile, lock_path)
   if not ok then
@@ -905,7 +961,9 @@ function M.get_plugin_versions()
     count = count + 1
   end
 
-  return #result > 0 and result or nil
+  local final_result = #result > 0 and result or nil
+  context_cache.set(cache_key_with_mtime, final_result)
+  return final_result
 end
 
 -- Get fold information
@@ -1013,7 +1071,6 @@ function M.get_quickfix_loclist()
       text = item.text,
       type = item.type,
     })
-
   end
 
   return (#result.quickfix > 0 or #result.loclist > 0) and result or nil
@@ -1535,5 +1592,42 @@ function M.get_recent_buffers(prompt, opts)
 
   return parts
 end
+
+-- Setup cache invalidation autocmds
+local function setup_cache_invalidation()
+  local group = vim.api.nvim_create_augroup('OpencodeContextCache', { clear = true })
+
+  -- Invalidate git cache on file write (git status might change)
+  vim.api.nvim_create_autocmd('BufWritePost', {
+    group = group,
+    pattern = '*',
+    callback = function()
+      context_cache.clear('git_info')
+    end,
+  })
+
+  -- Clear buffer-specific caches on buffer delete
+  vim.api.nvim_create_autocmd({ 'BufDelete', 'BufWipeout' }, {
+    group = group,
+    pattern = '*',
+    callback = function(args)
+      local bufnr = args.buf
+      -- Invalidate any cache keys that include this buffer number
+      context_cache.clear('highlights_' .. bufnr)
+      context_cache.clear('recent_buffers_' .. bufnr)
+    end,
+  })
+
+  -- Clear all caches on VimLeavePre for cleanup
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    group = group,
+    callback = function()
+      context_cache.clear()
+    end,
+  })
+end
+
+-- Initialize cache invalidation
+setup_cache_invalidation()
 
 return M

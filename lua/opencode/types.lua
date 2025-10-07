@@ -125,10 +125,13 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
+---@field idle_threshold number Idle threshold in milliseconds for automatic context updates
+---@field cache_ttl { git_info: number, plugin_versions: number, highlights: number, lsp_symbols: number }
 ---@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean, show_full_path: boolean }
+---@field files { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
 ---@field marks { enabled: boolean, limit: number }
 ---@field jumplist { enabled: boolean, limit: number }

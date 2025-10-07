@@ -132,6 +132,17 @@ M.defaults = {
   },
   context = {
     enabled = true,
+    -- Idle threshold in milliseconds for automatic context updates
+    -- Context will be updated after this period of user inactivity
+    idle_threshold = 10000, -- 10 seconds
+    -- Cache TTL in milliseconds for expensive context operations
+    -- Set to 0 to disable caching
+    cache_ttl = {
+      git_info = 5000, -- 5 seconds
+      plugin_versions = 60000, -- 60 seconds
+      highlights = 2000, -- 2 seconds
+      lsp_symbols = 10000, -- 10 seconds
+    },
     plugin_versions = {
       enabled = false,
       limit = 20,
@@ -176,7 +187,7 @@ M.defaults = {
       enabled = true,
     },
     highlights = {
-      enabled = true,
+      enabled = false,
     },
     session_info = {
       enabled = false,
@@ -202,8 +213,8 @@ M.defaults = {
       code_actions = false,
     },
     git_info = {
-      enabled = true,
-      diff_limit = 10,
+      enabled = false,
+      diff_limit = 5,
       changes_limit = 5,
     },
     fold_info = {

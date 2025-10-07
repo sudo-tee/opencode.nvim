@@ -115,6 +115,9 @@ require('opencode').setup({
       diff_revert_this_last_prompt = '<leader>ort', -- Revert current file changes since the last opencode prompt
       diff_revert_all = '<leader>orA', -- Revert all file changes since the last opencode session
       diff_revert_this = '<leader>orT', -- Revert current file changes since the last opencode session
+      diff_restore_snapshot_file = '<leader>orr', -- Restore file to snapshot
+      diff_restore_snapshot_all = '<leader>orR', -- Restore all files to snapshot
+      open_configuration_file = '<leader>oC', -- Open opencode configuration file
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
       permission_accept = '<leader>opa',  -- Accept permission request once
       permission_accept_all = '<leader>opA', -- Accept all (for current tool)
@@ -141,6 +144,7 @@ require('opencode').setup({
       permission_accept = 'a',  -- Accept permission request once (only available when there is a pending permission request)
       permission_accept_all = 'A', -- Accept all (for current tool) permission request once (only available when there is a pending permission request)
       permission_deny = 'd',-- Accept permission request once (only available when there is a pending permission request)
+      debug_session = '<leader>ods', -- Debug session info
     },
   },
   ui = {
@@ -153,7 +157,7 @@ require('opencode').setup({
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     icons = {
-      preset = 'emoji', -- 'emoji' | 'text'. Choose UI icon style (default: 'emoji')
+      preset = 'nerdfonts', -- 'emoji' | 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')
       overrides = {},   -- Optional per-key overrides, see section below
     },
     output = {
@@ -163,11 +167,12 @@ require('opencode').setup({
     },
     input = {
       text = {
-        wrap = false, -- Wraps text inside input window
+        wrap = true, -- Wraps text inside input window
       },
     },
     completion = {
       file_sources = {
+        cache_timeout = 300, -- seconds
         enabled = true,
         preferred_cli_tool = 'fd', -- 'fd','fdfind','rg','git' if nil, it will use the best available tool
         ignore_patterns = {
@@ -203,60 +208,70 @@ require('opencode').setup({
   },
   context = {
     enabled = true, -- Enable automatic context capturing
+    plugin_versions = {
+      enabled = false, -- Include plugin versions in context
+      limit = 20, -- Max number of plugins to include
+    },
     cursor_data = {
       enabled = false, -- Include cursor position and line content in the context
     },
     diagnostics = {
-      info = false, -- Include diagnostics info in the context (default to false
-      warn = true, -- Include diagnostics warnings in the context
+      info = false, -- Include diagnostics info in the context (default to false)
+      warning = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
     },
     current_file = {
       enabled = true, -- Include current file path and content in the context
+      show_full_path = true, -- Show full file path instead of relative
+    },
+    files = {
+      enabled = true, -- Include mentioned files in context
+      show_full_path = true, -- Show full file path instead of relative
     },
     selection = {
       enabled = true, -- Include selected text in the context
     },
-    -- Enhanced context options (all disabled by default)
+    -- Enhanced context options (enabled by default where applicable)
     marks = {
-      enabled = false, -- Include the 10 most recently accessed marks
-      limit = 10,
+      enabled = true, -- Include the most recently accessed marks
+      limit = 5,
     },
     jumplist = {
-      enabled = false, -- Include the last 10 jumps
-      limit = 10,
+      enabled = true, -- Include the last jumps
+      limit = 5,
     },
     recent_buffers = {
-      enabled = false, -- Include the 10 most recently accessed buffers
-      limit = 10,
+      enabled = true, -- Include the most recently accessed buffers
+      symbols_only = true, -- Include only buffers with symbols (functions, classes, etc.)
+      limit = 3,
     },
     undo_history = {
-      enabled = false, -- Include the last 10 undo branches/changesets
-      limit = 10,
+      enabled = true, -- Include the last undo branches/changesets
+      limit = 3,
     },
     windows_tabs = {
-      enabled = false, -- Include active windows and tabs information
+      enabled = true, -- Include active windows and tabs information
     },
     highlights = {
-      enabled = false, -- Include buffer line highlights in current viewport
+      enabled = true, -- Include buffer line highlights in current viewport
     },
     session_info = {
       enabled = false, -- Include current session name if active
     },
     registers = {
-      enabled = false, -- Include contents of specified registers
-      include = { '"', '/', 'q' }, -- Registers to include
+      enabled = true, -- Include contents of specified registers
+      include = { '"', '/', 'q', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '%', '#', '.' }, -- Registers to include
     },
     command_history = {
-      enabled = false, -- Include the last 5 executed commands
-      limit = 5,
+      enabled = true, -- Include the last executed commands
+      limit = 3,
     },
     search_history = {
-      enabled = false, -- Include the last 5 search patterns
-      limit = 5,
+      enabled = true, -- Include the last search patterns
+      limit = 3,
     },
     debug_data = {
-      enabled = false, -- Include active nvim-dap debugging sessions and breakpoints
+      enabled = true, -- Include active nvim-dap debugging sessions and breakpoints
     },
     lsp_context = {
       enabled = false, -- Include LSP diagnostics and code actions
@@ -264,20 +279,20 @@ require('opencode').setup({
       code_actions = false, -- Include available code actions at cursor
     },
     git_info = {
-      enabled = false, -- Include git branch, file diff, and recent changes
+      enabled = true, -- Include git branch, file diff, and recent changes
       diff_limit = 10, -- Max lines of file diff to include
       changes_limit = 5, -- Number of recent commits to include
     },
     fold_info = {
-      enabled = false, -- Include visible fold information in viewport
+      enabled = true, -- Include visible fold information in viewport
     },
     cursor_surrounding = {
-      enabled = false, -- Include lines around cursor position
-      lines_above = 3, -- Lines to include above cursor
-      lines_below = 3, -- Lines to include below cursor
+      enabled = true, -- Include lines around cursor position
+      lines_above = 4, -- Lines to include above cursor
+      lines_below = 4, -- Lines to include below cursor
     },
     quickfix_loclist = {
-      enabled = false, -- Include quickfix and location list entries
+      enabled = true, -- Include quickfix and location list entries
       limit = 5,
     },
     macros = {
@@ -285,7 +300,7 @@ require('opencode').setup({
       register = 'q', -- Macro register to include
     },
     terminal_buffers = {
-      enabled = false, -- Include most recently used terminal buffer details
+      enabled = true, -- Include most recently used terminal buffer details
     },
     session_duration = {
       enabled = false, -- Include time spent in current Neovim session
@@ -295,6 +310,7 @@ require('opencode').setup({
     enabled = false, -- Enable debug messages in the output window
   },
 })
+
 ```
 
 ### UI icons (disable emojis or customize)
@@ -445,39 +461,39 @@ The following editor context is automatically captured and included in your conv
 
 ### Core Context (Enabled by Default)
 
-| Context Type    | Description                                          | Configuration Key        |
-| --------------- | ---------------------------------------------------- | ------------------------ |
-| Current file    | Path to the focused file before entering opencode    | `current_file.enabled`   |
-| Selected text   | Text and lines currently selected in visual mode     | `selection.enabled`      |
-| Mentioned files | File info added through [mentions](#file-mentions)   | N/A (always available)   |
-| Diagnostics     | Diagnostics from the current file (if any)           | `diagnostics`            |
-| Cursor position | Current cursor position and line content in the file | `cursor_data.enabled`    |
+| Context Type    | Description                                          | Configuration Key      |
+| --------------- | ---------------------------------------------------- | ---------------------- |
+| Current file    | Path to the focused file before entering opencode    | `current_file.enabled` |
+| Selected text   | Text and lines currently selected in visual mode     | `selection.enabled`    |
+| Mentioned files | File info added through [mentions](#file-mentions)   | N/A (always available) |
+| Diagnostics     | Diagnostics from the current file (if any)           | `diagnostics`          |
+| Cursor position | Current cursor position and line content in the file | `cursor_data.enabled`  |
 
 ### Enhanced Context (Disabled by Default)
 
 These additional context types can be enabled to provide even more information to the AI:
 
-| Context Type       | Description                                                | Configuration Key          |
-| ------------------ | ---------------------------------------------------------- | -------------------------- |
-| Marks              | 10 most recently accessed marks                            | `marks.enabled`            |
-| Jumplist           | Last 10 jumps in the jump list                             | `jumplist.enabled`         |
-| Recent Buffers     | 10 most recently accessed buffers                          | `recent_buffers.enabled`   |
-| Undo History       | Last 10 undo branches or changesets                        | `undo_history.enabled`     |
-| Windows & Tabs     | Information about active windows and tabs                  | `windows_tabs.enabled`     |
-| Highlights         | Buffer line highlights in current viewport                 | `highlights.enabled`       |
-| Session Info       | Current Neovim session name if active                      | `session_info.enabled`     |
-| Registers          | Contents of specified registers (e.g., `"`, `/`, `q`)      | `registers.enabled`        |
-| Command History    | Last 5 executed Vim commands                               | `command_history.enabled`  |
-| Search History     | Last 5 search patterns                                     | `search_history.enabled`   |
-| Debug Data         | Active nvim-dap debugging sessions and breakpoints         | `debug_data.enabled`       |
-| LSP Context        | LSP diagnostics and available code actions                 | `lsp_context.enabled`      |
-| Git Info           | Current branch, file diff, and recent commits              | `git_info.enabled`         |
-| Fold Info          | Visible folds in current viewport                          | `fold_info.enabled`        |
-| Cursor Surrounding | Lines above and below cursor position                      | `cursor_surrounding.enabled`|
-| Quickfix/Loclist   | Quickfix and location list entries                         | `quickfix_loclist.enabled` |
-| Macros             | Recorded macro content from specified register             | `macros.enabled`           |
-| Terminal Buffers   | Most recently used terminal buffer details                 | `terminal_buffers.enabled` |
-| Session Duration   | Time spent in current Neovim session                       | `session_duration.enabled` |
+| Context Type       | Description                                           | Configuration Key            |
+| ------------------ | ----------------------------------------------------- | ---------------------------- |
+| Marks              | 10 most recently accessed marks                       | `marks.enabled`              |
+| Jumplist           | Last 10 jumps in the jump list                        | `jumplist.enabled`           |
+| Recent Buffers     | 10 most recently accessed buffers                     | `recent_buffers.enabled`     |
+| Undo History       | Last 10 undo branches or changesets                   | `undo_history.enabled`       |
+| Windows & Tabs     | Information about active windows and tabs             | `windows_tabs.enabled`       |
+| Highlights         | Buffer line highlights in current viewport            | `highlights.enabled`         |
+| Session Info       | Current Neovim session name if active                 | `session_info.enabled`       |
+| Registers          | Contents of specified registers (e.g., `"`, `/`, `q`) | `registers.enabled`          |
+| Command History    | Last 5 executed Vim commands                          | `command_history.enabled`    |
+| Search History     | Last 5 search patterns                                | `search_history.enabled`     |
+| Debug Data         | Active nvim-dap debugging sessions and breakpoints    | `debug_data.enabled`         |
+| LSP Context        | LSP diagnostics and available code actions            | `lsp_context.enabled`        |
+| Git Info           | Current branch, file diff, and recent commits         | `git_info.enabled`           |
+| Fold Info          | Visible folds in current viewport                     | `fold_info.enabled`          |
+| Cursor Surrounding | Lines above and below cursor position                 | `cursor_surrounding.enabled` |
+| Quickfix/Loclist   | Quickfix and location list entries                    | `quickfix_loclist.enabled`   |
+| Macros             | Recorded macro content from specified register        | `macros.enabled`             |
+| Terminal Buffers   | Most recently used terminal buffer details            | `terminal_buffers.enabled`   |
+| Session Duration   | Time spent in current Neovim session                  | `session_duration.enabled`   |
 
 To enable any of these enhanced context types, add them to your configuration:
 

@@ -76,10 +76,6 @@ function M.format_session(session)
       M.output:add_empty_line()
     end
 
-    if state.current_permission and state.current_permission.messageID == msg.id then
-      return M._format_permission_request()
-    end
-
     if msg.error and msg.error ~= '' then
       M._format_error(msg)
     end
@@ -103,7 +99,7 @@ function M._format_permission_request()
     )
   )
   M.output:add_empty_line()
-  return M.output:get_lines()
+  -- return M.output:get_lines()
 end
 
 ---@param line number Buffer line number
@@ -546,7 +542,7 @@ function M._format_tool(part)
   local metadata = (part.state and part.state.metadata) or {}
   local output = (part.state and part.state.output) or ''
 
-  if state.current_permission and state.current_permission.messageID == state.current_message.id then
+  if state.current_permission and state.current_permission.messageID == part.messageID then
     metadata = state.current_permission.metadata or metadata
   end
 
@@ -572,6 +568,10 @@ function M._format_tool(part)
 
   if part.state and part.state.status == 'error' then
     M._format_callout('ERROR', part.state.error)
+  end
+
+  if state.current_permission and state.current_permission.messageID == part.messageID then
+    M._format_permission_request()
   end
 
   M.output:add_empty_line()

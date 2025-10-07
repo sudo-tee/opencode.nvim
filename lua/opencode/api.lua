@@ -531,7 +531,7 @@ function M.respond_to_permission(answer)
 
   ui.render_output(true)
   state.api_client
-    :respond_to_permission(state.active_session.id, state.current_permission.id, { response = answer })
+    :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
     :and_then(function()
       vim.schedule(function()
         state.current_permission = nil

@@ -310,6 +310,7 @@ function M._format_message_header(message, msg_idx)
   M.output:add_empty_line()
   M.output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
 
+  -- Use the mode field from the message (stable label from CLI)
   local display_name
   if role == 'assistant' then
     local mode = message.mode

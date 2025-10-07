@@ -140,16 +140,6 @@ function M.after_run(prompt)
   require('opencode.history').write(prompt)
 
   if state.windows then
-    -- Persist assistant_mode on the latest assistant message if available
-    local msgs = state.messages
-    if msgs and #msgs > 0 then
-      local last = msgs[#msgs]
-      if last and last.role == 'assistant' then
-        if not last.assistant_mode or last.assistant_mode == '' then
-          last.assistant_mode = state.current_mode
-        end
-      end
-    end
     ui.render_output()
   end
 end

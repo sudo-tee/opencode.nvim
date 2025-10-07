@@ -66,7 +66,7 @@ end
 ---@param type 'vertical' | 'horizontal'
 local function open_split(direction, type)
   if type == 'vertical' then
-    vim.cmd((direction == 'left' and 'leftabove' or 'rightbelow') .. ' vsplit')
+    vim.cmd((direction == 'left' and 'topleft' or 'botright') .. ' vsplit')
   else
     vim.cmd((direction == 'top' and 'aboveleft' or 'belowright') .. ' split')
   end

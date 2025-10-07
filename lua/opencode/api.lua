@@ -227,8 +227,8 @@ function M.next_history()
 end
 
 function M.prev_prompt_history()
-  local config = require('opencode.config').get()
-  local key = config.keymap.window.prev_prompt_history
+  local config = require('opencode.config')
+  local key = config.get_key_for_function('window', 'prev_prompt_history')
   if key ~= '<up>' then
     return M.prev_history()
   end
@@ -242,8 +242,8 @@ function M.prev_prompt_history()
 end
 
 function M.next_prompt_history()
-  local config = require('opencode.config').get()
-  local key = config.keymap.window.next_prompt_history
+  local config = require('opencode.config')
+  local key = config.get_key_for_function('window', 'next_prompt_history')
   if key ~= '<down>' then
     return M.next_history()
   end
@@ -280,15 +280,15 @@ function M.mention_file()
 end
 
 function M.mention()
-  local config = require('opencode.config').get()
-  local char = config.keymap.window.mention
+  local config = require('opencode.config')
+  local char = config.get_key_for_function('window', 'mention')
   ui.focus_input({ restore_position = true, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 
 function M.slash_commands()
-  local config = require('opencode.config').get()
-  local char = config.keymap.window.slash_commands
+  local config = require('opencode.config')
+  local char = config.get_key_for_function('window', 'slash_commands')
   ui.focus_input({ restore_position = true, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end

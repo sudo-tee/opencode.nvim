@@ -43,23 +43,23 @@ describe('opencode.keymap', function()
   end)
 
   describe('setup', function()
-    it('sets up keymap with the configured keys', function()
+    it('sets up keymap with new format configured keys', function()
       local test_keymap = {
         global = {
-          open_input = '<leader>test',
-          open_input_new_session = '<leader>testNew',
-          open_output = '<leader>out',
-          close = '<leader>close',
-          select_session = '<leader>select',
-          toggle = '<leader>toggle',
-          toggle_focus = '<leader>focus',
+          ['<leader>test'] = 'open_input',
+          ['<leader>testNew'] = 'open_input_new_session',
+          ['<leader>out'] = 'open_output',
+          ['<leader>close'] = 'close',
+          ['<leader>select'] = 'select_session',
+          ['<leader>toggle'] = 'toggle',
+          ['<leader>focus'] = 'toggle_focus',
         },
       }
 
       keymap.setup(test_keymap)
 
       -- Verify that all keymaps were set up correctly
-      assert.equal(#set_keymaps, 7) -- Should have 8 keymaps for our test config
+      assert.equal(#set_keymaps, 7) -- Should have 7 keymaps for our test config
 
       -- Create a map to find keymaps by key
       local keymaps_by_key = {}
@@ -68,16 +68,58 @@ describe('opencode.keymap', function()
       end
 
       -- Check that all our expected keymaps were set up
-      for action, key in pairs(test_keymap.global) do
+      for key, action in pairs(test_keymap.global) do
         local km = keymaps_by_key[key]
         assert.is_not_nil(km, 'Keymap for key ' .. key .. ' not found')
-        assert.same({ 'n', 'v' }, km.modes, 'Agents for ' .. key .. ' should be n and v')
+        assert.same({ 'n', 'v' }, km.modes, 'Modes for ' .. key .. ' should be n and v')
         assert.is_function(km.callback, 'Callback for ' .. key .. ' should be a function')
         assert.is_table(km.opts, 'Options for ' .. key .. ' should be a table')
       end
     end)
 
-    it('sets up callbacks that execute the correct commands', function()
+    it('sets up keymap with old format configured keys (normalized)', function()
+      local config = require('opencode.config')
+
+      -- Old format keymap config
+      local old_format_keymap = {
+        open_input = '<leader>test_old',
+        open_input_new_session = '<leader>testNewOld',
+        open_output = '<leader>outOld',
+        close = '<leader>closeOld',
+        select_session = '<leader>selectOld',
+        toggle = '<leader>toggleOld',
+        toggle_focus = '<leader>focusOld',
+      }
+
+      -- Normalize old format to new format (normally config.setup would do this)
+      local normalized_keymap = config.normalize_keymap(old_format_keymap)
+
+      local test_keymap = {
+        global = normalized_keymap,
+      }
+
+      keymap.setup(test_keymap)
+
+      -- Verify that all keymaps were set up correctly
+      assert.equal(#set_keymaps, 7) -- Should have 7 keymaps for our test config
+
+      -- Create a map to find keymaps by key
+      local keymaps_by_key = {}
+      for _, km in ipairs(set_keymaps) do
+        keymaps_by_key[km.key] = km
+      end
+
+      -- Check that all our expected keymaps were set up (verify old format was normalized)
+      for func_name, key_binding in pairs(old_format_keymap) do
+        local km = keymaps_by_key[key_binding]
+        assert.is_not_nil(km, 'Keymap for key ' .. key_binding .. ' not found')
+        assert.same({ 'n', 'v' }, km.modes, 'Modes for ' .. key_binding .. ' should be n and v')
+        assert.is_function(km.callback, 'Callback for ' .. key_binding .. ' should be a function')
+        assert.is_table(km.opts, 'Options for ' .. key_binding .. ' should be a table')
+      end
+    end)
+
+    it('sets up callbacks that execute the correct commands (new format)', function()
       -- Mock API functions to track calls
       local original_api_functions = {}
       local api_calls_by_function = {}
@@ -93,16 +135,16 @@ describe('opencode.keymap', function()
         end
       end
 
-      -- Setup the keymap with test mappings
+      -- Setup the keymap with test mappings (new format)
       local test_mappings = {
         global = {
-          open_input = '<leader>test',
-          open_input_new_session = '<leader>testNew',
-          open_output = '<leader>out',
-          close = '<leader>close',
-          select_session = '<leader>select',
-          toggle = '<leader>toggle',
-          toggle_focus = '<leader>focus',
+          ['<leader>test'] = 'open_input',
+          ['<leader>testNew'] = 'open_input_new_session',
+          ['<leader>out'] = 'open_output',
+          ['<leader>close'] = 'close',
+          ['<leader>select'] = 'select_session',
+          ['<leader>toggle'] = 'toggle',
+          ['<leader>focus'] = 'toggle_focus',
         },
       }
 
@@ -115,7 +157,7 @@ describe('opencode.keymap', function()
       end
 
       -- Test each callback individually
-      for func_name, key_binding in pairs(test_mappings.global) do
+      for key_binding, func_name in pairs(test_mappings.global) do
         local keymap_entry = mapping_to_keymap[key_binding]
         assert.is_not_nil(keymap_entry, 'Keymap for ' .. func_name .. ' not found')
 
@@ -132,6 +174,107 @@ describe('opencode.keymap', function()
       for k, v in pairs(original_api_functions) do
         api[k] = v
       end
+    end)
+
+    it('sets up callbacks that execute the correct commands (old format normalized)', function()
+      -- Mock API functions to track calls
+      local original_api_functions = {}
+      local api_calls_by_function = {}
+      local api = require('opencode.api')
+      local config = require('opencode.config')
+
+      -- Save original functions
+      for k, v in pairs(api) do
+        if type(v) == 'function' then
+          original_api_functions[k] = v
+          api[k] = function()
+            api_calls_by_function[k] = (api_calls_by_function[k] or 0) + 1
+          end
+        end
+      end
+
+      -- Old format keymap config
+      local old_format_mappings = {
+        open_input = '<leader>test_old_cb',
+        open_input_new_session = '<leader>testNewOld_cb',
+        open_output = '<leader>outOld_cb',
+        close = '<leader>closeOld_cb',
+        select_session = '<leader>selectOld_cb',
+        toggle = '<leader>toggleOld_cb',
+        toggle_focus = '<leader>focusOld_cb',
+      }
+
+      -- Normalize and setup
+      local normalized_mappings = config.normalize_keymap(old_format_mappings)
+      local test_mappings = {
+        global = normalized_mappings,
+      }
+
+      keymap.setup(test_mappings)
+
+      -- Create a map of key bindings to their corresponding keymaps
+      local mapping_to_keymap = {}
+      for _, keymap_entry in ipairs(set_keymaps) do
+        mapping_to_keymap[keymap_entry.key] = keymap_entry
+      end
+
+      -- Test each callback individually (using original old format mapping)
+      for func_name, key_binding in pairs(old_format_mappings) do
+        local keymap_entry = mapping_to_keymap[key_binding]
+        assert.is_not_nil(keymap_entry, 'Keymap for ' .. func_name .. ' not found')
+
+        -- Call the callback and check if the corresponding API function was called
+        keymap_entry.callback()
+        assert.equal(
+          1,
+          api_calls_by_function[func_name] or 0,
+          'API function ' .. func_name .. ' was not called by its callback'
+        )
+      end
+
+      -- Restore original API functions
+      for k, v in pairs(original_api_functions) do
+        api[k] = v
+      end
+    end)
+  end)
+
+  describe('normalize_keymap', function()
+    it('normalizes old format keymap to new format correctly', function()
+      local config = require('opencode.config')
+
+      local old_format = {
+        open_input = '<leader>oi',
+        close = '<leader>oq',
+        toggle = '<leader>og',
+        select_session = '<leader>os',
+      }
+
+      local normalized = config.normalize_keymap(old_format)
+
+      -- Verify the structure was correctly transformed
+      assert.is_table(normalized, 'Normalized keymap should be a table')
+
+      -- Check each mapping was transformed correctly
+      assert.equal(
+        'open_input',
+        normalized['<leader>oi'],
+        'open_input mapping should be normalized to simple string format'
+      )
+      assert.equal('close', normalized['<leader>oq'], 'close mapping should be normalized to simple string format')
+      assert.equal('toggle', normalized['<leader>og'], 'toggle mapping should be normalized to simple string format')
+
+      assert.equal(
+        'select_session',
+        normalized['<leader>os'],
+        'select_session mapping should be normalized to simple string format'
+      )
+
+      -- Verify the old keys are no longer present (they should be used as new keys)
+      assert.is_nil(normalized.open_input, 'Old format key should not exist in normalized config')
+      assert.is_nil(normalized.close, 'Old format key should not exist in normalized config')
+      assert.is_nil(normalized.toggle, 'Old format key should not exist in normalized config')
+      assert.is_nil(normalized.select_session, 'Old format key should not exist in normalized config')
     end)
   end)
 
@@ -163,10 +306,10 @@ describe('opencode.keymap', function()
       config.get = function()
         return {
           keymap = {
-            window = {
-              permission_accept = 'a',
-              permission_accept_all = 'A',
-              permission_deny = 'd',
+            permission = {
+              accept = 'a',
+              accept_all = 'A',
+              deny = 'd',
             },
           },
         }
@@ -202,10 +345,10 @@ describe('opencode.keymap', function()
       config.get = function()
         return {
           keymap = {
-            window = {
-              permission_accept = 'a',
-              permission_accept_all = 'A',
-              permission_deny = 'd',
+            permission = {
+              accept = 'a',
+              accept_all = 'A',
+              deny = 'd',
             },
           },
         }
@@ -233,10 +376,10 @@ describe('opencode.keymap', function()
       config.get = function()
         return {
           keymap = {
-            window = {
-              permission_accept = 'a',
-              permission_accept_all = 'A',
-              permission_deny = 'd',
+            permission = {
+              accept = 'a',
+              accept_all = 'A',
+              deny = 'd',
             },
           },
         }

@@ -14,6 +14,8 @@
 --- @field get fun(key: "providers"): OpencodeProviders
 --- @field get fun(key: "context"): OpencodeContextConfig
 --- @field get fun(key: "debug"): OpencodeDebugConfig
+--- @field get_key_for_function fun(scope: 'global'|'window', function_name: string): string|nil
+--- @field normalize_keymap fun(keymap_config: table): table
 
 local M = {} ---@type OpencodeConfigModule
 
@@ -26,51 +28,52 @@ M.defaults = {
   default_mode = 'build',
   keymap = {
     global = {
-      toggle = '<leader>og',
-      open_input = '<leader>oi',
-      open_input_new_session = '<leader>oI',
-      open_output = '<leader>oo',
-      toggle_focus = '<leader>ot',
-      close = '<leader>oq',
-      select_session = '<leader>os',
-      configure_provider = '<leader>op',
-      diff_open = '<leader>od',
-      diff_next = '<leader>o]',
-      diff_prev = '<leader>o[',
-      diff_close = '<leader>oc',
-      diff_revert_all_last_prompt = '<leader>ora',
-      diff_revert_this_last_prompt = '<leader>ort',
-      diff_revert_all = '<leader>orA',
-      diff_revert_this = '<leader>orT',
-      diff_restore_snapshot_file = '<leader>orr',
-      diff_restore_snapshot_all = '<leader>orR',
-      swap_position = '<leader>ox', -- Swap Opencode pane left/right
-      permission_accept = '<leader>opa',
-      permission_accept_all = '<leader>opA',
-      permission_deny = '<leader>opd',
+      ['<leader>og'] = 'toggle',
+      ['<leader>oi'] = 'open_input',
+      ['<leader>oI'] = 'open_input_new_session',
+      ['<leader>oo'] = 'open_output',
+      ['<leader>ot'] = 'toggle_focus',
+      ['<leader>oq'] = 'close',
+      ['<leader>os'] = 'select_session',
+      ['<leader>op'] = 'configure_provider',
+      ['<leader>od'] = 'diff_open',
+      ['<leader>o]'] = 'diff_next',
+      ['<leader>o['] = 'diff_prev',
+      ['<leader>oc'] = 'diff_close',
+      ['<leader>ora'] = 'diff_revert_all_last_prompt',
+      ['<leader>ort'] = 'diff_revert_this_last_prompt',
+      ['<leader>orA'] = 'diff_revert_all',
+      ['<leader>orT'] = 'diff_revert_this',
+      ['<leader>orr'] = 'diff_restore_snapshot_file',
+      ['<leader>orR'] = 'diff_restore_snapshot_all',
+      ['<leader>ox'] = 'swap_position',
+      ['<leader>opa'] = 'permission_accept',
+      ['<leader>opA'] = 'permission_accept_all',
+      ['<leader>opd'] = 'permission_deny',
     },
     window = {
-      submit = '<cr>',
-      submit_insert = '<cr>',
-      close = '<esc>',
-      stop = '<C-c>',
-      next_message = ']]',
-      prev_message = '[[',
-      mention_file = '~',
-      mention = '@',
-      slash_commands = '/',
-      toggle_pane = '<tab>',
-      prev_prompt_history = '<up>',
-      next_prompt_history = '<down>',
-      switch_mode = '<M-m>',
-      focus_input = '<C-i>',
-      select_child_session = '<leader>oS',
-      debug_message = '<leader>oD',
-      debug_output = '<leader>oO',
-      debug_session = '<leader>ods',
-      permission_accept = 'a',
-      permission_accept_all = 'A',
-      permission_deny = 'd',
+      ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
+      ['<esc>'] = 'close',
+      ['<C-c>'] = 'stop',
+      [']]'] = 'next_message',
+      ['[['] = 'prev_message',
+      ['~'] = { 'mention_file', mode = 'i' },
+      ['@'] = { 'mention', mode = 'i' },
+      ['/'] = { 'slash_commands', mode = 'i' },
+      ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
+      ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
+      ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },
+      ['<M-m>'] = 'switch_mode',
+      ['<C-i>'] = 'focus_input',
+      ['<leader>oS'] = 'select_child_session',
+      ['<leader>oD'] = 'debug_message',
+      ['<leader>oO'] = 'debug_output',
+      ['<leader>ods'] = 'debug_session',
+    },
+    permission = {
+      accept = 'a',
+      accept_all = 'A',
+      deny = 'd',
     },
   },
   ui = {
@@ -163,6 +166,45 @@ M.defaults = {
 
 M.values = vim.deepcopy(M.defaults)
 
+--- Check if a keymap configuration uses the old format (internal use only)
+--- @param keymap_config table
+--- @return boolean
+local function is_old_format(keymap_config)
+  for k, v in pairs(keymap_config) do
+    if type(k) == 'string' and type(v) == 'string' then
+      -- In old format: function_name = key
+      -- In new format: key = 'function_name'
+      -- Check if the key looks like a function name vs a key binding
+      if k:match('^[a-z_]+$') and not k:match('^<.*>$') and not k:match('[%[%](){}]') then
+        return true
+      else
+        return false
+      end
+    elseif type(k) == 'string' and type(v) == 'table' and (v[1] or v.mode) then
+      return false
+    end
+  end
+  return false
+end
+
+--- Normalize keymap configuration to new format (internal use only)
+--- @param keymap_config table
+--- @return table
+local function normalize_keymap(keymap_config)
+  -- Map legacy function names to current API function names
+  local legacy_function_map = {
+    submit = 'submit_input_prompt',
+  }
+
+  local normalized = {}
+  for func_name, key in pairs(keymap_config) do
+    -- Translate legacy function names
+    local api_func_name = legacy_function_map[func_name] or func_name
+    normalized[key] = api_func_name
+  end
+  return normalized
+end
+
 --- Setup function to initialize or update the configuration
 --- @param opts OpencodeConfig
 function M.setup(opts)
@@ -170,6 +212,24 @@ function M.setup(opts)
 
   if opts.default_global_keymaps == false then
     M.values.keymap.global = {}
+  end
+
+  -- Check for old keymap format, normalize, and show deprecation warning
+  if opts.keymap then
+    if opts.keymap.global and is_old_format(opts.keymap.global) then
+      vim.notify(
+        'opencode.nvim: Old keymap.global format detected. Please consider migrating to the new format. See documentation for details.',
+        vim.log.levels.WARN
+      )
+      opts.keymap.global = normalize_keymap(opts.keymap.global)
+    end
+    if opts.keymap.window and is_old_format(opts.keymap.window) then
+      vim.notify(
+        'opencode.nvim: Old keymap.window format detected. Please consider migrating to the new format. See documentation for details.',
+        vim.log.levels.WARN
+      )
+      opts.keymap.window = normalize_keymap(opts.keymap.window)
+    end
   end
 
   -- Merge user options with defaults (deep merge for nested tables)
@@ -187,6 +247,46 @@ function M.get(key)
     return M.values[key]
   end
   return M.values
+end
+
+--- Get the key binding for a specific function in a scope
+--- @param scope 'global'|'window'
+--- @param function_name string
+--- @return string|nil
+function M.get_key_for_function(scope, function_name)
+  local config_data = M.get()
+
+  local keymap_config = config_data.keymap and config_data.keymap[scope]
+  if not keymap_config then
+    return nil
+  end
+
+  -- All configs are normalized after setup, so only handle new format
+  for key, config in pairs(keymap_config) do
+    if type(config) == 'string' then
+      -- New format: key = 'function_name'
+      if config == function_name then
+        return key
+      end
+    elseif type(config) == 'table' then
+      -- New format: key = { 'function_name', mode = 'mode' }
+      local func = config[1]
+      if func == function_name then
+        return key
+      end
+    end
+  end
+  return nil
+end
+
+--- Normalize keymap configuration from old format to new format (for testing)
+--- @param keymap_config table
+--- @return table
+function M.normalize_keymap(keymap_config)
+  if not is_old_format(keymap_config) then
+    return keymap_config
+  end
+  return normalize_keymap(keymap_config)
 end
 
 return M

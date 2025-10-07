@@ -131,15 +131,19 @@ function M.refresh_placeholder(windows, input_lines)
     local ns_id = vim.api.nvim_create_namespace('input_placeholder')
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local padding = string.rep(' ', win_width)
-    local keys = config.keymap.window
+    local config_mod = require('opencode.config')
+    local slash_key = config_mod.get_key_for_function('window', 'slash_commands')
+    local mention_key = config_mod.get_key_for_function('window', 'mention')
+    local mention_file_key = config_mod.get_key_for_function('window', 'mention_file')
+
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
         { 'Type your prompt here... ', 'OpenCodeHint' },
-        { keys.slash_commands, 'OpencodeInputLegend' },
+        { slash_key or '/', 'OpencodeInputLegend' },
         { ' commands ', 'OpenCodeHint' },
-        { keys.mention, 'OpencodeInputLegend' },
+        { mention_key or '@', 'OpencodeInputLegend' },
         { ' mentions ', 'OpenCodeHint' },
-        { keys.mention_file, 'OpencodeInputLegend' },
+        { mention_file_key or '~', 'OpencodeInputLegend' },
         { ' to pick files' .. padding, 'OpenCodeHint' },
       },
 
@@ -197,27 +201,27 @@ end
 function M.setup_keymaps(windows)
   local map = require('opencode.keymap').buf_keymap
   local api = require('opencode.api')
-  local keymaps = config.keymap.window
+  local config_mod = require('opencode.config')
   local input_buf = windows.input_buf
+  local window_keymaps = config_mod.get('keymap').window
 
-  map(keymaps.submit, api.submit_input_prompt, input_buf, 'n')
-  map(keymaps.submit_insert, api.submit_input_prompt, input_buf, 'i')
-  map(keymaps.mention, api.mention, input_buf, 'i')
-  map(keymaps.slash_commands, api.slash_commands, input_buf, 'i')
-  map(keymaps.mention_file, api.mention_file, input_buf, 'i')
-  map(keymaps.prev_prompt_history, api.prev_prompt_history, input_buf, { 'n', 'i' })
-  map(keymaps.next_prompt_history, api.next_prompt_history, input_buf, { 'n', 'i' })
-  map(keymaps.switch_mode, api.switch_mode, input_buf, { 'n', 'i' })
-  map(keymaps.next_message, api.next_message, input_buf, 'n')
-  map(keymaps.prev_message, api.prev_message, input_buf, 'n')
-  map(keymaps.close, api.close, input_buf, 'n')
-  map(keymaps.stop, api.stop, input_buf, 'n')
-  map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
-  map(keymaps.select_child_session, api.select_child_session, input_buf, 'n')
+  for key, value in pairs(window_keymaps) do
+    if value ~= false then
+      local func_name, mode
 
-  map(keymaps.debug_output, api.debug_output, input_buf, 'n')
-  map(keymaps.debug_session, api.debug_session, input_buf, 'n')
-  map(keymaps.debug_message, api.debug_message, input_buf, 'n')
+      if type(value) == 'string' then
+        func_name = value
+        mode = 'n'
+      elseif type(value) == 'table' and value[1] then
+        func_name = value[1]
+        mode = value.mode or 'n'
+      end
+
+      if func_name and api[func_name] then
+        map(key, api[func_name], input_buf, mode)
+      end
+    end
+  end
 end
 
 function M.setup_autocmds(windows, group)

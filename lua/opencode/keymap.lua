@@ -6,13 +6,36 @@ local M = {}
 function M.setup(keymap)
   local api = require('opencode.api')
   local cmds = api.commands
+  local config = require('opencode.config')
   local global = keymap.global
 
-  for key, mapping in pairs(global) do
-    if type(mapping) == 'string' then
-      vim.keymap.set({ 'n', 'v' }, mapping, function()
-        api[key]()
-      end, { silent = false, desc = cmds[key] and cmds[key].desc })
+  -- keymap.setup() expects the new format - config normalization should happen in config.setup()
+
+  -- Handle keymap configuration (normalized to new format)
+  for key_binding, config_entry in pairs(global) do
+    local func_name
+    local modes = { 'n', 'v' } -- Default modes
+
+    if type(config_entry) == 'string' then
+      -- Simple format: key = 'function_name'
+      func_name = config_entry
+    elseif type(config_entry) == 'table' then
+      -- Table format: key = { 'function_name', mode = ... }
+      func_name = config_entry[1]
+      if config_entry.mode then
+        -- Modes are explicitly specified, use them as-is
+        if type(config_entry.mode) == 'string' then
+          modes = { config_entry.mode }
+        elseif type(config_entry.mode) == 'table' then
+          modes = config_entry.mode
+        end
+      end
+    end
+
+    if func_name and api[func_name] then
+      vim.keymap.set(modes, key_binding, function()
+        api[func_name]()
+      end, { silent = false, desc = cmds[func_name] and cmds[func_name].desc })
     end
   end
 end
@@ -45,16 +68,30 @@ function M.clear_permission_keymap(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  local config = require('opencode.config').get()
-  local keymaps = config.keymap.window
+  local config = require('opencode.config')
 
   pcall(function()
-    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_accept)
-    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_accept)
-    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_accept_all)
-    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_accept_all)
-    vim.api.nvim_buf_del_keymap(buf, 'n', keymaps.permission_deny)
-    vim.api.nvim_buf_del_keymap(buf, 'i', keymaps.permission_deny)
+    local permission_config = config.get().keymap.permission
+    if not permission_config then
+      return
+    end
+
+    local accept_key = permission_config.accept
+    local accept_all_key = permission_config.accept_all
+    local deny_key = permission_config.deny
+
+    if accept_key then
+      vim.api.nvim_buf_del_keymap(buf, 'n', accept_key)
+      vim.api.nvim_buf_del_keymap(buf, 'i', accept_key)
+    end
+    if accept_all_key then
+      vim.api.nvim_buf_del_keymap(buf, 'n', accept_all_key)
+      vim.api.nvim_buf_del_keymap(buf, 'i', accept_all_key)
+    end
+    if deny_key then
+      vim.api.nvim_buf_del_keymap(buf, 'n', deny_key)
+      vim.api.nvim_buf_del_keymap(buf, 'i', deny_key)
+    end
   end)
 end
 
@@ -63,14 +100,28 @@ function M.toggle_permission_keymap(buf)
     return
   end
   local state = require('opencode.state')
-  local config = require('opencode.config').get()
-  local keymaps = config.keymap.window
+  local config = require('opencode.config')
   local api = require('opencode.api')
 
   if state.current_permission then
-    M.buf_keymap(keymaps.permission_accept, api.permission_accept, buf, { 'n', 'i' })
-    M.buf_keymap(keymaps.permission_accept_all, api.permission_accept_all, buf, { 'n', 'i' })
-    M.buf_keymap(keymaps.permission_deny, api.permission_deny, buf, { 'n', 'i' })
+    local permission_config = config.get().keymap.permission
+    if not permission_config then
+      return
+    end
+
+    local accept_key = permission_config.accept
+    local accept_all_key = permission_config.accept_all
+    local deny_key = permission_config.deny
+
+    if accept_key then
+      M.buf_keymap(accept_key, api.permission_accept, buf, { 'n', 'i' })
+    end
+    if accept_all_key then
+      M.buf_keymap(accept_all_key, api.permission_accept_all, buf, { 'n', 'i' })
+    end
+    if deny_key then
+      M.buf_keymap(deny_key, api.permission_deny, buf, { 'n', 'i' })
+    end
   else
     M.clear_permission_keymap(buf)
   end

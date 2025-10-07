@@ -27,9 +27,13 @@ function M._fake_feed_key(trigger_char)
 end
 
 function M._get_trigger(before_cursor)
-  local config = require('opencode.config').get()
-  local trigger_chars =
-    table.concat(vim.tbl_map(vim.pesc, { config.keymap.window.mention, config.keymap.window.slash_commands }), '')
+  local config = require('opencode.config')
+  local mention_key = config.get_key_for_function('window', 'mention')
+  local slash_key = config.get_key_for_function('window', 'slash_commands')
+  local triggers = {}
+  if mention_key then table.insert(triggers, mention_key) end
+  if slash_key then table.insert(triggers, slash_key) end
+  local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
   local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
   return trigger_char, trigger_match
 end

@@ -479,4 +479,5 @@
 ---@class OpencodeSlashCommand
 ---@field slash_cmd string The command trigger (e.g., "/help")
 ---@field desc string|nil Description of the command
----@field fn fun(...:string):nil Function to execute the command
+---@field fn fun(args:string[]):nil Function to execute the command
+---@field args boolean Whether the command accepts arguments

@@ -68,17 +68,9 @@ function M.toggle_permission_keymap(buf)
   local api = require('opencode.api')
 
   if state.current_permission then
-    M.buf_keymap(keymaps.permission_accept, function()
-      api.respond_to_permission('once')
-    end, buf, { 'n', 'i' })
-
-    M.buf_keymap(keymaps.permission_accept_all, function()
-      api.respond_to_permission('always')
-    end, buf, { 'n', 'i' })
-
-    M.buf_keymap(keymaps.permission_deny, function()
-      api.respond_to_permission('reject')
-    end, buf, { 'n', 'i' })
+    M.buf_keymap(keymaps.permission_accept, api.permission_accept, buf, { 'n', 'i' })
+    M.buf_keymap(keymaps.permission_accept_all, api.permission_accept_all, buf, { 'n', 'i' })
+    M.buf_keymap(keymaps.permission_deny, api.permission_deny, buf, { 'n', 'i' })
   else
     M.clear_permission_keymap(buf)
   end

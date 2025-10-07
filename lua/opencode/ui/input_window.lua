@@ -196,40 +196,28 @@ end
 
 function M.setup_keymaps(windows)
   local map = require('opencode.keymap').buf_keymap
-  local nav_history = require('opencode.ui.util').navigate_history
-  local nav = require('opencode.ui.navigation')
-  local core = require('opencode.core')
   local api = require('opencode.api')
-  local completion = require('opencode.ui.completion')
   local keymaps = config.keymap.window
   local input_buf = windows.input_buf
 
-  map(keymaps.submit, M.handle_submit, input_buf, 'n')
-  map(keymaps.submit_insert, M.handle_submit, input_buf, 'i')
-
-  map(keymaps.mention, completion.trigger_completion(keymaps.mention), input_buf, 'i')
-  map(keymaps.slash_commands, completion.trigger_completion(keymaps.slash_commands), input_buf, 'i')
-  map(keymaps.mention_file, core.add_file_to_context, input_buf, 'i')
-
-  map(keymaps.prev_prompt_history, nav_history(keymaps.prev_prompt_history, 'prev'), input_buf, { 'n', 'i' })
-  map(keymaps.next_prompt_history, nav_history(keymaps.next_prompt_history, 'next'), input_buf, { 'n', 'i' })
-
-  map(keymaps.switch_mode, api.switch_to_next_mode, input_buf, { 'n', 'i' })
-
-  map(keymaps.next_message, nav.goto_next_message, input_buf, 'n')
-  map(keymaps.prev_message, nav.goto_prev_message, input_buf, 'n')
-
+  map(keymaps.submit, api.submit_input_prompt, input_buf, 'n')
+  map(keymaps.submit_insert, api.submit_input_prompt, input_buf, 'i')
+  map(keymaps.mention, api.mention, input_buf, 'i')
+  map(keymaps.slash_commands, api.slash_commands, input_buf, 'i')
+  map(keymaps.mention_file, api.mention_file, input_buf, 'i')
+  map(keymaps.prev_prompt_history, api.prev_prompt_history, input_buf, { 'n', 'i' })
+  map(keymaps.next_prompt_history, api.next_prompt_history, input_buf, { 'n', 'i' })
+  map(keymaps.switch_mode, api.switch_mode, input_buf, { 'n', 'i' })
+  map(keymaps.next_message, api.next_message, input_buf, 'n')
+  map(keymaps.prev_message, api.prev_message, input_buf, 'n')
   map(keymaps.close, api.close, input_buf, 'n')
   map(keymaps.stop, api.stop, input_buf, 'n')
   map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
-
   map(keymaps.select_child_session, api.select_child_session, input_buf, 'n')
 
-  if config.debug.enabled then
-    local debug_helper = require('opencode.ui.debug_helper')
-    map(keymaps.debug_output, debug_helper.debug_output, input_buf, 'n')
-    map(keymaps.debug_session, debug_helper.debug_session, input_buf, 'n')
-  end
+  map(keymaps.debug_output, api.debug_output, input_buf, 'n')
+  map(keymaps.debug_session, api.debug_session, input_buf, 'n')
+  map(keymaps.debug_message, api.debug_message, input_buf, 'n')
 end
 
 function M.setup_autocmds(windows, group)

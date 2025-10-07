@@ -157,16 +157,6 @@ function M.before_run(opts)
   })
 end
 
-function M.add_file_to_context()
-  local picker = require('opencode.ui.file_picker')
-  require('opencode.ui.mention').mention(function(mention_cb)
-    picker.pick(function(file)
-      mention_cb(file.path)
-      context.add_file(file.path)
-    end)
-  end)
-end
-
 function M.configure_provider()
   require('opencode.provider').select(function(selection)
     if not selection then

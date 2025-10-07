@@ -125,6 +125,10 @@ function M.focus_input(opts)
     return
   end
 
+  if vim.api.nvim_get_current_win() == windows.input_win then
+    return
+  end
+
   vim.api.nvim_set_current_win(windows.input_win)
 
   if opts.restore_position and state.last_input_window_position then

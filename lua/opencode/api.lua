@@ -228,6 +228,107 @@ function M.next_history()
   end
 end
 
+function M.prev_prompt_history()
+  local config = require('opencode.config').get()
+  local key = config.keymap.window.prev_prompt_history
+  if key ~= '<up>' then
+    return M.prev_history()
+  end
+  local current_line = vim.api.nvim_win_get_cursor(0)[1]
+  local at_boundary = current_line <= 1
+
+  if at_boundary then
+    return M.prev_history()
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, false, true), 'n', false)
+end
+
+function M.next_prompt_history()
+  local config = require('opencode.config').get()
+  local key = config.keymap.window.next_prompt_history
+  if key ~= '<down>' then
+    return M.next_history()
+  end
+  local current_line = vim.api.nvim_win_get_cursor(0)[1]
+  local at_boundary = current_line >= vim.api.nvim_buf_line_count(0)
+
+  if at_boundary then
+    return M.next_history()
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, false, true), 'n', false)
+end
+
+function M.next_message()
+  require('opencode.ui.navigation').goto_next_message()
+end
+
+function M.prev_message()
+  require('opencode.ui.navigation').goto_prev_message()
+end
+
+function M.submit_input_prompt()
+  input_window.handle_submit()
+end
+
+function M.mention_file()
+  local picker = require('opencode.ui.file_picker')
+  local context = require('opencode.context')
+  require('opencode.ui.mention').mention(function(mention_cb)
+    picker.pick(function(file)
+      mention_cb(file.path)
+      context.add_file(file.path)
+    end)
+  end)
+end
+
+function M.mention()
+  local config = require('opencode.config').get()
+  local char = config.keymap.window.mention
+  ui.focus_input({ restore_position = true, start_insert = true })
+  require('opencode.ui.completion').trigger_completion(char)()
+end
+
+function M.slash_commands()
+  local config = require('opencode.config').get()
+  local char = config.keymap.window.slash_commands
+  ui.focus_input({ restore_position = true, start_insert = true })
+  require('opencode.ui.completion').trigger_completion(char)()
+end
+
+function M.focus_input()
+  ui.focus_input({ restore_position = true, start_insert = true })
+end
+
+function M.debug_output()
+  local config = require('opencode.config').get()
+  if not config.debug.enabled then
+    vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
+    return
+  end
+  local debug_helper = require('opencode.ui.debug_helper')
+  debug_helper.debug_output()
+end
+
+function M.debug_message()
+  local config = require('opencode.config').get()
+  if not config.debug.enabled then
+    vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
+    return
+  end
+  local debug_helper = require('opencode.ui.debug_helper')
+  debug_helper.debug_message()
+end
+
+function M.debug_session()
+  local config = require('opencode.config').get()
+  if not config.debug.enabled then
+    vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
+    return
+  end
+  local debug_helper = require('opencode.ui.debug_helper')
+  debug_helper.debug_session()
+end
+
 function M.initialize()
   ui.render_output(true)
 
@@ -274,7 +375,7 @@ function M.select_agent()
   end)
 end
 
-function M.switch_to_next_mode()
+function M.switch_mode()
   local modes = require('opencode.config_file').get_opencode_agents()
 
   local current_index = util.index_of(modes, state.current_mode)

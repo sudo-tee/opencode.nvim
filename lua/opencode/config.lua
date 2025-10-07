@@ -44,7 +44,6 @@ M.defaults = {
       diff_revert_this = '<leader>orT',
       diff_restore_snapshot_file = '<leader>orr',
       diff_restore_snapshot_all = '<leader>orR',
-      open_configuration_file = '<leader>oC',
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
       permission_accept = '<leader>opa',
       permission_accept_all = '<leader>opA',

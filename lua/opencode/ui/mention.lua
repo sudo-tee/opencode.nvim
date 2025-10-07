@@ -2,7 +2,7 @@ local M = {}
 
 local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
 
-function M.highlight_all_mentions(buf)
+function M.highlight_all_mentions(buf, callback)
   -- Pattern for mentions
   local mention_pattern = '@[%w_%-%./][%w_%-%./]*'
 
@@ -22,6 +22,10 @@ function M.highlight_all_mentions(buf)
       local mention_start, mention_end = line:find(mention_pattern, start_idx)
       if not mention_start then
         break
+      end
+
+      if callback then
+        callback(line:sub(mention_start + 1, mention_end), row, mention_start, mention_end)
       end
 
       -- Add extmark for this mention
@@ -63,6 +67,27 @@ function M.mention(get_name)
       local row, col = cursor_pos[1], cursor_pos[2]
       insert_mention(windows, row, col, name)
     end)
+  end)
+end
+
+function M.restore_mentions(buf)
+  local context = require('opencode.context')
+
+  context.clear_subagents()
+  context.clear_files()
+
+  M.highlight_all_mentions(buf, function(name)
+    local agents = require('opencode.config_file').get_subagents()
+
+    if vim.tbl_contains(agents, name) then
+      require('opencode.context').add_subagent(name)
+      return
+    end
+
+    if vim.fn.filereadable(name) == 1 then
+      require('opencode.context').add_file(name)
+      return
+    end
   end)
 end
 

@@ -108,6 +108,11 @@ function M.add_file(file)
   end
 end
 
+M.clear_files = function()
+  M.context.mentioned_files = nil
+  M.context.mentioned_files_content = nil
+end
+
 function M.add_subagent(subagent)
   if not M.context.mentioned_subagents then
     M.context.mentioned_subagents = {}
@@ -116,6 +121,10 @@ function M.add_subagent(subagent)
   if not vim.tbl_contains(M.context.mentioned_subagents, subagent) then
     table.insert(M.context.mentioned_subagents, subagent)
   end
+end
+
+M.clear_subagents = function()
+  M.context.mentioned_subagents = nil
 end
 
 ---@param opts OpencodeContextConfig

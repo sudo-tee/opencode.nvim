@@ -216,6 +216,7 @@ function M.prev_history()
   local prev_prompt = history.prev()
   if prev_prompt then
     input_window.set_content(prev_prompt)
+    require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
   end
 end
 
@@ -223,6 +224,7 @@ function M.next_history()
   local next_prompt = history.next()
   if next_prompt then
     input_window.set_content(next_prompt)
+    require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
   end
 end
 

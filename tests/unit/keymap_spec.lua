@@ -150,4 +150,204 @@ describe('opencode.keymap', function()
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
   end)
+
+  describe('parse_window_keymap', function()
+    it('parses string values with default modes', function()
+      local key, mode = keymap.parse_window_keymap('<cr>', 'submit')
+      assert.equal('<cr>', key)
+      assert.equal('n', mode) -- submit defaults to 'n'
+    end)
+
+    it('parses string values with correct default modes for different keymaps', function()
+      local key, mode = keymap.parse_window_keymap('@', 'mention')
+      assert.equal('@', key)
+      assert.equal('i', mode) -- mention defaults to 'i'
+
+      key, mode = keymap.parse_window_keymap('<up>', 'prev_prompt_history')
+      assert.equal('<up>', key)
+      assert.same({'n', 'i'}, mode) -- prev_prompt_history defaults to {'n', 'i'}
+    end)
+
+    it('parses table values with explicit modes', function()
+      local keymap_value = { key = '<cr>', mode = 'i' }
+      local key, mode = keymap.parse_window_keymap(keymap_value, 'submit')
+      assert.equal('<cr>', key)
+      assert.equal('i', mode)
+    end)
+
+    it('parses table values with multiple modes', function()
+      local keymap_value = { key = '<tab>', mode = {'n', 'i', 'v'} }
+      local key, mode = keymap.parse_window_keymap(keymap_value, 'toggle_pane')
+      assert.equal('<tab>', key)
+      assert.same({'n', 'i', 'v'}, mode)
+    end)
+
+    it('throws error for invalid keymap values', function()
+      assert.has_error(function()
+        keymap.parse_window_keymap(123, 'submit')
+      end)
+
+      assert.has_error(function()
+        keymap.parse_window_keymap({}, 'submit') -- missing key field
+      end)
+    end)
+
+    it('uses default mode for unknown keymap names', function()
+      local key, mode = keymap.parse_window_keymap('<test>', 'unknown_keymap')
+      assert.equal('<test>', key)
+      assert.equal('n', mode) -- defaults to 'n' for unknown keymaps
+    end)
+
+    it('parses positional format with explicit mode', function()
+      local keymap_value = { '<cr>', 'i' }
+      local key, mode = keymap.parse_window_keymap(keymap_value, 'submit')
+      assert.equal('<cr>', key)
+      assert.equal('i', mode)
+    end)
+
+    it('parses positional format with default mode when second element missing', function()
+      local keymap_value = { '<tab>' }
+      local key, mode = keymap.parse_window_keymap(keymap_value, 'toggle_pane')
+      assert.equal('<tab>', key)
+      assert.same({'n', 'i'}, mode) -- toggle_pane defaults to {'n', 'i'}
+    end)
+
+    it('parses positional format with multiple modes', function()
+      local keymap_value = { '<esc>', {'n', 'i', 'v'} }
+      local key, mode = keymap.parse_window_keymap(keymap_value, 'close')
+      assert.equal('<esc>', key)
+      assert.same({'n', 'i', 'v'}, mode)
+    end)
+  end)
+
+  describe('parse_global_keymap', function()
+    it('parses string values with default modes', function()
+      local key, mode = keymap.parse_global_keymap('<leader>o', 'open_input')
+      assert.equal('<leader>o', key)
+      assert.same({'n', 'v'}, mode) -- global keymaps default to {'n', 'v'}
+    end)
+
+    it('parses table values with explicit modes', function()
+      local keymap_value = { key = '<leader>t', mode = 'n' }
+      local key, mode = keymap.parse_global_keymap(keymap_value, 'toggle')
+      assert.equal('<leader>t', key)
+      assert.equal('n', mode)
+    end)
+
+    it('parses table values with multiple modes', function()
+      local keymap_value = { key = '<leader>c', mode = {'n', 'i', 'v'} }
+      local key, mode = keymap.parse_global_keymap(keymap_value, 'close')
+      assert.equal('<leader>c', key)
+      assert.same({'n', 'i', 'v'}, mode)
+    end)
+
+    it('throws error for invalid keymap values', function()
+      assert.has_error(function()
+        keymap.parse_global_keymap(123, 'toggle')  
+      end)
+
+      assert.has_error(function()
+        keymap.parse_global_keymap({}, 'toggle') -- missing key field
+      end)
+    end)
+
+    it('uses default mode for all global keymap names', function()
+      local key, mode = keymap.parse_global_keymap('<leader>test', 'any_global_keymap')
+      assert.equal('<leader>test', key)
+      assert.same({'n', 'v'}, mode) -- all global keymaps default to {'n', 'v'}
+    end)
+
+    it('parses positional format with explicit mode', function()
+      local keymap_value = { '<leader>t', 'n' }
+      local key, mode = keymap.parse_global_keymap(keymap_value, 'toggle')
+      assert.equal('<leader>t', key)
+      assert.equal('n', mode)
+    end)
+
+    it('parses positional format with default mode when second element missing', function()
+      local keymap_value = { '<leader>o' }
+      local key, mode = keymap.parse_global_keymap(keymap_value, 'open_input')
+      assert.equal('<leader>o', key)
+      assert.same({'n', 'v'}, mode) -- global keymaps default to {'n', 'v'}
+    end)
+
+    it('parses positional format with multiple modes', function()
+      local keymap_value = { '<leader>c', {'n', 'i', 'v'} }
+      local key, mode = keymap.parse_global_keymap(keymap_value, 'close')
+      assert.equal('<leader>c', key)
+      assert.same({'n', 'i', 'v'}, mode)
+    end)
+  end)
+
+  describe('global keymap setup with enhanced format', function()
+    it('sets up global keymaps with table format and custom modes', function()
+      local test_keymap = {
+        global = {
+          toggle = { key = '<leader>t', mode = 'n' },
+          open_input = '<leader>o', -- string format, should use default modes
+          close = { key = '<leader>c', mode = {'n', 'i'} },
+        },
+      }
+
+      keymap.setup(test_keymap)
+
+      assert.equal(3, #set_keymaps)
+
+      -- Find keymaps by key
+      local keymaps_by_key = {}
+      for _, km in ipairs(set_keymaps) do
+        keymaps_by_key[km.key] = km
+      end
+
+      -- Check toggle keymap with custom mode
+      local toggle_km = keymaps_by_key['<leader>t']
+      assert.is_not_nil(toggle_km)
+      assert.equal('n', toggle_km.modes)
+
+      -- Check open_input keymap with default modes
+      local open_input_km = keymaps_by_key['<leader>o']
+      assert.is_not_nil(open_input_km)
+      assert.same({'n', 'v'}, open_input_km.modes)
+
+      -- Check close keymap with custom multiple modes
+      local close_km = keymaps_by_key['<leader>c']
+      assert.is_not_nil(close_km)
+      assert.same({'n', 'i'}, close_km.modes)
+    end)
+
+    it('sets up global keymaps with positional format', function()
+      local test_keymap = {
+        global = {
+          toggle = { '<leader>t', 'n' }, -- positional format with explicit mode
+          open_input = { '<leader>o' }, -- positional format with default mode
+          close = { '<leader>c', {'n', 'i', 'v'} }, -- positional format with multiple modes
+        },
+      }
+
+      keymap.setup(test_keymap)
+
+      assert.equal(3, #set_keymaps)
+
+      -- Find keymaps by key
+      local keymaps_by_key = {}
+      for _, km in ipairs(set_keymaps) do
+        keymaps_by_key[km.key] = km
+      end
+
+      -- Check toggle keymap with explicit mode
+      local toggle_km = keymaps_by_key['<leader>t']
+      assert.is_not_nil(toggle_km)
+      assert.equal('n', toggle_km.modes)
+
+      -- Check open_input keymap with default modes
+      local open_input_km = keymaps_by_key['<leader>o']
+      assert.is_not_nil(open_input_km)
+      assert.same({'n', 'v'}, open_input_km.modes)
+
+      -- Check close keymap with multiple modes
+      local close_km = keymaps_by_key['<leader>c']
+      assert.is_not_nil(close_km)
+      assert.same({'n', 'i', 'v'}, close_km.modes)
+    end)
+  end)
 end)

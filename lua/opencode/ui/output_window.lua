@@ -113,40 +113,50 @@ end
 
 function M.setup_keymaps(windows)
   local ui = require('opencode.ui.ui')
+  local keymap_mod = require('opencode.keymap')
   local api = require('opencode.api')
-  local map = require('opencode.keymap').buf_keymap
+  local map = keymap_mod.buf_keymap
   local nav = require('opencode.ui.navigation')
 
   local keymaps = config.keymap.window
   local output_buf = windows.output_buf
 
-  map(keymaps.close, api.close, output_buf, 'n')
+  -- Define keymap handlers table
+  local keymap_handlers = {
+    close = api.close,
+    next_message = nav.goto_next_message,
+    prev_message = nav.goto_prev_message,
+    stop = api.stop,
+    toggle_pane = api.toggle_pane,
+    focus_input = function()
+      ui.focus_input({ restore_position = true, start_insert = true })
+    end,
+    switch_mode = api.switch_to_next_mode,
+    select_child_session = api.select_child_session,
+  }
 
-  map(keymaps.next_message, nav.goto_next_message, output_buf, 'n')
-  map(keymaps.prev_message, nav.goto_prev_message, output_buf, 'n')
+  -- Apply keymaps from table
+  for keymap_name, handler in pairs(keymap_handlers) do
+    if keymaps[keymap_name] then
+      local key, mode = keymap_mod.parse_window_keymap(keymaps[keymap_name], keymap_name)
+      map(key, handler, output_buf, mode)
+    end
+  end
 
-  map(keymaps.stop, api.stop, output_buf, { 'n' })
-
-  map(keymaps.toggle_pane, api.toggle_pane, output_buf, { 'n' })
-
-  map(keymaps.focus_input, function()
-    ui.focus_input({ restore_position = true, start_insert = true })
-  end, output_buf, 'n')
-
-  map(keymaps.switch_mode, api.switch_to_next_mode, output_buf, 'n')
-
-  map(keymaps.select_child_session, api.select_child_session, output_buf, 'n')
-
+  -- Handle debug keymaps separately due to conditional loading and nil checks
   if config.debug.enabled then
     local debug_helper = require('opencode.ui.debug_helper')
-    if debug_helper.debug_output then
-      map(keymaps.debug_output, debug_helper.debug_output, output_buf, 'n')
-    end
-    if debug_helper.debug_message then
-      map(keymaps.debug_message, debug_helper.debug_message, output_buf, 'n')
-    end
-    if debug_helper.debug_session then
-      map(keymaps.debug_session, debug_helper.debug_session, output_buf, 'n')
+    local debug_keymaps = {
+      debug_output = debug_helper.debug_output,
+      debug_message = debug_helper.debug_message,
+      debug_session = debug_helper.debug_session,
+    }
+
+    for keymap_name, handler in pairs(debug_keymaps) do
+      if keymaps[keymap_name] and handler then
+        local key, mode = keymap_mod.parse_window_keymap(keymaps[keymap_name], keymap_name)
+        map(key, handler, output_buf, mode)
+      end
     end
   end
 end

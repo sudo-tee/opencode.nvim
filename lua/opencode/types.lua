@@ -49,44 +49,50 @@
 ---@field workplace_slug string
 ---@field revert? SessionRevertInfo
 
+---@alias OpencodeKeymapGlobalValue string | { key: string, mode: string|string[] } | { [1]: string, [2]: string|string[] }
+---@alias OpencodeKeymapWindowValue string | { key: string, mode: string|string[] } | { [1]: string, [2]: string|string[] }
+
 ---@class OpencodeKeymapGlobal
----@field toggle string
----@field open_input string
----@field open_input_new_session string
----@field open_output string
----@field toggle_focus string
----@field close string
----@field select_session string
----@field configure_provider string
----@field diff_open string
----@field diff_next string
----@field diff_prev string
----@field diff_close string
----@field diff_revert_all_last_prompt string
----@field diff_revert_this_last_prompt string
----@field diff_revert_all string
----@field diff_revert_this string
----@field diff_restore_snapshot_file string
----@field diff_restore_snapshot_all string
----@field open_configuration_file string
----@field swap_position string # Swap Opencode pane left/right
+---@field toggle OpencodeKeymapGlobalValue
+---@field open_input OpencodeKeymapGlobalValue
+---@field open_input_new_session OpencodeKeymapGlobalValue
+---@field open_output OpencodeKeymapGlobalValue
+---@field toggle_focus OpencodeKeymapGlobalValue
+---@field close OpencodeKeymapGlobalValue
+---@field select_session OpencodeKeymapGlobalValue
+---@field configure_provider OpencodeKeymapGlobalValue
+---@field diff_open OpencodeKeymapGlobalValue
+---@field diff_next OpencodeKeymapGlobalValue
+---@field diff_prev OpencodeKeymapGlobalValue
+---@field diff_close OpencodeKeymapGlobalValue
+---@field diff_revert_all_last_prompt OpencodeKeymapGlobalValue
+---@field diff_revert_this_last_prompt OpencodeKeymapGlobalValue
+---@field diff_revert_all OpencodeKeymapGlobalValue
+---@field diff_revert_this OpencodeKeymapGlobalValue
+---@field diff_restore_snapshot_file OpencodeKeymapGlobalValue
+---@field diff_restore_snapshot_all OpencodeKeymapGlobalValue
+---@field open_configuration_file OpencodeKeymapGlobalValue
+---@field swap_position OpencodeKeymapGlobalValue # Swap Opencode pane left/right
 
 ---@class OpencodeKeymapWindow
----@field submit string
----@field submit_insert string
----@field close string
----@field stop string
----@field next_message string
----@field prev_message string
----@field mention_file string # mention files with a file picker
----@field mention string # mention subagents or files with a completion popup
----@field slash_commands string
----@field toggle_pane string
----@field prev_prompt_history string
----@field next_prompt_history string
----@field switch_mode string
----@field focus_input string
----@field select_child_session string\n---@field debug_message string\n---@field debug_output string\n---@field debug_session string
+---@field submit OpencodeKeymapWindowValue
+---@field submit_insert OpencodeKeymapWindowValue
+---@field close OpencodeKeymapWindowValue
+---@field stop OpencodeKeymapWindowValue
+---@field next_message OpencodeKeymapWindowValue
+---@field prev_message OpencodeKeymapWindowValue
+---@field mention_file OpencodeKeymapWindowValue # mention files with a file picker
+---@field mention OpencodeKeymapWindowValue # mention subagents or files with a completion popup
+---@field slash_commands OpencodeKeymapWindowValue
+---@field toggle_pane OpencodeKeymapWindowValue
+---@field prev_prompt_history OpencodeKeymapWindowValue
+---@field next_prompt_history OpencodeKeymapWindowValue
+---@field switch_mode OpencodeKeymapWindowValue
+---@field focus_input OpencodeKeymapWindowValue
+---@field select_child_session OpencodeKeymapWindowValue
+---@field debug_message OpencodeKeymapWindowValue
+---@field debug_output OpencodeKeymapWindowValue
+---@field debug_session OpencodeKeymapWindowValue
 ---@class OpencodeKeymap
 ---@field global OpencodeKeymapGlobal
 ---@field window OpencodeKeymapWindow

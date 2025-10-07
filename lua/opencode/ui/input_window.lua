@@ -170,7 +170,8 @@ function M.is_empty()
 end
 
 function M.setup_keymaps(windows)
-  local map = require('opencode.keymap').buf_keymap
+  local keymap_mod = require('opencode.keymap')
+  local map = keymap_mod.buf_keymap
   local nav_history = require('opencode.ui.util').navigate_history
   local nav = require('opencode.ui.navigation')
   local core = require('opencode.core')
@@ -179,31 +180,57 @@ function M.setup_keymaps(windows)
   local keymaps = config.keymap.window
   local input_buf = windows.input_buf
 
-  map(keymaps.submit, M.handle_submit, input_buf, 'n')
-  map(keymaps.submit_insert, M.handle_submit, input_buf, 'i')
+  -- Define keymap handlers table - functions that need the parsed key get it via closure
+  local keymap_handlers = {
+    submit = M.handle_submit,
+    submit_insert = M.handle_submit,
+    mention_file = core.add_file_to_context,
+    switch_mode = api.switch_to_next_mode,
+    next_message = nav.goto_next_message,
+    prev_message = nav.goto_prev_message,
+    close = api.close,
+    stop = api.stop,
+    toggle_pane = api.toggle_pane,
+    select_child_session = api.select_child_session,
+  }
 
-  map(keymaps.mention, completion.trigger_completion(keymaps.mention), input_buf, 'i')
-  map(keymaps.slash_commands, completion.trigger_completion(keymaps.slash_commands), input_buf, 'i')
-  map(keymaps.mention_file, core.add_file_to_context, input_buf, 'i')
+  -- Apply basic keymaps from table
+  for keymap_name, handler in pairs(keymap_handlers) do
+    if keymaps[keymap_name] then
+      local key, mode = keymap_mod.parse_window_keymap(keymaps[keymap_name], keymap_name)
+      map(key, handler, input_buf, mode)
+    end
+  end
 
-  map(keymaps.prev_prompt_history, nav_history(keymaps.prev_prompt_history, 'prev'), input_buf, { 'n', 'i' })
-  map(keymaps.next_prompt_history, nav_history(keymaps.next_prompt_history, 'next'), input_buf, { 'n', 'i' })
+  -- Handle keymaps that need the parsed key as parameter
+  local special_keymaps = {
+    mention = function(key) return completion.trigger_completion(key) end,
+    slash_commands = function(key) return completion.trigger_completion(key) end,
+    prev_prompt_history = function(key) return nav_history(key, 'prev') end,
+    next_prompt_history = function(key) return nav_history(key, 'next') end,
+  }
 
-  map(keymaps.switch_mode, api.switch_to_next_mode, input_buf, { 'n', 'i' })
+  for keymap_name, handler_factory in pairs(special_keymaps) do
+    if keymaps[keymap_name] then
+      local key, mode = keymap_mod.parse_window_keymap(keymaps[keymap_name], keymap_name)
+      map(key, handler_factory(key), input_buf, mode)
+    end
+  end
 
-  map(keymaps.next_message, nav.goto_next_message, input_buf, 'n')
-  map(keymaps.prev_message, nav.goto_prev_message, input_buf, 'n')
-
-  map(keymaps.close, api.close, input_buf, 'n')
-  map(keymaps.stop, api.stop, input_buf, 'n')
-  map(keymaps.toggle_pane, api.toggle_pane, input_buf, { 'n', 'i' })
-
-  map(keymaps.select_child_session, api.select_child_session, input_buf, 'n')
-
+  -- Handle debug keymaps separately due to conditional loading
   if config.debug.enabled then
     local debug_helper = require('opencode.ui.debug_helper')
-    map(keymaps.debug_output, debug_helper.debug_output, input_buf, 'n')
-    map(keymaps.debug_session, debug_helper.debug_session, input_buf, 'n')
+    local debug_keymaps = {
+      debug_output = debug_helper.debug_output,
+      debug_session = debug_helper.debug_session,
+    }
+
+    for keymap_name, handler in pairs(debug_keymaps) do
+      if keymaps[keymap_name] then
+        local key, mode = keymap_mod.parse_window_keymap(keymaps[keymap_name], keymap_name)
+        map(key, handler, input_buf, mode)
+      end
+    end
   end
 end
 

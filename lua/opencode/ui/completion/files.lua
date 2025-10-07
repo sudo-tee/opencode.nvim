@@ -100,7 +100,8 @@ local file_source = {
     local file_config = config.ui.completion.file_sources
     local input = context.input or ''
 
-    if not file_config.enabled or context.trigger_char ~= config.keymap.window.mention then
+    local keymap = require('opencode.keymap')
+    if not file_config.enabled or context.trigger_char ~= keymap.extract_key(config.keymap.window.mention) then
       return {}
     end
 

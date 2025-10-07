@@ -6,7 +6,8 @@ local subagent_source = {
   complete = function(context)
     local subagents = require('opencode.config_file').get_subagents()
     local config = require('opencode.config').get()
-    if context.trigger_char ~= config.keymap.window.mention then
+    local keymap = require('opencode.keymap')
+    if context.trigger_char ~= keymap.extract_key(config.keymap.window.mention) then
       return {}
     end
 

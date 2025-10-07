@@ -24,13 +24,14 @@ local command_source = {
   priority = 1,
   complete = function(context)
     local config = require('opencode.config').get()
+    local keymap = require('opencode.keymap')
     local input_text = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
     if not context.line:match('^' .. vim.pesc(context.trigger_char) .. '[^%s/]*$') then
       return {}
     end
 
-    if context.trigger_char ~= config.keymap.window.slash_commands then
+    if context.trigger_char ~= keymap.extract_key(config.keymap.window.slash_commands) then
       return {}
     end
 

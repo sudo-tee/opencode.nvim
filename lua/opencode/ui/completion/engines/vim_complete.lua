@@ -28,8 +28,9 @@ end
 
 function M._get_trigger(before_cursor)
   local config = require('opencode.config').get()
+  local keymap = require('opencode.keymap')
   local trigger_chars =
-    table.concat(vim.tbl_map(vim.pesc, { config.keymap.window.mention, config.keymap.window.slash_commands }), '')
+    table.concat(vim.tbl_map(vim.pesc, { keymap.extract_key(config.keymap.window.mention), keymap.extract_key(config.keymap.window.slash_commands) }), '')
   local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
   return trigger_char, trigger_match
 end

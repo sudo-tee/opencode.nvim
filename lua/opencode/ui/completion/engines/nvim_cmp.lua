@@ -13,7 +13,8 @@ function M.setup(completion_sources)
 
   function source:get_trigger_characters()
     local config = require('opencode.config').get()
-    return { config.keymap.window.mention, config.keymap.window.slash_commands }
+    local keymap = require('opencode.keymap')
+    return { keymap.extract_key(config.keymap.window.mention), keymap.extract_key(config.keymap.window.slash_commands) }
   end
 
   function source:is_available()

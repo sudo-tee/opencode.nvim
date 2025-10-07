@@ -10,7 +10,8 @@ end
 
 function Source:get_trigger_characters()
   local config = require('opencode.config').get()
-  return { config.keymap.window.mention, config.keymap.window.slash_commands }
+  local keymap = require('opencode.keymap')
+  return { keymap.extract_key(config.keymap.window.mention), keymap.extract_key(config.keymap.window.slash_commands) }
 end
 
 function Source:is_available()

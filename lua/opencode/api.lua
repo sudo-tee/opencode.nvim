@@ -373,13 +373,16 @@ function M.mcp()
   ui.render_lines(msg)
 end
 
-function M.run_user_command(name)
+--- Runs a user-defined command by name.
+--- @param name string The name of the user command to run.
+--- @param args? string[] Additional arguments to pass to the command.
+function M.run_user_command(name, args)
   M.open_input()
 
   ui.render_output(true)
   state.api_client:send_command(state.active_session.id, {
     command = name,
-    arguments = '',
+    arguments = table.concat(args or {}, ' '),
   })
 end
 
@@ -874,12 +877,13 @@ M.commands = {
     name = 'OpencodeRunUserCommand',
     desc = 'Run a user-defined Opencode command by name',
     fn = function(opts)
-      local name = opts.args and opts.args:match('^%s*(%S+)')
+      local parts = vim.split(opts.args or '', '%s+')
+      local name = parts[1]
       if not name or name == '' then
         vim.notify('User command name required. Usage: :OpencodeRunUserCommand <name>', vim.log.levels.ERROR)
         return
       end
-      M.run_user_command(name)
+      M.run_user_command(name, vim.list_slice(parts, 2))
     end,
     args = true,
   },
@@ -974,6 +978,7 @@ M.commands = {
   },
 }
 
+---@return OpencodeSlashCommand[]
 function M.get_slash_commands()
   local commands = vim.tbl_filter(function(cmd)
     return cmd.slash_cmd and cmd.slash_cmd ~= ''
@@ -985,8 +990,8 @@ function M.get_slash_commands()
       table.insert(commands, {
         slash_cmd = '/' .. name,
         desc = 'Run user command: ' .. name,
-        fn = function()
-          M.commands.run_user_command.fn({ args = name })
+        fn = function(args)
+          M.run_user_command(name, args)
         end,
       })
     end

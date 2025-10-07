@@ -475,3 +475,8 @@
 ---@field model OpencodeAgentModel|nil Optional model configuration
 ---@field prompt string|nil Optional custom prompt for the agent
 ---@field temperature number|nil Optional temperature setting
+
+---@class OpencodeSlashCommand
+---@field slash_cmd string The command trigger (e.g., "/help")
+---@field desc string|nil Description of the command
+---@field fn fun(...:string):nil Function to execute the command

@@ -513,8 +513,6 @@ require('opencode').setup({
 
 **Note:** Enhanced context types are disabled by default to minimize token usage and API costs. Enable only the context types that are relevant to your workflow.
 
-<a id="file-mentions"></a>
-
 ### Adding more files to context through file mentions
 
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.

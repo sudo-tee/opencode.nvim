@@ -11,6 +11,7 @@ local function get_available_commands()
       description = cmd_info.desc,
       documentation = 'Opencode command: ' .. cmd_info.slash_cmd,
       command_key = key,
+      args = cmd_info.args,
       fn = cmd_info.fn,
     })
   end
@@ -44,15 +45,16 @@ local command_source = {
 
       if context.input == '' or name_lower:find(input_lower, 1, true) or desc_lower:find(input_lower, 1, true) then
         local item = {
-          label = command.name,
+          label = command.name .. (command.args and ' *' or ''),
           kind = 'command',
           detail = command.description,
-          documentation = command.documentation,
+          documentation = command.documentation .. (command.args and '\n\n* This command takes arguments.' or ''),
           insert_text = command.name,
           source_name = 'commands',
           data = {
             name = command.name,
             fn = command.fn,
+            args = command.args,
           },
         }
 
@@ -68,6 +70,11 @@ local command_source = {
   on_complete = function(item)
     if item.kind == 'command' then
       if item.data.fn then
+        if item.data.args then
+          require('opencode.ui.input_window').set_content(item.insert_text .. ' ')
+          vim.api.nvim_win_set_cursor(0, { 1, #item.insert_text + 1 })
+          return
+        end
         item.data.fn()
         require('opencode.ui.input_window').set_content('')
       else

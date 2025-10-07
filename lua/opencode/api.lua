@@ -380,10 +380,16 @@ function M.run_user_command(name, args)
   M.open_input()
 
   ui.render_output(true)
-  state.api_client:send_command(state.active_session.id, {
-    command = name,
-    arguments = table.concat(args or {}, ' '),
-  })
+  state.api_client
+    :send_command(state.active_session.id, {
+      command = name,
+      arguments = table.concat(args or {}, ' '),
+    })
+    :and_then(function()
+      vim.schedule(function()
+        require('opencode.history').write('/' .. name .. ' ' .. table.concat(args or {}, ' '))
+      end)
+    end)
 end
 
 --- Compacts the current session by removing unnecessary data.
@@ -986,10 +992,11 @@ function M.get_slash_commands()
 
   local user_commands = require('opencode.config_file').get_user_commands()
   if user_commands then
-    for name, _ in pairs(user_commands) do
+    for name, cfg in pairs(user_commands) do
       table.insert(commands, {
         slash_cmd = '/' .. name,
         desc = 'Run user command: ' .. name,
+        args = cfg.template and cfg.template:match('$ARGUMENTS') ~= nil,
         fn = function(args)
           M.run_user_command(name, args)
         end,

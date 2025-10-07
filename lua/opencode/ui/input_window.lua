@@ -58,7 +58,32 @@ function M.handle_submit()
     modeline = false,
   })
 
+  if input_content == '' then
+    return
+  end
+
+  if input_content:match('^/') then
+    M._execute_slash_command(input_content)
+    return
+  end
+
   require('opencode.core').send_message(input_content)
+end
+
+M._execute_slash_command = function(command)
+  local slash_commands = require('opencode.config_file').get_user_commands()
+  local cmd = command:sub(2):match('^%s*(.-)%s*$')
+  if cmd == '' then
+    return
+  end
+  local parts = vim.split(cmd, ' ')
+  local command_cfg = slash_commands[parts[1]]
+
+  if command_cfg then
+    require('opencode.api').run_user_command(parts[1], vim.list_slice(parts, 2))
+  else
+    vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
+  end
 end
 
 function M.setup(windows)

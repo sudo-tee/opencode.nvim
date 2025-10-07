@@ -546,6 +546,10 @@ function M._format_tool(part)
   local metadata = (part.state and part.state.metadata) or {}
   local output = (part.state and part.state.output) or ''
 
+  if state.current_permission and state.current_permission.messageID == state.current_message.id then
+    metadata = state.current_permission.metadata or metadata
+  end
+
   if tool == 'bash' then
     M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then

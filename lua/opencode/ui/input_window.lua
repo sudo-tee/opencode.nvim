@@ -182,8 +182,7 @@ function M.setup_keymaps(windows)
 
   -- Define keymap handlers table - functions that need the parsed key get it via closure
   local keymap_handlers = {
-    submit = M.handle_submit,
-    submit_insert = M.handle_submit,
+    submit = M.handle_submit, -- Now handles both normal and insert modes
     mention_file = core.add_file_to_context,
     switch_mode = api.switch_to_next_mode,
     next_message = nav.goto_next_message,

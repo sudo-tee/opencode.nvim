@@ -155,7 +155,7 @@ describe('opencode.keymap', function()
     it('parses string values with default modes', function()
       local key, mode = keymap.parse_window_keymap('<cr>', 'submit')
       assert.equal('<cr>', key)
-      assert.equal('n', mode) -- submit defaults to 'n'
+      assert.same({'n', 'i'}, mode) -- submit defaults to {'n', 'i'}
     end)
 
     it('parses string values with correct default modes for different keymaps', function()

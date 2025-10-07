@@ -25,6 +25,7 @@ M.defaults = {
   default_global_keymaps = true,
   default_mode = 'build',
   keymap = {
+    -- Global keymaps (all use { 'n', 'v' } modes by default)
     global = {
       toggle = '<leader>og',
       open_input = '<leader>oi',
@@ -48,24 +49,23 @@ M.defaults = {
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
     },
     window = {
-      submit = '<cr>',
-      submit_insert = '<cr>',
-      close = '<esc>',
-      stop = '<C-c>',
-      next_message = ']]',
-      prev_message = '[[',
-      mention_file = '~',
-      mention = '@',
-      slash_commands = '/',
-      toggle_pane = '<tab>',
-      prev_prompt_history = '<up>',
-      next_prompt_history = '<down>',
-      switch_mode = '<M-m>',
-      focus_input = '<C-i>',
-      select_child_session = '<leader>oS',
-      debug_message = '<leader>oD',
-      debug_output = '<leader>oO',
-      debug_session = '<leader>ods',
+      submit = { '<cr>', { 'n', 'i' } }, -- Submit prompt (works in both normal and insert modes)
+      close = { '<esc>', 'n' },
+      stop = { '<C-c>', 'n' },
+      next_message = { ']]', 'n' },
+      prev_message = { '[[', 'n' },
+      mention_file = { '~', 'i' },
+      mention = { '@', 'i' },
+      slash_commands = { '/', 'i' },
+      toggle_pane = { '<tab>', { 'n', 'i' } },
+      prev_prompt_history = { '<up>', { 'n', 'i' } },
+      next_prompt_history = { '<down>', { 'n', 'i' } },
+      switch_mode = { '<M-m>', { 'n', 'i' } },
+      focus_input = { '<C-i>', 'n' },
+      select_child_session = { '<leader>oS', 'n' },
+      debug_message = { '<leader>oD', 'n' },
+      debug_output = { '<leader>oO', 'n' },
+      debug_session = { '<leader>ods', 'n' },
     },
   },
   ui = {
@@ -174,6 +174,27 @@ function M.setup(opts)
     else
       M.values[k] = v
     end
+  end
+
+  -- Handle backward compatibility for submit_insert
+  if M.values.keymap and M.values.keymap.window and M.values.keymap.window.submit_insert then
+    vim.notify(
+      'opencode.nvim: submit_insert keymap is deprecated. Use submit = { key, { "n", "i" } } instead.',
+      vim.log.levels.WARN
+    )
+    
+    -- If user has submit_insert but not submit, migrate submit_insert to submit with multi-mode
+    if not opts.keymap or not opts.keymap.window or not opts.keymap.window.submit then
+      local submit_insert_keymap = M.values.keymap.window.submit_insert
+      if type(submit_insert_keymap) == 'string' then
+        M.values.keymap.window.submit = { submit_insert_keymap, { 'n', 'i' } }
+      elseif type(submit_insert_keymap) == 'table' and submit_insert_keymap[1] then
+        M.values.keymap.window.submit = { submit_insert_keymap[1], { 'n', 'i' } }
+      end
+    end
+    
+    -- Remove submit_insert from final config
+    M.values.keymap.window.submit_insert = nil
   end
 end
 

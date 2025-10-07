@@ -98,6 +98,8 @@ require('opencode').setup({
   default_global_keymaps = true, -- If false, disables all default global keymaps
   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
   keymap = {
+    -- Global keymaps (all use { 'n', 'v' } modes by default)
+    -- Can also use table format: toggle = { '<leader>og', { 'n', 'v' } }
     global = {
       toggle = '<leader>og', -- Open opencode. Close if opened
       open_input = '<leader>oi', -- Opens and focuses on input window on insert mode
@@ -118,23 +120,27 @@ require('opencode').setup({
       swap_position = '<leader>ox', -- Swap Opencode pane left/right
     },
     window = {
-      submit = '<cr>', -- Submit prompt (normal mode)
-      submit_insert = '<cr>', -- Submit prompt (insert mode)
-      close = '<esc>', -- Close UI windows
-      stop = '<C-c>', -- Stop opencode while it is running
-      next_message = ']]', -- Navigate to next message in the conversation
-      prev_message = '[[', -- Navigate to previous message in the conversation
-      mention = '@', -- Insert mention (file/agent)
-      mention_file = '~', -- Pick a file and add to context. See File Mentions section
-      slash_commands = '/', -- Pick a command to run in the input window
-      toggle_pane = '<tab>', -- Toggle between input and output panes
-      prev_prompt_history = '<up>', -- Navigate to previous prompt in history
-      next_prompt_history = '<down>', -- Navigate to next prompt in history
-      switch_mode = '<M-m>', -- Switch between modes (build/plan)
-      focus_input = '<C-i>', -- Focus on input window and enter insert mode at the end of the input from the output window
-      select_child_session = '<leader>oS', -- Select and load a child session
-      debug_message = '<leader>oD', -- Open raw message in new buffer for debugging
-      debug_output = '<leader>oO', -- Open raw output in new buffer for debugging
+      -- Window keymaps support multiple formats:
+      -- String format: submit = '<cr>' (uses default mode)
+      -- Named format: submit = { key = '<cr>', mode = 'n' }
+      -- Positional format: submit = { '<cr>', 'n' } (recommended for clarity)
+
+      submit = { '<cr>', { 'n', 'i' } }, -- Submit prompt (works in both normal and insert modes)
+      close = { '<esc>', 'n' }, -- Close UI windows
+      stop = { '<C-c>', 'n' }, -- Stop opencode while it is running
+      next_message = { ']]', 'n' }, -- Navigate to next message in the conversation
+      prev_message = { '[[', 'n' }, -- Navigate to previous message in the conversation
+      mention = { '@', 'i' }, -- Insert mention (file/agent)
+      mention_file = { '~', 'i' }, -- Pick a file and add to context. See File Mentions section
+      slash_commands = { '/', 'i' }, -- Pick a command to run in the input window
+      toggle_pane = { '<tab>', { 'n', 'i' } }, -- Toggle between input and output panes
+      prev_prompt_history = { '<up>', { 'n', 'i' } }, -- Navigate to previous prompt in history
+      next_prompt_history = { '<down>', { 'n', 'i' } }, -- Navigate to next prompt in history
+      switch_mode = { '<M-m>', { 'n', 'i' } }, -- Switch between modes (build/plan)
+      focus_input = { '<C-i>', 'n' }, -- Focus on input window and enter insert mode at the end of the input from the output window
+      select_child_session = { '<leader>oS', 'n' }, -- Select and load a child session
+      debug_message = { '<leader>oD', 'n' }, -- Open raw message in new buffer for debugging
+      debug_output = { '<leader>oO', 'n' }, -- Open raw output in new buffer for debugging
     },
   },
   ui = {
@@ -148,7 +154,7 @@ require('opencode').setup({
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     icons = {
       preset = 'emoji', -- 'emoji' | 'text'. Choose UI icon style (default: 'emoji')
-      overrides = {},   -- Optional per-key overrides, see section below
+      overrides = {}, -- Optional per-key overrides, see section below
     },
     output = {
       tools = {

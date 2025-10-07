@@ -2,11 +2,11 @@ local api = require('opencode.api')
 
 local M = {}
 
--- Default modes for window keymaps based on current hardcoded behavior
-local function get_default_window_modes(keymap_name)
+-- Default modes for window keymaps (used for legacy configs that don't specify modes)
+local function get_legacy_window_modes(keymap_name)
   local defaults = {
-    submit = 'n',
-    submit_insert = 'i',
+    submit = { 'n', 'i' }, -- Now works in both normal and insert modes
+    submit_insert = 'i', -- Deprecated: kept for backward compatibility
     mention = 'i',
     slash_commands = 'i',
     mention_file = 'i',
@@ -60,7 +60,7 @@ end
 ---@param keymap_name string
 ---@return string key, string|string[] mode
 function M.parse_window_keymap(keymap_value, keymap_name)
-  return parse_keymap_value(keymap_value, keymap_name, get_default_window_modes)
+  return parse_keymap_value(keymap_value, keymap_name, get_legacy_window_modes)
 end
 
 -- Parse a global keymap value using global-specific defaults

@@ -75,8 +75,7 @@
 ---@field swap_position OpencodeKeymapGlobalValue # Swap Opencode pane left/right
 
 ---@class OpencodeKeymapWindow
----@field submit OpencodeKeymapWindowValue
----@field submit_insert OpencodeKeymapWindowValue
+---@field submit OpencodeKeymapWindowValue # Submit prompt (works in both normal and insert modes)
 ---@field close OpencodeKeymapWindowValue
 ---@field stop OpencodeKeymapWindowValue
 ---@field next_message OpencodeKeymapWindowValue

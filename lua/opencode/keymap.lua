@@ -28,7 +28,7 @@ local function get_legacy_window_modes(keymap_name)
 end
 
 -- Default modes for global keymaps based on current hardcoded behavior
-local function get_default_global_modes(keymap_name)
+local function get_default_global_modes(_)
   -- All global keymaps currently use { 'n', 'v' } modes
   return { 'n', 'v' }
 end
@@ -69,6 +69,25 @@ end
 ---@return string key, string|string[] mode
 function M.parse_global_keymap(keymap_value, keymap_name)
   return parse_keymap_value(keymap_value, keymap_name, get_default_global_modes)
+end
+
+-- Extract just the key portion from a keymap configuration (for display purposes)
+---@param keymap_value string | { key: string, mode: string|string[] } | { [1]: string, [2]: string|string[] }
+---@return string key The key binding string, or '?' if invalid
+function M.extract_key(keymap_value)
+  -- Use a dummy default mode function since we only care about the key
+  local function dummy_default_modes()
+    return 'n'
+  end
+
+  -- Try to parse using the standard parsing logic
+  local success, key, _ = pcall(parse_keymap_value, keymap_value, 'unknown', dummy_default_modes)
+
+  if success then
+    return key
+  else
+    return '?' -- Fallback for invalid keymap values
+  end
 end
 
 -- Binds a keymap config with its api fn

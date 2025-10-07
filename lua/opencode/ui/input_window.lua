@@ -107,14 +107,21 @@ function M.refresh_placeholder(windows, input_lines)
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local padding = string.rep(' ', win_width)
     local keys = config.keymap.window
+
+    -- Extract the actual key strings from keymap configurations
+    local keymap = require('opencode.keymap')
+    local slash_key = keymap.extract_key(keys.slash_commands)
+    local mention_key = keymap.extract_key(keys.mention)
+    local mention_file_key = keymap.extract_key(keys.mention_file)
+
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
         { 'Type your prompt here... ', 'OpenCodeHint' },
-        { keys.slash_commands, 'OpencodeInputLegend' },
+        { slash_key, 'OpencodeInputLegend' },
         { ' commands ', 'OpenCodeHint' },
-        { keys.mention, 'OpencodeInputLegend' },
+        { mention_key, 'OpencodeInputLegend' },
         { ' mentions ', 'OpenCodeHint' },
-        { keys.mention_file, 'OpencodeInputLegend' },
+        { mention_file_key, 'OpencodeInputLegend' },
         { ' to pick files' .. padding, 'OpenCodeHint' },
       },
 
@@ -203,10 +210,18 @@ function M.setup_keymaps(windows)
 
   -- Handle keymaps that need the parsed key as parameter
   local special_keymaps = {
-    mention = function(key) return completion.trigger_completion(key) end,
-    slash_commands = function(key) return completion.trigger_completion(key) end,
-    prev_prompt_history = function(key) return nav_history(key, 'prev') end,
-    next_prompt_history = function(key) return nav_history(key, 'next') end,
+    mention = function(key)
+      return completion.trigger_completion(key)
+    end,
+    slash_commands = function(key)
+      return completion.trigger_completion(key)
+    end,
+    prev_prompt_history = function(key)
+      return nav_history(key, 'prev')
+    end,
+    next_prompt_history = function(key)
+      return nav_history(key, 'next')
+    end,
   }
 
   for keymap_name, handler_factory in pairs(special_keymaps) do

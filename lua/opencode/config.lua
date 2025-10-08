@@ -58,7 +58,7 @@ M.defaults = {
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },
-      ['<M-m>'] = { 'switch_mode' },
+      ['<M-m>'] = { 'switch_mode', mode = { 'n', 'i' } },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },

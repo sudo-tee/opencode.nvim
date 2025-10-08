@@ -6,7 +6,6 @@ local M = {}
 function M.setup(keymap)
   local api = require('opencode.api')
   local cmds = api.commands
-  local config = require('opencode.config')
   local global = keymap.global
 
   -- keymap.setup() expects the new format - config normalization should happen in config.setup()
@@ -100,7 +99,7 @@ function M.toggle_permission_keymap(buf)
     end
 
     for action, key in pairs(permission_config) do
-      local api_func = api["permission_" .. action]
+      local api_func = api['permission_' .. action]
       if key and api_func then
         M.buf_keymap(key, api_func, buf, { 'n', 'i' })
       end

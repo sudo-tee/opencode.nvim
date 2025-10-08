@@ -76,21 +76,11 @@ function M.clear_permission_keymap(buf)
       return
     end
 
-    local accept_key = permission_config.accept
-    local accept_all_key = permission_config.accept_all
-    local deny_key = permission_config.deny
-
-    if accept_key then
-      vim.api.nvim_buf_del_keymap(buf, 'n', accept_key)
-      vim.api.nvim_buf_del_keymap(buf, 'i', accept_key)
-    end
-    if accept_all_key then
-      vim.api.nvim_buf_del_keymap(buf, 'n', accept_all_key)
-      vim.api.nvim_buf_del_keymap(buf, 'i', accept_all_key)
-    end
-    if deny_key then
-      vim.api.nvim_buf_del_keymap(buf, 'n', deny_key)
-      vim.api.nvim_buf_del_keymap(buf, 'i', deny_key)
+    for _, key in pairs(permission_config) do
+      if key then
+        vim.api.nvim_buf_del_keymap(buf, 'n', key)
+        vim.api.nvim_buf_del_keymap(buf, 'i', key)
+      end
     end
   end)
 end
@@ -109,18 +99,11 @@ function M.toggle_permission_keymap(buf)
       return
     end
 
-    local accept_key = permission_config.accept
-    local accept_all_key = permission_config.accept_all
-    local deny_key = permission_config.deny
-
-    if accept_key then
-      M.buf_keymap(accept_key, api.permission_accept, buf, { 'n', 'i' })
-    end
-    if accept_all_key then
-      M.buf_keymap(accept_all_key, api.permission_accept_all, buf, { 'n', 'i' })
-    end
-    if deny_key then
-      M.buf_keymap(deny_key, api.permission_deny, buf, { 'n', 'i' })
+    for action, key in pairs(permission_config) do
+      local api_func = api["permission_" .. action]
+      if key and api_func then
+        M.buf_keymap(key, api_func, buf, { 'n', 'i' })
+      end
     end
   else
     M.clear_permission_keymap(buf)

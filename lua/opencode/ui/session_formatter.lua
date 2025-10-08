@@ -94,7 +94,11 @@ function M._format_permission_request()
   local keys
 
   if require('opencode.ui.ui').is_opencode_focused() then
-    keys = vim.tbl_values(config.keymap.permission)
+    keys = {
+      config.keymap.permission.accept,
+      config.keymap.permission.accept_all,
+      config.keymap.permission.deny,
+    }
   else
     keys = {
       config_mod.get_key_for_function('editor', 'permission_accept'),

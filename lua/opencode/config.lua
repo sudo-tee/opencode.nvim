@@ -46,6 +46,7 @@ M.defaults = {
       ['<leader>orT'] = 'diff_revert_this',
       ['<leader>orr'] = 'diff_restore_snapshot_file',
       ['<leader>orR'] = 'diff_restore_snapshot_all',
+      ['<leader>oC'] = 'open_configuration_file',
       ['<leader>ox'] = 'swap_position',
       ['<leader>opa'] = 'permission_accept',
       ['<leader>opA'] = 'permission_accept_all',

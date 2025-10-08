@@ -51,60 +51,12 @@
 
 ---@class OpencodeKeymapEntry
 ---@field [1] string # Function name
----@field mode string|string[] # Mode(s) for the keymap
+---@field mode? string|string[] # Mode(s) for the keymap
+---@field desc? string # Keymap description
 
----@deprecated Use OpencodeKeymapGlobal instead
----@class OpencodeKeymapGlobalOld
----@field toggle? string
----@field open_input? string
----@field open_input_new_session? string
----@field open_output? string
----@field toggle_focus? string
----@field close? string
----@field select_session? string
----@field configure_provider? string
----@field diff_open? string
----@field diff_next? string
----@field diff_prev? string
----@field diff_close? string
----@field diff_revert_all_last_prompt? string
----@field diff_revert_this_last_prompt? string
----@field diff_revert_all? string
----@field diff_revert_this? string
----@field diff_restore_snapshot_file? string
----@field diff_restore_snapshot_all? string
----@field open_configuration_file? string
----@field swap_position? string # Swap Opencode pane left/right
----@field permission_accept? string
----@field permission_accept_all? string
----@field permission_deny? string
-
----@deprecated Use OpencodeKeymapWindow instead
----@class OpencodeKeymapWindowOld
----@field submit? string
----@field submit_insert? string
----@field close? string
----@field stop? string
----@field next_message? string
----@field prev_message? string
----@field mention_file? string # mention files with a file picker
----@field mention? string # mention subagents or files with a completion popup
----@field slash_commands? string
----@field toggle_pane? string
----@field prev_prompt_history? string
----@field next_prompt_history? string
----@field switch_mode? string
----@field focus_input? string
----@field select_child_session? string
----@field debug_message? string
----@field debug_output? string
----@field debug_session? string
----@field permission_accept? string
----@field permission_accept_all? string
----@field permission_deny? string
-
----@class OpencodeKeymapGlobal : table<string, string|OpencodeKeymapEntry>
----@class OpencodeKeymapWindow : table<string, string|OpencodeKeymapEntry>
+---@class OpencodeKeymapEditor : table<string, OpencodeKeymapEntry>
+---@class OpencodeKeymapInputWindow : table<string, OpencodeKeymapEntry>
+---@class OpencodeKeymapOutputWindow : table<string, OpencodeKeymapEntry>
 
 ---@class OpencodeKeymapPermission
 ---@field accept string
@@ -112,8 +64,9 @@
 ---@field deny string
 
 ---@class OpencodeKeymap
----@field global OpencodeKeymapGlobal|OpencodeKeymapGlobalOld
----@field window OpencodeKeymapWindow|OpencodeKeymapWindowOld
+---@field editor OpencodeKeymapEditor
+---@field input_window OpencodeKeymapInputWindow
+---@field output_window OpencodeKeymapOutputWindow
 ---@field permission OpencodeKeymapPermission
 
 ---@class OpencodeCompletionFileSourcesConfig
@@ -193,7 +146,7 @@
 ---@overload fun(key: "context"): OpencodeContextConfig
 ---@overload fun(key: "debug"): OpencodeDebugConfig
 ---@field get fun(key?: string): any
----@field get_key_for_function fun(scope: 'global'|'window', function_name: string): string|nil
+---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
 ---@field normalize_keymap fun(keymap_config: table): table
 ---@field is_old_format fun(keymap_config: table): boolean
 
@@ -204,9 +157,9 @@
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
----@field providers OpencodeProviders
+---@field providers? OpencodeProviders
 ---@field context OpencodeContextConfig
----@field custom_commands table<string, { desc: string, fn: function }>
+---@field custom_commands? table<string, { desc: string, fn: function }>
 ---@field debug OpencodeDebugConfig
 
 ---@class MessagePartState

@@ -32,7 +32,7 @@ local command_source = {
     end
 
     local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('window', 'slash_commands')
+    local expected_trigger = config_mod.get_key_for_function('input_window', 'slash_commands')
     if context.trigger_char ~= expected_trigger then
       return {}
     end

@@ -112,31 +112,11 @@ function M.close()
 end
 
 function M.setup_keymaps(windows)
-  local map = require('opencode.keymap').buf_keymap
-  local api = require('opencode.api')
+  local keymap = require('opencode.keymap')
   local config_mod = require('opencode.config')
-  local output_buf = windows.output_buf
-  local window_keymaps = config_mod.get('keymap').window
-
-  for key, value in pairs(window_keymaps) do
-    if value ~= false then
-      local func_name, mode
-
-      if type(value) == 'string' then
-        func_name = value
-        mode = 'n'
-      elseif type(value) == 'table' and value[1] then
-        func_name = value[1]
-        mode = value.mode or 'n'
-      end
-
-      if func_name then
-        if api[func_name] then
-          map(key, api[func_name], output_buf, mode)
-        end
-      end
-    end
-  end
+  local output_keymaps = config_mod.get('keymap').output_window
+  
+  keymap.setup_window_keymaps(output_keymaps, windows.output_buf)
 end
 
 function M.setup_autocmds(windows, group)

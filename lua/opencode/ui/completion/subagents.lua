@@ -7,7 +7,7 @@ local subagent_source = {
     local subagents = require('opencode.config_file').get_subagents()
     local config = require('opencode.config').get()
     local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('window', 'mention')
+    local expected_trigger = config_mod.get_key_for_function('input_window', 'mention')
     if context.trigger_char ~= expected_trigger then
       return {}
     end

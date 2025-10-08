@@ -101,7 +101,7 @@ local file_source = {
     local input = context.input or ''
 
     local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('window', 'mention')
+    local expected_trigger = config_mod.get_key_for_function('input_window', 'mention')
     if not file_config.enabled or context.trigger_char ~= expected_trigger then
       return {}
     end

@@ -28,8 +28,8 @@ end
 
 function M._get_trigger(before_cursor)
   local config = require('opencode.config')
-  local mention_key = config.get_key_for_function('window', 'mention')
-  local slash_key = config.get_key_for_function('window', 'slash_commands')
+  local mention_key = config.get_key_for_function('input_window', 'mention')
+  local slash_key = config.get_key_for_function('input_window', 'slash_commands')
   local triggers = {}
   if mention_key then table.insert(triggers, mention_key) end
   if slash_key then table.insert(triggers, slash_key) end

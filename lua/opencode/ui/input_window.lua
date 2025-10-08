@@ -132,9 +132,9 @@ function M.refresh_placeholder(windows, input_lines)
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local padding = string.rep(' ', win_width)
     local config_mod = require('opencode.config')
-    local slash_key = config_mod.get_key_for_function('window', 'slash_commands')
-    local mention_key = config_mod.get_key_for_function('window', 'mention')
-    local mention_file_key = config_mod.get_key_for_function('window', 'mention_file')
+    local slash_key = config_mod.get_key_for_function('input_window', 'slash_commands')
+    local mention_key = config_mod.get_key_for_function('input_window', 'mention')
+    local mention_file_key = config_mod.get_key_for_function('input_window', 'mention_file')
 
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
@@ -199,29 +199,11 @@ function M.is_empty()
 end
 
 function M.setup_keymaps(windows)
-  local map = require('opencode.keymap').buf_keymap
-  local api = require('opencode.api')
+  local keymap = require('opencode.keymap')
   local config_mod = require('opencode.config')
-  local input_buf = windows.input_buf
-  local window_keymaps = config_mod.get('keymap').window
-
-  for key, value in pairs(window_keymaps) do
-    if value ~= false then
-      local func_name, mode
-
-      if type(value) == 'string' then
-        func_name = value
-        mode = 'n'
-      elseif type(value) == 'table' and value[1] then
-        func_name = value[1]
-        mode = value.mode or 'n'
-      end
-
-      if func_name and api[func_name] then
-        map(key, api[func_name], input_buf, mode)
-      end
-    end
-  end
+  local input_keymaps = config_mod.get('keymap').input_window
+  
+  keymap.setup_window_keymaps(input_keymaps, windows.input_buf)
 end
 
 function M.setup_autocmds(windows, group)

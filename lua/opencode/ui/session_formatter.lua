@@ -97,9 +97,9 @@ function M._format_permission_request()
   M.output:add_line(
     string.format(
       '> Accept `%s`    Always `%s`    Deny `%s`',
-      config.keymap[scope].permission_accept,
-      config.keymap[scope].permission_accept_all,
-      config.keymap[scope].permission_deny
+      config.keymap.permission.accept,
+      config.keymap.permission.accept_all,
+      config.keymap.permission.deny
     )
   )
   M.output:add_empty_line()

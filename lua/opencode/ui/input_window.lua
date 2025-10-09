@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local M = {}
 
 function M.create_buf()
@@ -131,10 +131,9 @@ function M.refresh_placeholder(windows, input_lines)
     local ns_id = vim.api.nvim_create_namespace('input_placeholder')
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local padding = string.rep(' ', win_width)
-    local config_mod = require('opencode.config')
-    local slash_key = config_mod.get_key_for_function('input_window', 'slash_commands')
-    local mention_key = config_mod.get_key_for_function('input_window', 'mention')
-    local mention_file_key = config_mod.get_key_for_function('input_window', 'mention_file')
+    local slash_key = config.get_key_for_function('input_window', 'slash_commands')
+    local mention_key = config.get_key_for_function('input_window', 'mention')
+    local mention_file_key = config.get_key_for_function('input_window', 'mention_file')
 
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
@@ -200,10 +199,7 @@ end
 
 function M.setup_keymaps(windows)
   local keymap = require('opencode.keymap')
-  local config_mod = require('opencode.config')
-  local input_keymaps = config_mod.get('keymap').input_window
-  
-  keymap.setup_window_keymaps(input_keymaps, windows.input_buf)
+  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
 end
 
 function M.setup_autocmds(windows, group)

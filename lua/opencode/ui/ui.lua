@@ -77,7 +77,7 @@ function M.create_split_windows(input_buf, output_buf)
   if state.windows then
     M.close_windows(state.windows)
   end
-  local ui_conf = config.get('ui')
+  local ui_conf = config.ui
 
   local main_win = open_split(ui_conf.position, 'vertical')
   vim.api.nvim_set_current_win(main_win)
@@ -240,7 +240,7 @@ function M.toggle_pane()
 end
 
 function M.swap_position()
-  local ui_conf = config.get('ui')
+  local ui_conf = config.ui
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
   config.values.ui.position = new_pos
 

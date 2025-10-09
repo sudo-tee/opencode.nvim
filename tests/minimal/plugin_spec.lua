@@ -66,6 +66,6 @@ describe('opencode.nvim plugin', function()
     })
 
     local config = require('opencode.config')
-    assert.equal('<leader>test', config.get('keymap').prompt)
+    assert.equal('<leader>test', config.keymap.prompt)
   end)
 end)

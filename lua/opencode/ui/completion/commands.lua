@@ -24,7 +24,7 @@ local command_source = {
   name = 'commands',
   priority = 1,
   complete = function(context)
-    local config = require('opencode.config').get()
+    local config = require('opencode.config')
     local input_text = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
     if not context.line:match('^' .. vim.pesc(context.trigger_char) .. '[^%s/]*$') then

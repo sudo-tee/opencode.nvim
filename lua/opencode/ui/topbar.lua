@@ -13,7 +13,7 @@ local function format_model_info()
     state.current_model = info and info.model
   end
 
-  local config = require('opencode.config').get()
+  local config = require('opencode.config')
   local parts = {}
 
   if config.ui.display_model and state.current_model then

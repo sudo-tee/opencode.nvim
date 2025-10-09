@@ -111,34 +111,32 @@ local function check_configuration()
     return
   end
 
-  local values = config.get()
-
   local valid_positions = { 'left', 'right', 'top', 'bottom' }
-  if not vim.tbl_contains(valid_positions, values.ui.position) then
+  if not vim.tbl_contains(valid_positions, config.ui.position) then
     health.warn(
-      string.format('Invalid UI position: %s', values.ui.position),
+      string.format('Invalid UI position: %s', config.ui.position),
       { 'Valid positions: ' .. table.concat(valid_positions, ', ') }
     )
   else
-    health.ok(string.format('UI position: %s', values.ui.position))
+    health.ok(string.format('UI position: %s', config.ui.position))
   end
 
-  if values.ui.window_width <= 0 or values.ui.window_width > 1 then
+  if config.ui.window_width <= 0 or config.ui.window_width > 1 then
     health.warn(
-      string.format('Invalid window width: %s', values.ui.window_width),
+      string.format('Invalid window width: %s', config.ui.window_width),
       { 'Window width should be between 0 and 1 (percentage of screen)' }
     )
   else
-    health.ok(string.format('Window width: %s', values.ui.window_width))
+    health.ok(string.format('Window width: %s', config.ui.window_width))
   end
 
-  if values.ui.input_height <= 0 or values.ui.input_height > 1 then
+  if config.ui.input_height <= 0 or config.ui.input_height > 1 then
     health.warn(
-      string.format('Invalid input height: %s', values.ui.input_height),
+      string.format('Invalid input height: %s', config.ui.input_height),
       { 'Input height should be between 0 and 1 (percentage of screen)' }
     )
   else
-    health.ok(string.format('Input height: %s', values.ui.input_height))
+    health.ok(string.format('Input height: %s', config.ui.input_height))
   end
 
   health.ok('Configuration loaded successfully')

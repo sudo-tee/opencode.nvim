@@ -1,4 +1,4 @@
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local M = {}
 
 local last_successful_tool = nil

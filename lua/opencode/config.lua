@@ -221,16 +221,11 @@ function M.setup(opts)
     end
   end
 
+  -- vim.notify(vim.inspect(opts))
   M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
+  -- vim.notify(vim.inspect(M.values))
 
   update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)
-end
-
-function M.get(key)
-  if key then
-    return M.values[key]
-  end
-  return M.values
 end
 
 --- Get the key binding for a specific function in a scope
@@ -238,9 +233,7 @@ end
 --- @param function_name string
 --- @return string|nil
 function M.get_key_for_function(scope, function_name)
-  local config_data = M.get()
-
-  local keymap_config = config_data.keymap and config_data.keymap[scope]
+  local keymap_config = M.values.keymap and M.values.keymap[scope]
   if not keymap_config then
     return nil
   end
@@ -278,4 +271,15 @@ function M.normalize_keymap(legacy_config, filter_functions)
   return converted
 end
 
-return M
+---@export Config
+return setmetatable(M, {
+  __index = function(_, key)
+    return M.values[key]
+  end,
+  __newindex = function(_, key, value)
+    M.values[key] = value
+  end,
+  __tostring = function(_)
+    return vim.inspect(M.values)
+  end,
+})

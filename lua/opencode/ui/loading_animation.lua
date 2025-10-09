@@ -18,7 +18,7 @@ function M._get_frames()
   if M._animation.frames then
     return M._animation.frames
   end
-  local ui_config = config.get('ui')
+  local ui_config = config.ui
   if ui_config and ui_config.loading_animation and ui_config.loading_animation.frames then
     return ui_config.loading_animation.frames
   end

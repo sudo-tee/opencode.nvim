@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local Output = {}
 Output.__index = Output
 

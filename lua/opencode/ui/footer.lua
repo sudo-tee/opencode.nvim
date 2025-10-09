@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')

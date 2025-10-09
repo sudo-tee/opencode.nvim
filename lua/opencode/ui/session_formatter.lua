@@ -3,7 +3,7 @@ local icons = require('opencode.ui.icons')
 local util = require('opencode.util')
 local Output = require('opencode.ui.output')
 local state = require('opencode.state')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 
 local M = {

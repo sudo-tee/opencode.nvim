@@ -173,13 +173,20 @@ local function get_function_names(keymap_config)
 end
 
 function update_keymap_prefix(prefix, default_prefix)
-  for _, mappings in pairs(M.values.keymap) do
-    for key, func in pairs(mappings) do
-      if prefix ~= '' and key:sub(1, #default_prefix) == default_prefix then
-        mappings[prefix .. key:sub(#default_prefix + 1)] = func
-        mappings[key] = nil
+  if prefix == default_prefix or not prefix then
+    return
+  end
+
+  for category, mappings in pairs(M.values.keymap) do
+    local new_mappings = {}
+    for key, opts in pairs(mappings) do
+      if vim.startswith(key, default_prefix) then
+        new_mappings[prefix .. key:sub(#default_prefix + 1)] = opts
+      else
+        new_mappings[key] = opts
       end
     end
+    M.values.keymap[category] = new_mappings
   end
 end
 

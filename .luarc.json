@@ -1,5 +1,20 @@
 {
-    "diagnostics.globals": [
-        "vim"
-    ]
+    "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+    "runtime": {
+        "version": "LuaJIT",
+        "pathStrict": true
+    },
+    "workspace": {
+        "library": [
+            "./lua",
+            "$VIMRUNTIME",
+            "${3rd}/luv/library",
+            "$HOME/.local/share/nvim/lazy/lazy.nvim",
+            "$HOME/.local/share/nvim/lazy/snacks.nvim"
+        ],
+        "checkThirdParty": false
+    },
+    "type": {
+        "checkTableShape": true
+    }
 }

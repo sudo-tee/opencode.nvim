@@ -25,7 +25,8 @@ function M.format_session(session)
   end
 
   state.last_user_message = nil
-  state.messages = require('opencode.session').get_messages(session) or {}
+  local messages = require('opencode.session').get_messages(session) or {}
+  state.messages = messages
 
   M.output:clear()
 
@@ -37,11 +38,14 @@ function M.format_session(session)
     state.current_message = msg
 
     if not state.current_model and msg.providerID and msg.providerID ~= '' then
-      state.current_model = msg.providerID .. '/' .. msg.modelID
+      state.current_model = msg.info.providerID .. '/' .. msg.info.modelID
     end
 
-    if msg.tokens and msg.tokens.input > 0 then
-      state.tokens_count = msg.tokens.input + msg.tokens.output + msg.tokens.cache.read + msg.tokens.cache.write
+    if msg.info.tokens and msg.info.tokens.input > 0 then
+      state.tokens_count = msg.info.tokens.input
+        + msg.info.tokens.output
+        + msg.info.tokens.cache.read
+        + msg.info.tokens.cache.write
     end
 
     if msg.cost and type(msg.cost) == 'number' then
@@ -55,17 +59,17 @@ function M.format_session(session)
       break
     end
 
-    M._format_message_header(msg, i)
+    M._format_message_header(msg.info, i)
 
     for j, part in ipairs(msg.parts or {}) do
-      M._current = { msg_idx = i, part_idx = j, role = msg.role, type = part.type, snapshot = part.snapshot }
+      M._current = { msg_idx = i, part_idx = j, role = msg.info.role, type = part.type, snapshot = part.snapshot }
       M.output:add_metadata(M._current)
 
       if part.type == 'text' and part.text then
-        if msg.role == 'user' and part.synthetic ~= true then
+        if msg.info.role == 'user' and part.synthetic ~= true then
           state.last_user_message = msg
           M._format_user_message(vim.trim(part.text), msg)
-        elseif msg.role == 'assistant' then
+        elseif msg.info.role == 'assistant' then
           M._format_assistant_message(vim.trim(part.text))
         end
       elseif part.type == 'tool' then
@@ -76,7 +80,7 @@ function M.format_session(session)
       M.output:add_empty_line()
     end
 
-    if msg.error and msg.error ~= '' then
+    if msg.info.error and msg.info.error ~= '' then
       M._format_error(msg)
     end
   end
@@ -152,7 +156,7 @@ function M._calculate_revert_stats(messages, revert_index, revert_info)
 
   for i = revert_index, #messages do
     local msg = messages[i]
-    if msg.role == 'user' then
+    if msg.info.role == 'user' then
       stats.messages = stats.messages + 1
     end
     if msg.parts then

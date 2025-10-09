@@ -40,30 +40,8 @@ end
 ---Get all sessions for the current workspace
 ---@return Session[]|nil
 function M.get_all_sessions()
-  local sessions_dir = M.get_workspace_session_path()
-
-  local sessions = {}
-  local ok_iter, iter = pcall(vim.fs.dir, sessions_dir)
-  if not ok_iter or not iter then
-    return nil
-  end
-  for name, type_ in iter do
-    if type_ == 'file' then
-      local file = sessions_dir .. '/' .. name
-      local content_ok, content = pcall(vim.fn.readfile, file)
-      if content_ok then
-        local joined = table.concat(content, '\n')
-        local ok, session = pcall(vim.json.decode, joined)
-        if ok and session then
-          table.insert(sessions, session)
-        end
-      end
-    end
-  end
-
-  if #sessions == 0 then
-    return nil
-  end
+  local state = require('opencode.state')
+  local sessions = state.api_client:list_sessions():wait()
 
   return vim.tbl_map(M.create_session_object, sessions)
 end
@@ -75,7 +53,7 @@ function M.create_session_object(session_json)
   local sessions_dir = M.get_workspace_session_path()
   local storage_path = M.get_storage_path()
   return {
-    workspace = vim.fn.getcwd(),
+    workspace = session_json.directory,
     description = session_json.title or '',
     modified = session_json.time and session_json.time.updated or os.time(),
     id = session_json.id,
@@ -106,10 +84,8 @@ function M.get_all_workspace_sessions()
   if not util.is_git_project() then
     -- we only want sessions that are in the current workspace_folder
     sessions = vim.tbl_filter(function(session)
-      local first_messages = M.get_messages(session, false, 2)
-      if first_messages and #first_messages > 1 then
-        local first_assistant_message = first_messages[2]
-        return first_assistant_message.path and first_assistant_message.path.root == vim.fn.getcwd()
+      if session.workspace and vim.startswith(vim.fn.getcwd(), session.workspace) then
+        return true
       end
       return false
     end, sessions)
@@ -172,44 +148,15 @@ end
 
 ---Get messages for a session
 ---@param session Session
----@param include_parts? boolean Whether to include message parts
----@param max_items? number Maximum number of messages to return
 ---@return Message[]|nil
-function M.get_messages(session, include_parts, max_items)
-  include_parts = include_parts == nil and true or include_parts
+function M.get_messages(session)
+  local state = require('opencode.state')
   if not session then
     return nil
   end
-
-  local messages = util.read_json_dir(session.messages_path)
-  if not messages then
-    return nil
-  end
-
-  local count = 0
-  for _, message in ipairs(messages) do
-    count = count + 1
-    if not message.parts or #message.parts == 0 then
-      message.parts = include_parts and M.get_message_parts(message, session) or {}
-    end
-    if max_items and count >= max_items then
-      break
-    end
-  end
-  table.sort(messages, function(a, b)
-    return a.time.created < b.time.created
-  end)
+  local messages = state.api_client:list_messages(session.id):wait()
 
   return messages
-end
-
----Get parts for a message
----@param message Message
----@param session Session
----@return MessagePart[]|nil
-function M.get_message_parts(message, session)
-  local parts_path = session.parts_path .. '/' .. message.id
-  return util.read_json_dir(parts_path)
 end
 
 ---Get snapshot IDs from a message's parts

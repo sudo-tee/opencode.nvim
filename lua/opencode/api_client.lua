@@ -356,6 +356,10 @@ end
 --- @param on_event fun(event: table) Event callback
 --- @return Job The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
+  if not self.base_url then
+    local state = require('opencode.state')
+    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+  end
   local url = self.base_url .. '/event'
   if directory then
     url = url .. '?directory=' .. directory

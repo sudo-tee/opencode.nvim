@@ -46,7 +46,6 @@
 ---@field parts_path string
 ---@field snapshot_path string
 ---@field cache_path string
----@field workplace_slug string
 ---@field revert? SessionRevertInfo
 
 ---@class OpencodeKeymapEntry

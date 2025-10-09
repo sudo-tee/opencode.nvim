@@ -119,7 +119,6 @@ require('opencode').setup({
       ['<leader>orT'] = { 'diff_revert_this' }, -- Revert current file changes since the last opencode session
       ['<leader>orr'] = { 'diff_restore_snapshot_file' }, -- Restore a file to a restore point
       ['<leader>orR'] = { 'diff_restore_snapshot_all' }, -- Restore all files to a restore point
-      ['<leader>oC'] = { 'open_configuration_file' }, -- Open configuration file
       ['<leader>ox'] = { 'swap_position' }, -- Swap Opencode pane left/right
       ['<leader>opa'] = { 'permission_accept' }, -- Accept permission request once
       ['<leader>opA'] = { 'permission_accept_all' }, -- Accept all (for current tool)

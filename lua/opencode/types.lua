@@ -49,57 +49,25 @@
 ---@field workplace_slug string
 ---@field revert? SessionRevertInfo
 
----@class OpencodeKeymapGlobal
----@field toggle string
----@field open_input string
----@field open_input_new_session string
----@field open_output string
----@field toggle_focus string
----@field close string
----@field select_session string
----@field configure_provider string
----@field diff_open string
----@field diff_next string
----@field diff_prev string
----@field diff_close string
----@field diff_revert_all_last_prompt string
----@field diff_revert_this_last_prompt string
----@field diff_revert_all string
----@field diff_revert_this string
----@field diff_restore_snapshot_file string
----@field diff_restore_snapshot_all string
----@field open_configuration_file string
----@field swap_position string # Swap Opencode pane left/right
----@field permission_accept string
----@field permission_accept_all string
----@field permission_deny string
+---@class OpencodeKeymapEntry
+---@field [1] string # Function name
+---@field mode? string|string[] # Mode(s) for the keymap
+---@field desc? string # Keymap description
 
----@class OpencodeKeymapWindow
----@field submit string
----@field submit_insert string
----@field close string
----@field stop string
----@field next_message string
----@field prev_message string
----@field mention_file string # mention files with a file picker
----@field mention string # mention subagents or files with a completion popup
----@field slash_commands string
----@field toggle_pane string
----@field prev_prompt_history string
----@field next_prompt_history string
----@field switch_mode string
----@field focus_input string
----@field select_child_session string\n---@field debug_message string\n---@field debug_output string\n---@field debug_session string
----@field debug_message string
----@field debug_output string
----@field debug_session string
----@field permission_accept string
----@field permission_accept_all string
----@field permission_deny string
+---@class OpencodeKeymapEditor : table<string, OpencodeKeymapEntry>
+---@class OpencodeKeymapInputWindow : table<string, OpencodeKeymapEntry>
+---@class OpencodeKeymapOutputWindow : table<string, OpencodeKeymapEntry>
+
+---@class OpencodeKeymapPermission
+---@field accept string
+---@field accept_all string
+---@field deny string
 
 ---@class OpencodeKeymap
----@field global OpencodeKeymapGlobal
----@field window OpencodeKeymapWindow
+---@field editor OpencodeKeymapEditor
+---@field input_window OpencodeKeymapInputWindow
+---@field output_window OpencodeKeymapOutputWindow
+---@field permission OpencodeKeymapPermission
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
@@ -107,7 +75,6 @@
 ---@field ignore_patterns string[]
 ---@field max_files number
 ---@field max_display_length number
----@field cache_timeout number
 
 ---@class OpencodeCompletionConfig
 ---@field file_sources OpencodeCompletionFileSourcesConfig
@@ -132,30 +99,10 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
----@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
----@field marks { enabled: boolean, limit: number }
----@field jumplist { enabled: boolean, limit: number }
----@field recent_buffers { enabled: boolean, limit: number, symbols_only: boolean }
----@field undo_history { enabled: boolean, limit: number }
----@field windows_tabs { enabled: boolean }
----@field highlights { enabled: boolean }
----@field session_info { enabled: boolean }
----@field registers { enabled: boolean, include: string[] }
----@field command_history { enabled: boolean, limit: number }
----@field search_history { enabled: boolean, limit: number }
----@field debug_data { enabled: boolean }
----@field lsp_context { enabled: boolean, diagnostics_limit: number, code_actions: boolean }
----@field git_info { enabled: boolean, diff_limit: number, changes_limit: number }
----@field fold_info { enabled: boolean }
----@field cursor_surrounding { enabled: boolean, lines_above: number, lines_below: number }
----@field quickfix_loclist { enabled: boolean, limit: number }
----@field macros { enabled: boolean, register: string }
----@field terminal_buffers { enabled: boolean }
----@field session_duration { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -167,16 +114,9 @@
 ---@field defaults OpencodeConfig
 ---@field values OpencodeConfig
 ---@field setup fun(opts?: OpencodeConfig): nil
----@overload fun(key: nil): OpencodeConfig
----@overload fun(key: "preferred_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
----@overload fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
----@overload fun(key: "default_mode"): 'build' | 'plan'
----@overload fun(key: "default_global_keymaps"): boolean
----@overload fun(key: "keymap"): OpencodeKeymap
----@overload fun(key: "ui"): OpencodeUIConfig
----@overload fun(key: "providers"): OpencodeProviders
----@overload fun(key: "context"): OpencodeContextConfig
----@overload fun(key: "debug"): OpencodeDebugConfig
+---@field get fun(key?: string): any
+---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
+---@field normalize_keymap fun(legacy_config: table, filter_functions?: table): table
 
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil
@@ -185,9 +125,7 @@
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
----@field providers OpencodeProviders
 ---@field context OpencodeContextConfig
----@field custom_commands table<string, { desc: string, fn: function }>
 ---@field debug OpencodeDebugConfig
 
 ---@class MessagePartState

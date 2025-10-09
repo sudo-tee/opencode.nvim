@@ -12,8 +12,13 @@ function M.setup(completion_sources)
   end
 
   function source:get_trigger_characters()
-    local config = require('opencode.config').get()
-    return { config.keymap.window.mention, config.keymap.window.slash_commands }
+    local config = require('opencode.config')
+    local mention_key = config.get_key_for_function('input_window', 'mention')
+    local slash_key = config.get_key_for_function('input_window', 'slash_commands')
+    local triggers = {}
+    if mention_key then table.insert(triggers, mention_key) end
+    if slash_key then table.insert(triggers, slash_key) end
+    return triggers
   end
 
   function source:is_available()

@@ -112,24 +112,11 @@ function M.close()
 end
 
 function M.setup_keymaps(windows)
-  local api = require('opencode.api')
-  local map = require('opencode.keymap').buf_keymap
-
-  local keymaps = config.keymap.window
-  local output_buf = windows.output_buf
-
-  map(keymaps.close, api.close, output_buf, 'n')
-  map(keymaps.next_message, api.next_message, output_buf, 'n')
-  map(keymaps.prev_message, api.prev_message, output_buf, 'n')
-  map(keymaps.stop, api.stop, output_buf, { 'n' })
-  map(keymaps.toggle_pane, api.toggle_pane, output_buf, { 'n' })
-  map(keymaps.focus_input, api.focus_input, output_buf, 'n')
-  map(keymaps.switch_mode, api.switch_mode, output_buf, 'n')
-  map(keymaps.select_child_session, api.select_child_session, output_buf, 'n')
-
-  map(keymaps.debug_output, api.debug_output, output_buf, 'n')
-  map(keymaps.debug_message, api.debug_message, output_buf, 'n')
-  map(keymaps.debug_session, api.debug_session, output_buf, 'n')
+  local keymap = require('opencode.keymap')
+  local config_mod = require('opencode.config')
+  local output_keymaps = config_mod.get('keymap').output_window
+  
+  keymap.setup_window_keymaps(output_keymaps, windows.output_buf)
 end
 
 function M.setup_autocmds(windows, group)

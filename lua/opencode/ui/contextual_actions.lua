@@ -86,14 +86,14 @@ function M.show_contextual_actions_menu(buf, line_num, actions, ns_id)
   for _, action in ipairs(actions) do
     if action.key then
       current_keymaps[action.key] = true
-      keymap.buf_keymap(action.key, function()
+      vim.keymap.set('n', action.key, function()
         if action.type and action.args then
           vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
           clear_keymaps(buf)
           local api = require('opencode.api')
           api[action.type](unpack(action.args))
         end
-      end, buf, 'n', { desc = action.text })
+      end, { buffer = buf, silent = true, desc = action.text })
     end
   end
 end

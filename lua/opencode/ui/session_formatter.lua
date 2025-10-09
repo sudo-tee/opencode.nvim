@@ -86,18 +86,27 @@ function M.format_session(session)
 end
 
 function M._format_permission_request()
-  local scope = require('opencode.ui.ui').is_opencode_focused() and 'window' or 'global'
+  local config_mod = require('opencode.config')
+  local keys
+
+  if require('opencode.ui.ui').is_opencode_focused() then
+    keys = {
+      config.keymap.permission.accept,
+      config.keymap.permission.accept_all,
+      config.keymap.permission.deny,
+    }
+  else
+    keys = {
+      config_mod.get_key_for_function('editor', 'permission_accept'),
+      config_mod.get_key_for_function('editor', 'permission_accept_all'),
+      config_mod.get_key_for_function('editor', 'permission_deny'),
+    }
+  end
+
   M.output:add_empty_line()
   M.output:add_line('> [!WARNING] Permission required to run this tool.')
   M.output:add_line('>')
-  M.output:add_line(
-    string.format(
-      '> Accept `%s`    Always `%s`    Deny `%s`',
-      config.keymap[scope].permission_accept,
-      config.keymap[scope].permission_accept_all,
-      config.keymap[scope].permission_deny
-    )
-  )
+  M.output:add_line(('> Accept `%s`    Always `%s`    Deny `%s`'):format(unpack(keys)))
   M.output:add_empty_line()
   -- return M.output:get_lines()
 end

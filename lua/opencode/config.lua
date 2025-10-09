@@ -3,7 +3,6 @@
 ---@type OpencodeConfigModule
 ---@diagnostic disable-next-line: missing-fields
 local M = {}
-
 -- Default configuration
 ---@type OpencodeConfig
 M.defaults = {
@@ -11,6 +10,7 @@ M.defaults = {
   preferred_completion = nil,
   default_global_keymaps = true,
   default_mode = 'build',
+  keymap_prefix = '<leader>o',
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle' },
@@ -172,6 +172,17 @@ local function get_function_names(keymap_config)
   return names
 end
 
+function update_keymap_prefix(prefix, default_prefix)
+  for _, mappings in pairs(M.values.keymap) do
+    for key, func in pairs(mappings) do
+      if prefix ~= '' and key:sub(1, #default_prefix) == default_prefix then
+        mappings[prefix .. key:sub(#default_prefix + 1)] = func
+        mappings[key] = nil
+      end
+    end
+  end
+end
+
 --- Setup function to initialize or update the configuration
 --- @param opts OpencodeConfig
 function M.setup(opts)
@@ -203,14 +214,9 @@ function M.setup(opts)
     end
   end
 
-  -- Merge user options with defaults (deep merge for nested tables)
-  for k, v in pairs(opts) do
-    if type(v) == 'table' and type(M.values[k]) == 'table' then
-      M.values[k] = vim.tbl_deep_extend('force', M.values[k], v)
-    else
-      M.values[k] = v
-    end
-  end
+  M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
+
+  update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)
 end
 
 function M.get(key)

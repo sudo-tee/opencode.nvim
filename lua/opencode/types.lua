@@ -99,30 +99,10 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
----@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
----@field marks { enabled: boolean, limit: number }
----@field jumplist { enabled: boolean, limit: number }
----@field recent_buffers { enabled: boolean, limit: number, symbols_only: boolean }
----@field undo_history { enabled: boolean, limit: number }
----@field windows_tabs { enabled: boolean }
----@field highlights { enabled: boolean }
----@field session_info { enabled: boolean }
----@field registers { enabled: boolean, include: string[] }
----@field command_history { enabled: boolean, limit: number }
----@field search_history { enabled: boolean, limit: number }
----@field debug_data { enabled: boolean }
----@field lsp_context { enabled: boolean, diagnostics_limit: number, code_actions: boolean }
----@field git_info { enabled: boolean, diff_limit: number, changes_limit: number }
----@field fold_info { enabled: boolean }
----@field cursor_surrounding { enabled: boolean, lines_above: number, lines_below: number }
----@field quickfix_loclist { enabled: boolean, limit: number }
----@field macros { enabled: boolean, register: string }
----@field terminal_buffers { enabled: boolean }
----@field session_duration { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -155,9 +135,7 @@
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
----@field providers? OpencodeProviders
 ---@field context OpencodeContextConfig
----@field custom_commands? table<string, { desc: string, fn: function }>
 ---@field debug OpencodeDebugConfig
 
 ---@class MessagePartState

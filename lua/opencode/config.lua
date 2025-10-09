@@ -128,7 +128,6 @@ M.defaults = {
         },
         max_files = 10,
         max_display_length = 50,
-        cache_timeout = 300000,
       },
     },
   },

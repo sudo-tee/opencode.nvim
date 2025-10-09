@@ -75,7 +75,6 @@
 ---@field ignore_patterns string[]
 ---@field max_files number
 ---@field max_display_length number
----@field cache_timeout number
 
 ---@class OpencodeCompletionConfig
 ---@field file_sources OpencodeCompletionFileSourcesConfig

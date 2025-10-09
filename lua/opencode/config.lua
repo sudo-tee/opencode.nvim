@@ -194,8 +194,10 @@ function M.setup(opts)
 
     -- Migrate old window section to input_window and output_window
     if opts.keymap.window then
-      opts.keymap.input_window = M.normalize_keymap(opts.keymap.window, get_function_names(opts.keymap.input_window))
-      opts.keymap.output_window = M.normalize_keymap(opts.keymap.window, get_function_names(opts.keymap.output_window))
+      opts.keymap.input_window =
+        M.normalize_keymap(opts.keymap.window, get_function_names(M.values.keymap.input_window))
+      opts.keymap.output_window =
+        M.normalize_keymap(opts.keymap.window, get_function_names(M.values.keymap.output_window))
       ---@diagnostic disable-next-line: inject-field
       opts.keymap.window = nil
     end

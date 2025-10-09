@@ -44,40 +44,38 @@ function M.open(opts)
     state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
   end
 
-  if not M.opencode_ok() then
-    return
-  end
-
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
     state.windows = ui.create_windows()
   end
 
-  if opts.new_session then
-    state.active_session = nil
-    state.last_sent_context = nil
-    if not state.active_session or opts.new_session then
-      state.active_session = M.create_new_session()
+  vim.schedule(function()
+    if opts.new_session then
+      state.active_session = nil
+      state.last_sent_context = nil
+      if not state.active_session or opts.new_session then
+        state.active_session = M.create_new_session()
+      end
+
+      ui.clear_output()
+    else
+      if not state.active_session then
+        state.active_session = session.get_last_workspace_session()
+      end
+
+      if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
+        ui.render_output()
+        ui.scroll_to_bottom()
+      end
     end
 
-    ui.clear_output()
-  else
-    if not state.active_session then
-      state.active_session = session.get_last_workspace_session()
+    if opts.focus == 'input' then
+      ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
+    elseif opts.focus == 'output' then
+      ui.focus_output({ restore_position = are_windows_closed })
     end
-
-    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-      ui.render_output()
-      ui.scroll_to_bottom()
-    end
-  end
-
-  if opts.focus == 'input' then
-    ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
-  elseif opts.focus == 'output' then
-    ui.focus_output({ restore_position = are_windows_closed })
-  end
+  end)
 end
 
 --- Sends a message to the active session, creating one if necessary.
@@ -227,6 +225,9 @@ function M.opencode_ok()
 end
 
 function M.setup()
+  vim.schedule(function()
+    M.opencode_ok()
+  end)
   local OpencodeApiClient = require('opencode.api_client')
   state.api_client = OpencodeApiClient.new()
 end

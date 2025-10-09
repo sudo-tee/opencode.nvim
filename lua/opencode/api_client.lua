@@ -25,6 +25,9 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     local state = require('opencode.state')
     self.base_url = state.opencode_server_job.url:gsub('/$', '')
   end
+  if not self.base_url then
+    error("OpenCode server URL is not available. Ensure the server is running.")
+  end
   local url = self.base_url .. endpoint
 
   if query then
@@ -356,6 +359,14 @@ end
 --- @param on_event fun(event: table) Event callback
 --- @return Job The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
+  if not self.base_url then
+    local state = require('opencode.state')
+    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+  end
+  if not self.base_url then
+    error("API client base_url is nil. Call OpencodeApiClient.new() after server startup.")
+    return nil
+  end
   local url = self.base_url .. '/event'
   if directory then
     url = url .. '?directory=' .. directory

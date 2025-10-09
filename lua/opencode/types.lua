@@ -147,8 +147,7 @@
 ---@overload fun(key: "debug"): OpencodeDebugConfig
 ---@field get fun(key?: string): any
 ---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
----@field normalize_keymap fun(keymap_config: table): table
----@field is_old_format fun(keymap_config: table): boolean
+---@field normalize_keymap fun(legacy_config: table, filter_functions?: table): table
 
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | nil

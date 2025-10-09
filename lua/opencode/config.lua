@@ -162,6 +162,18 @@ M.defaults = {
 
 M.values = vim.deepcopy(M.defaults)
 
+---Get function names from keymap config, used when normalizing legacy config
+---@param keymap_config table
+local function get_function_names(keymap_config)
+  local names = {}
+  for _, config in pairs(keymap_config) do
+    if type(config) == 'table' and config[1] then
+      table.insert(names, config[1])
+    end
+  end
+  return names
+end
+
 --- Setup function to initialize or update the configuration
 --- @param opts OpencodeConfig
 function M.setup(opts)
@@ -184,9 +196,8 @@ function M.setup(opts)
 
     -- Migrate old window section to input_window and output_window
     if opts.keymap.window then
-      local normalized_window_keymaps = M.normalize_keymap(opts.keymap.window)
-      opts.keymap.input_window = normalized_window_keymaps
-      opts.keymap.output_window = normalized_window_keymaps
+      opts.keymap.input_window = M.normalize_keymap(opts.keymap.window, get_function_names(opts.keymap.input_window))
+      opts.keymap.output_window = M.normalize_keymap(opts.keymap.window, get_function_names(opts.keymap.output_window))
       ---@diagnostic disable-next-line: inject-field
       opts.keymap.window = nil
     end
@@ -239,21 +250,19 @@ function M.get_key_for_function(scope, function_name)
   return nil
 end
 
---- Normalize keymap configuration from old format to new format (exported for testing)
---- @param keymap_config table
---- @return table
-function M.normalize_keymap(keymap_config)
-  -- Map legacy function names to current API function names
-  local legacy_function_map = {
-    submit = 'submit_input_prompt',
-  }
-
-  local normalized = {}
-  for func_name, key in pairs(keymap_config) do
-    local api_func_name = legacy_function_map[func_name] or func_name
-    normalized[key] = { api_func_name }
+---Normalize keymap configuration from old format to new format (exported for testing)
+---@param legacy_config table Old config format
+---@param filter_functions? table If set, only move functions in this table
+---@return table
+function M.normalize_keymap(legacy_config, filter_functions)
+  local converted = {}
+  for func_name, key in pairs(legacy_config) do
+    local api_name = func_name == 'submit' and 'submit_input_prompt' or func_name
+    if not filter_functions or vim.tbl_contains(filter_functions, api_name) then
+      converted[key] = { api_name }
+    end
   end
-  return normalized
+  return converted
 end
 
 return M

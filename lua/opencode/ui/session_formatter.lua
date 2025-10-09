@@ -142,7 +142,7 @@ end
 ---@param messages Message[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
----@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+---@return {messages: number, tool_calls: number, files: {additions: number, deletions: number}}
 function M._calculate_revert_stats(messages, revert_index, revert_info)
   local stats = {
     messages = 0,
@@ -550,10 +550,6 @@ function M._format_tool(part)
   local input = (part.state and part.state.input) or {}
   local metadata = (part.state and part.state.metadata) or {}
   local output = (part.state and part.state.output) or ''
-
-  if state.current_permission and state.current_permission.messageID == part.messageID then
-    metadata = state.current_permission.metadata or metadata
-  end
 
   if tool == 'bash' then
     M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])

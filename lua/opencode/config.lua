@@ -1,11 +1,38 @@
 -- Default and user-provided settings for opencode.nvim
 
----@type OpencodeConfigModule
----@diagnostic disable-next-line: missing-fields
-local M = {}
+--- @class OpencodeConfigModule
+--- @field defaults OpencodeConfig
+--- @field values OpencodeConfig
+--- @field setup fun(opts?: OpencodeConfig): nil
+--- @field get fun(key: nil): OpencodeConfig
+--- @field get fun(key: "preferred_picker"): 'mini.pick' | 'telescope' | 'fzf' | 'snacks' | nil
+--- @field get fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
+--- @field get fun(key: "default_mode"): 'build' | 'plan' |
+--- @field get fun(key: "default_global_keymaps"): boolean
+--- @field get fun(key: "keymap"): OpencodeKeymap
+--- @field get fun(key: "ui"): OpencodeUIConfig
+--- @field get fun(key: "providers"): OpencodeProviders
+--- @field get fun(key: "context"): OpencodeContextConfig
+--- @field get fun(key: "debug"): OpencodeDebugConfig
+
+local M = {} ---@type OpencodeConfigModule
+
+--- @field get fun(key: "preferred_completion"): 'blink' | 'nvim-cmp' | 'vim_complete' | nil
+--- @field get fun(key: "default_mode"): 'build' | 'plan'
+--- @field get fun(key: "default_global_keymaps"): boolean
+--- @field get fun(key: "keymap"): OpencodeKeymap
+--- @field get fun(key: "ui"): OpencodeUIConfig
+--- @field get fun(key: "providers"): OpencodeProviders
+--- @field get fun(key: "context"): OpencodeContextConfig
+--- @field get fun(key: "debug"): OpencodeDebugConfig
+
+local M = {} ---@type OpencodeConfigModule
+
 -- Default configuration
 ---@type OpencodeConfig
 M.defaults = {
+  providers = {},
+  custom_commands = {},
   preferred_picker = nil,
   preferred_completion = nil,
   default_global_keymaps = true,
@@ -93,11 +120,12 @@ M.defaults = {
     },
     input = {
       text = {
-        wrap = false,
+        wrap = true,
       },
     },
     completion = {
       file_sources = {
+        cache_timeout = 300, -- seconds
         enabled = true,
         preferred_cli_tool = 'fd',
         ignore_patterns = {
@@ -133,6 +161,21 @@ M.defaults = {
   },
   context = {
     enabled = true,
+    -- Idle threshold in milliseconds for automatic context updates
+    -- Context will be updated after this period of user inactivity
+    idle_threshold = 10000, -- 10 seconds
+    -- Cache TTL in milliseconds for expensive context operations
+    -- Set to 0 to disable caching
+    cache_ttl = {
+      git_info = 5000, -- 5 seconds
+      plugin_versions = 60000, -- 60 seconds
+      highlights = 2000, -- 2 seconds
+      lsp_symbols = 10000, -- 10 seconds
+    },
+    plugin_versions = {
+      enabled = false,
+      limit = 20,
+    },
     cursor_data = {
       enabled = false,
     },
@@ -151,6 +194,79 @@ M.defaults = {
     },
     selection = {
       enabled = true,
+    },
+    marks = {
+      enabled = true,
+      limit = 5,
+    },
+    jumplist = {
+      enabled = true,
+      limit = 5,
+    },
+    recent_buffers = {
+      enabled = true,
+      limit = 3,
+      symbols_only = true,
+    },
+    undo_history = {
+      enabled = true,
+      limit = 3,
+    },
+    windows_tabs = {
+      enabled = true,
+    },
+    highlights = {
+      enabled = false,
+    },
+    session_info = {
+      enabled = false,
+    },
+    registers = {
+      enabled = true,
+      include = { '"', '/', 'q', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '%', '#', '.' },
+    },
+    command_history = {
+      enabled = true,
+      limit = 3,
+    },
+    search_history = {
+      enabled = true,
+      limit = 3,
+    },
+    debug_data = {
+      enabled = true,
+    },
+    lsp_context = {
+      enabled = false,
+      diagnostics_limit = 10,
+      code_actions = false,
+    },
+    git_info = {
+      enabled = false,
+      diff_limit = 5,
+      changes_limit = 5,
+    },
+    fold_info = {
+      enabled = true,
+    },
+    cursor_surrounding = {
+      enabled = true,
+      lines_above = 4,
+      lines_below = 4,
+    },
+    quickfix_loclist = {
+      enabled = true,
+      limit = 5,
+    },
+    macros = {
+      enabled = false,
+      register = 'q',
+    },
+    terminal_buffers = {
+      enabled = true,
+    },
+    session_duration = {
+      enabled = false,
     },
   },
   debug = {

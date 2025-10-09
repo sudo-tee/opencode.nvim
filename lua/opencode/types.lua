@@ -63,6 +63,29 @@
 ---@field accept_all string
 ---@field deny string
 
+---@class OpencodeKeymapWindow
+---@field submit string
+---@field submit_insert string
+---@field close string
+---@field stop string
+---@field next_message string
+---@field prev_message string
+---@field mention_file string # mention files with a file picker
+---@field mention string # mention subagents or files with a completion popup
+---@field slash_commands string
+---@field toggle_pane string
+---@field prev_prompt_history string
+---@field next_prompt_history string
+---@field switch_mode string
+---@field focus_input string
+---@field select_child_session string\n---@field debug_message string\n---@field debug_output string\n---@field debug_session string
+---@field debug_message string
+---@field debug_output string
+---@field debug_session string
+---@field permission_accept string
+---@field permission_accept_all string
+---@field permission_deny string
+
 ---@class OpencodeKeymap
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
@@ -99,9 +122,13 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
+---@field idle_threshold number Idle threshold in milliseconds for automatic context updates
+---@field cache_ttl { git_info: number, plugin_versions: number, highlights: number, lsp_symbols: number }
+---@field plugin_versions { enabled: boolean, limit: number }
 ---@field cursor_data { enabled: boolean }
 ---@field diagnostics { info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean, show_full_path: boolean }
+---@field files { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
 
 ---@class OpencodeDebugConfig

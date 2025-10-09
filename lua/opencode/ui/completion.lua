@@ -63,7 +63,7 @@ function M.on_complete(item)
 end
 
 function M.get_completion_engine()
-  local config = require('opencode.config').get()
+  local config = require('opencode.config')
   local engine = config.preferred_completion
   if not engine then
     local ok_cmp = pcall(require, 'cmp')

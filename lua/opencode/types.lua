@@ -114,7 +114,6 @@
 ---@field defaults OpencodeConfig
 ---@field values OpencodeConfig
 ---@field setup fun(opts?: OpencodeConfig): nil
----@field get fun(key?: string): any
 ---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
 ---@field normalize_keymap fun(legacy_config: table, filter_functions?: table): table
 

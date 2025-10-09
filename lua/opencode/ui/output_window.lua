@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 
 local M = {}
 
@@ -113,10 +113,7 @@ end
 
 function M.setup_keymaps(windows)
   local keymap = require('opencode.keymap')
-  local config_mod = require('opencode.config')
-  local output_keymaps = config_mod.get('keymap').output_window
-  
-  keymap.setup_window_keymaps(output_keymaps, windows.output_buf)
+  keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf)
 end
 
 function M.setup_autocmds(windows, group)

@@ -8,7 +8,7 @@ local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 
 ---@param parent_id string?
 function M.select_session(parent_id)

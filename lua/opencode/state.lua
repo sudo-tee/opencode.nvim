@@ -1,4 +1,4 @@
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 
 ---@class OpencodeWindowState
 ---@field input_win number|nil

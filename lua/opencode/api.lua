@@ -300,7 +300,7 @@ function M.focus_input()
 end
 
 function M.debug_output()
-  local config = require('opencode.config').get()
+  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return
@@ -310,7 +310,7 @@ function M.debug_output()
 end
 
 function M.debug_message()
-  local config = require('opencode.config').get()
+  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return
@@ -320,7 +320,7 @@ function M.debug_message()
 end
 
 function M.debug_session()
-  local config = require('opencode.config').get()
+  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return

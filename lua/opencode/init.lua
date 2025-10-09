@@ -9,7 +9,7 @@ function M.setup(opts)
     require('opencode.core').setup()
     config.setup(opts)
     api.setup()
-    keymap.setup(config.get('keymap'))
+    keymap.setup(config.keymap)
 
     require('opencode.ui.completion').setup()
     require('opencode.event_manager').setup()

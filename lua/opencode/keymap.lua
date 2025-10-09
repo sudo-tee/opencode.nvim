@@ -54,7 +54,7 @@ function M.toggle_permission_keymap(buf)
   local config = require('opencode.config')
   local api = require('opencode.api')
 
-  local permission_config = config.get().keymap.permission
+  local permission_config = config.keymap.permission
   if not permission_config then
     return
   end

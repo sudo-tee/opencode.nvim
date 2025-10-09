@@ -1,5 +1,5 @@
 -- Centralized icon utility with presets and overrides
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 
 local M = {}
 

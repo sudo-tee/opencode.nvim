@@ -3,7 +3,7 @@ local M = {}
 local function get_best_picker()
   local config = require('opencode.config')
 
-  local preferred_picker = config.get('preferred_picker')
+  local preferred_picker = config.preferred_picker
   if preferred_picker and preferred_picker ~= '' then
     return preferred_picker
   end

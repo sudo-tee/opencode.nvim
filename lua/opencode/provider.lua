@@ -1,20 +1,16 @@
 local M = {}
 
 function M._get_models()
-  local result = vim.system({ 'opencode', 'models' }):wait()
-  if result.code ~= 0 then
-    vim.notify('Failed to get providers: ' .. result.stderr, vim.log.levels.ERROR)
-    return {}
-  end
+  local config_file = require('opencode.config_file')
+  local response = config_file.get_opencode_providers()
 
   local models = {}
-  for line in result.stdout:gmatch('[^\n]+') do
-    local provider, model = line:match('^(%S+)/(%S+)$')
-    if provider and model then
+  for _, provider in ipairs(response.providers) do
+    for _, model in pairs(provider.models) do
       table.insert(models, {
-        provider = provider,
-        model = model,
-        display = provider .. ': ' .. model,
+        provider = provider.id,
+        model = model.id,
+        display = provider.name .. ': ' .. model.name,
       })
     end
   end

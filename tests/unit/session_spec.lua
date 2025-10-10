@@ -11,6 +11,8 @@ local session_list_mock = require('tests.mocks.session_list')
 local util = require('opencode.util')
 local assert = require('luassert')
 local config_file = require('opencode.config_file')
+local state = require('opencode.state')
+local Promise = require('opencode.promise')
 
 describe('opencode.session', function()
   local original_is_git_project
@@ -21,6 +23,7 @@ describe('opencode.session', function()
   local original_isdirectory
   local original_json_decode
   local original_get_opencode_project
+  local original_api_client
   local session_files = {}
   local mock_data = {}
 
@@ -39,6 +42,7 @@ describe('opencode.session', function()
     original_isdirectory = vim.fn.isdirectory
     original_json_decode = vim.fn.json_decode
     original_get_opencode_project = config_file.get_opencode_project
+    original_api_client = state.api_client
     -- mock vim.fs and isdirectory
     config_file.get_opencode_project = function()
       return { id = DEFAULT_WORKSPACE_ID }
@@ -140,6 +144,44 @@ describe('opencode.session', function()
     util.is_git_project = function()
       return true
     end
+
+    -- Mock the api_client to return session data
+    state.api_client = {
+      list_sessions = function()
+        local sessions = {}
+        local session_source = mock_data.session_list or session_list_mock
+
+        for session_name, session_data in pairs(session_source) do
+          local success, decoded = pcall(vim.fn.json_decode, session_data)
+          if success then
+            -- Sessions are associated with DEFAULT_WORKSPACE unless tests modify data
+            decoded.directory = DEFAULT_WORKSPACE
+            table.insert(sessions, decoded)
+          end
+          -- If JSON parsing fails, we skip the session (simulating real behavior)
+        end
+        local promise = Promise.new()
+        promise:resolve(sessions)
+        return promise
+      end,
+      list_messages = function(session_id)
+        local promise = Promise.new()
+
+        -- Check if mock_data has specific messages for this session
+        if mock_data.messages then
+          local messages = {}
+          for msg_id, msg_data in pairs(mock_data.messages) do
+            local decoded = vim.fn.json_decode(msg_data)
+            table.insert(messages, decoded)
+          end
+          promise:resolve(messages)
+        else
+          -- Mock empty messages for default case
+          promise:resolve({})
+        end
+        return promise
+      end,
+    }
   end)
 
   -- Clean up after each test
@@ -153,6 +195,7 @@ describe('opencode.session', function()
     vim.fn.json_decode = original_json_decode
     util.is_git_project = original_is_git_project
     config_file.get_opencode_project = original_get_opencode_project
+    state.api_client = original_api_client
     mock_data = {}
   end)
 
@@ -177,6 +220,12 @@ describe('opencode.session', function()
       config_file.get_opencode_project = function()
         return { id = NON_EXISTENT_WORKSPACE }
       end
+
+      -- For this test, make it not a git project so filtering happens
+      util.is_git_project = function()
+        return false
+      end
+
       -- Call the function
       local result = session.get_last_workspace_session()
 
@@ -229,7 +278,7 @@ describe('opencode.session', function()
   describe('get_by_name', function()
     it('returns the session with matching ID', function()
       -- Call the function with an ID from the mock data
-      local result = session.get_by_name('new-8')
+      local result = session.get_by_id('new-8')
 
       -- Verify the result
       assert.is_not_nil(result)
@@ -240,7 +289,7 @@ describe('opencode.session', function()
 
     it('returns nil when no session matches the ID', function()
       -- Call the function with non-existent ID
-      local result = session.get_by_name('nonexistent')
+      local result = session.get_by_id('nonexistent')
 
       -- Should be nil since no sessions match
       assert.is_nil(result)
@@ -303,6 +352,9 @@ describe('opencode.session', function()
 
     it('returns nil when messages directory does not exist', function()
       local result = session.get_messages({ messages_path = '/nonexistent/path' })
+      if result then
+        result = result:wait()
+      end
       assert.is_nil(result)
     end)
 
@@ -330,6 +382,7 @@ describe('opencode.session', function()
       local result = session.get_messages(test_session)
       assert.is_not_nil(result)
       if result then
+        result = result:wait()
         assert.equal(1, #result)
         assert.equal('msg1', result[1].id)
         assert.equal('test message', result[1].content)

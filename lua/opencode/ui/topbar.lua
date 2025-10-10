@@ -76,7 +76,7 @@ local function get_session_desc()
   local session_desc = LABELS.NEW_SESSION_TITLE
 
   if state.active_session then
-    local session = require('opencode.session').get_by_name(state.active_session.id)
+    local session = require('opencode.session').get_by_id(state.active_session.id)
     if session and session.description ~= '' then
       session_desc = session.description
     end

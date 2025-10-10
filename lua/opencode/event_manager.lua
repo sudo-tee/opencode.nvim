@@ -310,6 +310,20 @@ function EventManager.setup()
 
   state.event_manager:subscribe('permission.updated', function(event_data)
     state.current_permission = event_data.properties
+    state.last_output = os.time()
+  end)
+
+  state.event_manager:subscribe('permission.replied', function(event_data)
+    state.current_permission = nil
+    state.last_output = os.time()
+  end)
+
+  state.event_manager:subscribe('message.updated', function(event_data)
+    state.last_output = os.time()
+  end)
+
+  state.event_manager:subscribe('message.part.updated', function(event_data)
+    state.last_output = os.time()
   end)
 end
 

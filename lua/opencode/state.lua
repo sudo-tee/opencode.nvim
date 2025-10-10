@@ -20,7 +20,6 @@ local config = require('opencode.config')
 ---@field last_output number
 ---@field last_sent_context any
 ---@field active_session Session|nil
----@field new_session_name string|nil
 ---@field restore_points table<string, any>
 ---@field current_model string|nil
 ---@field messages Message[]|nil
@@ -56,7 +55,6 @@ local _state = {
   last_sent_context = nil,
   -- session
   active_session = nil,
-  new_session_name = nil,
   restore_points = {},
   current_model = nil,
   -- messages

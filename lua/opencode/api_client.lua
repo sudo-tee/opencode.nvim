@@ -23,6 +23,7 @@ end
 function OpencodeApiClient:_call(endpoint, method, body, query)
   if not self.base_url then
     local state = require('opencode.state')
+    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
     self.base_url = state.opencode_server_job.url:gsub('/$', '')
   end
   local url = self.base_url .. endpoint

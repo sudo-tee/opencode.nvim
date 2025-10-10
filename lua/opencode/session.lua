@@ -1,5 +1,7 @@
 local util = require('opencode.util')
+local review = require('opencode.review')
 local config_file = require('opencode.config_file')
+local Promise = require('opencode.promise')
 local M = {}
 
 ---Get the current OpenCode project ID
@@ -112,25 +114,25 @@ function M.get_last_workspace_session()
   return main_sessions[1]
 end
 
-local _session_by_name = {}
+local _session_by_id = {}
 local _session_last_modified = {}
 
----Get a session by its name
----@param name string
+---Get a session by its id
+---@param id string
 ---@return Session|nil
-function M.get_by_name(name)
-  if not name or name == '' then
+function M.get_by_id(id)
+  if not id or id == '' then
     return nil
   end
   local sessions_dir = M.get_workspace_session_path()
-  local file = sessions_dir .. '/' .. name .. '.json'
+  local file = sessions_dir .. '/' .. id .. '.json'
   local _, stat = pcall(vim.uv.fs_stat, file)
   if not stat then
     return nil
   end
 
-  if _session_by_name[name] and _session_last_modified[name] == stat.mtime.sec then
-    return _session_by_name[name]
+  if _session_by_id[id] and _session_last_modified[id] == stat.mtime.sec then
+    return _session_by_id[id]
   end
 
   local content = table.concat(vim.fn.readfile(file), '\n')
@@ -140,23 +142,22 @@ function M.get_by_name(name)
   end
 
   local session = M.create_session_object(session_json)
-  _session_by_name[name] = session
-  _session_last_modified[name] = stat.mtime.sec
+  _session_by_id[id] = session
+  _session_last_modified[id] = stat.mtime.sec
 
   return session
 end
 
 ---Get messages for a session
 ---@param session Session
----@return Message[]|nil
+---@return Promise<Message[]?>
 function M.get_messages(session)
   local state = require('opencode.state')
   if not session then
-    return nil
+    return Promise.new():resolve(nil)
   end
-  local messages = state.api_client:list_messages(session.id):wait()
 
-  return messages
+  return state.api_client:list_messages(session.id)
 end
 
 ---Get snapshot IDs from a message's parts

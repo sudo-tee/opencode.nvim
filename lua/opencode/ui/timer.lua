@@ -20,38 +20,62 @@ function Timer.new(opts)
     self.repeat_timer = true
   end
   self.args = opts.args or {}
-  self.handle = nil
+  self._uv_timer = nil
   return self
 end
 
---- Start the timer
+--- Start the timer (uses libuv/vim.loop for reliable scheduling)
 function Timer:start()
   self:stop()
-  local function tick()
-    local continue = self.on_tick(unpack(self.args))
-    if self.repeat_timer and (continue == nil or continue) then
-      self.handle = vim.fn.timer_start(self.interval, tick)
-    else
+  local uv = vim.uv
+  local timer = uv.new_timer()
+  if not timer then
+    self._uv_timer = nil
+    error('failed to create uv timer')
+  end
+  self._uv_timer = timer
+
+  local function on_tick_wrapped()
+    local ok, continue = pcall(self.on_tick, unpack(self.args))
+    if not ok then
+      self:stop()
+      return
+    end
+    if not self.repeat_timer or (continue ~= nil and continue == false) then
       self:stop()
     end
   end
-  self.handle = vim.fn.timer_start(self.interval, tick)
+
+  local cb = vim.schedule_wrap(on_tick_wrapped)
+
+  local ok, err = pcall(function()
+    if self.repeat_timer then
+      timer:start(self.interval, self.interval, cb)
+    else
+      timer:start(self.interval, 0, cb)
+    end
+  end)
+  if not ok then
+    pcall(timer.close, timer)
+    self._uv_timer = nil
+    error(err)
+  end
 end
 
---- Stop the timer
 function Timer:stop()
-  if self.handle then
-    pcall(vim.fn.timer_stop, self.handle)
+  if self._uv_timer then
+    pcall(self._uv_timer.stop, self._uv_timer)
+    pcall(self._uv_timer.close, self._uv_timer)
     if self.on_stop then
-      self.on_stop()
+      pcall(self.on_stop)
     end
-    self.handle = nil
+    self._uv_timer = nil
   end
 end
 
 --- Check if the timer is running
 function Timer:is_running()
-  return self.handle ~= nil
+  return self._uv_timer ~= nil
 end
 
 return Timer

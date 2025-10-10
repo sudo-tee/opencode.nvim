@@ -7,10 +7,28 @@ describe('opencode.nvim plugin', function()
   local original_schedule
   local original_ensure_server
   local original_api_client_new
+  local original_system
+  local original_executable
 
   before_each(function()
     original_schedule = vim.schedule
     vim.schedule = function(fn) fn() end
+
+    -- Mock vim.system for opencode version check
+    original_system = vim.system
+    vim.system = function(_cmd, _opts)
+      return {
+        wait = function()
+          return { stdout = 'opencode 0.6.3' }
+        end,
+      }
+    end
+
+    -- Mock vim.fn.executable for opencode check
+    original_executable = vim.fn.executable
+    vim.fn.executable = function(_)
+      return 1
+    end
 
     -- Stub ensure_server so no real process is spawned
     local server_job = require('opencode.server_job')
@@ -44,6 +62,8 @@ describe('opencode.nvim plugin', function()
 
   after_each(function()
     vim.schedule = original_schedule
+    vim.system = original_system
+    vim.fn.executable = original_executable
     if original_ensure_server then
       require('opencode.server_job').ensure_server = original_ensure_server
     end

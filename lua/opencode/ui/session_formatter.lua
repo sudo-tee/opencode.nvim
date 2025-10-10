@@ -5,6 +5,7 @@ local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
+local Promise = require('opencode.promise')
 
 local M = {
   output = Output.new(),
@@ -18,14 +19,19 @@ M.separator = {
 }
 
 ---@param session Session Session ID
----@return string[]|nil Formatted session lines
+---@return Promise<string[]|nil> Formatted session lines
 function M.format_session(session)
   if not session or session == '' then
-    return nil
+    return Promise.new():resolve(nil)
   end
 
   state.last_user_message = nil
-  local messages = require('opencode.session').get_messages(session) or {}
+  return require('opencode.session').get_messages(session):and_then(function(msgs)
+    return M._format_messages(session, msgs)
+  end)
+end
+
+function M._format_messages(session, messages)
   state.messages = messages
 
   M.output:clear()
@@ -85,7 +91,6 @@ function M.format_session(session)
     end
   end
 
-  M.output:add_empty_line()
   return M.output:get_lines()
 end
 

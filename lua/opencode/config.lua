@@ -32,9 +32,9 @@ M.defaults = {
       ['<leader>orr'] = { 'diff_restore_snapshot_file' },
       ['<leader>orR'] = { 'diff_restore_snapshot_all' },
       ['<leader>ox'] = { 'swap_position' },
-      ['<leader>opa'] = { 'permission_accept' },
-      ['<leader>opA'] = { 'permission_accept_all' },
-      ['<leader>opd'] = { 'permission_deny' },
+      ['<leader>oPa'] = { 'permission_accept' },
+      ['<leader>oPA'] = { 'permission_accept_all' },
+      ['<leader>oPd'] = { 'permission_deny' },
     },
     output_window = {
       ['<esc>'] = { 'close' },

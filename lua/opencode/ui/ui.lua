@@ -32,7 +32,7 @@ function M.close_windows(windows)
     M.return_to_last_code_win()
   end
 
-  renderer.stop()
+  renderer.teardown()
 
   -- Close windows and delete buffers
   pcall(vim.api.nvim_win_close, windows.input_win, true)
@@ -96,7 +96,7 @@ function M.create_windows()
 
   local autocmds = require('opencode.ui.autocmds')
 
-  if not require('opencode.ui.ui').is_opencode_focused() then
+  if not M.is_opencode_focused() then
     require('opencode.context').load()
     state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
   end
@@ -111,6 +111,8 @@ function M.create_windows()
   input_window.setup(windows)
   output_window.setup(windows)
   footer.setup(windows)
+
+  renderer.setup_subscriptions(windows)
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)

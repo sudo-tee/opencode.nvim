@@ -50,32 +50,29 @@ function M.open(opts)
     state.windows = ui.create_windows()
   end
 
-  vim.schedule(function()
+  if opts.new_session then
+    state.active_session = nil
+    state.last_sent_context = nil
     if opts.new_session then
-      state.active_session = nil
-      state.last_sent_context = nil
-      if not state.active_session or opts.new_session then
-        state.active_session = M.create_new_session()
-      end
-
-      ui.clear_output()
-    else
-      if not state.active_session then
-        state.active_session = session.get_last_workspace_session()
-      end
-
-      if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-        ui.render_output()
-        ui.scroll_to_bottom()
-      end
+      state.active_session = M.create_new_session()
+    end
+    ui.clear_output()
+  else
+    if not state.active_session then
+      state.active_session = session.get_last_workspace_session()
     end
 
-    if opts.focus == 'input' then
-      ui.focus_input({ restore_position = are_windows_closed })
-    elseif opts.focus == 'output' then
-      ui.focus_output({ restore_position = are_windows_closed })
+    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
+      ui.render_output()
+      ui.scroll_to_bottom()
     end
-  end)
+  end
+
+  if opts.focus == 'input' then
+    ui.focus_input({ restore_position = are_windows_closed })
+  elseif opts.focus == 'output' then
+    ui.focus_output({ restore_position = are_windows_closed })
+  end
 end
 
 --- Sends a message to the active session, creating one if necessary.
@@ -126,7 +123,7 @@ function M.create_new_session(title)
     :wait()
 
   if session_response and session_response.id then
-    local new_session = session.get_by_name(session_response.id)
+    local new_session = session.get_by_id(session_response.id)
     return new_session
   end
 end

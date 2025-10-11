@@ -44,7 +44,7 @@ function M._format_messages(session, messages)
     M.output:add_lines(M.separator)
     state.current_message = msg
 
-    if not state.current_model and msg.providerID and msg.providerID ~= '' then
+    if not state.current_model and msg.info.providerID and msg.info.providerID ~= '' then
       state.current_model = msg.info.providerID .. '/' .. msg.info.modelID
     end
 
@@ -55,11 +55,11 @@ function M._format_messages(session, messages)
         + msg.info.tokens.cache.write
     end
 
-    if msg.cost and type(msg.cost) == 'number' then
-      state.cost = msg.cost
+    if msg.info.cost and type(msg.info.cost) == 'number' then
+      state.cost = msg.info.cost
     end
 
-    if session.revert and session.revert.messageID == msg.id then
+    if session.revert and session.revert.messageID == msg.info.id then
       ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
       local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
       M._format_revert_message(revert_stats)

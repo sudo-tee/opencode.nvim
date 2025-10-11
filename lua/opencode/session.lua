@@ -150,7 +150,7 @@ end
 
 ---Get messages for a session
 ---@param session Session
----@return Promise<Message[]?>
+---@return Promise<{info: Message, parts: MessagePart[]}[]?>
 function M.get_messages(session)
   local state = require('opencode.state')
   if not session then

@@ -291,6 +291,7 @@ function M.handle_message_updated(event)
   end
 
   if M._session_id and M._session_id ~= message.sessionID then
+    -- TODO: there's probably more we need to do here
     M.reset()
   end
 
@@ -302,16 +303,18 @@ function M.handle_message_updated(event)
 
   local found_idx = nil
   for i = #state.messages, math.max(1, #state.messages - 2), -1 do
-    if state.messages[i].id == message.id then
+    if state.messages[i].info.id == message.id then
       found_idx = i
       break
     end
   end
 
   if found_idx then
-    state.messages[found_idx] = message
+    -- vim.notify('Message updated? ' .. vim.inspect(event), vim.log.levels.WARN)
+    -- I think this is mostly for book keeping / stats (tokens update)
+    state.messages[found_idx].info = message
   else
-    table.insert(state.messages, message)
+    table.insert(state.messages, { info = message, parts = {} })
     found_idx = #state.messages
 
     local header_range = M._write_message_header(message, found_idx)
@@ -346,33 +349,33 @@ function M.handle_part_updated(event)
     state.messages = {}
   end
 
-  local message, msg_idx
+  local msg_wrapper, msg_idx
   for i = #state.messages, math.max(1, #state.messages - 2), -1 do
-    if state.messages[i].id == part.messageID then
-      message = state.messages[i]
+    if state.messages[i].info.id == part.messageID then
+      msg_wrapper = state.messages[i]
       msg_idx = i
       break
     end
   end
 
-  if not message then
+  if not msg_wrapper then
     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
-    -- vim.notify(vim.inspect(state.messages))
     return
   end
 
-  message.parts = message.parts or {}
+  local message = msg_wrapper.info
+  msg_wrapper.parts = msg_wrapper.parts or {}
 
   local is_new_part = not M._part_cache[part.id]
   local part_idx = nil
 
   if is_new_part then
-    table.insert(message.parts, part)
-    part_idx = #message.parts
+    table.insert(msg_wrapper.parts, part)
+    part_idx = #msg_wrapper.parts
   else
-    for i, p in ipairs(message.parts) do
+    for i, p in ipairs(msg_wrapper.parts) do
       if p.id == part.id then
-        message.parts[i] = part
+        msg_wrapper.parts[i] = part
         part_idx = i
         break
       end
@@ -400,11 +403,12 @@ function M.handle_part_updated(event)
   end
 
   local formatter = require('opencode.ui.session_formatter')
+  local message_with_parts = vim.tbl_extend('force', message, { parts = msg_wrapper.parts })
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,
     part_idx = part_idx,
     role = message.role,
-    message = message,
+    message = message_with_parts,
   })
 
   if not ok then
@@ -438,7 +442,7 @@ function M.handle_part_removed(event)
   if cached and cached.message_id then
     if state.messages then
       for i = #state.messages, math.max(1, #state.messages - 2), -1 do
-        if state.messages[i].id == cached.message_id then
+        if state.messages[i].info.id == cached.message_id then
           if state.messages[i].parts then
             for j, part in ipairs(state.messages[i].parts) do
               if part.id == part_id then
@@ -474,7 +478,7 @@ function M.handle_message_removed(event)
 
   local message_idx = nil
   for i = #state.messages, 1, -1 do
-    if state.messages[i].id == message_id then
+    if state.messages[i].info.id == message_id then
       message_idx = i
       break
     end
@@ -484,9 +488,9 @@ function M.handle_message_removed(event)
     return
   end
 
-  local message = state.messages[message_idx]
-  if message.parts then
-    for _, part in ipairs(message.parts) do
+  local msg_wrapper = state.messages[message_idx]
+  if msg_wrapper.parts then
+    for _, part in ipairs(msg_wrapper.parts) do
       if part.id then
         M._remove_part_from_buffer(part.id)
       end

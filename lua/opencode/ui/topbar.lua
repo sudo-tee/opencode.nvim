@@ -91,6 +91,9 @@ function M.render()
       return
     end
     local win = state.windows.output_win
+    if not win then
+      return
+    end
     vim.wo[win].winbar =
       create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
 

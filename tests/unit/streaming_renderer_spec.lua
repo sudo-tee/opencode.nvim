@@ -36,6 +36,16 @@ local function capture_output()
   }
 end
 
+local function normalize_namespace_ids(extmarks)
+  local normalized = vim.deepcopy(extmarks)
+  for _, mark in ipairs(normalized) do
+    if mark[4] and mark[4].ns_id then
+      mark[4].ns_id = 3
+    end
+  end
+  return normalized
+end
+
 describe('streaming_renderer', function()
   local original_time_ago
 
@@ -73,7 +83,7 @@ describe('streaming_renderer', function()
     local actual = capture_output()
 
     assert.are.same(expected.lines, actual.lines)
-    assert.are.same(expected.extmarks, actual.extmarks)
+    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 
   it('replays updating-text correctly', function()
@@ -87,6 +97,6 @@ describe('streaming_renderer', function()
     local actual = capture_output()
 
     assert.are.same(expected.lines, actual.lines)
-    assert.are.same(expected.extmarks, actual.extmarks)
+    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 end)

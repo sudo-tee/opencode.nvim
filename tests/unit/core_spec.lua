@@ -18,6 +18,9 @@ local function mock_api_client()
     abort_session = function(_, _id)
       return Promise.new():resolve(true)
     end,
+    get_current_project = function()
+      return Promise.new():resolve({ id = 'test-project-id' })
+    end,
   }
 end
 
@@ -62,6 +65,13 @@ describe('opencode.core', function()
     stub(ui, 'is_output_empty').returns(true)
     stub(session, 'get_last_workspace_session').returns({ id = 'test-session' })
     if session.get_by_id and type(session.get_by_id) == 'function' then
+      -- stub get_by_id to return a simple session object without filesystem access
+      stub(session, 'get_by_id').invokes(function(id)
+        if not id then
+          return nil
+        end
+        return { id = id, description = id, modified = os.time(), parentID = nil }
+      end)
       -- stub get_by_name to return a simple session object without filesystem access
       stub(session, 'get_by_name').invokes(function(name)
         if not name then
@@ -107,6 +117,12 @@ describe('opencode.core', function()
     end
     if session.get_last_workspace_session.revert then
       session.get_last_workspace_session:revert()
+    end
+    if session.get_by_id and session.get_by_id.revert then
+      session.get_by_id:revert()
+    end
+    if session.get_by_name and session.get_by_name.revert then
+      session.get_by_name:revert()
     end
   end)
 

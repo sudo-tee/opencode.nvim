@@ -167,6 +167,12 @@ describe('opencode.session', function()
       list_messages = function(session_id)
         local promise = Promise.new()
 
+        -- Return nil for sessions with no data
+        if not session_id then
+          promise:resolve(nil)
+          return promise
+        end
+
         -- Check if mock_data has specific messages for this session
         if mock_data.messages then
           local messages = {}
@@ -176,8 +182,13 @@ describe('opencode.session', function()
           end
           promise:resolve(messages)
         else
-          -- Mock empty messages for default case
-          promise:resolve({})
+          -- Return nil when directory doesn't exist (simulating 404)
+          if mock_data.messages == false then
+            promise:resolve(nil)
+          else
+            -- Mock empty messages for default case
+            promise:resolve({})
+          end
         end
         return promise
       end,
@@ -347,11 +358,15 @@ describe('opencode.session', function()
   describe('get_messages', function()
     it('returns nil when session is nil', function()
       local result = session.get_messages(nil)
+      if result then
+        result = result:wait()
+      end
       assert.is_nil(result)
     end)
 
     it('returns nil when messages directory does not exist', function()
-      local result = session.get_messages({ messages_path = '/nonexistent/path' })
+      mock_data.messages = false
+      local result = session.get_messages({ id = 'nonexistent', messages_path = '/nonexistent/path' })
       if result then
         result = result:wait()
       end

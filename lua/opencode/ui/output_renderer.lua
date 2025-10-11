@@ -70,9 +70,6 @@ function M.setup_subscriptions(windows)
     M.render(windows, true)
   end, M._debounce_ms)
 
-  state.subscribe('last_output', on_change)
-  M._subscriptions.last_output = on_change
-
   M._subscriptions.active_session = function(_, new, old)
     if not old then
       return

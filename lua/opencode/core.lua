@@ -27,6 +27,7 @@ function M.select_session(parent_id)
     state.active_session = selected_session
     if state.windows then
       state.restore_points = {}
+      require('opencode.ui.streaming_renderer').reset()
       ui.render_output(true)
       ui.focus_input()
       ui.scroll_to_bottom()
@@ -63,7 +64,7 @@ function M.open(opts)
     end
 
     if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-      ui.render_output()
+      ui.render_output(true)
       ui.scroll_to_bottom()
     end
   end
@@ -99,16 +100,20 @@ function M.send_message(prompt, opts)
 
   M.before_run(opts)
 
-  ui.render_output(true)
   state.api_client
     :create_message(state.active_session.id, params)
     :and_then(function(response)
-      state.last_output = os.time()
-      ui.render_output()
+      if not response or not response.info or not response.parts then
+        -- fall back to full render. incremental render is handled
+        -- event manager
+        ui.render_output()
+      end
+
       M.after_run(prompt)
     end)
     :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      M.stop()
     end)
 end
 
@@ -133,10 +138,6 @@ function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
   require('opencode.history').write(prompt)
-
-  if state.windows then
-    ui.render_output()
-  end
 end
 
 ---@param opts? SendMessageOpts
@@ -145,7 +146,7 @@ function M.before_run(opts)
   opts = opts or {}
 
   M.stop()
-  ui.clear_output()
+  -- ui.clear_output()
 
   M.open({
     new_session = is_new_session,
@@ -180,7 +181,7 @@ function M.stop()
     end
     require('opencode.ui.footer').clear()
     ui.stop_render_output()
-    ui.render_output()
+    -- require('opencode.ui.streaming_renderer').reset_and_render()
     input_window.set_content('')
     require('opencode.history').index = nil
     ui.focus_input()

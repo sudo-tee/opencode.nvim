@@ -1,0 +1,858 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_9d0297a630014CA5ly3Vvw8Kt5",
+        "role": "user",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "time": {
+          "created": 1760134003299
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d0297a63002VO6cQ0jAeS43vV",
+        "messageID": "msg_9d0297a630014CA5ly3Vvw8Kt5",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "What would a new neovim lua plugin look like?",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d0297a65001dwxkNfWIjsEnED",
+        "messageID": "msg_9d0297a630014CA5ly3Vvw8Kt5",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "synthetic": true,
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/a-empty.txt\"}",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d0297a65002Qq7HQdygSCzu8L",
+        "messageID": "msg_9d0297a630014CA5ly3Vvw8Kt5",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "synthetic": true,
+        "text": "<file>\n00001| \n</file>",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "filename": "a-empty.txt",
+        "id": "prt_9d0297a65003lN7E3MIadGJmh9",
+        "messageID": "msg_9d0297a630014CA5ly3Vvw8Kt5",
+        "mime": "text/plain",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "type": "file",
+        "url": "file:///Users/cam/tmp/a/a-empty.txt"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "system": {},
+        "time": {
+          "created": 1760134003379
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985a80013t6uMZL98MCeHB",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example =",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  --",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n-",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`\n- Use",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`\n- Use autocommands with `nvim_create_autocmd`",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`\n- Use autocommands with `nvim_create_autocmd`\n- Follow Lua module patterns with `local",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`\n- Use autocommands with `nvim_create_autocmd`\n- Follow Lua module patterns with `local M = {}`",
+        "time": {
+          "start": 1760134006269
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d02985fd0012tfkeuc8UBLJ55",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "text": "A new Neovim Lua plugin typically follows this structure:\n\n```\nplugin-name/\n├── lua/\n│   └── plugin-name/\n│       ├── init.lua          -- Main entry point\n│       ├── config.lua        -- Configuration handling\n│       └── utils.lua         -- Utility functions\n├── plugin/\n│   └── plugin-name.lua       -- Plugin registration\n└── README.md\n```\n\n**Minimal example:**\n\n`plugin/example.lua`:\n```lua\nif vim.g.loaded_example then\n  return\nend\nvim.g.loaded_example = 1\n\nvim.api.nvim_create_user_command('Example', function()\n  require('example').hello()\nend, {})\n```\n\n`lua/example/init.lua`:\n```lua\nlocal M = {}\n\nM.setup = function(opts)\n  opts = opts or {}\n  -- Handle configuration\nend\n\nM.hello = function()\n  print(\"Hello from my plugin!\")\nend\n\nreturn M\n```\n\nKey components:\n- Use `vim.api` for Neovim API calls\n- Provide a `setup()` function for configuration\n- Create user commands with `nvim_create_user_command`\n- Use autocommands with `nvim_create_autocmd`\n- Follow Lua module patterns with `local M = {}`",
+        "time": {
+          "end": 1760134010851,
+          "start": 1760134010851
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9d02997e5001Njcxj0aZimcYxB",
+        "messageID": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "tokens": {
+          "cache": {
+            "read": 11084,
+            "write": 0
+          },
+          "input": 11470,
+          "output": 322,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "system": {},
+        "time": {
+          "created": 1760134003379
+        },
+        "tokens": {
+          "cache": {
+            "read": 11084,
+            "write": 0
+          },
+          "input": 11470,
+          "output": 322,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "system": {},
+        "time": {
+          "completed": 1760134010890,
+          "created": 1760134003379
+        },
+        "tokens": {
+          "cache": {
+            "read": 11084,
+            "write": 0
+          },
+          "input": 11470,
+          "output": 322,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "system": {},
+        "time": {
+          "completed": 1760134010891,
+          "created": 1760134003379
+        },
+        "tokens": {
+          "cache": {
+            "read": 11084,
+            "write": 0
+          },
+          "input": 11470,
+          "output": 322,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d0297ab3001UGZU9fDJM4Y75w",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62fd7251bffeeGSgEe75iHIToj",
+        "system": {},
+        "time": {
+          "completed": 1760134010891,
+          "created": 1760134003379
+        },
+        "tokens": {
+          "cache": {
+            "read": 11084,
+            "write": 0
+          },
+          "input": 11470,
+          "output": 322,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  }
+]

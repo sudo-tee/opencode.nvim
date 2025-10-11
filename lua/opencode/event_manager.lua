@@ -308,6 +308,43 @@ function EventManager.setup()
   state.event_manager = EventManager.new()
   state.event_manager:start()
 
+  local streaming_renderer = require('opencode.ui.streaming_renderer')
+
+  state.event_manager:subscribe('message.updated', function(event_data)
+    -- state.last_output = os.time()
+    -- vim.notify(vim.inspect(event_data) .. ',')
+    streaming_renderer.handle_message_updated(event_data)
+  end)
+
+  state.event_manager:subscribe('message.part.updated', function(event_data)
+    -- state.last_output = os.time()
+    -- vim.notify(vim.inspect(event_data) .. ',')
+    streaming_renderer.handle_part_updated(event_data)
+  end)
+
+  state.event_manager:subscribe('message.removed', function(event_data)
+    -- state.last_output = os.time()
+    -- vim.notify(vim.inspect(event_data) .. ',')
+    streaming_renderer.handle_message_removed(event_data)
+  end)
+
+  state.event_manager:subscribe('message.part.removed', function(event_data)
+    -- state.last_output = os.time()
+    -- vim.notify(vim.inspect(event_data) .. ',')
+    streaming_renderer.handle_part_removed(event_data)
+  end)
+
+  state.event_manager:subscribe('session.compacted', function(event_data)
+    -- state.last_output = os.time()
+    -- vim.notify(vim.inspect(event_data) .. ',')
+    streaming_renderer.handle_session_compacted()
+  end)
+
+  state.event_manager:subscribe('session.error', function(event_data)
+    -- state.last_output = os.time()
+    streaming_renderer.handle_session_error(event_data)
+  end)
+
   state.event_manager:subscribe('permission.updated', function(event_data)
     state.current_permission = event_data.properties
     state.last_output = os.time()
@@ -315,14 +352,6 @@ function EventManager.setup()
 
   state.event_manager:subscribe('permission.replied', function(event_data)
     state.current_permission = nil
-    state.last_output = os.time()
-  end)
-
-  state.event_manager:subscribe('message.updated', function(event_data)
-    state.last_output = os.time()
-  end)
-
-  state.event_manager:subscribe('message.part.updated', function(event_data)
     state.last_output = os.time()
   end)
 end

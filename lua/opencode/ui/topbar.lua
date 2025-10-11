@@ -86,10 +86,6 @@ local function get_session_desc()
 end
 
 function M.render()
-  if not state.windows then
-    return
-  end
-
   vim.schedule(function()
     if not state.windows then
       return
@@ -100,6 +96,10 @@ function M.render()
 
     update_winbar_highlights(win)
   end)
+end
+
+function M.setup()
+  M.render()
 end
 
 return M

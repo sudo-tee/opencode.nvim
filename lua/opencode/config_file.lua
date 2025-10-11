@@ -9,6 +9,10 @@ function M.get_opencode_config()
   if not M.config_promise then
     local state = require('opencode.state')
     M.config_promise = state.api_client:get_config()
+    -- shouldn't normally happen but prevents error in replay tester
+    if not M.config_promise then
+      return
+    end
   end
   return M.config_promise:wait() --[[@as OpencodeConfigFile|nil]]
 end
@@ -26,16 +30,21 @@ end
 function M.get_opencode_providers()
   if not M.providers_promise then
     local state = require('opencode.state')
+    -- shouldn't normally happen but prevents error in replay tester
     M.providers_promise = state.api_client:list_providers()
+    if not M.providers_promise then
+      return
+    end
   end
   return M.providers_promise:wait() --[[@as OpencodeProvidersResponse|nil]]
 end
 
 function M.get_model_info(provider, model)
   local config_file = require('opencode.config_file')
-  local providers = vim.tbl_filter(function(p)
+  local providers = config_file.get_opencode_providers() or {}
+  providers = vim.tbl_filter(function(p)
     return p.id == provider
-  end, config_file.get_opencode_providers().providers)
+  end, providers)
 
   if #providers == 0 then
     return nil

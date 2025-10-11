@@ -34,18 +34,18 @@ function M.close_windows(windows)
 
   renderer.teardown()
 
-  -- Close windows and delete buffers
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
+
   pcall(vim.api.nvim_win_close, windows.input_win, true)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   footer.close()
 
-  -- Clear autocmd groups
-  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
-  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
-
-  state.windows = nil
+  if state.windows == windows then
+    state.windows = nil
+  end
 end
 
 function M.return_to_last_code_win()
@@ -111,6 +111,7 @@ function M.create_windows()
   input_window.setup(windows)
   output_window.setup(windows)
   footer.setup(windows)
+  topbar.setup()
 
   renderer.setup_subscriptions(windows)
 
@@ -189,8 +190,13 @@ end
 
 function M.render_output(force)
   force = force or false
+  -- vim.notify('render_output, force: ' .. vim.inspect(force) .. '\n' .. debug.traceback())
   renderer.render(state.windows, force)
 end
+
+-- function M.render_incremental_output(message)
+--   renderer.render_incremental(state.windows, message)
+-- end
 
 function M.render_lines(lines)
   M.clear_output()

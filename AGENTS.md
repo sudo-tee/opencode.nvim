@@ -8,6 +8,7 @@
   `nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit', {minimal_init = './tests/minimal/init.lua'})"`
 - **Run a single test:** Replace the directory in the above command with the test file path, e.g.:
   `nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit/job_spec.lua', {minimal_init = './tests/minimal/init.lua'})"`
+- **Manual/Visual tests:** `./tests/manual/run_replay.sh` - Replay captured event data for visual testing
 - **Lint:** No explicit lint command; follow Lua best practices.
 
 ## Code Style Guidelines
@@ -19,6 +20,6 @@
 - **Comments:** Only when necessary for clarity. Prefer self-explanatory code.
 - **Functions:** Prefer local functions. Use `M.func` for module exports.
 - **Config:** Centralize in `config.lua`. Use deep merge for user overrides.
-- **Tests:** Place in `tests/minimal/` or `tests/unit/`.
+- **Tests:** Place in `tests/minimal/` or `tests/unit/`. Manual/visual tests in `tests/manual/`.
 
 _Agentic coding agents must follow these conventions strictly for consistency and reliability._

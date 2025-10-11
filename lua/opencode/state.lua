@@ -22,6 +22,7 @@ local config = require('opencode.config')
 ---@field active_session Session|nil
 ---@field restore_points table<string, any>
 ---@field current_model string|nil
+---@field current_model_info table|nil
 ---@field messages Message[]|nil
 ---@field current_message Message|nil
 ---@field last_user_message Message|nil
@@ -57,6 +58,7 @@ local _state = {
   active_session = nil,
   restore_points = {},
   current_model = nil,
+  current_model_info = nil,
   -- messages
   messages = nil,
   current_message = nil,
@@ -111,16 +113,23 @@ end
 
 -- Notify listeners
 local function _notify(key, new_val, old_val)
-  if _listeners[key] then
-    for _, cb in ipairs(_listeners[key]) do
-      pcall(cb, key, new_val, old_val)
+  -- schedule notification to make sure we're not in a fast event
+  -- context
+  vim.schedule(function()
+    if _listeners[key] then
+      for _, cb in ipairs(_listeners[key]) do
+        local ok, err = pcall(cb, key, new_val, old_val)
+        if not ok then
+          vim.notify(err)
+        end
+      end
     end
-  end
-  if _listeners['*'] then
-    for _, cb in ipairs(_listeners['*']) do
-      pcall(cb, key, new_val, old_val)
+    if _listeners['*'] then
+      for _, cb in ipairs(_listeners['*']) do
+        pcall(cb, key, new_val, old_val)
+      end
     end
-  end
+  end)
 end
 
 local function append(key, value)

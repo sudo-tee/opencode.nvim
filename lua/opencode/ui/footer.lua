@@ -48,11 +48,6 @@ function M.render(windows)
   footer_text = string.rep(' ', win_width - #footer_text) .. footer_text
 
   M.set_content({ footer_text })
-
-  local loading_animation = require('opencode.ui.loading_animation')
-  if loading_animation.is_running() then
-    loading_animation.render(windows)
-  end
 end
 
 ---@param windows OpencodeWindowState
@@ -75,7 +70,19 @@ end
 function M.setup(windows)
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
   vim.api.nvim_set_option_value('winhl', 'Normal:OpenCodeHint', { win = windows.footer_win })
-  state.subscribe('restore_points', function(_, new_val, old_val)
+
+  -- for stats changes
+  state.subscribe('current_model', function(_, _, _)
+    M.render(windows)
+  end)
+
+  state.subscribe('job_count', function(_, new, old)
+    if new == 0 or old == 0 then
+      M.render(windows)
+    end
+  end)
+
+  state.subscribe('restore_points', function(_, _, _)
     M.render(windows)
   end)
 end
@@ -105,23 +112,23 @@ function M.create_buf()
 end
 
 function M.clear()
-  if not M.mounted() then
+  local windows = state.windows
+  if not M.mounted() or not windows then
     return
   end
-  local windows = state.windows
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')
   vim.api.nvim_buf_clear_namespace(windows.footer_buf, foot_ns_id, 0, -1)
 
   M.set_content({})
-
-  state.tokens_count = 0
-  state.cost = 0
+  --
+  -- state.tokens_count = 0
+  -- state.cost = 0
 end
 
 function M.set_content(lines)
   local windows = state.windows
-  if not M.mounted() then
+  if not M.mounted() or not windows then
     return
   end
 

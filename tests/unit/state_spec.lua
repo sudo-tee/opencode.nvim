@@ -14,6 +14,9 @@ describe('opencode.state (observable)', function()
       old_val = oldv
     end)
     state.test_key = 123
+    vim.wait(50, function()
+      return called == true
+    end)
     assert.is_true(called)
     assert.equals('test_key', changed_key)
     assert.equals(123, new_val)
@@ -32,6 +35,9 @@ describe('opencode.state (observable)', function()
       old_val = oldv
     end)
     state.another_key = 'abc'
+    vim.wait(50, function()
+      return called == true
+    end)
     assert.is_true(called)
     assert.equals('another_key', changed_key)
     assert.equals('abc', new_val)
@@ -47,8 +53,12 @@ describe('opencode.state (observable)', function()
     end
     state.subscribe('foo', cb)
     state.foo = 1
+    vim.wait(50, function()
+      return called == 1
+    end)
     state.unsubscribe('foo', cb)
     state.foo = 2
+    vim.wait(50)
     assert.equals(1, called)
     -- Clean up
     state.foo = nil
@@ -60,8 +70,12 @@ describe('opencode.state (observable)', function()
       called = true
     end)
     state.bar = 42
+    vim.wait(50, function()
+      return called == true
+    end)
     called = false
-    state.bar = 42 -- set to same value
+    state.bar = 42
+    vim.wait(50)
     assert.is_false(called)
     -- Clean up
     state.bar = nil

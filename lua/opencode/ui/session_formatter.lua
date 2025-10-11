@@ -27,6 +27,7 @@ function M.format_session(session)
 
   state.last_user_message = nil
   return require('opencode.session').get_messages(session):and_then(function(msgs)
+    vim.notify('formatting session', vim.log.levels.WARN)
     return M._format_messages(session, msgs)
   end)
 end
@@ -91,8 +92,71 @@ function M._format_messages(session, messages)
     end
   end
 
+  -- M.output:add_empty_line()
   return M.output:get_lines()
 end
+
+---@param message Message Message to append to the session
+---@return string[]|nil Formatted session lines
+-- function M.add_message_incremental(message)
+--   if not message then
+--     return nil
+--   end
+--
+--   if not state.messages then
+--     state.messages = {}
+--   end
+--
+--   table.insert(state.messages, message)
+--   local msg_idx = #state.messages
+--
+--   state.current_message = message
+--
+--   if not state.current_model and message.providerID and message.providerID ~= '' then
+--     state.current_model = message.providerID .. '/' .. message.modelID
+--   end
+--
+--   if message.tokens and message.tokens.input > 0 then
+--     state.tokens_count = message.tokens.input
+--       + message.tokens.output
+--       + message.tokens.cache.read
+--       + message.tokens.cache.write
+--   end
+--
+--   if message.cost and type(message.cost) == 'number' then
+--     state.cost = message.cost
+--   end
+--
+--   M.output:add_lines(M.separator)
+--
+--   M._format_message_header(message, msg_idx)
+--
+--   for j, part in ipairs(message.parts or {}) do
+--     M._current = { msg_idx = msg_idx, part_idx = j, role = message.role, type = part.type, snapshot = part.snapshot }
+--     M.output:add_metadata(M._current)
+--
+--     if part.type == 'text' and part.text then
+--       if message.role == 'user' and part.synthetic ~= true then
+--         state.last_user_message = message
+--         M._format_user_message(vim.trim(part.text), message)
+--       elseif message.role == 'assistant' then
+--         M._format_assistant_message(vim.trim(part.text))
+--       end
+--     elseif part.type == 'tool' then
+--       M._format_tool(part)
+--     elseif part.type == 'patch' and part.hash then
+--       M._format_patch(part)
+--     end
+--     M.output:add_empty_line()
+--   end
+--
+--   if message.error and message.error ~= '' then
+--     M._format_error(message)
+--   end
+--
+--   M.output:add_empty_line()
+--   return M.output:get_lines()
+-- end
 
 function M._format_permission_request()
   local config_mod = require('opencode.config')
@@ -395,11 +459,12 @@ function M._format_user_message(text, message)
     context = context_module.extract_from_message_legacy(text)
   else
     context = context_module.extract_from_opencode_message(message)
+    -- vim.notify(vim.inspect('fum: ' .. vim.inspect(context)))
   end
 
   local start_line = M.output:get_line_count() - 1
 
-  M.output:add_empty_line()
+  -- M.output:add_empty_line()
   M.output:add_lines(vim.split(context.prompt, '\n'))
 
   if context.selected_text then
@@ -422,7 +487,7 @@ end
 
 ---@param text string
 function M._format_assistant_message(text)
-  M.output:add_empty_line()
+  -- M.output:add_empty_line()
   M.output:add_lines(vim.split(text, '\n'))
 end
 
@@ -689,6 +754,113 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col)
       virt_text_repeat_linebreak = true,
     })
   end
+end
+
+function M.format_part_isolated(part, message_info)
+  local temp_output = Output.new()
+  local old_output = M.output
+  M.output = temp_output
+
+  M._current = {
+    msg_idx = message_info.msg_idx,
+    part_idx = message_info.part_idx,
+    role = message_info.role,
+    type = part.type,
+    snapshot = part.snapshot,
+  }
+  temp_output:add_metadata(M._current)
+
+  local content_added = false
+
+  if part.type == 'text' and part.text then
+    if message_info.role == 'user' and part.synthetic ~= true then
+      state.last_user_message = message_info.message
+      M._format_user_message(vim.trim(part.text), message_info.message)
+      content_added = true
+    elseif message_info.role == 'assistant' then
+      M._format_assistant_message(vim.trim(part.text))
+      content_added = true
+    end
+  elseif part.type == 'tool' then
+    M._format_tool(part)
+    content_added = true
+  elseif part.type == 'patch' and part.hash then
+    M._format_patch(part)
+    content_added = true
+  elseif part.type == 'file' then
+    -- NOTE: harder to do file as part of user header (because we
+    -- process the message before the part has arrived) so do it
+    -- here
+    local path = part.filename
+    if vim.startswith(path, vim.fn.getcwd()) then
+      path = path:sub(#vim.fn.getcwd() + 2)
+    end
+    M.output:add_line(string.format('[%s](%s)', path, part.filename))
+    content_added = true
+  end
+
+  if content_added then
+    temp_output:add_empty_line()
+  end
+
+  M.output = old_output
+
+  return {
+    lines = temp_output:get_lines(),
+    extmarks = temp_output:get_extmarks(),
+    metadata = temp_output:get_all_metadata(),
+    actions = temp_output.actions,
+  }
+end
+
+function M.format_message_header_isolated(message, msg_idx)
+  local temp_output = Output.new()
+  local old_output = M.output
+  M.output = temp_output
+
+  state.current_message = message
+
+  if not state.current_model and message.providerID and message.providerID ~= '' then
+    state.current_model = message.providerID .. '/' .. message.modelID
+  end
+
+  if message.tokens and message.tokens.input > 0 then
+    state.tokens_count = message.tokens.input
+      + message.tokens.output
+      + message.tokens.cache.read
+      + message.tokens.cache.write
+  end
+
+  if message.cost and type(message.cost) == 'number' then
+    state.cost = message.cost
+  end
+
+  temp_output:add_lines(M.separator)
+  M._format_message_header(message, msg_idx)
+
+  M.output = old_output
+
+  return {
+    lines = temp_output:get_lines(),
+    extmarks = temp_output:get_extmarks(),
+    metadata = temp_output:get_all_metadata(),
+  }
+end
+
+function M.format_error_callout(error_text)
+  local temp_output = Output.new()
+  local old_output = M.output
+  M.output = temp_output
+
+  temp_output:add_empty_line()
+  M._format_callout('ERROR', error_text)
+
+  M.output = old_output
+
+  return {
+    lines = temp_output:get_lines(),
+    extmarks = temp_output:get_extmarks(),
+  }
 end
 
 return M

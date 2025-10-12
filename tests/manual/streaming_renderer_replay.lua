@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local streaming_renderer = require('opencode.ui.streaming_renderer')
 local ui = require('opencode.ui.ui')
+local helpers = require('tests.helpers')
 
 local M = {}
 
@@ -9,6 +10,7 @@ M.current_index = 0
 M.timer = nil
 M.last_loaded_file = nil
 M.headless_mode = false
+M.restore_time_ago = nil
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
@@ -38,14 +40,7 @@ end
 function M.setup_windows()
   streaming_renderer.reset()
 
-  local util = require('opencode.util')
-  M.original_time_ago = util.time_ago
-  util.time_ago = function(timestamp)
-    if timestamp > 1e12 then
-      timestamp = math.floor(timestamp / 500)
-    end
-    return os.date('%Y-%m-%d %H:%M:%S', timestamp)
-  end
+  M.restore_time_ago = helpers.mock_time_ago()
 
   local config = require('opencode.config')
   if not config.config then
@@ -84,22 +79,7 @@ function M.emit_event(event)
 
   vim.schedule(function()
     vim.notify('Event ' .. M.current_index .. '/' .. #M.events .. ': ' .. event.type, vim.log.levels.INFO)
-
-    if event.type == 'message.updated' then
-      streaming_renderer.handle_message_updated(vim.deepcopy(event))
-    elseif event.type == 'message.part.updated' then
-      streaming_renderer.handle_part_updated(vim.deepcopy(event))
-    elseif event.type == 'message.removed' then
-      streaming_renderer.handle_message_removed(vim.deepcopy(event))
-    elseif event.type == 'message.part.removed' then
-      streaming_renderer.handle_part_removed(vim.deepcopy(event))
-    elseif event.type == 'session.compacted' then
-      streaming_renderer.handle_session_compacted()
-    elseif event.type == 'permission.updated' then
-      streaming_renderer.handle_permission_updated(vim.deepcopy(event))
-    elseif event.type == 'permission.replied' then
-      streaming_renderer.handle_permission_replied(vim.deepcopy(event))
-    end
+    helpers.replay_event(event)
   end)
 end
 
@@ -189,13 +169,7 @@ function M.get_expected_filename(input_file)
 end
 
 function M.normalize_namespace_ids(extmarks)
-  local normalized = vim.deepcopy(extmarks)
-  for _, mark in ipairs(normalized) do
-    if mark[4] and mark[4].ns_id then
-      mark[4].ns_id = 3
-    end
-  end
-  return normalized
+  return helpers.normalize_namespace_ids(extmarks)
 end
 
 function M.capture_snapshot(filename)

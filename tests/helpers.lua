@@ -86,4 +86,72 @@ function M.mock_notify()
   }
 end
 
+function M.mock_time_ago()
+  local util = require('opencode.util')
+  local original_time_ago = util.time_ago
+  
+  util.time_ago = function(timestamp)
+    if timestamp > 1e12 then
+      timestamp = math.floor(timestamp / 1000)
+    end
+    return os.date('%Y-%m-%d %H:%M:%S', timestamp)
+  end
+  
+  return function()
+    util.time_ago = original_time_ago
+  end
+end
+
+function M.load_test_data(filename)
+  local f = io.open(filename, 'r')
+  if not f then
+    error('Could not open ' .. filename)
+  end
+  local content = f:read('*all')
+  f:close()
+  return vim.json.decode(content)
+end
+
+function M.replay_event(event)
+  local streaming_renderer = require('opencode.ui.streaming_renderer')
+  if event.type == 'message.updated' then
+    streaming_renderer.handle_message_updated(event)
+  elseif event.type == 'message.part.updated' then
+    streaming_renderer.handle_part_updated(event)
+  elseif event.type == 'message.removed' then
+    streaming_renderer.handle_message_removed(event)
+  elseif event.type == 'message.part.removed' then
+    streaming_renderer.handle_part_removed(event)
+  elseif event.type == 'session.compacted' then
+    streaming_renderer.handle_session_compacted()
+  elseif event.type == 'permission.updated' then
+    streaming_renderer.handle_permission_updated(event)
+  elseif event.type == 'permission.replied' then
+    streaming_renderer.handle_permission_replied(event)
+  end
+end
+
+function M.replay_events(events)
+  for _, event in ipairs(events) do
+    M.replay_event(event)
+  end
+end
+
+function M.normalize_namespace_ids(extmarks)
+  local normalized = vim.deepcopy(extmarks)
+  for _, mark in ipairs(normalized) do
+    if mark[4] and mark[4].ns_id then
+      mark[4].ns_id = 3
+    end
+  end
+  return normalized
+end
+
+function M.capture_output(output_buf, namespace)
+  return {
+    lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false) or {},
+    extmarks = vim.api.nvim_buf_get_extmarks(output_buf, namespace, 0, -1, { details = true }) or {},
+  }
+end
+
 return M

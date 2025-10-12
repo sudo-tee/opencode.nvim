@@ -365,7 +365,7 @@ function M.handle_part_updated(event)
 end
 
 function M.handle_part_removed(event)
-  -- XXX: I don't have any sessions that remove messages so this code is
+  -- XXX: I don't have any sessions that remove parts so this code is
   -- currently untested
   if not event or not event.properties then
     return

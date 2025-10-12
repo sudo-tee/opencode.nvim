@@ -270,12 +270,12 @@ function M.start(opts)
     '  :ReplayStop            - Stop auto-replay (<leader>s)',
     '  :ReplayReset           - Reset to beginning (<leader>r)',
     '  :ReplayClear           - Clear output buffer (<leader>c)',
-    '  :ReplayCapture [file]  - Capture snapshot (auto-derives from loaded file)',
+    '  :ReplaySave [file]     - Save snapshot (auto-derives from loaded file)',
     '  :ReplayStatus          - Show status',
   })
 
-  vim.api.nvim_create_user_command('ReplayLoad', function(opts)
-    local file = opts.args ~= '' and opts.args or nil
+  vim.api.nvim_create_user_command('ReplayLoad', function(cmd_opts)
+    local file = cmd_opts.args ~= '' and cmd_opts.args or nil
     M.load_events(file)
   end, { nargs = '?', desc = 'Load event data file', complete = 'file' })
 
@@ -283,8 +283,8 @@ function M.start(opts)
     M.replay_next()
   end, { desc = 'Replay next event' })
 
-  vim.api.nvim_create_user_command('ReplayAll', function(opts)
-    local delay = tonumber(opts.args) or 50
+  vim.api.nvim_create_user_command('ReplayAll', function(cmd_opts)
+    local delay = tonumber(cmd_opts.args) or 50
     M.replay_all(delay)
   end, { nargs = '?', desc = 'Replay all events with delay (default 50ms)' })
 
@@ -304,8 +304,8 @@ function M.start(opts)
     M.show_status()
   end, { desc = 'Show replay status' })
 
-  vim.api.nvim_create_user_command('ReplayCapture', function(opts)
-    local filename = opts.args ~= '' and opts.args or nil
+  vim.api.nvim_create_user_command('ReplaySave', function(cmd_opts)
+    local filename = cmd_opts.args ~= '' and cmd_opts.args or nil
     if not filename and M.last_loaded_file then
       filename = M.get_expected_filename(M.last_loaded_file)
     end

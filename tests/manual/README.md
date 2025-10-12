@@ -28,7 +28,7 @@ Once loaded, you can use these commands in Neovim:
 - `:ReplayStop` - Stop auto-replay
 - `:ReplayReset` - Reset to the beginning (clears buffer and resets event index)
 - `:ReplayClear` - Clear output buffer without resetting event index
-- `:ReplayCapture [file]` - Capture snapshot of current buffer state (auto-derives filename from loaded file). Used to generated expected files for unit tests
+- `:ReplaySave [file]` - Save snapshot of current buffer state (auto-derives filename from loaded file). Used to generated expected files for unit tests
 - `:ReplayStatus` - Show current replay status
 - `:ReplayHeadless` - Enable headless mode (useful for an AI agent to see replays)
 

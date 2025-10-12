@@ -21,25 +21,6 @@ function M._get_buffer_line_count()
   return vim.api.nvim_buf_line_count(state.windows.output_buf)
 end
 
-function M.is_text_delta(part)
-  if part.type ~= 'text' then
-    return false
-  end
-
-  local cached = M._part_cache[part.id]
-  if not cached or not cached.text then
-    return false
-  end
-
-  local new_text = part.text or ''
-  local old_text = cached.text
-  if #new_text < #old_text then
-    return false
-  end
-
-  return new_text:sub(1, #old_text) == old_text
-end
-
 function M._shift_lines(from_line, delta)
   if delta == 0 then
     return
@@ -106,44 +87,6 @@ function M._text_to_lines(text)
     table.remove(lines)
   end
   return lines
-end
-
-function M._append_delta_to_buffer(part_id, new_text)
-  local cached = M._part_cache[part_id]
-  if not cached or not cached.line_end then
-    return false
-  end
-
-  if not state.windows or not state.windows.output_buf then
-    return false
-  end
-
-  local old_text = cached.text or ''
-  local delta = new_text:sub(#old_text + 1)
-
-  local buf = state.windows.output_buf
-  local delta_lines = M._text_to_lines(delta)
-
-  if #delta_lines == 0 then
-    return true
-  end
-
-  local last_line = vim.api.nvim_buf_get_lines(buf, cached.line_end, cached.line_end + 1, false)[1] or ''
-  local first_delta_line = table.remove(delta_lines, 1)
-  local new_last_line = last_line .. first_delta_line
-
-  local ok = M._set_lines(buf, cached.line_end, cached.line_end + 1, false, { new_last_line })
-
-  if ok and #delta_lines > 0 then
-    ok = M._set_lines(buf, cached.line_end + 1, cached.line_end + 1, false, delta_lines)
-    if ok then
-      local old_line_end = cached.line_end
-      cached.line_end = cached.line_end + #delta_lines
-      M._shift_lines(old_line_end + 1, #delta_lines)
-    end
-  end
-
-  return ok
 end
 
 function M._scroll_to_bottom()
@@ -213,10 +156,6 @@ function M._insert_part_to_buffer(part_id, formatted_data)
 
   cached.line_start = buf_lines
   cached.line_end = buf_lines + #new_lines - 1
-
-  if #new_lines > 1 and new_lines[#new_lines] == '' then
-    cached.line_end = cached.line_end - 1
-  end
 
   M._apply_extmarks(buf, cached.line_start, formatted_data.extmarks)
 
@@ -351,7 +290,7 @@ function M.handle_part_updated(event)
   end
 
   local msg_wrapper, msg_idx
-  for i = #state.messages, math.max(1, #state.messages - 2), -1 do
+  for i = #state.messages, math.max(1, #state.messages - 5), -1 do
     if state.messages[i].info.id == part.messageID then
       msg_wrapper = state.messages[i]
       msg_idx = i
@@ -390,13 +329,6 @@ function M.handle_part_updated(event)
   end
 
   local part_text = part.text or ''
-
-  if not is_new_part and M.is_text_delta(part) then
-    M._append_delta_to_buffer(part.id, part_text)
-    M._part_cache[part.id].text = part_text
-    M._scroll_to_bottom()
-    return
-  end
 
   if not M._part_cache[part.id] then
     M._part_cache[part.id] = {

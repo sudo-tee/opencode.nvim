@@ -459,12 +459,10 @@ function M._format_user_message(text, message)
     context = context_module.extract_from_message_legacy(text)
   else
     context = context_module.extract_from_opencode_message(message)
-    -- vim.notify(vim.inspect('fum: ' .. vim.inspect(context)))
   end
 
   local start_line = M.output:get_line_count()
 
-  -- M.output:add_empty_line()
   M.output:add_lines(vim.split(context.prompt, '\n'))
 
   if context.selected_text then
@@ -545,8 +543,6 @@ function M._format_todo_tool(title, input)
     return
   end
 
-  M.output:add_empty_line()
-
   local todos = input and input.todos or {}
 
   for _, item in ipairs(todos) do
@@ -615,7 +611,6 @@ end
 
 ---@param part MessagePart
 function M._format_tool(part)
-  M.output:add_empty_line()
   local tool = part.tool
   if not tool then
     return
@@ -658,11 +653,9 @@ function M._format_tool(part)
     M._format_permission_request()
   end
 
-  M.output:add_empty_line()
-
   local end_line = M.output:get_line_count()
   if end_line - start_line > 1 then
-    M._add_vertical_border(start_line, end_line - 1, 'OpencodeToolBorder', -1)
+    M._add_vertical_border(start_line, end_line, 'OpencodeToolBorder', -1)
   end
 end
 

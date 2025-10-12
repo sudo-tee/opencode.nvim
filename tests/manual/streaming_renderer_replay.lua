@@ -241,6 +241,16 @@ function M.dump_buffer_and_quit()
 end
 
 function M.start()
+  local buf = vim.api.nvim_get_current_buf()
+  local name = vim.api.nvim_buf_get_name(buf)
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  local is_empty = name == '' and line_count == 1 and vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] == ''
+
+  if not is_empty then
+    -- create and switch to a new empty buffer
+    vim.cmd('enew')
+  end
+
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = 0 })
   vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     'Streaming Renderer Replay',

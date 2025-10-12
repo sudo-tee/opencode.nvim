@@ -178,7 +178,7 @@ function M.stop()
       state.api_client:abort_session(state.active_session.id):wait()
     end
     require('opencode.ui.footer').clear()
-    ui.stop_render_output()
+    -- ui.stop_render_output()
     -- require('opencode.ui.streaming_renderer').reset_and_render()
     input_window.set_content('')
     require('opencode.history').index = nil

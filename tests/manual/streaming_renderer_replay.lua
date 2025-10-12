@@ -37,7 +37,7 @@ function M.load_events(file_path)
   return true
 end
 
-function M.setup_windows()
+function M.setup_windows(opts)
   streaming_renderer.reset()
 
   M.restore_time_ago = helpers.mock_time_ago()
@@ -61,11 +61,16 @@ function M.setup_windows()
   vim.schedule(function()
     if state.windows and state.windows.output_win then
       vim.api.nvim_set_current_win(state.windows.output_win)
-      vim.api.nvim_set_option_value('number', true, { win = state.windows.output_win })
-      vim.api.nvim_set_option_value('statuscolumn', '%l%=  ', { win = state.windows.output_win })
+
+      if opts.set_statuscolumn ~= false then
+        vim.notify('opts: ' .. vim.inspect(opts))
+        vim.api.nvim_set_option_value('number', true, { win = state.windows.output_win })
+        vim.api.nvim_set_option_value('statuscolumn', '%l%=  ', { win = state.windows.output_win })
+      end
       pcall(vim.api.nvim_buf_del_keymap, state.windows.output_buf, 'n', '<esc>')
     end
 
+    state.api_client = state.api_client or {}
     state.api_client._call = empty_fn
   end)
 
@@ -240,7 +245,9 @@ function M.dump_buffer_and_quit()
   end)
 end
 
-function M.start()
+function M.start(opts)
+  opts = opts or {}
+
   local buf = vim.api.nvim_get_current_buf()
   local name = vim.api.nvim_buf_get_name(buf)
   local line_count = vim.api.nvim_buf_line_count(buf)
@@ -259,7 +266,7 @@ function M.start()
     '',
     'Commands:',
     '  :ReplayLoad [file]     - Load events (default: tests/data/simple-session.json)',
-    '  :ReplayNext            - Replay next event (<leader>n)',
+    "  :ReplayNext            - Replay next event (<leader>n or '>' )",
     '  :ReplayAll [ms]        - Replay all events with delay (default 50ms) (<leader>a)',
     '  :ReplayStop            - Stop auto-replay (<leader>s)',
     '  :ReplayReset           - Reset to beginning (<leader>r)',
@@ -316,12 +323,13 @@ function M.start()
   end, { desc = 'Enable headless mode (dump buffer and quit after replay)' })
 
   vim.keymap.set('n', '<leader>n', ':ReplayNext<CR>')
+  vim.keymap.set('n', '>', ':ReplayNext<CR>')
   vim.keymap.set('n', '<leader>s', ':ReplayStop<CR>')
   vim.keymap.set('n', '<leader>a', ':ReplayAll<CR>')
   vim.keymap.set('n', '<leader>c', ':ReplayClear<CR>')
   vim.keymap.set('n', '<leader>r', ':ReplayReset<CR>')
 
-  M.setup_windows()
+  M.setup_windows(opts)
 end
 
 return M

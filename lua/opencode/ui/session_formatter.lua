@@ -462,7 +462,7 @@ function M._format_user_message(text, message)
     -- vim.notify(vim.inspect('fum: ' .. vim.inspect(context)))
   end
 
-  local start_line = M.output:get_line_count() - 1
+  local start_line = M.output:get_line_count()
 
   -- M.output:add_empty_line()
   M.output:add_lines(vim.split(context.prompt, '\n'))
@@ -772,6 +772,13 @@ function M.format_part_isolated(part, message_info)
 
   local content_added = false
 
+  -- FIXME: _format_user_message calls to get context which iterates over
+  -- parts. that won't work when streaming. we already handle file context
+  -- but also need to handle selected text
+  -- At some point, we should unify the rendering to use the streaming
+  -- even when re-reading the whole session and should then not special
+  -- case the context by looking ahead at the parts
+
   if part.type == 'text' and part.text then
     if message_info.role == 'user' and part.synthetic ~= true then
       state.last_user_message = message_info.message
@@ -788,14 +795,16 @@ function M.format_part_isolated(part, message_info)
     M._format_patch(part)
     content_added = true
   elseif part.type == 'file' then
-    -- NOTE: harder to do file as part of user header (because we
-    -- process the message before the part has arrived) so do it
-    -- here
     local path = part.filename
     if vim.startswith(path, vim.fn.getcwd()) then
       path = path:sub(#vim.fn.getcwd() + 2)
     end
-    M.output:add_line(string.format('[%s](%s)', path, part.filename))
+    local file_line = M.output:add_line(string.format('[%s](%s)', path, part.filename))
+    if message_info.role == 'user' then
+      -- when streaming, the file comes in as a separate event, connect it to user
+      -- message
+      M._add_vertical_border(file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+    end
     content_added = true
   end
 

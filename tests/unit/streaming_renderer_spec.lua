@@ -99,4 +99,18 @@ describe('streaming_renderer', function()
     assert.are.same(expected.lines, actual.lines)
     assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
+
+  it('replays planning correctly', function()
+    local events = load_test_data('tests/data/planning.json')
+    local expected = load_test_data('tests/data/planning.expected.json')
+
+    replay_events(events)
+
+    vim.wait(100)
+
+    local actual = capture_output()
+
+    assert.are.same(expected.lines, actual.lines)
+    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+  end)
 end)

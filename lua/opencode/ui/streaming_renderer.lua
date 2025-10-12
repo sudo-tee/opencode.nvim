@@ -383,6 +383,12 @@ function M.handle_part_updated(event)
     end
   end
 
+  -- Don't render anything for these (including blank lines) but do
+  -- track them
+  if part.type == 'step-start' or part.type == 'step-finish' then
+    return
+  end
+
   local part_text = part.text or ''
 
   if not is_new_part and M.is_text_delta(part) then

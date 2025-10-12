@@ -447,7 +447,7 @@ function M._format_action(type, value)
     return
   end
 
-  M.output:add_line('**' .. type .. '** ` ' .. value .. ' `')
+  M.output:add_line('**' .. type .. '** `' .. value .. '`')
 end
 
 ---@param input BashToolInput data for the tool

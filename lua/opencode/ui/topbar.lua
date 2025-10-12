@@ -94,8 +94,17 @@ function M.render()
     if not win then
       return
     end
-    vim.wo[win].winbar =
-      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
+
+    -- we need the topbar to always initialize to make sure footer is positioned
+    -- these can fail in the replay runner so wrap them
+    local ok, model_info = pcall(format_model_info)
+    model_info = ok and model_info or ''
+
+    local mode_info
+    ok, mode_info = pcall(format_mode_info)
+    mode_info = ok and mode_info or ''
+
+    vim.wo[win].winbar = create_winbar_text(get_session_desc(), model_info, mode_info, vim.api.nvim_win_get_width(win))
 
     update_winbar_highlights(win)
   end)

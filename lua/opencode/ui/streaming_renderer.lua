@@ -90,10 +90,11 @@ function M._text_to_lines(text)
 end
 
 function M._scroll_to_bottom()
-  vim.schedule(function()
-    -- vim.notify('scrolling to bottom')
+  local debounced_scroll = require('opencode.util').debounce(function()
     require('opencode.ui.ui').scroll_to_bottom()
-  end)
+  end, 50)
+
+  debounced_scroll()
 end
 
 function M._write_formatted_data(formatted_data)

@@ -498,7 +498,7 @@ function M._format_todo_tool(title, input)
 
   for _, item in ipairs(todos) do
     local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
-    M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content), true)
+    M.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
   end
 end
 

@@ -63,7 +63,6 @@ function M.setup_windows(opts)
       vim.api.nvim_set_current_win(state.windows.output_win)
 
       if opts.set_statuscolumn ~= false then
-        vim.notify('opts: ' .. vim.inspect(opts))
         vim.api.nvim_set_option_value('number', true, { win = state.windows.output_win })
         vim.api.nvim_set_option_value('statuscolumn', '%l%=  ', { win = state.windows.output_win })
       end

@@ -172,7 +172,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
     return false
   end
 
-  local buf = state.windows.output_buf
+  local buf = state.windows.output_buf --[[@as integer]]
   local new_lines = formatted_data.lines
 
   local old_line_count = cached.line_end - cached.line_start + 1

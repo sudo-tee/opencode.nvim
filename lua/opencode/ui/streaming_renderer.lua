@@ -21,28 +21,23 @@ function M._get_buffer_line_count()
   return vim.api.nvim_buf_line_count(state.windows.output_buf)
 end
 
-function M._is_streaming_update(part_id, new_text)
-  local cached = M._part_cache[part_id]
+function M.is_text_delta(part)
+  if part.type ~= 'text' then
+    return false
+  end
+
+  local cached = M._part_cache[part.id]
   if not cached or not cached.text then
     return false
   end
 
+  local new_text = part.text or ''
   local old_text = cached.text
   if #new_text < #old_text then
     return false
   end
 
   return new_text:sub(1, #old_text) == old_text
-end
-
-function M._calculate_delta(part_id, new_text)
-  local cached = M._part_cache[part_id]
-  if not cached or not cached.text then
-    return new_text
-  end
-
-  local old_text = cached.text
-  return new_text:sub(#old_text + 1)
 end
 
 function M._shift_lines(from_line, delta)
@@ -113,7 +108,7 @@ function M._text_to_lines(text)
   return lines
 end
 
-function M._append_delta_to_buffer(part_id, delta)
+function M._append_delta_to_buffer(part_id, new_text)
   local cached = M._part_cache[part_id]
   if not cached or not cached.line_end then
     return false
@@ -122,6 +117,9 @@ function M._append_delta_to_buffer(part_id, delta)
   if not state.windows or not state.windows.output_buf then
     return false
   end
+
+  local old_text = cached.text or ''
+  local delta = new_text:sub(#old_text + 1)
 
   local buf = state.windows.output_buf
   local delta_lines = M._text_to_lines(delta)
@@ -240,6 +238,9 @@ function M._replace_part_in_buffer(part_id, formatted_data)
 
   local old_line_count = cached.line_end - cached.line_start + 1
   local new_line_count = #new_lines
+
+  -- clear previous extmarks
+  vim.api.nvim_buf_clear_namespace(buf, M._namespace, cached.line_start, cached.line_end + 1)
 
   local ok = M._set_lines(buf, cached.line_start, cached.line_end + 1, false, new_lines)
 
@@ -384,9 +385,8 @@ function M.handle_part_updated(event)
 
   local part_text = part.text or ''
 
-  if not is_new_part and M._is_streaming_update(part.id, part_text) then
-    local delta = M._calculate_delta(part.id, part_text)
-    M._append_delta_to_buffer(part.id, delta)
+  if not is_new_part and M.is_text_delta(part) then
+    M._append_delta_to_buffer(part.id, part_text)
     M._part_cache[part.id].text = part_text
     M._scroll_to_bottom()
     return

@@ -54,9 +54,7 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
-    if opts.new_session then
-      state.active_session = M.create_new_session()
-    end
+    state.active_session = M.create_new_session()
     ui.clear_output()
   else
     if not state.active_session then

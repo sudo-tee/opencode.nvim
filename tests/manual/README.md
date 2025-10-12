@@ -22,11 +22,15 @@ nvim -u tests/manual/init_replay.lua -c "lua require('tests.manual.streaming_ren
 
 Once loaded, you can use these commands in Neovim:
 
+- `:ReplayLoad [file]` - Load event data file (default: tests/data/simple-session.json)
 - `:ReplayNext` - Replay the next event in sequence
-- `:ReplayAll [ms]` - Auto-replay all events with optional delay in milliseconds (default: 100ms)
+- `:ReplayAll [ms]` - Auto-replay all events with optional delay in milliseconds (default: 50ms)
 - `:ReplayStop` - Stop auto-replay
 - `:ReplayReset` - Reset to the beginning (clears buffer and resets event index)
+- `:ReplayClear` - Clear output buffer without resetting event index
+- `:ReplayCapture [file]` - Capture snapshot of current buffer state (auto-derives filename from loaded file). Used to generated expected files for unit tests
 - `:ReplayStatus` - Show current replay status
+- `:ReplayHeadless` - Enable headless mode (useful for an AI agent to see replays)
 
 ### Example Workflow
 
@@ -44,10 +48,11 @@ events from a real session that can be replayed to test the streaming renderer b
 
 To capture new event data for testing:
 
-1. Run OpenCode with event logging enabled
-2. Copy the event stream JSON output
-3. Save to a new file in `tests/data/`
-4. Modify `streaming_renderer_replay.lua` to load your new data file
+1. Set `capture_streamed_events = true` in your config
+2. Use OpenCode normally to generate the events you want to capture
+3. Call `:lua require('opencode.ui.debug_helper').save_captured_events('data.json')`
+4. The captured events will be saved to `data.json` in the current directory
+5. That data can then be loaded with `:ReplayLoad`
 
 ### Debugging Tips
 

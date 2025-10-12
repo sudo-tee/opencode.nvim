@@ -137,6 +137,20 @@ describe('streaming_renderer', function()
     assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 
+  it('replays permission denied correctly', function()
+    local events = load_test_data('tests/data/permission-denied.json')
+    local expected = load_test_data('tests/data/permission-denied.expected.json')
+
+    replay_events(events)
+
+    vim.wait(100)
+
+    local actual = capture_output()
+
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+  end)
+
   it('replays diff correctly', function()
     local events = load_test_data('tests/data/diff.json')
     local expected = load_test_data('tests/data/diff.expected.json')

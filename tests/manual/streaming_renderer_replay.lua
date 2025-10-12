@@ -100,6 +100,8 @@ end
 function M.replay_all(delay_ms)
   if #M.events == 0 then
     M.load_events()
+  elseif M.current_index == #M.events then
+    M.reset()
   end
 
   delay_ms = delay_ms or 50
@@ -143,7 +145,6 @@ function M.reset()
   M.replay_stop()
   M.current_index = 0
   M.clear()
-  vim.notify('Reset complete. Ready to replay.', vim.log.levels.INFO)
 end
 
 function M.show_status()

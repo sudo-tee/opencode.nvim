@@ -47,6 +47,11 @@ function M.setup_windows()
     return os.date('%Y-%m-%d %H:%M:%S', timestamp)
   end
 
+  local config = require('opencode.config')
+  if not config.config then
+    config.config = vim.deepcopy(config.defaults)
+  end
+
   local ok, err = pcall(function()
     state.windows = ui.create_windows()
   end)
@@ -66,7 +71,6 @@ function M.setup_windows()
       pcall(vim.api.nvim_buf_del_keymap, state.windows.output_buf, 'n', '<esc>')
     end
 
-    -- no api calls
     state.api_client._call = empty_fn
   end)
 
@@ -91,6 +95,10 @@ function M.emit_event(event)
       streaming_renderer.handle_part_removed(vim.deepcopy(event))
     elseif event.type == 'session.compacted' then
       streaming_renderer.handle_session_compacted()
+    elseif event.type == 'permission.updated' then
+      streaming_renderer.handle_permission_updated(vim.deepcopy(event))
+    elseif event.type == 'permission.replied' then
+      streaming_renderer.handle_permission_replied(vim.deepcopy(event))
     end
   end)
 end

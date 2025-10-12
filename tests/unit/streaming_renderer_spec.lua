@@ -24,6 +24,10 @@ local function replay_events(events)
       streaming_renderer.handle_part_removed(event)
     elseif event.type == 'session.compacted' then
       streaming_renderer.handle_session_compacted()
+    elseif event.type == 'permission.updated' then
+      streaming_renderer.handle_permission_updated(event)
+    elseif event.type == 'permission.replied' then
+      streaming_renderer.handle_permission_replied(event)
     end
   end
 end
@@ -31,8 +35,8 @@ end
 local function capture_output()
   local buf = state.windows.output_buf
   return {
-    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false),
-    extmarks = vim.api.nvim_buf_get_extmarks(buf, streaming_renderer._namespace, 0, -1, { details = true }),
+    lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false) or {},
+    extmarks = vim.api.nvim_buf_get_extmarks(buf, streaming_renderer._namespace, 0, -1, { details = true }) or {},
   }
 end
 
@@ -61,6 +65,11 @@ describe('streaming_renderer', function()
       end
       return os.date('%Y-%m-%d %H:%M:%S', timestamp)
     end
+
+    local config = require('opencode.config')
+    if not config.config then
+      config.config = vim.deepcopy(config.defaults)
+    end
   end)
 
   after_each(function()
@@ -82,8 +91,8 @@ describe('streaming_renderer', function()
 
     local actual = capture_output()
 
-    assert.are.same(expected.lines, actual.lines)
-    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 
   it('replays updating-text correctly', function()
@@ -96,8 +105,8 @@ describe('streaming_renderer', function()
 
     local actual = capture_output()
 
-    assert.are.same(expected.lines, actual.lines)
-    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 
   it('replays planning correctly', function()
@@ -110,7 +119,35 @@ describe('streaming_renderer', function()
 
     local actual = capture_output()
 
-    assert.are.same(expected.lines, actual.lines)
-    assert.are.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+  end)
+
+  it('replays permission correctly', function()
+    local events = load_test_data('tests/data/permission.json')
+    local expected = load_test_data('tests/data/permission.expected.json')
+
+    replay_events(events)
+
+    vim.wait(100)
+
+    local actual = capture_output()
+
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
+  end)
+
+  it('replays diff correctly', function()
+    local events = load_test_data('tests/data/diff.json')
+    local expected = load_test_data('tests/data/diff.expected.json')
+
+    replay_events(events)
+
+    vim.wait(100)
+
+    local actual = capture_output()
+
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, normalize_namespace_ids(actual.extmarks))
   end)
 end)

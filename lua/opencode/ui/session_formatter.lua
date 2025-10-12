@@ -518,14 +518,16 @@ end
 function M._format_grep_tool(input, metadata)
   input = input or { path = '', include = '', pattern = '' }
 
-  local grep_str = string.format('%s `` %s', (input.path or input.include) or '', input.pattern or '')
+  local grep_str = string.format('%s` `%s', (input.path or input.include) or '', input.pattern or '')
 
   M._format_action(icons.get('search') .. ' grep', grep_str)
   if not config.ui.output.tools.show_output then
     return
   end
   local prefix = metadata.truncated and ' more than' or ''
-  M.output:add_line(string.format('Found%s `%d` match', prefix, metadata.matches or 0))
+  M.output:add_line(
+    string.format('Found%s `%d` match' .. (metadata.matches ~= 1 and 'es' or ''), prefix, metadata.matches or 0)
+  )
 end
 
 ---@param input WebFetchToolInput data for the tool

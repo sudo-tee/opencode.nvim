@@ -61,7 +61,8 @@ function M.setup_windows()
   vim.schedule(function()
     if state.windows and state.windows.output_win then
       vim.api.nvim_set_current_win(state.windows.output_win)
-      vim.api.nvim_set_option_value('signcolumn', 'yes', { win = state.windows.output_win })
+      vim.api.nvim_set_option_value('number', true, { win = state.windows.output_win })
+      vim.api.nvim_set_option_value('statuscolumn', '%l%=  ', { win = state.windows.output_win })
       pcall(vim.api.nvim_buf_del_keymap, state.windows.output_buf, 'n', '<esc>')
     end
 

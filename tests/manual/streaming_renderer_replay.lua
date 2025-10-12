@@ -179,6 +179,16 @@ function M.get_expected_filename(input_file)
   return base .. '.expected.json'
 end
 
+function M.normalize_namespace_ids(extmarks)
+  local normalized = vim.deepcopy(extmarks)
+  for _, mark in ipairs(normalized) do
+    if mark[4] and mark[4].ns_id then
+      mark[4].ns_id = 3
+    end
+  end
+  return normalized
+end
+
 function M.capture_snapshot(filename)
   if not state.windows or not state.windows.output_buf then
     vim.notify('No output buffer available', vim.log.levels.ERROR)
@@ -191,7 +201,7 @@ function M.capture_snapshot(filename)
 
   local snapshot = {
     lines = lines,
-    extmarks = extmarks,
+    extmarks = M.normalize_namespace_ids(extmarks),
     timestamp = os.time(),
   }
 

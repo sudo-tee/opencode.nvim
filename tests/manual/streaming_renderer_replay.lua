@@ -42,7 +42,7 @@ function M.setup_windows()
   M.original_time_ago = util.time_ago
   util.time_ago = function(timestamp)
     if timestamp > 1e12 then
-      timestamp = math.floor(timestamp / 1000)
+      timestamp = math.floor(timestamp / 500)
     end
     return os.date('%Y-%m-%d %H:%M:%S', timestamp)
   end
@@ -118,7 +118,7 @@ function M.replay_all(delay_ms)
     M.load_events()
   end
 
-  delay_ms = delay_ms or 100
+  delay_ms = delay_ms or 50
 
   if M.timer then
     M.timer:stop()
@@ -276,7 +276,7 @@ function M.start()
     'Commands:',
     '  :ReplayLoad [file]     - Load events (default: tests/data/simple-session.json)',
     '  :ReplayNext            - Replay next event (<leader>n)',
-    '  :ReplayAll [ms]        - Replay all events with delay (default 100ms) (<leader>a)',
+    '  :ReplayAll [ms]        - Replay all events with delay (default 50ms) (<leader>a)',
     '  :ReplayStop            - Stop auto-replay (<leader>s)',
     '  :ReplayReset           - Reset to beginning (<leader>r)',
     '  :ReplayClear           - Clear output buffer (<leader>c)',
@@ -294,9 +294,9 @@ function M.start()
   end, { desc = 'Replay next event' })
 
   vim.api.nvim_create_user_command('ReplayAll', function(opts)
-    local delay = tonumber(opts.args) or 100
+    local delay = tonumber(opts.args) or 50
     M.replay_all(delay)
-  end, { nargs = '?', desc = 'Replay all events with delay (default 100ms)' })
+  end, { nargs = '?', desc = 'Replay all events with delay (default 50ms)' })
 
   vim.api.nvim_create_user_command('ReplayStop', function()
     M.replay_stop()

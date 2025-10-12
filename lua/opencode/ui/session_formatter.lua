@@ -262,7 +262,7 @@ end
 function M._format_patch(part)
   local restore_points = snapshot.get_restore_points_by_parent(part.hash)
   M.output:add_empty_line()
-  M._format_action(icons.get('snapshot') .. ' **Created Snapshot**', vim.trim(part.hash:sub(1, 8)))
+  M._format_action(icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
   local snapshot_header_line = M.output:get_line_count()
 
   -- Anchor all snapshot-level actions to the snapshot header line

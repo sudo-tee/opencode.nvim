@@ -97,10 +97,6 @@ function M._scroll_to_bottom()
 end
 
 function M._write_formatted_data(formatted_data)
-  if not state.windows or not state.windows.output_buf then
-    return nil
-  end
-
   local buf = state.windows.output_buf
   local buf_lines = M._get_buffer_line_count()
   local new_lines = formatted_data.lines
@@ -136,10 +132,6 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
-  if not state.windows or not state.windows.output_buf then
-    return false
-  end
-
   local buf = state.windows.output_buf
   local new_lines = formatted_data.lines
   local buf_lines = M._get_buffer_line_count()
@@ -165,10 +157,6 @@ end
 function M._replace_part_in_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
   if not cached or not cached.line_start or not cached.line_end then
-    return false
-  end
-
-  if not state.windows or not state.windows.output_buf then
     return false
   end
 
@@ -237,10 +225,6 @@ function M.handle_message_updated(event)
 
   M._session_id = message.sessionID
 
-  if not state.messages then
-    state.messages = {}
-  end
-
   local found_idx = nil
   for i = #state.messages, math.max(1, #state.messages - 2), -1 do
     if state.messages[i].info.id == message.id then
@@ -283,10 +267,6 @@ function M.handle_part_updated(event)
   if M._session_id and M._session_id ~= part.sessionID then
     vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
-  end
-
-  if not state.messages then
-    state.messages = {}
   end
 
   local msg_wrapper, msg_idx
@@ -410,10 +390,6 @@ function M.handle_message_removed(event)
     return
   end
 
-  if not state.messages then
-    return
-  end
-
   local message_idx = nil
   for i = #state.messages, 1, -1 do
     if state.messages[i].info.id == message_id then
@@ -467,6 +443,105 @@ function M.handle_session_error(event)
 
   M._write_formatted_data(formatted)
   M._scroll_to_bottom()
+end
+
+function M.handle_permission_updated(event)
+  if not event or not event.properties then
+    return
+  end
+
+  local permission = event.properties
+  if not permission.messageID or not permission.callID then
+    return
+  end
+
+  state.current_permission = permission
+
+  local part_id = M._find_part_by_call_id(permission.callID)
+  if part_id then
+    M._rerender_part(part_id)
+  end
+end
+
+function M.handle_permission_replied(event)
+  if not event or not event.properties then
+    return
+  end
+
+  local old_permission = state.current_permission
+  state.current_permission = nil
+
+  if old_permission and old_permission.callID then
+    local part_id = M._find_part_by_call_id(old_permission.callID)
+    if part_id then
+      M._rerender_part(part_id)
+    end
+  end
+end
+
+function M._find_part_by_call_id(call_id)
+  if not state.messages then
+    return nil
+  end
+
+  for i = #state.messages, 1, -1 do
+    local msg_wrapper = state.messages[i]
+    if msg_wrapper.parts then
+      for j = #msg_wrapper.parts, 1, -1 do
+        local part = msg_wrapper.parts[j]
+        if part.callID == call_id then
+          return part.id
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+function M._rerender_part(part_id)
+  local cached = M._part_cache[part_id]
+  if not cached then
+    return
+  end
+
+  local part, msg_wrapper, msg_idx, part_idx
+  for i, wrapper in ipairs(state.messages) do
+    if wrapper.parts then
+      for j, p in ipairs(wrapper.parts) do
+        if p.id == part_id then
+          part = p
+          msg_wrapper = wrapper
+          msg_idx = i
+          part_idx = j
+          break
+        end
+      end
+    end
+    if part then
+      break
+    end
+  end
+
+  if not part or not msg_wrapper then
+    return
+  end
+
+  local formatter = require('opencode.ui.session_formatter')
+  local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
+  local ok, formatted = pcall(formatter.format_part_isolated, part, {
+    msg_idx = msg_idx,
+    part_idx = part_idx,
+    role = msg_wrapper.info.role,
+    message = message_with_parts,
+  })
+
+  if not ok then
+    vim.notify('format_part_isolated error: ' .. tostring(formatted), vim.log.levels.ERROR)
+    return
+  end
+
+  M._replace_part_in_buffer(part_id, formatted)
 end
 
 return M

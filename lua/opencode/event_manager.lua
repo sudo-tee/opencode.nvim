@@ -359,13 +359,11 @@ function EventManager.setup()
   end)
 
   state.event_manager:subscribe('permission.updated', function(event_data)
-    state.current_permission = event_data.properties
-    state.last_output = os.time()
+    streaming_renderer.handle_permission_updated(event_data)
   end)
 
   state.event_manager:subscribe('permission.replied', function(event_data)
-    state.current_permission = nil
-    state.last_output = os.time()
+    streaming_renderer.handle_permission_replied(event_data)
   end)
 end
 

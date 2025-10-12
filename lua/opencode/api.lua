@@ -629,15 +629,8 @@ function M.respond_to_permission(answer)
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
-    :and_then(function()
-      vim.schedule(function()
-        state.current_permission = nil
-        require('opencode.ui.streaming_renderer').reset_and_render()
-      end)
-    end)
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)

@@ -520,9 +520,9 @@ end
 function M._format_file_tool(tool_type, input, metadata)
   local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
   local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
-  local icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
+  local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 
-  M._format_action(icons[tool_type] .. ' ' .. tool_type, file_name)
+  M._format_action(tool_action_icons[tool_type] .. ' ' .. tool_type, file_name)
 
   if not config.ui.output.tools.show_output then
     return

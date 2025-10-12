@@ -3,6 +3,7 @@
 ---@field debug_output fun()
 ---@field debug_message fun()
 ---@field debug_session fun()
+---@field save_captured_events fun(filename: string)
 local M = {}
 
 local state = require('opencode.state')
@@ -40,6 +41,24 @@ function M.debug_session()
   end
   vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
   vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
+end
+
+function M.save_captured_events(filename)
+  if not state.event_manager then
+    vim.notify('Event manager not initialized', vim.log.levels.ERROR)
+    return
+  end
+
+  local events = state.event_manager.captured_events
+  if not events or #events == 0 then
+    vim.notify('No captured events to save', vim.log.levels.WARN)
+    return
+  end
+
+  local json_str = vim.json.encode(events)
+  local lines = vim.split(json_str, '\n')
+  vim.fn.writefile(lines, filename)
+  vim.notify(string.format('Saved %d events to %s', #events, filename), vim.log.levels.INFO)
 end
 
 return M

@@ -158,6 +158,7 @@ M.defaults = {
   },
   debug = {
     enabled = false,
+    capture_streamed_events = false,
   },
 }
 

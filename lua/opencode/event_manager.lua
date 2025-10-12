@@ -114,6 +114,7 @@ local state = require('opencode.state')
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
 --- @field is_started boolean Whether the event manager is started
+--- @field captured_events table[] List of captured events for debugging
 local EventManager = {}
 EventManager.__index = EventManager
 
@@ -124,6 +125,7 @@ function EventManager.new()
     events = {},
     server_subscription = nil,
     is_started = false,
+    captured_events = {},
   }, EventManager)
 end
 
@@ -266,11 +268,22 @@ function EventManager:_subscribe_to_server_events(server)
 
   local api_client = state.api_client
 
-  self.server_subscription = api_client:subscribe_to_events(nil, function(event)
+  local emitter = function(event)
+    -- schedule events to allow for similar pieces of state to be updated
     vim.schedule(function()
       self:emit(event.type, event)
     end)
-  end)
+  end
+
+  if require('opencode.config').debug.capture_streamed_events then
+    local _emitter = emitter
+    emitter = function(event)
+      table.insert(self.captured_events, event)
+      _emitter(event)
+    end
+  end
+
+  self.server_subscription = api_client:subscribe_to_events(nil, emitter)
 end
 
 function EventManager:_cleanup_server_subscription()

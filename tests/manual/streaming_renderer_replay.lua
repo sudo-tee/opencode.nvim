@@ -8,6 +8,7 @@ M.events = {}
 M.current_index = 0
 M.timer = nil
 M.last_loaded_file = nil
+M.headless_mode = false
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
@@ -126,6 +127,9 @@ function M.replay_all(delay_ms)
           M.timer = nil
         end
         vim.notify('Replay complete!', vim.log.levels.INFO)
+        if M.headless_mode then
+          M.dump_buffer_and_quit()
+        end
         return
       end
 
@@ -206,6 +210,43 @@ function M.capture_snapshot(filename)
   return snapshot
 end
 
+function M.dump_buffer_and_quit()
+  vim.schedule(function()
+    if not state.windows or not state.windows.output_buf then
+      print('ERROR: No output buffer available')
+      vim.cmd('qall!')
+      return
+    end
+
+    local buf = state.windows.output_buf
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local extmarks = vim.api.nvim_buf_get_extmarks(buf, streaming_renderer._namespace, 0, -1, { details = true })
+
+    local extmarks_by_line = {}
+    for _, mark in ipairs(extmarks) do
+      local line = mark[2] + 1
+      if not extmarks_by_line[line] then
+        extmarks_by_line[line] = {}
+      end
+      local details = mark[4]
+      if details.virt_text then
+        for _, vt in ipairs(details.virt_text) do
+          table.insert(extmarks_by_line[line], vt[1])
+        end
+      end
+    end
+
+    print('\n========== OUTPUT BUFFER ==========')
+    for i, line in ipairs(lines) do
+      local prefix = extmarks_by_line[i] and table.concat(extmarks_by_line[i], '') or ''
+      print(string.format('%3d: %s%s', i, prefix, line))
+    end
+    print('===================================\n')
+
+    vim.cmd('qall!')
+  end)
+end
+
 function M.start()
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = 0 })
   vim.api.nvim_buf_set_lines(0, 0, -1, false, {
@@ -265,6 +306,11 @@ function M.start()
     end
     M.capture_snapshot(filename)
   end, { nargs = '?', desc = 'Capture output snapshot', complete = 'file' })
+
+  vim.api.nvim_create_user_command('ReplayHeadless', function()
+    M.headless_mode = true
+    vim.notify('Headless mode enabled - will dump buffer and quit after replay', vim.log.levels.INFO)
+  end, { desc = 'Enable headless mode (dump buffer and quit after replay)' })
 
   vim.keymap.set('n', '<leader>n', ':ReplayNext<CR>')
   vim.keymap.set('n', '<leader>s', ':ReplayStop<CR>')

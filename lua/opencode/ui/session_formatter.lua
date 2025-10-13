@@ -37,8 +37,8 @@ function M._format_messages(session, messages)
 
   M.output:clear()
 
-  M.output:add_line('')
-  M.output:add_line('')
+  -- M.output:add_line('')
+  -- M.output:add_line('')
 
   for i, msg in ipairs(state.messages) do
     M.output:add_lines(M.separator)

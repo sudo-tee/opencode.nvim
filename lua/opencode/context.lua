@@ -92,6 +92,9 @@ function M.add_selection(selection)
 end
 
 function M.add_file(file)
+  --- TODO: probably need a way to remove a file once it's been added?
+  --- maybe a keymap like clear all context?
+
   if not M.context.mentioned_files then
     M.context.mentioned_files = {}
   end
@@ -320,7 +323,10 @@ function M.format_message(prompt, opts)
   local parts = { { type = 'text', text = prompt } }
 
   for _, path in ipairs(context.mentioned_files or {}) do
-    table.insert(parts, format_file_part(path, prompt))
+    -- don't resend current file if it's also mentioned
+    if not context.current_file or path ~= context.current_file.path then
+      table.insert(parts, format_file_part(path, prompt))
+    end
   end
 
   for _, agent in ipairs(context.mentioned_subagents or {}) do

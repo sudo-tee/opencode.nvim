@@ -101,7 +101,7 @@ function M.replay_next(steps)
     return
   end
 
-  for i = 1, steps do
+  for _ = 1, steps do
     if M.current_index < #M.events then
       M.current_index = M.current_index + 1
       M.emit_event(M.events[M.current_index])
@@ -115,6 +115,8 @@ end
 function M.replay_all(delay_ms)
   if #M.events == 0 then
     M.load_events()
+  else
+    M.reset()
   end
 
   delay_ms = delay_ms or 50

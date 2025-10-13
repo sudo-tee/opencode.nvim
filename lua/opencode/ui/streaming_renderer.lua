@@ -7,6 +7,7 @@ M._part_cache = {}
 M._namespace = vim.api.nvim_create_namespace('opencode_stream')
 M._prev_line_count = 0
 
+---Reset streaming renderer state
 function M.reset()
   M._part_cache = {}
   M._prev_line_count = 0
@@ -18,7 +19,7 @@ function M.reset()
   state.messages = {}
 end
 
----Set up all subscriptions
+---Set up all subscriptions, for both local and server events
 function M.setup_subscriptions(_)
   M._subscriptions.active_session = function(_, _, old)
     if not old then
@@ -58,11 +59,15 @@ function M._cleanup_subscriptions()
   M._subscriptions = {}
 end
 
+---Clean up and teardown streaming renderer. Unsubscribes from all
+---events, local state and server
 function M.teardown()
   M._cleanup_subscriptions()
   M.reset()
 end
 
+---Get number of lines in output buffer
+---@return integer
 function M._get_buffer_line_count()
   if not state.windows or not state.windows.output_buf then
     return 0
@@ -70,6 +75,11 @@ function M._get_buffer_line_count()
   return vim.api.nvim_buf_line_count(state.windows.output_buf)
 end
 
+---Shift cached line positions by delta starting from from_line
+---Uses state.messages rather than M._part_cache so it can
+---stop early
+---@param from_line integer Line number to start shifting from
+---@param delta integer Number of lines to shift (positive or negative)
 function M._shift_lines(from_line, delta)
   if delta == 0 then
     return
@@ -105,6 +115,10 @@ function M._shift_lines(from_line, delta)
   -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
 end
 
+---Apply extmarks to buffer at given line offset
+---@param buf integer Buffer handle
+---@param line_offset integer Line offset to apply extmarks at
+---@param extmarks table<integer, table[]>? Extmarks indexed by line
 function M._apply_extmarks(buf, line_offset, extmarks)
   if not extmarks or type(extmarks) ~= 'table' then
     return
@@ -122,12 +136,21 @@ function M._apply_extmarks(buf, line_offset, extmarks)
   end
 end
 
+---The output buffer isn't modifiable so this is a wrapper that
+---temporarily makes the buffer modifiable while so we can add content
+---@param buf integer Buffer handle
+---@param start_line integer Start line (0-indexed)
+---@param end_line integer End line (0-indexed, -1 for end of buffer)
+---@param strict_indexing boolean Use strict indexing
+---@param lines string[] Lines to set
 function M._set_lines(buf, start_line, end_line, strict_indexing, lines)
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   vim.api.nvim_buf_set_lines(buf, start_line, end_line, strict_indexing, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 end
 
+---Auto-scroll to bottom if user was already at bottom
+---Respects cursor position if user has scrolled up
 function M._scroll_to_bottom()
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
   if not ok then
@@ -153,6 +176,9 @@ function M._scroll_to_bottom()
   end
 end
 
+---Write data to output_buf, including normal text and extmarks
+---@param formatted_data {lines: string[], extmarks: table?} Formatted data with lines and extmarks
+---@return {line_start: integer, line_end: integer}? Range where data was written
 function M._write_formatted_data(formatted_data)
   local buf = state.windows.output_buf
   local buf_lines = M._get_buffer_line_count()
@@ -171,6 +197,10 @@ function M._write_formatted_data(formatted_data)
   }
 end
 
+---Write message header to buffer
+---@param message table Message object
+---@param msg_idx integer Message index
+---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
   local formatter = require('opencode.ui.session_formatter')
   local header_data = formatter.format_message_header_isolated(message, msg_idx)
@@ -178,6 +208,10 @@ function M._write_message_header(message, msg_idx)
   return line_range
 end
 
+---Insert new part at end of buffer
+---@param part_id string Part ID
+---@param formatted_data {lines: string[], extmarks: table?} Formatted data
+---@return boolean Success status
 function M._insert_part_to_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
   if not cached then
@@ -198,6 +232,11 @@ function M._insert_part_to_buffer(part_id, formatted_data)
   return true
 end
 
+---Replace existing part in buffer
+---Adjusts line positions of subsequent parts if line count changes
+---@param part_id string Part ID
+---@param formatted_data {lines: string[], extmarks: table?} Formatted data
+---@return boolean Success status
 function M._replace_part_in_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
   if not cached or not cached.line_start or not cached.line_end then
@@ -227,6 +266,8 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   return true
 end
 
+---Remove part from buffer and adjust subsequent line positions
+---@param part_id string Part ID
 function M._remove_part_from_buffer(part_id)
   local cached = M._part_cache[part_id]
   if not cached or not cached.line_start or not cached.line_end then
@@ -247,6 +288,9 @@ function M._remove_part_from_buffer(part_id)
   M._part_cache[part_id] = nil
 end
 
+---Event handler for message.updated events
+---Creates new message or updates existing message info
+---@param event EventMessageUpdated Event object
 function M.on_message_updated(event)
   if not event or not event.properties or not event.properties.info then
     return
@@ -283,6 +327,9 @@ function M.on_message_updated(event)
   M._scroll_to_bottom()
 end
 
+---Event handler for message.part.updated events
+---Inserts new parts or replaces existing parts in buffer
+---@param event EventMessagePartUpdated Event object
 function M.on_part_updated(event)
   if not event or not event.properties or not event.properties.part then
     return
@@ -373,6 +420,8 @@ function M.on_part_updated(event)
   M._scroll_to_bottom()
 end
 
+---Event handler for message.part.removed events
+---@param event EventMessagePartRemoved Event object
 function M.on_part_removed(event)
   -- XXX: I don't have any sessions that remove parts so this code is
   -- currently untested
@@ -407,6 +456,9 @@ function M.on_part_removed(event)
   M._remove_part_from_buffer(part_id)
 end
 
+---Event handler for message.removed events
+---Removes message and all its parts from buffer
+---@param event EventMessageRemoved Event object
 function M.on_message_removed(event)
   -- XXX: I don't have any sessions that remove messages so this code is
   -- currently untested
@@ -443,17 +495,23 @@ function M.on_message_removed(event)
   table.remove(state.messages, message_idx)
 end
 
-function M.on_session_compacted()
+---Event handler for session.compacted events
+---@param event EventSessionCompacted Event object
+function M.on_session_compacted(event)
   vim.notify('on_session_compacted')
   -- TODO: render a note that the session was compacted
 end
 
+---Reset and re-render the whole session via output_renderer
+---This means something went wrong with streaming rendering
 function M.reset_and_render()
   M.reset()
   vim.notify('reset and render:\n' .. debug.traceback())
   require('opencode.ui.output_renderer').render(state.windows, true)
 end
 
+---Event handler for session.error events
+---@param event EventSessionError Event object
 function M.on_session_error(event)
   if not event or not event.properties or not event.properties.error then
     return
@@ -469,6 +527,9 @@ function M.on_session_error(event)
   M._scroll_to_bottom()
 end
 
+---Event handler for permission.updated events
+---Re-renders part that requires permission
+---@param event EventPermissionUpdated Event object
 function M.on_permission_updated(event)
   if not event or not event.properties then
     return
@@ -488,6 +549,9 @@ function M.on_permission_updated(event)
   end
 end
 
+---Event handler for permission.replied events
+---Re-renders part after permission is resolved
+---@param event EventPermissionReplied Event object
 function M.on_permission_replied(event)
   if not event or not event.properties then
     return
@@ -505,6 +569,11 @@ function M.on_permission_replied(event)
   end
 end
 
+---Find part ID by call ID
+---Searches messages in reverse order for efficiency
+---Useful for finding a part for a permission
+---@param call_id string Call ID to search for
+---@return string? part_id Part ID if found, nil otherwise
 function M._find_part_by_call_id(call_id)
   if not state.messages then
     return nil
@@ -525,6 +594,9 @@ function M._find_part_by_call_id(call_id)
   return nil
 end
 
+---Re-render existing part with current state
+---Used for permission updates and other dynamic changes
+---@param part_id string Part ID to re-render
 function M._rerender_part(part_id)
   local cached = M._part_cache[part_id]
   if not cached then

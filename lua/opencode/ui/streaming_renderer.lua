@@ -124,24 +124,8 @@ end
 
 function M._set_lines(buf, start_line, end_line, strict_indexing, lines)
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
-  local ok, err = pcall(vim.api.nvim_buf_set_lines, buf, start_line, end_line, strict_indexing, lines)
+  vim.api.nvim_buf_set_lines(buf, start_line, end_line, strict_indexing, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
-  return ok, err
-end
-
-function M._text_to_lines(text)
-  if not text or text == '' then
-    return {}
-  end
-  local lines = {}
-  local had_trailing_newline = text:sub(-1) == '\n'
-  for line in (text .. '\n'):gmatch('([^\n]*)\n') do
-    table.insert(lines, line)
-  end
-  if not had_trailing_newline and #lines > 0 and lines[#lines] == '' then
-    table.remove(lines)
-  end
-  return lines
 end
 
 function M._scroll_to_bottom()
@@ -174,16 +158,11 @@ function M._write_formatted_data(formatted_data)
   local buf_lines = M._get_buffer_line_count()
   local new_lines = formatted_data.lines
 
-  if #new_lines == 0 then
+  if #new_lines == 0 or not buf then
     return nil
   end
 
-  local ok, err = M._set_lines(buf, buf_lines, -1, false, new_lines)
-
-  if not ok then
-    return nil
-  end
-
+  M._set_lines(buf, buf_lines, -1, false, new_lines)
   M._apply_extmarks(buf, buf_lines, formatted_data.extmarks)
 
   return {
@@ -205,25 +184,17 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
-  local buf = state.windows.output_buf
-  local new_lines = formatted_data.lines
-  local buf_lines = M._get_buffer_line_count()
-
-  if #new_lines == 0 then
+  if #formatted_data.lines == 0 then
     return true
   end
 
-  local ok = M._set_lines(buf, buf_lines, -1, false, new_lines)
-
-  if not ok then
+  local range = M._write_formatted_data(formatted_data)
+  if not range then
     return false
   end
 
-  cached.line_start = buf_lines
-  cached.line_end = buf_lines + #new_lines - 1
-
-  M._apply_extmarks(buf, cached.line_start, formatted_data.extmarks)
-
+  cached.line_start = range.line_start
+  cached.line_end = range.line_end
   return true
 end
 
@@ -242,11 +213,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   -- clear previous extmarks
   vim.api.nvim_buf_clear_namespace(buf, M._namespace, cached.line_start, cached.line_end + 1)
 
-  local ok = M._set_lines(buf, cached.line_start, cached.line_end + 1, false, new_lines)
-
-  if not ok then
-    return false
-  end
+  M._set_lines(buf, cached.line_start, cached.line_end + 1, false, new_lines)
 
   cached.line_end = cached.line_start + new_line_count - 1
 
@@ -263,18 +230,17 @@ end
 function M._remove_part_from_buffer(part_id)
   local cached = M._part_cache[part_id]
   if not cached or not cached.line_start or not cached.line_end then
-    M._part_cache[part_id] = nil
     return
   end
 
   if not state.windows or not state.windows.output_buf then
-    M._part_cache[part_id] = nil
     return
   end
 
   local buf = state.windows.output_buf
   local line_count = cached.line_end - cached.line_start + 1
 
+  ---@diagnostic disable-next-line: param-type-mismatch
   M._set_lines(buf, cached.line_start, cached.line_end + 1, false, {})
 
   M._shift_lines(cached.line_end + 1, -line_count)

@@ -26,6 +26,8 @@ function M._shift_lines(from_line, delta)
     return
   end
 
+  vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta)
+
   for part_id, part_data in pairs(M._part_cache) do
     if part_data.line_start and part_data.line_start >= from_line then
       part_data.line_start = part_data.line_start + delta
@@ -51,18 +53,13 @@ function M._apply_extmarks(buf, line_offset, extmarks)
   end
 
   for line_idx, marks in pairs(extmarks) do
-    if type(marks) == 'table' then
-      for _, mark in ipairs(marks) do
-        local actual_mark = mark
-        if type(mark) == 'function' then
-          actual_mark = mark()
-        end
-
-        if type(actual_mark) == 'table' then
-          local target_line = line_offset + line_idx - 1
-          pcall(vim.api.nvim_buf_set_extmark, buf, M._namespace, target_line, 0, actual_mark)
-        end
+    for _, mark in ipairs(marks) do
+      local actual_mark = type(mark) == 'function' and mark() or mark
+      local target_line = line_offset + line_idx - 1
+      if actual_mark.end_row then
+        actual_mark.end_row = actual_mark.end_row + line_offset
       end
+      pcall(vim.api.nvim_buf_set_extmark, buf, M._namespace, target_line, 0, actual_mark)
     end
   end
 end

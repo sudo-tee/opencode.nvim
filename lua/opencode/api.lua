@@ -350,14 +350,10 @@ end
 
 function M.agent_plan()
   state.current_mode = 'plan'
-  -- TODO: topbar subscribe to current_mode
-  require('opencode.ui.topbar').render()
 end
 
 function M.agent_build()
   state.current_mode = 'build'
-  -- TODO: topbar subscribe to current_mode
-  require('opencode.ui.topbar').render()
 end
 
 function M.select_agent()
@@ -369,9 +365,7 @@ function M.select_agent()
       return
     end
 
-    -- TODO: topbar subscribe to current_mode
     state.current_mode = selection
-    require('opencode.ui.topbar').render()
   end)
 end
 
@@ -388,8 +382,6 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   state.current_mode = modes[next_index]
-  -- TODO: topbar subscribe to current_mode
-  require('opencode.ui.topbar').render()
 end
 
 function M.with_header(lines, show_welcome)

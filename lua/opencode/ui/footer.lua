@@ -5,9 +5,11 @@ local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
 local config_file = require('opencode.config_file')
+
 local M = {}
 
-function M.render(windows)
+function M.render()
+  local windows = state.windows
   if not output_window.mounted(windows) or not M.mounted(windows) then
     return
   end
@@ -43,6 +45,7 @@ function M.render(windows)
     append_to_footer(restore_point_text)
   end
 
+  ---@diagnostic disable-next-line: need-check-nil
   local win_width = vim.api.nvim_win_get_width(windows.output_win)
   local footer_text = table.concat(segments, ' | ') .. ' '
   footer_text = string.rep(' ', win_width - #footer_text) .. footer_text
@@ -67,24 +70,36 @@ function M._build_footer_win_config(windows)
   }
 end
 
+local function on_change(_, _, _)
+  M.render()
+end
+
+local function on_job_count_changed(_, new, old)
+  if new == 0 or old == 0 then
+    M.render()
+  end
+end
+
 function M.setup(windows)
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
   vim.api.nvim_set_option_value('winhl', 'Normal:OpenCodeHint', { win = windows.footer_win })
 
   -- for stats changes
-  state.subscribe('current_model', function(_, _, _)
-    M.render(windows)
-  end)
+  state.subscribe('current_model', on_change)
+  -- to show C-c message
+  state.subscribe('job_count', on_job_count_changed)
+  state.subscribe('restore_points', on_change)
+end
 
-  state.subscribe('job_count', function(_, new, old)
-    if new == 0 or old == 0 then
-      M.render(windows)
-    end
-  end)
+function M.close()
+  if state.windows then
+    pcall(vim.api.nvim_win_close, state.windows.footer_win, true)
+    pcall(vim.api.nvim_buf_delete, state.windows.footer_buf, { force = true })
+  end
 
-  state.subscribe('restore_points', function(_, _, _)
-    M.render(windows)
-  end)
+  state.unsubscribe('current_model', on_change)
+  state.unsubscribe('job_count', on_job_count_changed)
+  state.unsubscribe('restore_points', on_change)
 end
 
 function M.mounted(windows)
@@ -101,7 +116,7 @@ function M.update_window(windows)
   end
 
   vim.api.nvim_win_set_config(windows.footer_win, M._build_footer_win_config(windows))
-  M.render(windows)
+  M.render()
 end
 
 ---@return integer
@@ -135,15 +150,6 @@ function M.set_content(lines)
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.footer_buf })
   vim.api.nvim_buf_set_lines(windows.footer_buf, 0, -1, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.footer_buf })
-end
-
-function M.close()
-  if not state.windows then
-    return
-  end
-
-  pcall(vim.api.nvim_win_close, state.windows.footer_win, true)
-  pcall(vim.api.nvim_buf_delete, state.windows.footer_buf, { force = true })
 end
 
 return M

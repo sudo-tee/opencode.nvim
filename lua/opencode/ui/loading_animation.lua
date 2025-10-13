@@ -30,12 +30,8 @@ M.render = vim.schedule_wrap(function(windows)
   if not windows or not windows.output_buf or not windows.footer_buf then
     return false
   end
-  if not vim.api.nvim_buf_is_valid(windows.output_buf) or not vim.api.nvim_buf_is_valid(windows.footer_buf) then
-    return false
-  end
 
-  local buffer_line_count = vim.api.nvim_buf_line_count(windows.output_buf)
-  if buffer_line_count <= 0 then
+  if not vim.api.nvim_buf_is_valid(windows.output_buf) or not vim.api.nvim_buf_is_valid(windows.footer_buf) then
     return false
   end
 

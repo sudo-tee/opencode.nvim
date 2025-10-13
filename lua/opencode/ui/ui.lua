@@ -35,6 +35,7 @@ function M.close_windows(windows)
     M.return_to_last_code_win()
   end
 
+  topbar.close()
   output_renderer.teardown()
   streaming_renderer.teardown()
 

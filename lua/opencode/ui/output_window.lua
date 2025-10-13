@@ -1,8 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 
-local PAD_LINES = 2
-
 local M = {}
 
 function M.create_buf()
@@ -76,27 +74,7 @@ function M.set_content(lines)
   end
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
   local padded = vim.tbl_extend('force', {}, lines)
-  for _ = 1, PAD_LINES do
-    table.insert(padded, '')
-  end
   vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, padded)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
-end
-
-function M.append_content(lines, offset)
-  if not M.mounted() then
-    return
-  end
-
-  local windows = state.windows
-  if not windows or not windows.output_buf then
-    return
-  end
-
-  local cur_count = vim.api.nvim_buf_line_count(windows.output_buf)
-
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_lines(windows.output_buf, cur_count - PAD_LINES, cur_count - PAD_LINES, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 end
 

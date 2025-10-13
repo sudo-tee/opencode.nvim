@@ -75,16 +75,34 @@ function M._shift_lines(from_line, delta)
     return
   end
 
-  vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta)
+  local examined = 0
+  local shifted = 0
 
-  for part_id, part_data in pairs(M._part_cache) do
-    if part_data.line_start and part_data.line_start >= from_line then
-      part_data.line_start = part_data.line_start + delta
-      if part_data.line_end then
-        part_data.line_end = part_data.line_end + delta
+  for i = #state.messages, 1, -1 do
+    local msg_wrapper = state.messages[i]
+    if msg_wrapper.parts then
+      for j = #msg_wrapper.parts, 1, -1 do
+        local part = msg_wrapper.parts[j]
+        if part.id then
+          local part_data = M._part_cache[part.id]
+          if part_data and part_data.line_start then
+            examined = examined + 1
+            if part_data.line_start < from_line then
+              -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
+              return
+            end
+            part_data.line_start = part_data.line_start + delta
+            if part_data.line_end then
+              part_data.line_end = part_data.line_end + delta
+            end
+            shifted = shifted + 1
+          end
+        end
       end
     end
   end
+
+  -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
 end
 
 function M._apply_extmarks(buf, line_offset, extmarks)

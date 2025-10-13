@@ -6,8 +6,8 @@ local M = {}
 -- Create a temporary file with content
 function M.create_temp_file(content)
   local tmp_file = vim.fn.tempname()
-  local file = io.open(tmp_file, "w")
-  file:write(content or "Test file content")
+  local file = io.open(tmp_file, 'w')
+  file:write(content or 'Test file content')
   file:close()
   return tmp_file
 end
@@ -19,21 +19,21 @@ end
 
 -- Open a buffer for a file
 function M.open_buffer(file)
-  vim.cmd("edit " .. file)
+  vim.cmd('edit ' .. file)
   return vim.api.nvim_get_current_buf()
 end
 
 -- Close a buffer
 function M.close_buffer(bufnr)
   if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-    pcall(vim.cmd, "bdelete! " .. bufnr)
+    pcall(vim.cmd, 'bdelete! ' .. bufnr)
   end
 end
 
 -- Set visual selection programmatically
 function M.set_visual_selection(start_line, start_col, end_line, end_col)
   -- Enter visual mode
-  vim.cmd("normal! " .. start_line .. "G" .. start_col .. "lv" .. end_line .. "G" .. end_col .. "l")
+  vim.cmd('normal! ' .. start_line .. 'G' .. start_col .. 'lv' .. end_line .. 'G' .. end_col .. 'l')
 end
 
 -- Reset editor state
@@ -42,11 +42,11 @@ function M.reset_editor()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     -- Skip non-existing or invalid buffers
     if vim.api.nvim_buf_is_valid(bufnr) then
-      pcall(vim.cmd, "bdelete! " .. bufnr)
+      pcall(vim.cmd, 'bdelete! ' .. bufnr)
     end
   end
   -- Reset any other editor state as needed
-  pcall(vim.cmd, "silent! %bwipeout!")
+  pcall(vim.cmd, 'silent! %bwipeout!')
 end
 
 -- Mock input function
@@ -64,15 +64,15 @@ end
 function M.mock_notify()
   local notifications = {}
   local original_notify = vim.notify
-  
+
   vim.notify = function(msg, level, opts)
     table.insert(notifications, {
       msg = msg,
       level = level,
-      opts = opts
+      opts = opts,
     })
   end
-  
+
   return {
     reset = function()
       vim.notify = original_notify
@@ -82,21 +82,21 @@ function M.mock_notify()
     end,
     clear = function()
       notifications = {}
-    end
+    end,
   }
 end
 
 function M.mock_time_ago()
   local util = require('opencode.util')
   local original_time_ago = util.time_ago
-  
+
   util.time_ago = function(timestamp)
     if timestamp > 1e12 then
       timestamp = math.floor(timestamp / 1000)
     end
     return os.date('%Y-%m-%d %H:%M:%S', timestamp)
   end
-  
+
   return function()
     util.time_ago = original_time_ago
   end
@@ -112,22 +112,37 @@ function M.load_test_data(filename)
   return vim.json.decode(content)
 end
 
+function M.get_session_from_events(events)
+  -- streaming_renderer needs a valid session id
+  for _, event in ipairs(events) do
+    -- find the session id in a message or part event
+    local properties = event.properties
+    local session_id = properties.info and properties.info.sessionID or properties.part and properties.part.sessionID
+    if session_id then
+      ---@diagnostic disable-next-line: missing-fields
+      return { id = session_id }
+    end
+  end
+
+  return nil
+end
+
 function M.replay_event(event)
   local streaming_renderer = require('opencode.ui.streaming_renderer')
   if event.type == 'message.updated' then
-    streaming_renderer.handle_message_updated(event)
+    streaming_renderer.on_message_updated(event)
   elseif event.type == 'message.part.updated' then
-    streaming_renderer.handle_part_updated(event)
+    streaming_renderer.on_part_updated(event)
   elseif event.type == 'message.removed' then
-    streaming_renderer.handle_message_removed(event)
+    streaming_renderer.on_message_removed(event)
   elseif event.type == 'message.part.removed' then
-    streaming_renderer.handle_part_removed(event)
+    streaming_renderer.on_part_removed(event)
   elseif event.type == 'session.compacted' then
-    streaming_renderer.handle_session_compacted()
+    streaming_renderer.on_session_compacted()
   elseif event.type == 'permission.updated' then
-    streaming_renderer.handle_permission_updated(event)
+    streaming_renderer.on_permission_updated(event)
   elseif event.type == 'permission.replied' then
-    streaming_renderer.handle_permission_replied(event)
+    streaming_renderer.on_permission_replied(event)
   end
 end
 

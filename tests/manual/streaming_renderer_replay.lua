@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local streaming_renderer = require('opencode.ui.streaming_renderer')
 local ui = require('opencode.ui.ui')
+local config_file = require('opencode.config_file')
 local helpers = require('tests.helpers')
 
 local M = {}
@@ -34,6 +35,10 @@ function M.load_events(file_path)
   M.reset()
   M.last_loaded_file = file_path
   vim.notify('Loaded ' .. #M.events .. ' events from ' .. data_file, vim.log.levels.INFO)
+
+  ---@diagnostic disable-next-line: missing-fields
+  state.active_session = helpers.get_session_from_events(M.events)
+
   return true
 end
 
@@ -47,16 +52,16 @@ function M.setup_windows(opts)
     config.config = vim.deepcopy(config.defaults)
   end
 
-  local ok, err = pcall(function()
-    state.windows = ui.create_windows()
-  end)
+  -- disable the config_file apis because topbar uses them
+  local empty_promise = require('opencode.promise').new():resolve(nil)
+  config_file.config_promise = empty_promise
+  config_file.project_promise = empty_promise
+  config_file.providers_promise = empty_promise
 
-  if not ok then
-    vim.notify('Failed to create UI windows: ' .. tostring(err), vim.log.levels.ERROR)
-    return false
-  end
+  state.windows = ui.create_windows()
 
-  local empty_fn = function() end
+  -- we don't want output_renderer responding to setting the session id
+  require('opencode.ui.output_renderer')._cleanup_subscriptions()
 
   vim.schedule(function()
     if state.windows and state.windows.output_win then
@@ -68,9 +73,6 @@ function M.setup_windows(opts)
       end
       pcall(vim.api.nvim_buf_del_keymap, state.windows.output_buf, 'n', '<esc>')
     end
-
-    state.api_client = state.api_client or {}
-    state.api_client._call = empty_fn
   end)
 
   return true

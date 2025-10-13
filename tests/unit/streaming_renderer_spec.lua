@@ -130,4 +130,19 @@ describe('streaming_renderer', function()
     assert.same(expected.lines, actual.lines)
     assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
   end)
+
+  it('replays tool-invalid correctly', function()
+    local events = helpers.load_test_data('tests/data/tool-invalid.json')
+    state.active_session = helpers.get_session_from_events(events)
+    local expected = helpers.load_test_data('tests/data/tool-invalid.expected.json')
+
+    helpers.replay_events(events)
+
+    vim.wait(200)
+
+    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
+
+    assert.same(expected.lines, actual.lines)
+    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
+  end)
 end)

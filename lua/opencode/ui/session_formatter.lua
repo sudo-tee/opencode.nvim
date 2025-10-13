@@ -598,8 +598,12 @@ function M._format_tool(part)
     M._format_action(icons.get('tool') .. ' tool', tool)
   end
 
-  if part.state and part.state.status == 'error' then
-    M._format_callout('ERROR', part.state.error)
+  if part.state then
+    if part.state.status == 'error' then
+      M._format_callout('ERROR', part.state.error)
+    elseif part.state.input and part.state.input.error then
+      M._format_callout('ERROR', part.state.input.error)
+    end
   end
 
   if

@@ -4,13 +4,11 @@ local M = {}
 
 M._subscriptions = {}
 M._part_cache = {}
-M._message_cache = {}
 M._namespace = vim.api.nvim_create_namespace('opencode_stream')
 M._prev_line_count = 0
 
 function M.reset()
   M._part_cache = {}
-  M._message_cache = {}
   M._prev_line_count = 0
 
   -- FIXME: this prolly isn't the right place for state.messages to be
@@ -84,15 +82,6 @@ function M._shift_lines(from_line, delta)
       part_data.line_start = part_data.line_start + delta
       if part_data.line_end then
         part_data.line_end = part_data.line_end + delta
-      end
-    end
-  end
-
-  for msg_id, msg_data in pairs(M._message_cache) do
-    if msg_data.line_start and msg_data.line_start >= from_line then
-      msg_data.line_start = msg_data.line_start + delta
-      if msg_data.line_end then
-        msg_data.line_end = msg_data.line_end + delta
       end
     end
   end
@@ -304,14 +293,7 @@ function M.on_message_updated(event)
     table.insert(state.messages, { info = message, parts = {} })
     found_idx = #state.messages
 
-    local header_range = M._write_message_header(message, found_idx)
-    if header_range then
-      if not M._message_cache[message.id] then
-        M._message_cache[message.id] = {}
-      end
-      M._message_cache[message.id].line_start = header_range.line_start
-      M._message_cache[message.id].line_end = header_range.line_end
-    end
+    M._write_message_header(message, found_idx)
   end
 
   M._scroll_to_bottom()
@@ -475,10 +457,6 @@ function M.on_message_removed(event)
   end
 
   table.remove(state.messages, message_idx)
-
-  if M._message_cache[message_id] then
-    M._message_cache[message_id] = nil
-  end
 end
 
 function M.on_session_compacted()

@@ -31,7 +31,7 @@ function M.load_events(file_path)
   end
 
   M.events = events
-  M.current_index = 0
+  M.reset()
   M.last_loaded_file = file_path
   vim.notify('Loaded ' .. #M.events .. ' events from ' .. data_file, vim.log.levels.INFO)
   return true
@@ -87,21 +87,28 @@ function M.emit_event(event)
   end)
 end
 
-function M.replay_next()
+function M.replay_next(steps)
+  steps = steps or 1
+
   if M.current_index >= #M.events then
     vim.notify('No more events to replay', vim.log.levels.WARN)
     return
   end
 
-  M.current_index = M.current_index + 1
-  M.emit_event(M.events[M.current_index])
+  for i = 1, steps do
+    if M.current_index < #M.events then
+      M.current_index = M.current_index + 1
+      M.emit_event(M.events[M.current_index])
+    else
+      vim.notify('No more events to replay', vim.log.levels.WARN)
+      return
+    end
+  end
 end
 
 function M.replay_all(delay_ms)
   if #M.events == 0 then
     M.load_events()
-  elseif M.current_index == #M.events then
-    M.reset()
   end
 
   delay_ms = delay_ms or 50
@@ -266,7 +273,7 @@ function M.start(opts)
     '',
     'Commands:',
     '  :ReplayLoad [file]     - Load events (default: tests/data/simple-session.json)',
-    "  :ReplayNext            - Replay next event (<leader>n or '>' )",
+    "  :ReplayNext [step]     - Replay next [step] event(s) (default 1) (<leader>n or '>' )",
     '  :ReplayAll [ms]        - Replay all events with delay (default 50ms) (<leader>a)',
     '  :ReplayStop            - Stop auto-replay (<leader>s)',
     '  :ReplayReset           - Reset to beginning (<leader>r)',
@@ -280,9 +287,10 @@ function M.start(opts)
     M.load_events(file)
   end, { nargs = '?', desc = 'Load event data file', complete = 'file' })
 
-  vim.api.nvim_create_user_command('ReplayNext', function()
-    M.replay_next()
-  end, { desc = 'Replay next event' })
+  vim.api.nvim_create_user_command('ReplayNext', function(cmd_opts)
+    local steps = cmd_opts.args ~= '' and cmd_opts.args or nil
+    M.replay_next(steps)
+  end, { nargs = '?', desc = 'Replay next event' })
 
   vim.api.nvim_create_user_command('ReplayAll', function(cmd_opts)
     local delay = tonumber(cmd_opts.args) or 50

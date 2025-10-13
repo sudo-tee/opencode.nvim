@@ -23,7 +23,7 @@ nvim -u tests/manual/init_replay.lua -c "lua require('tests.manual.streaming_ren
 Once loaded, you can use these commands in Neovim:
 
 - `:ReplayLoad [file]` - Load event data file (default: tests/data/simple-session.json)
-- `:ReplayNext` - Replay the next event in sequence
+- `:ReplayNext [step]` - Replay next [step] event(s) (default 1)
 - `:ReplayAll [ms]` - Auto-replay all events with optional delay in milliseconds (default: 50ms)
 - `:ReplayStop` - Stop auto-replay
 - `:ReplayReset` - Reset to the beginning (clears buffer and resets event index)

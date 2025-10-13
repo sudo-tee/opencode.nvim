@@ -32,7 +32,6 @@ function M.close()
   if state.display_route then
     state.display_route = nil
     ui.clear_output()
-    require('opencode.ui.streaming_renderer').reset_and_render()
     ui.scroll_to_bottom()
     return
   end
@@ -341,7 +340,6 @@ function M.initialize()
     return
   end
   state.active_session = new_session
-  require('opencode.ui.streaming_renderer').reset()
   M.open_input()
   state.api_client:init_session(state.active_session.id, {
     providerID = providerId,
@@ -352,11 +350,13 @@ end
 
 function M.agent_plan()
   state.current_mode = 'plan'
+  -- TODO: topbar subscribe to current_mode
   require('opencode.ui.topbar').render()
 end
 
 function M.agent_build()
   state.current_mode = 'build'
+  -- TODO: topbar subscribe to current_mode
   require('opencode.ui.topbar').render()
 end
 
@@ -369,6 +369,7 @@ function M.select_agent()
       return
     end
 
+    -- TODO: topbar subscribe to current_mode
     state.current_mode = selection
     require('opencode.ui.topbar').render()
   end)
@@ -387,6 +388,7 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   state.current_mode = modes[next_index]
+  -- TODO: topbar subscribe to current_mode
   require('opencode.ui.topbar').render()
 end
 
@@ -503,7 +505,6 @@ function M.compact_session(current_session)
     return
   end
 
-  ui.render_output(true)
   local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
   state.api_client
     :summarize_session(current_session.id, {
@@ -713,7 +714,6 @@ M.commands = {
           return
         end
         state.active_session = new_session
-        require('opencode.ui.streaming_renderer').reset()
         M.open_input()
       else
         vim.notify('Session title cannot be empty', vim.log.levels.ERROR)

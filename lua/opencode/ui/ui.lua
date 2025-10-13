@@ -1,7 +1,7 @@
 local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
-local renderer = require('opencode.ui.output_renderer')
+local output_renderer = require('opencode.ui.output_renderer')
 local streaming_renderer = require('opencode.ui.streaming_renderer')
 local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
@@ -21,7 +21,7 @@ function M.scroll_to_bottom()
   -- TODO: shouldn't have hardcoded calls to render_markdown,
   -- should support user callbacks
   vim.defer_fn(function()
-    renderer.render_markdown()
+    output_renderer.render_markdown()
   end, 200)
 end
 
@@ -35,7 +35,7 @@ function M.close_windows(windows)
     M.return_to_last_code_win()
   end
 
-  renderer.teardown()
+  output_renderer.teardown()
   streaming_renderer.teardown()
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -117,7 +117,7 @@ function M.create_windows()
   footer.setup(windows)
   topbar.setup()
 
-  renderer.setup_subscriptions(windows)
+  output_renderer.setup_subscriptions(windows)
   streaming_renderer.setup_subscriptions(windows)
 
   autocmds.setup_autocmds(windows)
@@ -185,18 +185,19 @@ function M.is_output_empty()
 end
 
 function M.clear_output()
-  renderer.stop()
+  output_renderer.stop()
+  streaming_renderer.reset()
   output_window.clear()
   footer.clear()
   topbar.render()
-  renderer.render_markdown()
+  output_renderer.render_markdown()
   -- state.restore_points = {}
 end
 
 function M.render_output(force)
   force = force or false
   -- vim.notify('render_output, force: ' .. vim.inspect(force) .. '\n' .. debug.traceback())
-  renderer.render(state.windows, force)
+  output_renderer.render(state.windows, force)
 end
 
 -- function M.render_incremental_output(message)

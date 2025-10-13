@@ -27,10 +27,9 @@ function M.select_session(parent_id)
     state.active_session = selected_session
     if state.windows then
       state.restore_points = {}
-      require('opencode.ui.streaming_renderer').reset()
-      ui.render_output(true)
+      -- Don't need to update either renderer because they subscribe to
+      -- session changes
       ui.focus_input()
-      ui.scroll_to_bottom()
     else
       M.open()
     end
@@ -178,8 +177,6 @@ function M.stop()
       state.api_client:abort_session(state.active_session.id):wait()
     end
     require('opencode.ui.footer').clear()
-    -- ui.stop_render_output()
-    -- require('opencode.ui.streaming_renderer').reset_and_render()
     input_window.set_content('')
     require('opencode.history').index = nil
     ui.focus_input()

@@ -7,10 +7,6 @@ local output_window = require('opencode.ui.output_window')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 
-M._cache = {
-  prev_line_count = 0,
-}
-
 M._subscriptions = {}
 M._ns_id = vim.api.nvim_create_namespace('opencode_output')
 M._debounce_ms = 50
@@ -42,15 +38,13 @@ M.render = vim.schedule_wrap(function(windows, force)
       return
     end
 
-    local changed = M.write_output(windows, lines)
+    M.write_output(windows, lines)
 
-    if changed or force then
-      vim.schedule(function()
-        -- M.render_markdown()
-        M.handle_auto_scroll(windows)
-        require('opencode.ui.topbar').render()
-      end)
-    end
+    vim.schedule(function()
+      -- M.render_markdown()
+      M.handle_auto_scroll(windows)
+      require('opencode.ui.topbar').render()
+    end)
 
     pcall(function()
       vim.schedule(function()
@@ -93,8 +87,9 @@ function M.teardown()
 end
 
 function M.stop()
+  -- FIXME: the footer should probably own this... and it may
+  -- not even be necessary
   loading_animation.stop()
-  M._cache.prev_line_count = 0
 end
 
 function M.write_output(windows, output_lines)
@@ -102,30 +97,8 @@ function M.write_output(windows, output_lines)
     return false
   end
 
-  local current_line_count = #output_lines
-  local prev_line_count = M._cache.prev_line_count
-  local changed = false
-
-  if prev_line_count == 0 then
-    output_window.set_content(output_lines)
-    changed = true
-  elseif current_line_count > prev_line_count then
-    local new_lines = vim.list_slice(output_lines, prev_line_count + 1)
-    if #new_lines > 0 then
-      output_window.append_content(new_lines, prev_line_count)
-      changed = true
-    end
-  else
-    output_window.set_content(output_lines)
-    changed = true
-  end
-
-  if changed then
-    M._cache.prev_line_count = current_line_count
-    M.apply_output_extmarks(windows)
-  end
-
-  return changed
+  output_window.set_content(output_lines)
+  M.apply_output_extmarks(windows)
 end
 
 function M.apply_output_extmarks(windows)
@@ -153,28 +126,10 @@ function M.apply_output_extmarks(windows)
 end
 
 function M.handle_auto_scroll(windows)
-  local ok, line_count = pcall(vim.api.nvim_buf_line_count, windows.output_buf)
-  if not ok then
-    return
-  end
-
-  local botline = vim.fn.line('w$', windows.output_win)
-  local cursor = vim.api.nvim_win_get_cursor(windows.output_win)
-  local cursor_row = cursor[1] or 0
-  local is_focused = vim.api.nvim_get_current_win() == windows.output_win
-
-  local prev_line_count = M._cache.prev_line_count or 0
-  M._cache.prev_line_count = line_count
-
-  local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
-
-  if is_focused and cursor_row < prev_line_count - 1 then
-    return
-  end
-
-  if was_at_bottom or not is_focused then
-    require('opencode.ui.ui').scroll_to_bottom()
-  end
+  -- NOTE: logic moved to stream renderer
+  -- output_render currently only used for loading whole sessions
+  -- so just scroll to the bottom when that happens
+  require('opencode.ui.ui').scroll_to_bottom()
 end
 
 return M

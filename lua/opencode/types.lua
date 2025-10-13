@@ -211,6 +211,7 @@
 ---@field snapshot string|nil Snapshot commit hash
 ---@field sessionID string|nil Session identifier
 ---@field messageID string|nil Message identifier
+---@field callID string|nil Call identifier (used for tools)
 ---@field hash string|nil Hash identifier for patch parts
 ---@field files string[]|nil List of file paths for patch parts
 ---@field synthetic boolean|nil Whether the message was generated synthetically

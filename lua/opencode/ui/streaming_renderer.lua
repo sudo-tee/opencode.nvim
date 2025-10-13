@@ -2,16 +2,67 @@ local state = require('opencode.state')
 
 local M = {}
 
+M._subscriptions = {}
 M._part_cache = {}
 M._message_cache = {}
-M._session_id = nil
 M._namespace = vim.api.nvim_create_namespace('opencode_stream')
+M._prev_line_count = 0
 
 function M.reset()
   M._part_cache = {}
   M._message_cache = {}
-  M._session_id = nil
+  M._prev_line_count = 0
+
+  -- FIXME: this prolly isn't the right place for state.messages to be
+  -- cleared. It would probably be better to have streaming_renderer
+  -- subscribe to state changes and if state.messages is cleared, it
+  -- should clear it's state too
   state.messages = {}
+end
+
+---Set up all subscriptions
+function M.setup_subscriptions(_)
+  M._subscriptions.active_session = function(_, _, old)
+    if not old then
+      return
+    end
+    M.reset()
+  end
+  state.subscribe('active_session', M._subscriptions.active_session)
+  M._setup_event_subscriptions()
+end
+
+---Set up server event subscriptions
+---@param subscribe? boolean false to unsubscribe
+function M._setup_event_subscriptions(subscribe)
+  if not state.event_manager then
+    return
+  end
+
+  local method = (subscribe == false) and 'unsubscribe' or 'subscribe'
+
+  state.event_manager[method](state.event_manager, 'message.updated', M.on_message_updated)
+  state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
+  state.event_manager[method](state.event_manager, 'message.removed', M.on_message_removed)
+  state.event_manager[method](state.event_manager, 'message.part.removed', M.on_part_removed)
+  state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
+  state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
+  state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
+  state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
+end
+
+---Unsubscribe from local state and server subscriptions
+function M._cleanup_subscriptions()
+  M._setup_event_subscriptions(false)
+  for key, cb in pairs(M._subscriptions) do
+    state.unsubscribe(key, cb)
+  end
+  M._subscriptions = {}
+end
+
+function M.teardown()
+  M._cleanup_subscriptions()
+  M.reset()
 end
 
 function M._get_buffer_line_count()
@@ -87,11 +138,29 @@ function M._text_to_lines(text)
 end
 
 function M._scroll_to_bottom()
-  local debounced_scroll = require('opencode.util').debounce(function()
-    require('opencode.ui.ui').scroll_to_bottom()
-  end, 50)
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
+  if not ok then
+    return
+  end
 
-  debounced_scroll()
+  local botline = vim.fn.line('w$', state.windows.output_win)
+  local cursor = vim.api.nvim_win_get_cursor(state.windows.output_win)
+  local cursor_row = cursor[1] or 0
+  local is_focused = vim.api.nvim_get_current_win() == state.windows.output_win
+
+  local prev_line_count = M._prev_line_count or 0
+  M._prev_line_count = line_count
+
+  local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
+
+  if is_focused and cursor_row < prev_line_count - 1 then
+    return
+  end
+
+  if was_at_bottom or not is_focused then
+    -- vim.notify('was_at_bottom: ' .. tostring(was_at_bottom) .. ' is_focused: ' .. tostring(is_focused))
+    require('opencode.ui.ui').scroll_to_bottom()
+  end
 end
 
 function M._write_formatted_data(formatted_data)
@@ -206,7 +275,7 @@ function M._remove_part_from_buffer(part_id)
   M._part_cache[part_id] = nil
 end
 
-function M.handle_message_updated(event)
+function M.on_message_updated(event)
   if not event or not event.properties or not event.properties.info then
     return
   end
@@ -216,12 +285,9 @@ function M.handle_message_updated(event)
     return
   end
 
-  if M._session_id and M._session_id ~= message.sessionID then
-    -- TODO: there's probably more we need to do here
-    M.reset()
+  if state.active_session.id ~= message.sessionID then
+    vim.notify('Session id does not match, discarding part: ' .. vim.inspect(message), vim.log.levels.WARN)
   end
-
-  M._session_id = message.sessionID
 
   local found_idx = nil
   for i = #state.messages, math.max(1, #state.messages - 2), -1 do
@@ -252,7 +318,7 @@ function M.handle_message_updated(event)
   M._scroll_to_bottom()
 end
 
-function M.handle_part_updated(event)
+function M.on_part_updated(event)
   if not event or not event.properties or not event.properties.part then
     return
   end
@@ -262,7 +328,7 @@ function M.handle_part_updated(event)
     return
   end
 
-  if M._session_id and M._session_id ~= part.sessionID then
+  if state.active_session.id ~= part.sessionID then
     vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
@@ -342,7 +408,7 @@ function M.handle_part_updated(event)
   M._scroll_to_bottom()
 end
 
-function M.handle_part_removed(event)
+function M.on_part_removed(event)
   -- XXX: I don't have any sessions that remove parts so this code is
   -- currently untested
   if not event or not event.properties then
@@ -376,7 +442,7 @@ function M.handle_part_removed(event)
   M._remove_part_from_buffer(part_id)
 end
 
-function M.handle_message_removed(event)
+function M.on_message_removed(event)
   -- XXX: I don't have any sessions that remove messages so this code is
   -- currently untested
   if not event or not event.properties then
@@ -416,10 +482,9 @@ function M.handle_message_removed(event)
   end
 end
 
-function M.handle_session_compacted()
-  M.reset()
-  vim.notify('handle_session_compacted')
-  require('opencode.ui.output_renderer').render(state.windows, true)
+function M.on_session_compacted()
+  vim.notify('on_session_compacted')
+  -- TODO: render a note that the session was compacted
 end
 
 function M.reset_and_render()
@@ -428,7 +493,7 @@ function M.reset_and_render()
   require('opencode.ui.output_renderer').render(state.windows, true)
 end
 
-function M.handle_session_error(event)
+function M.on_session_error(event)
   if not event or not event.properties or not event.properties.error then
     return
   end
@@ -443,7 +508,7 @@ function M.handle_session_error(event)
   M._scroll_to_bottom()
 end
 
-function M.handle_permission_updated(event)
+function M.on_permission_updated(event)
   if not event or not event.properties then
     return
   end
@@ -461,7 +526,7 @@ function M.handle_permission_updated(event)
   end
 end
 
-function M.handle_permission_replied(event)
+function M.on_permission_replied(event)
   if not event or not event.properties then
     return
   end

@@ -82,7 +82,13 @@ function M.emit_event(event)
   end
 
   vim.schedule(function()
-    vim.notify('Event ' .. M.current_index .. '/' .. #M.events .. ': ' .. event.type, vim.log.levels.INFO)
+    local id = event.properties.info and event.properties.info.id
+      or event.properties.part and event.properties.part.id
+      or ''
+    vim.notify(
+      'Event ' .. M.current_index .. '/' .. #M.events .. ': ' .. event.type .. ' ' .. id .. '',
+      vim.log.levels.INFO
+    )
     helpers.replay_event(event)
   end)
 end

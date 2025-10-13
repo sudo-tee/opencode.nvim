@@ -158,7 +158,6 @@ function M._scroll_to_bottom()
   end
 
   if was_at_bottom or not is_focused then
-    -- vim.notify('was_at_bottom: ' .. tostring(was_at_bottom) .. ' is_focused: ' .. tostring(is_focused))
     require('opencode.ui.ui').scroll_to_bottom()
   end
 end
@@ -523,6 +522,7 @@ function M.on_permission_updated(event)
   local part_id = M._find_part_by_call_id(permission.callID)
   if part_id then
     M._rerender_part(part_id)
+    M._scroll_to_bottom()
   end
 end
 
@@ -538,6 +538,7 @@ function M.on_permission_replied(event)
     local part_id = M._find_part_by_call_id(old_permission.callID)
     if part_id then
       M._rerender_part(part_id)
+      M._scroll_to_bottom()
     end
   end
 end

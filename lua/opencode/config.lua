@@ -176,7 +176,7 @@ local function get_function_names(keymap_config)
   return names
 end
 
-function update_keymap_prefix(prefix, default_prefix)
+local function update_keymap_prefix(prefix, default_prefix)
   if prefix == default_prefix or not prefix then
     return
   end

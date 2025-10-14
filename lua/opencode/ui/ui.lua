@@ -201,19 +201,11 @@ function M.render_output(force)
   output_renderer.render(state.windows, force)
 end
 
--- function M.render_incremental_output(message)
---   renderer.render_incremental(state.windows, message)
--- end
-
--- function M.render_lines(lines)
---   M.clear_output()
---   renderer.write_output(state.windows, lines)
---   renderer.render_markdown()
--- end
-
--- function M.stop_render_output()
---   renderer.stop()
--- end
+function M.render_lines(lines)
+  M.clear_output()
+  output_renderer.write_output(state.windows, lines)
+  output_renderer.render_markdown()
+end
 
 function M.select_session(sessions, cb)
   local session_picker = require('opencode.ui.session_picker')

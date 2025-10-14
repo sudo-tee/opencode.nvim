@@ -19,4 +19,4 @@ vim.g.opencode_config = {
 
 require('opencode').setup()
 
-require('tests.manual.streaming_renderer_replay').start()
+require('tests.manual.renderer_replay').start()

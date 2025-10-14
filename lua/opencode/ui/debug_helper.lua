@@ -21,12 +21,12 @@ function M.open_json_file(data)
 end
 
 function M.debug_output()
-  local session_formatter = require('opencode.ui.session_formatter')
+  local session_formatter = require('opencode.ui.formatter')
   M.open_json_file(session_formatter:get_lines())
 end
 
 function M.debug_message()
-  local session_formatter = require('opencode.ui.session_formatter')
+  local session_formatter = require('opencode.ui.formatter')
   local current_line = vim.api.nvim_win_get_cursor(state.windows.output_win)[1]
   local metadata = session_formatter.get_message_at_line(current_line) or {}
   M.open_json_file(metadata.message)

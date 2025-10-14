@@ -15,7 +15,7 @@ Replay captured event data to visually test the streaming renderer.
 Or manually:
 
 ```bash
-nvim -u tests/manual/init_replay.lua -c "lua require('tests.manual.streaming_renderer_replay').start()"
+nvim -u tests/manual/init_replay.lua -c "lua require('tests.manual.renderer_replay').start()"
 ```
 
 ### Available Commands

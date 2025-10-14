@@ -113,7 +113,7 @@ function M.load_test_data(filename)
 end
 
 function M.get_session_from_events(events)
-  -- streaming_renderer needs a valid session id
+  -- renderer needs a valid session id
   for _, event in ipairs(events) do
     -- find the session id in a message or part event
     local properties = event.properties
@@ -128,21 +128,21 @@ function M.get_session_from_events(events)
 end
 
 function M.replay_event(event)
-  local streaming_renderer = require('opencode.ui.streaming_renderer')
+  local renderer = require('opencode.ui.renderer')
   if event.type == 'message.updated' then
-    streaming_renderer.on_message_updated(event)
+    renderer.on_message_updated(event)
   elseif event.type == 'message.part.updated' then
-    streaming_renderer.on_part_updated(event)
+    renderer.on_part_updated(event)
   elseif event.type == 'message.removed' then
-    streaming_renderer.on_message_removed(event)
+    renderer.on_message_removed(event)
   elseif event.type == 'message.part.removed' then
-    streaming_renderer.on_part_removed(event)
+    renderer.on_part_removed(event)
   elseif event.type == 'session.compacted' then
-    streaming_renderer.on_session_compacted()
+    renderer.on_session_compacted()
   elseif event.type == 'permission.updated' then
-    streaming_renderer.on_permission_updated(event)
+    renderer.on_permission_updated(event)
   elseif event.type == 'permission.replied' then
-    streaming_renderer.on_permission_replied(event)
+    renderer.on_permission_replied(event)
   end
 end
 

@@ -1,5 +1,5 @@
 local state = require('opencode.state')
-local streaming_renderer = require('opencode.ui.streaming_renderer')
+local renderer = require('opencode.ui.renderer')
 local ui = require('opencode.ui.ui')
 local config_file = require('opencode.config_file')
 local helpers = require('tests.helpers')
@@ -43,7 +43,7 @@ function M.load_events(file_path)
 end
 
 function M.setup_windows(opts)
-  streaming_renderer.reset()
+  renderer.reset()
 
   M.restore_time_ago = helpers.mock_time_ago()
 
@@ -179,10 +179,10 @@ function M.show_status()
 end
 
 function M.clear()
-  streaming_renderer.reset()
+  renderer.reset()
 
   if state.windows and state.windows.output_buf then
-    vim.api.nvim_buf_clear_namespace(state.windows.output_buf, streaming_renderer._namespace, 0, -1)
+    vim.api.nvim_buf_clear_namespace(state.windows.output_buf, renderer._namespace, 0, -1)
     vim.api.nvim_set_option_value('modifiable', true, { buf = state.windows.output_buf })
     vim.api.nvim_buf_set_lines(state.windows.output_buf, 0, -1, false, {})
     vim.api.nvim_set_option_value('modifiable', false, { buf = state.windows.output_buf })
@@ -206,7 +206,7 @@ function M.save_output(filename)
 
   local buf = state.windows.output_buf
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local extmarks = vim.api.nvim_buf_get_extmarks(buf, streaming_renderer._namespace, 0, -1, { details = true })
+  local extmarks = vim.api.nvim_buf_get_extmarks(buf, renderer._namespace, 0, -1, { details = true })
 
   local snapshot = {
     lines = lines,
@@ -239,7 +239,7 @@ function M.dump_buffer_and_quit()
 
     local buf = state.windows.output_buf
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local extmarks = vim.api.nvim_buf_get_extmarks(buf, streaming_renderer._namespace, 0, -1, { details = true })
+    local extmarks = vim.api.nvim_buf_get_extmarks(buf, renderer._namespace, 0, -1, { details = true })
 
     local extmarks_by_line = {}
     for _, mark in ipairs(extmarks) do

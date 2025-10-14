@@ -1,15 +1,15 @@
-local streaming_renderer = require('opencode.ui.streaming_renderer')
+local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_renderer = require('opencode.ui.output_renderer')
 local config_file = require('opencode.config_file')
 
-describe('streaming_renderer', function()
+describe('renderer', function()
   local restore_time_ago
 
   before_each(function()
-    streaming_renderer.reset()
+    renderer.reset()
 
     local empty_promise = require('opencode.promise').new():resolve(nil)
     config_file.config_promise = empty_promise
@@ -55,7 +55,7 @@ describe('streaming_renderer', function()
           helpers.replay_events(events)
           vim.wait(200)
 
-          local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
+          local actual = helpers.capture_output(state.windows.output_buf, renderer._namespace)
 
           assert.are.same(expected.lines, actual.lines)
           assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))

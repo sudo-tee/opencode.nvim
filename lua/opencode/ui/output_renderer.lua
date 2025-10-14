@@ -1,7 +1,7 @@
 local M = {}
 
 local state = require('opencode.state')
-local formatter = require('opencode.ui.session_formatter')
+local formatter = require('opencode.ui.formatter')
 local loading_animation = require('opencode.ui.loading_animation')
 local output_window = require('opencode.ui.output_window')
 local util = require('opencode.util')
@@ -10,6 +10,8 @@ local Promise = require('opencode.promise')
 M._subscriptions = {}
 M._ns_id = vim.api.nvim_create_namespace('opencode_output')
 M._debounce_ms = 50
+
+-- FIXME: this file should eventually be removed
 
 function M.render_markdown()
   if vim.fn.exists(':RenderMarkdown') > 0 then

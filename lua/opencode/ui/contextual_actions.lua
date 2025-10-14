@@ -26,7 +26,7 @@ function M.setup_contextual_actions()
     callback = function()
       vim.schedule(function()
         local line_num = vim.api.nvim_win_get_cursor(0)[1]
-        local actions = require('opencode.ui.session_formatter').output:get_actions_for_line(line_num)
+        local actions = require('opencode.ui.formatter').output:get_actions_for_line(line_num)
         last_line_num = line_num
 
         vim.api.nvim_buf_clear_namespace(state.windows.output_buf, ns_id, 0, -1)

@@ -2,7 +2,7 @@ local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
 local output_renderer = require('opencode.ui.output_renderer')
-local streaming_renderer = require('opencode.ui.streaming_renderer')
+local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
@@ -37,7 +37,7 @@ function M.close_windows(windows)
 
   topbar.close()
   output_renderer.teardown()
-  streaming_renderer.teardown()
+  renderer.teardown()
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
@@ -119,7 +119,7 @@ function M.create_windows()
   topbar.setup()
 
   output_renderer.setup_subscriptions(windows)
-  streaming_renderer.setup_subscriptions(windows)
+  renderer.setup_subscriptions(windows)
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)
@@ -187,7 +187,7 @@ end
 
 function M.clear_output()
   output_renderer.stop()
-  streaming_renderer.reset()
+  renderer.reset()
   output_window.clear()
   footer.clear()
   topbar.render()

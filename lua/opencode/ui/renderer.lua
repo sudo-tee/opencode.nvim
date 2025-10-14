@@ -12,10 +12,6 @@ function M.reset()
   M._part_cache = {}
   M._prev_line_count = 0
 
-  -- FIXME: this prolly isn't the right place for state.messages to be
-  -- cleared. It would probably be better to have streaming_renderer
-  -- subscribe to state changes and if state.messages is cleared, it
-  -- should clear it's state too
   state.messages = {}
   state.last_user_message = nil
 end
@@ -203,7 +199,7 @@ end
 ---@param msg_idx integer Message index
 ---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
-  local formatter = require('opencode.ui.session_formatter')
+  local formatter = require('opencode.ui.formatter')
   local header_data = formatter.format_message_header_isolated(message, msg_idx)
   local line_range = M._write_formatted_data(header_data)
   return line_range
@@ -400,7 +396,7 @@ function M.on_part_updated(event)
     }
   end
 
-  local formatter = require('opencode.ui.session_formatter')
+  local formatter = require('opencode.ui.formatter')
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,
     part_idx = part_idx,
@@ -503,6 +499,8 @@ end
 function M.on_session_compacted(event)
   vim.notify('on_session_compacted')
   -- TODO: render a note that the session was compacted
+  -- FIXME: did we need unset state.last_sent_context because the
+  -- session was compacted?
 end
 
 ---Reset and re-render the whole session via output_renderer
@@ -523,7 +521,7 @@ function M.on_session_error(event)
   local error_data = event.properties.error
   local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
 
-  local formatter = require('opencode.ui.session_formatter')
+  local formatter = require('opencode.ui.formatter')
   local formatted = formatter.format_error_callout(error_message)
 
   M._write_formatted_data(formatted)
@@ -628,7 +626,7 @@ function M._rerender_part(part_id)
     return
   end
 
-  local formatter = require('opencode.ui.session_formatter')
+  local formatter = require('opencode.ui.formatter')
   local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,

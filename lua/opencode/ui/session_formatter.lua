@@ -69,22 +69,7 @@ function M._format_messages(session, messages)
     M._format_message_header(msg.info, i)
 
     for j, part in ipairs(msg.parts or {}) do
-      M._current = { msg_idx = i, part_idx = j, role = msg.info.role, type = part.type, snapshot = part.snapshot }
-      M.output:add_metadata(M._current)
-
-      if part.type == 'text' and part.text then
-        if msg.info.role == 'user' and part.synthetic ~= true then
-          state.last_user_message = msg
-          M._format_user_message(vim.trim(part.text), msg)
-        elseif msg.info.role == 'assistant' then
-          M._format_assistant_message(vim.trim(part.text))
-        end
-      elseif part.type == 'tool' then
-        M._format_tool(part)
-      elseif part.type == 'patch' and part.hash then
-        M._format_patch(part)
-      end
-      M.output:add_empty_line()
+      M.format_part_isolated(part, { msg_idx = i, part_idx = j, role = msg.info.role, message = msg }, M.output)
     end
 
     if msg.info.error and msg.info.error ~= '' then
@@ -404,28 +389,10 @@ function M._format_callout(callout, text, title)
 end
 
 ---@param text string
----@param message Message
-function M._format_user_message(text, message)
-  local context = nil
-  if vim.startswith(text, '<additional-data>') then
-    context = context_module.extract_from_message_legacy(text)
-  else
-    context = context_module.extract_from_opencode_message(message)
-  end
-
+function M._format_user_prompt(text)
   local start_line = M.output:get_line_count()
 
-  M.output:add_lines(vim.split(context.prompt, '\n'))
-
-  if context.selected_text then
-    M.output:add_empty_line()
-    M.output:add_lines(vim.split(context.selected_text, '\n'))
-  end
-
-  if context.current_file then
-    M.output:add_empty_line()
-    M._format_context_file(context.current_file)
-  end
+  M.output:add_lines(vim.split(text, '\n'))
 
   local end_line = M.output:get_line_count()
 
@@ -439,7 +406,6 @@ function M._format_selection_context(part)
     return
   end
   local start_line = M.output:get_line_count()
-  M.output:add_empty_line()
   M.output:add_lines(vim.split(json.content, '\n'))
   M.output:add_empty_line()
 
@@ -738,8 +704,8 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col)
   end
 end
 
-function M.format_part_isolated(part, message_info)
-  local temp_output = Output.new()
+function M.format_part_isolated(part, message_info, output)
+  local temp_output = output or Output.new()
   local old_output = M.output
   M.output = temp_output
 
@@ -754,37 +720,30 @@ function M.format_part_isolated(part, message_info)
 
   local content_added = false
 
-  -- FIXME: _format_user_message calls to get context which iterates over
-  -- parts. that won't work when streaming. we already handle file context
-  -- but also need to handle selected text
-  -- At some point, we should unify the rendering to use the streaming
-  -- even when re-reading the whole session and should then not special
-  -- case the context by looking ahead at the parts
-
-  if part.type == 'text' and part.text then
-    if message_info.role == 'user' and part.synthetic ~= true then
-      M._format_user_message(vim.trim(part.text), message_info.message)
+  if message_info.role == 'user' then
+    if part.type == 'text' and part.text then
+      if part.synthetic == true then
+        M._format_selection_context(part)
+      else
+        M._format_user_prompt(vim.trim(part.text))
+        content_added = true
+      end
+    elseif part.type == 'file' then
+      local file_line = M._format_context_file(part.filename)
+      M._add_vertical_border(file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
       content_added = true
-    elseif part.synthetic == true and message_info.role == 'user' then
-      M._format_selection_context(part)
-    elseif message_info.role == 'assistant' then
+    end
+  elseif message_info.role == 'assistant' then
+    if part.type == 'text' and part.text then
       M._format_assistant_message(vim.trim(part.text))
       content_added = true
+    elseif part.type == 'tool' then
+      M._format_tool(part)
+      content_added = true
+    elseif part.type == 'patch' and part.hash then
+      M._format_patch(part)
+      content_added = true
     end
-  elseif part.type == 'tool' then
-    M._format_tool(part)
-    content_added = true
-  elseif part.type == 'patch' and part.hash then
-    M._format_patch(part)
-    content_added = true
-  elseif part.type == 'file' then
-    local file_line = M._format_context_file(part.filename)
-    if message_info.role == 'user' then
-      -- when streaming, the file comes in as a separate event, connect it to user
-      -- message
-      M._add_vertical_border(file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
-    end
-    content_added = true
   end
 
   if content_added then

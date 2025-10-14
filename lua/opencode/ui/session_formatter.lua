@@ -14,7 +14,7 @@ local M = {
 }
 
 M.separator = {
-  '---',
+  '----',
   '',
 }
 
@@ -418,6 +418,7 @@ function M._format_user_message(text, message)
   M.output:add_lines(vim.split(context.prompt, '\n'))
 
   if context.selected_text then
+    M.output:add_empty_line()
     M.output:add_lines(vim.split(context.selected_text, '\n'))
   end
 
@@ -425,6 +426,22 @@ function M._format_user_message(text, message)
     M.output:add_empty_line()
     M._format_context_file(context.current_file)
   end
+
+  local end_line = M.output:get_line_count()
+
+  M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
+---@param part MessagePart
+function M._format_selection_context(part)
+  local json = context_module.decode_json_context(part.text, 'selection')
+  if not json then
+    return
+  end
+  local start_line = M.output:get_line_count()
+  M.output:add_empty_line()
+  M.output:add_lines(vim.split(json.content, '\n'))
+  M.output:add_empty_line()
 
   local end_line = M.output:get_line_count()
 
@@ -748,6 +765,8 @@ function M.format_part_isolated(part, message_info)
     if message_info.role == 'user' and part.synthetic ~= true then
       M._format_user_message(vim.trim(part.text), message_info.message)
       content_added = true
+    elseif part.synthetic == true and message_info.role == 'user' then
+      M._format_selection_context(part)
     elseif message_info.role == 'assistant' then
       M._format_assistant_message(vim.trim(part.text))
       content_added = true

@@ -329,16 +329,16 @@ function M.format_message(prompt, opts)
     end
   end
 
+  for _, sel in ipairs(context.selections or {}) do
+    table.insert(parts, format_selection_part(sel))
+  end
+
   for _, agent in ipairs(context.mentioned_subagents or {}) do
     table.insert(parts, format_subagents_part(agent, prompt))
   end
 
   if context.current_file then
     table.insert(parts, format_file_part(context.current_file.path))
-  end
-
-  for _, sel in ipairs(context.selections or {}) do
-    table.insert(parts, format_selection_part(sel))
   end
 
   if context.linter_errors then
@@ -352,10 +352,10 @@ function M.format_message(prompt, opts)
   return parts
 end
 
----@param part OpencodeMessagePart
+---@param text string
 ---@param context_type string|nil
-local function decode_json_context(part, context_type)
-  local ok, result = pcall(vim.json.decode, part.text)
+function M.decode_json_context(text, context_type)
+  local ok, result = pcall(vim.json.decode, text)
   if not ok or (context_type and result.context_type ~= context_type) then
     return nil
   end
@@ -373,7 +373,7 @@ function M.extract_from_opencode_message(message)
       ctx.prompt = ctx.prompt or part.text or ''
     end,
     text_context = function(part)
-      local json = decode_json_context(part, 'selection')
+      local json = M.decode_json_context(part.text, 'selection')
       ctx.selected_text = json and json.content or ctx.selected_text
     end,
     file = function(part)

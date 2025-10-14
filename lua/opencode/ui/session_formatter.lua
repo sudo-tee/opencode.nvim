@@ -423,16 +423,25 @@ function M._format_user_message(text, message)
 
   if context.current_file then
     M.output:add_empty_line()
-    local path = context.current_file or ''
-    if vim.startswith(path, vim.fn.getcwd()) then
-      path = path:sub(#vim.fn.getcwd() + 2)
-    end
-    M.output:add_line(string.format('[%s](%s)', path, context.current_file))
+    M._format_context_file(context.current_file)
   end
 
   local end_line = M.output:get_line_count()
 
   M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
+---Format and display the file path in the context
+---@param path string|nil File path
+function M._format_context_file(path)
+  if not path or path == '' then
+    return
+  end
+  local cwd = vim.fn.getcwd()
+  if vim.startswith(path, cwd) then
+    path = path:sub(#cwd + 2)
+  end
+  return M.output:add_line(string.format('[%s](%s)', path, path))
 end
 
 ---@param text string
@@ -751,11 +760,7 @@ function M.format_part_isolated(part, message_info)
     M._format_patch(part)
     content_added = true
   elseif part.type == 'file' then
-    local path = part.filename
-    if vim.startswith(path, vim.fn.getcwd()) then
-      path = path:sub(#vim.fn.getcwd() + 2)
-    end
-    local file_line = M.output:add_line(string.format('[%s](%s)', path, part.filename))
+    local file_line = M._format_context_file(part.filename)
     if message_info.role == 'user' then
       -- when streaming, the file comes in as a separate event, connect it to user
       -- message

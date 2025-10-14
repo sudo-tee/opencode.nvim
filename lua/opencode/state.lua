@@ -33,12 +33,12 @@ local config = require('opencode.config')
 ---@field opencode_server_job OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
+---@field required_version string
+---@field opencode_cli_version string|nil
+---@field append fun( key:string, value:any)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
----@field append fun( key:string, value:any)
----@field required_version string
----@field opencode_cli_version string|nil
 
 -- Internal raw state table
 local _state = {

@@ -261,7 +261,6 @@ end
 
 function M._format_patch(part)
   local restore_points = snapshot.get_restore_points_by_parent(part.hash)
-  M.output:add_empty_line()
   M._format_action(icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
   local snapshot_header_line = M.output:get_line_count()
 
@@ -392,7 +391,9 @@ function M._format_callout(callout, text, title)
     text = ok and substituted or text
   end
 
-  local lines = vim.split(text, '\n')
+  -- Trim off any trailing newlines so there isn't an extra line in the
+  -- extmarks section
+  local lines = vim.split(text:gsub('\n$', ''), '\n')
   if #lines == 1 and title == '' then
     M.output:add_line('> [!' .. callout .. '] ' .. lines[1])
   else
@@ -565,14 +566,14 @@ end
 ---@param part MessagePart
 function M._format_tool(part)
   local tool = part.tool
-  if not tool then
+  if not tool or not part.state then
     return
   end
 
   local start_line = M.output:get_line_count() + 1
-  local input = (part.state and part.state.input) or {}
-  local metadata = (part.state and part.state.metadata) or {}
-  local output = (part.state and part.state.output) or ''
+  local input = part.state.input or {}
+  local metadata = part.state.metadata or {}
+  local output = part.state.output or ''
 
   if state.current_permission and state.current_permission.messageID == part.messageID then
     metadata = state.current_permission.metadata or metadata
@@ -598,12 +599,15 @@ function M._format_tool(part)
     M._format_action(icons.get('tool') .. ' tool', tool)
   end
 
-  if part.state then
-    if part.state.status == 'error' then
-      M._format_callout('ERROR', part.state.error)
-    elseif part.state.input and part.state.input.error then
-      M._format_callout('ERROR', part.state.input.error)
-    end
+  if part.state.status == 'error' then
+    M.output:add_line('')
+    M._format_callout('ERROR', part.state.error)
+  ---@diagnostic disable-next-line: undefined-field
+  elseif part.state.input and part.state.input.error then
+    M.output:add_line('')
+    ---I'm not sure about the type with state.input.error
+    ---@diagnostic disable-next-line: undefined-field
+    M._format_callout('ERROR', part.state.input.error)
   end
 
   if
@@ -659,7 +663,6 @@ function M._format_code(lines, language)
   M.output:add_line('```' .. (language or ''))
   M.output:add_lines(lines)
   M.output:add_line('```')
-  M.output:add_empty_line()
 end
 
 function M._format_diff(code, file_type)
@@ -696,7 +699,6 @@ function M._format_diff(code, file_type)
     end
   end
   M.output:add_line('```')
-  M.output:add_empty_line()
 end
 
 function M._add_vertical_border(start_line, end_line, hl_group, win_col)

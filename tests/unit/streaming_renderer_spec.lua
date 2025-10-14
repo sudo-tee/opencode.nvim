@@ -11,7 +11,6 @@ describe('streaming_renderer', function()
   before_each(function()
     streaming_renderer.reset()
 
-    -- disable the config_file apis because topbar uses them
     local empty_promise = require('opencode.promise').new():resolve(nil)
     config_file.config_promise = empty_promise
     config_file.project_promise = empty_promise
@@ -19,8 +18,6 @@ describe('streaming_renderer', function()
 
     state.windows = ui.create_windows()
 
-    -- we don't want output_renderer responding to setting
-    -- the session id
     output_renderer._cleanup_subscriptions()
 
     restore_time_ago = helpers.mock_time_ago()
@@ -41,108 +38,29 @@ describe('streaming_renderer', function()
     end
   end)
 
-  it('replays simple-session correctly', function()
-    local events = helpers.load_test_data('tests/data/simple-session.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/simple-session.expected.json')
+  local json_files = vim.fn.glob('tests/data/*.json', false, true)
 
-    helpers.replay_events(events)
+  for _, filepath in ipairs(json_files) do
+    local name = vim.fn.fnamemodify(filepath, ':t:r')
 
-    vim.wait(100)
+    if not name:match('%.expected$') then
+      local expected_path = 'tests/data/' .. name .. '.expected.json'
 
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
+      if vim.fn.filereadable(expected_path) == 1 then
+        it('replays ' .. name .. ' correctly', function()
+          local events = helpers.load_test_data(filepath)
+          state.active_session = helpers.get_session_from_events(events)
+          local expected = helpers.load_test_data(expected_path)
 
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
+          helpers.replay_events(events)
+          vim.wait(200)
 
-  it('replays updating-text correctly', function()
-    local events = helpers.load_test_data('tests/data/updating-text.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/updating-text.expected.json')
+          local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
 
-    helpers.replay_events(events)
-
-    vim.wait(100)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
-
-  it('replays planning correctly', function()
-    local events = helpers.load_test_data('tests/data/planning.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/planning.expected.json')
-
-    helpers.replay_events(events)
-
-    vim.wait(100)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
-
-  it('replays permission correctly', function()
-    local events = helpers.load_test_data('tests/data/permission.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/permission.expected.json')
-
-    helpers.replay_events(events)
-
-    vim.wait(100)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
-
-  it('replays permission denied correctly', function()
-    local events = helpers.load_test_data('tests/data/permission-denied.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/permission-denied.expected.json')
-
-    helpers.replay_events(events)
-
-    vim.wait(100)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
-
-  it('replays diff correctly', function()
-    local events = helpers.load_test_data('tests/data/diff.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/diff.expected.json')
-
-    helpers.replay_events(events)
-
-    vim.wait(200)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
-
-  it('replays tool-invalid correctly', function()
-    local events = helpers.load_test_data('tests/data/tool-invalid.json')
-    state.active_session = helpers.get_session_from_events(events)
-    local expected = helpers.load_test_data('tests/data/tool-invalid.expected.json')
-
-    helpers.replay_events(events)
-
-    vim.wait(200)
-
-    local actual = helpers.capture_output(state.windows.output_buf, streaming_renderer._namespace)
-
-    assert.same(expected.lines, actual.lines)
-    assert.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
-  end)
+          assert.are.same(expected.lines, actual.lines)
+          assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
+        end)
+      end
+    end
+  end
 end)

@@ -127,6 +127,11 @@ function M.replay_all(delay_ms)
     M.timer = nil
   end
 
+  if delay_ms == 0 then
+    M.replay_next(#M.events)
+    return
+  end
+
   M.timer = vim.loop.new_timer()
   M.timer:start(
     0,
@@ -193,7 +198,7 @@ function M.normalize_namespace_ids(extmarks)
   return helpers.normalize_namespace_ids(extmarks)
 end
 
-function M.capture_snapshot(filename)
+function M.save_output(filename)
   if not state.windows or not state.windows.output_buf then
     vim.notify('No output buffer available', vim.log.levels.ERROR)
     return nil
@@ -331,8 +336,8 @@ function M.start(opts)
       vim.notify('No filename specified and no file loaded', vim.log.levels.ERROR)
       return
     end
-    M.capture_snapshot(filename)
-  end, { nargs = '?', desc = 'Capture output snapshot', complete = 'file' })
+    M.save_output(filename)
+  end, { nargs = '?', desc = 'Save output snapshot', complete = 'file' })
 
   vim.api.nvim_create_user_command('ReplayHeadless', function()
     M.headless_mode = true

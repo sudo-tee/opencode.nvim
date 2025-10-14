@@ -163,7 +163,7 @@ function M.get_lines()
 end
 
 ---Calculate statistics for reverted messages and tool calls
----@param messages Message[] All messages in the session
+---@param messages {info: Message, parts: MessagePart[]}[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
 ---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}

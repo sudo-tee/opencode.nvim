@@ -94,7 +94,7 @@ function M.mock_time_ago()
     if timestamp > 1e12 then
       timestamp = math.floor(timestamp / 1000)
     end
-    return os.date('%Y-%m-%d %H:%M:%S', timestamp)
+    return os.date('!%Y-%m-%d %H:%M:%S', timestamp)
   end
 
   return function()

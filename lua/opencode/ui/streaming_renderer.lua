@@ -17,6 +17,7 @@ function M.reset()
   -- subscribe to state changes and if state.messages is cleared, it
   -- should clear it's state too
   state.messages = {}
+  state.last_user_message = nil
 end
 
 ---Set up all subscriptions, for both local and server events
@@ -318,10 +319,13 @@ function M.on_message_updated(event)
     -- I think this is mostly for book keeping / stats (tokens update)
     state.messages[found_idx].info = message
   else
-    table.insert(state.messages, { info = message, parts = {} })
+    table.insert(state.messages, event.properties)
     found_idx = #state.messages
 
     M._write_message_header(message, found_idx)
+    if message.role == 'user' then
+      state.last_user_message = message
+    end
   end
 
   M._scroll_to_bottom()
@@ -397,12 +401,11 @@ function M.on_part_updated(event)
   end
 
   local formatter = require('opencode.ui.session_formatter')
-  local message_with_parts = vim.tbl_extend('force', message, { parts = msg_wrapper.parts })
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,
     part_idx = part_idx,
     role = message.role,
-    message = message_with_parts,
+    message = msg_wrapper,
   })
 
   if not ok then

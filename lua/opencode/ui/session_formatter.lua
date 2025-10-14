@@ -746,7 +746,6 @@ function M.format_part_isolated(part, message_info)
 
   if part.type == 'text' and part.text then
     if message_info.role == 'user' and part.synthetic ~= true then
-      state.last_user_message = message_info.message
       M._format_user_message(vim.trim(part.text), message_info.message)
       content_added = true
     elseif message_info.role == 'assistant' then

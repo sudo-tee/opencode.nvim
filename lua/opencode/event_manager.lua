@@ -271,7 +271,7 @@ function EventManager:_subscribe_to_server_events(server)
   local emitter = function(event)
     -- schedule events to allow for similar pieces of state to be updated
     vim.schedule(function()
-      self:emit(event.type, event)
+      self:emit(event.type, event.properties)
     end)
   end
 

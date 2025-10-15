@@ -213,19 +213,19 @@ end
 function M.replay_event(event)
   local renderer = require('opencode.ui.renderer')
   if event.type == 'message.updated' then
-    renderer.on_message_updated(event)
+    renderer.on_message_updated(event.properties)
   elseif event.type == 'message.part.updated' then
-    renderer.on_part_updated(event)
+    renderer.on_part_updated(event.properties)
   elseif event.type == 'message.removed' then
-    renderer.on_message_removed(event)
+    renderer.on_message_removed(event.properties)
   elseif event.type == 'message.part.removed' then
-    renderer.on_part_removed(event)
+    renderer.on_part_removed(event.properties)
   elseif event.type == 'session.compacted' then
-    renderer.on_session_compacted(event)
+    renderer.on_session_compacted(event.properties)
   elseif event.type == 'permission.updated' then
-    renderer.on_permission_updated(event)
+    renderer.on_permission_updated(event.properties)
   elseif event.type == 'permission.replied' then
-    renderer.on_permission_replied(event)
+    renderer.on_permission_replied(event.properties)
   end
 end
 

@@ -227,6 +227,7 @@ function M.replay_full_session()
 
   renderer.reset()
   renderer._render_full_session_data(session_data)
+  state.job_count = 0
 
   vim.notify('Rendered full session from loaded events', vim.log.levels.INFO)
   return true

@@ -25,7 +25,7 @@ local config = require('opencode.config')
 ---@field current_model_info table|nil
 ---@field messages OpencodeMessage[]|nil
 ---@field current_message OpencodeMessage|nil
----@field last_user_message MessageInfo|nil
+---@field last_user_message OpencodeMessage|nil
 ---@field current_permission OpencodePermission|nil
 ---@field cost number
 ---@field tokens_count number

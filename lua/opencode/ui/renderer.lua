@@ -10,12 +10,14 @@ M._subscriptions = {}
 M._part_cache = {}
 M._prev_line_count = 0
 M._message_map = MessageMap.new()
+M._actions = {}
 
 ---Reset renderer state
 function M.reset()
   M._part_cache = {}
   M._prev_line_count = 0
   M._message_map:reset()
+  M._actions = {}
 
   output_window.clear()
 
@@ -101,12 +103,12 @@ function M._render_full_session_data(session_data)
   M._scroll_to_bottom()
 end
 
----Shift cached line positions by delta starting from from_line
+---Shift cached part and action line positions by delta starting from from_line
 ---Uses state.messages rather than M._part_cache so it can
 ---stop early
 ---@param from_line integer Line number to start shifting from
 ---@param delta integer Number of lines to shift (positive or negative)
-function M._shift_lines(from_line, delta)
+function M._shift_parts_and_actions(from_line, delta)
   if delta == 0 then
     return
   end
@@ -138,6 +140,21 @@ function M._shift_lines(from_line, delta)
     end
   end
 
+  -- Shift actions
+  for _, action in ipairs(M._actions) do
+    if action.display_line and action.display_line >= from_line then
+      action.display_line = action.display_line + delta
+    end
+    if action.range then
+      if action.range.from >= from_line then
+        action.range.from = action.range.from + delta
+      end
+      if action.range.to >= from_line then
+        action.range.to = action.range.to + delta
+      end
+    end
+  end
+
   -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
 end
 
@@ -148,7 +165,11 @@ function M.write_output(output_data)
     return
   end
 
-  -- FIXME: what about output_data.metadata and output_data.actions
+  -- Extract and store actions with absolute positions
+  M._actions = {}
+  for _, action in ipairs(output_data.actions or {}) do
+    table.insert(M._actions, action)
+  end
 
   output_window.set_lines(output_data.lines)
   output_window.clear_extmarks()
@@ -183,19 +204,32 @@ function M._scroll_to_bottom()
 end
 
 ---Write data to output_buf, including normal text and extmarks
----@param formatted_data {lines: string[], extmarks: table?} Formatted data with lines and extmarks
+---@param formatted_data Output Formatted data as Output object
 ---@return {line_start: integer, line_end: integer}? Range where data was written
 function M._write_formatted_data(formatted_data)
   local buf = state.windows.output_buf
   local start_line = output_window.get_buf_line_count()
   local new_lines = formatted_data.lines
+  local extmarks = formatted_data.extmarks
 
   if #new_lines == 0 or not buf then
     return nil
   end
 
+  -- Extract and store actions if present, adjusting to absolute positions
+  if formatted_data.actions then
+    for _, action in ipairs(formatted_data.actions) do
+      action.display_line = action.display_line + start_line
+      if action.range then
+        action.range.from = action.range.from + start_line
+        action.range.to = action.range.to + start_line
+      end
+      table.insert(M._actions, action)
+    end
+  end
+
   output_window.set_lines(new_lines, start_line)
-  output_window.set_extmarks(formatted_data.extmarks, start_line)
+  output_window.set_extmarks(extmarks, start_line)
 
   return {
     line_start = start_line,
@@ -204,10 +238,11 @@ function M._write_formatted_data(formatted_data)
 end
 
 ---Write message header to buffer
----@param message MessageInfo Message object
+---@param message OpencodeMessage Message object
 ---@param msg_idx integer Message index
 ---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
+  state.current_message = message
   local header_data = formatter.format_message_header_isolated(message, msg_idx)
   local line_range = M._write_formatted_data(header_data)
   return line_range
@@ -215,7 +250,7 @@ end
 
 ---Insert new part at end of buffer
 ---@param part_id string Part ID
----@param formatted_data {lines: string[], extmarks: MessageInfo?} Formatted data
+---@param formatted_data Output Formatted data as Output object
 ---@return boolean Success status
 function M._insert_part_to_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
@@ -240,7 +275,7 @@ end
 ---Replace existing part in buffer
 ---Adjusts line positions of subsequent parts if line count changes
 ---@param part_id string Part ID
----@param formatted_data {lines: string[], extmarks: table?} Formatted data
+---@param formatted_data Output Formatted data as Output object
 ---@return boolean Success status
 function M._replace_part_in_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
@@ -253,6 +288,14 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   local old_line_count = cached.line_end - cached.line_start + 1
   local new_line_count = #new_lines
 
+  -- Remove actions within the old range
+  for i = #M._actions, 1, -1 do
+    local action = M._actions[i]
+    if action.range and action.range.from >= cached.line_start and action.range.to <= cached.line_end then
+      table.remove(M._actions, i)
+    end
+  end
+
   -- clear previous extmarks
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
 
@@ -262,9 +305,21 @@ function M._replace_part_in_buffer(part_id, formatted_data)
 
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
+  -- Add new actions if present
+  if formatted_data.actions then
+    for _, action in ipairs(formatted_data.actions) do
+      action.display_line = action.display_line + cached.line_start
+      if action.range then
+        action.range.from = action.range.from + cached.line_start
+        action.range.to = action.range.to + cached.line_start
+      end
+      table.insert(M._actions, action)
+    end
+  end
+
   local line_delta = new_line_count - old_line_count
   if line_delta ~= 0 then
-    M._shift_lines(cached.line_end + 1, line_delta)
+    M._shift_parts_and_actions(cached.line_end + 1, line_delta)
   end
 
   return true
@@ -286,7 +341,7 @@ function M._remove_part_from_buffer(part_id)
 
   output_window.set_lines({}, cached.line_start, cached.line_end + 1)
 
-  M._shift_lines(cached.line_end + 1, -line_count)
+  M._shift_parts_and_actions(cached.line_end + 1, -line_count)
   M._part_cache[part_id] = nil
 end
 
@@ -298,26 +353,28 @@ function M.on_message_updated(event)
     return
   end
 
-  local message = event.properties.info
-  if not message.id or not message.sessionID then
+  ---@type OpencodeMessage
+  local message = event.properties
+  if not message.info.id or not message.info.sessionID then
     return
   end
 
-  if state.active_session.id ~= message.sessionID then
-    vim.notify('Session id does not match, discarding part: ' .. vim.inspect(message), vim.log.levels.WARN)
+  if state.active_session.id ~= message.info.sessionID then
+    vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)
+    return
   end
 
-  local found_idx = M._message_map:get_message_index(message.id)
+  local found_idx = M._message_map:get_message_index(message.info.id)
 
   if found_idx then
-    state.messages[found_idx].info = message
+    state.messages[found_idx].info = message.info
   else
-    table.insert(state.messages, event.properties)
+    table.insert(state.messages, message)
     found_idx = #state.messages
-    M._message_map:add_message(message.id, found_idx)
+    M._message_map:add_message(message.info.id, found_idx)
 
     M._write_message_header(message, found_idx)
-    if message.role == 'user' then
+    if message.info.role == 'user' then
       state.last_user_message = message
     end
   end
@@ -552,8 +609,8 @@ function M._rerender_part(part_id)
 
   local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
-    msg_idx = msg_idx,
-    part_idx = part_idx,
+    msg_idx = msg_idx or 1,
+    part_idx = part_idx or 1,
     role = msg_wrapper.info.role,
     message = message_with_parts,
   })
@@ -564,6 +621,19 @@ function M._rerender_part(part_id)
   end
 
   M._replace_part_in_buffer(part_id, formatted)
+end
+
+---Get all actions available at a specific line
+---@param line number 1-indexed line number
+---@return table[] List of actions available at that line
+function M.get_actions_for_line(line)
+  local actions = {}
+  for _, action in ipairs(M._actions) do
+    if action.range and action.range.from <= line and action.range.to >= line then
+      table.insert(actions, action)
+    end
+  end
+  return actions
 end
 
 return M

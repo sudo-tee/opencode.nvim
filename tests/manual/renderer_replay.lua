@@ -69,6 +69,8 @@ function M.emit_event(event)
   vim.schedule(function()
     local id = event.properties.info and event.properties.info.id
       or event.properties.part and event.properties.part.id
+      or event.properties.id and event.properties.id
+      or event.properties.permissionID and event.properties.permissionID
       or ''
     vim.notify('Event ' .. index .. '/' .. count .. ': ' .. event.type .. ' ' .. id .. '', vim.log.levels.INFO)
     helpers.replay_event(event)

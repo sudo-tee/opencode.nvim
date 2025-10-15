@@ -92,7 +92,7 @@ function M._render_full_session_data(session_data)
   local output_data = formatter._format_messages(state.active_session)
 
   M.write_output(output_data)
-  M.scroll_to_bottom()
+  M._scroll_to_bottom()
 end
 
 ---Shift cached line positions by delta starting from from_line

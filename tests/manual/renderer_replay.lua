@@ -52,6 +52,7 @@ function M.setup_windows(opts)
         vim.api.nvim_set_option_value('statuscolumn', '%l%=  ', { win = state.windows.output_win })
       end
       pcall(vim.api.nvim_buf_del_keymap, state.windows.output_buf, 'n', '<esc>')
+      pcall(vim.api.nvim_buf_del_keymap, state.windows.input_buf, 'n', '<esc>')
     end
   end)
 

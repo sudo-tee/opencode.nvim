@@ -6,8 +6,29 @@ Output.__index = Output
 ---@class Output
 ---@field lines table<number, string>
 ---@field metadata table<number, OutputMetadata>
----@field extmarks table<number, OutputExtmark> -- Stores extmarks for each line
----@field actions table<number, OutputAction[]> -- Stores contextual actions for each line range
+---@field extmarks table<number, OutputExtmark>
+---@field actions OutputAction[]
+---@field add_line fun(self: Output, line: string, fit?: boolean): number
+---@field get_line fun(self: Output, idx: number): string?
+---@field get_metadata fun(self: Output, idx: number): OutputMetadata?
+---@field get_nearest_metadata fun(self: Output, idx: number, predicate?: function, direction?: string): OutputMetadata|nil
+---@field get_all_metadata fun(self: Output): OutputMetadata[]
+---@field get_previous_snapshot fun(self: Output, line: number): string?
+---@field get_next_snapshot fun(self: Output, line: number): string?
+---@field get_first_snapshot fun(self: Output): string?
+---@field get_last_snapshot fun(self: Output): string?
+---@field merge_line fun(self: Output, idx: number, text: string)
+---@field add_lines fun(self: Output, lines: string[], prefix?: string)
+---@field add_empty_line fun(self: Output): number?
+---@field add_metadata fun(self: Output, metadata: OutputMetadata): number?
+---@field clear fun(self: Output)
+---@field get_line_count fun(self: Output): number
+---@field get_lines fun(self: Output): string[]
+---@field add_extmark fun(self: Output, idx: number, extmark: OutputExtmark|fun(): OutputExtmark)
+---@field get_extmarks fun(self: Output): table<number, table[]>
+---@field add_actions fun(self: Output, actions: OutputAction[])
+---@field add_action fun(self: Output, action: OutputAction)
+---@field get_actions_for_line fun(self: Output, line: number): OutputAction[]?
 ---@return self Output
 function Output.new()
   local self = setmetatable({}, Output)

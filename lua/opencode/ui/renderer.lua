@@ -352,14 +352,14 @@ end
 
 ---Event handler for message.updated events
 ---Creates new message or updates existing message info
----@param event EventMessageUpdated Event object
-function M.on_message_updated(event)
-  if not event or not event.properties or not event.properties.info then
+---@param properties {info: MessageInfo} Event properties
+function M.on_message_updated(properties)
+  if not properties or not properties.info then
     return
   end
 
   ---@type OpencodeMessage
-  local message = event.properties
+  local message = properties
   if not message.info.id or not message.info.sessionID then
     return
   end
@@ -373,31 +373,32 @@ function M.on_message_updated(event)
 
   if found_idx then
     state.messages[found_idx].info = message.info
+    M._update_stats_from_message(message)
   else
     table.insert(state.messages, message)
     found_idx = #state.messages
     M._message_map:add_message(message.info.id, found_idx)
 
-    M._write_message_header(message, found_idx)
+    M._update_stats_from_message(message)
 
+    M._write_message_header(message, found_idx)
     if message.info.role == 'user' then
       state.last_user_message = message
     end
   end
-  M._update_stats_from_message(message)
 
   M._scroll_to_bottom()
 end
 
 ---Event handler for message.part.updated events
 ---Inserts new parts or replaces existing parts in buffer
----@param event EventMessagePartUpdated Event object
-function M.on_part_updated(event)
-  if not event or not event.properties or not event.properties.part then
+---@param properties {part: MessagePart} Event properties
+function M.on_part_updated(properties)
+  if not properties or not properties.part then
     return
   end
 
-  local part = event.properties.part
+  local part = properties.part
   if not part.id or not part.messageID or not part.sessionID then
     return
   end
@@ -470,13 +471,13 @@ function M.on_part_updated(event)
 end
 
 ---Event handler for message.part.removed events
----@param event EventMessagePartRemoved Event object
-function M.on_part_removed(event)
-  if not event or not event.properties then
+---@param properties {sessionID: string, messageID: string, partID: string} Event properties
+function M.on_part_removed(properties)
+  if not properties then
     return
   end
 
-  local part_id = event.properties.partID
+  local part_id = properties.partID
   if not part_id then
     return
   end
@@ -493,13 +494,13 @@ end
 
 ---Event handler for message.removed events
 ---Removes message and all its parts from buffer
----@param event EventMessageRemoved Event object
-function M.on_message_removed(event)
-  if not event or not event.properties then
+---@param properties {sessionID: string, messageID: string} Event properties
+function M.on_message_removed(properties)
+  if not properties then
     return
   end
 
-  local message_id = event.properties.messageID
+  local message_id = properties.messageID
   if not message_id then
     return
   end
@@ -520,8 +521,8 @@ function M.on_message_removed(event)
 end
 
 ---Event handler for session.compacted events
----@param event EventSessionCompacted Event object
-function M.on_session_compacted(event)
+---@param properties {sessionID: string} Event properties
+function M.on_session_compacted(properties)
   vim.notify('on_session_compacted')
   -- TODO: render a note that the session was compacted
   -- FIXME: did we need unset state.last_sent_context because the
@@ -529,13 +530,13 @@ function M.on_session_compacted(event)
 end
 
 ---Event handler for session.error events
----@param event EventSessionError Event object
-function M.on_session_error(event)
-  if not event or not event.properties or not event.properties.error then
+---@param properties {sessionID: string, error: table} Event properties
+function M.on_session_error(properties)
+  if not properties or not properties.error then
     return
   end
 
-  local error_data = event.properties.error
+  local error_data = properties.error
   local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
 
   local formatted = formatter.format_error_callout(error_message)
@@ -546,13 +547,13 @@ end
 
 ---Event handler for permission.updated events
 ---Re-renders part that requires permission
----@param event EventPermissionUpdated Event object
-function M.on_permission_updated(event)
-  if not event or not event.properties then
+---@param properties OpencodePermission Event properties
+function M.on_permission_updated(properties)
+  if not properties then
     return
   end
 
-  local permission = event.properties
+  local permission = properties
   if not permission.messageID or not permission.callID then
     return
   end
@@ -568,9 +569,9 @@ end
 
 ---Event handler for permission.replied events
 ---Re-renders part after permission is resolved
----@param event EventPermissionReplied Event object
-function M.on_permission_replied(event)
-  if not event or not event.properties then
+---@param properties {sessionID: string, permissionID: string, response: string} Event properties
+function M.on_permission_replied(properties)
+  if not properties then
     return
   end
 
@@ -586,7 +587,7 @@ function M.on_permission_replied(event)
   end
 end
 
-function M.on_file_edited(event)
+function M.on_file_edited(properties)
   vim.cmd('checktime')
 end
 

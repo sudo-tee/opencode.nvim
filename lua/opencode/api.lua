@@ -575,7 +575,7 @@ function M.undo()
   -- ui.render_output(true)
   state.api_client
     :revert_message(state.active_session.id, {
-      messageID = last_user_message.id,
+      messageID = last_user_message.info.id,
     })
     :and_then(function(response)
       state.active_session.revert = response.revert

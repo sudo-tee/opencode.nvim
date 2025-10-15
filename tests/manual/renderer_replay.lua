@@ -1,7 +1,5 @@
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
-local ui = require('opencode.ui.ui')
-local config_file = require('opencode.config_file')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 
@@ -12,7 +10,6 @@ M.current_index = 0
 M.timer = nil
 M.last_loaded_file = nil
 M.headless_mode = false
-M.restore_time_ago = nil
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
@@ -106,6 +103,7 @@ function M.replay_all(delay_ms)
   delay_ms = delay_ms or 50
 
   if M.timer then
+    ---@diagnostic disable-next-line: undefined-field
     M.timer:stop()
     M.timer = nil
   end
@@ -116,12 +114,14 @@ function M.replay_all(delay_ms)
   end
 
   M.timer = vim.loop.new_timer()
+  ---@diagnostic disable-next-line: undefined-field
   M.timer:start(
     0,
     delay_ms,
     vim.schedule_wrap(function()
       if M.current_index >= #M.events then
         if M.timer then
+          ---@diagnostic disable-next-line: undefined-field
           M.timer:stop()
           M.timer = nil
         end
@@ -139,6 +139,7 @@ end
 
 function M.replay_stop()
   if M.timer then
+    ---@diagnostic disable-next-line: undefined-field
     M.timer:stop()
     M.timer = nil
     vim.notify('Replay stopped at event ' .. M.current_index .. '/' .. #M.events, vim.log.levels.INFO)
@@ -210,6 +211,21 @@ function M.save_output(filename)
   return snapshot
 end
 
+function M.replay_full_session()
+  if #M.events == 0 then
+    vim.notify('No events loaded. Use :ReplayLoad first.', vim.log.levels.WARN)
+    return false
+  end
+
+  local session_data = helpers.load_session_from_events(M.events)
+
+  renderer.reset()
+  renderer._render_full_session_data(session_data)
+
+  vim.notify('Rendered full session from loaded events', vim.log.levels.INFO)
+  return true
+end
+
 function M.dump_buffer_and_quit()
   vim.schedule(function()
     if not state.windows or not state.windows.output_buf then
@@ -269,22 +285,28 @@ function M.start(opts)
     'Streaming Renderer Replay',
     '',
     'Use :ReplayLoad [file] to load event data',
+    'Use :ReplayFullSession to render loaded events using full session mode',
     '',
     'Commands:',
-    '  :ReplayLoad [file]     - Load events (default: tests/data/simple-session.json)',
-    "  :ReplayNext [step]     - Replay next [step] event(s) (default 1) (<leader>n or '>' )",
-    '  :ReplayAll [ms]        - Replay all events with delay (default 50ms) (<leader>a)',
-    '  :ReplayStop            - Stop auto-replay (<leader>s)',
-    '  :ReplayReset           - Reset to beginning (<leader>r)',
-    '  :ReplayClear           - Clear output buffer (<leader>c)',
-    '  :ReplaySave [file]     - Save snapshot (auto-derives from loaded file)',
-    '  :ReplayStatus          - Show status',
+    '  :ReplayLoad [file]        - Load events (default: tests/data/simple-session.json)',
+    '  :ReplayFullSession        - Render loaded events using full session mode',
+    "  :ReplayNext [step]        - Replay next [step] event(s) (default 1) (<leader>n or '>' )",
+    '  :ReplayAll [ms]           - Replay all events with delay (default 50ms) (<leader>a)',
+    '  :ReplayStop               - Stop auto-replay (<leader>s)',
+    '  :ReplayReset              - Reset to beginning (<leader>r)',
+    '  :ReplayClear              - Clear output buffer (<leader>c)',
+    '  :ReplaySave [file]        - Save snapshot (auto-derives from loaded file)',
+    '  :ReplayStatus             - Show status',
   })
 
   vim.api.nvim_create_user_command('ReplayLoad', function(cmd_opts)
     local file = cmd_opts.args ~= '' and cmd_opts.args or nil
     M.load_events(file)
   end, { nargs = '?', desc = 'Load event data file', complete = 'file' })
+
+  vim.api.nvim_create_user_command('ReplayFullSession', function()
+    M.replay_full_session()
+  end, { desc = 'Render loaded events using full session mode' })
 
   vim.api.nvim_create_user_command('ReplayNext', function(cmd_opts)
     local steps = cmd_opts.args ~= '' and cmd_opts.args or nil

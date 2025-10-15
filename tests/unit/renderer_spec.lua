@@ -8,16 +8,11 @@ describe('renderer', function()
 
   before_each(function()
     helpers.replay_setup()
-    restore_time_ago = helpers.mock_time_ago()
   end)
 
   after_each(function()
     if state.windows then
       ui.close_windows(state.windows)
-    end
-
-    if restore_time_ago then
-      restore_time_ago()
     end
   end)
 
@@ -30,12 +25,28 @@ describe('renderer', function()
       local expected_path = 'tests/data/' .. name .. '.expected.json'
 
       if vim.fn.filereadable(expected_path) == 1 then
-        it('replays ' .. name .. ' correctly', function()
+        it('replays ' .. name .. ' correctly (event-by-event)', function()
           local events = helpers.load_test_data(filepath)
           state.active_session = helpers.get_session_from_events(events)
           local expected = helpers.load_test_data(expected_path)
 
           helpers.replay_events(events)
+          vim.wait(200)
+
+          local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+
+          assert.are.same(expected.lines, actual.lines)
+          assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
+        end)
+
+        it('replays ' .. name .. ' correctly (full session load)', function()
+          local renderer = require('opencode.ui.renderer')
+          local events = helpers.load_test_data(filepath)
+          state.active_session = helpers.get_session_from_events(events)
+          local expected = helpers.load_test_data(expected_path)
+
+          local session_data = helpers.load_session_from_events(events)
+          renderer._render_full_session_data(session_data)
           vim.wait(200)
 
           local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)

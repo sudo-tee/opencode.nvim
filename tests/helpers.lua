@@ -21,6 +21,8 @@ function M.replay_setup()
   renderer._cleanup_subscriptions()
   renderer.reset()
 
+  M.mock_time_ago()
+
   if not config.config then
     config.config = vim.deepcopy(config.defaults)
   end
@@ -143,6 +145,56 @@ function M.load_test_data(filename)
   return vim.json.decode(content)
 end
 
+function M.load_session_from_events(events)
+  local session_data = {}
+
+  for _, event in ipairs(events) do
+    local properties = event.properties
+
+    if event.type == 'message.updated' and properties.info then
+      local msg = properties.info
+      local existing_msg = nil
+      for _, m in ipairs(session_data) do
+        if m.info.id == msg.id then
+          existing_msg = m
+          break
+        end
+      end
+
+      if existing_msg then
+        existing_msg.info = vim.deepcopy(msg)
+      else
+        table.insert(session_data, {
+          info = vim.deepcopy(msg),
+          parts = {},
+        })
+      end
+    elseif event.type == 'message.part.updated' and properties.part then
+      local part = properties.part
+      for _, msg in ipairs(session_data) do
+        if msg.info.id == part.messageID then
+          local existing_part = nil
+          for i, p in ipairs(msg.parts) do
+            if p.id == part.id then
+              existing_part = i
+              break
+            end
+          end
+
+          if existing_part then
+            msg.parts[existing_part] = vim.deepcopy(part)
+          else
+            table.insert(msg.parts, vim.deepcopy(part))
+          end
+          break
+        end
+      end
+    end
+  end
+
+  return session_data
+end
+
 function M.get_session_from_events(events)
   -- renderer needs a valid session id
   for _, event in ipairs(events) do
@@ -185,7 +237,8 @@ end
 
 function M.normalize_namespace_ids(extmarks)
   local normalized = vim.deepcopy(extmarks)
-  for _, mark in ipairs(normalized) do
+  for i, mark in ipairs(normalized) do
+    mark[1] = i
     if mark[4] and mark[4].ns_id then
       mark[4].ns_id = 3
     end

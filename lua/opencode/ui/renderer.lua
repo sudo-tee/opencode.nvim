@@ -243,7 +243,7 @@ end
 ---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
   state.current_message = message
-  local header_data = formatter.format_message_header_isolated(message, msg_idx)
+  local header_data = formatter.format_message_header_single(message, msg_idx)
   local line_range = M._write_formatted_data(header_data)
   return line_range
 end

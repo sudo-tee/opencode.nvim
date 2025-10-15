@@ -440,7 +440,7 @@ function M.on_part_updated(event)
     }
   end
 
-  local ok, formatted = pcall(formatter.format_part_isolated, part, {
+  local ok, formatted = pcall(formatter.format_part_single, part, {
     msg_idx = msg_idx,
     part_idx = part_idx,
     role = message.role,
@@ -448,7 +448,7 @@ function M.on_part_updated(event)
   })
 
   if not ok then
-    vim.notify('format_part_isolated error: ' .. tostring(formatted), vim.log.levels.ERROR)
+    vim.notify('format_part_single error: ' .. tostring(formatted), vim.log.levels.ERROR)
     return
   end
 
@@ -608,7 +608,7 @@ function M._rerender_part(part_id)
   end
 
   local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
-  local ok, formatted = pcall(formatter.format_part_isolated, part, {
+  local ok, formatted = pcall(formatter.format_part_single, part, {
     msg_idx = msg_idx or 1,
     part_idx = part_idx or 1,
     role = msg_wrapper.info.role,
@@ -616,7 +616,7 @@ function M._rerender_part(part_id)
   })
 
   if not ok then
-    vim.notify('format_part_isolated error: ' .. tostring(formatted), vim.log.levels.ERROR)
+    vim.notify('format_part_single error: ' .. tostring(formatted), vim.log.levels.ERROR)
     return
   end
 

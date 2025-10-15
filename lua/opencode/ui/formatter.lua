@@ -58,25 +58,25 @@ function M._format_messages(session)
     if session.revert and session.revert.messageID == msg.info.id then
       ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
       local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
-      M._format_revert_message(revert_stats, output)
+      M._format_revert_message(output, revert_stats)
       break
     end
 
-    M._format_message_header(msg.info, i, output)
+    M._format_message_header(output, msg.info, i)
 
     for j, part in ipairs(msg.parts or {}) do
-      M.format_part_isolated(part, { msg_idx = i, part_idx = j, role = msg.info.role, message = msg }, output)
+      M._format_part(output, part, { msg_idx = i, part_idx = j, role = msg.info.role, message = msg })
     end
 
     if msg.info.error and msg.info.error ~= '' then
-      M._format_error(msg.info, output)
+      M._format_error(output, msg.info)
     end
   end
 
   return output
 end
 
-function M._handle_permission_request(part, output)
+function M._handle_permission_request(output, part)
   if part.state and part.state.status == 'error' and part.state.error then
     if part.state.error:match('rejected permission') then
       state.current_permission = nil
@@ -194,9 +194,9 @@ function M._calculate_revert_stats(messages, revert_index, revert_info)
 end
 
 ---Format the revert callout with statistics
----@param stats {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
 ---@param output Output Output object to write to
-function M._format_revert_message(stats, output)
+---@param stats {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+function M._format_revert_message(output, stats)
   local message_text = stats.messages == 1 and 'message' or 'messages'
   local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
 
@@ -235,11 +235,11 @@ function M._format_revert_message(stats, output)
   end
 end
 
----@param part MessagePart
 ---@param output Output Output object to write to
-function M._format_patch(part, output)
+---@param part MessagePart
+function M._format_patch(output, part)
   local restore_points = snapshot.get_restore_points_by_parent(part.hash)
-  M._format_action(icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)), output)
+  M._format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
   local snapshot_header_line = output:get_line_count()
 
   -- Anchor all snapshot-level actions to the snapshot header line
@@ -299,17 +299,17 @@ function M._format_patch(part, output)
   end
 end
 
----@param message MessageInfo
 ---@param output Output Output object to write to
-function M._format_error(message, output)
+---@param message MessageInfo
+function M._format_error(output, message)
   output:add_empty_line()
-  M._format_callout('ERROR', vim.inspect(message.error), output)
+  M._format_callout(output, 'ERROR', vim.inspect(message.error))
 end
 
+---@param output Output Output object to write to
 ---@param message MessageInfo
 ---@param msg_idx number Message index in the session
----@param output Output Output object to write to
-function M._format_message_header(message, msg_idx, output)
+function M._format_message_header(output, message, msg_idx)
   local role = message.role or 'unknown'
   local icon = message.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
@@ -357,11 +357,11 @@ function M._format_message_header(message, msg_idx, output)
   output:add_line('')
 end
 
+---@param output Output Output object to write to
 ---@param callout string Callout type (e.g., 'ERROR', 'TODO')
 ---@param text string Callout text content
----@param output Output Output object to write to
 ---@param title? string Optional title for the callout
-function M._format_callout(callout, text, output, title)
+function M._format_callout(output, callout, text, title)
   title = title and title .. ' ' or ''
   local win_width = (state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win))
       and vim.api.nvim_win_get_width(state.windows.output_win)
@@ -384,21 +384,21 @@ function M._format_callout(callout, text, output, title)
   end
 end
 
----@param text string
 ---@param output Output Output object to write to
-function M._format_user_prompt(text, output)
+---@param text string
+function M._format_user_prompt(output, text)
   local start_line = output:get_line_count()
 
   output:add_lines(vim.split(text, '\n'))
 
   local end_line = output:get_line_count()
 
-  M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3, output)
+  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
----@param part MessagePart
 ---@param output Output Output object to write to
-function M._format_selection_context(part, output)
+---@param part MessagePart
+function M._format_selection_context(output, part)
   local json = context_module.decode_json_context(part.text, 'selection')
   if not json then
     return
@@ -409,13 +409,13 @@ function M._format_selection_context(part, output)
 
   local end_line = output:get_line_count()
 
-  M._add_vertical_border(start_line, end_line, 'OpencodeMessageRoleUser', -3, output)
+  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---Format and display the file path in the context
----@param path string|nil File path
 ---@param output Output Output object to write to
-function M._format_context_file(path, output)
+---@param path string|nil File path
+function M._format_context_file(output, path)
   if not path or path == '' then
     return
   end
@@ -426,17 +426,17 @@ function M._format_context_file(path, output)
   return output:add_line(string.format('[%s](%s)', path, path))
 end
 
----@param text string
 ---@param output Output Output object to write to
-function M._format_assistant_message(text, output)
+---@param text string
+function M._format_assistant_message(output, text)
   -- output:add_empty_line()
   output:add_lines(vim.split(text, '\n'))
 end
 
+---@param output Output Output object to write to
 ---@param type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)
----@param output Output Output object to write to
-function M._format_action(type, value, output)
+function M._format_action(output, type, value)
   if not type or not value then
     return
   end
@@ -444,11 +444,11 @@ function M._format_action(type, value, output)
   output:add_line('**' .. type .. '** `' .. value .. '`')
 end
 
+---@param output Output Output object to write to
 ---@param input BashToolInput data for the tool
 ---@param metadata BashToolMetadata Metadata for the tool use
----@param output Output Output object to write to
-function M._format_bash_tool(input, metadata, output)
-  M._format_action(icons.get('run') .. ' run', input and input.description, output)
+function M._format_bash_tool(output, input, metadata)
+  M._format_action(output, icons.get('run') .. ' run', input and input.description)
 
   if not config.ui.output.tools.show_output then
     return
@@ -460,33 +460,33 @@ function M._format_bash_tool(input, metadata, output)
   end
 end
 
+---@param output Output Output object to write to
 ---@param tool_type string Tool type (e.g., 'read', 'edit', 'write')
 ---@param input FileToolInput data for the tool
 ---@param metadata FileToolMetadata Metadata for the tool use
----@param output Output Output object to write to
-function M._format_file_tool(tool_type, input, metadata, output)
+function M._format_file_tool(output, tool_type, input, metadata)
   local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
   local file_type = input and vim.fn.fnamemodify(input.filePath, ':e') or ''
   local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 
-  M._format_action(tool_action_icons[tool_type] .. ' ' .. tool_type, file_name, output)
+  M._format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name)
 
   if not config.ui.output.tools.show_output then
     return
   end
 
   if tool_type == 'edit' and metadata.diff then
-    M._format_diff(metadata.diff, file_type, output)
+    M._format_diff(output, metadata.diff, file_type)
   elseif tool_type == 'write' and input and input.content then
-    M._format_code(vim.split(input.content, '\n'), file_type, output)
+    M._format_code(output, vim.split(input.content, '\n'), file_type)
   end
 end
 
+---@param output Output Output object to write to
 ---@param title string
 ---@param input TodoToolInput
----@param output Output Output object to write to
-function M._format_todo_tool(title, input, output)
-  M._format_action(icons.get('plan') .. ' plan', (title or ''), output)
+function M._format_todo_tool(output, title, input)
+  M._format_action(output, icons.get('plan') .. ' plan', (title or ''))
   if not config.ui.output.tools.show_output then
     return
   end
@@ -499,11 +499,11 @@ function M._format_todo_tool(title, input, output)
   end
 end
 
+---@param output Output Output object to write to
 ---@param input GlobToolInput data for the tool
 ---@param metadata GlobToolMetadata Metadata for the tool use
----@param output Output Output object to write to
-function M._format_glob_tool(input, metadata, output)
-  M._format_action(icons.get('search') .. ' glob', input and input.pattern, output)
+function M._format_glob_tool(output, input, metadata)
+  M._format_action(output, icons.get('search') .. ' glob', input and input.pattern)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -511,15 +511,15 @@ function M._format_glob_tool(input, metadata, output)
   output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
 end
 
+---@param output Output Output object to write to
 ---@param input GrepToolInput data for the tool
 ---@param metadata GrepToolMetadata Metadata for the tool use
----@param output Output Output object to write to
-function M._format_grep_tool(input, metadata, output)
+function M._format_grep_tool(output, input, metadata)
   input = input or { path = '', include = '', pattern = '' }
 
   local grep_str = string.format('%s` `%s', (input.path or input.include) or '', input.pattern or '')
 
-  M._format_action(icons.get('search') .. ' grep', grep_str, output)
+  M._format_action(output, icons.get('search') .. ' grep', grep_str)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -529,18 +529,18 @@ function M._format_grep_tool(input, metadata, output)
   )
 end
 
----@param input WebFetchToolInput data for the tool
 ---@param output Output Output object to write to
-function M._format_webfetch_tool(input, output)
-  M._format_action(icons.get('web') .. ' fetch', input and input.url, output)
+---@param input WebFetchToolInput data for the tool
+function M._format_webfetch_tool(output, input)
+  M._format_action(output, icons.get('web') .. ' fetch', input and input.url)
 end
 
+---@param output Output Output object to write to
 ---@param input ListToolInput
 ---@param metadata ListToolMetadata
 ---@param tool_output string
----@param output Output Output object to write to
-function M._format_list_tool(input, metadata, tool_output, output)
-  M._format_action(icons.get('list') .. ' list', input and input.path or '', output)
+function M._format_list_tool(output, input, metadata, tool_output)
+  M._format_action(output, icons.get('list') .. ' list', input and input.path or '')
   if not config.ui.output.tools.show_output then
     return
   end
@@ -563,9 +563,9 @@ function M._format_list_tool(input, metadata, tool_output, output)
   end
 end
 
----@param part MessagePart
 ---@param output Output Output object to write to
-function M._format_tool(part, output)
+---@param part MessagePart
+function M._format_tool(output, part)
   local tool = part.tool
   if not tool or not part.state then
     return
@@ -581,34 +581,34 @@ function M._format_tool(part, output)
   end
 
   if tool == 'bash' then
-    M._format_bash_tool(input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]], output)
+    M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
-    M._format_file_tool(tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]], output)
+    M._format_file_tool(output, tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]])
   elseif tool == 'todowrite' then
-    M._format_todo_tool(part.state.title, input --[[@as TodoToolInput]], output)
+    M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]])
   elseif tool == 'glob' then
-    M._format_glob_tool(input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]], output)
+    M._format_glob_tool(output, input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]])
   elseif tool == 'list' then
-    M._format_list_tool(input --[[@as ListToolInput]], metadata --[[@as ListToolMetadata]], tool_output, output)
+    M._format_list_tool(output, input --[[@as ListToolInput]], metadata --[[@as ListToolMetadata]], tool_output)
   elseif tool == 'grep' then
-    M._format_grep_tool(input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]], output)
+    M._format_grep_tool(output, input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]])
   elseif tool == 'webfetch' then
-    M._format_webfetch_tool(input --[[@as WebFetchToolInput]], output)
+    M._format_webfetch_tool(output, input --[[@as WebFetchToolInput]])
   elseif tool == 'task' then
-    M._format_task_tool(input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], tool_output, output)
+    M._format_task_tool(output, input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], tool_output)
   else
-    M._format_action(icons.get('tool') .. ' tool', tool, output)
+    M._format_action(output, icons.get('tool') .. ' tool', tool)
   end
 
   if part.state.status == 'error' then
     output:add_line('')
-    M._format_callout('ERROR', part.state.error, output)
+    M._format_callout(output, 'ERROR', part.state.error)
   ---@diagnostic disable-next-line: undefined-field
   elseif part.state.input and part.state.input.error then
     output:add_line('')
     ---I'm not sure about the type with state.input.error
     ---@diagnostic disable-next-line: undefined-field
-    M._format_callout('ERROR', part.state.input.error, output)
+    M._format_callout(output, 'ERROR', part.state.input.error)
   end
 
   if
@@ -616,22 +616,22 @@ function M._format_tool(part, output)
     and state.current_permission.messageID == part.messageID
     and state.current_permission.callID == part.callID
   then
-    M._handle_permission_request(part, output)
+    M._handle_permission_request(output, part)
   end
 
   local end_line = output:get_line_count()
   if end_line - start_line > 1 then
-    M._add_vertical_border(start_line, end_line, 'OpencodeToolBorder', -1, output)
+    M._add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1)
   end
 end
 
+---@param output Output Output object to write to
 ---@param input TaskToolInput data for the tool
 ---@param metadata TaskToolMetadata Metadata for the tool use
 ---@param tool_output string
----@param output Output Output object to write to
-function M._format_task_tool(input, metadata, tool_output, output)
+function M._format_task_tool(output, input, metadata, tool_output)
   local start_line = output:get_line_count() + 1
-  M._format_action(icons.get('task') .. ' task', input and input.description, output)
+  M._format_action(output, icons.get('task') .. ' task', input and input.description)
 
   if config.ui.output.tools.show_output then
     if tool_output and tool_output ~= '' then
@@ -643,7 +643,7 @@ function M._format_task_tool(input, metadata, tool_output, output)
     if metadata.summary and type(metadata.summary) == 'table' then
       for _, sub_part in ipairs(metadata.summary) do
         if sub_part.type == 'tool' and sub_part.tool then
-          M._format_tool(sub_part, output)
+          M._format_tool(output, sub_part)
         end
       end
     end
@@ -660,20 +660,20 @@ function M._format_task_tool(input, metadata, tool_output, output)
   })
 end
 
+---@param output Output Output object to write to
 ---@param lines string[]
 ---@param language string
----@param output Output Output object to write to
-function M._format_code(lines, language, output)
+function M._format_code(output, lines, language)
   output:add_empty_line()
   output:add_line('```' .. (language or ''))
   output:add_lines(lines)
   output:add_line('```')
 end
 
+---@param output Output Output object to write to
 ---@param code string
 ---@param file_type string
----@param output Output Output object to write to
-function M._format_diff(code, file_type, output)
+function M._format_diff(output, code, file_type)
   output:add_empty_line()
   output:add_line('```' .. file_type)
   local lines = vim.split(code, '\n')
@@ -709,12 +709,12 @@ function M._format_diff(code, file_type, output)
   output:add_line('```')
 end
 
+---@param output Output Output object to write to
 ---@param start_line number
 ---@param end_line number
 ---@param hl_group string
 ---@param win_col number
----@param output Output Output object to write to
-function M._add_vertical_border(start_line, end_line, hl_group, win_col, output)
+function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
   for line = start_line, end_line do
     output:add_extmark(line, {
       virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
@@ -725,13 +725,11 @@ function M._add_vertical_border(start_line, end_line, hl_group, win_col, output)
   end
 end
 
+---Internal function that formats a message part into an existing output object
+---@param output Output Output object to write to
 ---@param part MessagePart
 ---@param message_info {msg_idx: number, part_idx: number, role: string, message: table}
----@param output? Output Optional output object (creates new if not provided)
----@return Output
-function M.format_part_isolated(part, message_info, output)
-  local temp_output = output or Output.new()
-
+function M._format_part(output, part, message_info)
   local metadata = {
     msg_idx = message_info.msg_idx,
     part_idx = message_info.part_idx,
@@ -739,41 +737,52 @@ function M.format_part_isolated(part, message_info, output)
     type = part.type,
     snapshot = part.snapshot,
   }
-  temp_output:add_metadata(metadata)
+  output:add_metadata(metadata)
 
   local content_added = false
 
   if message_info.role == 'user' then
     if part.type == 'text' and part.text then
       if part.synthetic == true then
-        M._format_selection_context(part, temp_output)
+        M._format_selection_context(output, part)
       else
-        M._format_user_prompt(vim.trim(part.text), temp_output)
+        M._format_user_prompt(output, vim.trim(part.text))
         content_added = true
       end
     elseif part.type == 'file' then
-      local file_line = M._format_context_file(part.filename, temp_output)
-      M._add_vertical_border(file_line - 1, file_line, 'OpencodeMessageRoleUser', -3, temp_output)
+      --- FIXME: find right type of part with filename
+      ---@diagnostic disable-next-line: undefined-field
+      local file_line = M._format_context_file(output, part.filename)
+      ---@diagnostic disable-next-line: param-type-mismatch
+      M._add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
       content_added = true
     end
   elseif message_info.role == 'assistant' then
     if part.type == 'text' and part.text then
-      M._format_assistant_message(vim.trim(part.text), temp_output)
+      M._format_assistant_message(output, vim.trim(part.text))
       content_added = true
     elseif part.type == 'tool' then
-      M._format_tool(part, temp_output)
+      M._format_tool(output, part)
       content_added = true
     elseif part.type == 'patch' and part.hash then
-      M._format_patch(part, temp_output)
+      M._format_patch(output, part)
       content_added = true
     end
   end
 
   if content_added then
-    temp_output:add_empty_line()
+    output:add_empty_line()
   end
+end
 
-  return temp_output
+---Public function that formats a single message part and returns a new output object
+---@param part MessagePart
+---@param message_info {msg_idx: number, part_idx: number, role: string, message: table}
+---@return Output
+function M.format_part_single(part, message_info)
+  local output = Output.new()
+  M._format_part(output, part, message_info)
+  return output
 end
 
 ---@param message OpencodeMessage
@@ -798,7 +807,7 @@ function M.format_message_header_isolated(message, msg_idx)
   end
 
   temp_output:add_lines(M.separator)
-  M._format_message_header(message.info, msg_idx, temp_output)
+  M._format_message_header(temp_output, message.info, msg_idx)
 
   return temp_output
 end
@@ -809,7 +818,7 @@ function M.format_error_callout(error_text)
   local temp_output = Output.new()
 
   temp_output:add_empty_line()
-  M._format_callout('ERROR', error_text, temp_output)
+  M._format_callout(temp_output, 'ERROR', error_text)
 
   return temp_output
 end

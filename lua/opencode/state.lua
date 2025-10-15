@@ -23,9 +23,9 @@ local config = require('opencode.config')
 ---@field restore_points table<string, any>
 ---@field current_model string|nil
 ---@field current_model_info table|nil
----@field messages {info: Message, parts: MessagePart[]}[]|nil
----@field current_message Message|nil
----@field last_user_message Message|nil
+---@field messages OpencodeMessage[]|nil
+---@field current_message OpencodeMessage|nil
+---@field last_user_message MessageInfo|nil
 ---@field current_permission OpencodePermission|nil
 ---@field cost number
 ---@field tokens_count number

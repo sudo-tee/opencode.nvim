@@ -193,7 +193,7 @@ end
 --- List messages for a session
 --- @param id string Session ID (required)
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}[]>
+--- @return Promise<OpencodeMessage[]>
 function OpencodeApiClient:list_messages(id, directory)
   return self:_call('/session/' .. id .. '/message', 'GET', nil, { directory = directory })
 end
@@ -202,7 +202,7 @@ end
 --- @param id string Session ID (required)
 --- @param message_data {messageID?: string, model?: {providerID: string, modelID: string}, agent?: string, system?: string, tools?: table<string, boolean>, parts: Part[]} Message creation data
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<{info: MessageInfo, parts: MessagePart[]}>
 function OpencodeApiClient:create_message(id, message_data, directory)
   return self:_call('/session/' .. id .. '/message', 'POST', message_data, { directory = directory })
 end
@@ -211,7 +211,7 @@ end
 --- @param id string Session ID (required)
 --- @param messageID string Message ID (required)
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<OpencodeMessage>
 function OpencodeApiClient:get_message(id, messageID, directory)
   return self:_call('/session/' .. id .. '/message/' .. messageID, 'GET', nil, { directory = directory })
 end
@@ -220,7 +220,7 @@ end
 --- @param id string Session ID (required)
 --- @param command_data {messageID?: string, agent?: string, model?: string, arguments: string, command: string} Command data
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<OpencodeMessage>
 function OpencodeApiClient:send_command(id, command_data, directory)
   return self:_call('/session/' .. id .. '/command', 'POST', command_data, { directory = directory })
 end
@@ -229,7 +229,7 @@ end
 --- @param id string Session ID (required)
 --- @param shell_data {agent?: string, command: string} Shell command data
 --- @param directory string|nil Directory path
---- @return Promise<Message>
+--- @return Promise<MessageInfo>
 function OpencodeApiClient:run_shell(id, shell_data, directory)
   return self:_call('/session/' .. id .. '/shell', 'POST', shell_data, { directory = directory })
 end

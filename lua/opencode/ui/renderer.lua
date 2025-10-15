@@ -2,17 +2,20 @@ local state = require('opencode.state')
 local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
 local Promise = require('opencode.promise')
+local MessageMap = require('opencode.ui.message_map')
 
 local M = {}
 
 M._subscriptions = {}
 M._part_cache = {}
 M._prev_line_count = 0
+M._message_map = MessageMap.new()
 
 ---Reset renderer state
 function M.reset()
   M._part_cache = {}
   M._prev_line_count = 0
+  M._message_map:reset()
 
   output_window.clear()
 
@@ -90,6 +93,8 @@ function M._render_full_session_data(session_data)
   M.reset()
 
   state.messages = session_data
+  M._message_map:hydrate(state.messages)
+
   local output_data = formatter._format_messages(state.active_session)
 
   M.write_output(output_data)
@@ -199,7 +204,7 @@ function M._write_formatted_data(formatted_data)
 end
 
 ---Write message header to buffer
----@param message table Message object
+---@param message MessageInfo Message object
 ---@param msg_idx integer Message index
 ---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
@@ -210,7 +215,7 @@ end
 
 ---Insert new part at end of buffer
 ---@param part_id string Part ID
----@param formatted_data {lines: string[], extmarks: table?} Formatted data
+---@param formatted_data {lines: string[], extmarks: MessageInfo?} Formatted data
 ---@return boolean Success status
 function M._insert_part_to_buffer(part_id, formatted_data)
   local cached = M._part_cache[part_id]
@@ -302,21 +307,14 @@ function M.on_message_updated(event)
     vim.notify('Session id does not match, discarding part: ' .. vim.inspect(message), vim.log.levels.WARN)
   end
 
-  local found_idx = nil
-  for i = #state.messages, math.max(1, #state.messages - 2), -1 do
-    if state.messages[i].info.id == message.id then
-      found_idx = i
-      break
-    end
-  end
+  local found_idx = M._message_map:get_message_index(message.id)
 
   if found_idx then
-    -- vim.notify('Message updated? ' .. vim.inspect(event), vim.log.levels.WARN)
-    -- I think this is mostly for book keeping / stats (tokens update)
     state.messages[found_idx].info = message
   else
     table.insert(state.messages, event.properties)
     found_idx = #state.messages
+    M._message_map:add_message(message.id, found_idx)
 
     M._write_message_header(message, found_idx)
     if message.role == 'user' then
@@ -345,16 +343,9 @@ function M.on_part_updated(event)
     return
   end
 
-  local msg_wrapper, msg_idx
-  for i = #state.messages, math.max(1, #state.messages - 5), -1 do
-    if state.messages[i].info.id == part.messageID then
-      msg_wrapper = state.messages[i]
-      msg_idx = i
-      break
-    end
-  end
+  local msg_wrapper, msg_idx = M._message_map:get_message_by_id(part.messageID, state.messages)
 
-  if not msg_wrapper then
+  if not msg_wrapper or not msg_idx then
     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
@@ -362,24 +353,20 @@ function M.on_part_updated(event)
   local message = msg_wrapper.info
   msg_wrapper.parts = msg_wrapper.parts or {}
 
-  local is_new_part = not M._part_cache[part.id]
-  local part_idx = nil
+  local is_new_part = not M._message_map:has_part(part.id)
+  local part_idx
 
   if is_new_part then
     table.insert(msg_wrapper.parts, part)
     part_idx = #msg_wrapper.parts
+    M._message_map:add_part(part.id, msg_idx, part_idx, part.callID)
   else
-    for i, p in ipairs(msg_wrapper.parts) do
-      if p.id == part.id then
-        msg_wrapper.parts[i] = part
-        part_idx = i
-        break
-      end
+    part_idx = M._message_map:update_part(part.id, part, state.messages)
+    if not part_idx then
+      return
     end
   end
 
-  -- Don't render anything for these (including blank lines) but do
-  -- track them
   if part.type == 'step-start' or part.type == 'step-finish' then
     return
   end
@@ -421,8 +408,6 @@ end
 ---Event handler for message.part.removed events
 ---@param event EventMessagePartRemoved Event object
 function M.on_part_removed(event)
-  -- XXX: I don't have any sessions that remove parts so this code is
-  -- currently untested
   if not event or not event.properties then
     return
   end
@@ -434,21 +419,9 @@ function M.on_part_removed(event)
 
   local cached = M._part_cache[part_id]
   if cached and cached.message_id then
-    if state.messages then
-      for i = #state.messages, math.max(1, #state.messages - 2), -1 do
-        if state.messages[i].info.id == cached.message_id then
-          if state.messages[i].parts then
-            for j, part in ipairs(state.messages[i].parts) do
-              if part.id == part_id then
-                table.remove(state.messages[i].parts, j)
-                break
-              end
-            end
-          end
-          break
-        end
-      end
-    end
+    local part = M._message_map:get_part_by_id(part_id, state.messages)
+    local call_id = part and part.callID or nil
+    M._message_map:remove_part(part_id, call_id, state.messages)
   end
 
   M._remove_part_from_buffer(part_id)
@@ -458,8 +431,6 @@ end
 ---Removes message and all its parts from buffer
 ---@param event EventMessageRemoved Event object
 function M.on_message_removed(event)
-  -- XXX: I don't have any sessions that remove messages so this code is
-  -- currently untested
   if not event or not event.properties then
     return
   end
@@ -469,28 +440,19 @@ function M.on_message_removed(event)
     return
   end
 
-  local message_idx = nil
-  for i = #state.messages, 1, -1 do
-    if state.messages[i].info.id == message_id then
-      message_idx = i
-      break
-    end
-  end
-
+  local message_idx = M._message_map:get_message_index(message_id)
   if not message_idx then
     return
   end
 
   local msg_wrapper = state.messages[message_idx]
-  if msg_wrapper.parts then
-    for _, part in ipairs(msg_wrapper.parts) do
-      if part.id then
-        M._remove_part_from_buffer(part.id)
-      end
+  for _, part in ipairs(msg_wrapper.parts or {}) do
+    if part.id then
+      M._remove_part_from_buffer(part.id)
     end
   end
 
-  table.remove(state.messages, message_idx)
+  M._message_map:remove_message(message_id, state.messages)
 end
 
 ---Event handler for session.compacted events
@@ -570,23 +532,7 @@ end
 ---@param call_id string Call ID to search for
 ---@return string? part_id Part ID if found, nil otherwise
 function M._find_part_by_call_id(call_id)
-  if not state.messages then
-    return nil
-  end
-
-  for i = #state.messages, 1, -1 do
-    local msg_wrapper = state.messages[i]
-    if msg_wrapper.parts then
-      for j = #msg_wrapper.parts, 1, -1 do
-        local part = msg_wrapper.parts[j]
-        if part.callID == call_id then
-          return part.id
-        end
-      end
-    end
-  end
-
-  return nil
+  return M._message_map:get_part_id_by_call_id(call_id)
 end
 
 ---Re-render existing part with current state
@@ -598,23 +544,7 @@ function M._rerender_part(part_id)
     return
   end
 
-  local part, msg_wrapper, msg_idx, part_idx
-  for i, wrapper in ipairs(state.messages) do
-    if wrapper.parts then
-      for j, p in ipairs(wrapper.parts) do
-        if p.id == part_id then
-          part = p
-          msg_wrapper = wrapper
-          msg_idx = i
-          part_idx = j
-          break
-        end
-      end
-    end
-    if part then
-      break
-    end
-  end
+  local part, msg_wrapper, msg_idx, part_idx = M._message_map:get_part_by_id(part_id, state.messages)
 
   if not part or not msg_wrapper then
     return

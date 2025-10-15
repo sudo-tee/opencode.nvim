@@ -10,7 +10,7 @@ local state = require('opencode.state')
 
 --- @class EventMessageUpdated
 --- @field type "message.updated"
---- @field properties {info: Message}
+--- @field properties {info: MessageInfo}
 
 --- @class EventMessageRemoved
 --- @field type "message.removed"

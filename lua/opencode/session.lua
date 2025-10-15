@@ -150,7 +150,7 @@ end
 
 ---Get messages for a session
 ---@param session Session
----@return Promise<{info: Message, parts: MessagePart[]}[]?>
+---@return Promise<{info: MessageInfo, parts: MessagePart[]}[]?>
 function M.get_messages(session)
   local state = require('opencode.state')
   if not session then
@@ -161,7 +161,7 @@ function M.get_messages(session)
 end
 
 ---Get snapshot IDs from a message's parts
----@param message Message
+---@param message OpencodeMessage
 ---@return string[]|nil
 function M.get_message_snapshot_ids(message)
   if not message then

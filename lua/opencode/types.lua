@@ -239,11 +239,14 @@
 
 ---@alias OutputExtmark vim.api.keyset.set_extmark|fun():vim.api.keyset.set_extmark
 
----@class Message
+---@class OpencodeMessage
+---@field info MessageInfo Metadata about the message
+---@field parts MessagePart[] Parts that make up the message
+
+---@class MessageInfo
 ---@field id string Unique message identifier
 ---@field sessionID string Unique session identifier
 ---@field tokens MessageTokenCount Token usage statistics
----@field parts MessagePart[] Array of message parts
 ---@field system string[] System messages
 ---@field time { created: number, completed: number } Timestamps
 ---@field cost number Cost of the message

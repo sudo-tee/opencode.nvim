@@ -118,7 +118,7 @@ function M._format_permission_request()
 end
 
 ---@param line number Buffer line number
----@return {message: Message, part: MessagePart, msg_idx: number, part_idx: number}|nil
+---@return {message: MessageInfo, part: MessagePart, msg_idx: number, part_idx: number}|nil
 function M.get_message_at_line(line)
   local metadata = M.output:get_nearest_metadata(line)
   if metadata and metadata.msg_idx and metadata.part_idx then
@@ -145,7 +145,7 @@ function M.get_lines()
 end
 
 ---Calculate statistics for reverted messages and tool calls
----@param messages {info: Message, parts: MessagePart[]}[] All messages in the session
+---@param messages {info: MessageInfo, parts: MessagePart[]}[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
 ---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
@@ -303,13 +303,13 @@ function M._format_patch(part)
   end
 end
 
----@param message Message
+---@param message MessageInfo
 function M._format_error(message)
   M.output:add_empty_line()
   M._format_callout('ERROR', vim.inspect(message.error))
 end
 
----@param message Message
+---@param message MessageInfo
 ---@param msg_idx number Message index in the session
 function M._format_message_header(message, msg_idx)
   local role = message.role or 'unknown'

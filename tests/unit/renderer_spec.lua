@@ -1,33 +1,14 @@
-local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
-local output_renderer = require('opencode.ui.output_renderer')
 local output_window = require('opencode.ui.output_window')
-local config_file = require('opencode.config_file')
 
 describe('renderer', function()
   local restore_time_ago
 
   before_each(function()
-    renderer.reset()
-
-    local empty_promise = require('opencode.promise').new():resolve(nil)
-    config_file.config_promise = empty_promise
-    config_file.project_promise = empty_promise
-    config_file.providers_promise = empty_promise
-
-    state.windows = ui.create_windows()
-
-    -- FIXME: prolly not necessary any more?
-    output_renderer._cleanup_subscriptions()
-
+    helpers.replay_setup()
     restore_time_ago = helpers.mock_time_ago()
-
-    local config = require('opencode.config')
-    if not config.config then
-      config.config = vim.deepcopy(config.defaults)
-    end
   end)
 
   after_each(function()

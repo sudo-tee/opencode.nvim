@@ -3,10 +3,38 @@
 
 local M = {}
 
+function M.replay_setup()
+  local config = require('opencode.config')
+  local config_file = require('opencode.config_file')
+  local state = require('opencode.state')
+  local ui = require('opencode.ui.ui')
+  local renderer = require('opencode.ui.renderer')
+
+  local empty_promise = require('opencode.promise').new():resolve(nil)
+  config_file.config_promise = empty_promise
+  config_file.project_promise = empty_promise
+  config_file.providers_promise = empty_promise
+
+  state.windows = ui.create_windows()
+
+  -- we don't change any changes on session
+  renderer._cleanup_subscriptions()
+  renderer.reset()
+
+  if not config.config then
+    config.config = vim.deepcopy(config.defaults)
+  end
+end
+
 -- Create a temporary file with content
 function M.create_temp_file(content)
   local tmp_file = vim.fn.tempname()
   local file = io.open(tmp_file, 'w')
+
+  if not file then
+    return nil
+  end
+
   file:write(content or 'Test file content')
   file:close()
   return tmp_file
@@ -26,7 +54,7 @@ end
 -- Close a buffer
 function M.close_buffer(bufnr)
   if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-    pcall(vim.cmd, 'bdelete! ' .. bufnr)
+    pcall(vim.api.nvim_command, 'bdelete! ' .. bufnr)
   end
 end
 
@@ -42,17 +70,18 @@ function M.reset_editor()
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     -- Skip non-existing or invalid buffers
     if vim.api.nvim_buf_is_valid(bufnr) then
-      pcall(vim.cmd, 'bdelete! ' .. bufnr)
+      pcall(vim.api.nvim_command, 'bdelete! ' .. bufnr)
     end
   end
   -- Reset any other editor state as needed
-  pcall(vim.cmd, 'silent! %bwipeout!')
+  pcall(vim.api.nvim_command, 'silent! %bwipeout!')
 end
 
 -- Mock input function
 function M.mock_input(return_value)
   local original_input = vim.fn.input
-  vim.fn.input = function(...)
+  ---@diagnostic disable-next-line: duplicate-set-field
+  vim.fn.input = function(_)
     return return_value
   end
   return function()
@@ -65,6 +94,7 @@ function M.mock_notify()
   local notifications = {}
   local original_notify = vim.notify
 
+  ---@diagnostic disable-next-line: duplicate-set-field
   vim.notify = function(msg, level, opts)
     table.insert(notifications, {
       msg = msg,
@@ -90,6 +120,7 @@ function M.mock_time_ago()
   local util = require('opencode.util')
   local original_time_ago = util.time_ago
 
+  ---@diagnostic disable-next-line: duplicate-set-field
   util.time_ago = function(timestamp)
     if timestamp > 1e12 then
       timestamp = math.floor(timestamp / 1000)

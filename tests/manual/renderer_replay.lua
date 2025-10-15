@@ -44,25 +44,7 @@ function M.load_events(file_path)
 end
 
 function M.setup_windows(opts)
-  renderer.reset()
-
-  M.restore_time_ago = helpers.mock_time_ago()
-
-  local config = require('opencode.config')
-  if not config.config then
-    config.config = vim.deepcopy(config.defaults)
-  end
-
-  -- disable the config_file apis because topbar uses them
-  local empty_promise = require('opencode.promise').new():resolve(nil)
-  config_file.config_promise = empty_promise
-  config_file.project_promise = empty_promise
-  config_file.providers_promise = empty_promise
-
-  state.windows = ui.create_windows()
-
-  -- we don't want output_renderer responding to setting the session id
-  require('opencode.ui.output_renderer')._cleanup_subscriptions()
+  helpers.replay_setup()
 
   vim.schedule(function()
     if state.windows and state.windows.output_win then
@@ -199,6 +181,11 @@ function M.save_output(filename)
   end
 
   local buf = state.windows.output_buf
+
+  if not buf then
+    return nil
+  end
+
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   local extmarks = vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })
 
@@ -232,6 +219,10 @@ function M.dump_buffer_and_quit()
     end
 
     local buf = state.windows.output_buf
+    if not buf then
+      return
+    end
+
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local extmarks = vim.api.nvim_buf_get_extmarks(buf, renderer._namespace, 0, -1, { details = true })
 
@@ -242,7 +233,7 @@ function M.dump_buffer_and_quit()
         extmarks_by_line[line] = {}
       end
       local details = mark[4]
-      if details.virt_text then
+      if details and details.virt_text then
         for _, vt in ipairs(details.virt_text) do
           table.insert(extmarks_by_line[line], vt[1])
         end

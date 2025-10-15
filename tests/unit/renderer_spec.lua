@@ -3,6 +3,7 @@ local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_renderer = require('opencode.ui.output_renderer')
+local output_window = require('opencode.ui.output_window')
 local config_file = require('opencode.config_file')
 
 describe('renderer', function()
@@ -18,6 +19,7 @@ describe('renderer', function()
 
     state.windows = ui.create_windows()
 
+    -- FIXME: prolly not necessary any more?
     output_renderer._cleanup_subscriptions()
 
     restore_time_ago = helpers.mock_time_ago()
@@ -55,7 +57,7 @@ describe('renderer', function()
           helpers.replay_events(events)
           vim.wait(200)
 
-          local actual = helpers.capture_output(state.windows.output_buf, renderer._namespace)
+          local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
 
           assert.are.same(expected.lines, actual.lines)
           assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))

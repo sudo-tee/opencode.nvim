@@ -57,28 +57,32 @@ M.render = vim.schedule_wrap(function(windows, force)
 end)
 
 function M.setup_subscriptions(windows)
-  M._cleanup_subscriptions()
-  loading_animation.setup_subscription()
 
-  local on_change = util.debounce(function(old, new)
-    M.render(windows, true)
-  end, M._debounce_ms)
+  -- NOTE: output_renderer no longer renders automatically
+  -- only leaving this code for now, in case we want to use
+  -- this old pathway. will be removed in the near future
 
-  M._subscriptions.active_session = function(_, new, old)
-    if not old then
-      return
-    end
-    on_change(old, new)
-  end
-  state.subscribe('active_session', M._subscriptions.active_session)
+  -- M._cleanup_subscriptions()
+
+  -- local on_change = util.debounce(function(old, new)
+  --   M.render(windows, true)
+  -- end, M._debounce_ms)
+  --
+  -- M._subscriptions.active_session = function(_, new, old)
+  --   if not old then
+  --     return
+  --   end
+  --   on_change(old, new)
+  -- end
+  -- state.subscribe('active_session', M._subscriptions.active_session)
 end
 
 function M._cleanup_subscriptions()
-  for key, cb in pairs(M._subscriptions) do
-    state.unsubscribe(key, cb)
-  end
-  M._subscriptions = {}
-  loading_animation.teardown()
+  -- for key, cb in pairs(M._subscriptions) do
+  --   state.unsubscribe(key, cb)
+  -- end
+  -- M._subscriptions = {}
+  -- loading_animation.teardown()
 end
 
 function M.teardown()
@@ -87,9 +91,9 @@ function M.teardown()
 end
 
 function M.stop()
-  -- FIXME: the footer should probably own this... and it may
-  -- not even be necessary
-  loading_animation.stop()
+  -- -- FIXME: the footer should probably own this... and it may
+  -- -- not even be necessary
+  -- loading_animation.stop()
 end
 
 function M.write_output(windows, output_lines)

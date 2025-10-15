@@ -3,6 +3,7 @@ local renderer = require('opencode.ui.renderer')
 local ui = require('opencode.ui.ui')
 local config_file = require('opencode.config_file')
 local helpers = require('tests.helpers')
+local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
@@ -180,13 +181,6 @@ end
 
 function M.clear()
   renderer.reset()
-
-  if state.windows and state.windows.output_buf then
-    vim.api.nvim_buf_clear_namespace(state.windows.output_buf, renderer._namespace, 0, -1)
-    vim.api.nvim_set_option_value('modifiable', true, { buf = state.windows.output_buf })
-    vim.api.nvim_buf_set_lines(state.windows.output_buf, 0, -1, false, {})
-    vim.api.nvim_set_option_value('modifiable', false, { buf = state.windows.output_buf })
-  end
 end
 
 function M.get_expected_filename(input_file)
@@ -206,7 +200,7 @@ function M.save_output(filename)
 
   local buf = state.windows.output_buf
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local extmarks = vim.api.nvim_buf_get_extmarks(buf, renderer._namespace, 0, -1, { details = true })
+  local extmarks = vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })
 
   local snapshot = {
     lines = lines,

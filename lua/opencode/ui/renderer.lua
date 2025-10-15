@@ -1,16 +1,20 @@
 local state = require('opencode.state')
+local formatter = require('opencode.ui.formatter')
+local output_window = require('opencode.ui.output_window')
+local Promise = require('opencode.promise')
 
 local M = {}
 
 M._subscriptions = {}
 M._part_cache = {}
-M._namespace = vim.api.nvim_create_namespace('opencode_stream')
 M._prev_line_count = 0
 
----Reset streaming renderer state
+---Reset renderer state
 function M.reset()
   M._part_cache = {}
   M._prev_line_count = 0
+
+  output_window.clear()
 
   state.messages = {}
   state.last_user_message = nil
@@ -22,7 +26,7 @@ function M.setup_subscriptions(_)
     if not old then
       return
     end
-    M.reset()
+    M.render_full_session()
   end
   state.subscribe('active_session', M._subscriptions.active_session)
   M._setup_event_subscriptions()
@@ -56,20 +60,37 @@ function M._cleanup_subscriptions()
   M._subscriptions = {}
 end
 
----Clean up and teardown streaming renderer. Unsubscribes from all
+---Clean up and teardown renderer. Unsubscribes from all
 ---events, local state and server
 function M.teardown()
   M._cleanup_subscriptions()
   M.reset()
 end
 
----Get number of lines in output buffer
----@return integer
-function M._get_buffer_line_count()
-  if not state.windows or not state.windows.output_buf then
-    return 0
+local function fetch_session()
+  local session = state.active_session
+  if not state.active_session or not session or session == '' then
+    return Promise.new():resolve(nil)
   end
-  return vim.api.nvim_buf_line_count(state.windows.output_buf)
+
+  state.last_user_message = nil
+  return require('opencode.session').get_messages(session)
+end
+
+function M.render_full_session()
+  if not output_window.mounted() or not state.api_client then
+    return
+  end
+
+  fetch_session():and_then(function(session_data)
+    M.reset()
+
+    state.messages = session_data
+    local output_data = formatter._format_messages(state.active_session)
+
+    M.write_output(output_data)
+    M.scroll_to_bottom()
+  end)
 end
 
 ---Shift cached line positions by delta starting from from_line
@@ -112,38 +133,18 @@ function M._shift_lines(from_line, delta)
   -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
 end
 
----Apply extmarks to buffer at given line offset
----@param buf integer Buffer handle
----@param line_offset integer Line offset to apply extmarks at
----@param extmarks table<integer, table[]>? Extmarks indexed by line
-function M._apply_extmarks(buf, line_offset, extmarks)
-  if not extmarks or type(extmarks) ~= 'table' then
+---Sets the entire output buffer based on output_data
+---@param output_data Output Output object from formatter
+function M.write_output(output_data)
+  if not output_window.mounted() then
     return
   end
 
-  for line_idx, marks in pairs(extmarks) do
-    for _, mark in ipairs(marks) do
-      local actual_mark = type(mark) == 'function' and mark() or mark
-      local target_line = line_offset + line_idx - 1
-      if actual_mark.end_row then
-        actual_mark.end_row = actual_mark.end_row + line_offset
-      end
-      pcall(vim.api.nvim_buf_set_extmark, buf, M._namespace, target_line, 0, actual_mark)
-    end
-  end
-end
+  -- FIXME: what about output_data.metadata and output_data.actions
 
----The output buffer isn't modifiable so this is a wrapper that
----temporarily makes the buffer modifiable while so we can add content
----@param buf integer Buffer handle
----@param start_line integer Start line (0-indexed)
----@param end_line integer End line (0-indexed, -1 for end of buffer)
----@param strict_indexing boolean Use strict indexing
----@param lines string[] Lines to set
-function M._set_lines(buf, start_line, end_line, strict_indexing, lines)
-  vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
-  vim.api.nvim_buf_set_lines(buf, start_line, end_line, strict_indexing, lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+  output_window.set_lines(output_data.lines)
+  output_window.clear_extmarks()
+  output_window.set_extmarks(output_data.extmarks)
 end
 
 ---Auto-scroll to bottom if user was already at bottom
@@ -178,19 +179,19 @@ end
 ---@return {line_start: integer, line_end: integer}? Range where data was written
 function M._write_formatted_data(formatted_data)
   local buf = state.windows.output_buf
-  local buf_lines = M._get_buffer_line_count()
+  local start_line = output_window.get_buf_line_count()
   local new_lines = formatted_data.lines
 
   if #new_lines == 0 or not buf then
     return nil
   end
 
-  M._set_lines(buf, buf_lines, -1, false, new_lines)
-  M._apply_extmarks(buf, buf_lines, formatted_data.extmarks)
+  output_window.set_lines(new_lines, start_line)
+  output_window.set_extmarks(formatted_data.extmarks, start_line)
 
   return {
-    line_start = buf_lines,
-    line_end = buf_lines + #new_lines - 1,
+    line_start = start_line,
+    line_end = start_line + #new_lines - 1,
   }
 end
 
@@ -199,7 +200,6 @@ end
 ---@param msg_idx integer Message index
 ---@return {line_start: integer, line_end: integer}? Range where header was written
 function M._write_message_header(message, msg_idx)
-  local formatter = require('opencode.ui.formatter')
   local header_data = formatter.format_message_header_isolated(message, msg_idx)
   local line_range = M._write_formatted_data(header_data)
   return line_range
@@ -240,20 +240,19 @@ function M._replace_part_in_buffer(part_id, formatted_data)
     return false
   end
 
-  local buf = state.windows.output_buf --[[@as integer]]
   local new_lines = formatted_data.lines
 
   local old_line_count = cached.line_end - cached.line_start + 1
   local new_line_count = #new_lines
 
   -- clear previous extmarks
-  vim.api.nvim_buf_clear_namespace(buf, M._namespace, cached.line_start, cached.line_end + 1)
+  output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
 
-  M._set_lines(buf, cached.line_start, cached.line_end + 1, false, new_lines)
+  output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
 
   cached.line_end = cached.line_start + new_line_count - 1
 
-  M._apply_extmarks(buf, cached.line_start, formatted_data.extmarks)
+  output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
   local line_delta = new_line_count - old_line_count
   if line_delta ~= 0 then
@@ -275,11 +274,9 @@ function M._remove_part_from_buffer(part_id)
     return
   end
 
-  local buf = state.windows.output_buf
   local line_count = cached.line_end - cached.line_start + 1
 
-  ---@diagnostic disable-next-line: param-type-mismatch
-  M._set_lines(buf, cached.line_start, cached.line_end + 1, false, {})
+  output_window.set_lines({}, cached.line_start, cached.line_end + 1)
 
   M._shift_lines(cached.line_end + 1, -line_count)
   M._part_cache[part_id] = nil
@@ -396,7 +393,6 @@ function M.on_part_updated(event)
     }
   end
 
-  local formatter = require('opencode.ui.formatter')
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,
     part_idx = part_idx,
@@ -503,14 +499,6 @@ function M.on_session_compacted(event)
   -- session was compacted?
 end
 
----Reset and re-render the whole session via output_renderer
----This means something went wrong with streaming rendering
-function M.reset_and_render()
-  M.reset()
-  vim.notify('reset and render:\n' .. debug.traceback())
-  require('opencode.ui.output_renderer').render(state.windows, true)
-end
-
 ---Event handler for session.error events
 ---@param event EventSessionError Event object
 function M.on_session_error(event)
@@ -521,7 +509,6 @@ function M.on_session_error(event)
   local error_data = event.properties.error
   local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
 
-  local formatter = require('opencode.ui.formatter')
   local formatted = formatter.format_error_callout(error_message)
 
   M._write_formatted_data(formatted)
@@ -626,7 +613,6 @@ function M._rerender_part(part_id)
     return
   end
 
-  local formatter = require('opencode.ui.formatter')
   local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
   local ok, formatted = pcall(formatter.format_part_isolated, part, {
     msg_idx = msg_idx,

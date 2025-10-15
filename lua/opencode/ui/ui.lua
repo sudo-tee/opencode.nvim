@@ -198,10 +198,17 @@ end
 function M.render_output(force)
   force = force or false
   -- vim.notify('render_output, force: ' .. vim.inspect(force) .. '\n' .. debug.traceback())
-  output_renderer.render(state.windows, force)
+  -- output_renderer.render(state.windows, force)
+
+  -- FIXME: should look at all calls of render_output and see if they're needed.
+  -- I suspect may of them can be removed and we can rely on state transitions
+  -- to handle loading
+  renderer.render_full_session()
 end
 
 function M.render_lines(lines)
+  -- FIXME: don't use output_renderer here
+
   M.clear_output()
   output_renderer.write_output(state.windows, lines)
   output_renderer.render_markdown()

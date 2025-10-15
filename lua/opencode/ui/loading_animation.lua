@@ -117,7 +117,7 @@ local function on_running_change(_, new_value)
   end
 end
 
-function M.setup_subscription()
+function M.setup()
   state.subscribe('job_count', on_running_change)
 end
 

@@ -138,7 +138,7 @@ function M.replay_event(event)
   elseif event.type == 'message.part.removed' then
     renderer.on_part_removed(event)
   elseif event.type == 'session.compacted' then
-    renderer.on_session_compacted()
+    renderer.on_session_compacted(event)
   elseif event.type == 'permission.updated' then
     renderer.on_permission_updated(event)
   elseif event.type == 'permission.replied' then

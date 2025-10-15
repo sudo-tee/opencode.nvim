@@ -54,6 +54,9 @@ function M.open(opts)
     state.active_session = nil
     state.last_sent_context = nil
     state.active_session = M.create_new_session()
+
+    -- FIXME: shouldn't need to clear_output here, setting the session should
+    -- do that
     ui.clear_output()
   else
     if not state.active_session then

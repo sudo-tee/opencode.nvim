@@ -28,17 +28,15 @@ function M.format_session(session)
   state.last_user_message = nil
   return require('opencode.session').get_messages(session):and_then(function(msgs)
     vim.notify('formatting session', vim.log.levels.WARN)
-    return M._format_messages(session, msgs)
+    state.messages = msgs
+    return M._format_messages(session)
   end)
 end
 
-function M._format_messages(session, messages)
-  state.messages = messages
-
+function M._format_messages(session)
   M.output:clear()
 
-  -- M.output:add_line('')
-  -- M.output:add_line('')
+  M.output:add_line('')
 
   for i, msg in ipairs(state.messages) do
     M.output:add_lines(M.separator)
@@ -77,8 +75,7 @@ function M._format_messages(session, messages)
     end
   end
 
-  -- M.output:add_empty_line()
-  return M.output:get_lines()
+  return M.output
 end
 
 function M._handle_permission_request(part)

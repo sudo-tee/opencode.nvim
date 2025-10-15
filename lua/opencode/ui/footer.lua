@@ -5,6 +5,7 @@ local icons = require('opencode.ui.icons')
 local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
 local config_file = require('opencode.config_file')
+local loading_animation = require('opencode.ui.loading_animation')
 
 local M = {}
 
@@ -89,6 +90,8 @@ function M.setup(windows)
   -- to show C-c message
   state.subscribe('job_count', on_job_count_changed)
   state.subscribe('restore_points', on_change)
+
+  loading_animation.setup()
 end
 
 function M.close()
@@ -100,6 +103,8 @@ function M.close()
   state.unsubscribe('current_model', on_change)
   state.unsubscribe('job_count', on_job_count_changed)
   state.unsubscribe('restore_points', on_change)
+
+  loading_animation.teardown()
 end
 
 function M.mounted(windows)

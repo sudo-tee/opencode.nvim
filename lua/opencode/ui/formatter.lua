@@ -788,7 +788,7 @@ end
 ---@param message OpencodeMessage
 ---@param msg_idx number
 ---@return Output
-function M.format_message_header_isolated(message, msg_idx)
+function M.format_message_header_single(message, msg_idx)
   local temp_output = Output.new()
 
   if not state.current_model and message.info.providerID and message.info.providerID ~= '' then

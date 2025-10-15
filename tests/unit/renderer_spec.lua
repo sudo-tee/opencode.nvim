@@ -3,6 +3,62 @@ local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 
+local function assert_output_matches(expected, actual)
+  local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
+
+  assert.equal(
+    #expected.lines,
+    #actual.lines,
+    string.format(
+      'Line count mismatch: expected %d, got %d.\nFirst difference at index %d:\n  Expected: %s\n  Actual: %s',
+      #expected.lines,
+      #actual.lines,
+      math.min(#expected.lines, #actual.lines) + 1,
+      vim.inspect(expected.lines[math.min(#expected.lines, #actual.lines) + 1]),
+      vim.inspect(actual.lines[math.min(#expected.lines, #actual.lines) + 1])
+    )
+  )
+
+  for i = 1, #expected.lines do
+    assert.equal(
+      expected.lines[i],
+      actual.lines[i],
+      string.format(
+        'Line %d mismatch:\n  Expected: %s\n  Actual: %s',
+        i,
+        vim.inspect(expected.lines[i]),
+        vim.inspect(actual.lines[i])
+      )
+    )
+  end
+
+  assert.equal(
+    #expected.extmarks,
+    #normalized_extmarks,
+    string.format(
+      'Extmark count mismatch: expected %d, got %d.\nFirst difference at index %d:\n  Expected: %s\n  Actual: %s',
+      #expected.extmarks,
+      #normalized_extmarks,
+      math.min(#expected.extmarks, #normalized_extmarks) + 1,
+      vim.inspect(expected.extmarks[math.min(#expected.extmarks, #normalized_extmarks) + 1]),
+      vim.inspect(normalized_extmarks[math.min(#expected.extmarks, #normalized_extmarks) + 1])
+    )
+  )
+
+  for i = 1, #expected.extmarks do
+    assert.same(
+      expected.extmarks[i],
+      normalized_extmarks[i],
+      string.format(
+        'Extmark %d mismatch:\n  Expected: %s\n  Actual: %s',
+        i,
+        vim.inspect(expected.extmarks[i]),
+        vim.inspect(normalized_extmarks[i])
+      )
+    )
+  end
+end
+
 describe('renderer', function()
   local restore_time_ago
 
@@ -34,9 +90,7 @@ describe('renderer', function()
           vim.wait(200)
 
           local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
-
-          assert.are.same(expected.lines, actual.lines)
-          assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
+          assert_output_matches(expected, actual)
         end)
 
         it('replays ' .. name .. ' correctly (full session load)', function()
@@ -50,9 +104,7 @@ describe('renderer', function()
           vim.wait(200)
 
           local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
-
-          assert.are.same(expected.lines, actual.lines)
-          assert.are.same(expected.extmarks, helpers.normalize_namespace_ids(actual.extmarks))
+          assert_output_matches(expected, actual)
         end)
       end
     end

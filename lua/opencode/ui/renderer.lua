@@ -97,7 +97,12 @@ function M._render_full_session_data(session_data)
   state.messages = session_data
   M._message_map:hydrate(state.messages)
 
+  M._update_stats_from_messages(state.messages)
+
   local output_data = formatter._format_messages(state.active_session)
+
+  -- FIXME: I think this should be setting state.last_user_message
+  -- Maybe it'd be better to move iterating over messages to renderer
 
   M.write_output(output_data)
   M._scroll_to_bottom()
@@ -374,10 +379,12 @@ function M.on_message_updated(event)
     M._message_map:add_message(message.info.id, found_idx)
 
     M._write_message_header(message, found_idx)
+
     if message.info.role == 'user' then
       state.last_user_message = message
     end
   end
+  M._update_stats_from_message(message)
 
   M._scroll_to_bottom()
 end
@@ -634,6 +641,33 @@ function M.get_actions_for_line(line)
     end
   end
   return actions
+end
+
+---Update stats from all messages in session
+---@param messages OpencodeMessage[]
+function M._update_stats_from_messages(messages)
+  for _, msg in ipairs(messages) do
+    M._update_stats_from_message(msg)
+  end
+end
+
+---Update display stats from a single message
+---@param message OpencodeMessage
+function M._update_stats_from_message(message)
+  if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
+    state.current_model = message.info.providerID .. '/' .. message.info.modelID
+  end
+
+  if message.info.tokens and message.info.tokens.input > 0 then
+    state.tokens_count = message.info.tokens.input
+      + message.info.tokens.output
+      + message.info.tokens.cache.read
+      + message.info.tokens.cache.write
+  end
+
+  if message.info.cost and type(message.info.cost) == 'number' then
+    state.cost = message.info.cost
+  end
 end
 
 return M

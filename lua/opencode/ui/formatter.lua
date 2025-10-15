@@ -40,25 +40,12 @@ function M._format_messages(session)
     output:add_lines(M.separator)
     state.current_message = msg
 
-    if not state.current_model and msg.info.providerID and msg.info.providerID ~= '' then
-      state.current_model = msg.info.providerID .. '/' .. msg.info.modelID
-    end
-
-    if msg.info.tokens and msg.info.tokens.input > 0 then
-      state.tokens_count = msg.info.tokens.input
-        + msg.info.tokens.output
-        + msg.info.tokens.cache.read
-        + msg.info.tokens.cache.write
-    end
-
-    if msg.info.cost and type(msg.info.cost) == 'number' then
-      state.cost = msg.info.cost
-    end
-
     if session.revert and session.revert.messageID == msg.info.id then
       ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
       local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
       M._format_revert_message(output, revert_stats)
+
+      -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
       break
     end
 
@@ -69,6 +56,7 @@ function M._format_messages(session)
     end
 
     if msg.info.error and msg.info.error ~= '' then
+      vim.notify('calling _format_error')
       M._format_error(output, msg.info)
     end
   end
@@ -789,27 +777,12 @@ end
 ---@param msg_idx number
 ---@return Output
 function M.format_message_header_single(message, msg_idx)
-  local temp_output = Output.new()
+  local output = Output.new()
 
-  if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
-    state.current_model = message.info.providerID .. '/' .. message.info.modelID
-  end
+  output:add_lines(M.separator)
+  M._format_message_header(output, message.info, msg_idx)
 
-  if message.info.tokens and message.info.tokens.input > 0 then
-    state.tokens_count = message.info.tokens.input
-      + message.info.tokens.output
-      + message.info.tokens.cache.read
-      + message.info.tokens.cache.write
-  end
-
-  if message.info.cost and type(message.info.cost) == 'number' then
-    state.cost = message.info.cost
-  end
-
-  temp_output:add_lines(M.separator)
-  M._format_message_header(temp_output, message.info, msg_idx)
-
-  return temp_output
+  return output
 end
 
 ---@param error_text string

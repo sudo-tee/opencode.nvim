@@ -49,6 +49,7 @@ function M._setup_event_subscriptions(subscribe)
   state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
   state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
   state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
+  state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
 end
 
 ---Unsubscribe from local state and server subscriptions
@@ -557,6 +558,10 @@ function M.on_permission_replied(event)
       M._scroll_to_bottom()
     end
   end
+end
+
+function M.on_file_edited(event)
+  vim.cmd('checktime')
 end
 
 ---Find part ID by call ID

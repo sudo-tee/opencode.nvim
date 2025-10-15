@@ -113,6 +113,8 @@ function M.replay_all(delay_ms)
     return
   end
 
+  state.job_count = 1
+
   M.timer = vim.loop.new_timer()
   ---@diagnostic disable-next-line: undefined-field
   M.timer:start(
@@ -126,6 +128,7 @@ function M.replay_all(delay_ms)
           M.timer = nil
         end
         vim.notify('Replay complete!', vim.log.levels.INFO)
+        state.job_count = 0
         if M.headless_mode then
           M.dump_buffer_and_quit()
         end

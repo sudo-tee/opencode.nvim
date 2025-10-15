@@ -34,16 +34,25 @@ function M.call_api(url, method, body)
     callback = function(response)
       handle_api_response(response, function(err, result)
         if err then
-          call_promise:reject(err)
+          local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+          if not ok then
+            vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+          end
           state.job_count = state.job_count - 1
         else
-          call_promise:resolve(result)
+          local ok, pcall_err = pcall(call_promise.resolve, call_promise, result)
+          if not ok then
+            vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+          end
           state.job_count = state.job_count - 1
         end
       end)
     end,
     on_error = function(err)
-      call_promise:reject(err)
+      local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+      if not ok then
+        vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+      end
       state.job_count = state.job_count - 1
     end,
   }

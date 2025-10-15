@@ -82,15 +82,17 @@ function M.render_full_session()
     return
   end
 
-  fetch_session():and_then(function(session_data)
-    M.reset()
+  fetch_session():and_then(M._render_full_session_data)
+end
 
-    state.messages = session_data
-    local output_data = formatter._format_messages(state.active_session)
+function M._render_full_session_data(session_data)
+  M.reset()
 
-    M.write_output(output_data)
-    M.scroll_to_bottom()
-  end)
+  state.messages = session_data
+  local output_data = formatter._format_messages(state.active_session)
+
+  M.write_output(output_data)
+  M.scroll_to_bottom()
 end
 
 ---Shift cached line positions by delta starting from from_line

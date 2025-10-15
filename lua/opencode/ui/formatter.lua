@@ -71,7 +71,7 @@ function M._format_messages(session)
     end
 
     if msg.info.error and msg.info.error ~= '' then
-      M._format_error(msg)
+      M._format_error(msg.info)
     end
   end
 

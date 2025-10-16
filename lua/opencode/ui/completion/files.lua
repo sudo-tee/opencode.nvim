@@ -20,7 +20,18 @@ local function run_systemlist(cmd)
 end
 
 local function try_tool(tool, args, pattern, max, ignore_patterns)
+  if type(args) == 'function' then
+    local promise = args(pattern, max)
+    local result = promise and promise:wait()
+
+    if result and type(result) == 'table' then
+      return vim.tbl_filter(should_keep(ignore_patterns), result)
+    end
+  end
+
+  -- Handle string-based commands (CLI tools)
   if vim.fn.executable(tool) then
+    pattern = vim.fn.shellescape(pattern) or '.'
     local result = run_systemlist(tool .. string.format(args, pattern, max))
     if result then
       return vim.tbl_filter(should_keep(ignore_patterns), result)
@@ -32,18 +43,20 @@ end
 ---@param pattern string
 ---@return string[]
 local function find_files_fast(pattern)
-  pattern = vim.fn.shellescape(pattern) or '.'
   local file_config = config.ui.completion.file_sources
   local cli_tool = last_successful_tool or file_config.preferred_cli_tool or 'fd'
   local max = file_config.max_files or 10
   local ignore_patterns = file_config.ignore_patterns or {}
 
-  local tools_order = { 'fd', 'fdfind', 'rg', 'git' }
+  local tools_order = { 'fd', 'fdfind', 'rg', 'git', 'server' }
   local commands = {
     fd = ' --type f --type l --full-path  --color=never -E .git -E node_modules -i %s --max-results %d 2>/dev/null',
     fdfind = ' --type f --type l --color=never -E .git -E node_modules --full-path -i %s --max-results %d 2>/dev/null',
     rg = ' --files --no-messages --color=never | grep -i %s 2>/dev/null | head -%d',
     git = ' ls-files --cached --others --exclude-standard | grep -i %s | head -%d',
+    server = function(pattern, max)
+      return require('opencode.state').api_client:find_files(pattern)
+    end,
   }
 
   if cli_tool and commands[cli_tool] then
@@ -66,7 +79,7 @@ end
 
 ---@param file string
 ---@return CompletionItem
-local function create_file_item(file)
+local function create_file_item(file, suffix)
   local filename = vim.fn.fnamemodify(file, ':t')
   local dir = vim.fn.fnamemodify(file, ':h')
   local file_path = dir == '.' and filename or dir .. '/' .. filename
@@ -81,7 +94,7 @@ local function create_file_item(file)
   end
 
   return {
-    label = display_label,
+    label = display_label .. (suffix or ''),
     kind = 'file',
     detail = detail,
     documentation = 'Path: ' .. detail,
@@ -94,7 +107,7 @@ end
 ---@type CompletionSource
 local file_source = {
   name = 'files',
-  priority = 0,
+  priority = 5,
   complete = function(context)
     local sort_util = require('opencode.ui.completion.sort')
     local file_config = config.ui.completion.file_sources
@@ -136,10 +149,17 @@ local file_source = {
 function M.get_recent_files()
   local project = require('opencode.config_file').get_opencode_project()
   local max = config.ui.completion.file_sources.max_files
-  local is_git = project and project.vcs == 'git'
+  local api_client = require('opencode.state').api_client
 
-  local recent_files = is_git and M.get_git_changed_files() or M.get_old_files() or {}
-  return vim.tbl_map(create_file_item, { unpack(recent_files, 1, max) })
+  local result = api_client:get_file_status():wait()
+  local recent_files = {}
+  if result then
+    for _, file in ipairs(result) do
+      local suffix = table.concat({ file.added and '+' .. file.added, file.removed and '-' .. file.removed }, ' ')
+      table.insert(recent_files, create_file_item(file.path, ' ' .. suffix))
+    end
+  end
+  return recent_files
 end
 
 ---Get the list of old files in the current working directory

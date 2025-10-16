@@ -3,6 +3,7 @@ local M = {}
 ---@type CompletionSource
 local subagent_source = {
   name = 'subagents',
+  priority = 1,
   complete = function(context)
     local subagents = require('opencode.config_file').get_subagents()
     local config = require('opencode.config')

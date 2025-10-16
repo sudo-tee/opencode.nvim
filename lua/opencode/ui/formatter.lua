@@ -27,7 +27,6 @@ function M._handle_permission_request(output, part)
 end
 
 function M._format_permission_request(output)
-  local config_mod = require('opencode.config')
   local keys
 
   if require('opencode.ui.ui').is_opencode_focused() then
@@ -38,9 +37,9 @@ function M._format_permission_request(output)
     }
   else
     keys = {
-      config_mod.get_key_for_function('editor', 'permission_accept'),
-      config_mod.get_key_for_function('editor', 'permission_accept_all'),
-      config_mod.get_key_for_function('editor', 'permission_deny'),
+      config.get_key_for_function('editor', 'permission_accept'),
+      config.get_key_for_function('editor', 'permission_accept_all'),
+      config.get_key_for_function('editor', 'permission_deny'),
     }
   end
 

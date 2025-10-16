@@ -109,7 +109,7 @@ function M._render_full_session_data(session_data)
       local revert_stats = M._calculate_revert_stats(state.messages, i, state.active_session.revert)
       local output = require('opencode.ui.output'):new()
       formatter._format_revert_message(output, revert_stats)
-      M.write_output(output)
+      M.render_output(output)
 
       -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
       break
@@ -188,9 +188,17 @@ function M._shift_parts_and_actions(from_line, delta)
   -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
 end
 
+---Render lines as the entire output buffer
+---@param lines any
+function M.render_lines(lines)
+  local output = require('opencode.ui.output'):new()
+  output.lines = lines
+  M.render_output(output)
+end
+
 ---Sets the entire output buffer based on output_data
 ---@param output_data Output Output object from formatter
-function M.write_output(output_data)
+function M.render_output(output_data)
   if not output_window.mounted() then
     return
   end
@@ -265,17 +273,6 @@ function M._write_formatted_data(formatted_data)
     line_start = start_line,
     line_end = start_line + #new_lines - 1,
   }
-end
-
----Write message header to buffer
----@param message OpencodeMessage Message object
----@param msg_idx integer Message index
----@return {line_start: integer, line_end: integer}? Range where header was written
-function M._write_message_header(message, msg_idx)
-  state.current_message = message
-  local header_data = formatter.format_message_header_single(message, msg_idx)
-  local line_range = M._write_formatted_data(header_data)
-  return line_range
 end
 
 ---Insert new part at end of buffer

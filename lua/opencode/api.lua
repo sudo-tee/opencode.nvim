@@ -32,7 +32,8 @@ function M.close()
   if state.display_route then
     state.display_route = nil
     ui.clear_output()
-    ui.scroll_to_bottom()
+    -- need to trigger a re-render here to re-display the session
+    ui.render_output()
     return
   end
 
@@ -264,6 +265,13 @@ function M.prev_message()
 end
 
 function M.submit_input_prompt()
+  if state.display_route then
+    -- we're displaying /help or something similar, need to clear that and refresh
+    -- the session data before sending the command
+    state.display_route = nil
+    ui.render_output()
+  end
+
   input_window.handle_submit()
 end
 

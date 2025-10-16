@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
 local Promise = require('opencode.promise')
@@ -86,6 +87,11 @@ end
 function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return
+  end
+
+  if config.debug.enabled then
+    -- TODO: I want to track full renders for now, remove at some point
+    vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
   end
 
   fetch_session():and_then(M._render_full_session_data)

@@ -74,6 +74,9 @@ describe('renderer', function()
 
   local json_files = vim.fn.glob('tests/data/*.json', false, true)
 
+  -- Don't do the full session test on these files
+  local skip_full_session = { 'permission-prompt' } -- perms aren't loaded in a session
+
   for _, filepath in ipairs(json_files) do
     local name = vim.fn.fnamemodify(filepath, ':t:r')
 
@@ -93,19 +96,21 @@ describe('renderer', function()
           assert_output_matches(expected, actual)
         end)
 
-        it('replays ' .. name .. ' correctly (full session load)', function()
-          local renderer = require('opencode.ui.renderer')
-          local events = helpers.load_test_data(filepath)
-          state.active_session = helpers.get_session_from_events(events)
-          local expected = helpers.load_test_data(expected_path)
+        if not vim.tbl_contains(skip_full_session, name) then
+          it('replays ' .. name .. ' correctly (session)', function()
+            local renderer = require('opencode.ui.renderer')
+            local events = helpers.load_test_data(filepath)
+            state.active_session = helpers.get_session_from_events(events)
+            local expected = helpers.load_test_data(expected_path)
 
-          local session_data = helpers.load_session_from_events(events)
-          renderer._render_full_session_data(session_data)
-          vim.wait(200)
+            local session_data = helpers.load_session_from_events(events)
+            renderer._render_full_session_data(session_data)
+            vim.wait(200)
 
-          local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
-          assert_output_matches(expected, actual)
-        end)
+            local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+            assert_output_matches(expected, actual)
+          end)
+        end
       end
     end
   end

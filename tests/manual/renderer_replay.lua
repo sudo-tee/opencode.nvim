@@ -148,6 +148,7 @@ function M.replay_stop()
     ---@diagnostic disable-next-line: undefined-field
     M.timer:stop()
     M.timer = nil
+    state.job_count = 0
     vim.notify('Replay stopped at event ' .. M.current_index .. '/' .. #M.events, vim.log.levels.INFO)
   end
 end

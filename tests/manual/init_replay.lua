@@ -11,6 +11,9 @@ vim.o.termguicolors = true
 vim.g.mapleader = ' '
 vim.opt.clipboard:append('unnamedplus')
 
+-- for testing contextual_actions
+vim.o.updatetime = 250
+
 vim.g.opencode_config = {
   ui = {
     default_mode = 'build',

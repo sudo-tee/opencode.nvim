@@ -94,17 +94,36 @@ end
 function M._render_full_session_data(session_data)
   M.reset()
 
-  state.messages = session_data
-  M._message_map:hydrate(state.messages)
+  for i, msg in ipairs(session_data) do
+    -- output:add_lines(M.separator)
+    -- state.current_message = msg
 
-  M._update_stats_from_messages(state.messages)
+    if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
+      ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+      local revert_stats = M._calculate_revert_stats(state.messages, i, state.active_session.revert)
+      local output = require('opencode.ui.output'):new()
+      formatter._format_revert_message(output, revert_stats)
+      M.write_output(output)
 
-  local output_data = formatter._format_messages(state.active_session)
+      -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
+      break
+    end
 
-  -- FIXME: I think this should be setting state.last_user_message
-  -- Maybe it'd be better to move iterating over messages to renderer
+    -- only pass in the info so, the parts will be processed as part of the loop
+    -- TODO: remove part processing code in formatter
+    M.on_message_updated({ info = msg.info })
 
-  M.write_output(output_data)
+    for j, part in ipairs(msg.parts or {}) do
+      M.on_part_updated({ part = part })
+    end
+
+    -- FIXME: not sure how this error rendering code works when streaming
+    -- if msg.info.error and msg.info.error ~= '' then
+    --   vim.notify('calling _format_error')
+    --   M._format_error(output, msg.info)
+    -- end
+  end
+
   M._scroll_to_bottom()
 end
 
@@ -373,19 +392,22 @@ function M.on_message_updated(properties)
 
   if found_idx then
     state.messages[found_idx].info = message.info
-    M._update_stats_from_message(message)
   else
     table.insert(state.messages, message)
     found_idx = #state.messages
     M._message_map:add_message(message.info.id, found_idx)
 
-    M._update_stats_from_message(message)
+    local header_data = formatter.format_message_header_single(message, found_idx)
+    M._write_formatted_data(header_data)
 
-    M._write_message_header(message, found_idx)
+    state.current_message = message
+
     if message.info.role == 'user' then
       state.last_user_message = message
     end
   end
+
+  M._update_stats_from_message(message)
 
   M._scroll_to_bottom()
 end

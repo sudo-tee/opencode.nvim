@@ -298,7 +298,7 @@ function M.start(opts)
     'Commands:',
     '  :ReplayLoad [file]        - Load events (default: tests/data/simple-session.json)',
     '  :ReplayFullSession        - Render loaded events using full session mode',
-    "  :ReplayNext [step]        - Replay next [step] event(s) (default 1) (<leader>n or '>' )",
+    '  :ReplayNext [step]        - Replay next [step] event(s) (default 1) (<leader>n or .)',
     '  :ReplayAll [ms]           - Replay all events with delay (default 50ms) (<leader>a)',
     '  :ReplayStop               - Stop auto-replay (<leader>s)',
     '  :ReplayReset              - Reset to beginning (<leader>r)',
@@ -360,7 +360,7 @@ function M.start(opts)
   end, { desc = 'Enable headless mode (dump buffer and quit after replay)' })
 
   vim.keymap.set('n', '<leader>n', ':ReplayNext<CR>')
-  vim.keymap.set('n', '>', ':ReplayNext<CR>')
+  vim.keymap.set('n', '.', ':ReplayNext<CR>')
   vim.keymap.set('n', '<leader>s', ':ReplayStop<CR>')
   vim.keymap.set('n', '<leader>a', ':ReplayAll<CR>')
   vim.keymap.set('n', '<leader>c', ':ReplayClear<CR>')

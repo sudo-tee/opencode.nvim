@@ -99,7 +99,7 @@ M.defaults = {
     completion = {
       file_sources = {
         enabled = true,
-        preferred_cli_tool = 'fd',
+        preferred_cli_tool = 'server',
         ignore_patterns = {
           '^%.git/',
           '^%.svn/',

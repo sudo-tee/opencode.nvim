@@ -58,18 +58,14 @@ function M.open(opts)
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
     else
-      if not state.display_route then
+      if not state.display_route and are_windows_closed then
         -- We're not displaying /help or something like that but we have an active session
-        -- so we need to do a full refresh. This mostly happens when opening the window
-        -- after having closed it since we're not currently clearing the session on api.close()
+        -- and the windows were closed so we need to do a full refresh. This mostly happens
+        -- when opening the window after having closed it since we're not currently clearing
+        -- the session on api.close()
         ui.render_output(false)
       end
     end
-
-    -- if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-    --   ui.render_output(true)
-    --   ui.scroll_to_bottom()
-    -- end
   end
 
   if opts.focus == 'input' then

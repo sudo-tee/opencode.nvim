@@ -143,18 +143,8 @@ describe('opencode.core', function()
     it('handles new session properly', function()
       state.windows = nil
       state.active_session = { id = 'old-session' }
-
-      ui.clear_output:revert()
-      local cleared = false
-      stub(ui, 'clear_output').invokes(function()
-        cleared = true
-      end)
-
       core.open({ new_session = true, focus = 'input' })
       assert.truthy(state.active_session)
-      assert.is_true(cleared)
-      ui.clear_output:revert()
-      stub(ui, 'clear_output')
     end)
 
     it('focuses the appropriate window', function()

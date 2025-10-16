@@ -28,11 +28,11 @@ end
 
 ---Set up all subscriptions, for both local and server events
 function M.setup_subscriptions(_)
-  M._subscriptions.active_session = function(_, _, old)
-    if not old then
-      return
+  M._subscriptions.active_session = function(_, new, _)
+    M.reset()
+    if new then
+      M.render_full_session()
     end
-    M.render_full_session()
   end
   state.subscribe('active_session', M._subscriptions.active_session)
   M._setup_event_subscriptions()

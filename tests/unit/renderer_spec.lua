@@ -6,7 +6,7 @@ local output_window = require('opencode.ui.output_window')
 local function assert_output_matches(expected, actual)
   local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
 
-  assert.equal(
+  assert.are.equal(
     #expected.lines,
     #actual.lines,
     string.format(
@@ -20,7 +20,7 @@ local function assert_output_matches(expected, actual)
   )
 
   for i = 1, #expected.lines do
-    assert.equal(
+    assert.are.equal(
       expected.lines[i],
       actual.lines[i],
       string.format(
@@ -32,7 +32,7 @@ local function assert_output_matches(expected, actual)
     )
   end
 
-  assert.equal(
+  assert.are.equal(
     #expected.extmarks,
     #normalized_extmarks,
     string.format(
@@ -46,7 +46,7 @@ local function assert_output_matches(expected, actual)
   )
 
   for i = 1, #expected.extmarks do
-    assert.same(
+    assert.are.same(
       expected.extmarks[i],
       normalized_extmarks[i],
       string.format(
@@ -56,6 +56,30 @@ local function assert_output_matches(expected, actual)
         vim.inspect(normalized_extmarks[i])
       )
     )
+  end
+
+  local expected_action_count = expected.actions and #expected.actions or 0
+  local actual_action_count = actual.actions and #actual.actions or 0
+
+  assert.are.equal(
+    expected_action_count,
+    actual_action_count,
+    string.format('Action count mismatch: expected %d, got %d', expected_action_count, actual_action_count)
+  )
+
+  if expected.actions then
+    for i = 1, #expected.actions do
+      assert.are.same(
+        expected.actions[i],
+        actual.actions[i],
+        string.format(
+          'Action %d mismatch:\n  Expected: %s\n  Actual: %s',
+          i,
+          vim.inspect(expected.actions[i]),
+          vim.inspect(actual.actions[i])
+        )
+      )
+    end
   end
 end
 

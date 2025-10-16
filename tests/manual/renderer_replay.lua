@@ -200,6 +200,7 @@ function M.save_output(filename)
   local snapshot = {
     lines = lines,
     extmarks = M.normalize_namespace_ids(extmarks),
+    actions = vim.deepcopy(renderer._actions),
     timestamp = os.time(),
   }
 

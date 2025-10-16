@@ -54,19 +54,18 @@ function M.open(opts)
     state.active_session = nil
     state.last_sent_context = nil
     state.active_session = M.create_new_session()
-
-    -- FIXME: shouldn't need to clear_output here, setting the session should
-    -- do that
-    ui.clear_output()
   else
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
+    else
+      -- active session already set so no event will fire, need to force a refresh
+      ui.render_output(true)
     end
 
-    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-      ui.render_output(true)
-      ui.scroll_to_bottom()
-    end
+    -- if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
+    --   ui.render_output(true)
+    --   ui.scroll_to_bottom()
+    -- end
   end
 
   if opts.focus == 'input' then

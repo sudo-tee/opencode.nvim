@@ -58,8 +58,12 @@ function M.open(opts)
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
     else
-      -- active session already set so no event will fire, need to force a refresh
-      ui.render_output(true)
+      if not state.display_route then
+        -- We're not displaying /help or something like that but we have an active session
+        -- so we need to do a full refresh. This mostly happens when opening the window
+        -- after having closed it since we're not currently clearing the session on api.close()
+        ui.render_output(false)
+      end
     end
 
     -- if (are_windows_closed or ui.is_output_empty()) and not state.display_route then

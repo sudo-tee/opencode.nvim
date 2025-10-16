@@ -5,7 +5,6 @@ local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
-local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -13,56 +12,6 @@ M.separator = {
   '----',
   '',
 }
-
----@param session Session Session ID
----@return Promise<string[]|nil> Formatted session lines
-function M.format_session(session)
-  if not session or session == '' then
-    return Promise.new():resolve(nil)
-  end
-
-  state.last_user_message = nil
-  return require('opencode.session').get_messages(session):and_then(function(msgs)
-    vim.notify('formatting session', vim.log.levels.WARN)
-    state.messages = msgs
-    return M._format_messages(session)
-  end)
-end
-
----@param session Session Session ID
----@return Output
-function M._format_messages(session)
-  local output = Output.new()
-
-  output:add_line('')
-
-  for i, msg in ipairs(state.messages) do
-    output:add_lines(M.separator)
-    state.current_message = msg
-
-    if session.revert and session.revert.messageID == msg.info.id then
-      ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
-      local revert_stats = M._calculate_revert_stats(state.messages, i, session.revert)
-      M._format_revert_message(output, revert_stats)
-
-      -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
-      break
-    end
-
-    M._format_message_header(output, msg.info, i)
-
-    for j, part in ipairs(msg.parts or {}) do
-      M._format_part(output, part, { msg_idx = i, part_idx = j, role = msg.info.role, message = msg })
-    end
-
-    if msg.info.error and msg.info.error ~= '' then
-      vim.notify('calling _format_error')
-      M._format_error(output, msg.info)
-    end
-  end
-
-  return output
-end
 
 function M._handle_permission_request(output, part)
   if part.state and part.state.status == 'error' and part.state.error then

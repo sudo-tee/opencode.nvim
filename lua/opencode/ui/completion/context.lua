@@ -1,4 +1,4 @@
-local config = require('opencode.config').get()
+local config = require('opencode.config')
 local context = require('opencode.context')
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
@@ -89,7 +89,8 @@ local context_source = {
   complete = function(completion_context)
     local input = completion_context.input or ''
 
-    if completion_context.trigger_char ~= '#' then
+    local expected_trigger = config.get_key_for_function('input_window', 'context_items')
+    if completion_context.trigger_char ~= expected_trigger then
       return {}
     end
 

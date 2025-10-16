@@ -12,10 +12,7 @@ function M.setup(opts)
     api.setup()
     keymap.setup(config.keymap)
     require('opencode.ui.completion').setup()
-    local ui_conf = config.get('ui')
-    if ui_conf.display_context_size or ui_conf.display_cost then
-      require('opencode.models').setup()
-    end
+
     require('opencode.ui.context_bar').setup()
     require('opencode.event_manager').setup()
     require('opencode.ui.context_bar').setup()

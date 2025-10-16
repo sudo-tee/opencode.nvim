@@ -12,12 +12,16 @@ function Source:get_trigger_characters()
   local config = require('opencode.config')
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
+  local context_key = config.get_key_for_function('input_window', 'context_items')
   local triggers = {}
   if mention_key then
     table.insert(triggers, mention_key)
   end
   if slash_key then
     table.insert(triggers, slash_key)
+  end
+  if context_key then
+    table.insert(triggers, context_key)
   end
   return triggers
 end

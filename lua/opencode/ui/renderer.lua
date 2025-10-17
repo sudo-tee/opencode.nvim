@@ -194,14 +194,7 @@ function M._write_formatted_data(formatted_data, part_id)
   end
 
   if part_id and formatted_data.actions then
-    for _, action in ipairs(formatted_data.actions) do
-      action.display_line = action.display_line + start_line
-      if action.range then
-        action.range.from = action.range.from + start_line
-        action.range.to = action.range.to + start_line
-      end
-    end
-    M._render_state:add_actions(part_id, formatted_data.actions)
+    M._render_state:add_actions(part_id, formatted_data.actions, start_line)
   end
 
   output_window.set_lines(new_lines, start_line)
@@ -232,7 +225,7 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
-  M._render_state:set_part(part_id, cached.part_ref, cached.message_id, range.line_start, range.line_end)
+  M._render_state:set_part(part_id, cached.part, cached.message_id, range.line_start, range.line_end)
   return true
 end
 
@@ -248,31 +241,19 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   end
 
   local new_lines = formatted_data.lines
-
-  local old_line_count = cached.line_end - cached.line_start + 1
   local new_line_count = #new_lines
 
   M._render_state:clear_actions(part_id)
 
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
-
   output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
 
-  -- we need the old line_end to know where to start looking for parts to shift
-  local old_line_end = cached.line_end
   local new_line_end = cached.line_start + new_line_count - 1
 
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
   if formatted_data.actions then
-    for _, action in ipairs(formatted_data.actions) do
-      action.display_line = action.display_line + cached.line_start
-      if action.range then
-        action.range.from = action.range.from + cached.line_start
-        action.range.to = action.range.to + cached.line_start
-      end
-    end
-    M._render_state:add_actions(part_id, formatted_data.actions)
+    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start)
   end
 
   M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)
@@ -311,8 +292,8 @@ function M.on_message_updated(message)
     return
   end
 
-  local message_data = M._render_state:get_message(message.info.id)
-  local found_msg = message_data and message_data.message_ref
+  local rendered_message = M._render_state:get_message(message.info.id)
+  local found_msg = rendered_message and rendered_message.message
 
   if found_msg then
     found_msg.info = message.info
@@ -356,13 +337,13 @@ function M.on_part_updated(properties)
     return
   end
 
-  local message_data = M._render_state:get_message(part.messageID)
-  if not message_data or not message_data.message_ref then
+  local rendered_message = M._render_state:get_message(part.messageID)
+  if not rendered_message or not rendered_message.message then
     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
 
-  local message = message_data.message_ref
+  local message = rendered_message.message
 
   message.parts = message.parts or {}
 
@@ -385,7 +366,7 @@ function M.on_part_updated(properties)
   end
 
   if is_new_part then
-    M._render_state:set_part(part.id, part, part.messageID, nil, nil)
+    M._render_state:set_part(part.id, part, part.messageID)
   else
     M._render_state:update_part_data(part.id, part)
   end
@@ -404,6 +385,7 @@ end
 ---Event handler for message.part.removed events
 ---@param properties {sessionID: string, messageID: string, partID: string} Event properties
 function M.on_part_removed(properties)
+  --- WARN: this code is untested
   if not properties then
     return
   end
@@ -415,9 +397,9 @@ function M.on_part_removed(properties)
 
   local cached = M._render_state:get_part(part_id)
   if cached and cached.message_id then
-    local message_data = M._render_state:get_message(cached.message_id)
-    if message_data and message_data.message_ref then
-      local message = message_data.message_ref
+    local rendered_message = M._render_state:get_message(cached.message_id)
+    if rendered_message and rendered_message.message then
+      local message = rendered_message.message
       if message.parts then
         for i, part in ipairs(message.parts) do
           if part.id == part_id then
@@ -436,6 +418,7 @@ end
 ---Removes message and all its parts from buffer
 ---@param properties {sessionID: string, messageID: string} Event properties
 function M.on_message_removed(properties)
+  --- WARN: this code is untested
   if not properties then
     return
   end
@@ -445,17 +428,19 @@ function M.on_message_removed(properties)
     return
   end
 
-  local message_data = M._render_state:get_message(message_id)
-  if not message_data or not message_data.message_ref then
+  local rendered_message = M._render_state:get_message(message_id)
+  if not rendered_message or not rendered_message.message then
     return
   end
 
-  local message = message_data.message_ref
+  local message = rendered_message.message
   for _, part in ipairs(message.parts or {}) do
     if part.id then
       M._remove_part_from_buffer(part.id)
     end
   end
+
+  --- FIXME: remove part from render_state
 
   for i, msg in ipairs(state.messages) do
     if msg.info.id == message_id then
@@ -508,7 +493,7 @@ function M.on_permission_updated(permission)
 
   state.current_permission = permission
 
-  local part_id = M._find_part_by_call_id(permission.callID)
+  local part_id = M._find_part_by_call_id(permission.callID, permission.messageID)
   if part_id then
     M._rerender_part(part_id)
     M._scroll_to_bottom()
@@ -527,7 +512,7 @@ function M.on_permission_replied(properties)
   state.current_permission = nil
 
   if old_permission and old_permission.callID then
-    local part_id = M._find_part_by_call_id(old_permission.callID)
+    local part_id = M._find_part_by_call_id(old_permission.callID, old_permission.messageID)
     if part_id then
       M._rerender_part(part_id)
       M._scroll_to_bottom()
@@ -539,13 +524,13 @@ function M.on_file_edited(properties)
   vim.cmd('checktime')
 end
 
----Find part ID by call ID
----Searches messages in reverse order for efficiency
+---Find part ID by call ID and message ID
 ---Useful for finding a part for a permission
 ---@param call_id string Call ID to search for
+---@param message_id string Message ID to check the parts of
 ---@return string? part_id Part ID if found, nil otherwise
-function M._find_part_by_call_id(call_id)
-  return M._render_state:get_part_by_call_id(call_id)
+function M._find_part_by_call_id(call_id, message_id)
+  return M._render_state:get_part_by_call_id(call_id, message_id)
 end
 
 ---Re-render existing part with current state
@@ -553,22 +538,17 @@ end
 ---@param part_id string Part ID to re-render
 function M._rerender_part(part_id)
   local cached = M._render_state:get_part(part_id)
-  if not cached then
+  if not cached or not cached.part then
     return
   end
 
-  local part = cached.part_ref
-  local message_data = M._render_state:get_message(cached.message_id)
-  if not message_data or not message_data.message_ref then
+  local part = cached.part
+  local rendered_message = M._render_state:get_message(cached.message_id)
+  if not rendered_message or not rendered_message.message then
     return
   end
 
-  local message = message_data.message_ref
-
-  if not part then
-    return
-  end
-
+  local message = rendered_message.message
   local formatted = formatter.format_part(part, message.info.role)
 
   M._replace_part_in_buffer(part_id, formatted)

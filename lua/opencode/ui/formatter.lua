@@ -53,24 +53,9 @@ end
 ---@param line number Buffer line number
 ---@param output Output Output object to query
 ---@return {message: MessageInfo, part: MessagePart, msg_idx: number, part_idx: number}|nil
+---@deprecated Use RenderState:get_message_at_line() instead
 function M.get_message_at_line(line, output)
-  local metadata = output:get_nearest_metadata(line)
-  if metadata and metadata.msg_idx and metadata.part_idx then
-    local msg = state.messages and state.messages[metadata.msg_idx]
-    if not msg or not msg.parts then
-      return nil
-    end
-    local part = msg.parts[metadata.part_idx]
-    if not part then
-      return nil
-    end
-    return {
-      message = msg,
-      part = part,
-      msg_idx = metadata.msg_idx,
-      part_idx = metadata.part_idx,
-    }
-  end
+  return nil
 end
 
 ---Calculate statistics for reverted messages and tool calls
@@ -668,21 +653,9 @@ end
 ---Formats a single message part and returns the resulting output object
 ---@param part MessagePart The part to format
 ---@param role 'user'|'assistant'|'system' The role, user or assistant, that created this part
----@param msg_idx integer The index of the message in state.messages
----@param part_idx integer The index of the part in state.messages[msg_idx].parts
 ---@return Output
-function M.format_part(part, role, msg_idx, part_idx)
+function M.format_part(part, role)
   local output = Output.new()
-
-  -- FIXME: do we need metadata? it looks like maybe only for snapshots?
-  local metadata = {
-    msg_idx = msg_idx,
-    part_idx = part_idx,
-    role = role,
-    type = part.type,
-    snapshot = part.snapshot,
-  }
-  output:add_metadata(metadata)
 
   local content_added = false
 

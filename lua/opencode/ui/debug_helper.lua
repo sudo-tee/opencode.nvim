@@ -26,10 +26,14 @@ function M.debug_output()
 end
 
 function M.debug_message()
-  local session_formatter = require('opencode.ui.formatter')
+  local renderer = require('opencode.ui.renderer')
   local current_line = vim.api.nvim_win_get_cursor(state.windows.output_win)[1]
-  local metadata = session_formatter.get_message_at_line(current_line) or {}
-  M.open_json_file(metadata.message)
+  local message_data = renderer._render_state:get_message_at_line(current_line)
+  if message_data and message_data.message then
+    M.open_json_file(message_data.message)
+  else
+    vim.notify('No message found at current line', vim.log.levels.WARN)
+  end
 end
 
 function M.debug_session()

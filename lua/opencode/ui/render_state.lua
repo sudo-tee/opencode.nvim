@@ -1,12 +1,12 @@
 local state = require('opencode.state')
 
----@class MessageRenderData
----@field message_ref OpencodeMessage Direct reference to message in state.messages
+---@class RenderedMessage
+---@field message OpencodeMessage Direct reference to message in state.messages
 ---@field line_start integer? Line where message header starts
 ---@field line_end integer? Line where message header ends
 
----@class PartRenderData
----@field part_ref MessagePart Direct reference to part in state.messages
+---@class RenderedPart
+---@field part MessagePart Direct reference to part in state.messages
 ---@field message_id string ID of parent message
 ---@field line_start integer? Line where part starts
 ---@field line_end integer? Line where part ends
@@ -17,8 +17,8 @@ local state = require('opencode.state')
 ---@field line_to_message table<integer, string> Maps line number to message ID
 
 ---@class RenderState
----@field _messages table<string, MessageRenderData> Message ID to render data
----@field _parts table<string, PartRenderData> Part ID to render data
+---@field _messages table<string, RenderedMessage> Message ID to render data
+---@field _parts table<string, RenderedPart> Part ID to render data
 ---@field _line_index LineIndex Line number to ID mappings
 local RenderState = {}
 RenderState.__index = RenderState
@@ -41,14 +41,14 @@ end
 
 ---Get message render data by ID
 ---@param message_id string Message ID
----@return MessageRenderData?
+---@return RenderedMessage?
 function RenderState:get_message(message_id)
   return self._messages[message_id]
 end
 
 ---Get part render data by ID
 ---@param part_id string Part ID
----@return PartRenderData?
+---@return RenderedPart?
 function RenderState:get_part(part_id)
   return self._parts[part_id]
 end
@@ -58,26 +58,11 @@ end
 ---@param message_id? string Optional message ID to limit search scope
 ---@return string? part_id Part ID if found
 function RenderState:get_part_by_call_id(call_id, message_id)
-  if message_id then
-    local msg_data = self._messages[message_id]
-    if msg_data and msg_data.message_ref and msg_data.message_ref.parts then
-      for _, part in ipairs(msg_data.message_ref.parts) do
-        if part.callID == call_id then
-          return part.id
-        end
-      end
-    end
-    return nil
-  end
-
-  for i = #state.messages, 1, -1 do
-    local msg_wrapper = state.messages[i]
-    if msg_wrapper.parts then
-      for j = #msg_wrapper.parts, 1, -1 do
-        local part = msg_wrapper.parts[j]
-        if part.callID == call_id then
-          return part.id
-        end
+  local rendered_message = self._messages[message_id]
+  if rendered_message and rendered_message.message and rendered_message.message.parts then
+    for _, part in ipairs(rendered_message.message.parts) do
+      if part.callID == call_id then
+        return part.id
       end
     end
   end
@@ -86,24 +71,24 @@ end
 
 ---Get part at specific line
 ---@param line integer Line number (1-indexed)
----@return PartRenderData?, string? part_data, part_id
+---@return RenderedPart?
 function RenderState:get_part_at_line(line)
   local part_id = self._line_index.line_to_part[line]
   if not part_id then
-    return nil, nil
+    return nil
   end
-  return self._parts[part_id], part_id
+  return self._parts[part_id]
 end
 
 ---Get message at specific line
 ---@param line integer Line number (1-indexed)
----@return MessageRenderData?, string? message_data, message_id
+---@return RenderedMessage?
 function RenderState:get_message_at_line(line)
   local message_id = self._line_index.line_to_message[line]
   if not message_id then
-    return nil, nil
+    return nil
   end
-  return self._messages[message_id], message_id
+  return self._messages[message_id]
 end
 
 ---Get actions at specific line
@@ -137,13 +122,13 @@ end
 function RenderState:set_message(message_id, message_ref, line_start, line_end)
   if not self._messages[message_id] then
     self._messages[message_id] = {
-      message_ref = message_ref,
+      message = message_ref,
       line_start = line_start,
       line_end = line_end,
     }
   else
     local msg_data = self._messages[message_id]
-    msg_data.message_ref = message_ref
+    msg_data.message = message_ref
     if line_start then
       msg_data.line_start = line_start
     end
@@ -161,28 +146,28 @@ end
 
 ---Set or update part render data
 ---@param part_id string Part ID
----@param part_ref MessagePart Direct reference to part
+---@param part MessagePart Direct reference to part
 ---@param message_id string Parent message ID
 ---@param line_start integer? Line where part starts
 ---@param line_end integer? Line where part ends
-function RenderState:set_part(part_id, part_ref, message_id, line_start, line_end)
+function RenderState:set_part(part_id, part, message_id, line_start, line_end)
   if not self._parts[part_id] then
     self._parts[part_id] = {
-      part_ref = part_ref,
+      part = part,
       message_id = message_id,
       line_start = line_start,
       line_end = line_end,
       actions = {},
     }
   else
-    local part_data = self._parts[part_id]
-    part_data.part_ref = part_ref
-    part_data.message_id = message_id
+    local render_part = self._parts[part_id]
+    render_part.part = part
+    render_part.message_id = message_id
     if line_start then
-      part_data.line_start = line_start
+      render_part.line_start = line_start
     end
     if line_end then
-      part_data.line_end = line_end
+      render_part.line_end = line_end
     end
   end
 
@@ -231,29 +216,35 @@ end
 ---Update part data reference
 ---@param part_id string Part ID
 ---@param part_ref MessagePart New part reference
----@param text string? New text content
-function RenderState:update_part_data(part_id, part_ref, text)
+function RenderState:update_part_data(part_id, part_ref)
   local part_data = self._parts[part_id]
   if not part_data then
     return
   end
 
-  part_data.part_ref = part_ref
-  if text then
-    part_data.text = text
-  end
+  part_data.part = part_ref
 end
 
 ---Add actions to a part
 ---@param part_id string Part ID
 ---@param actions table[] Actions to add
-function RenderState:add_actions(part_id, actions)
+---@param offset? integer Optional line offset to apply to actions
+function RenderState:add_actions(part_id, actions, offset)
   local part_data = self._parts[part_id]
   if not part_data then
     return
   end
 
+  offset = offset or 0
+
   for _, action in ipairs(actions) do
+    if offset ~= 0 then
+      action.display_line = action.display_line + offset
+      if action.range then
+        action.range.from = action.range.from + offset
+        action.range.to = action.range.to + offset
+      end
+    end
     table.insert(part_data.actions, action)
   end
 end

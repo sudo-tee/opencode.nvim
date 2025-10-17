@@ -225,6 +225,19 @@ function RenderState:update_part_data(part_id, part_ref)
   part_data.part = part_ref
 end
 
+---Helper to update action line numbers
+---@param action table Action to update
+---@param delta integer Line offset to apply
+local function shift_action_lines(action, delta)
+  if action.display_line then
+    action.display_line = action.display_line + delta
+  end
+  if action.range then
+    action.range.from = action.range.from + delta
+    action.range.to = action.range.to + delta
+  end
+end
+
 ---Add actions to a part
 ---@param part_id string Part ID
 ---@param actions table[] Actions to add
@@ -239,11 +252,7 @@ function RenderState:add_actions(part_id, actions, offset)
 
   for _, action in ipairs(actions) do
     if offset ~= 0 then
-      action.display_line = action.display_line + offset
-      if action.range then
-        action.range.from = action.range.from + offset
-        action.range.to = action.range.to + offset
-      end
+      shift_action_lines(action, offset)
     end
     table.insert(part_data.actions, action)
   end
@@ -330,6 +339,7 @@ function RenderState:shift_all(from_line, delta)
   end
 
   local found_content_before_from_line = false
+  local shifted = false
 
   for i = #state.messages, 1, -1 do
     local msg_wrapper = state.messages[i]
@@ -341,6 +351,7 @@ function RenderState:shift_all(from_line, delta)
         if msg_data.line_start >= from_line then
           msg_data.line_start = msg_data.line_start + delta
           msg_data.line_end = msg_data.line_end + delta
+          shifted = true
         elseif msg_data.line_end < from_line then
           found_content_before_from_line = true
         end
@@ -356,16 +367,11 @@ function RenderState:shift_all(from_line, delta)
             if part_data.line_start >= from_line then
               part_data.line_start = part_data.line_start + delta
               part_data.line_end = part_data.line_end + delta
+              shifted = true
 
               if part_data.actions then
                 for _, action in ipairs(part_data.actions) do
-                  if action.display_line then
-                    action.display_line = action.display_line + delta
-                  end
-                  if action.range then
-                    action.range.from = action.range.from + delta
-                    action.range.to = action.range.to + delta
-                  end
+                  shift_action_lines(action, delta)
                 end
               end
             elseif part_data.line_end < from_line then
@@ -377,12 +383,13 @@ function RenderState:shift_all(from_line, delta)
     end
 
     if found_content_before_from_line then
-      self:_rebuild_line_index()
-      return
+      break
     end
   end
 
-  self:_rebuild_line_index()
+  if shifted then
+    self:_rebuild_line_index()
+  end
 end
 
 ---Rebuild line index from current state

@@ -103,15 +103,18 @@ function M.render()
   end)
 end
 
-local function on_mode_changed(_, _, _)
+local function on_change(_, _, _)
   M.render()
 end
 
 function M.setup()
-  state.subscribe('current_mode', on_mode_changed)
+  state.subscribe('current_mode', on_change)
+  state.subscribe('active_session', on_change)
   M.render()
 end
 
-function M.close() end
-state.unsubscribe('current_mode', on_mode_changed)
+function M.close()
+  state.unsubscribe('current_mode', on_change)
+  state.unsubscribe('active_session', on_change)
+end
 return M

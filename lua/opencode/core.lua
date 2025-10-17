@@ -177,6 +177,10 @@ function M.stop()
     if state.is_running() then
       vim.notify('Aborting current request...', vim.log.levels.WARN)
       state.api_client:abort_session(state.active_session.id):wait()
+
+      -- Forcibly reject any pending requests as it seems like they
+      -- can sometimes get stuck
+      server_job.cancel_all_requests()
     end
     require('opencode.ui.footer').clear()
     input_window.set_content('')

@@ -54,7 +54,7 @@ describe('Timer', function()
     it('starts a repeating timer', function()
       local tick_count = 0
       timer = Timer.new({
-        interval = 10,
+        interval = 100,
         on_tick = function()
           tick_count = tick_count + 1
         end,
@@ -64,7 +64,7 @@ describe('Timer', function()
       assert.is_true(timer:is_running())
 
       -- Wait for multiple ticks
-      vim.wait(80, function()
+      vim.wait(500, function()
         return tick_count >= 3
       end)
 
@@ -367,4 +367,3 @@ describe('Timer', function()
     end)
   end)
 end)
-

@@ -53,12 +53,14 @@ function RenderState:get_part(part_id)
   return self._parts[part_id]
 end
 
----Get part ID by call ID
+---Get part ID by call ID and message ID
 ---@param call_id string Call ID
----@param message_id? string Optional message ID to limit search scope
+---@param message_id string Message ID to check the parts of
 ---@return string? part_id Part ID if found
 function RenderState:get_part_by_call_id(call_id, message_id)
   local rendered_message = self._messages[message_id]
+  -- There aren't a lot of parts per message and call_id lookups aren't very common so
+  -- a little iteration is fine
   if rendered_message and rendered_message.message and rendered_message.message.parts then
     for _, part in ipairs(rendered_message.message.parts) do
       if part.callID == call_id then

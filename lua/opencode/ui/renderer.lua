@@ -374,15 +374,10 @@ end
 
 ---Event handler for message.updated events
 ---Creates new message or updates existing message info
----@param properties {info: MessageInfo} Event properties
-function M.on_message_updated(properties)
-  if not properties or not properties.info then
-    return
-  end
-
+---@param message {info: MessageInfo} Event properties
+function M.on_message_updated(message)
   ---@type OpencodeMessage
-  local message = properties
-  if not message.info.id or not message.info.sessionID then
+  if not message or not message.info or not message.info.id or not message.info.sessionID then
     return
   end
 
@@ -400,7 +395,7 @@ function M.on_message_updated(properties)
     found_idx = #state.messages
     M._message_map:add_message(message.info.id, found_idx)
 
-    local header_data = formatter.format_message_header_single(message, found_idx)
+    local header_data = formatter.format_message_header(message, found_idx)
     M._write_formatted_data(header_data)
 
     state.current_message = message
@@ -433,22 +428,21 @@ function M.on_part_updated(properties)
     return
   end
 
-  local msg_wrapper, msg_idx = M._message_map:get_message_by_id(part.messageID, state.messages)
+  local message, msg_idx = M._message_map:get_message_by_id(part.messageID, state.messages)
 
-  if not msg_wrapper or not msg_idx then
+  if not message or not msg_idx then
     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
 
-  local message = msg_wrapper.info
-  msg_wrapper.parts = msg_wrapper.parts or {}
+  message.parts = message.parts or {}
 
   local is_new_part = not M._message_map:has_part(part.id)
   local part_idx
 
   if is_new_part then
-    table.insert(msg_wrapper.parts, part)
-    part_idx = #msg_wrapper.parts
+    table.insert(message.parts, part)
+    part_idx = #message.parts
     M._message_map:add_part(part.id, msg_idx, part_idx, part.callID)
   else
     part_idx = M._message_map:update_part(part.id, part, state.messages)
@@ -473,17 +467,7 @@ function M.on_part_updated(properties)
     }
   end
 
-  local ok, formatted = pcall(formatter.format_part_single, part, {
-    msg_idx = msg_idx,
-    part_idx = part_idx,
-    role = message.role,
-    message = msg_wrapper,
-  })
-
-  if not ok then
-    vim.notify('format_part_single error: ' .. tostring(formatted), vim.log.levels.ERROR)
-    return
-  end
+  local formatted = formatter.format_part(part, message.info.role, msg_idx, part_idx)
 
   if is_new_part then
     M._insert_part_to_buffer(part.id, formatted)
@@ -535,8 +519,8 @@ function M.on_message_removed(properties)
     return
   end
 
-  local msg_wrapper = state.messages[message_idx]
-  for _, part in ipairs(msg_wrapper.parts or {}) do
+  local message = state.messages[message_idx]
+  for _, part in ipairs(message.parts or {}) do
     if part.id then
       M._remove_part_from_buffer(part.id)
     end
@@ -572,28 +556,18 @@ end
 
 ---Event handler for permission.updated events
 ---Re-renders part that requires permission
----@param properties OpencodePermission Event properties
-function M.on_permission_updated(properties)
-  if not properties then
+---@param permission OpencodePermission Event properties
+function M.on_permission_updated(permission)
+  if not permission or not permission.messageID or not permission.callID then
     return
   end
 
-  local permission = properties
-  if not permission.messageID or not permission.callID then
-    return
-  end
-
-  local prev_permission = state.current_permission
-  state.current_permission = nil
-
-  if prev_permission and prev_permission.id ~= permission.id then
+  if state.current_permission and state.current_permission.id ~= permission.id then
     -- we got a permission request while we had an existing one?
-    vim.notify('Two pending permissions? existing: ' .. prev_permission.id .. ' new: ' .. permission.id)
-    -- rerender previous part to remove old permission
-    local prev_perm_part_id = M._find_part_by_call_id(prev_permission.callID)
-    if prev_perm_part_id then
-      M._rerender_part(prev_perm_part_id)
-    end
+    vim.notify('Two pending permissions? existing: ' .. state.current_permission.id .. ' new: ' .. permission.id)
+
+    -- This will rerender the part with the old permission
+    M.on_permission_replied({})
   end
 
   state.current_permission = permission
@@ -647,24 +621,13 @@ function M._rerender_part(part_id)
     return
   end
 
-  local part, msg_wrapper, msg_idx, part_idx = M._message_map:get_part_by_id(part_id, state.messages)
+  local part, message, msg_idx, part_idx = M._message_map:get_part_by_id(part_id, state.messages)
 
-  if not part or not msg_wrapper then
+  if not part or not message or not msg_idx or not part_idx then
     return
   end
 
-  local message_with_parts = vim.tbl_extend('force', msg_wrapper.info, { parts = msg_wrapper.parts })
-  local ok, formatted = pcall(formatter.format_part_single, part, {
-    msg_idx = msg_idx or 1,
-    part_idx = part_idx or 1,
-    role = msg_wrapper.info.role,
-    message = message_with_parts,
-  })
-
-  if not ok then
-    vim.notify('format_part_single error: ' .. tostring(formatted), vim.log.levels.ERROR)
-    return
-  end
+  local formatted = formatter.format_part(part, message.info.role, msg_idx, part_idx)
 
   M._replace_part_in_buffer(part_id, formatted)
 end

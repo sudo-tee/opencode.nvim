@@ -242,25 +242,28 @@ function M._format_error(output, message)
   M._format_callout(output, 'ERROR', vim.inspect(message.error))
 end
 
----@param output Output Output object to write to
----@param message MessageInfo
+---@param message OpencodeMessage
 ---@param msg_idx number Message index in the session
-function M._format_message_header(output, message, msg_idx)
-  local role = message.role or 'unknown'
-  local icon = message.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
+---@return Output
+function M.format_message_header(message, msg_idx)
+  local output = Output.new()
 
-  local time = message.time and message.time.created or nil
+  output:add_lines(M.separator)
+  local role = message.info.role or 'unknown'
+  local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
+
+  local time = message.info.time and message.info.time.created or nil
   local time_text = (time and ' (' .. util.time_ago(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
-  local model_text = message.modelID and ' ' .. message.modelID or ''
-  local debug_text = config.debug and ' [' .. message.id .. ']' or ''
+  local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
+  local debug_text = config.debug and ' [' .. message.info.id .. ']' or ''
 
   output:add_empty_line()
   output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
 
   local display_name
   if role == 'assistant' then
-    local mode = message.mode
+    local mode = message.info.mode
     if mode and mode ~= '' then
       display_name = mode:upper()
     else
@@ -291,6 +294,7 @@ function M._format_message_header(output, message, msg_idx)
   })
 
   output:add_line('')
+  return output
 end
 
 ---@param output Output Output object to write to
@@ -661,15 +665,20 @@ function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
   end
 end
 
----Internal function that formats a message part into an existing output object
----@param output Output Output object to write to
----@param part MessagePart
----@param message_info {msg_idx: number, part_idx: number, role: string, message: table}
-function M._format_part(output, part, message_info)
+---Formats a single message part and returns the resulting output object
+---@param part MessagePart The part to format
+---@param role 'user'|'assistant'|'system' The role, user or assistant, that created this part
+---@param msg_idx integer The index of the message in state.messages
+---@param part_idx integer The index of the part in state.messages[msg_idx].parts
+---@return Output
+function M.format_part(part, role, msg_idx, part_idx)
+  local output = Output.new()
+
+  -- FIXME: do we need metadata? it looks like maybe only for snapshots?
   local metadata = {
-    msg_idx = message_info.msg_idx,
-    part_idx = message_info.part_idx,
-    role = message_info.role,
+    msg_idx = msg_idx,
+    part_idx = part_idx,
+    role = role,
     type = part.type,
     snapshot = part.snapshot,
   }
@@ -677,7 +686,7 @@ function M._format_part(output, part, message_info)
 
   local content_added = false
 
-  if message_info.role == 'user' then
+  if role == 'user' then
     if part.type == 'text' and part.text then
       if part.synthetic == true then
         M._format_selection_context(output, part)
@@ -693,7 +702,7 @@ function M._format_part(output, part, message_info)
       M._add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
       content_added = true
     end
-  elseif message_info.role == 'assistant' then
+  elseif role == 'assistant' then
     if part.type == 'text' and part.text then
       M._format_assistant_message(output, vim.trim(part.text))
       content_added = true
@@ -709,26 +718,6 @@ function M._format_part(output, part, message_info)
   if content_added then
     output:add_empty_line()
   end
-end
-
----Public function that formats a single message part and returns a new output object
----@param part MessagePart
----@param message_info {msg_idx: number, part_idx: number, role: string, message: table}
----@return Output
-function M.format_part_single(part, message_info)
-  local output = Output.new()
-  M._format_part(output, part, message_info)
-  return output
-end
-
----@param message OpencodeMessage
----@param msg_idx number
----@return Output
-function M.format_message_header_single(message, msg_idx)
-  local output = Output.new()
-
-  output:add_lines(M.separator)
-  M._format_message_header(output, message.info, msg_idx)
 
   return output
 end

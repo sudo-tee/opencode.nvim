@@ -98,8 +98,12 @@ describe('renderer', function()
 
   local json_files = vim.fn.glob('tests/data/*.json', false, true)
 
-  -- Don't do the full session test on these files
-  local skip_full_session = { 'permission-prompt' } -- perms aren't loaded in a session
+  -- Don't do the full session test on these files, usually
+  -- because they involve permission prompts
+  local skip_full_session = {
+    'permission-prompt',
+    'shifting-and-multiple-perms',
+  }
 
   for _, filepath in ipairs(json_files) do
     local name = vim.fn.fnamemodify(filepath, ':t:r')

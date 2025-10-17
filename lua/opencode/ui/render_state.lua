@@ -20,6 +20,7 @@ local state = require('opencode.state')
 ---@field _messages table<string, RenderedMessage> Message ID to render data
 ---@field _parts table<string, RenderedPart> Part ID to render data
 ---@field _line_index LineIndex Line number to ID mappings
+---@field _line_index_valid boolean Whether line index is up to date
 local RenderState = {}
 RenderState.__index = RenderState
 
@@ -37,6 +38,7 @@ function RenderState:reset()
     line_to_part = {},
     line_to_message = {},
   }
+  self._line_index_valid = false
 end
 
 ---Get message render data by ID
@@ -71,10 +73,18 @@ function RenderState:get_part_by_call_id(call_id, message_id)
   return nil
 end
 
+---Ensure line index is up to date
+function RenderState:_ensure_line_index()
+  if not self._line_index_valid then
+    self:_rebuild_line_index()
+  end
+end
+
 ---Get part at specific line
 ---@param line integer Line number (1-indexed)
 ---@return RenderedPart?
 function RenderState:get_part_at_line(line)
+  self:_ensure_line_index()
   local part_id = self._line_index.line_to_part[line]
   if not part_id then
     return nil
@@ -86,6 +96,7 @@ end
 ---@param line integer Line number (1-indexed)
 ---@return RenderedMessage?
 function RenderState:get_message_at_line(line)
+  self:_ensure_line_index()
   local message_id = self._line_index.line_to_message[line]
   if not message_id then
     return nil
@@ -97,6 +108,7 @@ end
 ---@param line integer Line number (1-indexed)
 ---@return table[] List of actions at that line
 function RenderState:get_actions_at_line(line)
+  self:_ensure_line_index()
   local part_id = self._line_index.line_to_part[line]
   if not part_id then
     return {}
@@ -140,9 +152,7 @@ function RenderState:set_message(message_id, message_ref, line_start, line_end)
   end
 
   if line_start and line_end then
-    for line = line_start, line_end do
-      self._line_index.line_to_message[line] = message_id
-    end
+    self._line_index_valid = false
   end
 end
 
@@ -174,9 +184,7 @@ function RenderState:set_part(part_id, part, message_id, line_start, line_end)
   end
 
   if line_start and line_end then
-    for line = line_start, line_end do
-      self._line_index.line_to_part[line] = part_id
-    end
+    self._line_index_valid = false
   end
 end
 
@@ -197,16 +205,10 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
   local new_line_count = new_line_end - new_line_start + 1
   local delta = new_line_count - old_line_count
 
-  for line = old_line_start, old_line_end do
-    self._line_index.line_to_part[line] = nil
-  end
-
   part_data.line_start = new_line_start
   part_data.line_end = new_line_end
 
-  for line = new_line_start, new_line_end do
-    self._line_index.line_to_part[line] = part_id
-  end
+  self._line_index_valid = false
 
   if delta ~= 0 then
     self:shift_all(old_line_end + 1, delta)
@@ -297,11 +299,8 @@ function RenderState:remove_part(part_id)
   local line_count = part_data.line_end - part_data.line_start + 1
   local shift_from = part_data.line_end + 1
 
-  for line = part_data.line_start, part_data.line_end do
-    self._line_index.line_to_part[line] = nil
-  end
-
   self._parts[part_id] = nil
+  self._line_index_valid = false
 
   self:shift_all(shift_from, -line_count)
 
@@ -320,11 +319,8 @@ function RenderState:remove_message(message_id)
   local line_count = msg_data.line_end - msg_data.line_start + 1
   local shift_from = msg_data.line_end + 1
 
-  for line = msg_data.line_start, msg_data.line_end do
-    self._line_index.line_to_message[line] = nil
-  end
-
   self._messages[message_id] = nil
+  self._line_index_valid = false
 
   self:shift_all(shift_from, -line_count)
 
@@ -341,7 +337,7 @@ function RenderState:shift_all(from_line, delta)
   end
 
   local found_content_before_from_line = false
-  local shifted = false
+  local anything_shifted = false
 
   for i = #state.messages, 1, -1 do
     local msg_wrapper = state.messages[i]
@@ -353,7 +349,7 @@ function RenderState:shift_all(from_line, delta)
         if msg_data.line_start >= from_line then
           msg_data.line_start = msg_data.line_start + delta
           msg_data.line_end = msg_data.line_end + delta
-          shifted = true
+          anything_shifted = true
         elseif msg_data.line_end < from_line then
           found_content_before_from_line = true
         end
@@ -369,7 +365,7 @@ function RenderState:shift_all(from_line, delta)
             if part_data.line_start >= from_line then
               part_data.line_start = part_data.line_start + delta
               part_data.line_end = part_data.line_end + delta
-              shifted = true
+              anything_shifted = true
 
               if part_data.actions then
                 for _, action in ipairs(part_data.actions) do
@@ -389,8 +385,8 @@ function RenderState:shift_all(from_line, delta)
     end
   end
 
-  if shifted then
-    self:_rebuild_line_index()
+  if anything_shifted then
+    self._line_index_valid = false
   end
 end
 
@@ -414,6 +410,7 @@ function RenderState:_rebuild_line_index()
       end
     end
   end
+  self._line_index_valid = true
 end
 
 return RenderState

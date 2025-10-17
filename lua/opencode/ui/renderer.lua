@@ -3,22 +3,18 @@ local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
 local Promise = require('opencode.promise')
-local MessageMap = require('opencode.ui.message_map')
+local RenderState = require('opencode.ui.render_state')
 
 local M = {}
 
 M._subscriptions = {}
-M._part_cache = {}
 M._prev_line_count = 0
-M._message_map = MessageMap.new()
-M._actions = {}
+M._render_state = RenderState.new()
 
 ---Reset renderer state
 function M.reset()
-  M._part_cache = {}
   M._prev_line_count = 0
-  M._message_map:reset()
-  M._actions = {}
+  M._render_state:reset()
 
   output_window.clear()
 
@@ -134,61 +130,6 @@ function M._render_full_session_data(session_data)
   M._scroll_to_bottom()
 end
 
----Shift cached part and action line positions by delta starting from from_line
----Uses state.messages rather than M._part_cache so it can
----stop early
----@param from_line integer Line number to start shifting from
----@param delta integer Number of lines to shift (positive or negative)
-function M._shift_parts_and_actions(from_line, delta)
-  if delta == 0 then
-    return
-  end
-
-  local examined = 0
-  local shifted = 0
-
-  for i = #state.messages, 1, -1 do
-    local msg_wrapper = state.messages[i]
-    if msg_wrapper.parts then
-      for j = #msg_wrapper.parts, 1, -1 do
-        local part = msg_wrapper.parts[j]
-        if part.id then
-          local part_data = M._part_cache[part.id]
-          if part_data and part_data.line_start then
-            examined = examined + 1
-            if part_data.line_start < from_line then
-              -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
-              return
-            end
-            part_data.line_start = part_data.line_start + delta
-            if part_data.line_end then
-              part_data.line_end = part_data.line_end + delta
-            end
-            shifted = shifted + 1
-          end
-        end
-      end
-    end
-  end
-
-  -- Shift actions
-  for _, action in ipairs(M._actions) do
-    if action.display_line and action.display_line >= from_line then
-      action.display_line = action.display_line + delta
-    end
-    if action.range then
-      if action.range.from >= from_line then
-        action.range.from = action.range.from + delta
-      end
-      if action.range.to >= from_line then
-        action.range.to = action.range.to + delta
-      end
-    end
-  end
-
-  -- vim.notify('Shifting lines from: ' .. from_line .. ' by delta: ' .. delta .. ' examined: ' .. examined .. ' shifted: ' .. shifted)
-end
-
 ---Render lines as the entire output buffer
 ---@param lines any
 function M.render_lines(lines)
@@ -204,11 +145,7 @@ function M.render_output(output_data)
     return
   end
 
-  -- Extract and store actions with absolute positions
-  M._actions = {}
-  for _, action in ipairs(output_data.actions or {}) do
-    table.insert(M._actions, action)
-  end
+  -- FIXME: add actions to RenderState?
 
   output_window.set_lines(output_data.lines)
   output_window.clear_extmarks()
@@ -244,8 +181,9 @@ end
 
 ---Write data to output_buf, including normal text and extmarks
 ---@param formatted_data Output Formatted data as Output object
+---@param part_id? string Optional part ID to store actions
 ---@return {line_start: integer, line_end: integer}? Range where data was written
-function M._write_formatted_data(formatted_data)
+function M._write_formatted_data(formatted_data, part_id)
   local buf = state.windows.output_buf
   local start_line = output_window.get_buf_line_count()
   local new_lines = formatted_data.lines
@@ -255,16 +193,15 @@ function M._write_formatted_data(formatted_data)
     return nil
   end
 
-  -- Extract and store actions if present, adjusting to absolute positions
-  if formatted_data.actions then
+  if part_id and formatted_data.actions then
     for _, action in ipairs(formatted_data.actions) do
       action.display_line = action.display_line + start_line
       if action.range then
         action.range.from = action.range.from + start_line
         action.range.to = action.range.to + start_line
       end
-      table.insert(M._actions, action)
     end
+    M._render_state:add_actions(part_id, formatted_data.actions)
   end
 
   output_window.set_lines(new_lines, start_line)
@@ -281,7 +218,7 @@ end
 ---@param formatted_data Output Formatted data as Output object
 ---@return boolean Success status
 function M._insert_part_to_buffer(part_id, formatted_data)
-  local cached = M._part_cache[part_id]
+  local cached = M._render_state:get_part(part_id)
   if not cached then
     return false
   end
@@ -290,13 +227,12 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return true
   end
 
-  local range = M._write_formatted_data(formatted_data)
+  local range = M._write_formatted_data(formatted_data, part_id)
   if not range then
     return false
   end
 
-  cached.line_start = range.line_start
-  cached.line_end = range.line_end
+  M._render_state:set_part(part_id, cached.part_ref, cached.message_id, range.line_start, range.line_end)
   return true
 end
 
@@ -306,7 +242,7 @@ end
 ---@param formatted_data Output Formatted data as Output object
 ---@return boolean Success status
 function M._replace_part_in_buffer(part_id, formatted_data)
-  local cached = M._part_cache[part_id]
+  local cached = M._render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     return false
   end
@@ -316,26 +252,18 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   local old_line_count = cached.line_end - cached.line_start + 1
   local new_line_count = #new_lines
 
-  -- Remove actions within the old range
-  for i = #M._actions, 1, -1 do
-    local action = M._actions[i]
-    if action.range and action.range.from >= cached.line_start and action.range.to <= cached.line_end then
-      table.remove(M._actions, i)
-    end
-  end
+  M._render_state:clear_actions(part_id)
 
-  -- clear previous extmarks
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
 
   output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
 
   -- we need the old line_end to know where to start looking for parts to shift
   local old_line_end = cached.line_end
-  cached.line_end = cached.line_start + new_line_count - 1
+  local new_line_end = cached.line_start + new_line_count - 1
 
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
-  -- Add new actions if present
   if formatted_data.actions then
     for _, action in ipairs(formatted_data.actions) do
       action.display_line = action.display_line + cached.line_start
@@ -343,11 +271,11 @@ function M._replace_part_in_buffer(part_id, formatted_data)
         action.range.from = action.range.from + cached.line_start
         action.range.to = action.range.to + cached.line_start
       end
-      table.insert(M._actions, action)
     end
+    M._render_state:add_actions(part_id, formatted_data.actions)
   end
 
-  M._shift_parts_and_actions(old_line_end + 1, new_line_count - old_line_count)
+  M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)
 
   return true
 end
@@ -355,7 +283,7 @@ end
 ---Remove part from buffer and adjust subsequent line positions
 ---@param part_id string Part ID
 function M._remove_part_from_buffer(part_id)
-  local cached = M._part_cache[part_id]
+  local cached = M._render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     return
   end
@@ -364,12 +292,9 @@ function M._remove_part_from_buffer(part_id)
     return
   end
 
-  local line_count = cached.line_end - cached.line_start + 1
-
   output_window.set_lines({}, cached.line_start, cached.line_end + 1)
 
-  M._shift_parts_and_actions(cached.line_end + 1, -line_count)
-  M._part_cache[part_id] = nil
+  M._render_state:remove_part(part_id)
 end
 
 ---Event handler for message.updated events
@@ -386,17 +311,20 @@ function M.on_message_updated(message)
     return
   end
 
-  local found_idx = M._message_map:get_message_index(message.info.id)
+  local message_data = M._render_state:get_message(message.info.id)
+  local found_msg = message_data and message_data.message_ref
 
-  if found_idx then
-    state.messages[found_idx].info = message.info
+  if found_msg then
+    found_msg.info = message.info
   else
     table.insert(state.messages, message)
-    found_idx = #state.messages
-    M._message_map:add_message(message.info.id, found_idx)
 
-    local header_data = formatter.format_message_header(message, found_idx)
-    M._write_formatted_data(header_data)
+    local header_data = formatter.format_message_header(message, #state.messages)
+    local range = M._write_formatted_data(header_data)
+
+    if range then
+      M._render_state:set_message(message.info.id, message, range.line_start, range.line_end)
+    end
 
     state.current_message = message
 
@@ -428,26 +356,27 @@ function M.on_part_updated(properties)
     return
   end
 
-  local message, msg_idx = M._message_map:get_message_by_id(part.messageID, state.messages)
-
-  if not message or not msg_idx then
+  local message_data = M._render_state:get_message(part.messageID)
+  if not message_data or not message_data.message_ref then
     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
 
+  local message = message_data.message_ref
+
   message.parts = message.parts or {}
 
-  local is_new_part = not M._message_map:has_part(part.id)
-  local part_idx
+  local part_data = M._render_state:get_part(part.id)
+  local is_new_part = not part_data
 
   if is_new_part then
     table.insert(message.parts, part)
-    part_idx = #message.parts
-    M._message_map:add_part(part.id, msg_idx, part_idx, part.callID)
   else
-    part_idx = M._message_map:update_part(part.id, part, state.messages)
-    if not part_idx then
-      return
+    for i, existing_part in ipairs(message.parts) do
+      if existing_part.id == part.id then
+        message.parts[i] = part
+        break
+      end
     end
   end
 
@@ -455,19 +384,13 @@ function M.on_part_updated(properties)
     return
   end
 
-  local part_text = part.text or ''
-
-  if not M._part_cache[part.id] then
-    M._part_cache[part.id] = {
-      text = nil,
-      line_start = nil,
-      line_end = nil,
-      message_id = part.messageID,
-      type = part.type,
-    }
+  if is_new_part then
+    M._render_state:set_part(part.id, part, part.messageID, nil, nil)
+  else
+    M._render_state:update_part_data(part.id, part)
   end
 
-  local formatted = formatter.format_part(part, message.info.role, msg_idx, part_idx)
+  local formatted = formatter.format_part(part, message.info.role)
 
   if is_new_part then
     M._insert_part_to_buffer(part.id, formatted)
@@ -475,7 +398,6 @@ function M.on_part_updated(properties)
     M._replace_part_in_buffer(part.id, formatted)
   end
 
-  M._part_cache[part.id].text = part_text
   M._scroll_to_bottom()
 end
 
@@ -491,11 +413,20 @@ function M.on_part_removed(properties)
     return
   end
 
-  local cached = M._part_cache[part_id]
+  local cached = M._render_state:get_part(part_id)
   if cached and cached.message_id then
-    local part = M._message_map:get_part_by_id(part_id, state.messages)
-    local call_id = part and part.callID or nil
-    M._message_map:remove_part(part_id, call_id, state.messages)
+    local message_data = M._render_state:get_message(cached.message_id)
+    if message_data and message_data.message_ref then
+      local message = message_data.message_ref
+      if message.parts then
+        for i, part in ipairs(message.parts) do
+          if part.id == part_id then
+            table.remove(message.parts, i)
+            break
+          end
+        end
+      end
+    end
   end
 
   M._remove_part_from_buffer(part_id)
@@ -514,19 +445,24 @@ function M.on_message_removed(properties)
     return
   end
 
-  local message_idx = M._message_map:get_message_index(message_id)
-  if not message_idx then
+  local message_data = M._render_state:get_message(message_id)
+  if not message_data or not message_data.message_ref then
     return
   end
 
-  local message = state.messages[message_idx]
+  local message = message_data.message_ref
   for _, part in ipairs(message.parts or {}) do
     if part.id then
       M._remove_part_from_buffer(part.id)
     end
   end
 
-  M._message_map:remove_message(message_id, state.messages)
+  for i, msg in ipairs(state.messages) do
+    if msg.info.id == message_id then
+      table.remove(state.messages, i)
+      break
+    end
+  end
 end
 
 ---Event handler for session.compacted events
@@ -609,25 +545,31 @@ end
 ---@param call_id string Call ID to search for
 ---@return string? part_id Part ID if found, nil otherwise
 function M._find_part_by_call_id(call_id)
-  return M._message_map:get_part_id_by_call_id(call_id)
+  return M._render_state:get_part_by_call_id(call_id)
 end
 
 ---Re-render existing part with current state
 ---Used for permission updates and other dynamic changes
 ---@param part_id string Part ID to re-render
 function M._rerender_part(part_id)
-  local cached = M._part_cache[part_id]
+  local cached = M._render_state:get_part(part_id)
   if not cached then
     return
   end
 
-  local part, message, msg_idx, part_idx = M._message_map:get_part_by_id(part_id, state.messages)
-
-  if not part or not message or not msg_idx or not part_idx then
+  local part = cached.part_ref
+  local message_data = M._render_state:get_message(cached.message_id)
+  if not message_data or not message_data.message_ref then
     return
   end
 
-  local formatted = formatter.format_part(part, message.info.role, msg_idx, part_idx)
+  local message = message_data.message_ref
+
+  if not part then
+    return
+  end
+
+  local formatted = formatter.format_part(part, message.info.role)
 
   M._replace_part_in_buffer(part_id, formatted)
 end
@@ -636,13 +578,7 @@ end
 ---@param line number 1-indexed line number
 ---@return table[] List of actions available at that line
 function M.get_actions_for_line(line)
-  local actions = {}
-  for _, action in ipairs(M._actions) do
-    if action.range and action.range.from <= line and action.range.to >= line then
-      table.insert(actions, action)
-    end
-  end
-  return actions
+  return M._render_state:get_actions_at_line(line)
 end
 
 ---Update stats from all messages in session

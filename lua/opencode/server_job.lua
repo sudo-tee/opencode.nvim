@@ -17,6 +17,20 @@ local function handle_api_response(response, cb)
   end
 end
 
+M.requests = {}
+
+function M.get_unresolved_requests()
+  local unresolved = {}
+
+  for _, data in ipairs(M.requests) do
+    if data[2]._resolved ~= true then
+      table.insert(unresolved, data)
+    end
+  end
+
+  return unresolved
+end
+
 --- Make an HTTP API call to the opencode server.
 --- @generic T
 --- @param url string The API endpoint URL
@@ -60,6 +74,9 @@ function M.call_api(url, method, body)
   if body ~= nil then
     opts.body = body and vim.json.encode(body) or '{}'
   end
+
+  -- FIXME: remove tracking code when thinking bug is fixed
+  table.insert(M.requests, { opts, call_promise })
 
   curl.request(opts)
   return call_promise

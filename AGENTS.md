@@ -13,6 +13,11 @@
 - **Debug rendering in headless mode:**
   `nvim --headless -u tests/manual/init_replay.lua "+ReplayHeadless" "+ReplayLoad tests/data/FILE.json" "+ReplayAll 1" "+sleep 500m | qa!"`
   This will replay events and dump the output buffer to stdout, useful for debugging rendering issues without a UI.
+  You can run to just a specific message # with (e.g. message # 12):
+  `nvim --headless -u tests/manual/init_replay.lua "+ReplayHeadless" "+ReplayLoad tests/data/message-removal.json" "+ReplayNext 12" "+sleep 500m | qa"`
+  ```
+
+  ```
 - **Lint:** No explicit lint command; follow Lua best practices.
 
 ## Code Style Guidelines

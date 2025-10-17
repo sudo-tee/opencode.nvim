@@ -78,7 +78,7 @@ function M.emit_event(event)
 end
 
 function M.replay_next(steps)
-  steps = steps or 1
+  steps = tonumber(steps) or 1
 
   if M.current_index >= #M.events then
     vim.notify('No more events to replay', vim.log.levels.WARN)
@@ -93,6 +93,10 @@ function M.replay_next(steps)
       vim.notify('No more events to replay', vim.log.levels.WARN)
       return
     end
+  end
+
+  if M.headless_mode and steps > 1 then
+    M.dump_buffer_and_quit()
   end
 end
 
@@ -120,26 +124,22 @@ function M.replay_all(delay_ms)
 
   M.timer = vim.loop.new_timer()
   ---@diagnostic disable-next-line: undefined-field
-  M.timer:start(
-    0,
-    delay_ms,
-    vim.schedule_wrap(function()
-      if M.current_index >= #M.events then
-        if M.timer then
-          ---@diagnostic disable-next-line: undefined-field
-          M.timer:stop()
-          M.timer = nil
-        end
-        state.job_count = 0
-        if M.headless_mode then
-          M.dump_buffer_and_quit()
-        end
-        return
+  M.timer:start(0, delay_ms, function()
+    if M.current_index >= #M.events then
+      if M.timer then
+        ---@diagnostic disable-next-line: undefined-field
+        M.timer:stop()
+        M.timer = nil
       end
+      state.job_count = 0
+      if M.headless_mode then
+        M.dump_buffer_and_quit()
+      end
+      return
+    end
 
-      M.replay_next()
-    end)
-  )
+    M.replay_next()
+  end)
 end
 
 function M.replay_stop()

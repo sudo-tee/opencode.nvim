@@ -248,7 +248,7 @@ function M.dump_buffer_and_quit()
     end
 
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local extmarks = vim.api.nvim_buf_get_extmarks(buf, renderer._namespace, 0, -1, { details = true })
+    local extmarks = vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })
 
     local extmarks_by_line = {}
     for _, mark in ipairs(extmarks) do

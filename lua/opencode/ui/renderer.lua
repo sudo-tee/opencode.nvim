@@ -24,6 +24,7 @@ function M.reset()
 
   state.messages = {}
   state.last_user_message = nil
+  state.current_permission = nil
 end
 
 ---Set up all subscriptions, for both local and server events
@@ -328,6 +329,8 @@ function M._replace_part_in_buffer(part_id, formatted_data)
 
   output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
 
+  -- we need the old line_end to know where to start looking for parts to shift
+  local old_line_end = cached.line_end
   cached.line_end = cached.line_start + new_line_count - 1
 
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
@@ -344,10 +347,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
     end
   end
 
-  local line_delta = new_line_count - old_line_count
-  if line_delta ~= 0 then
-    M._shift_parts_and_actions(cached.line_end + 1, line_delta)
-  end
+  M._shift_parts_and_actions(old_line_end + 1, new_line_count - old_line_count)
 
   return true
 end
@@ -581,6 +581,19 @@ function M.on_permission_updated(properties)
   local permission = properties
   if not permission.messageID or not permission.callID then
     return
+  end
+
+  local prev_permission = state.current_permission
+  state.current_permission = nil
+
+  if prev_permission and prev_permission.id ~= permission.id then
+    -- we got a permission request while we had an existing one?
+    vim.notify('Two pending permissions? existing: ' .. prev_permission.id .. ' new: ' .. permission.id)
+    -- rerender previous part to remove old permission
+    local prev_perm_part_id = M._find_part_by_call_id(prev_permission.callID)
+    if prev_perm_part_id then
+      M._rerender_part(prev_perm_part_id)
+    end
   end
 
   state.current_permission = permission

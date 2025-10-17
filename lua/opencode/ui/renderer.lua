@@ -273,9 +273,28 @@ function M._remove_part_from_buffer(part_id)
     return
   end
 
-  output_window.set_lines({}, cached.line_start, cached.line_end + 1)
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
+  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
 
   M._render_state:remove_part(part_id)
+end
+
+---Remove message header from buffer and adjust subsequent line positions
+---@param message_id string Message ID
+function M._remove_message_from_buffer(message_id)
+  local cached = M._render_state:get_message(message_id)
+  if not cached or not cached.line_start or not cached.line_end then
+    return
+  end
+
+  if not state.windows or not state.windows.output_buf then
+    return
+  end
+
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
+  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
+
+  M._render_state:remove_message(message_id)
 end
 
 ---Event handler for message.updated events
@@ -385,7 +404,6 @@ end
 ---Event handler for message.part.removed events
 ---@param properties {sessionID: string, messageID: string, partID: string} Event properties
 function M.on_part_removed(properties)
-  --- WARN: this code is untested
   if not properties then
     return
   end
@@ -418,7 +436,6 @@ end
 ---Removes message and all its parts from buffer
 ---@param properties {sessionID: string, messageID: string} Event properties
 function M.on_message_removed(properties)
-  --- WARN: this code is untested
   if not properties then
     return
   end
@@ -440,7 +457,7 @@ function M.on_message_removed(properties)
     end
   end
 
-  --- FIXME: remove part from render_state
+  M._remove_message_from_buffer(message_id)
 
   for i, msg in ipairs(state.messages) do
     if msg.info.id == message_id then

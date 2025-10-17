@@ -4,6 +4,7 @@ local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
 local M = {}
+M.requests = {}
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -16,8 +17,6 @@ local function handle_api_response(response, cb)
     cb(success and json_body or response.body, nil)
   end
 end
-
-M.requests = {}
 
 function M.get_unresolved_requests()
   local unresolved = {}
@@ -75,8 +74,29 @@ function M.call_api(url, method, body)
     opts.body = body and vim.json.encode(body) or '{}'
   end
 
-  -- FIXME: remove tracking code when thinking bug is fixed
-  table.insert(M.requests, { opts, call_promise })
+  -- For promise tracking, remove promises that complete from requests
+  local request_entry = { opts, call_promise }
+  table.insert(M.requests, request_entry)
+
+  local function remove_from_requests()
+    vim.notify('removing from requests')
+    for i, entry in ipairs(M.requests) do
+      if entry == request_entry then
+        table.remove(M.requests, i)
+        break
+      end
+    end
+  end
+
+  call_promise:and_then(function(result)
+    remove_from_requests()
+    return result
+  end)
+
+  call_promise:catch(function(err)
+    remove_from_requests()
+    error(err)
+  end)
 
   curl.request(opts)
   return call_promise
@@ -117,6 +137,20 @@ function M.stream_api(url, method, body, on_chunk)
   return curl.request(opts)
 end
 
+---Forcibly reject any pending requests (they sometimes get stuck
+---after an api abort)
+function M.cancel_all_requests()
+  for _, entry in ipairs(M.requests) do
+    local promise = entry[2]
+    if not promise:is_resolved() then
+      pcall(promise.reject, promise, 'Request cancelled')
+    end
+  end
+
+  M.requests = {}
+  state.job_count = 0
+end
+
 function M.ensure_server()
   if state.opencode_server_job and state.opencode_server_job:is_running() then
     return state.opencode_server_job
@@ -125,6 +159,7 @@ function M.ensure_server()
   local promise = Promise.new()
   state.opencode_server_job = opencode_server.new()
 
+  ---@diagnostic disable-next-line: missing-fields
   state.opencode_server_job:spawn({
     on_ready = function(_, base_url)
       promise:resolve(state.opencode_server_job)

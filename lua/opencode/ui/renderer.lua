@@ -353,8 +353,8 @@ function M.on_part_updated(properties)
   if is_new_part then
     table.insert(message.parts, part)
   else
-    for i, existing_part in ipairs(message.parts) do
-      if existing_part.id == part.id then
+    for i = #message.parts, 1, -1 do
+      if message.parts[i].id == part.id then
         message.parts[i] = part
         break
       end

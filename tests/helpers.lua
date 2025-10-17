@@ -15,6 +15,11 @@ function M.replay_setup()
   config_file.project_promise = empty_promise
   config_file.providers_promise = empty_promise
 
+  ---@diagnostic disable-next-line: duplicate-set-field
+  require('opencode.session').project_id = function()
+    return nil
+  end
+
   state.windows = ui.create_windows()
 
   -- we don't change any changes on session

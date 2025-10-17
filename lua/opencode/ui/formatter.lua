@@ -50,14 +50,6 @@ function M._format_permission_request(output)
   output:add_empty_line()
 end
 
----@param line number Buffer line number
----@param output Output Output object to query
----@return {message: MessageInfo, part: MessagePart, msg_idx: number, part_idx: number}|nil
----@deprecated Use RenderState:get_message_at_line() instead
-function M.get_message_at_line(line, output)
-  return nil
-end
-
 ---Calculate statistics for reverted messages and tool calls
 ---@param messages {info: MessageInfo, parts: MessagePart[]}[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred

@@ -79,7 +79,6 @@ function M.call_api(url, method, body)
   table.insert(M.requests, request_entry)
 
   local function remove_from_requests()
-    vim.notify('removing from requests')
     for i, entry in ipairs(M.requests) do
       if entry == request_entry then
         table.remove(M.requests, i)

@@ -103,6 +103,7 @@ describe('renderer', function()
   local skip_full_session = {
     'permission-prompt',
     'shifting-and-multiple-perms',
+    'message-removal',
   }
 
   for _, filepath in ipairs(json_files) do

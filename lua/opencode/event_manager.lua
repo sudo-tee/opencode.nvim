@@ -278,7 +278,9 @@ function EventManager:_subscribe_to_server_events(server)
   if require('opencode.config').debug.capture_streamed_events then
     local _emitter = emitter
     emitter = function(event)
-      table.insert(self.captured_events, event)
+      -- make a deepcopy to make sure we're saving a clean copy
+      -- (we modify event in renderer)
+      table.insert(self.captured_events, vim.deepcopy(event))
       _emitter(event)
     end
   end

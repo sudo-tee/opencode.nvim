@@ -91,10 +91,10 @@ local function create_file_item(file, suffix)
   if #display_label > max_display_len then
     display_label = '...' .. display_label:sub(-(max_display_len - 3))
   end
-
+  local kind = vim.endswith(file, '/') and 'folder' or 'file'
   return {
     label = display_label .. (suffix or ''),
-    kind = 'file',
+    kind = kind,
     detail = detail,
     documentation = 'Path: ' .. detail,
     insert_text = file_path,

@@ -62,7 +62,8 @@ function M.handle_submit()
     return
   end
 
-  if input_content:match('^/') then
+  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
+  if input_content:match('^' .. key) then
     M._execute_slash_command(input_content)
     return
   end
@@ -71,16 +72,21 @@ function M.handle_submit()
 end
 
 M._execute_slash_command = function(command)
-  local slash_commands = require('opencode.config_file').get_user_commands()
+  local slash_commands = require('opencode.api').get_slash_commands()
+  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
+
   local cmd = command:sub(2):match('^%s*(.-)%s*$')
   if cmd == '' then
     return
   end
   local parts = vim.split(cmd, ' ')
-  local command_cfg = slash_commands[parts[1]]
+
+  local command_cfg = vim.tbl_filter(function(c)
+    return c.slash_cmd == key .. parts[1]
+  end, slash_commands)[1]
 
   if command_cfg then
-    require('opencode.api').run_user_command(parts[1], vim.list_slice(parts, 2))
+    command_cfg.fn(vim.list_slice(parts, 2))
   else
     vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
   end

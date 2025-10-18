@@ -147,7 +147,6 @@ function M.cancel_all_requests()
   end
 
   M.requests = {}
-  state.job_count = 0
 end
 
 function M.ensure_server()

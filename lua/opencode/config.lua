@@ -71,6 +71,7 @@ M.defaults = {
     },
     session_picker = {
       delete_session = { '<C-d>' },
+      new_session = { '<C-n>' },
     },
   },
   ui = {

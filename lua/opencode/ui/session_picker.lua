@@ -28,7 +28,7 @@ local function format_session(session)
   return table.concat(parts, ' ~ ')
 end
 
-local function telescope_ui(sessions, callback, on_delete)
+local function telescope_ui(sessions, callback, on_delete, on_new)
   local pickers = require('telescope.pickers')
   local finders = require('telescope.finders')
   local conf = require('telescope.config').values
@@ -106,6 +106,30 @@ local function telescope_ui(sessions, callback, on_delete)
         end
       end
 
+      -- Add new session mapping using shared callback
+      local new_config = require('opencode.config').keymap.session_picker.new_session
+      if new_config and new_config[1] then
+        local key = new_config[1]
+        local modes = new_config.mode or { 'i', 'n' }
+        if type(modes) == 'string' then
+          modes = { modes }
+        end
+        local new_fn = function()
+          if on_new then
+            local new_session = on_new()
+            if new_session then
+              actions.close(prompt_bufnr)
+              if callback then
+                callback(new_session)
+              end
+            end
+          end
+        end
+        for _, mode in ipairs(modes) do
+          map(mode, key, new_fn)
+        end
+      end
+
       return true
     end,
   })
@@ -113,7 +137,7 @@ local function telescope_ui(sessions, callback, on_delete)
   current_picker:find()
 end
 
-local function fzf_ui(sessions, callback, on_delete)
+local function fzf_ui(sessions, callback, on_delete, on_new)
   local fzf_lua = require('fzf-lua')
   local config = require('opencode.config')
 
@@ -150,6 +174,24 @@ local function fzf_ui(sessions, callback, on_delete)
     }
   end
 
+  -- New session action (shared on_new)
+  local new_config = config.keymap.session_picker.new_session
+  if new_config and new_config[1] then
+    local key = require('fzf-lua.utils').neovim_bind_to_fzf(new_config[1])
+    actions_config[key] = {
+      fn = function()
+        if on_new then
+          local new_session = on_new()
+          if new_session then
+            table.insert(sessions, 1, new_session)
+          end
+        end
+      end,
+      header = 'new',
+      reload = true,
+    }
+  end
+
   fzf_lua.fzf_exec(function(fzf_cb)
     for _, session in ipairs(sessions) do
       fzf_cb(format_session(session))
@@ -172,7 +214,7 @@ local function fzf_ui(sessions, callback, on_delete)
   })
 end
 
-local function mini_pick_ui(sessions, callback, on_delete)
+local function mini_pick_ui(sessions, callback, on_delete, on_new)
   local mini_pick = require('mini.pick')
   local config = require('opencode.config')
 
@@ -209,6 +251,29 @@ local function mini_pick_ui(sessions, callback, on_delete)
     }
   end
 
+  -- New session mapping using shared on_new
+  local new_config = config.keymap.session_picker.new_session
+  if new_config and new_config[1] then
+    mappings.new_session = {
+      char = new_config[1],
+      func = function()
+        if on_new then
+          local new_session = on_new()
+          if new_session then
+            table.insert(sessions, 1, new_session)
+            items = vim.tbl_map(function(session)
+              return {
+                text = format_session(session),
+                session = session,
+              }
+            end, sessions)
+            mini_pick.set_picker_items(items)
+          end
+        end
+      end,
+    }
+  end
+
   mini_pick.start({
     source = {
       items = items,
@@ -224,7 +289,7 @@ local function mini_pick_ui(sessions, callback, on_delete)
   })
 end
 
-local function snacks_picker_ui(sessions, callback, on_delete)
+local function snacks_picker_ui(sessions, callback, on_delete, on_new)
   local Snacks = require('snacks')
   local config = require('opencode.config')
 
@@ -256,13 +321,9 @@ local function snacks_picker_ui(sessions, callback, on_delete)
     local key = delete_config[1]
     local mode = delete_config.mode or 'i'
 
-    opts.win = {
-      input = {
-        keys = {
-          [key] = { 'session_delete', mode = mode },
-        },
-      },
-    }
+    opts.win = opts.win or {}
+    opts.win.input = opts.win.input or { keys = {} }
+    opts.win.input.keys[key] = { 'session_delete', mode = mode }
 
     opts.actions.session_delete = function(picker, item)
       if item and on_delete then
@@ -275,6 +336,32 @@ local function snacks_picker_ui(sessions, callback, on_delete)
           end
         end)
       end
+    end
+  end
+
+  -- New session key using shared on_new
+  local new_config = config.keymap.session_picker.new_session
+  if new_config and new_config[1] then
+    local key = new_config[1]
+    local mode = new_config.mode or 'i'
+
+    opts.win = opts.win or {}
+    opts.win.input = opts.win.input or { keys = {} }
+    opts.win.input.keys[key] = { 'session_new', mode = mode }
+
+    opts.actions.session_new = function(picker)
+      vim.schedule(function()
+        if on_new then
+          local new_session = on_new()
+          if new_session then
+            table.insert(sessions, 1, new_session)
+            picker:close()
+            if callback then
+              callback(new_session)
+            end
+          end
+        end
+      end)
     end
   end
 
@@ -305,15 +392,31 @@ function M.pick(sessions, callback)
     end)
   end
 
+  local function on_new()
+    local parent_id
+    for _, s in ipairs(sessions or {}) do
+      if s.parentID ~= nil then
+        parent_id = s.parentID
+        break
+      end
+    end
+    local state = require('opencode.state')
+    local created = state.api_client:create_session(parent_id and { parentID = parent_id } or false):wait()
+    if created and created.id then
+      return require('opencode.session').get_by_id(created.id)
+    end
+    return nil
+  end
+
   vim.schedule(function()
     if picker_type == 'telescope' then
-      telescope_ui(sessions, callback, on_delete)
+      telescope_ui(sessions, callback, on_delete, on_new)
     elseif picker_type == 'fzf' then
-      fzf_ui(sessions, callback, on_delete)
+      fzf_ui(sessions, callback, on_delete, on_new)
     elseif picker_type == 'mini.pick' then
-      mini_pick_ui(sessions, callback, on_delete)
+      mini_pick_ui(sessions, callback, on_delete, on_new)
     elseif picker_type == 'snacks' then
-      snacks_picker_ui(sessions, callback, on_delete)
+      snacks_picker_ui(sessions, callback, on_delete, on_new)
     else
       callback(nil)
     end

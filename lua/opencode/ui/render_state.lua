@@ -13,13 +13,13 @@ local state = require('opencode.state')
 ---@field actions table[] Actions associated with this part
 
 ---@class LineIndex
----@field line_to_part table<integer, string> Maps line number to part ID
----@field line_to_message table<integer, string> Maps line number to message ID
+---@field line_to_part table<integer, string> Maps line number -> part ID
+---@field line_to_message table<integer, string> Maps line number -> message ID
 
 ---@class RenderState
----@field _messages table<string, RenderedMessage> Message ID to render data
----@field _parts table<string, RenderedPart> Part ID to render data
----@field _line_index LineIndex Line number to ID mappings
+---@field _messages table<string, RenderedMessage> Message ID -> rendered message
+---@field _parts table<string, RenderedPart> Part ID -> rendered part
+---@field _line_index LineIndex Line number -> ID mappings
 ---@field _line_index_valid boolean Whether line index is up to date
 local RenderState = {}
 RenderState.__index = RenderState

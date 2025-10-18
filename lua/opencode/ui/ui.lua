@@ -205,31 +205,35 @@ function M.render_lines(lines)
 end
 
 function M.select_session(sessions, cb)
+  local session_picker = require('opencode.ui.session_picker')
   local util = require('opencode.util')
 
-  vim.ui.select(sessions, {
-    prompt = '',
-    format_item = function(session)
-      local parts = {}
+  local success = session_picker.pick(sessions, cb)
+  if not success then
+    vim.ui.select(sessions, {
+      prompt = '',
+      format_item = function(session)
+        local parts = {}
 
-      if session.description then
-        table.insert(parts, session.description)
-      end
+        if session.description then
+          table.insert(parts, session.description)
+        end
 
-      if session.message_count then
-        table.insert(parts, session.message_count .. ' messages')
-      end
+        if session.message_count then
+          table.insert(parts, session.message_count .. ' messages')
+        end
 
-      local modified = util.time_ago(session.modified)
-      if modified then
-        table.insert(parts, modified)
-      end
+        local modified = util.time_ago(session.modified)
+        if modified then
+          table.insert(parts, modified)
+        end
 
-      return table.concat(parts, ' ~ ')
-    end,
-  }, function(session_choice)
-    cb(session_choice)
-  end)
+        return table.concat(parts, ' ~ ')
+      end,
+    }, function(session_choice)
+      cb(session_choice)
+    end)
+  end
 end
 
 function M.toggle_pane()

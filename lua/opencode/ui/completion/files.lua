@@ -22,14 +22,13 @@ end
 local function try_tool(tool, args, pattern, max, ignore_patterns)
   if type(args) == 'function' then
     local promise = args(pattern, max)
-    local result = promise and promise:wait()
+    local result = promise and promise.and_then and promise:wait()
 
     if result and type(result) == 'table' then
       return vim.tbl_filter(should_keep(ignore_patterns), result)
     end
   end
 
-  -- Handle string-based commands (CLI tools)
   if vim.fn.executable(tool) then
     pattern = vim.fn.shellescape(pattern) or '.'
     local result = run_systemlist(tool .. string.format(args, pattern, max))
@@ -44,17 +43,17 @@ end
 ---@return string[]
 local function find_files_fast(pattern)
   local file_config = config.ui.completion.file_sources
-  local cli_tool = last_successful_tool or file_config.preferred_cli_tool or 'fd'
+  local cli_tool = last_successful_tool or file_config.preferred_cli_tool or 'server'
   local max = file_config.max_files or 10
   local ignore_patterns = file_config.ignore_patterns or {}
 
-  local tools_order = { 'fd', 'fdfind', 'rg', 'git', 'server' }
+  local tools_order = { 'server', 'fd', 'fdfind', 'rg', 'git' }
   local commands = {
     fd = ' --type f --type l --full-path  --color=never -E .git -E node_modules -i %s --max-results %d 2>/dev/null',
     fdfind = ' --type f --type l --color=never -E .git -E node_modules --full-path -i %s --max-results %d 2>/dev/null',
     rg = ' --files --no-messages --color=never | grep -i %s 2>/dev/null | head -%d',
     git = ' ls-files --cached --others --exclude-standard | grep -i %s | head -%d',
-    server = function(pattern, max)
+    server = function(pattern)
       return require('opencode.state').api_client:find_files(pattern)
     end,
   }
@@ -147,8 +146,6 @@ local file_source = {
 ---Get the list of recent files
 ---@return CompletionItem[]
 function M.get_recent_files()
-  local project = require('opencode.config_file').get_opencode_project()
-  local max = config.ui.completion.file_sources.max_files
   local api_client = require('opencode.state').api_client
 
   local result = api_client:get_file_status():wait()

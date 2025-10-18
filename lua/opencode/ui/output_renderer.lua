@@ -1,18 +1,17 @@
-local Timer = require('opencode.ui.timer')
 local M = {}
 
 local state = require('opencode.state')
-local formatter = require('opencode.ui.session_formatter')
+local formatter = require('opencode.ui.formatter')
 local loading_animation = require('opencode.ui.loading_animation')
 local output_window = require('opencode.ui.output_window')
+local util = require('opencode.util')
+local Promise = require('opencode.promise')
 
-M._cache = {
-  last_modified = 0,
-  last_output = 0,
-  output_lines = nil,
-  session_path = nil,
-  check_counter = 0,
-}
+M._subscriptions = {}
+M._ns_id = vim.api.nvim_create_namespace('opencode_output')
+M._debounce_ms = 50
+
+-- FIXME: this file should eventually be removed
 
 function M.render_markdown()
   if vim.fn.exists(':RenderMarkdown') > 0 then
@@ -20,203 +19,90 @@ function M.render_markdown()
   end
 end
 
-function M._should_refresh_content()
+function M._read_session()
   if not state.active_session then
-    return true
+    return Promise.new():resolve(nil)
   end
-
-  -- If any job is running, force refresh every 3rd tick
-  if state.is_running() then
-    M._cache.check_counter = (M._cache.check_counter + 1) % 3
-    if M._cache.check_counter == 0 then
-      return true
-    end
-  end
-
-  if state.last_output and state.last_output > (M._cache.last_output or 0) then
-    M._cache.last_output = state.last_output
-    return true
-  end
-
-  local session_path = state.active_session.parts_path
-
-  if session_path ~= M._cache.session_path then
-    M._cache.session_path = session_path
-    return true
-  end
-
-  if vim.fn.isdirectory(session_path) == 0 then
-    return false
-  end
-
-  local stat = vim.loop.fs_stat(session_path)
-  if not stat then
-    return false
-  end
-
-  if stat.mtime.sec > M._cache.last_modified then
-    M._cache.last_modified = stat.mtime.sec
-    return true
-  end
-
-  return false
+  return formatter.format_session(state.active_session)
 end
 
-function M._read_session(force_refresh)
-  if not state.active_session then
-    return nil
-  end
-
-  if not force_refresh and not M._should_refresh_content() and M._cache.output_lines then
-    return M._cache.output_lines
-  end
-
-  local output_lines = formatter.format_session(state.active_session)
-  M._cache.output_lines = output_lines
-  return output_lines
-end
-
-function M.start_refresh_timer(windows)
-  if M._refresh_timer then
-    return
-  end
-  M._refresh_timer = Timer.new({
-    interval = 300,
-    on_tick = function()
-      if state.is_running() then
-        if M._should_refresh_content() then
-          vim.cmd('checktime')
-          M.render(windows, true)
-        end
-        return true
-      else
-        M.stop_refresh_timer()
-        return false
-      end
-    end,
-    on_stop = function()
-      M.render(windows, true)
-      vim.defer_fn(function()
-        M.render(windows, true)
-        vim.cmd('checktime')
-      end, 300)
-    end,
-    repeat_timer = true,
-  })
-  M._refresh_timer:start()
-end
-
-function M.stop_refresh_timer()
-  if M._refresh_timer then
-    M._refresh_timer:stop()
-    M._refresh_timer = nil
-  end
-end
-
-M.render = vim.schedule_wrap(function(windows, force_refresh)
+M.render = vim.schedule_wrap(function(windows, force)
   if not output_window.mounted(windows) then
     return
   end
 
-  local function render()
-    if not state.active_session and not state.new_session_name then
-      return
-    end
-
-    if not force_refresh and loading_animation.is_running() then
-      return
-    end
-
-    local output_lines = M._read_session(force_refresh)
-    local is_new_session = state.new_session_name ~= nil
-
-    if not output_lines then
-      if is_new_session then
-        output_lines = { '' }
-      else
-        return
-      end
-    else
-      state.new_session_name = nil
-    end
-
-    M.handle_loading(windows)
-
-    local output_changed = M.write_output(windows, output_lines)
-
-    if output_changed or force_refresh then
-      vim.schedule(function()
-        M.render_markdown()
-        M.handle_auto_scroll(windows)
-        require('opencode.ui.topbar').render()
-      end)
-    end
+  if loading_animation.is_running() and not force then
+    return
   end
-  pcall(function()
-    render()
-    require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
-    require('opencode.ui.contextual_actions').setup_contextual_actions()
-    require('opencode.ui.footer').render(windows)
+
+  M._read_session():and_then(function(lines)
+    if not lines then
+      return
+    end
+
+    M.write_output(windows, lines)
+
+    vim.schedule(function()
+      -- M.render_markdown()
+      M.handle_auto_scroll(windows)
+    end)
+
+    pcall(function()
+      vim.schedule(function()
+        require('opencode.ui.mention').highlight_all_mentions(windows.output_buf)
+        -- require('opencode.ui.contextual_actions').setup_contextual_actions()
+      end)
+    end)
   end)
 end)
 
+function M.setup_subscriptions(windows)
+
+  -- NOTE: output_renderer no longer renders automatically
+  -- only leaving this code for now, in case we want to use
+  -- this old pathway. will be removed in the near future
+
+  -- M._cleanup_subscriptions()
+
+  -- local on_change = util.debounce(function(old, new)
+  --   M.render(windows, true)
+  -- end, M._debounce_ms)
+  --
+  -- M._subscriptions.active_session = function(_, new, old)
+  --   if not old then
+  --     return
+  --   end
+  --   on_change(old, new)
+  -- end
+  -- state.subscribe('active_session', M._subscriptions.active_session)
+end
+
+function M._cleanup_subscriptions()
+  -- for key, cb in pairs(M._subscriptions) do
+  --   state.unsubscribe(key, cb)
+  -- end
+  -- M._subscriptions = {}
+  -- loading_animation.teardown()
+end
+
+function M.teardown()
+  M._cleanup_subscriptions()
+  M.stop()
+end
+
 function M.stop()
-  loading_animation.stop()
-
-  M.stop_refresh_timer()
-
-  M._cache = {
-    last_modified = 0,
-    output_lines = nil,
-    session_path = nil,
-    check_counter = 0,
-    last_output = 0,
-  }
-end
-
-function M.handle_loading(windows)
-  if state.is_running() then
-    M.start_refresh_timer(windows)
-    if not loading_animation.is_running() then
-      loading_animation.start(windows)
-    end
-  else
-    M.stop_refresh_timer()
-    if loading_animation.is_running() then
-      loading_animation.stop()
-    end
-  end
-end
-
-function M._last_n_lines_equal(prev_lines, current_lines, n)
-  n = n or 5
-  if #prev_lines ~= #current_lines then
-    return false
-  end
-  local len = #prev_lines
-  local start = math.max(1, len - n + 1)
-  for i = start, len do
-    if prev_lines[i] ~= current_lines[i] then
-      return false
-    end
-  end
-  return true
+  -- -- FIXME: the footer should probably own this... and it may
+  -- -- not even be necessary
+  -- loading_animation.stop()
 end
 
 function M.write_output(windows, output_lines)
   if not output_window.mounted(windows) then
-    return
+    return false
   end
 
-  local prev_lines = M._cache.prev_rendered_lines or {}
-  local changed = not M._last_n_lines_equal(prev_lines, output_lines, 5)
-  if changed then
-    output_window.set_content(output_lines)
-    M._cache.prev_rendered_lines = vim.deepcopy(output_lines)
-    M.apply_output_extmarks(windows)
-  end
-
-  return changed
+  output_window.set_content(output_lines)
+  M.apply_output_extmarks(windows)
 end
 
 function M.apply_output_extmarks(windows)
@@ -224,43 +110,30 @@ function M.apply_output_extmarks(windows)
     return
   end
 
-  local extmarks = formatter.output:get_extmarks()
-  local ns_id = vim.api.nvim_create_namespace('opencode_output')
+  local extmarks = {}
+  if formatter and formatter.output and type(formatter.output.get_extmarks) == 'function' then
+    local ok, res = pcall(formatter.output.get_extmarks, formatter.output)
+    if ok and type(res) == 'table' then
+      extmarks = res
+    end
+  end
+
+  local ns_id = M._ns_id
   pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, ns_id, 0, -1)
 
   for line_num, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do
-      local actual_mark = mark
-      if type(mark) == 'function' then
-        actual_mark = mark()
-      end
+      local actual_mark = type(mark) == 'function' and mark() or mark
       pcall(vim.api.nvim_buf_set_extmark, windows.output_buf, ns_id, line_num - 1, 0, actual_mark)
     end
   end
 end
 
 function M.handle_auto_scroll(windows)
-  local ok, line_count = pcall(vim.api.nvim_buf_line_count, windows.output_buf)
-  if not ok then
-    return
-  end
-
-  local botline = vim.fn.line('w$', windows.output_win)
-  local cursor_pos = vim.fn.getcurpos(windows.output_win)
-  local is_focused = vim.api.nvim_get_current_win() == windows.output_win
-
-  local prev_line_count = vim.b[windows.output_buf].prev_line_count or 0
-  vim.b[windows.output_buf].prev_line_count = line_count
-
-  local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
-
-  if is_focused and cursor_pos[2] < prev_line_count - 1 then
-    return
-  end
-
-  if was_at_bottom or not is_focused then
-    require('opencode.ui.ui').scroll_to_bottom()
-  end
+  -- NOTE: logic moved to stream renderer
+  -- output_render currently only used for loading whole sessions
+  -- so just scroll to the bottom when that happens
+  require('opencode.ui.ui').scroll_to_bottom()
 end
 
 return M

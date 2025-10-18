@@ -23,6 +23,11 @@ end
 function OpencodeApiClient:_call(endpoint, method, body, query)
   if not self.base_url then
     local state = require('opencode.state')
+    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+    -- shouldn't normally happen but prevents error in replay tester
+    if not state.opencode_server_job then
+      return nil
+    end
     self.base_url = state.opencode_server_job.url:gsub('/$', '')
   end
   local url = self.base_url .. endpoint
@@ -188,7 +193,7 @@ end
 --- List messages for a session
 --- @param id string Session ID (required)
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}[]>
+--- @return Promise<OpencodeMessage[]>
 function OpencodeApiClient:list_messages(id, directory)
   return self:_call('/session/' .. id .. '/message', 'GET', nil, { directory = directory })
 end
@@ -197,7 +202,7 @@ end
 --- @param id string Session ID (required)
 --- @param message_data {messageID?: string, model?: {providerID: string, modelID: string}, agent?: string, system?: string, tools?: table<string, boolean>, parts: Part[]} Message creation data
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<{info: MessageInfo, parts: MessagePart[]}>
 function OpencodeApiClient:create_message(id, message_data, directory)
   return self:_call('/session/' .. id .. '/message', 'POST', message_data, { directory = directory })
 end
@@ -206,7 +211,7 @@ end
 --- @param id string Session ID (required)
 --- @param messageID string Message ID (required)
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<OpencodeMessage>
 function OpencodeApiClient:get_message(id, messageID, directory)
   return self:_call('/session/' .. id .. '/message/' .. messageID, 'GET', nil, { directory = directory })
 end
@@ -215,7 +220,7 @@ end
 --- @param id string Session ID (required)
 --- @param command_data {messageID?: string, agent?: string, model?: string, arguments: string, command: string} Command data
 --- @param directory string|nil Directory path
---- @return Promise<{info: Message, parts: MessagePart[]}>
+--- @return Promise<OpencodeMessage>
 function OpencodeApiClient:send_command(id, command_data, directory)
   return self:_call('/session/' .. id .. '/command', 'POST', command_data, { directory = directory })
 end
@@ -224,7 +229,7 @@ end
 --- @param id string Session ID (required)
 --- @param shell_data {agent?: string, command: string} Shell command data
 --- @param directory string|nil Directory path
---- @return Promise<Message>
+--- @return Promise<MessageInfo>
 function OpencodeApiClient:run_shell(id, shell_data, directory)
   return self:_call('/session/' .. id .. '/shell', 'POST', shell_data, { directory = directory })
 end
@@ -356,6 +361,10 @@ end
 --- @param on_event fun(event: table) Event callback
 --- @return Job The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
+  if not self.base_url then
+    local state = require('opencode.state')
+    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+  end
   local url = self.base_url .. '/event'
   if directory then
     url = url .. '?directory=' .. directory

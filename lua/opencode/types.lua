@@ -46,7 +46,6 @@
 ---@field parts_path string
 ---@field snapshot_path string
 ---@field cache_path string
----@field workplace_slug string
 ---@field revert? SessionRevertInfo
 
 ---@class OpencodeKeymapEntry
@@ -212,6 +211,7 @@
 ---@field snapshot string|nil Snapshot commit hash
 ---@field sessionID string|nil Session identifier
 ---@field messageID string|nil Message identifier
+---@field callID string|nil Call identifier (used for tools)
 ---@field hash string|nil Hash identifier for patch parts
 ---@field files string[]|nil List of file paths for patch parts
 ---@field synthetic boolean|nil Whether the message was generated synthetically
@@ -239,11 +239,14 @@
 
 ---@alias OutputExtmark vim.api.keyset.set_extmark|fun():vim.api.keyset.set_extmark
 
----@class Message
+---@class OpencodeMessage
+---@field info MessageInfo Metadata about the message
+---@field parts MessagePart[] Parts that make up the message
+
+---@class MessageInfo
 ---@field id string Unique message identifier
 ---@field sessionID string Unique session identifier
 ---@field tokens MessageTokenCount Token usage statistics
----@field parts MessagePart[] Array of message parts
 ---@field system string[] System messages
 ---@field time { created: number, completed: number } Timestamps
 ---@field cost number Cost of the message

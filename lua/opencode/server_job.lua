@@ -4,6 +4,7 @@ local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
 local M = {}
+M.requests = {}
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -15,6 +16,18 @@ local function handle_api_response(response, cb)
   else
     cb(success and json_body or response.body, nil)
   end
+end
+
+function M.get_unresolved_requests()
+  local unresolved = {}
+
+  for _, data in ipairs(M.requests) do
+    if data[2]._resolved ~= true then
+      table.insert(unresolved, data)
+    end
+  end
+
+  return unresolved
 end
 
 --- Make an HTTP API call to the opencode server.
@@ -34,16 +47,25 @@ function M.call_api(url, method, body)
     callback = function(response)
       handle_api_response(response, function(err, result)
         if err then
-          call_promise:reject(err)
+          local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+          if not ok then
+            vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+          end
           state.job_count = state.job_count - 1
         else
-          call_promise:resolve(result)
+          local ok, pcall_err = pcall(call_promise.resolve, call_promise, result)
+          if not ok then
+            vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+          end
           state.job_count = state.job_count - 1
         end
       end)
     end,
     on_error = function(err)
-      call_promise:reject(err)
+      local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+      if not ok then
+        vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+      end
       state.job_count = state.job_count - 1
     end,
   }
@@ -51,6 +73,29 @@ function M.call_api(url, method, body)
   if body ~= nil then
     opts.body = body and vim.json.encode(body) or '{}'
   end
+
+  -- For promise tracking, remove promises that complete from requests
+  local request_entry = { opts, call_promise }
+  table.insert(M.requests, request_entry)
+
+  local function remove_from_requests()
+    for i, entry in ipairs(M.requests) do
+      if entry == request_entry then
+        table.remove(M.requests, i)
+        break
+      end
+    end
+  end
+
+  call_promise:and_then(function(result)
+    remove_from_requests()
+    return result
+  end)
+
+  call_promise:catch(function(err)
+    remove_from_requests()
+    error(err)
+  end)
 
   curl.request(opts)
   return call_promise
@@ -91,6 +136,19 @@ function M.stream_api(url, method, body, on_chunk)
   return curl.request(opts)
 end
 
+---Forcibly reject any pending requests (they sometimes get stuck
+---after an api abort)
+function M.cancel_all_requests()
+  for _, entry in ipairs(M.requests) do
+    local promise = entry[2]
+    if not promise:is_resolved() then
+      pcall(promise.reject, promise, 'Request cancelled')
+    end
+  end
+
+  M.requests = {}
+end
+
 function M.ensure_server()
   if state.opencode_server_job and state.opencode_server_job:is_running() then
     return state.opencode_server_job
@@ -99,6 +157,7 @@ function M.ensure_server()
   local promise = Promise.new()
   state.opencode_server_job = opencode_server.new()
 
+  ---@diagnostic disable-next-line: missing-fields
   state.opencode_server_job:spawn({
     on_ready = function(_, base_url)
       promise:resolve(state.opencode_server_job)

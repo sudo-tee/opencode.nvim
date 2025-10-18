@@ -1,55 +1,90 @@
 local M = {}
 
 local state = require('opencode.state')
-local session_formatter = require('opencode.ui.session_formatter')
+local output_window = require('opencode.ui.output_window')
 
-local function re_focus()
-  vim.cmd('normal! zt')
+local function is_message_header(details)
+  local icons = require('opencode.ui.icons')
+  local header_user_icon = icons.get('header_user')
+  local header_assistant_icon = icons.get('header_assistant')
+
+  if not details or not details.virt_text then
+    return false
+  end
+
+  local first_virt_text = details.virt_text[1]
+  if not first_virt_text then
+    return false
+  end
+
+  return first_virt_text[1] == header_user_icon or first_virt_text[1] == header_assistant_icon
 end
 
 function M.goto_next_message()
   require('opencode.ui.ui').focus_output()
-  local windows = state.windows
+  local windows = state.windows or {}
   local win = windows.output_win
   local buf = windows.output_buf
-  local all_metadata = session_formatter.output:get_all_metadata()
+
+  if not win or not buf then
+    return
+  end
 
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
-  local line_count = vim.api.nvim_buf_line_count(buf)
-  local current = session_formatter.get_message_at_line(current_line)
-  local current_idx = current and current.msg_idx or 0
 
-  for i = current_line, line_count do
-    local meta = all_metadata[i]
-    if meta and meta.msg_idx > current_idx and meta.type == 'header' then
-      vim.api.nvim_win_set_cursor(win, { i, 0 })
-      re_focus()
+  local extmarks = vim.api.nvim_buf_get_extmarks(
+    buf,
+    output_window.namespace,
+    { current_line, 0 },
+    -1,
+    { details = true }
+  )
+
+  for _, extmark in ipairs(extmarks) do
+    local line = extmark[2] + 1
+    local details = extmark[4]
+
+    if line > current_line and is_message_header(details) then
+      vim.api.nvim_win_set_cursor(win, { line, 0 })
       return
     end
   end
+
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  vim.api.nvim_win_set_cursor(win, { line_count, 0 })
 end
 
 function M.goto_prev_message()
   require('opencode.ui.ui').focus_output()
-  local windows = state.windows
+  local windows = state.windows or {}
   local win = windows.output_win
-  local all_metadata = session_formatter.output:get_all_metadata()
+  local buf = windows.output_buf
+
+  if not win or not buf then
+    return
+  end
 
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
-  local current = session_formatter.get_message_at_line(current_line)
-  local current_idx = current and current.msg_idx or 0
 
-  for i = current_line - 1, 1, -1 do
-    local meta = all_metadata[i]
-    if meta and meta.msg_idx < current_idx and meta.type == 'header' then
-      vim.api.nvim_win_set_cursor(win, { i, 0 })
-      re_focus()
+  local extmarks = vim.api.nvim_buf_get_extmarks(
+    buf,
+    output_window.namespace,
+    0,
+    { current_line - 1, -1 },
+    { details = true }
+  )
+
+  for i = #extmarks, 1, -1 do
+    local extmark = extmarks[i]
+    local line = extmark[2] + 1
+    local details = extmark[4]
+
+    if line < current_line and is_message_header(details) then
+      vim.api.nvim_win_set_cursor(win, { line, 0 })
       return
     end
   end
-
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
-  re_focus()
 end
 
 return M

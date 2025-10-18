@@ -1,27 +1,5 @@
 local M = {}
-
-local function get_best_picker()
-  local config = require('opencode.config')
-
-  local preferred_picker = config.preferred_picker
-  if preferred_picker and preferred_picker ~= '' then
-    return preferred_picker
-  end
-
-  if pcall(require, 'telescope') then
-    return 'telescope'
-  end
-  if pcall(require, 'fzf-lua') then
-    return 'fzf'
-  end
-  if pcall(require, 'mini.pick') then
-    return 'mini.pick'
-  end
-  if pcall(require, 'snacks') then
-    return 'snacks'
-  end
-  return nil
-end
+local picker = require('opencode.ui.picker')
 
 local function format_file(path)
   -- when path is something like: file.extension dir1/dir2 -> format to dir1/dir2/file.extension
@@ -146,9 +124,9 @@ local function snacks_picker_ui(callback, path)
 end
 
 function M.pick(callback, path)
-  local picker = get_best_picker()
+  local picker_type = picker.get_best_picker()
 
-  if not picker then
+  if not picker_type then
     return
   end
 
@@ -158,13 +136,13 @@ function M.pick(callback, path)
   end
 
   vim.schedule(function()
-    if picker == 'telescope' then
+    if picker_type == 'telescope' then
       telescope_ui(wrapped_callback, path)
-    elseif picker == 'fzf' then
+    elseif picker_type == 'fzf' then
       fzf_ui(wrapped_callback, path)
-    elseif picker == 'mini.pick' then
+    elseif picker_type == 'mini.pick' then
       mini_pick_ui(wrapped_callback, path)
-    elseif picker == 'snacks' then
+    elseif picker_type == 'snacks' then
       snacks_picker_ui(wrapped_callback, path)
     else
       callback(nil)

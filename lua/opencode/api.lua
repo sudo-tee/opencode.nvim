@@ -34,8 +34,8 @@ function M.close()
   if state.display_route then
     state.display_route = nil
     ui.clear_output()
+    -- need to trigger a re-render here to re-display the session
     ui.render_output()
-    ui.scroll_to_bottom()
     return
   end
 
@@ -267,6 +267,13 @@ function M.prev_message()
 end
 
 function M.submit_input_prompt()
+  if state.display_route then
+    -- we're displaying /help or something similar, need to clear that and refresh
+    -- the session data before sending the command
+    state.display_route = nil
+    ui.render_output()
+  end
+
   input_window.handle_submit()
 end
 
@@ -353,12 +360,10 @@ end
 
 function M.agent_plan()
   state.current_mode = 'plan'
-  require('opencode.ui.topbar').render()
 end
 
 function M.agent_build()
   state.current_mode = 'build'
-  require('opencode.ui.topbar').render()
 end
 
 function M.select_agent()
@@ -371,7 +376,6 @@ function M.select_agent()
     end
 
     state.current_mode = selection
-    require('opencode.ui.topbar').render()
   end)
 end
 
@@ -388,7 +392,6 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   state.current_mode = modes[next_index]
-  require('opencode.ui.topbar').render()
 end
 
 function M.with_header(lines, show_welcome)
@@ -504,7 +507,6 @@ function M.compact_session(current_session)
     return
   end
 
-  ui.render_output(true)
   local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
   state.api_client
     :summarize_session(current_session.id, {
@@ -529,7 +531,6 @@ function M.share()
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :share_session(state.active_session.id)
     :and_then(function(response)
@@ -555,7 +556,6 @@ function M.unshare()
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :unshare_session(state.active_session.id)
     :and_then(function()
@@ -582,16 +582,17 @@ function M.undo()
     return
   end
 
-  ui.render_output(true)
+  -- ui.render_output(true)
   state.api_client
     :revert_message(state.active_session.id, {
-      messageID = last_user_message.id,
+      messageID = last_user_message.info.id,
     })
     :and_then(function(response)
       state.active_session.revert = response.revert
       vim.schedule(function()
+        -- FIXME: shouldn't require a full re-render
         vim.notify('Last message undone successfully', vim.log.levels.INFO)
-        ui.render_output(true)
+        require('opencode.ui.renderer').render_full_session()
       end)
     end)
     :catch(function(err)
@@ -613,8 +614,9 @@ function M.redo()
     :and_then(function(response)
       state.active_session.revert = response.revert
       vim.schedule(function()
-        vim.notify('Last message rerterted successfully', vim.log.levels.INFO)
-        ui.render_output(true)
+        -- FIXME: shouldn't require a full re-render
+        vim.notify('Last message reverted successfully', vim.log.levels.INFO)
+        require('opencode.ui.renderer').render_full_session()
       end)
     end)
     :catch(function(err)
@@ -632,15 +634,8 @@ function M.respond_to_permission(answer)
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
-    :and_then(function()
-      vim.schedule(function()
-        state.current_permission = nil
-        ui.render_output(true)
-      end)
-    end)
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)

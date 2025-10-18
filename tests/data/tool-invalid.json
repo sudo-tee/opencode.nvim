@@ -1,0 +1,279 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "title": "removal",
+        "directory": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "version": "0.15.0",
+        "id": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760382404951,
+          "updated": 1760382404951
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "modelID": "claude-sonnet-4.5",
+        "role": "assistant",
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760386206864
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "providerID": "github-copilot",
+        "id": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "mode": "build"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "messageID": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "id": "prt_9df31dbba0016WMz330tCy15xM",
+        "type": "step-start"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "callID": "toolu_01S6VFmzFVgdfCCYZDV3sokx",
+        "tool": "edit",
+        "state": {
+          "status": "pending"
+        },
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "messageID": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "id": "prt_9df31dc040016Voad2DzwhYBOm",
+        "type": "tool"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "callID": "toolu_01S6VFmzFVgdfCCYZDV3sokx",
+        "tool": "invalid",
+        "state": {
+          "status": "running",
+          "input": {
+            "tool": "edit",
+            "error": "Invalid input for tool edit: JSON parsing failed: Text: {\"filePath\": \"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\", \"newString\": \"---Event handler for permission.replied events\\n---Re-renders part after permission is resolved\\n---@param event table Event object\\nfunctio.\nError message: JSON Parse error: Unterminated string"
+          },
+          "time": {
+            "start": 1760386212898
+          }
+        },
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "messageID": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "id": "prt_9df31dc040016Voad2DzwhYBOm",
+        "type": "tool"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "callID": "toolu_01S6VFmzFVgdfCCYZDV3sokx",
+        "tool": "invalid",
+        "state": {
+          "status": "completed",
+          "title": "Invalid Tool",
+          "input": {
+            "tool": "edit",
+            "error": "Invalid input for tool edit: JSON parsing failed: Text: {\"filePath\": \"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\", \"newString\": \"---Event handler for permission.replied events\\n---Re-renders part after permission is resolved\\n---@param event table Event object\\nfunctio.\nError message: JSON Parse error: Unterminated string"
+          },
+          "output": "The arguments provided to the tool are invalid: Invalid input for tool edit: JSON parsing failed: Text: {\"filePath\": \"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\", \"newString\": \"---Event handler for permission.replied events\\n---Re-renders part after permission is resolved\\n---@param event table Event object\\nfunctio.\nError message: JSON Parse error: Unterminated string",
+          "metadata": {},
+          "time": {
+            "end": 1760386212900,
+            "start": 1760386212898
+          }
+        },
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "messageID": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "id": "prt_9df31dc040016Voad2DzwhYBOm",
+        "type": "tool"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "messageID": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "id": "prt_9df31e425001bp5r5xQi4zr3Ph",
+        "type": "step-finish"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "modelID": "claude-sonnet-4.5",
+        "role": "assistant",
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760386206864
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "providerID": "github-copilot",
+        "id": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "mode": "build"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "modelID": "claude-sonnet-4.5",
+        "role": "assistant",
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760386206864,
+          "completed": 1760386212950
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "providerID": "github-copilot",
+        "id": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "mode": "build"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "modelID": "claude-sonnet-4.5",
+        "role": "assistant",
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760386206864,
+          "completed": 1760386212951
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "providerID": "github-copilot",
+        "id": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "mode": "build"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "modelID": "claude-sonnet-4.5",
+        "role": "assistant",
+        "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt",
+        "time": {
+          "created": 1760386206864,
+          "completed": 1760386212951
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "cost": 0,
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "providerID": "github-copilot",
+        "id": "msg_9df31cc90001HGn2UbFUgqJnLr",
+        "mode": "build"
+      }
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": {
+      "sessionID": "ses_6210836a9ffejgCtBDIpNCsYMt"
+    }
+  }
+]

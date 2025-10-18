@@ -32,9 +32,9 @@ M.defaults = {
       ['<leader>orr'] = { 'diff_restore_snapshot_file' },
       ['<leader>orR'] = { 'diff_restore_snapshot_all' },
       ['<leader>ox'] = { 'swap_position' },
-      ['<leader>opa'] = { 'permission_accept' },
-      ['<leader>opA'] = { 'permission_accept_all' },
-      ['<leader>opd'] = { 'permission_deny' },
+      ['<leader>oPa'] = { 'permission_accept' },
+      ['<leader>oPA'] = { 'permission_accept_all' },
+      ['<leader>oPd'] = { 'permission_deny' },
     },
     output_window = {
       ['<esc>'] = { 'close' },
@@ -68,6 +68,10 @@ M.defaults = {
       accept = 'a',
       accept_all = 'A',
       deny = 'd',
+    },
+    session_picker = {
+      delete_session = { '<C-d>' },
+      new_session = { '<C-n>' },
     },
   },
   ui = {
@@ -155,6 +159,7 @@ M.defaults = {
   },
   debug = {
     enabled = false,
+    capture_streamed_events = false,
   },
 }
 
@@ -172,7 +177,7 @@ local function get_function_names(keymap_config)
   return names
 end
 
-function update_keymap_prefix(prefix, default_prefix)
+local function update_keymap_prefix(prefix, default_prefix)
   if prefix == default_prefix or not prefix then
     return
   end

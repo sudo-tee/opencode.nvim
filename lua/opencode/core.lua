@@ -27,9 +27,9 @@ function M.select_session(parent_id)
     state.active_session = selected_session
     if state.windows then
       state.restore_points = {}
-      ui.render_output(true)
+      -- Don't need to update either renderer because they subscribe to
+      -- session changes
       ui.focus_input()
-      ui.scroll_to_bottom()
     else
       M.open()
     end
@@ -44,10 +44,6 @@ function M.open(opts)
     state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
   end
 
-  if not M.opencode_ok() then
-    return
-  end
-
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
@@ -57,19 +53,18 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
-    if not state.active_session or opts.new_session then
-      state.active_session = M.create_new_session()
-    end
-
-    ui.clear_output()
+    state.active_session = M.create_new_session()
   else
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
-    end
-
-    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-      ui.render_output()
-      ui.scroll_to_bottom()
+    else
+      if not state.display_route and are_windows_closed then
+        -- We're not displaying /help or something like that but we have an active session
+        -- and the windows were closed so we need to do a full refresh. This mostly happens
+        -- when opening the window after having closed it since we're not currently clearing
+        -- the session on api.close()
+        ui.render_output(false)
+      end
     end
   end
 
@@ -104,16 +99,20 @@ function M.send_message(prompt, opts)
 
   M.before_run(opts)
 
-  ui.render_output(true)
   state.api_client
     :create_message(state.active_session.id, params)
     :and_then(function(response)
-      state.last_output = os.time()
-      ui.render_output()
+      if not response or not response.info or not response.parts then
+        -- fall back to full render. incremental render is handled
+        -- event manager
+        ui.render_output()
+      end
+
       M.after_run(prompt)
     end)
     :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      M.stop()
     end)
 end
 
@@ -128,7 +127,7 @@ function M.create_new_session(title)
     :wait()
 
   if session_response and session_response.id then
-    local new_session = session.get_by_name(session_response.id)
+    local new_session = session.get_by_id(session_response.id)
     return new_session
   end
 end
@@ -138,10 +137,6 @@ function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
   require('opencode.history').write(prompt)
-
-  if state.windows then
-    ui.render_output()
-  end
 end
 
 ---@param opts? SendMessageOpts
@@ -150,7 +145,7 @@ function M.before_run(opts)
   opts = opts or {}
 
   M.stop()
-  ui.clear_output()
+  -- ui.clear_output()
 
   M.open({
     new_session = is_new_session,
@@ -182,10 +177,12 @@ function M.stop()
     if state.is_running() then
       vim.notify('Aborting current request...', vim.log.levels.WARN)
       state.api_client:abort_session(state.active_session.id):wait()
+
+      -- Forcibly reject any pending requests as it seems like they
+      -- can sometimes get stuck
+      server_job.cancel_all_requests()
     end
     require('opencode.ui.footer').clear()
-    ui.stop_render_output()
-    ui.render_output()
     input_window.set_content('')
     require('opencode.history').index = nil
     ui.focus_input()
@@ -227,6 +224,9 @@ function M.opencode_ok()
 end
 
 function M.setup()
+  vim.schedule(function()
+    M.opencode_ok()
+  end)
   local OpencodeApiClient = require('opencode.api_client')
   state.api_client = OpencodeApiClient.new()
 end

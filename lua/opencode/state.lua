@@ -20,12 +20,12 @@ local config = require('opencode.config')
 ---@field last_output number
 ---@field last_sent_context any
 ---@field active_session Session|nil
----@field new_session_name string|nil
 ---@field restore_points table<string, any>
 ---@field current_model string|nil
----@field messages Message[]|nil
----@field current_message Message|nil
----@field last_user_message Message|nil
+---@field current_model_info table|nil
+---@field messages OpencodeMessage[]|nil
+---@field current_message OpencodeMessage|nil
+---@field last_user_message OpencodeMessage|nil
 ---@field current_permission OpencodePermission|nil
 ---@field cost number
 ---@field tokens_count number
@@ -33,12 +33,12 @@ local config = require('opencode.config')
 ---@field opencode_server_job OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
+---@field required_version string
+---@field opencode_cli_version string|nil
+---@field append fun( key:string, value:any)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
----@field append fun( key:string, value:any)
----@field required_version string
----@field opencode_cli_version string|nil
 
 -- Internal raw state table
 local _state = {
@@ -56,9 +56,9 @@ local _state = {
   last_sent_context = nil,
   -- session
   active_session = nil,
-  new_session_name = nil,
   restore_points = {},
   current_model = nil,
+  current_model_info = nil,
   -- messages
   messages = nil,
   current_message = nil,
@@ -113,16 +113,23 @@ end
 
 -- Notify listeners
 local function _notify(key, new_val, old_val)
-  if _listeners[key] then
-    for _, cb in ipairs(_listeners[key]) do
-      pcall(cb, key, new_val, old_val)
+  -- schedule notification to make sure we're not in a fast event
+  -- context
+  vim.schedule(function()
+    if _listeners[key] then
+      for _, cb in ipairs(_listeners[key]) do
+        local ok, err = pcall(cb, key, new_val, old_val)
+        if not ok then
+          vim.notify(err)
+        end
+      end
     end
-  end
-  if _listeners['*'] then
-    for _, cb in ipairs(_listeners['*']) do
-      pcall(cb, key, new_val, old_val)
+    if _listeners['*'] then
+      for _, cb in ipairs(_listeners['*']) do
+        pcall(cb, key, new_val, old_val)
+      end
     end
-  end
+  end)
 end
 
 local function append(key, value)

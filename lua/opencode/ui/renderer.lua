@@ -1,0 +1,608 @@
+local state = require('opencode.state')
+local config = require('opencode.config')
+local formatter = require('opencode.ui.formatter')
+local output_window = require('opencode.ui.output_window')
+local Promise = require('opencode.promise')
+local RenderState = require('opencode.ui.render_state')
+
+local M = {}
+
+M._subscriptions = {}
+M._prev_line_count = 0
+M._render_state = RenderState.new()
+
+---Reset renderer state
+function M.reset()
+  M._prev_line_count = 0
+  M._render_state:reset()
+
+  output_window.clear()
+
+  state.messages = {}
+  state.last_user_message = nil
+  state.current_permission = nil
+end
+
+---Set up all subscriptions, for both local and server events
+function M.setup_subscriptions(_)
+  M._subscriptions.active_session = function(_, new, _)
+    M.reset()
+    if new then
+      M.render_full_session()
+    end
+  end
+  state.subscribe('active_session', M._subscriptions.active_session)
+  M._setup_event_subscriptions()
+end
+
+---Set up server event subscriptions
+---@param subscribe? boolean false to unsubscribe
+function M._setup_event_subscriptions(subscribe)
+  if not state.event_manager then
+    return
+  end
+
+  local method = (subscribe == false) and 'unsubscribe' or 'subscribe'
+
+  state.event_manager[method](state.event_manager, 'message.updated', M.on_message_updated)
+  state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
+  state.event_manager[method](state.event_manager, 'message.removed', M.on_message_removed)
+  state.event_manager[method](state.event_manager, 'message.part.removed', M.on_part_removed)
+  state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
+  state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
+  state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
+  state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
+  state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
+end
+
+---Unsubscribe from local state and server subscriptions
+function M._cleanup_subscriptions()
+  M._setup_event_subscriptions(false)
+  for key, cb in pairs(M._subscriptions) do
+    state.unsubscribe(key, cb)
+  end
+  M._subscriptions = {}
+end
+
+---Clean up and teardown renderer. Unsubscribes from all
+---events, local state and server
+function M.teardown()
+  M._cleanup_subscriptions()
+  M.reset()
+end
+
+local function fetch_session()
+  local session = state.active_session
+  if not state.active_session or not session or session == '' then
+    return Promise.new():resolve(nil)
+  end
+
+  state.last_user_message = nil
+  return require('opencode.session').get_messages(session)
+end
+
+function M.render_full_session()
+  if not output_window.mounted() or not state.api_client then
+    return
+  end
+
+  if config.debug.enabled then
+    -- TODO: I want to track full renders for now, remove at some point
+    vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
+  end
+
+  fetch_session():and_then(M._render_full_session_data)
+end
+
+function M._render_full_session_data(session_data)
+  M.reset()
+
+  for i, msg in ipairs(session_data) do
+    -- output:add_lines(M.separator)
+    -- state.current_message = msg
+
+    if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
+      ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
+      local revert_stats = M._calculate_revert_stats(state.messages, i, state.active_session.revert)
+      local output = require('opencode.ui.output'):new()
+      formatter._format_revert_message(output, revert_stats)
+      M.render_output(output)
+
+      -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
+      break
+    end
+
+    -- only pass in the info so, the parts will be processed as part of the loop
+    -- TODO: remove part processing code in formatter
+    M.on_message_updated({ info = msg.info })
+
+    for j, part in ipairs(msg.parts or {}) do
+      M.on_part_updated({ part = part })
+    end
+
+    -- FIXME: not sure how this error rendering code works when streaming
+    -- if msg.info.error and msg.info.error ~= '' then
+    --   vim.notify('calling _format_error')
+    --   M._format_error(output, msg.info)
+    -- end
+  end
+
+  M._scroll_to_bottom()
+end
+
+---Render lines as the entire output buffer
+---@param lines any
+function M.render_lines(lines)
+  local output = require('opencode.ui.output'):new()
+  output.lines = lines
+  M.render_output(output)
+end
+
+---Sets the entire output buffer based on output_data
+---@param output_data Output Output object from formatter
+function M.render_output(output_data)
+  if not output_window.mounted() then
+    return
+  end
+
+  -- FIXME: add actions to RenderState?
+
+  output_window.set_lines(output_data.lines)
+  output_window.clear_extmarks()
+  output_window.set_extmarks(output_data.extmarks)
+end
+
+---Auto-scroll to bottom if user was already at bottom
+---Respects cursor position if user has scrolled up
+function M._scroll_to_bottom()
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
+  if not ok then
+    return
+  end
+
+  local botline = vim.fn.line('w$', state.windows.output_win)
+  local cursor = vim.api.nvim_win_get_cursor(state.windows.output_win)
+  local cursor_row = cursor[1] or 0
+  local is_focused = vim.api.nvim_get_current_win() == state.windows.output_win
+
+  local prev_line_count = M._prev_line_count or 0
+  M._prev_line_count = line_count
+
+  local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
+
+  if is_focused and cursor_row < prev_line_count - 1 then
+    return
+  end
+
+  if was_at_bottom or not is_focused then
+    require('opencode.ui.ui').scroll_to_bottom()
+  end
+end
+
+---Write data to output_buf, including normal text and extmarks
+---@param formatted_data Output Formatted data as Output object
+---@param part_id? string Optional part ID to store actions
+---@return {line_start: integer, line_end: integer}? Range where data was written
+function M._write_formatted_data(formatted_data, part_id)
+  local buf = state.windows.output_buf
+  local start_line = output_window.get_buf_line_count()
+  local new_lines = formatted_data.lines
+  local extmarks = formatted_data.extmarks
+
+  if #new_lines == 0 or not buf then
+    return nil
+  end
+
+  if part_id and formatted_data.actions then
+    M._render_state:add_actions(part_id, formatted_data.actions, start_line)
+  end
+
+  output_window.set_lines(new_lines, start_line)
+  output_window.set_extmarks(extmarks, start_line)
+
+  return {
+    line_start = start_line,
+    line_end = start_line + #new_lines - 1,
+  }
+end
+
+---Insert new part at end of buffer
+---@param part_id string Part ID
+---@param formatted_data Output Formatted data as Output object
+---@return boolean Success status
+function M._insert_part_to_buffer(part_id, formatted_data)
+  local cached = M._render_state:get_part(part_id)
+  if not cached then
+    return false
+  end
+
+  if #formatted_data.lines == 0 then
+    return true
+  end
+
+  local range = M._write_formatted_data(formatted_data, part_id)
+  if not range then
+    return false
+  end
+
+  M._render_state:set_part(part_id, cached.part, cached.message_id, range.line_start, range.line_end)
+  return true
+end
+
+---Replace existing part in buffer
+---Adjusts line positions of subsequent parts if line count changes
+---@param part_id string Part ID
+---@param formatted_data Output Formatted data as Output object
+---@return boolean Success status
+function M._replace_part_in_buffer(part_id, formatted_data)
+  local cached = M._render_state:get_part(part_id)
+  if not cached or not cached.line_start or not cached.line_end then
+    return false
+  end
+
+  local new_lines = formatted_data.lines
+  local new_line_count = #new_lines
+
+  M._render_state:clear_actions(part_id)
+
+  output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
+  output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
+
+  local new_line_end = cached.line_start + new_line_count - 1
+
+  output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
+
+  if formatted_data.actions then
+    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start)
+  end
+
+  M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)
+
+  return true
+end
+
+---Remove part from buffer and adjust subsequent line positions
+---@param part_id string Part ID
+function M._remove_part_from_buffer(part_id)
+  local cached = M._render_state:get_part(part_id)
+  if not cached or not cached.line_start or not cached.line_end then
+    return
+  end
+
+  if not state.windows or not state.windows.output_buf then
+    return
+  end
+
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
+  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
+
+  M._render_state:remove_part(part_id)
+end
+
+---Remove message header from buffer and adjust subsequent line positions
+---@param message_id string Message ID
+function M._remove_message_from_buffer(message_id)
+  local cached = M._render_state:get_message(message_id)
+  if not cached or not cached.line_start or not cached.line_end then
+    return
+  end
+
+  if not state.windows or not state.windows.output_buf then
+    return
+  end
+
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
+  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
+
+  M._render_state:remove_message(message_id)
+end
+
+---Event handler for message.updated events
+---Creates new message or updates existing message info
+---@param message {info: MessageInfo} Event properties
+function M.on_message_updated(message)
+  ---@type OpencodeMessage
+  if not message or not message.info or not message.info.id or not message.info.sessionID then
+    return
+  end
+
+  if state.active_session.id ~= message.info.sessionID then
+    vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)
+    return
+  end
+
+  local rendered_message = M._render_state:get_message(message.info.id)
+  local found_msg = rendered_message and rendered_message.message
+
+  if found_msg then
+    found_msg.info = message.info
+  else
+    table.insert(state.messages, message)
+
+    local header_data = formatter.format_message_header(message, #state.messages)
+    local range = M._write_formatted_data(header_data)
+
+    if range then
+      M._render_state:set_message(message.info.id, message, range.line_start, range.line_end)
+    end
+
+    state.current_message = message
+
+    if message.info.role == 'user' then
+      state.last_user_message = message
+    end
+  end
+
+  M._update_stats_from_message(message)
+
+  M._scroll_to_bottom()
+end
+
+---Event handler for message.part.updated events
+---Inserts new parts or replaces existing parts in buffer
+---@param properties {part: MessagePart} Event properties
+function M.on_part_updated(properties)
+  if not properties or not properties.part then
+    return
+  end
+
+  local part = properties.part
+  if not part.id or not part.messageID or not part.sessionID then
+    return
+  end
+
+  if state.active_session.id ~= part.sessionID then
+    vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
+    return
+  end
+
+  local rendered_message = M._render_state:get_message(part.messageID)
+  if not rendered_message or not rendered_message.message then
+    vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
+    return
+  end
+
+  local message = rendered_message.message
+
+  message.parts = message.parts or {}
+
+  local part_data = M._render_state:get_part(part.id)
+  local is_new_part = not part_data
+
+  if is_new_part then
+    table.insert(message.parts, part)
+  else
+    for i = #message.parts, 1, -1 do
+      if message.parts[i].id == part.id then
+        message.parts[i] = part
+        break
+      end
+    end
+  end
+
+  if part.type == 'step-start' or part.type == 'step-finish' then
+    return
+  end
+
+  if is_new_part then
+    M._render_state:set_part(part.id, part, part.messageID)
+  else
+    M._render_state:update_part_data(part.id, part)
+  end
+
+  local formatted = formatter.format_part(part, message.info.role)
+
+  if is_new_part then
+    M._insert_part_to_buffer(part.id, formatted)
+  else
+    M._replace_part_in_buffer(part.id, formatted)
+  end
+
+  M._scroll_to_bottom()
+end
+
+---Event handler for message.part.removed events
+---@param properties {sessionID: string, messageID: string, partID: string} Event properties
+function M.on_part_removed(properties)
+  if not properties then
+    return
+  end
+
+  local part_id = properties.partID
+  if not part_id then
+    return
+  end
+
+  local cached = M._render_state:get_part(part_id)
+  if cached and cached.message_id then
+    local rendered_message = M._render_state:get_message(cached.message_id)
+    if rendered_message and rendered_message.message then
+      local message = rendered_message.message
+      if message.parts then
+        for i, part in ipairs(message.parts) do
+          if part.id == part_id then
+            table.remove(message.parts, i)
+            break
+          end
+        end
+      end
+    end
+  end
+
+  M._remove_part_from_buffer(part_id)
+end
+
+---Event handler for message.removed events
+---Removes message and all its parts from buffer
+---@param properties {sessionID: string, messageID: string} Event properties
+function M.on_message_removed(properties)
+  if not properties then
+    return
+  end
+
+  local message_id = properties.messageID
+  if not message_id then
+    return
+  end
+
+  local rendered_message = M._render_state:get_message(message_id)
+  if not rendered_message or not rendered_message.message then
+    return
+  end
+
+  local message = rendered_message.message
+  for _, part in ipairs(message.parts or {}) do
+    if part.id then
+      M._remove_part_from_buffer(part.id)
+    end
+  end
+
+  M._remove_message_from_buffer(message_id)
+
+  for i, msg in ipairs(state.messages) do
+    if msg.info.id == message_id then
+      table.remove(state.messages, i)
+      break
+    end
+  end
+end
+
+---Event handler for session.compacted events
+---@param properties {sessionID: string} Event properties
+function M.on_session_compacted(properties)
+  vim.notify('on_session_compacted')
+  -- TODO: render a note that the session was compacted
+  -- FIXME: did we need unset state.last_sent_context because the
+  -- session was compacted?
+end
+
+---Event handler for session.error events
+---@param properties {sessionID: string, error: table} Event properties
+function M.on_session_error(properties)
+  if not properties or not properties.error then
+    return
+  end
+
+  local error_data = properties.error
+  local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
+
+  local formatted = formatter.format_error_callout(error_message)
+
+  M._write_formatted_data(formatted)
+  M._scroll_to_bottom()
+end
+
+---Event handler for permission.updated events
+---Re-renders part that requires permission
+---@param permission OpencodePermission Event properties
+function M.on_permission_updated(permission)
+  if not permission or not permission.messageID or not permission.callID then
+    return
+  end
+
+  if state.current_permission and state.current_permission.id ~= permission.id then
+    -- we got a permission request while we had an existing one?
+    vim.notify('Two pending permissions? existing: ' .. state.current_permission.id .. ' new: ' .. permission.id)
+
+    -- This will rerender the part with the old permission
+    M.on_permission_replied({})
+  end
+
+  state.current_permission = permission
+
+  local part_id = M._find_part_by_call_id(permission.callID, permission.messageID)
+  if part_id then
+    M._rerender_part(part_id)
+    M._scroll_to_bottom()
+  end
+end
+
+---Event handler for permission.replied events
+---Re-renders part after permission is resolved
+---@param properties {sessionID: string, permissionID: string, response: string} Event properties
+function M.on_permission_replied(properties)
+  if not properties then
+    return
+  end
+
+  local old_permission = state.current_permission
+  state.current_permission = nil
+
+  if old_permission and old_permission.callID then
+    local part_id = M._find_part_by_call_id(old_permission.callID, old_permission.messageID)
+    if part_id then
+      M._rerender_part(part_id)
+      M._scroll_to_bottom()
+    end
+  end
+end
+
+function M.on_file_edited(properties)
+  vim.cmd('checktime')
+end
+
+---Find part ID by call ID and message ID
+---Useful for finding a part for a permission
+---@param call_id string Call ID to search for
+---@param message_id string Message ID to check the parts of
+---@return string? part_id Part ID if found, nil otherwise
+function M._find_part_by_call_id(call_id, message_id)
+  return M._render_state:get_part_by_call_id(call_id, message_id)
+end
+
+---Re-render existing part with current state
+---Used for permission updates and other dynamic changes
+---@param part_id string Part ID to re-render
+function M._rerender_part(part_id)
+  local cached = M._render_state:get_part(part_id)
+  if not cached or not cached.part then
+    return
+  end
+
+  local part = cached.part
+  local rendered_message = M._render_state:get_message(cached.message_id)
+  if not rendered_message or not rendered_message.message then
+    return
+  end
+
+  local message = rendered_message.message
+  local formatted = formatter.format_part(part, message.info.role)
+
+  M._replace_part_in_buffer(part_id, formatted)
+end
+
+---Get all actions available at a specific line
+---@param line number 1-indexed line number
+---@return table[] List of actions available at that line
+function M.get_actions_for_line(line)
+  return M._render_state:get_actions_at_line(line)
+end
+
+---Update stats from all messages in session
+---@param messages OpencodeMessage[]
+function M._update_stats_from_messages(messages)
+  for _, msg in ipairs(messages) do
+    M._update_stats_from_message(msg)
+  end
+end
+
+---Update display stats from a single message
+---@param message OpencodeMessage
+function M._update_stats_from_message(message)
+  if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
+    state.current_model = message.info.providerID .. '/' .. message.info.modelID
+  end
+
+  if message.info.tokens and message.info.tokens.input > 0 then
+    state.tokens_count = message.info.tokens.input
+      + message.info.tokens.output
+      + message.info.tokens.cache.read
+      + message.info.tokens.cache.write
+  end
+
+  if message.info.cost and type(message.info.cost) == 'number' then
+    state.cost = message.info.cost
+  end
+end
+
+return M

@@ -69,6 +69,9 @@ M.defaults = {
       accept_all = 'A',
       deny = 'd',
     },
+    session_picker = {
+      delete_session = { '<C-d>' },
+    },
   },
   ui = {
     position = 'right',

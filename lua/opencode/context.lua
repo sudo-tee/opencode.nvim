@@ -96,7 +96,9 @@ function M.add_file(file)
     M.context.mentioned_files = {}
   end
 
-  if vim.fn.filereadable(file) ~= 1 then
+  local is_file = vim.fn.filereadable(file) == 1
+  local is_dir = vim.fn.isdirectory(file) == 1
+  if not is_file and not is_dir then
     vim.notify('File not added to context. Could not read.')
     return
   end

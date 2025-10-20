@@ -19,6 +19,10 @@ local trigger_on_data_rendered = require('opencode.util').debounce(function()
     return
   end
 
+  if not state.windows then
+    return
+  end
+
   if cb_type == 'function' then
     pcall(config.ui.on_data_rendered, state.windows.output_buf, state.windows.output_win)
   elseif vim.fn.exists(':RenderMarkdown') > 0 then

@@ -109,6 +109,7 @@ end
 ---Format the revert callout with statistics
 ---@param session_data OpencodeMessage[] All messages in the session
 ---@param start_idx number Index of the message where revert occurred
+---@return Output output object representing the lines, extmarks, and actions
 function M._format_revert_message(session_data, start_idx)
   local output = Output.new()
   local stats = M._calculate_revert_stats(session_data, start_idx, state.active_session.revert)

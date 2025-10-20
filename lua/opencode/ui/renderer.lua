@@ -106,7 +106,7 @@ function M.render_full_session()
 
   if config.debug.enabled then
     -- TODO: I want to track full renders for now, remove at some point
-    -- vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
+    vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
   end
 
   fetch_session():and_then(M._render_full_session_data)
@@ -124,11 +124,9 @@ function M._render_full_session_data(session_data)
       revert_index = i
     end
 
-    -- only pass in the info so, the parts will be processed as part of the loop
-    -- TODO: remove part processing code in formatter
     M.on_message_updated({ info = msg.info }, revert_index)
 
-    for j, part in ipairs(msg.parts or {}) do
+    for _, part in ipairs(msg.parts or {}) do
       M.on_part_updated({ part = part }, revert_index)
     end
   end
@@ -235,7 +233,7 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
-  M._render_state:set_part(part_id, cached.part, cached.message_id, range.line_start, range.line_end)
+  M._render_state:set_part(cached.part, range.line_start, range.line_end)
   return true
 end
 
@@ -328,7 +326,7 @@ function M._replace_message_in_buffer(message_id, formatted_data)
   local old_line_end = cached.line_end
   local new_line_end = cached.line_start + new_line_count - 1
 
-  M._render_state:set_message(message_id, cached.message, cached.line_start, new_line_end)
+  M._render_state:set_message(cached.message, cached.line_start, new_line_end)
 
   local delta = new_line_end - old_line_end
   if delta ~= 0 then
@@ -360,7 +358,7 @@ function M.on_message_updated(message, revert_index)
     if not found_msg then
       table.insert(state.messages, message)
     end
-    M._render_state:set_message(message.info.id, message, 0, 0)
+    M._render_state:set_message(message, 0, 0)
     return
   end
 
@@ -382,7 +380,7 @@ function M.on_message_updated(message, revert_index)
     local range = M._write_formatted_data(header_data)
 
     if range then
-      M._render_state:set_message(message.info.id, message, range.line_start, range.line_end)
+      M._render_state:set_message(message, range.line_start, range.line_end)
     end
 
     state.current_message = message
@@ -444,9 +442,9 @@ function M.on_part_updated(properties, revert_index)
   end
 
   if is_new_part then
-    M._render_state:set_part(part.id, part, part.messageID)
+    M._render_state:set_part(part)
   else
-    M._render_state:update_part_data(part.id, part)
+    M._render_state:update_part_data(part)
   end
 
   local formatted = formatter.format_part(part, message.info.role)

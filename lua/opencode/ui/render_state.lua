@@ -129,20 +129,24 @@ function RenderState:get_actions_at_line(line)
 end
 
 ---Set or update message render data
----@param message_id string Message ID
----@param message_ref OpencodeMessage Direct reference to message
+---@param message OpencodeMessage Direct reference to message
 ---@param line_start integer? Line where message header starts
 ---@param line_end integer? Line where message header ends
-function RenderState:set_message(message_id, message_ref, line_start, line_end)
+function RenderState:set_message(message, line_start, line_end)
+  if not message or not message.info or not message.info.id then
+    return
+  end
+  local message_id = message.info.id
+
   if not self._messages[message_id] then
     self._messages[message_id] = {
-      message = message_ref,
+      message = message,
       line_start = line_start,
       line_end = line_end,
     }
   else
     local msg_data = self._messages[message_id]
-    msg_data.message = message_ref
+    msg_data.message = message
     if line_start then
       msg_data.line_start = line_start
     end
@@ -157,12 +161,16 @@ function RenderState:set_message(message_id, message_ref, line_start, line_end)
 end
 
 ---Set or update part render data
----@param part_id string Part ID
----@param part MessagePart Direct reference to part
----@param message_id string Parent message ID
+---@param part MessagePart Direct reference to part (must include id/messageID)
 ---@param line_start integer? Line where part starts
 ---@param line_end integer? Line where part ends
-function RenderState:set_part(part_id, part, message_id, line_start, line_end)
+function RenderState:set_part(part, line_start, line_end)
+  if not part or not part.id then
+    return
+  end
+  local part_id = part.id
+  local message_id = part.messageID
+
   if not self._parts[part_id] then
     self._parts[part_id] = {
       part = part,
@@ -174,7 +182,9 @@ function RenderState:set_part(part_id, part, message_id, line_start, line_end)
   else
     local render_part = self._parts[part_id]
     render_part.part = part
-    render_part.message_id = message_id
+    if message_id then
+      render_part.message_id = message_id
+    end
     if line_start then
       render_part.line_start = line_start
     end
@@ -218,10 +228,12 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
 end
 
 ---Update part data reference
----@param part_id string Part ID
----@param part_ref MessagePart New part reference
-function RenderState:update_part_data(part_id, part_ref)
-  local part_data = self._parts[part_id]
+---@param part_ref MessagePart New part reference (must include id)
+function RenderState:update_part_data(part_ref)
+  if not part_ref or not part_ref.id then
+    return
+  end
+  local part_data = self._parts[part_ref.id]
   if not part_data then
     return
   end

@@ -310,7 +310,6 @@ end
 ---@param formatted_data Output Formatted header as Output object
 ---@return boolean Success status
 function M._replace_message_in_buffer(message_id, formatted_data)
-  vim.notify('replacing message in buffer')
   local cached = M._render_state:get_message(message_id)
   if not cached or not cached.line_start or not cached.line_end then
     return false

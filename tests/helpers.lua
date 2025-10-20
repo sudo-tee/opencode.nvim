@@ -216,6 +216,7 @@ function M.get_session_from_events(events)
 end
 
 function M.replay_event(event)
+  event = vim.deepcopy(event)
   local renderer = require('opencode.ui.renderer')
   if event.type == 'message.updated' then
     renderer.on_message_updated(event.properties)

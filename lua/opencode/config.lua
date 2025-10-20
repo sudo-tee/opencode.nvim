@@ -42,7 +42,7 @@ M.defaults = {
       [']]'] = { 'next_message' },
       ['[['] = { 'prev_message' },
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
-      ['<C-i>'] = { 'focus_input' },
+      ['i'] = { 'focus_input' },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },

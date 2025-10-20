@@ -135,7 +135,7 @@ function M.focus_input(opts)
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
   end
   if opts.start_insert then
-    vim.cmd('startinsert')
+    vim.api.nvim_feedkeys('a', 'n', false)
   end
 end
 

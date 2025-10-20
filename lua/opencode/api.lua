@@ -18,12 +18,10 @@ end
 
 function M.open_input()
   core.open({ new_session = false, focus = 'input' })
-  vim.cmd('startinsert')
 end
 
 function M.open_input_new_session()
   core.open({ new_session = true, focus = 'input' })
-  vim.cmd('startinsert')
 end
 
 function M.open_output()

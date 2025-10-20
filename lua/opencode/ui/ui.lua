@@ -11,12 +11,6 @@ local topbar = require('opencode.ui.topbar')
 function M.scroll_to_bottom()
   local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
   vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
-
-  -- TODO: shouldn't have hardcoded calls to render_markdown,
-  -- should support user callbacks
-  vim.defer_fn(function()
-    output_renderer.render_markdown()
-  end, 200)
 end
 
 ---@param windows OpencodeWindowState
@@ -186,7 +180,6 @@ function M.clear_output()
   output_window.clear()
   footer.clear()
   topbar.render()
-  output_renderer.render_markdown()
   -- state.restore_points = {}
 end
 
@@ -197,9 +190,6 @@ end
 function M.render_lines(lines)
   M.clear_output()
   renderer.render_lines(lines)
-
-  -- FIXME: rehook up markdown at some point (user provided callback?)
-  -- output_renderer.render_markdown()
 end
 
 function M.select_session(sessions, cb)

@@ -99,6 +99,7 @@ M.defaults = {
       text = {
         wrap = false,
       },
+      on_data_rendered = nil,
     },
     completion = {
       file_sources = {

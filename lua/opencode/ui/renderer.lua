@@ -11,6 +11,22 @@ M._subscriptions = {}
 M._prev_line_count = 0
 M._render_state = RenderState.new()
 
+local trigger_on_data_rendered = require('opencode.util').debounce(function()
+  local cb_type = type(config.ui.on_data_rendered)
+
+  if cb_type == 'boolean' then
+    return
+  end
+
+  if cb_type == 'function' then
+    pcall(config.ui.on_data_rendered, state.windows.output_buf, state.windows.output_win)
+  elseif vim.fn.exists(':RenderMarkdown') > 0 then
+    vim.cmd(':RenderMarkdown')
+  elseif vim.fn.exists(':Markview') then
+    vim.cmd(':Markview render ' .. state.windows.output_buf)
+  end
+end, 250)
+
 ---Reset renderer state
 function M.reset()
   M._prev_line_count = 0
@@ -21,6 +37,7 @@ function M.reset()
   state.messages = {}
   state.last_user_message = nil
   state.current_permission = nil
+  trigger_on_data_rendered()
 end
 
 ---Set up all subscriptions, for both local and server events
@@ -145,11 +162,10 @@ function M.render_output(output_data)
     return
   end
 
-  -- FIXME: add actions to RenderState?
-
   output_window.set_lines(output_data.lines)
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
+  M._scroll_to_bottom()
 end
 
 ---Auto-scroll to bottom if user was already at bottom
@@ -169,6 +185,8 @@ function M._scroll_to_bottom()
   M._prev_line_count = line_count
 
   local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
+
+  trigger_on_data_rendered()
 
   if is_focused and cursor_row < prev_line_count - 1 then
     return

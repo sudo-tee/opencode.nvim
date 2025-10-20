@@ -214,6 +214,7 @@ require('opencode').setup({
         max_files = 10,
         max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with "..."
       },
+      on_data_rendered = nil, -- Called when new data is rendered (debounced to 250ms), useful to trigger markdown rendering. Set to false to disable default behavior of checking for RenderMarkdown and Markview
     },
   },
   context = {

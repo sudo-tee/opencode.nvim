@@ -95,6 +95,7 @@
 ---@field output { tools: { show_output: boolean } }
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
+---@field on_data_rendered fun(ctx: { buf: integer, win: integer })|nil
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean

@@ -176,11 +176,14 @@ function M.stop()
   if state.windows and state.active_session then
     if state.is_running() then
       vim.notify('Aborting current request...', vim.log.levels.WARN)
-      state.api_client:abort_session(state.active_session.id):wait()
 
-      -- Forcibly reject any pending requests as it seems like they
-      -- can sometimes get stuck
-      server_job.cancel_all_requests()
+      -- FIXME: I think my understanding / logic was wrong here. We don't
+      -- just want to cancel our requests to the opencode server, we
+      -- want the opencode server to cance it's requests. Commenting out
+      -- this code for now and will do more testing
+      -- server_job.cancel_all_requests()
+
+      state.api_client:abort_session(state.active_session.id):wait()
     end
     require('opencode.ui.footer').clear()
     input_window.set_content('')

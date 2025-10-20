@@ -139,19 +139,11 @@ end
 ---Forcibly reject any pending requests (they sometimes get stuck
 ---after an api abort)
 function M.cancel_all_requests()
-  if vim.deep_equal(M.requests, {}) then
-    -- If we're canceling again and we've already cleared the requests, set the
-    -- job_count to 0
-    state.job_count = 0
-  else
-    for _, entry in ipairs(M.requests) do
-      local promise = entry[2]
-      if not promise:is_resolved() then
-        pcall(promise.reject, promise, 'Request cancelled')
-      end
+  for _, entry in ipairs(M.requests) do
+    local promise = entry[2]
+    if not promise:is_resolved() then
+      pcall(promise.reject, promise, 'Request cancelled')
     end
-
-    M.requests = {}
   end
 end
 

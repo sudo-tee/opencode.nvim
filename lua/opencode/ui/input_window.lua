@@ -167,7 +167,7 @@ function M.clear_placeholder(windows)
 end
 
 function M.recover_input(windows)
-  M.set_content(state.input_content)
+  M.set_content(state.input_content, windows)
   require('opencode.ui.mention').highlight_all_mentions(windows.input_buf)
 end
 

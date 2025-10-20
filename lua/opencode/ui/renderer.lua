@@ -137,12 +137,6 @@ function M._render_full_session_data(session_data)
     for j, part in ipairs(msg.parts or {}) do
       M.on_part_updated({ part = part })
     end
-
-    -- FIXME: not sure how this error rendering code works when streaming
-    -- if msg.info.error and msg.info.error ~= '' then
-    --   vim.notify('calling _format_error')
-    --   M._format_error(output, msg.info)
-    -- end
   end
 
   M._scroll_to_bottom()
@@ -316,6 +310,37 @@ function M._remove_message_from_buffer(message_id)
   M._render_state:remove_message(message_id)
 end
 
+---Replace existing message header in buffer
+---@param message_id string Message ID
+---@param formatted_data Output Formatted header as Output object
+---@return boolean Success status
+function M._replace_message_in_buffer(message_id, formatted_data)
+  vim.notify('replacing message in buffer')
+  local cached = M._render_state:get_message(message_id)
+  if not cached or not cached.line_start or not cached.line_end then
+    return false
+  end
+
+  local new_lines = formatted_data.lines
+  local new_line_count = #new_lines
+
+  output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
+  output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
+  output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
+
+  local old_line_end = cached.line_end
+  local new_line_end = cached.line_start + new_line_count - 1
+
+  M._render_state:set_message(message_id, cached.message, cached.line_start, new_line_end)
+
+  local delta = new_line_end - old_line_end
+  if delta ~= 0 then
+    M._render_state:shift_all(old_line_end + 1, delta)
+  end
+
+  return true
+end
+
 ---Event handler for message.updated events
 ---Creates new message or updates existing message info
 ---@param message {info: MessageInfo} Event properties
@@ -334,11 +359,20 @@ function M.on_message_updated(message)
   local found_msg = rendered_message and rendered_message.message
 
   if found_msg then
+    -- see if an error was added (or removed). have to check before we set
+    -- found_msg.info = message.info below
+    local rerender_message = not vim.deep_equal(found_msg.info.error, message.info.error)
+
     found_msg.info = message.info
+
+    if rerender_message then
+      local header_data = formatter.format_message_header(found_msg)
+      M._replace_message_in_buffer(message.info.id, header_data)
+    end
   else
     table.insert(state.messages, message)
 
-    local header_data = formatter.format_message_header(message, #state.messages)
+    local header_data = formatter.format_message_header(message)
     local range = M._write_formatted_data(header_data)
 
     if range then
@@ -508,13 +542,19 @@ function M.on_session_error(properties)
     return
   end
 
-  local error_data = properties.error
-  local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
+  -- NOTE: we're handling message errors so session errors seem duplicative
 
-  local formatted = formatter.format_error_callout(error_message)
+  if config.debug.enabled then
+    vim.notify('Session error: ' .. vim.inspect(properties.error))
+  end
 
-  M._write_formatted_data(formatted)
-  M._scroll_to_bottom()
+  -- local error_data = properties.error
+  -- local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
+  --
+  -- local formatted = formatter.format_error_callout(error_message)
+  --
+  -- M._write_formatted_data(formatted)
+  -- M._scroll_to_bottom()
 end
 
 ---Event handler for permission.updated events

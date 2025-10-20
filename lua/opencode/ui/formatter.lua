@@ -220,9 +220,8 @@ function M._format_error(output, message)
 end
 
 ---@param message OpencodeMessage
----@param msg_idx number Message index in the session
 ---@return Output
-function M.format_message_header(message, msg_idx)
+function M.format_message_header(message)
   local output = Output.new()
 
   output:add_lines(M.separator)
@@ -236,7 +235,6 @@ function M.format_message_header(message, msg_idx)
   local debug_text = config.debug and ' [' .. message.info.id .. ']' or ''
 
   output:add_empty_line()
-  output:add_metadata({ msg_idx = msg_idx, part_idx = 1, role = role, type = 'header' })
 
   local display_name
   if role == 'assistant' then
@@ -246,7 +244,7 @@ function M.format_message_header(message, msg_idx)
     else
       -- For the most recent assistant message, show current_mode if mode is missing
       -- This handles new messages that haven't been stamped yet
-      local is_last_message = msg_idx == #state.messages
+      local is_last_message = #state.messages == 0 or message.info.id == state.messages[#state.messages].info.id
       if is_last_message and state.current_mode and state.current_mode ~= '' then
         display_name = state.current_mode:upper()
       else
@@ -269,6 +267,14 @@ function M.format_message_header(message, msg_idx)
     virt_text_win_col = -3,
     priority = 10,
   })
+
+  if role == 'assistant' and message.info.error and message.info.error ~= '' then
+    local error = message.info.error
+    local error_messgage = error.data and error.data.message or vim.inspect(error)
+
+    output:add_line('')
+    M._format_callout(output, 'ERROR', error_messgage)
+  end
 
   output:add_line('')
   return output

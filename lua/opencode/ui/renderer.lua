@@ -61,12 +61,13 @@ function M._setup_event_subscriptions(subscribe)
 
   local method = (subscribe == false) and 'unsubscribe' or 'subscribe'
 
+  state.event_manager[method](state.event_manager, 'session.updated', M.on_session_updated)
+  state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
+  state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
   state.event_manager[method](state.event_manager, 'message.updated', M.on_message_updated)
   state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
   state.event_manager[method](state.event_manager, 'message.removed', M.on_message_removed)
   state.event_manager[method](state.event_manager, 'message.part.removed', M.on_part_removed)
-  state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
-  state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
   state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
   state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
   state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
@@ -492,6 +493,12 @@ function M.on_session_compacted(properties)
   -- TODO: render a note that the session was compacted
   -- FIXME: did we need unset state.last_sent_context because the
   -- session was compacted?
+end
+
+---Event handler for session.updated events
+---@param properties {info: Session}
+function M.on_session_updated(properties)
+  require('opencode.ui.topbar').render()
 end
 
 ---Event handler for session.error events

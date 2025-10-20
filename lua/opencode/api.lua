@@ -556,7 +556,7 @@ function M.unshare()
 
   state.api_client
     :unshare_session(state.active_session.id)
-    :and_then(function()
+    :and_then(function(response)
       vim.schedule(function()
         vim.notify('Session unshared successfully', vim.log.levels.INFO)
       end)
@@ -568,21 +568,22 @@ function M.unshare()
     end)
 end
 
-function M.undo()
+---@param messageId? string
+function M.undo(messageId)
   if not state.active_session then
     vim.notify('No active session to undo', vim.log.levels.WARN)
     return
   end
 
-  local last_user_message = state.last_user_message
-  if not last_user_message then
+  local message_to_revert = messageId or state.last_user_message and state.last_user_message.info.id
+  if not message_to_revert then
     vim.notify('No user message to undo', vim.log.levels.WARN)
     return
   end
 
   state.api_client
     :revert_message(state.active_session.id, {
-      messageID = last_user_message.info.id,
+      messageID = message_to_revert,
     })
     :and_then(function(response)
       vim.schedule(function()
@@ -596,25 +597,93 @@ function M.undo()
     end)
 end
 
+-- Returns the ID of the next user message after the current undo point
+-- This is a port of the opencode tui logic
+-- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
+function find_next_message_for_redo()
+  if not state.active_session then
+    return nil
+  end
+
+  local revert_time = 0
+  local revert = state.active_session.revert
+
+  if not revert then
+    return nil
+  end
+
+  for _, message in ipairs(state.messages or {}) do
+    if message.info.id == revert.messageID then
+      revert_time = math.floor(message.info.time.created)
+      break
+    end
+    if revert.partID and revert.partID ~= '' then
+      for _, part in ipairs(message.parts) do
+        if part.id == revert.partID and part.state and part.state.time then
+          revert_time = math.floor(part.state.time.start)
+          break
+        end
+      end
+    end
+  end
+
+  -- Find next user message after revert time
+  local next_message_id = nil
+  for _, msg in ipairs(state.messages or {}) do
+    if msg.info.role == 'user' and msg.info.time.created > revert_time then
+      next_message_id = msg.info.id
+      break
+    end
+  end
+  return next_message_id
+end
+
 function M.redo()
   if not state.active_session then
-    vim.notify('No active session to undo', vim.log.levels.WARN)
+    vim.notify('No active session to redo', vim.log.levels.WARN)
     return
   end
-  ui.render_output(true)
 
-  state.api_client
-    :unrevert_messages(state.active_session.id)
-    :and_then(function(response)
-      vim.schedule(function()
-        vim.cmd('checktime')
+  if not state.active_session.revert or state.active_session.revert.messageID == '' then
+    vim.notify('Nothing to redo', vim.log.levels.WARN)
+    return
+  end
+
+  if not state.messages then
+    return
+  end
+
+  local next_message_id = find_next_message_for_redo()
+  if not next_message_id then
+    state.api_client
+      :unrevert_messages(state.active_session.id)
+      :and_then(function(response)
+        vim.schedule(function()
+          vim.cmd('checktime')
+        end)
       end)
-    end)
-    :catch(function(err)
-      vim.schedule(function()
-        vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      :catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to redo message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+        end)
       end)
-    end)
+  else
+    -- Calling revert on a "later" message is like a redo
+    state.api_client
+      :revert_message(state.active_session.id, {
+        messageID = next_message_id,
+      })
+      :and_then(function(response)
+        vim.schedule(function()
+          vim.cmd('checktime')
+        end)
+      end)
+      :catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to redo message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+        end)
+      end)
+  end
 end
 
 ---@param answer? 'once'|'always'|'reject'

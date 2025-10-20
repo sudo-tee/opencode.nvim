@@ -200,14 +200,14 @@ function M.load_session_from_events(events)
   return session_data
 end
 
-function M.get_session_from_events(events, with_revert)
+function M.get_session_from_events(events, with_session_updates)
   -- renderer needs a valid session id
   -- find the last session.updated event
 
-  if with_revert then
+  if with_session_updates then
     for i = #events, 1, -1 do
       local event = events[i]
-      if event.type == 'session.updated' and event.properties.info and event.properties.info.revert then
+      if event.type == 'session.updated' and event.properties.info and event.properties.info then
         return event.properties.info
       end
     end

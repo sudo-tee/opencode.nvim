@@ -2,8 +2,9 @@ local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
+local assert = require('luassert')
 
-local function assert_output_matches(expected, actual)
+local function assert_output_matches(expected, actual, name)
   local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
 
   assert.are.equal(
@@ -68,18 +69,24 @@ local function assert_output_matches(expected, actual)
   )
 
   if expected.actions then
-    for i = 1, #expected.actions do
-      assert.are.same(
-        expected.actions[i],
-        actual.actions[i],
-        string.format(
-          'Action %d mismatch:\n  Expected: %s\n  Actual: %s',
-          i,
-          vim.inspect(expected.actions[i]),
-          vim.inspect(actual.actions[i])
-        )
-      )
+    -- Sort both arrays for consistent comparison since order doesn't matter
+    local function sort_actions(actions)
+      local sorted = vim.deepcopy(actions)
+      table.sort(sorted, function(a, b)
+        return vim.inspect(a) < vim.inspect(b)
+      end)
+      return sorted
     end
+
+    assert.same(
+      sort_actions(expected.actions),
+      sort_actions(actual.actions),
+      string.format(
+        'Actions mismatch:\n  Expected: %s\n  Actual: %s',
+        vim.inspect(expected.actions),
+        vim.inspect(actual.actions)
+      )
+    )
   end
 end
 
@@ -121,8 +128,8 @@ describe('renderer', function()
           helpers.replay_events(events)
           vim.wait(200)
 
-          local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
-          assert_output_matches(expected, actual)
+          local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
+          assert_output_matches(expected, actual, name)
         end)
 
         if not vim.tbl_contains(skip_full_session, name) then
@@ -137,8 +144,8 @@ describe('renderer', function()
             renderer._render_full_session_data(session_data)
             vim.wait(200)
 
-            local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
-            assert_output_matches(expected, actual)
+            local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
+            assert_output_matches(expected, actual, name)
           end)
         end
       end

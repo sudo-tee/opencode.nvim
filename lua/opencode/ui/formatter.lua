@@ -107,12 +107,15 @@ function M._calculate_revert_stats(messages, revert_index, revert_info)
 end
 
 ---Format the revert callout with statistics
----@param output Output Output object to write to
----@param stats {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
-function M._format_revert_message(output, stats)
+---@param session_data OpencodeMessage[] All messages in the session
+---@param start_idx number Index of the message where revert occurred
+function M._format_revert_message(session_data, start_idx)
+  local output = Output.new()
+  local stats = M._calculate_revert_stats(session_data, start_idx, state.active_session.revert)
   local message_text = stats.messages == 1 and 'message' or 'messages'
   local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
 
+  output:add_lines(M.separator)
   output:add_line(
     string.format('> %d %s reverted, %d %s reverted', stats.messages, message_text, stats.tool_calls, tool_text)
   )
@@ -146,6 +149,7 @@ function M._format_revert_message(output, stats)
       end
     end
   end
+  return output
 end
 
 ---@param output Output Output object to write to

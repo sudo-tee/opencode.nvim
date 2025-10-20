@@ -580,17 +580,13 @@ function M.undo()
     return
   end
 
-  -- ui.render_output(true)
   state.api_client
     :revert_message(state.active_session.id, {
       messageID = last_user_message.info.id,
     })
     :and_then(function(response)
-      state.active_session.revert = response.revert
       vim.schedule(function()
-        -- FIXME: shouldn't require a full re-render
-        vim.notify('Last message undone successfully', vim.log.levels.INFO)
-        require('opencode.ui.renderer').render_full_session()
+        vim.cmd('checktime')
       end)
     end)
     :catch(function(err)
@@ -610,11 +606,8 @@ function M.redo()
   state.api_client
     :unrevert_messages(state.active_session.id)
     :and_then(function(response)
-      state.active_session.revert = response.revert
       vim.schedule(function()
-        -- FIXME: shouldn't require a full re-render
-        vim.notify('Last message reverted successfully', vim.log.levels.INFO)
-        require('opencode.ui.renderer').render_full_session()
+        vim.cmd('checktime')
       end)
     end)
     :catch(function(err)

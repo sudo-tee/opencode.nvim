@@ -129,7 +129,8 @@ describe('renderer', function()
           it('replays ' .. name .. ' correctly (session)', function()
             local renderer = require('opencode.ui.renderer')
             local events = helpers.load_test_data(filepath)
-            state.active_session = helpers.get_session_from_events(events)
+            state.active_session = helpers.get_session_from_events(events, true)
+            --FIXME: find the appropriate way to load the session data
             local expected = helpers.load_test_data(expected_path)
 
             local session_data = helpers.load_session_from_events(events)

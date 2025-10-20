@@ -106,7 +106,7 @@ function M.render_full_session()
 
   if config.debug.enabled then
     -- TODO: I want to track full renders for now, remove at some point
-    vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
+    -- vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
   end
 
   fetch_session():and_then(M._render_full_session_data)
@@ -114,31 +114,28 @@ end
 
 function M._render_full_session_data(session_data)
   M.reset()
+  local revert_index = nil
 
   for i, msg in ipairs(session_data) do
     -- output:add_lines(M.separator)
     -- state.current_message = msg
 
     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
-      ---@type {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
-      local revert_stats = M._calculate_revert_stats(state.messages, i, state.active_session.revert)
-      local output = require('opencode.ui.output'):new()
-      formatter._format_revert_message(output, revert_stats)
-      M.render_output(output)
-
-      -- FIXME: how does reverting work? why is it breaking out of the message reading loop?
-      break
+      revert_index = i
     end
 
     -- only pass in the info so, the parts will be processed as part of the loop
     -- TODO: remove part processing code in formatter
-    M.on_message_updated({ info = msg.info })
+    M.on_message_updated({ info = msg.info }, revert_index)
 
     for j, part in ipairs(msg.parts or {}) do
-      M.on_part_updated({ part = part })
+      M.on_part_updated({ part = part }, revert_index)
     end
   end
 
+  if revert_index then
+    M._write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
+  end
   M._scroll_to_bottom()
 end
 
@@ -344,7 +341,8 @@ end
 ---Event handler for message.updated events
 ---Creates new message or updates existing message info
 ---@param message {info: MessageInfo} Event properties
-function M.on_message_updated(message)
+---@param revert_index? integer Revert index in session, if applicable
+function M.on_message_updated(message, revert_index)
   ---@type OpencodeMessage
   if not message or not message.info or not message.info.id or not message.info.sessionID then
     return
@@ -358,6 +356,14 @@ function M.on_message_updated(message)
   local rendered_message = M._render_state:get_message(message.info.id)
   local found_msg = rendered_message and rendered_message.message
 
+  if revert_index then
+    if not found_msg then
+      table.insert(state.messages, message)
+    end
+    M._render_state:set_message(message.info.id, message, 0, 0)
+    return
+  end
+
   if found_msg then
     -- see if an error was added (or removed). have to check before we set
     -- found_msg.info = message.info below
@@ -365,7 +371,7 @@ function M.on_message_updated(message)
 
     found_msg.info = message.info
 
-    if rerender_message then
+    if rerender_message and not revert_index then
       local header_data = formatter.format_message_header(found_msg)
       M._replace_message_in_buffer(message.info.id, header_data)
     end
@@ -380,7 +386,6 @@ function M.on_message_updated(message)
     end
 
     state.current_message = message
-
     if message.info.role == 'user' then
       state.last_user_message = message
     end
@@ -394,7 +399,8 @@ end
 ---Event handler for message.part.updated events
 ---Inserts new parts or replaces existing parts in buffer
 ---@param properties {part: MessagePart} Event properties
-function M.on_part_updated(properties)
+---@param revert_index? integer Revert index in session, if applicable
+function M.on_part_updated(properties, revert_index)
   if not properties or not properties.part then
     return
   end
@@ -444,6 +450,10 @@ function M.on_part_updated(properties)
   end
 
   local formatted = formatter.format_part(part, message.info.role)
+
+  if revert_index and is_new_part then
+    return
+  end
 
   if is_new_part then
     M._insert_part_to_buffer(part.id, formatted)
@@ -533,6 +543,10 @@ end
 ---@param properties {info: Session}
 function M.on_session_updated(properties)
   require('opencode.ui.topbar').render()
+  if not vim.deep_equal(state.active_session.revert, properties.info.revert) then
+    state.active_session.revert = properties.info.revert
+    M._render_full_session_data(state.messages)
+  end
 end
 
 ---Event handler for session.error events

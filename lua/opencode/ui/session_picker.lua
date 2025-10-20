@@ -25,6 +25,7 @@ local function format_session(session)
     table.insert(parts, modified)
   end
 
+  table.insert(parts, 'ID: ' .. (session.id or 'N/A'))
   return table.concat(parts, ' ~ ')
 end
 

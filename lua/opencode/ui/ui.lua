@@ -197,7 +197,7 @@ function M.select_session(sessions, cb)
     vim.ui.select(sessions, {
       prompt = '',
       format_item = function(session)
-        local parts = {}
+        local parts = { { session.id } }
 
         if session.description then
           table.insert(parts, session.description)

@@ -200,12 +200,23 @@ function M.load_session_from_events(events)
   return session_data
 end
 
-function M.get_session_from_events(events)
+function M.get_session_from_events(events, with_revert)
   -- renderer needs a valid session id
+  -- find the last session.updated event
+
+  if with_revert then
+    for i = #events, 1, -1 do
+      local event = events[i]
+      if event.type == 'session.updated' and event.properties.info and event.properties.info.revert then
+        return event.properties.info
+      end
+    end
+  end
   for _, event in ipairs(events) do
     -- find the session id in a message or part event
     local properties = event.properties
     local session_id = properties.info and properties.info.sessionID or properties.part and properties.part.sessionID
+
     if session_id then
       ---@diagnostic disable-next-line: missing-fields
       return { id = session_id }
@@ -228,6 +239,8 @@ function M.replay_event(event)
     renderer.on_part_removed(event.properties)
   elseif event.type == 'session.compacted' then
     renderer.on_session_compacted(event.properties)
+  elseif event.type == 'session.updated' then
+    renderer.on_session_updated(event.properties)
   elseif event.type == 'permission.updated' then
     renderer.on_permission_updated(event.properties)
   elseif event.type == 'permission.replied' then

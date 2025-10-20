@@ -199,7 +199,7 @@ function M.save_output(filename)
   local snapshot = {
     lines = lines,
     extmarks = M.normalize_namespace_ids(extmarks),
-    actions = vim.deepcopy(renderer._actions),
+    actions = vim.deepcopy(renderer._render_state:get_all_actions()),
     timestamp = os.time(),
   }
 
@@ -224,6 +224,7 @@ function M.replay_full_session()
     return false
   end
 
+  state.active_session = helpers.get_session_from_events(M.events, true)
   local session_data = helpers.load_session_from_events(M.events)
 
   renderer.reset()

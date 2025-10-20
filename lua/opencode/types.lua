@@ -424,3 +424,8 @@
 ---@field desc string|nil Description of the command
 ---@field fn fun(args:string[]):nil Function to execute the command
 ---@field args boolean Whether the command accepts arguments
+
+---@class OpencodeRevertSummary
+---@field messages number Number of messages reverted
+---@field tool_calls number Number of tool calls reverted
+---@field files table<string, {additions: number, deletions: number}> Summary of file changes reverted

@@ -22,7 +22,7 @@ local trigger_on_data_rendered = require('opencode.util').debounce(function()
     pcall(config.ui.on_data_rendered, state.windows.output_buf, state.windows.output_win)
   elseif vim.fn.exists(':RenderMarkdown') > 0 then
     vim.cmd(':RenderMarkdown')
-  elseif vim.fn.exists(':Markview') then
+  elseif vim.fn.exists(':Markview') > 0 then
     vim.cmd(':Markview render ' .. state.windows.output_buf)
   end
 end, 250)

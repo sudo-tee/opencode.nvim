@@ -10,6 +10,7 @@ local M = {}
 M._subscriptions = {}
 M._prev_line_count = 0
 M._render_state = RenderState.new()
+M._disable_auto_scroll = false
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
   local cb_type = type(config.ui.on_data_rendered)
@@ -31,6 +32,7 @@ end, 250)
 function M.reset()
   M._prev_line_count = 0
   M._render_state:reset()
+  M._disable_auto_scroll = false
 
   output_window.clear()
 
@@ -114,6 +116,10 @@ end
 
 function M._render_full_session_data(session_data)
   M.reset()
+
+  -- disable auto-scroll, makes loading a full session much faster
+  M._disable_auto_scroll = true
+
   local revert_index = nil
 
   for i, msg in ipairs(session_data) do
@@ -134,6 +140,9 @@ function M._render_full_session_data(session_data)
   if revert_index then
     M._write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
   end
+
+  -- re-enable Auto-scroll
+  M._disable_auto_scroll = false
   M._scroll_to_bottom()
 end
 
@@ -161,6 +170,11 @@ end
 ---Auto-scroll to bottom if user was already at bottom
 ---Respects cursor position if user has scrolled up
 function M._scroll_to_bottom()
+  -- if we're loading a full session, don't scroll incrementally
+  if M._disable_auto_scroll then
+    return
+  end
+
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
   if not ok then
     return

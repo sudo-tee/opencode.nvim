@@ -106,9 +106,9 @@ local state = require('opencode.state')
 --- | "file.watcher.updated"
 --- | "server.connected"
 --- | "ide.installed"
---- | "server_starting"
---- | "server_ready"
---- | "server_stopped"
+--- | "custom.server_starting"
+--- | "custom.server_ready"
+--- | "custom.server_stopped"
 
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry
@@ -147,9 +147,9 @@ end
 --- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated): nil)
 --- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected): nil)
 --- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled): nil)
---- @overload fun(self: EventManager, event_name: "server_starting", callback: fun(data: ServerStartingEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_ready", callback: fun(data: ServerReadyEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_stopped", callback: fun(data: ServerStoppedEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent): nil)
 --- @param event_name EventName The event name to listen for
 --- @param callback function Callback function to execute when event is triggered
 function EventManager:subscribe(event_name, callback)
@@ -177,9 +177,9 @@ end
 --- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated): nil)
 --- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected): nil)
 --- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled): nil)
---- @overload fun(self: EventManager, event_name: "server_starting", callback: fun(data: ServerStartingEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_ready", callback: fun(data: ServerReadyEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_stopped", callback: fun(data: ServerStoppedEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent): nil)
 --- @param event_name EventName The event name
 --- @param callback function The callback function to remove
 function EventManager:unsubscribe(event_name, callback)
@@ -225,21 +225,21 @@ function EventManager:start()
     --- @param prev OpencodeServer|nil
     function(key, current, prev)
       if current and current:get_spawn_promise() then
-        self:emit('server_starting', { server_job = current })
+        self:emit('custom.server_starting', { server_job = current })
 
         current:get_spawn_promise():and_then(function(server)
-          self:emit('server_ready', { server_job = server, url = server.url })
+          self:emit('custom.server_ready', { server_job = server, url = server.url })
           vim.defer_fn(function()
             self:_subscribe_to_server_events(server)
           end, 200)
         end)
 
         current:get_shutdown_promise():and_then(function()
-          self:emit('server_stopped', {})
+          self:emit('custom.server_stopped', {})
           self:_cleanup_server_subscription()
         end)
       elseif prev and not current then
-        self:emit('server_stopped', {})
+        self:emit('custom.server_stopped', {})
         self:_cleanup_server_subscription()
       end
     end

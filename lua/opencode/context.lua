@@ -261,7 +261,7 @@ local function format_file_part(path, prompt)
     file_part.source = {
       path = path,
       type = 'file',
-      text = { start = pos, value = mention, ['end'] = pos + #mention - 1 },
+      text = { start = pos, value = mention, ['end'] = pos + #mention },
     }
   end
   return file_part

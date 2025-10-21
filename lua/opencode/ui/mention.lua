@@ -40,6 +40,24 @@ function M.highlight_all_mentions(buf, callback)
   end
 end
 
+---@param output Output
+function M.highlight_mentions(output)
+  local mention_pattern = '@[%w_%-%./][%w_%-%./]*'
+  for i, line in pairs(output:get_lines()) do
+    for mention in line:gmatch(mention_pattern) do
+      local col_start, col_end = line:find(mention, 1)
+      if col_start and col_end then
+        output:add_extmark(i, {
+          start_col = col_start - 1,
+          end_col = col_end,
+          hl_group = 'OpencodeMention',
+          priority = 1000,
+        })
+      end
+    end
+  end
+end
+
 local function insert_mention(windows, row, col, name)
   local current_line = vim.api.nvim_buf_get_lines(windows.input_buf, row - 1, row, false)[1]
 

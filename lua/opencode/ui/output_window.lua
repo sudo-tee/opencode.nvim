@@ -123,7 +123,11 @@ function M.set_extmarks(extmarks, line_offset)
       if actual_mark.end_row then
         actual_mark.end_row = actual_mark.end_row + line_offset
       end
-      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, 0, actual_mark)
+      local start_col = actual_mark.start_col
+      if actual_mark.start_col then
+        actual_mark.start_col = nil
+      end
+      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, actual_mark)
     end
   end
 end

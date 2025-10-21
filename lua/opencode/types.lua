@@ -238,7 +238,8 @@
 ---@field display_line number Line number to display the action
 ---@field range? { from: number, to: number } Optional range for the action
 
----@alias OutputExtmark vim.api.keyset.set_extmark|fun():vim.api.keyset.set_extmark
+---@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0}
+---@alias OutputExtmark OutputExtmarkType|fun():OutputExtmarkType
 
 ---@class OpencodeMessage
 ---@field info MessageInfo Metadata about the message

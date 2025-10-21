@@ -320,7 +320,7 @@ function M._format_user_prompt(output, text)
   output:add_lines(vim.split(text, '\n'))
 
   local end_line = output:get_line_count()
-
+  require('opencode.ui.mention').highlight_mentions(output)
   M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 

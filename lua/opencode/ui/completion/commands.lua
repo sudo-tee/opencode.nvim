@@ -1,3 +1,4 @@
+local icons = require('opencode.ui.icons')
 local M = {}
 
 local function get_available_commands()
@@ -49,6 +50,7 @@ local command_source = {
         local item = {
           label = command.name .. (command.args and ' *' or ''),
           kind = 'command',
+          kind_icon = icons.get('command'),
           detail = command.description,
           documentation = command.documentation .. (command.args and '\n\n* This command takes arguments.' or ''),
           insert_text = command.name,

@@ -27,6 +27,8 @@ local presets = {
     status_off = '⚫',
     -- borders and misc
     border = '▌',
+    agent = '🤖',
+    command = '💻',
   },
   nerdfonts = {
     -- headers
@@ -51,6 +53,8 @@ local presets = {
     status_off = ' ',
     -- borders and misc
     border = '▌',
+    agent = '󰚩 ',
+    command = '󱕷 ',
   },
   text = {
     -- headers
@@ -75,6 +79,7 @@ local presets = {
     status_off = 'OFF',
     -- borders and misc
     border = '▌',
+    agent = '@',
   },
 }
 

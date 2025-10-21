@@ -57,10 +57,11 @@ function Source:get_completions(ctx, callback)
         label = item.label,
         kind = item.kind == 'file' and 17 or item.kind == 'folder' and 19 or 1, -- 17: File, 19: Folder, 1: Text
         detail = item.detail,
+        kind_icon = item.kind_icon,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,
-        sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, i, item.label),
-        score_offset = -(completion_source.priority or 999) * 1000,
+        sortText = string.format('%01d_%02d_%s', completion_source.priority or 999, i, item.label),
+        score_offset = 10000, -- Very high priority to show above other sources
         data = {
           original_item = item,
         },
@@ -90,9 +91,12 @@ function M.setup(completion_sources)
 
   blink.add_source_provider('opencode_mentions', {
     module = 'opencode.ui.completion.engines.blink_cmp',
+    score_offset = 10000,
   })
 
   blink.add_filetype_source('opencode', 'opencode_mentions')
+  blink.add_filetype_source('opencode', 'buffer')
+  blink.add_filetype_source('opencode', 'lsp')
 
   return true
 end

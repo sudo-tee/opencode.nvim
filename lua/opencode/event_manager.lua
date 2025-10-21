@@ -88,7 +88,10 @@ local state = require('opencode.state')
 
 --- @class ServerStoppedEvent
 
---- @alias EventName
+--- @class RestorePointCreatedEvent
+--- @field restore_point RestorePoint
+
+--- @alias OpencodeEventName
 --- | "installation.updated"
 --- | "lsp.client.diagnostics"
 --- | "message.updated"
@@ -109,6 +112,7 @@ local state = require('opencode.state')
 --- | "custom.server_starting"
 --- | "custom.server_ready"
 --- | "custom.server_stopped"
+--- | "custom.restore_point.created"
 
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry
@@ -150,7 +154,8 @@ end
 --- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent): nil)
---- @param event_name EventName The event name to listen for
+--- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent): nil)
+--- @param event_name OpencodeEventName The event name to listen for
 --- @param callback function Callback function to execute when event is triggered
 function EventManager:subscribe(event_name, callback)
   if not self.events[event_name] then
@@ -180,7 +185,8 @@ end
 --- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent): nil)
---- @param event_name EventName The event name
+--- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent): nil)
+--- @param event_name OpencodeEventName The event name
 --- @param callback function The callback function to remove
 function EventManager:unsubscribe(event_name, callback)
   local listeners = self.events[event_name]
@@ -197,7 +203,7 @@ function EventManager:unsubscribe(event_name, callback)
 end
 
 --- Emit an event to all subscribers
---- @param event_name EventName The event name
+--- @param event_name OpencodeEventName The event name
 --- @param data any Data to pass to event listeners
 function EventManager:emit(event_name, data)
   local listeners = self.events[event_name]
@@ -205,6 +211,13 @@ function EventManager:emit(event_name, data)
     return
   end
 
+  local event = { type = event_name, properties = data }
+
+  if require('opencode.config').debug.capture_streamed_events then
+    table.insert(self.captured_events, vim.deepcopy(event))
+  end
+
+  -- schedule events to allow for similar pieces of state to be updated
   for _, callback in ipairs(listeners) do
     pcall(callback, data)
   end
@@ -269,20 +282,9 @@ function EventManager:_subscribe_to_server_events(server)
   local api_client = state.api_client
 
   local emitter = function(event)
-    -- schedule events to allow for similar pieces of state to be updated
     vim.schedule(function()
       self:emit(event.type, event.properties)
     end)
-  end
-
-  if require('opencode.config').debug.capture_streamed_events then
-    local _emitter = emitter
-    emitter = function(event)
-      -- make a deepcopy to make sure we're saving a clean copy
-      -- (we modify event in renderer)
-      table.insert(self.captured_events, vim.deepcopy(event))
-      _emitter(event)
-    end
   end
 
   self.server_subscription = api_client:subscribe_to_events(nil, emitter)
@@ -312,7 +314,7 @@ function EventManager:get_event_names()
 end
 
 --- Get number of subscribers for an event
---- @param event_name EventName The event name
+--- @param event_name OpencodeEventName The event name
 --- @return number Number of subscribers
 function EventManager:get_subscriber_count(event_name)
   local listeners = self.events[event_name]

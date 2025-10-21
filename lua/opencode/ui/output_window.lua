@@ -51,11 +51,6 @@ function M.setup(windows)
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)
-  state.subscribe('restore_points', function(_, new_val, old_val)
-    -- FIXME: restore points
-    -- local outout_renderer = require('opencode.ui.output_renderer')
-    -- outout_renderer.render(state.windows, true)
-  end)
 end
 
 function M.update_dimensions(windows)

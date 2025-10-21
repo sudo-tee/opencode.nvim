@@ -73,6 +73,20 @@ function RenderState:get_part_by_call_id(call_id, message_id)
   return nil
 end
 
+---Get part ID by snapshot_id and message ID
+---@param snapshot_id string Call ID
+---@return MessagePart? part Part if found
+function RenderState:get_part_by_snapshot_id(snapshot_id)
+  for _, rendered_message in pairs(self._messages) do
+    for _, part in ipairs(rendered_message.message.parts) do
+      if part.type == 'patch' and part.hash == snapshot_id then
+        return part
+      end
+    end
+  end
+  return nil
+end
+
 ---Ensure line index is up to date
 function RenderState:_ensure_line_index()
   if not self._line_index_valid then

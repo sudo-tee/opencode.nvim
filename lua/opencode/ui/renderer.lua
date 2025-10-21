@@ -77,6 +77,7 @@ function M._setup_event_subscriptions(subscribe)
   state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
   state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
   state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
+  state.event_manager[method](state.event_manager, 'custom.restore_point.created', M.on_restore_points)
 end
 
 ---Unsubscribe from local state and server subscriptions
@@ -633,6 +634,18 @@ end
 
 function M.on_file_edited(properties)
   vim.cmd('checktime')
+end
+
+---@param properties RestorePointCreatedEvent
+function M.on_restore_points(properties)
+  state.append('restore_points', properties.restore_point)
+  if not properties or not properties.restore_point or not properties.restore_point.from_snapshot_id then
+    return
+  end
+  local part = M._render_state:get_part_by_snapshot_id(properties.restore_point.from_snapshot_id)
+  if part then
+    M.on_part_updated({ part = part })
+  end
 end
 
 ---Find part ID by call ID and message ID

@@ -156,7 +156,7 @@ end
 ---@param output Output Output object to write to
 ---@param part MessagePart
 function M._format_patch(output, part)
-  local restore_points = snapshot.get_restore_points_by_parent(part.hash)
+  local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
   M._format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
   local snapshot_header_line = output:get_line_count()
 
@@ -200,7 +200,7 @@ function M._format_patch(output, part)
       output:add_action({
         text = 'Restore [A]ll',
         type = 'diff_restore_snapshot_all',
-        args = { part.hash },
+        args = { restore_point.id },
         key = 'A',
         display_line = restore_line,
         range = { from = restore_line, to = restore_line },
@@ -208,7 +208,7 @@ function M._format_patch(output, part)
       output:add_action({
         text = '[R]estore file',
         type = 'diff_restore_snapshot_file',
-        args = { part.hash },
+        args = { restore_point.id },
         key = 'R',
         display_line = restore_line,
         range = { from = restore_line, to = restore_line },

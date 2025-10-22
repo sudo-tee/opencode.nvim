@@ -164,7 +164,7 @@ function M.ensure_server()
       promise:reject(err)
     end,
     on_exit = function(exit_opts)
-      state.opencode_server_job:shutdown()
+      promise:reject('Server exited')
     end,
   })
 

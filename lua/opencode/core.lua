@@ -40,8 +40,8 @@ end
 function M.open(opts)
   opts = opts or { focus = 'input', new_session = false }
 
-  if not state.opencode_server_job or not state.opencode_server_job:is_running() then
-    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+  if not state.opencode_server or not state.opencode_server:is_running() then
+    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
   end
 
   local are_windows_closed = state.windows == nil

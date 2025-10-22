@@ -83,7 +83,7 @@ describe('opencode.core', function()
     mock_api_client()
 
     -- Mock server job to avoid trying to start real server
-    state.opencode_server_job = {
+    state.opencode_server = {
       is_running = function()
         return true
       end,

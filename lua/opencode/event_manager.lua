@@ -232,7 +232,7 @@ function EventManager:start()
   self.is_started = true
 
   state.subscribe(
-    'opencode_server_job',
+    'opencode_server',
     --- @param key string
     --- @param current OpencodeServer|nil
     --- @param prev OpencodeServer|nil

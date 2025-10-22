@@ -30,7 +30,7 @@ local config = require('opencode.config')
 ---@field cost number
 ---@field tokens_count number
 ---@field job_count number
----@field opencode_server_job OpencodeServer|nil
+---@field opencode_server OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
 ---@field required_version string
@@ -69,7 +69,7 @@ local _state = {
   tokens_count = 0,
   -- job
   job_count = 0,
-  opencode_server_job = nil,
+  opencode_server = nil,
   api_client = nil,
   event_manager = nil,
 

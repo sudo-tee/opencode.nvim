@@ -23,12 +23,12 @@ end
 function OpencodeApiClient:_call(endpoint, method, body, query)
   if not self.base_url then
     local state = require('opencode.state')
-    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
+    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
     -- shouldn't normally happen but prevents error in replay tester
-    if not state.opencode_server_job then
+    if not state.opencode_server then
       return nil
     end
-    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+    self.base_url = state.opencode_server.url:gsub('/$', '')
   end
   local url = self.base_url .. endpoint
 
@@ -363,7 +363,7 @@ end
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
   if not self.base_url then
     local state = require('opencode.state')
-    self.base_url = state.opencode_server_job.url:gsub('/$', '')
+    self.base_url = state.opencode_server.url:gsub('/$', '')
   end
   local url = self.base_url .. '/event'
   if directory then

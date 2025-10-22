@@ -148,17 +148,17 @@ function M.cancel_all_requests()
 end
 
 function M.ensure_server()
-  if state.opencode_server_job and state.opencode_server_job:is_running() then
-    return state.opencode_server_job
+  if state.opencode_server and state.opencode_server:is_running() then
+    return state.opencode_server
   end
 
   local promise = Promise.new()
-  state.opencode_server_job = opencode_server.new()
+  state.opencode_server = opencode_server.new()
 
   ---@diagnostic disable-next-line: missing-fields
-  state.opencode_server_job:spawn({
+  state.opencode_server:spawn({
     on_ready = function(_, base_url)
-      promise:resolve(state.opencode_server_job)
+      promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
       promise:reject(err)

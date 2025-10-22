@@ -698,12 +698,11 @@ function M.format_part(part, message)
         content_added = true
       end
     elseif part.type == 'file' then
-      --- FIXME: find right type of part with filename
-      ---@diagnostic disable-next-line: undefined-field
       local file_line = M._format_context_file(output, part.filename)
-      ---@diagnostic disable-next-line: param-type-mismatch
-      M._add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
-      content_added = true
+      if file_line then
+        M._add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+        content_added = true
+      end
     end
   elseif role == 'assistant' then
     if part.type == 'text' and part.text then

@@ -1,6 +1,13 @@
 local M = {}
 local picker = require('opencode.ui.picker')
 
+local picker_title = function()
+  local config = require('opencode.config')
+  local delete_config = config.keymap.session_picker.delete_session
+  local delete_key = delete_config and '  | ' .. delete_config[1] .. ' to delete' or ''
+  return 'Select A Session' .. delete_key
+end
+
 local function format_session(session)
   local util = require('opencode.util')
   local parts = {}
@@ -52,7 +59,7 @@ local function telescope_ui(sessions, callback, on_delete)
   end
 
   current_picker = pickers.new({}, {
-    prompt_title = 'Select Session',
+    prompt_title = picker_title(),
     finder = finders.new_table({
       results = sessions,
       entry_maker = function(session)
@@ -150,7 +157,7 @@ local function fzf_ui(sessions, callback, on_delete)
     fzf_cb()
   end, {
     fzf_opts = {
-      ['--prompt'] = 'Select Session> ',
+      ['--prompt'] = picker_title() .. ' > ',
     },
     _headers = { 'actions' },
     actions = actions_config,
@@ -205,7 +212,7 @@ local function mini_pick_ui(sessions, callback, on_delete)
   mini_pick.start({
     source = {
       items = items,
-      name = 'Sessions',
+      name = picker_title(),
       choose = function(selected)
         if selected and selected.session and callback then
           callback(selected.session)
@@ -224,7 +231,7 @@ local function snacks_picker_ui(sessions, callback, on_delete)
   local delete_config = config.keymap.session_picker.delete_session
 
   local opts = {
-    title = 'Sessions',
+    title = picker_title(),
     layout = { preset = 'select' },
     finder = function()
       return sessions

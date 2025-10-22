@@ -36,6 +36,7 @@ local config = require('opencode.config')
 ---@field required_version string
 ---@field opencode_cli_version string|nil
 ---@field append fun( key:string, value:any)
+---@field remove fun( key:string, idx:number)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
@@ -148,6 +149,19 @@ local function append(key, value)
   _notify(key, _state[key], old)
 end
 
+local function remove(key, idx)
+  if not _state[key] then
+    return
+  end
+  if type(_state[key]) ~= 'table' then
+    error('State key is not a table: ' .. key)
+  end
+
+  local old = vim.deepcopy(_state[key] --[[@as table]])
+  table.remove(_state[key] --[[@as table]], idx)
+  _notify(key, _state[key], old)
+end
+
 --- Observable state proxy. All reads/writes go through this table.
 --- Use `state.subscribe(key, cb)` to listen for changes.
 --- Use `state.unsubscribe(key, cb)` to remove listeners.
@@ -177,6 +191,7 @@ setmetatable(M, {
 })
 
 M.append = append
+M.remove = remove
 M.subscribe = subscribe
 M.unsubscribe = unsubscribe
 

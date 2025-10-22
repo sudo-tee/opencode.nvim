@@ -359,56 +359,56 @@ end
 ---@param message {info: MessageInfo} Event properties
 ---@param revert_index? integer Revert index in session, if applicable
 function M.on_message_updated(message, revert_index)
-  ---@type OpencodeMessage
-  if not message or not message.info or not message.info.id or not message.info.sessionID then
+  local msg = message --[[@as OpencodeMessage]]
+  if not msg or not msg.info or not msg.info.id or not msg.info.sessionID or not state.active_session then
     return
   end
 
-  if state.active_session.id ~= message.info.sessionID then
+  if state.active_session.id ~= msg.info.sessionID then
     ---@TODO This is probably a child session message, handle differently?
     -- vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)
     return
   end
 
-  local rendered_message = M._render_state:get_message(message.info.id)
+  local rendered_message = M._render_state:get_message(msg.info.id)
   local found_msg = rendered_message and rendered_message.message
 
   if revert_index then
     if not found_msg then
-      table.insert(state.messages, message)
+      state.append('messages', msg)
     end
-    M._render_state:set_message(message, 0, 0)
+    M._render_state:set_message(msg, 0, 0)
     return
   end
 
   if found_msg then
     -- see if an error was added (or removed). have to check before we set
     -- found_msg.info = message.info below
-    local rerender_message = not vim.deep_equal(found_msg.info.error, message.info.error)
+    local rerender_message = not vim.deep_equal(found_msg.info.error, msg.info.error)
 
-    found_msg.info = message.info
+    found_msg.info = msg.info
 
     if rerender_message and not revert_index then
       local header_data = formatter.format_message_header(found_msg)
-      M._replace_message_in_buffer(message.info.id, header_data)
+      M._replace_message_in_buffer(msg.info.id, header_data)
     end
   else
-    table.insert(state.messages, message)
+    state.append('messages', msg)
 
-    local header_data = formatter.format_message_header(message)
+    local header_data = formatter.format_message_header(msg)
     local range = M._write_formatted_data(header_data)
 
     if range then
-      M._render_state:set_message(message, range.line_start, range.line_end)
+      M._render_state:set_message(msg, range.line_start, range.line_end)
     end
 
-    state.current_message = message
+    state.current_message = msg
     if message.info.role == 'user' then
-      state.last_user_message = message
+      state.last_user_message = msg
     end
   end
 
-  M._update_stats_from_message(message)
+  M._update_stats_from_message(msg)
 
   M._scroll_to_bottom()
 end
@@ -418,7 +418,7 @@ end
 ---@param properties {part: OpencodeMessagePart} Event properties
 ---@param revert_index? integer Revert index in session, if applicable
 function M.on_part_updated(properties, revert_index)
-  if not properties or not properties.part then
+  if not properties or not properties.part or not state.active_session then
     return
   end
 
@@ -549,9 +549,9 @@ function M.on_message_removed(properties)
 
   M._remove_message_from_buffer(message_id)
 
-  for i, msg in ipairs(state.messages) do
+  for i, msg in ipairs(state.messages or {}) do
     if msg.info.id == message_id then
-      table.remove(state.messages, i)
+      state.remove('messages', i)
       break
     end
   end
@@ -569,6 +569,9 @@ end
 ---Event handler for session.updated events
 ---@param properties {info: Session}
 function M.on_session_updated(properties)
+  if not properties or not properties.info or not state.active_session then
+    return
+  end
   require('opencode.ui.topbar').render()
   if not vim.deep_equal(state.active_session.revert, properties.info.revert) then
     state.active_session.revert = properties.info.revert
@@ -588,14 +591,6 @@ function M.on_session_error(properties)
   if config.debug.enabled then
     vim.notify('Session error: ' .. vim.inspect(properties.error))
   end
-
-  -- local error_data = properties.error
-  -- local error_message = error_data.data and error_data.data.message or vim.inspect(error_data)
-  --
-  -- local formatted = formatter.format_error_callout(error_message)
-  --
-  -- M._write_formatted_data(formatted)
-  -- M._scroll_to_bottom()
 end
 
 ---Event handler for permission.updated events
@@ -707,7 +702,7 @@ function M._rerender_part(part_id)
 end
 
 ---Get all actions available at a specific line
----@param line number 1-indexed line number
+---@param line integer 1-indexed line number
 ---@return table[] List of actions available at that line
 function M.get_actions_for_line(line)
   return M._render_state:get_actions_at_line(line)
@@ -728,11 +723,9 @@ function M._update_stats_from_message(message)
     state.current_model = message.info.providerID .. '/' .. message.info.modelID
   end
 
-  if message.info.tokens and message.info.tokens.input > 0 then
-    state.tokens_count = message.info.tokens.input
-      + message.info.tokens.output
-      + message.info.tokens.cache.read
-      + message.info.tokens.cache.write
+  local tokens = message.info.tokens
+  if tokens and tokens.input > 0 then
+    state.tokens_count = tokens.input + tokens.output + tokens.cache.read + tokens.cache.write
   end
 
   if message.info.cost and type(message.info.cost) == 'number' then

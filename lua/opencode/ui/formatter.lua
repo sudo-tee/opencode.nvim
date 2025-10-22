@@ -335,6 +335,10 @@ function M._format_user_prompt(output, text, message)
         if part.source and part.source.text then
           table.insert(mentions, part.source.text)
         end
+      elseif part.type == 'agent' then
+        if part.source then
+          table.insert(mentions, part.source)
+        end
       end
     end
   end

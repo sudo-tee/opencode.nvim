@@ -365,7 +365,8 @@ function M.on_message_updated(message, revert_index)
   end
 
   if state.active_session.id ~= message.info.sessionID then
-    vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)
+    ---@TODO This is probably a child session message, handle differently?
+    -- vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)
     return
   end
 
@@ -427,7 +428,8 @@ function M.on_part_updated(properties, revert_index)
   end
 
   if state.active_session.id ~= part.sessionID then
-    vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
+    ---@TODO This is probably a child session part, handle differently?
+    -- vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
 
@@ -477,7 +479,7 @@ function M.on_part_updated(properties, revert_index)
     M._replace_part_in_buffer(part.id, formatted)
   end
 
-  if part.type == 'file' and part.source and part.source.text then
+  if (part.type == 'file' or part.type == 'agent') and part.source then
     -- we have a mention, we need to rerender the early part to highlight
     -- the mention.
     local text_part_id = M._find_text_part_for_message(message)

@@ -177,6 +177,7 @@ require('opencode').setup({
       },
       rendering = {
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
+        on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior
       },
     },
     input = {
@@ -217,7 +218,7 @@ require('opencode').setup({
         max_files = 10,
         max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with "..."
       },
-      on_data_rendered = nil, -- Called when new data is rendered (debounced to 250ms), useful to trigger markdown rendering. Set to false to disable default behavior of checking for RenderMarkdown and Markview
+
     },
   },
   context = {

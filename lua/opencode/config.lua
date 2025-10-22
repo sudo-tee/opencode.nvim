@@ -93,6 +93,7 @@ M.defaults = {
     output = {
       rendering = {
         markdown_debounce_ms = 250,
+        on_data_rendered = nil,
       },
       tools = {
         show_output = true,
@@ -102,7 +103,6 @@ M.defaults = {
       text = {
         wrap = false,
       },
-      on_data_rendered = nil,
     },
     completion = {
       file_sources = {

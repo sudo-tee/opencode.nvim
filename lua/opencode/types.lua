@@ -95,11 +95,11 @@
 ---@field output OpencodeUIOutputConfig
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
----@field on_data_rendered fun(ctx: { buf: integer, win: integer })|nil
+
 
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean }
----@field rendering { markdown_debounce_ms: number }
+---@field rendering { markdown_debounce_ms: number, on_data_rendered: (fun(buf: integer, win: integer)|boolean)|nil }
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean

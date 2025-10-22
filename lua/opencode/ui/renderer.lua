@@ -13,7 +13,7 @@ M._render_state = RenderState.new()
 M._disable_auto_scroll = false
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
-  local cb_type = type(config.ui.on_data_rendered)
+  local cb_type = type(config.ui.output.rendering.on_data_rendered)
 
   if cb_type == 'boolean' then
     return
@@ -24,7 +24,7 @@ local trigger_on_data_rendered = require('opencode.util').debounce(function()
   end
 
   if cb_type == 'function' then
-    pcall(config.ui.on_data_rendered, state.windows.output_buf, state.windows.output_win)
+    pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
   elseif vim.fn.exists(':RenderMarkdown') > 0 then
     vim.cmd(':RenderMarkdown')
   elseif vim.fn.exists(':Markview') > 0 then

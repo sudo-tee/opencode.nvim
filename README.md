@@ -154,6 +154,9 @@ require('opencode').setup({
       accept_all = 'A', -- Accept all (for current tool) permission request once (only available when there is a pending permission request)
       deny = 'd', -- Deny permission request once (only available when there is a pending permission request)
     },
+    session_picker = {
+      delete_session = { '<C-d>' }, -- Delete selected session in the session picker
+    },
   },
   ui = {
     position = 'right', -- 'right' (default) or 'left'. Position of the UI split

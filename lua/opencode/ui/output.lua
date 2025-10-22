@@ -191,7 +191,6 @@ end
 ---Get all lines as a table
 ---@return string[]
 function Output:get_lines()
-  -- FIXME: We probably don't need to use deepcopy here since Output is now short lived
   return vim.deepcopy(self.lines)
 end
 

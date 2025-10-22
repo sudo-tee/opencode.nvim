@@ -1,5 +1,4 @@
 -- This file was written by an automated tool.
-local M = {}
 local state = require('opencode.state')
 local context = require('opencode.context')
 local session = require('opencode.session')
@@ -7,8 +6,10 @@ local ui = require('opencode.ui.ui')
 local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
-local Promise = require('opencode.promise')
 local config = require('opencode.config')
+
+local M = {}
+M._abort_count = 0
 
 ---@param parent_id string?
 function M.select_session(parent_id)
@@ -137,6 +138,7 @@ function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
   require('opencode.history').write(prompt)
+  M._abort_count = 0
 end
 
 ---@param opts? SendMessageOpts
@@ -175,15 +177,23 @@ end
 function M.stop()
   if state.windows and state.active_session then
     if state.is_running() then
-      vim.notify('Aborting current request...', vim.log.levels.WARN)
-
-      -- FIXME: I think my understanding / logic was wrong here. We don't
-      -- just want to cancel our requests to the opencode server, we
-      -- want the opencode server to cance it's requests. Commenting out
-      -- this code for now and will do more testing
-      -- server_job.cancel_all_requests()
-
+      M._abort_count = M._abort_count + 1
       state.api_client:abort_session(state.active_session.id):wait()
+
+      if M._abort_count >= 3 then
+        vim.notify('Re-starting Opencode server')
+        M._abort_count = 0
+        -- close existing server
+        state.opencode_server:shutdown():wait()
+
+        -- start a new one
+        state.opencode_server = nil
+        state.job_count = 0
+
+        -- NOTE: start a new server here to make sure we're subscribed
+        -- to server events before a user sends a message
+        state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
+      end
     end
     require('opencode.ui.footer').clear()
     input_window.set_content('')
@@ -231,7 +241,7 @@ function M.setup()
     M.opencode_ok()
   end)
   local OpencodeApiClient = require('opencode.api_client')
-  state.api_client = OpencodeApiClient.new()
+  state.api_client = OpencodeApiClient.create()
 end
 
 return M

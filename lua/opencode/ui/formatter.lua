@@ -240,8 +240,6 @@ function M.format_message_header(message)
   local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
   local debug_text = config.debug and ' [' .. message.info.id .. ']' or ''
 
-  output:add_empty_line()
-
   local display_name
   if role == 'assistant' then
     local mode = message.info.mode

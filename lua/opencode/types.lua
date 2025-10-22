@@ -142,7 +142,7 @@
 ---@field message string|nil Optional status or error message
 
 ---@class TaskToolMetadata: ToolMetadataBase
----@field summary MessagePart[]
+---@field summary OpencodeMessagePart[]
 
 ---@class WebFetchToolMetadata: ToolMetadataBase
 ---@field http_status number|nil HTTP response status code
@@ -203,20 +203,6 @@
 ---@field prompt string The subtask prompt
 ---@field description string Description of the subtask
 
----@class MessagePart
----@field type 'text'|'tool'|'step-start'|'patch' Type of the message part
----@field text string|nil Text content for text parts
----@field id string|nil Unique identifier for tool use parts
----@field tool string|nil Name of the tool being used
----@field state MessagePartState|nil State information for tool use parts
----@field snapshot string|nil Snapshot commit hash
----@field sessionID string|nil Session identifier
----@field messageID string|nil Message identifier
----@field callID string|nil Call identifier (used for tools)
----@field hash string|nil Hash identifier for patch parts
----@field files string[]|nil List of file paths for patch parts
----@field synthetic boolean|nil Whether the message was generated synthetically
-
 ---@class MessageTokenCount
 ---@field reasoning number
 ---@field input number
@@ -243,7 +229,7 @@
 
 ---@class OpencodeMessage
 ---@field info MessageInfo Metadata about the message
----@field parts MessagePart[] Parts that make up the message
+---@field parts OpencodeMessagePart[] Parts that make up the message
 
 ---@class MessageInfo
 ---@field id string Unique message identifier
@@ -338,14 +324,23 @@
 ---@field value string|nil
 
 ---@class OpencodeMessagePart
----@field type 'text'|'file'|'agent'|string
+---@field type 'text'|'file'|'agent'|'tool'|'step-start'|'patch'|string
+---@field id string|nil Unique identifier for tool use parts
 ---@field text string|nil
+---@field tool string|nil Name of the tool being used
+---@field state MessagePartState|nil State information for tool use parts
 ---@field filename string|nil
 ---@field mime string|nil
 ---@field url string|nil
 ---@field source OpencodeMessagePartSource|nil
 ---@field name string|nil
 ---@field synthetic boolean|nil
+---@field snapshot string|nil Snapshot commit hash
+---@field sessionID string|nil Session identifier
+---@field messageID string|nil Message identifier
+---@field callID string|nil Call identifier (used for tools)
+---@field hash string|nil Hash identifier for patch parts
+---@field files string[]|nil List of file paths for patch parts
 
 ---@class OpencodeModelModalities
 ---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities

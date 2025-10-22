@@ -18,7 +18,7 @@ local state = require('opencode.state')
 
 --- @class EventMessagePartUpdated
 --- @field type "message.part.updated"
---- @field properties {part: MessagePart}
+--- @field properties {part: OpencodeMessagePart}
 
 --- @class EventMessagePartRemoved
 --- @field type "message.part.removed"

@@ -415,7 +415,7 @@ end
 
 ---Event handler for message.part.updated events
 ---Inserts new parts or replaces existing parts in buffer
----@param properties {part: MessagePart} Event properties
+---@param properties {part: OpencodeMessagePart} Event properties
 ---@param revert_index? integer Revert index in session, if applicable
 function M.on_part_updated(properties, revert_index)
   if not properties or not properties.part then

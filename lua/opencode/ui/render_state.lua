@@ -6,7 +6,7 @@ local state = require('opencode.state')
 ---@field line_end integer? Line where message header ends
 
 ---@class RenderedPart
----@field part MessagePart Direct reference to part in state.messages
+---@field part OpencodeMessagePart Direct reference to part in state.messages
 ---@field message_id string ID of parent message
 ---@field line_start integer? Line where part starts
 ---@field line_end integer? Line where part ends
@@ -75,7 +75,7 @@ end
 
 ---Get part ID by snapshot_id and message ID
 ---@param snapshot_id string Call ID
----@return MessagePart? part Part if found
+---@return OpencodeMessagePart? part Part if found
 function RenderState:get_part_by_snapshot_id(snapshot_id)
   for _, rendered_message in pairs(self._messages) do
     for _, part in ipairs(rendered_message.message.parts) do
@@ -175,7 +175,7 @@ function RenderState:set_message(message, line_start, line_end)
 end
 
 ---Set or update part render data
----@param part MessagePart Direct reference to part (must include id/messageID)
+---@param part OpencodeMessagePart Direct reference to part (must include id/messageID)
 ---@param line_start integer? Line where part starts
 ---@param line_end integer? Line where part ends
 function RenderState:set_part(part, line_start, line_end)
@@ -242,7 +242,7 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
 end
 
 ---Update part data reference
----@param part_ref MessagePart New part reference (must include id)
+---@param part_ref OpencodeMessagePart New part reference (must include id)
 function RenderState:update_part_data(part_ref)
   if not part_ref or not part_ref.id then
     return

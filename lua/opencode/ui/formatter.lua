@@ -52,7 +52,7 @@ function M._format_permission_request(output)
 end
 
 ---Calculate statistics for reverted messages and tool calls
----@param messages {info: MessageInfo, parts: MessagePart[]}[] All messages in the session
+---@param messages {info: MessageInfo, parts: OpencodeMessagePart[]}[] All messages in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo Revert information
 ---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
@@ -155,7 +155,7 @@ function M._format_revert_message(session_data, start_idx)
 end
 
 ---@param output Output Output object to write to
----@param part MessagePart
+---@param part OpencodeMessagePart
 function M._format_patch(output, part)
   local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
   M._format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
@@ -351,7 +351,7 @@ function M._format_user_prompt(output, text, message)
 end
 
 ---@param output Output Output object to write to
----@param part MessagePart
+---@param part OpencodeMessagePart
 function M._format_selection_context(output, part)
   local json = context_module.decode_json_context(part.text, 'selection')
   if not json then
@@ -518,7 +518,7 @@ function M._format_list_tool(output, input, metadata, tool_output)
 end
 
 ---@param output Output Output object to write to
----@param part MessagePart
+---@param part OpencodeMessagePart
 function M._format_tool(output, part)
   local tool = part.tool
   if not tool or not part.state then
@@ -680,7 +680,7 @@ function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
 end
 
 ---Formats a single message part and returns the resulting output object
----@param part MessagePart The part to format
+---@param part OpencodeMessagePart The part to format
 ---@param message? OpencodeMessage Optional message object to extract role and mentions from
 ---@return Output
 function M.format_part(part, message)

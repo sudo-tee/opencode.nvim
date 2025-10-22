@@ -272,7 +272,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
 
   M._render_state:clear_actions(part_id)
 
-  output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
   output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
 
   local new_line_end = cached.line_start + new_line_count - 1
@@ -465,7 +465,7 @@ function M.on_part_updated(properties, revert_index)
     M._render_state:update_part_data(part)
   end
 
-  local formatted = formatter.format_part(part, message.info.role)
+  local formatted = formatter.format_part(part, message)
 
   if revert_index and is_new_part then
     return
@@ -475,6 +475,15 @@ function M.on_part_updated(properties, revert_index)
     M._insert_part_to_buffer(part.id, formatted)
   else
     M._replace_part_in_buffer(part.id, formatted)
+  end
+
+  if part.type == 'file' and part.source and part.source.text then
+    -- we have a mention, we need to rerender the early part to highlight
+    -- the mention.
+    local text_part_id = M._find_text_part_for_message(message)
+    if text_part_id then
+      M._rerender_part(text_part_id)
+    end
   end
 
   M._scroll_to_bottom()
@@ -657,6 +666,23 @@ function M._find_part_by_call_id(call_id, message_id)
   return M._render_state:get_part_by_call_id(call_id, message_id)
 end
 
+---Find the text part in a message
+---@param message OpencodeMessage The message containing the parts
+---@return string? text_part_id The ID of the text part
+function M._find_text_part_for_message(message)
+  if not message or not message.parts then
+    return nil
+  end
+
+  for _, part in ipairs(message.parts) do
+    if part.type == 'text' and not part.synthetic then
+      return part.id
+    end
+  end
+
+  return nil
+end
+
 ---Re-render existing part with current state
 ---Used for permission updates and other dynamic changes
 ---@param part_id string Part ID to re-render
@@ -673,7 +699,7 @@ function M._rerender_part(part_id)
   end
 
   local message = rendered_message.message
-  local formatted = formatter.format_part(part, message.info.role)
+  local formatted = formatter.format_part(part, message)
 
   M._replace_part_in_buffer(part_id, formatted)
 end

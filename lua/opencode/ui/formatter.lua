@@ -5,6 +5,7 @@ local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
+local mention = require('opencode.ui.mention')
 
 local M = {}
 
@@ -314,14 +315,37 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
-function M._format_user_prompt(output, text)
+---@param message? OpencodeMessage Optional message object to extract mentions from
+function M._format_user_prompt(output, text, message)
   local start_line = output:get_line_count()
 
   output:add_lines(vim.split(text, '\n'))
 
   local end_line = output:get_line_count()
-  require('opencode.ui.mention').highlight_mentions(output)
-  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+
+  local end_line_extmark_offset = 0
+
+  local mentions = {}
+  if message and message.parts then
+    -- message.parts will only be filled out on a re-render
+    -- we need to collect the mentions here
+    for _, part in ipairs(message.parts) do
+      if part.type == 'file' then
+        -- we're rerendering this part and we have files, the space after the user prompt
+        -- also needs an extmark
+        end_line_extmark_offset = 1
+        if part.source and part.source.text then
+          table.insert(mentions, part.source.text)
+        end
+      end
+    end
+  end
+
+  if #mentions > 0 then
+    mention.highlight_mentions_in_output(output, text, mentions, start_line)
+  end
+
+  M._add_vertical_border(output, start_line, end_line + end_line_extmark_offset, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param output Output Output object to write to
@@ -655,19 +679,20 @@ end
 
 ---Formats a single message part and returns the resulting output object
 ---@param part MessagePart The part to format
----@param role 'user'|'assistant'|'system' The role, user or assistant, that created this part
+---@param message? OpencodeMessage Optional message object to extract role and mentions from
 ---@return Output
-function M.format_part(part, role)
+function M.format_part(part, message)
   local output = Output.new()
 
   local content_added = false
+  local role = message and message.info and message.info.role
 
   if role == 'user' then
     if part.type == 'text' and part.text then
       if part.synthetic == true then
         M._format_selection_context(output, part)
       else
-        M._format_user_prompt(output, vim.trim(part.text))
+        M._format_user_prompt(output, vim.trim(part.text), message)
         content_added = true
       end
     elseif part.type == 'file' then

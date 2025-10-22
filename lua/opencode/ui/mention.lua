@@ -80,9 +80,6 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
           local col_start = char_start - line_start
           local col_end = math.min(char_end - line_start + 1, #line)
 
-          -- vim.notify('adding extmark, col_start: ' .. col_start .. ', col_end: ' .. col_end)
-          vim.notify('char: ' .. string.sub(line, col_start, col_start + 10))
-
           output:add_extmark(start_line + i, {
             start_col = col_start,
             end_col = col_end,

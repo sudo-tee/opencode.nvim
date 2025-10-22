@@ -140,7 +140,7 @@ function M._format_revert_message(session_data, start_idx)
         local col = #('  ' .. file .. ': ')
         for _, diff in ipairs(file_diff) do
           local hl_group = diff:sub(1, 1) == '+' and 'OpencodeDiffAddText' or 'OpencodeDiffDeleteText'
-          output:add_extmark(line_idx, {
+          output:add_extmark(line_idx - 1, {
             virt_text = { { diff, hl_group } },
             virt_text_pos = 'inline',
             virt_text_win_col = col,
@@ -259,7 +259,7 @@ function M.format_message_header(message)
     display_name = role:upper()
   end
 
-  output:add_extmark(output:get_line_count(), {
+  output:add_extmark(output:get_line_count() - 1, {
     virt_text = {
       { icon, role_hl },
       { ' ' },
@@ -637,7 +637,7 @@ function M._format_diff(output, code, file_type)
       local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
       output:add_line(' ' .. line:sub(2))
       local line_idx = output:get_line_count()
-      output:add_extmark(line_idx, function()
+      output:add_extmark(line_idx - 1, function()
         return {
           end_col = 0,
           end_row = line_idx,
@@ -666,7 +666,7 @@ end
 ---@param win_col number
 function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
   for line = start_line, end_line do
-    output:add_extmark(line, {
+    output:add_extmark(line - 1, {
       virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
       virt_text_pos = 'overlay',
       virt_text_win_col = win_col,

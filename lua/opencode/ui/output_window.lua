@@ -119,7 +119,7 @@ function M.set_extmarks(extmarks, line_offset)
   for line_idx, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do
       local actual_mark = type(mark) == 'function' and mark() or mark
-      local target_line = line_offset + line_idx - 1
+      local target_line = line_offset + line_idx
       if actual_mark.end_row then
         actual_mark.end_row = actual_mark.end_row + line_offset
       end

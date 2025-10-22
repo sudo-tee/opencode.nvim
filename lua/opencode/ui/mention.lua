@@ -67,7 +67,7 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
         local start_pos, end_pos = string.find(line, mention.value, 1, true)
 
         if start_pos then
-          output:add_extmark(start_line + i, {
+          output:add_extmark(start_line + i - 1, {
             start_col = start_pos - 1,
             end_col = end_pos,
             hl_group = 'OpencodeMention',
@@ -80,7 +80,7 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
           local col_start = char_start - line_start
           local col_end = math.min(char_end - line_start + 1, #line)
 
-          output:add_extmark(start_line + i, {
+          output:add_extmark(start_line + i - 1, {
             start_col = col_start,
             end_col = col_end,
             hl_group = 'OpencodeMention',

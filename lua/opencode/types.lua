@@ -92,10 +92,14 @@
 ---@field window_highlight string
 ---@field icons { preset: 'emoji'|'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
----@field output { tools: { show_output: boolean } }
+---@field output OpencodeUIOutputConfig
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
 ---@field on_data_rendered fun(ctx: { buf: integer, win: integer })|nil
+
+---@class OpencodeUIOutputConfig
+---@field tools { show_output: boolean }
+---@field rendering { markdown_debounce_ms: number }
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean

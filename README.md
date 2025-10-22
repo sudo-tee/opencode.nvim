@@ -175,6 +175,9 @@ require('opencode').setup({
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
       },
+      rendering = {
+        markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
+      },
     },
     input = {
       text = {

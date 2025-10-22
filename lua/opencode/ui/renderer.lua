@@ -30,7 +30,7 @@ local trigger_on_data_rendered = require('opencode.util').debounce(function()
   elseif vim.fn.exists(':Markview') > 0 then
     vim.cmd(':Markview render ' .. state.windows.output_buf)
   end
-end, 250)
+end, config.ui.output.rendering.markdown_debounce_ms or 250)
 
 ---Reset renderer state
 function M.reset()

@@ -91,6 +91,9 @@ M.defaults = {
       frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
     },
     output = {
+      rendering = {
+        markdown_debounce_ms = 250,
+      },
       tools = {
         show_output = true,
       },

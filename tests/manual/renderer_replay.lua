@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
+local config = require('opencode.config')
 
 local M = {}
 
@@ -278,6 +279,8 @@ end
 
 function M.start(opts)
   opts = opts or {}
+
+  config.debug.enabled = true
 
   local buf = vim.api.nvim_get_current_buf()
   local name = vim.api.nvim_buf_get_name(buf)

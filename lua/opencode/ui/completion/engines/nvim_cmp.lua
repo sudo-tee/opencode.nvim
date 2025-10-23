@@ -69,7 +69,7 @@ function M.setup(completion_sources)
       end
     end
 
-    callback({ items = items, isIncomplete = false })
+    callback({ items = items, isIncomplete = true })
   end
 
   cmp.register_source('opencode_mentions', source.new())

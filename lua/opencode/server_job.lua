@@ -18,18 +18,6 @@ local function handle_api_response(response, cb)
   end
 end
 
-function M.get_unresolved_requests()
-  local unresolved = {}
-
-  for _, data in ipairs(M.requests) do
-    if data[2]._resolved ~= true then
-      table.insert(unresolved, data)
-    end
-  end
-
-  return unresolved
-end
-
 --- Make an HTTP API call to the opencode server.
 --- @generic T
 --- @param url string The API endpoint URL
@@ -75,6 +63,8 @@ function M.call_api(url, method, body)
   end
 
   -- For promise tracking, remove promises that complete from requests
+  -- NOTE: can remove the request tracking code when we're happy with
+  -- request reliability
   local request_entry = { opts, call_promise }
   table.insert(M.requests, request_entry)
 
@@ -134,17 +124,6 @@ function M.stream_api(url, method, body, on_chunk)
   end
 
   return curl.request(opts)
-end
-
----Forcibly reject any pending requests (they sometimes get stuck
----after an api abort)
-function M.cancel_all_requests()
-  for _, entry in ipairs(M.requests) do
-    local promise = entry[2]
-    if not promise:is_resolved() then
-      pcall(promise.reject, promise, 'Request cancelled')
-    end
-  end
 end
 
 function M.ensure_server()

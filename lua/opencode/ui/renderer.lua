@@ -111,11 +111,6 @@ function M.render_full_session()
     return
   end
 
-  if config.debug.enabled then
-    -- TODO: I want to track full renders for now, remove at some point
-    vim.notify('rendering full session\n' .. debug.traceback(), vim.log.levels.WARN)
-  end
-
   fetch_session():and_then(M._render_full_session_data)
 end
 

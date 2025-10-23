@@ -190,7 +190,12 @@ local function update_keymap_prefix(prefix, default_prefix)
     local new_mappings = {}
     for key, opts in pairs(mappings) do
       if vim.startswith(key, default_prefix) then
-        new_mappings[prefix .. key:sub(#default_prefix + 1)] = opts
+        local new_key = prefix .. key:sub(#default_prefix + 1)
+
+        -- make sure there's not already a mapping for that key
+        if not new_mappings[new_key] then
+          new_mappings[new_key] = opts
+        end
       else
         new_mappings[key] = opts
       end

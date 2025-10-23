@@ -11,7 +11,9 @@ local state = require('opencode.state')
 function M.open_json_file(data)
   local tmpfile = vim.fn.tempname() .. '.json'
   local json_str = vim.json.encode(data)
-  vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
+  if state.last_code_win_before_opencode then
+    vim.api.nvim_set_current_win(state.last_code_win_before_opencode --[[@as integer]])
+  end
   vim.fn.writefile(vim.split(json_str, '\n'), tmpfile)
   vim.cmd('e ' .. tmpfile)
   if vim.fn.executable('jq') == 1 then
@@ -27,13 +29,22 @@ end
 
 function M.debug_message()
   local renderer = require('opencode.ui.renderer')
-  local current_line = vim.api.nvim_win_get_cursor(state.windows.output_win)[1]
-  local message_data = renderer._render_state:get_message_at_line(current_line)
-  if message_data and message_data.message then
-    M.open_json_file(message_data.message)
-  else
-    vim.notify('No message found at current line', vim.log.levels.WARN)
+  if not state.windows or not state.windows.output_win then
+    vim.notify('Output window not available', vim.log.levels.WARN)
+    return
   end
+  local current_line = vim.api.nvim_win_get_cursor(state.windows.output_win --[[@as integer]])[1]
+
+  -- Search backwards from current line to find nearest message
+  for line = current_line, 1, -1 do
+    local message_data = renderer._render_state:get_message_at_line(line)
+    if message_data and message_data.message then
+      M.open_json_file(message_data.message)
+      return
+    end
+  end
+
+  vim.notify('No message found in previous lines', vim.log.levels.WARN)
 end
 
 function M.debug_session()
@@ -43,7 +54,9 @@ function M.debug_session()
     print('No active session')
     return
   end
-  vim.api.nvim_set_current_win(state.last_code_win_before_opencode)
+  if state.last_code_win_before_opencode then
+    vim.api.nvim_set_current_win(state.last_code_win_before_opencode --[[@as integer]])
+  end
   vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
 end
 

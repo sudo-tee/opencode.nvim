@@ -410,7 +410,7 @@ function M._format_bash_tool(output, input, metadata)
 
   if metadata.output or metadata.command or input.command then
     local command = input.command or metadata.command or ''
-    M._format_code(vim.split('> ' .. command .. '\n\n' .. (metadata.output or ''), '\n'), 'bash')
+    M._format_code(output, vim.split('> ' .. command .. '\n\n' .. (metadata.output or ''), '\n'), 'bash')
   end
 end
 

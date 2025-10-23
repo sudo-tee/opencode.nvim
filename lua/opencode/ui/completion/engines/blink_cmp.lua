@@ -92,8 +92,6 @@ function M.setup(completion_sources)
     module = 'opencode.ui.completion.engines.blink_cmp',
   })
 
-  blink.add_filetype_source('opencode', 'opencode_mentions')
-
   return true
 end
 

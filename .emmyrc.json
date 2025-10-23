@@ -1,108 +1,16 @@
 {
     "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
-    "codeAction": {
-        "insertSpace": false
-    },
-    "codeLens": {
-        "enable": true
-    },
-    "completion": {
-        "enable": true,
-        "autoRequire": true,
-        "autoRequireFunction": "require",
-        "autoRequireNamingConvention": "keep",
-        "autoRequireSeparator": ".",
-        "callSnippet": false,
-        "postfix": "@",
-        "baseFunctionIncludesName": true
-    },
-    "diagnostics": {
-        "enable": true,
-        "disable": [],
-        "enables": [],
-        "globals": [],
-        "globalsRegex": [],
-        "severity": {},
-        "diagnosticInterval": 500
-    },
-    "doc": {
-        "syntax": "md"
-    },
-    "documentColor": {
-        "enable": true
-    },
-    "hover": {
-        "enable": true
-    },
-    "hint": {
-        "enable": true,
-        "paramHint": true,
-        "indexHint": true,
-        "localHint": true,
-        "overrideHint": true,
-        "metaCallHint": true
-    },
-    "inlineValues": {
-        "enable": true
-    },
-    "references": {
-        "enable": true,
-        "fuzzySearch": true,
-        "shortStringSearch": false
-    },
-    "reformat": {
-        "externalTool": null,
-        "externalToolRangeFormat": null,
-        "useDiff": false
-    },
-    "resource": {
-        "paths": []
-    },
     "runtime": {
-        "version": "LuaJIT",
-        "requirePattern": [
-            "?.lua",
-            "?/init.lua",
-            "lua/?.lua"
-        ],
-        "requireLikeFunction": [],
-        "frameworkVersions": [],
-        "extensions": [],
-        "classDefaultCall": {
-            "functionName": "",
-            "forceNonColon": false,
-            "forceReturnSelf": false
-        },
-        "nonstandardSymbol": [],
-        "special": {}
-    },
-    "semanticTokens": {
-        "enable": true
-    },
-    "signature": {
-        "detailSignatureHelper": true
-    },
-    "strict": {
-        "requirePath": false,
-        "typeCall": false,
-        "arrayIndex": true,
-        "metaOverrideFileDefine": true,
-        "docBaseConstMatchBaseType": true
+        "version": "LuaJIT"
     },
     "workspace": {
-        "ignoreDir": [],
-        "ignoreGlobs": [],
         "library": [
-            "$VIMRUNTIME"
+            "$VIMRUNTIME",
+            "$HOME/.local/share/nvim/lazy/luvit-meta/library/uv.lua",
+            "$HOME/.local/share/nvim/lazy"
         ],
-        "workspaceRoots": [
-            ".git",
-            ".emmyrc.json"
-        ],
-        "preloadFileSize": 0,
-        "encoding": "utf-8",
-        "moduleMap": [],
-        "reindexDuration": 5000,
-        "enableReindex": false
+        "ignoreGlobs": [
+            "**/*_spec.lua"
+        ]
     }
 }

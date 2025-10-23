@@ -67,6 +67,11 @@
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field permission OpencodeKeymapPermission
+---@field session_picker OpencodeSessionPickerKeymap
+
+---@class OpencodeSessionPickerKeymap
+---@field delete_session OpencodeKeymapEntry
+---@field new_session OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
@@ -95,7 +100,6 @@
 ---@field output OpencodeUIOutputConfig
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
-
 
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean }

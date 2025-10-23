@@ -2,10 +2,22 @@ local M = {}
 local picker = require('opencode.ui.picker')
 
 local picker_title = function()
-  local config = require('opencode.config')
-  local delete_config = config.keymap.session_picker.delete_session
-  local delete_key = delete_config and '  | ' .. delete_config[1] .. ' to delete' or ''
-  return 'Select A Session' .. delete_key
+  local config = require('opencode.config') --[[@as OpencodeConfig]]
+  local keymap_config = config.keymap.session_picker
+
+  local legend = {}
+  local actions = {
+    { key = keymap_config.delete_session, label = 'delete' },
+    { key = keymap_config.new_session, label = 'new' },
+  }
+
+  for _, action in ipairs(actions) do
+    if action.key and action.key[1] then
+      table.insert(legend, action.key[1] .. ' ' .. action.label)
+    end
+  end
+
+  return 'Select A Session' .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
 end
 
 local function format_session(session)

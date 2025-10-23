@@ -3,6 +3,7 @@ local core = require('opencode.core')
 local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
 local stub = require('luassert.stub')
+local assert = require('luassert')
 
 describe('opencode.api', function()
   local created_commands = {}
@@ -87,12 +88,12 @@ describe('opencode.api', function()
       -- Test open_input command
       stored_fns['OpencodeOpenInput']()
       assert.stub(core.open).was_called()
-      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input' })
+      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input', start_insert = true })
 
       -- Test open_input_new_session command
       stored_fns['OpencodeOpenInputNewSession']()
       assert.stub(core.open).was_called()
-      assert.stub(core.open).was_called_with({ new_session = true, focus = 'input' })
+      assert.stub(core.open).was_called_with({ new_session = true, focus = 'input', start_insert = true })
 
       -- Test stop command
       stored_fns['OpencodeStop']()
@@ -130,7 +131,7 @@ describe('opencode.api', function()
       assert.is_function(api.open_input, 'Should export open_input')
       api.open_input()
       assert.stub(core.open).was_called()
-      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input' })
+      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input', start_insert = true })
 
       -- Test run function
       assert.is_function(api.run, 'Should export run')

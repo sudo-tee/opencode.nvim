@@ -11,6 +11,7 @@ local config = require('opencode.config')
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
 ---@field input_content table
+---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
 ---@field last_input_window_position number|nil
 ---@field last_output_window_position number|nil
@@ -46,6 +47,7 @@ local _state = {
   -- ui
   windows = nil, ---@type OpencodeWindowState
   input_content = {},
+  is_opencode_focused = false,
   last_focused_opencode_window = nil,
   last_input_window_position = nil,
   last_output_window_position = nil,

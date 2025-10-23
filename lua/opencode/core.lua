@@ -74,6 +74,7 @@ function M.open(opts)
   elseif opts.focus == 'output' then
     ui.focus_output({ restore_position = are_windows_closed })
   end
+  state.is_opencode_focused = true
 end
 
 --- Sends a message to the active session, creating one if necessary.

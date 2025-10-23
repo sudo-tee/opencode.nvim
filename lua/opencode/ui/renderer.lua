@@ -78,6 +78,8 @@ function M._setup_event_subscriptions(subscribe)
   state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
   state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
   state.event_manager[method](state.event_manager, 'custom.restore_point.created', M.on_restore_points)
+
+  state[method]('is_opencode_focused', M.on_focus_changed)
 end
 
 ---Unsubscribe from local state and server subscriptions
@@ -694,6 +696,20 @@ function M._rerender_part(part_id)
   local formatted = formatter.format_part(part, message)
 
   M._replace_part_in_buffer(part_id, formatted)
+end
+
+---Event handler for focus changes
+---Re-renders part associated with current permission for displaying global shortcuts or buffer-local ones
+function M.on_focus_changed()
+  if not state.current_permission or not state.current_permission.callID then
+    return
+  end
+
+  local part_id = M._find_part_by_call_id(state.current_permission.callID, state.current_permission.messageID)
+  if part_id then
+    M._rerender_part(part_id)
+    trigger_on_data_rendered()
+  end
 end
 
 ---Get all actions available at a specific line

@@ -17,11 +17,11 @@ function M.swap_position()
 end
 
 function M.open_input()
-  core.open({ new_session = false, focus = 'input' })
+  core.open({ new_session = false, focus = 'input', start_insert = true })
 end
 
 function M.open_input_new_session()
-  core.open({ new_session = true, focus = 'input' })
+  core.open({ new_session = true, focus = 'input', start_insert = true })
 end
 
 function M.open_output()
@@ -44,7 +44,7 @@ function M.toggle(new_session)
   if state.windows == nil then
     local focus = state.last_focused_opencode_window or 'input'
 
-    core.open({ new_session = new_session == true, focus = focus })
+    core.open({ new_session = new_session == true, focus = focus, start_insert = false })
   else
     M.close()
   end

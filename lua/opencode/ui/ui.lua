@@ -125,19 +125,12 @@ function M.focus_input(opts)
     return
   end
 
-  if vim.api.nvim_get_current_win() == windows.input_win then
-    if opts.start_insert then
-      vim.cmd('startinsert!')
-    end
-    return
-  end
-
   vim.api.nvim_set_current_win(windows.input_win)
 
   if opts.restore_position and state.last_input_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
   end
-  if opts.start_insert then
+  if vim.api.nvim_get_current_win() == windows.input_win and opts.start_insert then
     vim.api.nvim_feedkeys('a', 'n', false)
   end
 end

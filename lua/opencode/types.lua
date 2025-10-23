@@ -268,6 +268,7 @@
 
 ---@class OpenOpts
 ---@field focus? 'input' | 'output'
+---@field start_insert? boolean
 ---@field new_session? boolean
 
 ---@class SendMessageOpts

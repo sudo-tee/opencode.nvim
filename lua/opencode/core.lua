@@ -74,7 +74,7 @@ function M.open(opts)
   end
 
   if opts.focus == 'input' then
-    ui.focus_input({ restore_position = are_windows_closed, start_insert = true })
+    ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
   elseif opts.focus == 'output' then
     ui.focus_output({ restore_position = are_windows_closed })
   end

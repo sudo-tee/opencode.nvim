@@ -214,14 +214,12 @@ function EventManager:emit(event_name, data)
   local event = { type = event_name, properties = data }
 
   if require('opencode.config').debug.capture_streamed_events then
-    vim.schedule(function()
-      table.insert(self.captured_events, vim.deepcopy(event))
-    end)
+    table.insert(self.captured_events, vim.deepcopy(event))
   end
 
   -- schedule events to allow for similar pieces of state to be updated
   for _, callback in ipairs(listeners) do
-    pcall(vim.schedule_wrap(callback), data)
+    pcall(callback, data)
   end
 end
 

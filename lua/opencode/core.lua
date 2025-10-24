@@ -48,6 +48,14 @@ function M.open(opts)
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
+    -- Check if opening buffer is allowed
+    local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard)
+
+    if not allowed then
+      vim.notify(err_msg or 'Opening opencode buffer denied by prompt_guard', vim.log.levels.WARN)
+      return
+    end
+
     state.windows = ui.create_windows()
   end
 
@@ -81,6 +89,14 @@ end
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
+  -- Check if prompt is allowed
+  local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard)
+
+  if not allowed then
+    vim.notify(err_msg or 'Prompt denied by prompt_guard', vim.log.levels.ERROR)
+    return
+  end
+
   opts = opts or {}
   opts.context = opts.context or config.context
   opts.model = opts.model or state.current_model

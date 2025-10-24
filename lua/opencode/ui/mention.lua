@@ -60,9 +60,6 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
 
       if char_start == 0 and string.sub(text, 0, 1) ~= '@' then
         -- Work around Opencode bug? where mentions sometimes have a 0 start
-        if config.debug.enabled then
-          vim.notify('Mention bug, falling back to search')
-        end
 
         local start_pos, end_pos = string.find(line, mention.value, 1, true)
 

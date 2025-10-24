@@ -133,10 +133,23 @@ function M.ansi_reset()
   return '\27[0m'
 end
 
--- Remove ANSI escape sequences
---- @param str string: Input string containing ANSI escape codes
+---Remove ANSI escape sequences
+---@param str string: Input string containing ANSI escape codes
+---@return string stripped_str
 function M.strip_ansi(str)
-  return str:gsub('\27%[[%d;]*m', '')
+  return (str:gsub('\27%[[%d;]*m', ''))
+end
+
+---Strip ANSI escape sequences from all lines
+---@param lines table
+---@return table stripped_lines
+function M.strip_ansi_lines(lines)
+  local stripped_lines = {}
+  for _, line in pairs(lines) do
+    table.insert(stripped_lines, M.strip_ansi(line))
+  end
+
+  return stripped_lines
 end
 
 --- Convert a datetime to a human-readable "time ago" format

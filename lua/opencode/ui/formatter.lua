@@ -620,7 +620,7 @@ end
 function M._format_code(output, lines, language)
   output:add_empty_line()
   output:add_line('```' .. (language or ''))
-  output:add_lines(lines)
+  output:add_lines(util.strip_ansi_lines(lines))
   output:add_line('```')
 end
 

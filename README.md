@@ -240,6 +240,7 @@ require('opencode').setup({
   debug = {
     enabled = false, -- Enable debug messages in the output window
   },
+  prompt_guard = nil, -- Optional function that returns boolean to control when prompts can be sent (see Prompt Guard section)
 })
 ```
 
@@ -536,6 +537,31 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeContestualAction`: Highlight for contextual actions in the output window (default: #3b4261 background)
 - `OpencodeInputLegend`: Highlight for input window legend (default: #CCCCCC background)
 - `OpencodeHint`: Highlight for hinting messages in input window and token info in output window footer (linked to `Comment`)
+
+## 🛡️ Prompt Guard
+
+The `prompt_guard` configuration option allows you to control when prompts can be sent to Opencode. This is useful for preventing accidental or unauthorized AI interactions in certain contexts.
+
+### Configuration
+
+Set `prompt_guard` to a function that returns a boolean:
+
+```lua
+require('opencode').setup({
+  prompt_guard = function()
+    -- Your custom logic here
+    -- Return true to allow, false to deny
+    return true
+  end,
+})
+```
+
+### Behavior
+
+- **Before sending prompts**: The guard is checked before any prompt is sent to the AI. If denied, an ERROR notification is shown and the prompt is not sent.
+- **Before opening UI**: The guard is checked when opening the Opencode buffer for the first time. If denied, a WARN notification is shown and the UI is not opened.
+- **No parameters**: The guard function receives no parameters. Access vim state directly (e.g., `vim.fn.getcwd()`, `vim.bo.filetype`).
+- **Error handling**: If the guard function throws an error or returns a non-boolean value, the prompt is denied with an appropriate error message.
 
 ## 🔧 Setting up Opencode
 

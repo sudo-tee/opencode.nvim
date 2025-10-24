@@ -14,7 +14,7 @@ M.headless_mode = false
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
-  local data_file = vim.fn.expand('$PWD') .. '/' .. file_path
+  local data_file = vim.fn.getcwd() .. '/' .. file_path
   local f = io.open(data_file, 'r')
   if not f then
     vim.notify('Could not open ' .. data_file, vim.log.levels.ERROR)

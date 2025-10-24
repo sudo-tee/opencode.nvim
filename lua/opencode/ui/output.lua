@@ -34,10 +34,6 @@ end
 ---@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
 function Output:add_line(line, fit)
-  local win_width = state.windows and vim.api.nvim_win_get_width(state.windows.output_win) or config.ui.window_width
-  if fit and #line > win_width then
-    line = vim.fn.strcharpart(line, 0, win_width - 7) .. '...'
-  end
   table.insert(self.lines, line)
   return #self.lines
 end
@@ -63,12 +59,11 @@ end
 ---@param prefix? string Optional prefix for each line
 function Output:add_lines(lines, prefix)
   for _, line in ipairs(lines) do
-    prefix = prefix or ''
-
     if line == '' then
-      self:add_empty_line()
+      table.insert(self.lines, '')
     else
-      self:add_line(prefix .. line)
+      prefix = prefix or ''
+      table.insert(self.lines, prefix .. line)
     end
   end
 end
@@ -76,9 +71,10 @@ end
 ---Add an empty line if the last line is not empty
 ---@return number? index The index of the added line, or nil if no line was added
 function Output:add_empty_line()
-  local last_line = self.lines[#self.lines]
-  if not last_line or last_line ~= '' then
-    return self:add_line('')
+  local line_count = #self.lines
+  if line_count == 0 or self.lines[line_count] ~= '' then
+    table.insert(self.lines, '')
+    return line_count + 1
   end
   return nil
 end

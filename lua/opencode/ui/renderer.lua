@@ -372,7 +372,7 @@ function M.on_message_updated(message, revert_index)
 
   if revert_index then
     if not found_msg then
-      state.append('messages', msg)
+      table.insert(state.messages, msg)
     end
     M._render_state:set_message(msg, 0, 0)
     return
@@ -390,7 +390,7 @@ function M.on_message_updated(message, revert_index)
       M._replace_message_in_buffer(msg.info.id, header_data)
     end
   else
-    state.append('messages', msg)
+    table.insert(state.messages, msg)
 
     local header_data = formatter.format_message_header(msg)
     local range = M._write_formatted_data(header_data)
@@ -548,7 +548,7 @@ function M.on_message_removed(properties)
 
   for i, msg in ipairs(state.messages or {}) do
     if msg.info.id == message_id then
-      state.remove('messages', i)
+      table.remove(state.messages, i)
       break
     end
   end

@@ -218,7 +218,6 @@ require('opencode').setup({
         max_files = 10,
         max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with "..."
       },
-
     },
   },
   context = {
@@ -535,7 +534,7 @@ The plugin defines several highlight groups that can be customized to match your
 - `OpencodeAgentBuild`: Agent indicator in winbar for Build mode (default: #616161 background)
 - `OpencodeAgentCustom`: Agent indicator in winbar for custom modes (default: #3b4261 background)
 - `OpencodeContestualAction`: Highlight for contextual actions in the output window (default: #3b4261 background)
-- `OpencodeInpuutLegend`: Highlight for input window legend (default: #CCCCCC background)
+- `OpencodeInputLegend`: Highlight for input window legend (default: #CCCCCC background)
 - `OpencodeHint`: Highlight for hinting messages in input window and token info in output window footer (linked to `Comment`)
 
 ## 🔧 Setting up Opencode

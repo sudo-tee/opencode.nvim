@@ -124,17 +124,18 @@ function M._render_full_session_data(session_data)
 
   local revert_index = nil
 
-  for i, msg in ipairs(session_data) do
-    -- output:add_lines(M.separator)
-    -- state.current_message = msg
+  -- local event_manager = state.event_manager
 
+  for i, msg in ipairs(session_data) do
     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
       revert_index = i
     end
 
+    -- table.insert(event_manager.captured_events, { type = 'message.updated', properties = { info = msg.info } })
     M.on_message_updated({ info = msg.info }, revert_index)
 
     for _, part in ipairs(msg.parts or {}) do
+      -- table.insert(event_manager.captured_events, { type = 'message.part.updated', properties = { part = part } })
       M.on_part_updated({ part = part }, revert_index)
     end
   end

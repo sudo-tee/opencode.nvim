@@ -159,6 +159,7 @@ M.defaults = {
   debug = {
     enabled = false,
   },
+  prompt_guard = nil,
 }
 
 M.values = vim.deepcopy(M.defaults)

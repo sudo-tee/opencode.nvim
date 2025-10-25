@@ -61,7 +61,6 @@ describe('opencode.core', function()
     stub(ui, 'render_output')
     stub(ui, 'focus_input')
     stub(ui, 'focus_output')
-    stub(ui, 'scroll_to_bottom')
     stub(ui, 'is_output_empty').returns(true)
     stub(session, 'get_last_workspace_session').returns({ id = 'test-session' })
     if session.get_by_id and type(session.get_by_id) == 'function' then
@@ -108,7 +107,6 @@ describe('opencode.core', function()
       'render_output',
       'focus_input',
       'focus_output',
-      'scroll_to_bottom',
       'is_output_empty',
     }) do
       if ui[fn] and ui[fn].revert then
@@ -185,8 +183,6 @@ describe('opencode.core', function()
       end)
       ui.render_output:revert()
       stub(ui, 'render_output')
-      ui.scroll_to_bottom:revert()
-      stub(ui, 'scroll_to_bottom')
 
       state.windows = { input_buf = 1, output_buf = 2 }
       core.select_session(nil)

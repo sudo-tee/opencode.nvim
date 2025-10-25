@@ -202,7 +202,7 @@ function M._scroll_to_bottom()
   end
 
   if was_at_bottom or not is_focused then
-    require('opencode.ui.ui').scroll_to_bottom()
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
   end
 end
 

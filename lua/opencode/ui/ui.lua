@@ -7,11 +7,6 @@ local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
 
-function M.scroll_to_bottom()
-  local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
-  vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
-end
-
 ---@param windows OpencodeWindowState
 function M.close_windows(windows)
   if not windows then

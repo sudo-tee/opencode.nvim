@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local config = require('opencode.config')
 local ThrottlingEmitter = require('opencode.throttling_emitter')
 
 --- @class EventInstallationUpdated
@@ -136,7 +137,6 @@ function EventManager.new()
     captured_events = {},
   }, EventManager)
 
-  local config = require('opencode.config')
   local throttle_ms = config.ui.output.rendering.event_throttle_ms
   self.throttling_emitter = ThrottlingEmitter.new(function(events)
     self:_on_drained_events(events)
@@ -218,16 +218,49 @@ function EventManager:unsubscribe(event_name, callback)
   end
 end
 
----Callaback from ThrottlingEmitter when the events are now
----ready to be processed
+---Callback from ThrottlingEmitter when the events are now ready to be processed.
+---Collapses parts that are duplicated, making sure to replace earlier parts with later
+---ones (but keeping the earlier position)
 ---@param events any
 function EventManager:_on_drained_events(events)
   self:emit('custom.emit_events.started', {})
 
-  -- TODO: try collapsing events here
+  local collapsed_events = {}
+  local part_update_indices = {}
 
-  for _, event in ipairs(events) do
-    self:emit(event.type, event.properties)
+  for i, event in ipairs(events) do
+    if event.type == 'message.part.updated' and event.properties.part then
+      local part_id = event.properties.part.id
+      if part_update_indices[part_id] then
+        -- vim.notify('collapsing: ' .. part_id .. ' text: ' .. vim.inspect(event.properties.part.text))
+        -- put this event in the earlier slot
+
+        -- move this newer part to the position of the original part
+        collapsed_events[part_update_indices[part_id]] = event
+
+        -- clear out this parts now unneeded position
+        collapsed_events[i] = nil
+      else
+        part_update_indices[part_id] = i
+        collapsed_events[i] = event
+      end
+    else
+      collapsed_events[i] = event
+    end
+  end
+
+  local actually_emitted = 0
+
+  for i = 1, #events do
+    local event = collapsed_events[i]
+    if event then
+      actually_emitted = actually_emitted + 1
+      self:emit(event.type, event.properties)
+    end
+  end
+
+  if config.debug.enabled then
+    vim.notify('Drained ' .. #events .. ', actually emitted: ' .. actually_emitted)
   end
 
   self:emit('custom.emit_events.finished', {})

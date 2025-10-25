@@ -1,0 +1,182 @@
+[
+  {
+    "properties": {},
+    "type": "server.connected"
+  },
+  {
+    "properties": {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1760312301247
+        },
+        "id": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "when @lua/opencode/ui/streaming_renderer.lua renders a diff, only the first character, the + has the extmark. the rest of the line doesn't seem to have the highlight?\n\nhere's an example from @tests/data/planning.json\n\n**  edit** `diff-test.txt`\n\n```txt\n-this is a string\n+this is a great string\n\n```\n\nthe - and the + are highlighted in the right color but none of the text is. any ideas?",
+        "id": "prt_9daca16bf0022KbzVMI7i65MRT",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\"}",
+        "id": "prt_9daca16c2001opnx6HTUdEAJaV",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "test",
+        "id": "prt_9daca16c2002SJNzz49CNIFyyl",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "source": {
+          "path": "/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua",
+          "type": "file",
+          "text": {
+            "value": "@lua/opencode/ui/streaming_renderer.lua",
+            "end": 43,
+            "start": 5
+          }
+        },
+        "type": "file",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "url": "file:///Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua",
+        "filename": "lua/opencode/ui/streaming_renderer.lua",
+        "id": "prt_9daca16c2003hMotbE5rccrYoN",
+        "mime": "text/plain",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/Dev/neovim-dev/opencode.nvim/tests/data/planning.json\"}",
+        "id": "prt_9daca16c3001bZ9uR15m68W1TM",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "test",
+        "id": "prt_9daca16c30024lnVaBquSAsD4l",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "source": {
+          "path": "/Users/cam/Dev/neovim-dev/opencode.nvim/tests/data/planning.json",
+          "type": "file",
+          "text": {
+            "value": "@tests/data/planning.json",
+            "end": 215,
+            "start": 191
+          }
+        },
+        "type": "file",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "url": "file:///Users/cam/Dev/neovim-dev/opencode.nvim/tests/data/planning.json",
+        "filename": "tests/data/planning.json",
+        "id": "prt_9daca16c3003EkkIdX54sm9uix",
+        "mime": "text/plain",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/session_formatter.lua\"}",
+        "id": "prt_9daca16c2004dgt3o9FT1BUWPZ",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "test",
+        "id": "prt_9daca16c2005WSv0B6gfUZmoVK",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "type": "file",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "url": "file:///Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/session_formatter.lua",
+        "filename": "lua/opencode/ui/session_formatter.lua",
+        "id": "prt_9daca16c2006W0Z6M3NVKB8rQv",
+        "mime": "text/plain",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "synthetic": true,
+        "type": "text",
+        "messageID": "msg_9daca16bf0017x95VD45mw3k8Q",
+        "text": "{\"context_type\":\"diagnostics\",\"content\":\"Found 2 errors:\\n Line 607: Undefined field `callID`.\\n Line 179: Undefined field `info`.\"}",
+        "id": "prt_9daca16bf0037QOQWJXBLwJimF",
+        "sessionID": "ses_62582b05affe1Z3mvuBraNHkzT"
+      }
+    },
+    "type": "message.part.updated"
+  }
+]

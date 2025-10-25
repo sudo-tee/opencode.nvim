@@ -1,0 +1,277 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": {
+          "created": 1760935477545
+        },
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "role": "user",
+        "id": "msg_9ffef0129001CoCrBKemk7DqcU"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "text": "test 3",
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "id": "prt_9ffef0129002g2pLXrK05uCBAX",
+        "type": "text",
+        "messageID": "msg_9ffef0129001CoCrBKemk7DqcU"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/diff-test.txt\"}",
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "id": "prt_9ffef012b001hSld2vQz1Gi5UF",
+        "type": "text",
+        "synthetic": true,
+        "messageID": "msg_9ffef0129001CoCrBKemk7DqcU"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "text": "<file>\n00001| this is a string\n00002| \n</file>",
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "id": "prt_9ffef012b002bP9c84axqbkHzF",
+        "type": "text",
+        "synthetic": true,
+        "messageID": "msg_9ffef0129001CoCrBKemk7DqcU"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "file",
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "id": "prt_9ffef012b003btmYWifFwnpRDU",
+        "url": "file:///Users/cam/tmp/a/diff-test.txt",
+        "filename": "diff-test.txt",
+        "mime": "text/plain",
+        "messageID": "msg_9ffef0129001CoCrBKemk7DqcU"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "time": {
+          "created": 1760928623043,
+          "updated": 1760935477550
+        },
+        "id": "ses_60079963cffekYiAZT1g5So7dY",
+        "version": "0.15.0",
+        "directory": "/Users/cam/tmp/a",
+        "projectID": "b0b749d27ca2e03482d36bfe846b01ce40ba759b",
+        "title": "Calling Read tool on diff-test.txt"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "cost": 0,
+        "tokens": {
+          "output": 0,
+          "input": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1760935477600
+        },
+        "modelID": "claude-sonnet-4-5-20250929",
+        "providerID": "anthropic",
+        "id": "msg_9ffef0160001eArLyAssT",
+        "role": "assistant",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        }
+      }
+    }
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9ffef0160001eArLyAssT",
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "text": "This is some sample text",
+        "time": {
+          "start": 1760935477600
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "cost": 0,
+        "tokens": {
+          "output": 0,
+          "input": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1760935477616
+        },
+        "modelID": "claude-sonnet-4-5-20250929",
+        "providerID": "anthropic",
+        "id": "msg_9ffef0170001s2OM00h2cDa94A",
+        "role": "assistant",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        }
+      }
+    }
+  },
+  {
+    "type": "session.error",
+    "properties": {
+      "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+      "error": {
+        "data": {
+          "message": "AI_APICallError: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."
+        },
+        "name": "UnknownError"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "cost": 0,
+        "tokens": {
+          "output": 0,
+          "input": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1760935477616,
+          "completed": 1760935478001
+        },
+        "modelID": "claude-sonnet-4-5-20250929",
+        "providerID": "anthropic",
+        "id": "msg_9ffef0170001s2OM00h2cDa94A",
+        "error": {
+          "data": {
+            "message": "AI_APICallError: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."
+          },
+          "name": "UnknownError"
+        },
+        "role": "assistant",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "cost": 0,
+        "tokens": {
+          "output": 0,
+          "input": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1760935477616,
+          "completed": 1760935478002
+        },
+        "modelID": "claude-sonnet-4-5-20250929",
+        "providerID": "anthropic",
+        "id": "msg_9ffef0170001s2OM00h2cDa94A",
+        "error": {
+          "data": {
+            "message": "AI_APICallError: Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."
+          },
+          "name": "UnknownError"
+        },
+        "role": "assistant",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60079963cffekYiAZT1g5So7dY",
+        "id": "msg_9ffef0160001eArLyAssT",
+        "mode": "plan",
+        "time": {
+          "created": 1760935477616,
+          "completed": 1760935478002
+        },
+        "modelID": "claude-sonnet-4-5-20250929",
+        "providerID": "anthropic",
+        "error": {
+          "data": {
+            "message": "Simulated: tool/file read failed for earlier assistant message"
+          },
+          "name": "UnknownError"
+        },
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": {
+      "sessionID": "ses_60079963cffekYiAZT1g5So7dY"
+    }
+  }
+]

@@ -1,0 +1,495 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_test001",
+        "directory": "/Users/test/project",
+        "time": {
+          "updated": 1760000000000,
+          "created": 1760000000000
+        },
+        "version": "0.15.0",
+        "title": "Message Removal Test",
+        "projectID": "test123"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_001",
+        "sessionID": "ses_test001",
+        "time": {
+          "created": 1760000001000
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_001_001",
+        "text": "Message 1, Part 1",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_001"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_001_002",
+        "text": "Message 1, Part 2",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_001"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_001_003",
+        "text": "Message 1, Part 3",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_001"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_001_004",
+        "text": "Message 1, Part 4",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_001"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_001_005",
+        "text": "Message 1, Part 5",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_001"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_002",
+        "sessionID": "ses_test001",
+        "time": {
+          "created": 1760000002000
+        },
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_002_001",
+        "text": "Message 2, Part 1",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_002"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_002_002",
+        "text": "Message 2, Part 2",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_002"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_002_003",
+        "text": "Message 2, Part 3",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_002"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_002_004",
+        "text": "Message 2, Part 4",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_002"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_002_005",
+        "text": "Message 2, Part 5",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_002"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_003",
+        "sessionID": "ses_test001",
+        "time": {
+          "created": 1760000003000
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_003_001",
+        "text": "Message 3, Part 1",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_003"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_003_002",
+        "text": "Message 3, Part 2",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_003"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_003_003",
+        "text": "Message 3, Part 3",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_003"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_003_004",
+        "text": "Message 3, Part 4",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_003"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_003_005",
+        "text": "Message 3, Part 5",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_003"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_004",
+        "sessionID": "ses_test001",
+        "time": {
+          "created": 1760000004000
+        },
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_004_001",
+        "text": "Message 4, Part 1",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_004"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_004_002",
+        "text": "Message 4, Part 2",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_004"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_004_003",
+        "text": "Message 4, Part 3",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_004"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_004_004",
+        "text": "Message 4, Part 4",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_004"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_004_005",
+        "text": "Message 4, Part 5",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_004"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_005",
+        "sessionID": "ses_test001",
+        "time": {
+          "created": 1760000005000
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_005_001",
+        "text": "Message 5, Part 1",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_005"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_005_002",
+        "text": "Message 5, Part 2",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_005"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_005_003",
+        "text": "Message 5, Part 3",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_005"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_005_004",
+        "text": "Message 5, Part 4",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_005"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_005_005",
+        "text": "Message 5, Part 5",
+        "sessionID": "ses_test001",
+        "type": "text",
+        "messageID": "msg_005"
+      }
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_001",
+      "partID": "prt_001_003"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_002",
+      "partID": "prt_002_001"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_002",
+      "partID": "prt_002_005"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_004",
+      "partID": "prt_004_002"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_004",
+      "partID": "prt_004_003"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_004",
+      "partID": "prt_004_004"
+    }
+  },
+  {
+    "type": "message.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_003"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005",
+      "partID": "prt_005_001"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005",
+      "partID": "prt_005_002"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005",
+      "partID": "prt_005_003"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005",
+      "partID": "prt_005_004"
+    }
+  },
+  {
+    "type": "message.part.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005",
+      "partID": "prt_005_005"
+    }
+  },
+  {
+    "type": "message.removed",
+    "properties": {
+      "sessionID": "ses_test001",
+      "messageID": "msg_005"
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": {
+      "sessionID": "ses_test001"
+    }
+  }
+]

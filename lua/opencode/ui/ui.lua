@@ -1,26 +1,11 @@
 local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
-local renderer = require('opencode.ui.output_renderer')
+local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
-
-function M.scroll_to_bottom()
-  local line_count = vim.api.nvim_buf_line_count(state.windows.output_buf)
-  vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
-
-  vim.schedule(function()
-    vim.api.nvim_win_call(state.windows.output_win, function()
-      vim.cmd('normal! zb')
-    end)
-  end)
-
-  vim.defer_fn(function()
-    renderer.render_markdown()
-  end, 200)
-end
 
 ---@param windows OpencodeWindowState
 function M.close_windows(windows)
@@ -32,20 +17,21 @@ function M.close_windows(windows)
     M.return_to_last_code_win()
   end
 
-  renderer.stop()
+  topbar.close()
+  renderer.teardown()
 
-  -- Close windows and delete buffers
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
+
   pcall(vim.api.nvim_win_close, windows.input_win, true)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   footer.close()
 
-  -- Clear autocmd groups
-  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
-  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
-
-  state.windows = nil
+  if state.windows == windows then
+    state.windows = nil
+  end
 end
 
 function M.return_to_last_code_win()
@@ -96,7 +82,7 @@ function M.create_windows()
 
   local autocmds = require('opencode.ui.autocmds')
 
-  if not require('opencode.ui.ui').is_opencode_focused() then
+  if not M.is_opencode_focused() then
     require('opencode.context').load()
     state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
   end
@@ -111,9 +97,13 @@ function M.create_windows()
   input_window.setup(windows)
   output_window.setup(windows)
   footer.setup(windows)
+  topbar.setup()
+
+  renderer.setup_subscriptions(windows)
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)
+  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
 
   return windows
 end
@@ -177,27 +167,20 @@ function M.is_output_empty()
 end
 
 function M.clear_output()
-  renderer.stop()
+  renderer.reset()
   output_window.clear()
   footer.clear()
   topbar.render()
-  renderer.render_markdown()
   -- state.restore_points = {}
 end
 
-function M.render_output(force)
-  force = force or false
-  renderer.render(state.windows, force)
+function M.render_output(_)
+  renderer.render_full_session()
 end
 
 function M.render_lines(lines)
   M.clear_output()
-  renderer.write_output(state.windows, lines)
-  renderer.render_markdown()
-end
-
-function M.stop_render_output()
-  renderer.stop()
+  renderer.render_lines(lines)
 end
 
 function M.select_session(sessions, cb)
@@ -209,7 +192,7 @@ function M.select_session(sessions, cb)
     vim.ui.select(sessions, {
       prompt = '',
       format_item = function(session)
-        local parts = {}
+        local parts = { { session.id } }
 
         if session.description then
           table.insert(parts, session.description)

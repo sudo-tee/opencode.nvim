@@ -18,6 +18,9 @@ local function mock_api_client()
     abort_session = function(_, _id)
       return Promise.new():resolve(true)
     end,
+    get_current_project = function()
+      return Promise.new():resolve({ id = 'test-project-id' })
+    end,
   }
 end
 
@@ -25,11 +28,13 @@ describe('opencode.core', function()
   local original_state
   local original_system
   local original_executable
+  local original_schedule
 
   before_each(function()
     original_state = vim.deepcopy(state)
     original_system = vim.system
     original_executable = vim.fn.executable
+    original_schedule = vim.schedule
 
     vim.fn.executable = function(_)
       return 1
@@ -40,6 +45,9 @@ describe('opencode.core', function()
           return { stdout = 'opencode 0.6.3' }
         end,
       }
+    end
+    vim.schedule = function(fn)
+      fn()
     end
 
     stub(ui, 'create_windows').returns({
@@ -53,23 +61,33 @@ describe('opencode.core', function()
     stub(ui, 'render_output')
     stub(ui, 'focus_input')
     stub(ui, 'focus_output')
-    stub(ui, 'scroll_to_bottom')
     stub(ui, 'is_output_empty').returns(true)
     stub(session, 'get_last_workspace_session').returns({ id = 'test-session' })
-    if session.get_by_name and type(session.get_by_name) == 'function' then
+    if session.get_by_id and type(session.get_by_id) == 'function' then
+      -- stub get_by_id to return a simple session object without filesystem access
+      stub(session, 'get_by_id').invokes(function(id)
+        if not id then
+          return nil
+        end
+        return { id = id, description = id, modified = os.time(), parentID = nil }
+      end)
       -- stub get_by_name to return a simple session object without filesystem access
       stub(session, 'get_by_name').invokes(function(name)
-        if not name then return nil end
+        if not name then
+          return nil
+        end
         return { id = name, description = name, modified = os.time(), parentID = nil }
       end)
     end
     mock_api_client()
 
     -- Mock server job to avoid trying to start real server
-    state.opencode_server_job = {
-      is_running = function() return true end,
+    state.opencode_server = {
+      is_running = function()
+        return true
+      end,
       shutdown = function() end,
-      url = 'http://127.0.0.1:4000'
+      url = 'http://127.0.0.1:4000',
     }
 
     -- Config is now loaded lazily, so no need to pre-seed promises
@@ -81,11 +99,29 @@ describe('opencode.core', function()
     end
     vim.system = original_system
     vim.fn.executable = original_executable
+    vim.schedule = original_schedule
 
-    for _, fn in ipairs({ 'create_windows', 'clear_output', 'render_output', 'focus_input', 'focus_output', 'scroll_to_bottom', 'is_output_empty' }) do
-      if ui[fn] and ui[fn].revert then ui[fn]:revert() end
+    for _, fn in ipairs({
+      'create_windows',
+      'clear_output',
+      'render_output',
+      'focus_input',
+      'focus_output',
+      'is_output_empty',
+    }) do
+      if ui[fn] and ui[fn].revert then
+        ui[fn]:revert()
+      end
     end
-    if session.get_last_workspace_session.revert then session.get_last_workspace_session:revert() end
+    if session.get_last_workspace_session.revert then
+      session.get_last_workspace_session:revert()
+    end
+    if session.get_by_id and session.get_by_id.revert then
+      session.get_by_id:revert()
+    end
+    if session.get_by_name and session.get_by_name.revert then
+      session.get_by_name:revert()
+    end
   end)
 
   describe('open', function()
@@ -105,23 +141,21 @@ describe('opencode.core', function()
     it('handles new session properly', function()
       state.windows = nil
       state.active_session = { id = 'old-session' }
-
-      ui.clear_output:revert()
-      local cleared = false
-      stub(ui, 'clear_output').invokes(function() cleared = true end)
-
       core.open({ new_session = true, focus = 'input' })
       assert.truthy(state.active_session)
-      assert.is_true(cleared)
-      ui.clear_output:revert(); stub(ui, 'clear_output')
     end)
 
     it('focuses the appropriate window', function()
       state.windows = nil
-      ui.focus_input:revert(); ui.focus_output:revert()
+      ui.focus_input:revert()
+      ui.focus_output:revert()
       local input_focused, output_focused = false, false
-      stub(ui, 'focus_input').invokes(function() input_focused = true end)
-      stub(ui, 'focus_output').invokes(function() output_focused = true end)
+      stub(ui, 'focus_input').invokes(function()
+        input_focused = true
+      end)
+      stub(ui, 'focus_output').invokes(function()
+        output_focused = true
+      end)
 
       core.open({ new_session = false, focus = 'input' })
       assert.is_true(input_focused)
@@ -147,8 +181,8 @@ describe('opencode.core', function()
         passed = sessions
         cb(sessions[2]) -- expect session3 after filtering
       end)
-      ui.render_output:revert(); stub(ui, 'render_output')
-      ui.scroll_to_bottom:revert(); stub(ui, 'scroll_to_bottom')
+      ui.render_output:revert()
+      stub(ui, 'render_output')
 
       state.windows = { input_buf = 1, output_buf = 2 }
       core.select_session(nil)
@@ -174,7 +208,9 @@ describe('opencode.core', function()
       end
 
       core.send_message('hello world')
-      vim.wait(50, function() return create_called end)
+      vim.wait(50, function()
+        return create_called
+      end)
       assert.True(create_called)
       state.api_client.create_message = orig
     end)
@@ -206,7 +242,11 @@ describe('opencode.core', function()
 
     local function mock_vim_system(result)
       return function(_cmd, _opts)
-        return { wait = function() return result end }
+        return {
+          wait = function()
+            return result
+          end,
+        }
       end
     end
 
@@ -223,12 +263,16 @@ describe('opencode.core', function()
     end)
 
     it('returns false when opencode executable is missing', function()
-      vim.fn.executable = function(_) return 0 end
+      vim.fn.executable = function(_)
+        return 0
+      end
       assert.is_false(core.opencode_ok())
     end)
 
     it('returns false when version is below required', function()
-      vim.fn.executable = function(_) return 1 end
+      vim.fn.executable = function(_)
+        return 1
+      end
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.1' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
@@ -236,7 +280,9 @@ describe('opencode.core', function()
     end)
 
     it('returns true when version equals required', function()
-      vim.fn.executable = function(_) return 1 end
+      vim.fn.executable = function(_)
+        return 1
+      end
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.2' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
@@ -244,7 +290,9 @@ describe('opencode.core', function()
     end)
 
     it('returns true when version is above required', function()
-      vim.fn.executable = function(_) return 1 end
+      vim.fn.executable = function(_)
+        return 1
+      end
       vim.system = mock_vim_system({ stdout = 'opencode 0.5.0' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'

@@ -19,8 +19,8 @@ function OpencodeServer.new()
     group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
     callback = function()
       local state = require('opencode.state')
-      if state.opencode_server_job then
-        state.opencode_server_job:shutdown()
+      if state.opencode_server then
+        state.opencode_server:shutdown()
       end
     end,
   })

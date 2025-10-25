@@ -30,6 +30,11 @@ describe('EventManager', function()
 
     event_manager:emit('test_event', { test = 'data' })
 
+    -- Wait for scheduled callback to execute
+    vim.wait(100, function()
+      return callback_called
+    end)
+
     assert.is_true(callback_called)
     assert.are.same({ test = 'data' }, received_data)
   end)
@@ -47,6 +52,11 @@ describe('EventManager', function()
     end)
 
     event_manager:emit('test_event', {})
+
+    -- Wait for scheduled callbacks to execute
+    vim.wait(100, function()
+      return callback1_called and callback2_called
+    end)
 
     assert.is_true(callback1_called)
     assert.is_true(callback2_called)

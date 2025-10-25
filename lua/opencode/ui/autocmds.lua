@@ -25,7 +25,7 @@ function M.setup_autocmds(windows)
   vim.api.nvim_create_autocmd('WinLeave', {
     group = group,
     pattern = '*',
-    callback = function()
+    callback = function(e)
       if not require('opencode.ui.ui').is_opencode_focused() then
         require('opencode.context').load()
         require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()
@@ -37,6 +37,14 @@ function M.setup_autocmds(windows)
           require('opencode.state').last_output_window_position = pos
         end
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('WinEnter', {
+    group = group,
+    pattern = '*',
+    callback = function()
+      require('opencode.state').is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
     end,
   })
 end

@@ -1,0 +1,59 @@
+# From
+# https://github.com/shortcuts/neovim-plugin-boilerplate/blob/main/.github/workflows/main.yml
+
+name: tests
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check . -g '*.lua' -g '!deps/'
+
+  test:
+    timeout-minutes: 4
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        neovim_version: ["v0.10.3", "v0.11.4", "nightly"]
+        include:
+          - os: macos-latest
+            neovim_version: v0.11.4
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim_version }}
+
+      # only needed if testing in ssh but doesn't hurt
+      - name: Add nvim to PATH
+        run: echo "${{ steps.setup_nvim.outputs.executable }}" >> $GITHUB_PATH
+
+      - name: Install plenary
+        run: |
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
+
+      - name: Run tests
+        run: ./run_tests.sh
+
+      # # For sshing in to debug GH actions
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     detached: true

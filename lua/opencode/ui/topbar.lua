@@ -76,7 +76,7 @@ local function get_session_desc()
   local session_desc = LABELS.NEW_SESSION_TITLE
 
   if state.active_session then
-    local session = require('opencode.session').get_by_name(state.active_session.id)
+    local session = require('opencode.session').get_by_id(state.active_session.id)
     if session and session.description ~= '' then
       session_desc = session.description
     end
@@ -86,15 +86,16 @@ local function get_session_desc()
 end
 
 function M.render()
-  if not state.windows then
-    return
-  end
-
   vim.schedule(function()
     if not state.windows then
       return
     end
     local win = state.windows.output_win
+    if not win then
+      return
+    end
+    -- topbar needs to at least have a value to make sure footer is positioned correctly
+    vim.wo[win].winbar = ' '
     vim.wo[win].winbar =
       create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
 
@@ -102,4 +103,20 @@ function M.render()
   end)
 end
 
+local function on_change(_, _, _)
+  M.render()
+end
+
+function M.setup()
+  state.subscribe('current_mode', on_change)
+  state.subscribe('current_model', on_change)
+  state.subscribe('active_session', on_change)
+  M.render()
+end
+
+function M.close()
+  state.unsubscribe('current_mode', on_change)
+  state.unsubscribe('current_model', on_change)
+  state.unsubscribe('active_session', on_change)
+end
 return M

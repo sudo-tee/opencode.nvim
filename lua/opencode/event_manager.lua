@@ -136,10 +136,11 @@ function EventManager.new()
     captured_events = {},
   }, EventManager)
 
-  -- TODO: make drain delay configurable
+  local config = require('opencode.config')
+  local throttle_ms = config.ui.output.rendering.event_throttle_ms
   self.throttling_emitter = ThrottlingEmitter.new(function(events)
     self:_on_drained_events(events)
-  end, 40)
+  end, throttle_ms)
 
   return self
 end

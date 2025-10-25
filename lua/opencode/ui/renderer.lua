@@ -10,7 +10,6 @@ local M = {}
 M._subscriptions = {}
 M._prev_line_count = 0
 M._render_state = RenderState.new()
-M._disable_auto_scroll = false
 M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
@@ -37,7 +36,6 @@ end, config.ui.output.rendering.markdown_debounce_ms or 250)
 function M.reset()
   M._prev_line_count = 0
   M._render_state:reset()
-  M._disable_auto_scroll = false
   M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
   output_window.clear()
@@ -73,13 +71,14 @@ function M._setup_event_subscriptions(subscribe)
   state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
   state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
   state.event_manager[method](state.event_manager, 'message.updated', M.on_message_updated)
-  state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
   state.event_manager[method](state.event_manager, 'message.removed', M.on_message_removed)
+  state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
   state.event_manager[method](state.event_manager, 'message.part.removed', M.on_part_removed)
   state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
   state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
   state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
   state.event_manager[method](state.event_manager, 'custom.restore_point.created', M.on_restore_points)
+  state.event_manager[method](state.event_manager, 'custom.emit_events.finished', M.on_emit_events_finished)
 
   state[method]('is_opencode_focused', M.on_focus_changed)
 end
@@ -121,9 +120,6 @@ end
 function M._render_full_session_data(session_data)
   M.reset()
 
-  -- disable auto-scroll, makes loading a full session much faster
-  M._disable_auto_scroll = true
-
   local revert_index = nil
 
   -- local event_manager = state.event_manager
@@ -146,9 +142,7 @@ function M._render_full_session_data(session_data)
     M._write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
   end
 
-  -- re-enable Auto-scroll
-  M._disable_auto_scroll = false
-  M._scroll_to_bottom()
+  M.scroll_to_bottom()
 end
 
 ---Render lines as the entire output buffer
@@ -169,17 +163,17 @@ function M.render_output(output_data)
   output_window.set_lines(output_data.lines)
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
-  M._scroll_to_bottom()
+  M.scroll_to_bottom()
+end
+
+---Called when EventManager has finished emitting a batch of events
+function M.on_emit_events_finished()
+  M.scroll_to_bottom()
 end
 
 ---Auto-scroll to bottom if user was already at bottom
 ---Respects cursor position if user has scrolled up
-function M._scroll_to_bottom()
-  -- if we're loading a full session, don't scroll incrementally
-  if M._disable_auto_scroll then
-    return
-  end
-
+function M.scroll_to_bottom()
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
   if not ok then
     return
@@ -448,8 +442,6 @@ function M.on_message_updated(message, revert_index)
   end
 
   M._update_stats_from_message(msg)
-
-  M._scroll_to_bottom()
 end
 
 ---Event handler for message.part.updated events
@@ -526,8 +518,6 @@ function M.on_part_updated(properties, revert_index)
       M._rerender_part(text_part_id)
     end
   end
-
-  M._scroll_to_bottom()
 end
 
 ---Event handler for message.part.removed events
@@ -653,7 +643,6 @@ function M.on_permission_updated(permission)
   local part_id = M._find_part_by_call_id(permission.callID, permission.messageID)
   if part_id then
     M._rerender_part(part_id)
-    M._scroll_to_bottom()
   end
 end
 
@@ -672,7 +661,6 @@ function M.on_permission_replied(properties)
     local part_id = M._find_part_by_call_id(old_permission.callID, old_permission.messageID)
     if part_id then
       M._rerender_part(part_id)
-      M._scroll_to_bottom()
     end
   end
 end

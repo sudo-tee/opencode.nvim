@@ -105,27 +105,6 @@ function M.set_lines(lines, start_line, end_line)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
 end
 
---- FIXME: remove debugging code
----Set text in a specific line at character positions
----@param line integer The line number (0-indexed)
----@param start_col integer The starting column (0-indexed)
----@param end_col integer The ending column (0-indexed)
----@param text string The text to insert
-function M.set_text(line, start_col, end_col, text)
-  if not M.mounted() then
-    return
-  end
-
-  local windows = state.windows
-  if not windows or not windows.output_buf then
-    return
-  end
-
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_text(windows.output_buf, line, start_col, line, end_col, { text })
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
-end
-
 ---Clear output buf extmarks
 ---@param start_line? integer Line to start clearing, defaults 0
 ---@param end_line? integer Line to clear until, defaults to -1

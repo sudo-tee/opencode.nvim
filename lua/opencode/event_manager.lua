@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local ThrottlingEmitter = require('opencode.throttling_emitter')
 
 --- @class EventInstallationUpdated
 --- @field type "installation.updated"
@@ -113,24 +114,34 @@ local state = require('opencode.state')
 --- | "custom.server_ready"
 --- | "custom.server_stopped"
 --- | "custom.restore_point.created"
+--- | "custom.emit_events.started"
+--- | "custom.emit_events.finished"
 
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
+--- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
 local EventManager = {}
 EventManager.__index = EventManager
 
 --- Create a new EventManager instance
 --- @return EventManager
 function EventManager.new()
-  return setmetatable({
+  local self = setmetatable({
     events = {},
     server_subscription = nil,
     is_started = false,
     captured_events = {},
   }, EventManager)
+
+  -- TODO: make drain delay configurable
+  self.throttling_emitter = ThrottlingEmitter.new(function(events)
+    self:_on_drained_events(events)
+  end, 40)
+
+  return self
 end
 
 --- Subscribe to an event with type-safe callbacks using function overloads
@@ -155,6 +166,8 @@ end
 --- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.started", callback: fun(): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.finished", callback: fun(): nil)
 --- @param event_name OpencodeEventName The event name to listen for
 --- @param callback function Callback function to execute when event is triggered
 function EventManager:subscribe(event_name, callback)
@@ -186,6 +199,8 @@ end
 --- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.started", callback: fun(): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.finished", callback: fun(): nil)
 --- @param event_name OpencodeEventName The event name
 --- @param callback function The callback function to remove
 function EventManager:unsubscribe(event_name, callback)
@@ -200,6 +215,21 @@ function EventManager:unsubscribe(event_name, callback)
       break
     end
   end
+end
+
+---Callaback from ThrottlingEmitter when the events are now
+---ready to be processed
+---@param events any
+function EventManager:_on_drained_events(events)
+  self:emit('custom.emit_events.started', {})
+
+  -- TODO: try collapsing events here
+
+  for _, event in ipairs(events) do
+    self:emit(event.type, event.properties)
+  end
+
+  self:emit('custom.emit_events.finished', {})
 end
 
 --- Emit an event to all subscribers
@@ -217,7 +247,6 @@ function EventManager:emit(event_name, data)
     table.insert(self.captured_events, vim.deepcopy(event))
   end
 
-  -- schedule events to allow for similar pieces of state to be updated
   for _, callback in ipairs(listeners) do
     pcall(callback, data)
   end
@@ -267,6 +296,7 @@ function EventManager:stop()
   self.is_started = false
   self:_cleanup_server_subscription()
 
+  self.throttling_emitter:clear()
   self.events = {}
 end
 
@@ -282,9 +312,7 @@ function EventManager:_subscribe_to_server_events(server)
   local api_client = state.api_client
 
   local emitter = function(event)
-    vim.schedule(function()
-      self:emit(event.type, event.properties)
-    end)
+    self.throttling_emitter:enqueue(event)
   end
 
   self.server_subscription = api_client:subscribe_to_events(nil, emitter)

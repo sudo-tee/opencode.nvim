@@ -11,6 +11,7 @@ M._subscriptions = {}
 M._prev_line_count = 0
 M._render_state = RenderState.new()
 M._disable_auto_scroll = false
+M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
   local cb_type = type(config.ui.output.rendering.on_data_rendered)
@@ -37,6 +38,7 @@ function M.reset()
   M._prev_line_count = 0
   M._render_state:reset()
   M._disable_auto_scroll = false
+  M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
   output_window.clear()
 
@@ -251,6 +253,9 @@ function M._insert_part_to_buffer(part_id, formatted_data)
   end
 
   M._render_state:set_part(cached.part, range.line_start, range.line_end)
+
+  M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
+
   return true
 end
 
@@ -267,11 +272,42 @@ function M._replace_part_in_buffer(part_id, formatted_data)
 
   local new_lines = formatted_data.lines
   local new_line_count = #new_lines
+  -- local old_line_count = cached.line_end - cached.line_start + 1
+
+  local old_formatted = M._last_part_formatted
+  local can_optimize = old_formatted
+    and old_formatted.part_id == part_id
+    and old_formatted.formatted_data
+    and old_formatted.formatted_data.lines
+
+  local lines_to_write = new_lines
+  local write_start_line = cached.line_start
+
+  if can_optimize then
+    local old_lines = old_formatted.formatted_data.lines
+    local first_diff_line = nil
+
+    for i = 1, math.min(#old_lines, new_line_count) do
+      if old_lines[i] ~= new_lines[i] then
+        first_diff_line = i
+        break
+      end
+    end
+
+    if not first_diff_line and new_line_count > #old_lines then
+      first_diff_line = #old_lines + 1
+    end
+
+    if first_diff_line then
+      lines_to_write = vim.list_slice(new_lines, first_diff_line, new_line_count)
+      write_start_line = cached.line_start + first_diff_line - 1
+    end
+  end
 
   M._render_state:clear_actions(part_id)
 
   output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
-  output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)
+  output_window.set_lines(lines_to_write, write_start_line, cached.line_end + 1)
 
   local new_line_end = cached.line_start + new_line_count - 1
 
@@ -282,6 +318,8 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   end
 
   M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)
+
+  M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
 
   return true
 end

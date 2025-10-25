@@ -101,10 +101,15 @@
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
 
+---@class OpencodeUIOutputRenderingConfig
+---@field markdown_debounce_ms number
+---@field on_data_rendered (fun(buf: integer, win: integer)|boolean)|nil
+---@field event_throttle_ms number
+---@field event_collapsing boolean
+
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean }
----@field rendering { markdown_debounce_ms: number, on_data_rendered: (fun(buf: integer, win: integer)|boolean)|nil }
----@field event_throttle_ms number
+---@field rendering OpencodeUIOutputRenderingConfig
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean

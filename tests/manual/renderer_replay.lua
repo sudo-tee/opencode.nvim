@@ -4,10 +4,6 @@ local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 local config = require('opencode.config')
 
-local topbar = require('opencode.ui.topbar')
-local footer = require('opencode.ui.footer')
-local loading_animation = require('opencode.ui.loading_animation')
-
 local M = {}
 
 M.events = {}
@@ -64,50 +60,13 @@ function M.setup_windows(opts)
   return true
 end
 
-function M.emit_event(event)
-  if not event or not event.type then
-    return
-  end
-
-  local index = M.current_index
-  local count = #M.events
-  local id = event.properties.info and event.properties.info.id
-    or event.properties.part and event.properties.part.id
-    or event.properties.id
-    or event.properties.permissionID
-    or event.properties.partID
-    or event.properties.messageID
-    or ''
-  vim.notify(
-    'Event '
-      .. index
-      .. '/'
-      .. count
-      .. ': '
-      .. event.type
-      .. ' '
-      .. id
-      .. ' lines_set: '
-      .. output_window._lines_set
-      .. ' set_calls: '
-      .. output_window._set_calls,
-    vim.log.levels.INFO
-  )
-  helpers.replay_event(event)
-end
-
 function M.replay_next(steps)
   steps = tonumber(steps) or 1
-
-  if M.current_index >= #M.events then
-    vim.notify('No more events to replay', vim.log.levels.WARN)
-    return
-  end
 
   for _ = 1, steps do
     if M.current_index < #M.events then
       M.current_index = M.current_index + 1
-      M.emit_event(M.events[M.current_index])
+      helpers.replay_event(M.events[M.current_index])
     else
       vim.notify('No more events to replay', vim.log.levels.WARN)
       return
@@ -131,49 +90,30 @@ function M.replay_all(delay_ms)
 
   if delay_ms == 0 then
     M.replay_next(#M.events)
-    vim.notify(
-      'Renders: footer: '
-        .. footer.render_calls
-        .. ' topbar: '
-        .. topbar.render_calls
-        .. ' animation:'
-        .. loading_animation.render_calls
-    )
     return
   end
 
   state.job_count = 1
 
+  -- This defer loop will fill the event manager throttling emitter and that
+  -- emitter will drain the events through event manager, which
+  -- will call renderer
   local function tick()
-    if M.current_index >= #M.events then
+    M.replay_next()
+    if M.current_index >= #M.events or M.stop then
       state.job_count = 0
-      vim.notify(
-        ('Renders: footer: %d topbar: %d animation: %d'):format(
-          footer.render_calls,
-          topbar.render_calls,
-          loading_animation.render_calls
-        )
-      )
 
       if M.headless_mode then
         M.dump_buffer_and_quit()
       end
+
       return
     end
-
-    if M.stop then
-      M.stop = false
-      state.job_count = 0
-      vim.notify('Replay stopped at event ' .. M.current_index .. '/' .. #M.events, vim.log.levels.INFO)
-      return
-    end
-
-    M.replay_next()
 
     vim.defer_fn(tick, delay_ms)
   end
 
-  vim.defer_fn(tick, delay_ms)
+  tick()
 end
 
 function M.replay_stop()
@@ -264,6 +204,11 @@ end
 
 function M.dump_buffer_and_quit()
   vim.schedule(function()
+    -- wait until the emitter queue is empty
+    vim.wait(5000, function()
+      return vim.tbl_isempty(state.event_manager.throttling_emitter.queue)
+    end)
+
     if not state.windows or not state.windows.output_buf then
       print('ERROR: No output buffer available')
       vim.cmd('qall!')
@@ -397,6 +342,61 @@ function M.start(opts)
   vim.keymap.set('n', '<leader>r', ':ReplayReset<CR>')
 
   M.setup_windows(opts)
+
+  local log_event = function(type, event)
+    local index = M.current_index
+    local count = #M.events
+    local id = event.info and event.info.id
+      or event.part and event.part.id
+      or event.id
+      or event.permissionID
+      or event.partID
+      or event.messageID
+      or ''
+    vim.notify(
+      'Event '
+        .. index
+        .. '/'
+        .. count
+        .. ': '
+        .. type
+        .. ' '
+        .. id
+        .. ' lines_set: '
+        .. output_window._lines_set
+        .. ' set_calls: '
+        .. output_window._set_calls,
+      vim.log.levels.INFO
+    )
+  end
+
+  state.event_manager:subscribe('session.updated', function(event)
+    log_event('session.updated', event)
+  end)
+  state.event_manager:subscribe('session.compacted', function(event)
+    log_event('session.compacted', event)
+  end)
+  state.event_manager:subscribe('session.error', function(event)
+    log_event('session.error', event)
+  end)
+  state.event_manager:subscribe('message.updated', function(event)
+    log_event('message.updated', event)
+  end)
+  state.event_manager:subscribe('message.removed', function(event)
+    log_event('message.removed', event)
+  end)
+  state.event_manager:subscribe('message.part.updated', function(event)
+    log_event('message.part.updated', event)
+  end)
+  state.event_manager:subscribe('message.removed', function(event)
+    log_event('message.removed', event)
+  end)
+  state.event_manager:subscribe('permission.updated', function(event)
+    log_event('permission.updated', event)
+  end)
+  state.event_manager:subscribe('permission.replied', function(event)
+    log_event('permission.replied', event)
+  end)
 end
 
 return M

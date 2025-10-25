@@ -22,8 +22,15 @@ function M.replay_setup()
 
   state.windows = ui.create_windows()
 
+  -- we use the event manager to dispatch events
+  require('opencode.event_manager').setup()
+
   -- we don't change any changes on session
   renderer._cleanup_subscriptions()
+
+  -- but we do want event_manager subscriptions so set those back up
+  renderer._setup_event_subscriptions()
+
   renderer.reset()
 
   M.mock_time_ago()
@@ -228,24 +235,8 @@ end
 
 function M.replay_event(event)
   event = vim.deepcopy(event)
-  local renderer = require('opencode.ui.renderer')
-  if event.type == 'message.updated' then
-    renderer.on_message_updated(event.properties)
-  elseif event.type == 'message.part.updated' then
-    renderer.on_part_updated(event.properties)
-  elseif event.type == 'message.removed' then
-    renderer.on_message_removed(event.properties)
-  elseif event.type == 'message.part.removed' then
-    renderer.on_part_removed(event.properties)
-  elseif event.type == 'session.compacted' then
-    renderer.on_session_compacted(event.properties)
-  elseif event.type == 'session.updated' then
-    renderer.on_session_updated(event.properties)
-  elseif event.type == 'permission.updated' then
-    renderer.on_permission_updated(event.properties)
-  elseif event.type == 'permission.replied' then
-    renderer.on_permission_replied(event.properties)
-  end
+  -- synthetic "emit" by adding the event to the throttling emitter's queue
+  require('opencode.state').event_manager.throttling_emitter:enqueue(event)
 end
 
 function M.replay_events(events)

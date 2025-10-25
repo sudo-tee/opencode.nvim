@@ -75,7 +75,21 @@ function M.emit_event(event)
       or event.properties.partID
       or event.properties.messageID
       or ''
-    vim.notify('Event ' .. index .. '/' .. count .. ': ' .. event.type .. ' ' .. id .. '', vim.log.levels.INFO)
+    vim.notify(
+      'Event '
+        .. index
+        .. '/'
+        .. count
+        .. ': '
+        .. event.type
+        .. ' '
+        .. id
+        .. ' lines_set: '
+        .. output_window._lines_set
+        .. ' set_calls: '
+        .. output_window._set_calls,
+      vim.log.levels.INFO
+    )
     helpers.replay_event(event)
   end)
 end

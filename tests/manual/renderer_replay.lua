@@ -354,21 +354,7 @@ function M.start(opts)
       or event.partID
       or event.messageID
       or ''
-    vim.notify(
-      'Event '
-        .. index
-        .. '/'
-        .. count
-        .. ': '
-        .. type
-        .. ' '
-        .. id
-        .. ' lines_set: '
-        .. output_window._lines_set
-        .. ' set_calls: '
-        .. output_window._set_calls,
-      vim.log.levels.INFO
-    )
+    vim.notify('Event ' .. index .. '/' .. count .. ': ' .. type .. ' ' .. id, vim.log.levels.INFO)
   end
 
   state.event_manager:subscribe('session.updated', function(event)

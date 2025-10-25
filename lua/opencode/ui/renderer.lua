@@ -301,6 +301,9 @@ function M._replace_part_in_buffer(part_id, formatted_data)
     if first_diff_line then
       lines_to_write = vim.list_slice(new_lines, first_diff_line, new_line_count)
       write_start_line = cached.line_start + first_diff_line - 1
+    elseif new_line_count == #old_lines then
+      M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
+      return true
     end
   end
 

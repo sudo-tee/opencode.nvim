@@ -225,6 +225,14 @@ end
 function EventManager:_on_drained_events(events)
   self:emit('custom.emit_events.started', {})
 
+  if not config.ui.output.rendering.event_collapsing then
+    for _, event in ipairs(events) do
+      self:emit(event.type, event.properties)
+    end
+    self:emit('custom.emit_events.finished', {})
+    return
+  end
+
   local collapsed_events = {}
   local part_update_indices = {}
 

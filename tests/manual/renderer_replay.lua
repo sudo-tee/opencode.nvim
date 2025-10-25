@@ -343,6 +343,7 @@ function M.start(opts)
 
   M.setup_windows(opts)
 
+  -- NOTE: the index numbers will be incorrect when event collapsing happens
   local log_event = function(type, event)
     local index = M.current_index
     local count = #M.events

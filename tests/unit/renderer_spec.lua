@@ -126,7 +126,9 @@ describe('renderer', function()
           local expected = helpers.load_test_data(expected_path)
 
           helpers.replay_events(events)
-          vim.wait(200)
+          vim.wait(1000, function()
+            return vim.tbl_isempty(state.event_manager.throttling_emitter.queue)
+          end)
 
           local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
           assert_output_matches(expected, actual, name)
@@ -141,7 +143,6 @@ describe('renderer', function()
 
             local session_data = helpers.load_session_from_events(events)
             renderer._render_full_session_data(session_data)
-            vim.wait(200)
 
             local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
             assert_output_matches(expected, actual, name)

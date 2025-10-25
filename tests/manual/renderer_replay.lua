@@ -4,11 +4,15 @@ local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 local config = require('opencode.config')
 
+local topbar = require('opencode.ui.topbar')
+local footer = require('opencode.ui.footer')
+local loading_animation = require('opencode.ui.loading_animation')
+
 local M = {}
 
 M.events = {}
 M.current_index = 0
-M.timer = nil
+M.stop = false
 M.last_loaded_file = nil
 M.headless_mode = false
 
@@ -67,31 +71,29 @@ function M.emit_event(event)
 
   local index = M.current_index
   local count = #M.events
-  vim.schedule(function()
-    local id = event.properties.info and event.properties.info.id
-      or event.properties.part and event.properties.part.id
-      or event.properties.id
-      or event.properties.permissionID
-      or event.properties.partID
-      or event.properties.messageID
-      or ''
-    vim.notify(
-      'Event '
-        .. index
-        .. '/'
-        .. count
-        .. ': '
-        .. event.type
-        .. ' '
-        .. id
-        .. ' lines_set: '
-        .. output_window._lines_set
-        .. ' set_calls: '
-        .. output_window._set_calls,
-      vim.log.levels.INFO
-    )
-    helpers.replay_event(event)
-  end)
+  local id = event.properties.info and event.properties.info.id
+    or event.properties.part and event.properties.part.id
+    or event.properties.id
+    or event.properties.permissionID
+    or event.properties.partID
+    or event.properties.messageID
+    or ''
+  vim.notify(
+    'Event '
+      .. index
+      .. '/'
+      .. count
+      .. ': '
+      .. event.type
+      .. ' '
+      .. id
+      .. ' lines_set: '
+      .. output_window._lines_set
+      .. ' set_calls: '
+      .. output_window._set_calls,
+    vim.log.levels.INFO
+  )
+  helpers.replay_event(event)
 end
 
 function M.replay_next(steps)
@@ -118,6 +120,7 @@ function M.replay_next(steps)
 end
 
 function M.replay_all(delay_ms)
+  M.stop = false
   if #M.events == 0 then
     M.load_events()
   else
@@ -126,51 +129,58 @@ function M.replay_all(delay_ms)
 
   delay_ms = delay_ms or 50
 
-  if M.timer then
-    ---@diagnostic disable-next-line: undefined-field
-    M.timer:stop()
-    M.timer = nil
-  end
-
   if delay_ms == 0 then
     M.replay_next(#M.events)
+    vim.notify(
+      'Renders: footer: '
+        .. footer.render_calls
+        .. ' topbar: '
+        .. topbar.render_calls
+        .. ' animation:'
+        .. loading_animation.render_calls
+    )
     return
   end
 
   state.job_count = 1
 
-  M.timer = vim.loop.new_timer()
-  ---@diagnostic disable-next-line: undefined-field
-  M.timer:start(0, delay_ms, function()
+  local function tick()
     if M.current_index >= #M.events then
-      if M.timer then
-        ---@diagnostic disable-next-line: undefined-field
-        M.timer:stop()
-        M.timer = nil
-      end
       state.job_count = 0
+      vim.notify(
+        ('Renders: footer: %d topbar: %d animation: %d'):format(
+          footer.render_calls,
+          topbar.render_calls,
+          loading_animation.render_calls
+        )
+      )
+
       if M.headless_mode then
         M.dump_buffer_and_quit()
       end
       return
     end
 
+    if M.stop then
+      M.stop = false
+      state.job_count = 0
+      vim.notify('Replay stopped at event ' .. M.current_index .. '/' .. #M.events, vim.log.levels.INFO)
+      return
+    end
+
     M.replay_next()
-  end)
+
+    vim.defer_fn(tick, delay_ms)
+  end
+
+  vim.defer_fn(tick, delay_ms)
 end
 
 function M.replay_stop()
-  if M.timer then
-    ---@diagnostic disable-next-line: undefined-field
-    M.timer:stop()
-    M.timer = nil
-    state.job_count = 0
-    vim.notify('Replay stopped at event ' .. M.current_index .. '/' .. #M.events, vim.log.levels.INFO)
-  end
+  M.stop = true
 end
 
 function M.reset()
-  M.replay_stop()
   M.current_index = 0
   M.clear()
 end
@@ -180,7 +190,7 @@ function M.show_status()
     'Replay Status:\n  Events loaded: %d\n  Current index: %d\n  Playing: %s',
     #M.events,
     M.current_index,
-    M.timer and 'yes' or 'no'
+    not M.stop
   )
   vim.notify(status, vim.log.levels.INFO)
 end

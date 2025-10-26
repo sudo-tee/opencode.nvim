@@ -48,12 +48,10 @@ function M.open(opts)
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
-    -- Check if opening buffer is allowed
+    -- Check if whether prompting will be allowed
     local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard)
-
     if not allowed then
-      vim.notify(err_msg or 'Opening opencode buffer denied by prompt_guard', vim.log.levels.WARN)
-      return
+      vim.notify(err_msg or 'Prompts will be denied by prompt_guard', vim.log.levels.WARN)
     end
 
     state.windows = ui.create_windows()

@@ -94,7 +94,8 @@ end
 ---Clear output buf extmarks
 ---@param start_line? integer Line to start clearing, defaults 0
 ---@param end_line? integer Line to clear until, defaults to -1
-function M.clear_extmarks(start_line, end_line)
+---@param clear_all? boolean If true, clears all extmarks in the buffer
+function M.clear_extmarks(start_line, end_line, clear_all)
   if not M.mounted() or not state.windows.output_buf then
     return
   end
@@ -102,7 +103,7 @@ function M.clear_extmarks(start_line, end_line)
   start_line = start_line or 0
   end_line = end_line or -1
 
-  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, M.namespace, start_line, end_line)
+  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
 end
 
 ---Apply extmarks to the output buffer
@@ -181,7 +182,9 @@ end
 
 function M.clear()
   M.set_lines({})
-  M.clear_extmarks()
+  -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
+  -- extmarks behind
+  M.clear_extmarks(0, -1, true)
 end
 
 return M

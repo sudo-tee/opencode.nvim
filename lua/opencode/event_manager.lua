@@ -257,18 +257,11 @@ function EventManager:_on_drained_events(events)
     end
   end
 
-  local actually_emitted = 0
-
   for i = 1, #events do
     local event = collapsed_events[i]
     if event then
-      actually_emitted = actually_emitted + 1
       self:emit(event.type, event.properties)
     end
-  end
-
-  if config.debug.enabled then
-    vim.notify('Drained ' .. #events .. ', actually emitted: ' .. actually_emitted)
   end
 
   self:emit('custom.emit_events.finished', {})

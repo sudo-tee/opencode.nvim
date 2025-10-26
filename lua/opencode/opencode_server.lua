@@ -6,8 +6,8 @@ local Promise = require('opencode.promise')
 --- @field job any The vim.system job handle
 --- @field url string|nil The server URL once ready
 --- @field handle any Compatibility property for job.stop interface
---- @field spawn_promise Promise|nil
---- @field shutdown_promise Promise|nil
+--- @field spawn_promise Promise<OpencodeServer>
+--- @field shutdown_promise Promise<boolean>
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 

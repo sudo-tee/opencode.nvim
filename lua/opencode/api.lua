@@ -42,8 +42,7 @@ end
 
 function M.toggle(new_session)
   if state.windows == nil then
-    local focus = state.last_focused_opencode_window or 'input'
-
+    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
     core.open({ new_session = new_session == true, focus = focus, start_insert = false })
   else
     M.close()
@@ -52,7 +51,7 @@ end
 
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
-    local focus = state.last_focused_opencode_window or 'input'
+    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
     core.open({ new_session = new_session == true, focus = focus })
   else
     ui.return_to_last_code_win()
@@ -1146,8 +1145,8 @@ M.commands = {
 ---@return OpencodeSlashCommand[]
 function M.get_slash_commands()
   local commands = vim.tbl_filter(function(cmd)
-    return cmd.slash_cmd and cmd.slash_cmd ~= ''
-  end, M.commands)
+    return cmd.slash_cmd and cmd.slash_cmd ~= '' or false
+  end, M.commands) --[[@as OpencodeSlashCommand[] ]]
 
   local user_commands = require('opencode.config_file').get_user_commands()
   if user_commands then

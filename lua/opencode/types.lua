@@ -75,7 +75,7 @@
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
----@field preferred_cli_tool 'fd'|'fdfind'|'rg'|'git'
+---@field preferred_cli_tool 'server'|'fd'|'fdfind'|'rg'|'git'
 ---@field ignore_patterns string[]
 ---@field max_files number
 ---@field max_display_length number

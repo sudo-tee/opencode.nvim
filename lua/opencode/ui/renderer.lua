@@ -101,7 +101,7 @@ end
 
 local function fetch_session()
   local session = state.active_session
-  if not state.active_session or not session or session == '' then
+  if not session or not session or session == '' then
     return Promise.new():resolve(nil)
   end
 
@@ -119,6 +119,10 @@ end
 
 function M._render_full_session_data(session_data)
   M.reset()
+
+  if not state.active_session then
+    return
+  end
 
   local revert_index = nil
 
@@ -174,6 +178,10 @@ end
 ---Auto-scroll to bottom if user was already at bottom
 ---Respects cursor position if user has scrolled up
 function M.scroll_to_bottom()
+  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
+    return
+  end
+
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
   if not ok then
     return
@@ -185,6 +193,8 @@ function M.scroll_to_bottom()
   local is_focused = vim.api.nvim_get_current_win() == state.windows.output_win
 
   local prev_line_count = M._prev_line_count or 0
+
+  ---@cast line_count integer
   M._prev_line_count = line_count
 
   local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
@@ -392,8 +402,12 @@ end
 ---@param message {info: MessageInfo} Event properties
 ---@param revert_index? integer Revert index in session, if applicable
 function M.on_message_updated(message, revert_index)
+  if not state.active_session or not state.messages then
+    return
+  end
+
   local msg = message --[[@as OpencodeMessage]]
-  if not msg or not msg.info or not msg.info.id or not msg.info.sessionID or not state.active_session then
+  if not msg or not msg.info or not msg.info.id or not msg.info.sessionID then
     return
   end
 
@@ -555,7 +569,7 @@ end
 ---Removes message and all its parts from buffer
 ---@param properties {sessionID: string, messageID: string} Event properties
 function M.on_message_removed(properties)
-  if not properties then
+  if not properties or not state.messages then
     return
   end
 
@@ -648,7 +662,7 @@ end
 
 ---Event handler for permission.replied events
 ---Re-renders part after permission is resolved
----@param properties {sessionID: string, permissionID: string, response: string} Event properties
+---@param properties {sessionID: string, permissionID: string, response: string}|{} Event properties
 function M.on_permission_replied(properties)
   if not properties then
     return
@@ -665,7 +679,7 @@ function M.on_permission_replied(properties)
   end
 end
 
-function M.on_file_edited(properties)
+function M.on_file_edited(_)
   vim.cmd('checktime')
 end
 

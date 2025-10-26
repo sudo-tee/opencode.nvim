@@ -555,7 +555,7 @@ function M._format_tool(output, part)
     M._format_action(output, icons.get('tool') .. ' tool', tool)
   end
 
-  if part.state.status == 'error' then
+  if part.state.status == 'error' and part.state.error then
     output:add_line('')
     M._format_callout(output, 'ERROR', part.state.error)
   ---@diagnostic disable-next-line: undefined-field

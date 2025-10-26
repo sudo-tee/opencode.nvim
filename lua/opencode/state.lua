@@ -1,12 +1,12 @@
 local config = require('opencode.config')
 
 ---@class OpencodeWindowState
----@field input_win number|nil
----@field output_win number|nil
----@field footer_win number|nil
----@field footer_buf number|nil
----@field input_buf number|nil
----@field output_buf number|nil
+---@field input_win integer|nil
+---@field output_win integer|nil
+---@field footer_win integer|nil
+---@field footer_buf integer|nil
+---@field input_buf integer|nil
+---@field output_buf integer|nil
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil

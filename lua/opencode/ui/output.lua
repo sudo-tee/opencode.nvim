@@ -1,10 +1,8 @@
-local state = require('opencode.state')
-local config = require('opencode.config')
 local Output = {}
 Output.__index = Output
 
 ---@class Output
----@field lines table<number, string>
+---@field lines string[]
 ---@field extmarks table<number, OutputExtmark>
 ---@field actions OutputAction[]
 ---@field add_line fun(self: Output, line: string, fit?: boolean): number
@@ -31,9 +29,8 @@ end
 
 ---Add a new line
 ---@param line string
----@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
-function Output:add_line(line, fit)
+function Output:add_line(line)
   table.insert(self.lines, line)
   return #self.lines
 end

@@ -22,7 +22,8 @@ function M._get_frames()
   if ui_config and ui_config.loading_animation and ui_config.loading_animation.frames then
     return ui_config.loading_animation.frames
   end
-  return { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' }
+  -- return { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' }
+  return { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' }
 end
 
 M.render = vim.schedule_wrap(function(windows)

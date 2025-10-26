@@ -88,7 +88,7 @@ M.defaults = {
       overrides = {},
     },
     loading_animation = {
-      frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
+      frames = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' },
     },
     output = {
       rendering = {

@@ -2,6 +2,8 @@ local M = {}
 
 local state = require('opencode.state')
 local config_file = require('opencode.config_file')
+local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
+local icons = require('opencode.ui.icons')
 
 local LABELS = {
   NEW_SESSION_TITLE = 'New session',
@@ -40,17 +42,45 @@ local function get_mode_highlight()
   end
 end
 
-local function create_winbar_text(description, model_info, mode_info, win_width)
-  local available_width = win_width - 2 -- 2 padding spaces
-
-  -- If total length exceeds available width, truncate description
-  if #description + 1 + #model_info + #mode_info + 1 > available_width then
-    local space_for_desc = available_width - (#model_info + #mode_info + 1) - 4 -- -4 for "... "
-    description = description:sub(1, space_for_desc) .. '... '
+local function create_winbar_text(description, model_info, mode_info, show_guard_indicator, win_width)
+  -- Calculate how many visible characters we have
+  -- Format: " [GUARD] description padding model_info MODE "
+  -- Where [GUARD] is optional (1 char + 1 space = 2 visible chars)
+  
+  local guard_prefix = ''
+  local guard_visible_width = 0
+  
+  if show_guard_indicator then
+    local guard_icon = icons.get('status_off')
+    guard_prefix = string.format('%%#OpencodeGuardDenied#%s%%* ', guard_icon)
+    guard_visible_width = 2 -- icon + space
   end
-
-  local padding = string.rep(' ', available_width - #description - #model_info - #mode_info - 1)
-  return string.format(' %s%s%s %s ', description, padding, model_info, get_mode_highlight() .. mode_info .. '%*')
+  
+  -- Total available width for all content
+  local total_width = win_width
+  
+  -- Calculate used width: leading space + guard + trailing space + model + mode
+  local mode_info_str = get_mode_highlight() .. mode_info .. '%*'
+  local mode_visible_width = #mode_info
+  local model_visible_width = #model_info
+  
+  -- Reserve space: 1 (leading) + guard_visible_width + 1 (space before description) + 1 (space before model) + model + mode
+  local reserved_width = 1 + guard_visible_width + 1 + 1 + model_visible_width + mode_visible_width
+  
+  -- Available width for description and padding
+  local available_for_desc = total_width - reserved_width
+  
+  -- Truncate description if needed
+  if #description > available_for_desc then
+    description = description:sub(1, math.max(1, available_for_desc - 4)) .. '...'
+  end
+  
+  -- Calculate padding to right-align model and mode
+  local desc_and_padding_width = available_for_desc
+  local padding_width = desc_and_padding_width - #description
+  local padding = string.rep(' ', math.max(0, padding_width))
+  
+  return string.format(' %s%s%s%s %s', guard_prefix, description, padding, model_info, mode_info_str)
 end
 
 local function update_winbar_highlights(win_id)
@@ -96,8 +126,10 @@ function M.render()
     end
     -- topbar needs to at least have a value to make sure footer is positioned correctly
     vim.wo[win].winbar = ' '
+
+    local show_guard_indicator = prompt_guard_indicator.is_denied()
     vim.wo[win].winbar =
-      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
+      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), show_guard_indicator, vim.api.nvim_win_get_width(win))
 
     update_winbar_highlights(win)
   end)

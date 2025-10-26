@@ -22,6 +22,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeContextualActions', { bg = '#90A4AE', fg = '#1976D2', bold = true, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeInputLegend', { bg = '#757575', fg = '#424242', bold = false, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeHint', { link = 'Comment', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeGuardDenied', { fg = '#F44336', bold = true, default = true })
   else
     vim.api.nvim_set_hl(0, 'OpencodeBorder', { fg = '#616161', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeBackground', { link = 'Normal', default = true })
@@ -41,6 +42,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeContextualActions', { bg = '#3b4261', fg = '#61AFEF', bold = true, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeInputLegend', { bg = '#616161', fg = '#CCCCCC', bold = false, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeHint', { link = 'Comment', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeGuardDenied', { fg = '#EF5350', bold = true, default = true })
   end
 end
 

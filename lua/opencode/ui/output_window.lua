@@ -1,5 +1,7 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
+local Timer = require('opencode.ui.timer')
+local topbar = require('opencode.ui.topbar')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
@@ -155,6 +157,36 @@ function M.setup_keymaps(windows)
 end
 
 function M.setup_autocmds(windows, group)
+  local guard_timer = nil
+
+  local function start_guard_timer()
+    if guard_timer then
+      return -- Timer already running
+    end
+    guard_timer = Timer.new({
+      interval = 1000, -- 1 second
+      repeat_timer = true,
+      on_tick = function()
+        if state.windows and vim.api.nvim_win_is_valid(state.windows.output_win) then
+          topbar.render()
+          return true
+        end
+        return false
+      end,
+    })
+    guard_timer:start_and_tick()
+  end
+
+  local function stop_guard_timer()
+    if guard_timer then
+      guard_timer:stop()
+      guard_timer = nil
+    end
+  end
+
+  -- Start the timer when the window is created (visible) and tick immediately
+  start_guard_timer()
+
   vim.api.nvim_create_autocmd('WinEnter', {
     group = group,
     buffer = windows.output_buf,
@@ -172,6 +204,15 @@ function M.setup_autocmds(windows, group)
       vim.cmd('stopinsert')
       state.last_focused_opencode_window = 'output'
       require('opencode.ui.input_window').refresh_placeholder(state.windows)
+    end,
+  })
+
+  -- Stop the timer when the window is closed
+  vim.api.nvim_create_autocmd('WinClosed', {
+    group = group,
+    pattern = tostring(windows.output_win),
+    callback = function()
+      stop_guard_timer()
     end,
   })
 

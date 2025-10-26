@@ -474,8 +474,8 @@ describe('RenderState', function()
 
   describe('update_part_data', function()
     it('updates part reference', function()
-      local part1 = { id = 'part1', content = 'original' }
-      local part2 = { id = 'part1', content = 'updated' }
+      local part1 = { id = 'part1', content = 'original', messageID = 'msg1' }
+      local part2 = { id = 'part1', content = 'updated', messageID = 'msg1' }
       render_state:set_part(part1, 10, 15)
 
       render_state:update_part_data(part2)

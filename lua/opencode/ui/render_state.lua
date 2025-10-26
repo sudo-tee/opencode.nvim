@@ -179,7 +179,7 @@ end
 ---@param line_start integer? Line where part starts
 ---@param line_end integer? Line where part ends
 function RenderState:set_part(part, line_start, line_end)
-  if not part or not part.id then
+  if not part or not part.id or not part.messageID then
     return
   end
   local part_id = part.id
@@ -358,7 +358,7 @@ end
 ---@param from_line integer Line number to start shifting from
 ---@param delta integer Number of lines to shift (positive or negative)
 function RenderState:shift_all(from_line, delta)
-  if delta == 0 then
+  if delta == 0 or not state.messages then
     return
   end
 
@@ -366,39 +366,39 @@ function RenderState:shift_all(from_line, delta)
   local anything_shifted = false
 
   for i = #state.messages, 1, -1 do
-    local msg_wrapper = state.messages[i]
+    local message = state.messages[i] or {}
 
-    local msg_id = msg_wrapper.info and msg_wrapper.info.id
+    local msg_id = message.info and message.info.id
     if msg_id then
-      local msg_data = self._messages[msg_id]
-      if msg_data and msg_data.line_start and msg_data.line_end then
-        if msg_data.line_start >= from_line then
-          msg_data.line_start = msg_data.line_start + delta
-          msg_data.line_end = msg_data.line_end + delta
+      local rendered_msg = self._messages[msg_id]
+      if rendered_msg and rendered_msg.line_start and rendered_msg.line_end then
+        if rendered_msg.line_start >= from_line then
+          rendered_msg.line_start = rendered_msg.line_start + delta
+          rendered_msg.line_end = rendered_msg.line_end + delta
           anything_shifted = true
-        elseif msg_data.line_end < from_line then
+        elseif rendered_msg.line_end < from_line then
           found_content_before_from_line = true
         end
       end
     end
 
-    if msg_wrapper.parts then
-      for j = #msg_wrapper.parts, 1, -1 do
-        local part = msg_wrapper.parts[j]
+    if message.parts then
+      for j = #message.parts, 1, -1 do
+        local part = message.parts[j]
         if part.id then
-          local part_data = self._parts[part.id]
-          if part_data and part_data.line_start and part_data.line_end then
-            if part_data.line_start >= from_line then
-              part_data.line_start = part_data.line_start + delta
-              part_data.line_end = part_data.line_end + delta
+          local rendered_part = self._parts[part.id]
+          if rendered_part and rendered_part.line_start and rendered_part.line_end then
+            if rendered_part.line_start >= from_line then
+              rendered_part.line_start = rendered_part.line_start + delta
+              rendered_part.line_end = rendered_part.line_end + delta
               anything_shifted = true
 
-              if part_data.actions then
-                for _, action in ipairs(part_data.actions) do
+              if rendered_part.actions then
+                for _, action in ipairs(rendered_part.actions) do
                   shift_action_lines(action, delta)
                 end
               end
-            elseif part_data.line_end < from_line then
+            elseif rendered_part.line_end < from_line then
               found_content_before_from_line = true
             end
           end

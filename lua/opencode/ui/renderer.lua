@@ -10,7 +10,10 @@ local M = {}
 M._subscriptions = {}
 M._prev_line_count = 0
 M._render_state = RenderState.new()
-M._last_part_formatted = { part_id = nil, formatted_data = nil }
+M._last_part_formatted = {
+  part_id = nil,
+  formatted_data = nil --[[@as Output|nil]],
+}
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
   local cb_type = type(config.ui.output.rendering.on_data_rendered)
@@ -99,6 +102,8 @@ function M.teardown()
   M.reset()
 end
 
+---Fetch full session messages from server
+---@return Promise<OpencodeMessage[]> Promise resolving to list of OpencodeMessage
 local function fetch_session()
   local session = state.active_session
   if not session or not session or session == '' then
@@ -120,7 +125,7 @@ end
 function M._render_full_session_data(session_data)
   M.reset()
 
-  if not state.active_session then
+  if not state.active_session or not state.messages then
     return
   end
 
@@ -215,6 +220,10 @@ end
 ---@param part_id? string Optional part ID to store actions
 ---@return {line_start: integer, line_end: integer}? Range where data was written
 function M._write_formatted_data(formatted_data, part_id)
+  if not state.windows or not state.windows.output_buf then
+    return
+  end
+
   local buf = state.windows.output_buf
   local start_line = output_window.get_buf_line_count()
   local new_lines = formatted_data.lines
@@ -288,6 +297,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   local write_start_line = cached.line_start
 
   if can_optimize then
+    ---@cast old_formatted { formatted_data: { lines: string[] } }
     local old_lines = old_formatted.formatted_data.lines
     local first_diff_line = nil
 
@@ -367,6 +377,17 @@ function M._remove_message_from_buffer(message_id)
   M._render_state:remove_message(message_id)
 end
 
+---Adds a message (most likely just a header) to the buffer
+---@param message OpencodeMessage Message to add
+function M._add_message_to_buffer(message)
+  local header_data = formatter.format_message_header(message)
+  local range = M._write_formatted_data(header_data)
+
+  if range then
+    M._render_state:set_message(message, range.line_start, range.line_end)
+  end
+end
+
 ---Replace existing message header in buffer
 ---@param message_id string Message ID
 ---@param formatted_data Output Formatted header as Output object
@@ -442,12 +463,7 @@ function M.on_message_updated(message, revert_index)
   else
     table.insert(state.messages, msg)
 
-    local header_data = formatter.format_message_header(msg)
-    local range = M._write_formatted_data(header_data)
-
-    if range then
-      M._render_state:set_message(msg, range.line_start, range.line_end)
-    end
+    M._add_message_to_buffer(msg)
 
     state.current_message = msg
     if message.info.role == 'user' then

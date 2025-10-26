@@ -289,14 +289,15 @@ end
 function M.mention()
   local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'mention')
-  ui.focus_input({ restore_position = true, start_insert = true })
+
+  ui.focus_input({ restore_position = false, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 
 function M.slash_commands()
   local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'slash_commands')
-  ui.focus_input({ restore_position = true, start_insert = true })
+  ui.focus_input({ restore_position = false, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 

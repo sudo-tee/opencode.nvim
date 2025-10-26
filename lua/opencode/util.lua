@@ -362,9 +362,10 @@ end
 
 --- Check if prompt is allowed via guard callback
 --- @param guard_callback? function
+--- @param mentioned_files? string[] List of mentioned files in the context
 --- @return boolean allowed
 --- @return string|nil error_message
-function M.check_prompt_allowed(guard_callback)
+function M.check_prompt_allowed(guard_callback, mentioned_files)
   if not guard_callback then
     return true, nil -- No guard = always allowed
   end
@@ -373,7 +374,8 @@ function M.check_prompt_allowed(guard_callback)
     return false, 'prompt_guard must be a function'
   end
 
-  local success, result = pcall(guard_callback)
+  mentioned_files = mentioned_files or {}
+  local success, result = pcall(guard_callback, mentioned_files)
 
   if not success then
     return false, 'prompt_guard error: ' .. tostring(result)

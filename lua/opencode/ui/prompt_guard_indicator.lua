@@ -4,12 +4,14 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
+local context = require('opencode.context')
 
 ---Get the current prompt guard status
 ---@return boolean allowed
 ---@return string|nil error_message
 function M.get_status()
-  return util.check_prompt_allowed(config.prompt_guard)
+  local mentioned_files = context.context.mentioned_files or {}
+  return util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 end
 
 ---Check if guard will deny prompts

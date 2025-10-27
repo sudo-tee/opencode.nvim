@@ -29,6 +29,7 @@ function M.setup_autocmds(windows)
       if args.file == '' then
         return
       end
+      local state = require('opencode.state')
       state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
       state.current_code_buf = vim.api.nvim_get_current_buf()
     end,

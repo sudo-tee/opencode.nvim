@@ -357,11 +357,11 @@ function M.initialize()
 end
 
 function M.agent_plan()
-  state.current_mode = 'plan'
+  require('opencode.core').switch_to_mode('plan')
 end
 
 function M.agent_build()
-  state.current_mode = 'build'
+  require('opencode.core').switch_to_mode('build')
 end
 
 function M.select_agent()
@@ -373,7 +373,7 @@ function M.select_agent()
       return
     end
 
-    state.current_mode = selection
+    require('opencode.core').switch_to_mode(selection)
   end)
 end
 
@@ -389,7 +389,7 @@ function M.switch_mode()
   -- Calculate next index, wrapping around if necessary
   local next_index = (current_index % #modes) + 1
 
-  state.current_mode = modes[next_index]
+  require('opencode.core').switch_to_mode(modes[next_index])
 end
 
 function M.with_header(lines, show_welcome)

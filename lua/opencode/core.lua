@@ -45,6 +45,8 @@ function M.open(opts)
     state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
   end
 
+  M.ensure_current_mode()
+
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
@@ -252,6 +254,58 @@ end
 
 local function on_opencode_server()
   state.current_permission = nil
+end
+
+--- Switches the current mode to the specified agent.
+--- @param mode string The agent/mode to switch to
+--- @return boolean success Returns true if the mode was switched successfully, false otherwise
+function M.switch_to_mode(mode)
+  if not mode or mode == '' then
+    vim.notify('Mode cannot be empty', vim.log.levels.ERROR)
+    return false
+  end
+
+  local config_file = require('opencode.config_file')
+  local available_agents = config_file.get_opencode_agents()
+
+  if not vim.tbl_contains(available_agents, mode) then
+    vim.notify(
+      string.format('Invalid mode "%s". Available modes: %s', mode, table.concat(available_agents, ', ')),
+      vim.log.levels.ERROR
+    )
+    return false
+  end
+
+  state.current_mode = mode
+  ui.render_output()
+  return true
+end
+
+--- Ensure the current_mode is set using the config.default_mode or falling back to the first available agent.
+--- @return boolean success Returns true if current_mode is set
+function M.ensure_current_mode()
+  if state.current_mode == nil then
+    local config_file = require('opencode.config_file')
+    local available_agents = config_file.get_opencode_agents()
+
+    if not available_agents or #available_agents == 0 then
+      vim.notify('No available agents found', vim.log.levels.ERROR)
+      return false
+    end
+
+    local default_mode = config.default_mode
+
+    -- Try to use the configured default mode if it's available
+    if default_mode and vim.tbl_contains(available_agents, default_mode) then
+      state.current_mode = default_mode
+    else
+      -- Fallback to first available agent
+      state.current_mode = available_agents[1]
+    end
+
+    ui.render_output()
+  end
+  return true
 end
 
 function M.setup()

@@ -37,24 +37,27 @@ function M.call_api(url, method, body)
         if err then
           local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
           if not ok then
-            vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+            vim.schedule(function()
+              vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+            end)
           end
-          state.job_count = state.job_count - 1
         else
           local ok, pcall_err = pcall(call_promise.resolve, call_promise, result)
           if not ok then
-            vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+            vim.schedule(function()
+              vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+            end)
           end
-          state.job_count = state.job_count - 1
         end
       end)
     end,
     on_error = function(err)
       local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
       if not ok then
-        vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+        vim.schedule(function()
+          vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+        end)
       end
-      state.job_count = state.job_count - 1
     end,
   }
 
@@ -62,12 +65,10 @@ function M.call_api(url, method, body)
     opts.body = body and vim.json.encode(body) or '{}'
   end
 
-  -- For promise tracking, remove promises that complete from requests
-  -- NOTE: can remove the request tracking code when we're happy with
-  -- request reliability
   local request_entry = { opts, call_promise }
   table.insert(M.requests, request_entry)
 
+  -- Remove completed promises from list, update job_count
   local function remove_from_requests()
     for i, entry in ipairs(M.requests) do
       if entry == request_entry then
@@ -75,6 +76,7 @@ function M.call_api(url, method, body)
         break
       end
     end
+    state.job_count = #M.requests
   end
 
   call_promise:and_then(function(result)

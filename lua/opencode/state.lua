@@ -53,7 +53,7 @@ local _state = {
   last_output_window_position = nil,
   last_code_win_before_opencode = nil,
   display_route = nil,
-  current_mode = config.default_mode,
+  current_mode = nil,
   last_output = 0,
   -- context
   last_sent_context = nil,

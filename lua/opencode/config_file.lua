@@ -77,13 +77,23 @@ function M.get_opencode_agents()
   end
   local agents = {}
   for agent, opts in pairs(cfg.agent or {}) do
-    if opts.mode == 'primary' or opts.mode == 'all' then
+    -- Only include agents that are enabled and have the right mode
+    if opts.disable ~= true and (opts.mode == 'primary' or opts.mode == 'all') then
       table.insert(agents, agent)
     end
   end
-  for _, mode in ipairs({ 'build', 'plan' }) do
+
+  -- Sort the agents before prepending the default agents
+  table.sort(agents)
+
+  -- Only add build/plan as fallbacks if they're not explicitly disabled in config
+  for _, mode in ipairs({ 'plan', 'build' }) do
     if not vim.tbl_contains(agents, mode) then
-      table.insert(agents, mode)
+      local mode_config = cfg.agent and cfg.agent[mode]
+      -- Only add if not explicitly disabled or if no config exists (default behavior)
+      if mode_config == nil or (mode_config.disable ~= true) then
+        table.insert(agents, 1, mode)
+      end
     end
   end
   return agents

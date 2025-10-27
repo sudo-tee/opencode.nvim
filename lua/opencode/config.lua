@@ -163,6 +163,9 @@ M.defaults = {
       enabled = true,
     },
   },
+  server = {
+    startup_timeout_ms = 5000,
+  },
   debug = {
     enabled = false,
     capture_streamed_events = false,

@@ -129,6 +129,7 @@ function M.stream_api(url, method, body, on_chunk)
 end
 
 function M.ensure_server()
+  local config = require('opencode.config') --[[@as OpencodeConfig]]
   if state.opencode_server and state.opencode_server:is_running() then
     return state.opencode_server
   end
@@ -148,7 +149,7 @@ function M.ensure_server()
     end,
   })
 
-  return promise:wait()
+  return promise:wait(config.server.startup_timeout_ms or 5000)
 end
 
 return M

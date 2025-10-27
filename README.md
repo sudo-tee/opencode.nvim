@@ -237,6 +237,9 @@ require('opencode').setup({
       enabled = true, -- Include selected text in the context
     },
   },
+  server = {
+    startup_timeout_ms = 5000, -- Timeout for starting opencode server before raisong an error(in milliseconds)},
+  },
   debug = {
     enabled = false, -- Enable debug messages in the output window
   },

@@ -118,6 +118,9 @@
 ---@field current_file { enabled: boolean, show_full_path: boolean }
 ---@field selection { enabled: boolean }
 
+---@class OpencodeConfigServerConfig
+---@field startup_timeout_ms integer,
+
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 
@@ -140,6 +143,7 @@
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig
+---@field server OpencodeConfigServerConfig
 ---@field debug OpencodeDebugConfig
 
 ---@class MessagePartState

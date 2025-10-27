@@ -22,16 +22,17 @@ function M._get_frames()
   if ui_config and ui_config.loading_animation and ui_config.loading_animation.frames then
     return ui_config.loading_animation.frames
   end
-  return { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' }
+  -- return { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' }
+  return { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' }
 end
 
 M.render = vim.schedule_wrap(function(windows)
-  if not windows.footer_buf and not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+  windows = windows or state.windows
+  if not windows or not windows.output_buf or not windows.footer_buf then
     return false
   end
 
-  local buffer_line_count = vim.api.nvim_buf_line_count(windows.output_buf)
-  if buffer_line_count <= 0 then
+  if not vim.api.nvim_buf_is_valid(windows.output_buf) or not vim.api.nvim_buf_is_valid(windows.footer_buf) then
     return false
   end
 
@@ -64,7 +65,7 @@ function M._start_animation_timer(windows)
     interval = interval,
     on_tick = function()
       M._animation.current_frame = M._next_frame()
-      M.render(windows)
+      M.render(state.windows)
       if state.is_running() then
         return true
       else
@@ -85,6 +86,10 @@ function M._clear_animation_timer()
 end
 
 function M.start(windows)
+  windows = windows or state.windows
+  if not windows then
+    return
+  end
   M._start_animation_timer(windows)
   M.render(windows)
 end
@@ -99,6 +104,26 @@ end
 
 function M.is_running()
   return M._animation.timer ~= nil
+end
+
+local function on_running_change(_, new_value)
+  if not state.windows then
+    return
+  end
+
+  if not M.is_running() and new_value and new_value > 0 then
+    M.start(state.windows)
+  else
+    M.stop()
+  end
+end
+
+function M.setup()
+  state.subscribe('job_count', on_running_change)
+end
+
+function M.teardown()
+  state.unsubscribe('job_count', on_running_change)
 end
 
 return M

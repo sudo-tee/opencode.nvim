@@ -1,0 +1,1552 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_9d45d40c9001s7A1sP3Ew537QN",
+        "role": "user",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "time": {
+          "created": 1760204505289
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d40ca001KjwtQD1edV2bmE",
+        "messageID": "msg_9d45d40c9001s7A1sP3Ew537QN",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "can you make a new neovim plugin for me?",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d40cb001W11PMXGjFHoB84",
+        "messageID": "msg_9d45d40c9001s7A1sP3Ew537QN",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "synthetic": true,
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/a-empty.txt\"}",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d40cb002HRrfLhGsm4r7rF",
+        "messageID": "msg_9d45d40c9001s7A1sP3Ew537QN",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "synthetic": true,
+        "text": "<file>\n00001| \n</file>",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "filename": "a-empty.txt",
+        "id": "prt_9d45d40cb003kh2xpgCEnK9ny3",
+        "messageID": "msg_9d45d40c9001s7A1sP3Ew537QN",
+        "mime": "text/plain",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "type": "file",
+        "url": "file:///Users/cam/tmp/a/a-empty.txt"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204505371
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4be20016XqSvW0CNci30z",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help",
+        "time": {
+          "start": 1760204508224
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help you create a new Neovim",
+        "time": {
+          "start": 1760204508224
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help you create a new Neovim plugin. Let me first examine your current",
+        "time": {
+          "start": 1760204508224
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help you create a new Neovim plugin. Let me first examine your current setup and then create the plugin structure",
+        "time": {
+          "start": 1760204508224
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help you create a new Neovim plugin. Let me first examine your current setup and then create the plugin structure.",
+        "time": {
+          "start": 1760204508224
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_KJR8UICIREKBBGVHl3y1iw",
+        "id": "prt_9d45d4c76001ia4SbeP15rYVnC",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "status": "pending"
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_KJR8UICIREKBBGVHl3y1iw",
+        "id": "prt_9d45d4c76001ia4SbeP15rYVnC",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "status": "running",
+          "time": {
+            "start": 1760204511270
+          }
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_KJR8UICIREKBBGVHl3y1iw",
+        "id": "prt_9d45d4c76001ia4SbeP15rYVnC",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "metadata": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "output": "[\n  {\n    \"id\": \"1\",\n    \"content\": \"Examine existing Lua plugin structure\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"id\": \"2\",\n    \"content\": \"Create basic plugin directory structure\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"id\": \"3\",\n    \"content\": \"Write main plugin init.lua file\",\n    \"status\": \"pending\",\n    \"priority\": \"medium\"\n  },\n  {\n    \"id\": \"4\",\n    \"content\": \"Create plugin documentation\",\n    \"status\": \"pending\",\n    \"priority\": \"low\"\n  }\n]",
+          "status": "completed",
+          "time": {
+            "end": 1760204511272,
+            "start": 1760204511270
+          },
+          "title": "4 todos"
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d4c40001qRiLd4QuC4JaNy",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "I'll help you create a new Neovim plugin. Let me first examine your current setup and then create the plugin structure.",
+        "time": {
+          "end": 1760204511273,
+          "start": 1760204511273
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9d45d582c001zYxdO6Y1q7MvOi",
+        "messageID": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "tokens": {
+          "cache": {
+            "read": 8435,
+            "write": 0
+          },
+          "input": 11410,
+          "output": 254,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204505371
+        },
+        "tokens": {
+          "cache": {
+            "read": 8435,
+            "write": 0
+          },
+          "input": 11410,
+          "output": 254,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204511317,
+          "created": 1760204505371
+        },
+        "tokens": {
+          "cache": {
+            "read": 8435,
+            "write": 0
+          },
+          "input": 11410,
+          "output": 254,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204511318,
+          "created": 1760204505371
+        },
+        "tokens": {
+          "cache": {
+            "read": 8435,
+            "write": 0
+          },
+          "input": 11410,
+          "output": 254,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d411b00254Lm5jVRwAeQxT",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204511318,
+          "created": 1760204505371
+        },
+        "tokens": {
+          "cache": {
+            "read": 8435,
+            "write": 0
+          },
+          "input": 11410,
+          "output": 254,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d585800269UgJnOLD8i2pF",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204511320
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d61d8001EkyyayFc6LhcOW",
+        "messageID": "msg_9d45d585800269UgJnOLD8i2pF",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_g2iGPGZYTfO4oq-s1e_D5w",
+        "id": "prt_9d45d6222001xv2NyLqCBBGq8G",
+        "messageID": "msg_9d45d585800269UgJnOLD8i2pF",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "status": "pending"
+        },
+        "tool": "read",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_g2iGPGZYTfO4oq-s1e_D5w",
+        "id": "prt_9d45d6222001xv2NyLqCBBGq8G",
+        "messageID": "msg_9d45d585800269UgJnOLD8i2pF",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "filePath": "/Users/cam/tmp/a/lua/example-plugin/init.lua"
+          },
+          "status": "running",
+          "time": {
+            "start": 1760204514076
+          }
+        },
+        "tool": "read",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_g2iGPGZYTfO4oq-s1e_D5w",
+        "id": "prt_9d45d6222001xv2NyLqCBBGq8G",
+        "messageID": "msg_9d45d585800269UgJnOLD8i2pF",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "filePath": "/Users/cam/tmp/a/lua/example-plugin/init.lua"
+          },
+          "metadata": {
+            "preview": "local M = {}\n\nfunction M.setup(opts)\n  opts = opts or {}\n  \n  local config = {\n    greeting = opts.greeting or \"Hello from example-plugin!\",\n    enable_commands = opts.enable_commands ~= false,\n  }\n  \n  if config.enable_commands then\n    M.create_commands()\n  end\n  \n  M.config = config\nend\n\nfunction M.hello()\n  print(M.config.greeting)\nend"
+          },
+          "output": "<file>\n00001| local M = {}\n00002| \n00003| function M.setup(opts)\n00004|   opts = opts or {}\n00005|   \n00006|   local config = {\n00007|     greeting = opts.greeting or \"Hello from example-plugin!\",\n00008|     enable_commands = opts.enable_commands ~= false,\n00009|   }\n00010|   \n00011|   if config.enable_commands then\n00012|     M.create_commands()\n00013|   end\n00014|   \n00015|   M.config = config\n00016| end\n00017| \n00018| function M.hello()\n00019|   print(M.config.greeting)\n00020| end\n00021| \n00022| function M.get_current_line()\n00023|   local line = vim.api.nvim_get_current_line()\n00024|   print(\"Current line: \" .. line)\n00025|   return line\n00026| end\n00027| \n00028| function M.create_commands()\n00029|   vim.api.nvim_create_user_command('ExampleHello', function()\n00030|     M.hello()\n00031|   end, {})\n00032|   \n00033|   vim.api.nvim_create_user_command('ExampleCurrentLine', function()\n00034|     M.get_current_line()\n00035|   end, {})\n00036| end\n00037| \n00038| return M\n</file>",
+          "status": "completed",
+          "time": {
+            "end": 1760204514081,
+            "start": 1760204514076
+          },
+          "title": "lua/example-plugin/init.lua"
+        },
+        "tool": "read",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9d45d6574001QqXMq3GYrKreTl",
+        "messageID": "msg_9d45d585800269UgJnOLD8i2pF",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "tokens": {
+          "cache": {
+            "read": 11098,
+            "write": 0
+          },
+          "input": 11792,
+          "output": 115,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d585800269UgJnOLD8i2pF",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204511320
+        },
+        "tokens": {
+          "cache": {
+            "read": 11098,
+            "write": 0
+          },
+          "input": 11792,
+          "output": 115,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d585800269UgJnOLD8i2pF",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204514737,
+          "created": 1760204511320
+        },
+        "tokens": {
+          "cache": {
+            "read": 11098,
+            "write": 0
+          },
+          "input": 11792,
+          "output": 115,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d585800269UgJnOLD8i2pF",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204514738,
+          "created": 1760204511320
+        },
+        "tokens": {
+          "cache": {
+            "read": 11098,
+            "write": 0
+          },
+          "input": 11792,
+          "output": 115,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d585800269UgJnOLD8i2pF",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204514738,
+          "created": 1760204511320
+        },
+        "tokens": {
+          "cache": {
+            "read": 11098,
+            "write": 0
+          },
+          "input": 11792,
+          "output": 115,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204514740
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d71f4001a97mCXmI6pxNUa",
+        "messageID": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_Ejuc5hixQ6GYmxOY767BTw",
+        "id": "prt_9d45d7238001oq47LnPisteSH5",
+        "messageID": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "status": "pending"
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_Ejuc5hixQ6GYmxOY767BTw",
+        "id": "prt_9d45d7238001oq47LnPisteSH5",
+        "messageID": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "in_progress"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "status": "running",
+          "time": {
+            "start": 1760204518234
+          }
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "tooluse_Ejuc5hixQ6GYmxOY767BTw",
+        "id": "prt_9d45d7238001oq47LnPisteSH5",
+        "messageID": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "state": {
+          "input": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "in_progress"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "metadata": {
+            "todos": [
+              {
+                "content": "Examine existing Lua plugin structure",
+                "id": "1",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Create basic plugin directory structure",
+                "id": "2",
+                "priority": "high",
+                "status": "in_progress"
+              },
+              {
+                "content": "Write main plugin init.lua file",
+                "id": "3",
+                "priority": "medium",
+                "status": "pending"
+              },
+              {
+                "content": "Create plugin documentation",
+                "id": "4",
+                "priority": "low",
+                "status": "pending"
+              }
+            ]
+          },
+          "output": "[\n  {\n    \"id\": \"1\",\n    \"priority\": \"high\",\n    \"content\": \"Examine existing Lua plugin structure\",\n    \"status\": \"completed\"\n  },\n  {\n    \"id\": \"2\",\n    \"priority\": \"high\",\n    \"content\": \"Create basic plugin directory structure\",\n    \"status\": \"in_progress\"\n  },\n  {\n    \"id\": \"3\",\n    \"priority\": \"medium\",\n    \"content\": \"Write main plugin init.lua file\",\n    \"status\": \"pending\"\n  },\n  {\n    \"id\": \"4\",\n    \"priority\": \"low\",\n    \"content\": \"Create plugin documentation\",\n    \"status\": \"pending\"\n  }\n]",
+          "status": "completed",
+          "time": {
+            "end": 1760204518235,
+            "start": 1760204518234
+          },
+          "title": "3 todos"
+        },
+        "tool": "todowrite",
+        "type": "tool"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9d45d735d001wIQDRl8ZmASOG2",
+        "messageID": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "tokens": {
+          "cache": {
+            "read": 11785,
+            "write": 0
+          },
+          "input": 12247,
+          "output": 172,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204514740
+        },
+        "tokens": {
+          "cache": {
+            "read": 11785,
+            "write": 0
+          },
+          "input": 12247,
+          "output": 172,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204518286,
+          "created": 1760204514740
+        },
+        "tokens": {
+          "cache": {
+            "read": 11785,
+            "write": 0
+          },
+          "input": 12247,
+          "output": 172,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204518287,
+          "created": 1760204514740
+        },
+        "tokens": {
+          "cache": {
+            "read": 11785,
+            "write": 0
+          },
+          "input": 12247,
+          "output": 172,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d65b40026mDvwR5cCGTA30",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204518287,
+          "created": 1760204514740
+        },
+        "tokens": {
+          "cache": {
+            "read": 11785,
+            "write": 0
+          },
+          "input": 12247,
+          "output": 172,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204518288
+        },
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7d8d001y52xeOvz41Q5Yk",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3.",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete plugin structure for you base",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete plugin structure for you based on the",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete plugin structure for you based on the pattern I see in your",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete plugin structure for you based on the pattern I see in your existing example-plugin.",
+        "time": {
+          "start": 1760204520898
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9d45d7dc2001Iv7E9l8AmBUQKw",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "text": "What would you like your Neovim plugin to do? I can see you have an example plugin structure already. I'll need to know:\n\n1. What functionality you want the plugin to provide\n2. What you'd like to name it\n3. Any specific features or commands you want to include\n\nOnce you provide these details, I can create a complete plugin structure for you based on the pattern I see in your existing example-plugin.",
+        "time": {
+          "end": 1760204522292,
+          "start": 1760204522292
+        },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9d45d8336001sAX3qHG0UFkusj",
+        "messageID": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "tokens": {
+          "cache": {
+            "read": 12241,
+            "write": 0
+          },
+          "input": 12605,
+          "output": 95,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "created": 1760204518288
+        },
+        "tokens": {
+          "cache": {
+            "read": 12241,
+            "write": 0
+          },
+          "input": 12605,
+          "output": 95,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204522346,
+          "created": 1760204518288
+        },
+        "tokens": {
+          "cache": {
+            "read": 12241,
+            "write": 0
+          },
+          "input": 12605,
+          "output": 95,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204522347,
+          "created": 1760204518288
+        },
+        "tokens": {
+          "cache": {
+            "read": 12241,
+            "write": 0
+          },
+          "input": 12605,
+          "output": 95,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9d45d7390002yE2ve5szXtMdw0",
+        "mode": "plan",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_62ba308b7ffeD9ULwPcdmD3Mgb",
+        "system": {},
+        "time": {
+          "completed": 1760204522347,
+          "created": 1760204518288
+        },
+        "tokens": {
+          "cache": {
+            "read": 12241,
+            "write": 0
+          },
+          "input": 12605,
+          "output": 95,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  }
+]

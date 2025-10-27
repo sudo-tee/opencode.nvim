@@ -32,9 +32,9 @@ M.defaults = {
       ['<leader>orr'] = { 'diff_restore_snapshot_file' },
       ['<leader>orR'] = { 'diff_restore_snapshot_all' },
       ['<leader>ox'] = { 'swap_position' },
-      ['<leader>opa'] = { 'permission_accept' },
-      ['<leader>opA'] = { 'permission_accept_all' },
-      ['<leader>opd'] = { 'permission_deny' },
+      ['<leader>oPa'] = { 'permission_accept' },
+      ['<leader>oPA'] = { 'permission_accept_all' },
+      ['<leader>oPd'] = { 'permission_deny' },
     },
     output_window = {
       ['<esc>'] = { 'close' },
@@ -71,6 +71,7 @@ M.defaults = {
     },
     session_picker = {
       delete_session = { '<C-d>' },
+      new_session = { '<C-n>' },
     },
   },
   ui = {
@@ -87,9 +88,15 @@ M.defaults = {
       overrides = {},
     },
     loading_animation = {
-      frames = { '·', '․', '•', '∙', '●', '⬤', '●', '∙', '•', '․' },
+      frames = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' },
     },
     output = {
+      rendering = {
+        markdown_debounce_ms = 250,
+        on_data_rendered = nil,
+        event_throttle_ms = 40,
+        event_collapsing = true,
+      },
       tools = {
         show_output = true,
       },
@@ -158,6 +165,7 @@ M.defaults = {
   },
   debug = {
     enabled = false,
+    capture_streamed_events = false,
   },
 }
 
@@ -175,7 +183,7 @@ local function get_function_names(keymap_config)
   return names
 end
 
-function update_keymap_prefix(prefix, default_prefix)
+local function update_keymap_prefix(prefix, default_prefix)
   if prefix == default_prefix or not prefix then
     return
   end
@@ -184,7 +192,12 @@ function update_keymap_prefix(prefix, default_prefix)
     local new_mappings = {}
     for key, opts in pairs(mappings) do
       if vim.startswith(key, default_prefix) then
-        new_mappings[prefix .. key:sub(#default_prefix + 1)] = opts
+        local new_key = prefix .. key:sub(#default_prefix + 1)
+
+        -- make sure there's not already a mapping for that key
+        if not new_mappings[new_key] then
+          new_mappings[new_key] = opts
+        end
       else
         new_mappings[key] = opts
       end

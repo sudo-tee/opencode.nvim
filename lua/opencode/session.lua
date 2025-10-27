@@ -1,5 +1,7 @@
 local util = require('opencode.util')
+local review = require('opencode.review')
 local config_file = require('opencode.config_file')
+local Promise = require('opencode.promise')
 local M = {}
 
 ---Get the current OpenCode project ID
@@ -40,32 +42,17 @@ end
 ---Get all sessions for the current workspace
 ---@return Session[]|nil
 function M.get_all_sessions()
-  local sessions_dir = M.get_workspace_session_path()
+  local state = require('opencode.state')
+  local ok, result = pcall(function()
+    return state.api_client:list_sessions():wait()
+  end)
 
-  local sessions = {}
-  local ok_iter, iter = pcall(vim.fs.dir, sessions_dir)
-  if not ok_iter or not iter then
-    return nil
-  end
-  for name, type_ in iter do
-    if type_ == 'file' then
-      local file = sessions_dir .. '/' .. name
-      local content_ok, content = pcall(vim.fn.readfile, file)
-      if content_ok then
-        local joined = table.concat(content, '\n')
-        local ok, session = pcall(vim.json.decode, joined)
-        if ok and session then
-          table.insert(sessions, session)
-        end
-      end
-    end
-  end
-
-  if #sessions == 0 then
+  if not ok then
+    vim.notify('Failed to fetch session list: ' .. vim.inspect(result), vim.log.levels.ERROR)
     return nil
   end
 
-  return vim.tbl_map(M.create_session_object, sessions)
+  return vim.tbl_map(M.create_session_object, result --[[@as Session[] ]])
 end
 
 ---Create a Session object from JSON
@@ -75,7 +62,7 @@ function M.create_session_object(session_json)
   local sessions_dir = M.get_workspace_session_path()
   local storage_path = M.get_storage_path()
   return {
-    workspace = vim.fn.getcwd(),
+    workspace = session_json.directory,
     description = session_json.title or '',
     modified = session_json.time and session_json.time.updated or os.time(),
     id = session_json.id,
@@ -106,10 +93,8 @@ function M.get_all_workspace_sessions()
   if not util.is_git_project() then
     -- we only want sessions that are in the current workspace_folder
     sessions = vim.tbl_filter(function(session)
-      local first_messages = M.get_messages(session, false, 2)
-      if first_messages and #first_messages > 1 then
-        local first_assistant_message = first_messages[2]
-        return first_assistant_message.path and first_assistant_message.path.root == vim.fn.getcwd()
+      if session.workspace and vim.startswith(vim.fn.getcwd(), session.workspace) then
+        return true
       end
       return false
     end, sessions)
@@ -136,25 +121,25 @@ function M.get_last_workspace_session()
   return main_sessions[1]
 end
 
-local _session_by_name = {}
+local _session_by_id = {}
 local _session_last_modified = {}
 
----Get a session by its name
----@param name string
+---Get a session by its id
+---@param id string
 ---@return Session|nil
-function M.get_by_name(name)
-  if not name or name == '' then
+function M.get_by_id(id)
+  if not id or id == '' then
     return nil
   end
   local sessions_dir = M.get_workspace_session_path()
-  local file = sessions_dir .. '/' .. name .. '.json'
+  local file = sessions_dir .. '/' .. id .. '.json'
   local _, stat = pcall(vim.uv.fs_stat, file)
   if not stat then
     return nil
   end
 
-  if _session_by_name[name] and _session_last_modified[name] == stat.mtime.sec then
-    return _session_by_name[name]
+  if _session_by_id[id] and _session_last_modified[id] == stat.mtime.sec then
+    return _session_by_id[id]
   end
 
   local content = table.concat(vim.fn.readfile(file), '\n')
@@ -164,56 +149,26 @@ function M.get_by_name(name)
   end
 
   local session = M.create_session_object(session_json)
-  _session_by_name[name] = session
-  _session_last_modified[name] = stat.mtime.sec
+  _session_by_id[id] = session
+  _session_last_modified[id] = stat.mtime.sec
 
   return session
 end
 
 ---Get messages for a session
 ---@param session Session
----@param include_parts? boolean Whether to include message parts
----@param max_items? number Maximum number of messages to return
----@return Message[]|nil
-function M.get_messages(session, include_parts, max_items)
-  include_parts = include_parts == nil and true or include_parts
+---@return Promise<OpencodeMessage[]>
+function M.get_messages(session)
+  local state = require('opencode.state')
   if not session then
-    return nil
+    return Promise.new():resolve(nil)
   end
 
-  local messages = util.read_json_dir(session.messages_path)
-  if not messages then
-    return nil
-  end
-
-  local count = 0
-  for _, message in ipairs(messages) do
-    count = count + 1
-    if not message.parts or #message.parts == 0 then
-      message.parts = include_parts and M.get_message_parts(message, session) or {}
-    end
-    if max_items and count >= max_items then
-      break
-    end
-  end
-  table.sort(messages, function(a, b)
-    return a.time.created < b.time.created
-  end)
-
-  return messages
-end
-
----Get parts for a message
----@param message Message
----@param session Session
----@return MessagePart[]|nil
-function M.get_message_parts(message, session)
-  local parts_path = session.parts_path .. '/' .. message.id
-  return util.read_json_dir(parts_path)
+  return state.api_client:list_messages(session.id)
 end
 
 ---Get snapshot IDs from a message's parts
----@param message Message
+---@param message OpencodeMessage
 ---@return string[]|nil
 function M.get_message_snapshot_ids(message)
   if not message then

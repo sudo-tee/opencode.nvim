@@ -1,0 +1,238 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_9cf8f64de0016tbfTQqWMydbdr",
+        "role": "user",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "time": { "created": 1760123905246 }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f64df001zPv6k1dQQefQQb",
+        "messageID": "msg_9cf8f64de0016tbfTQqWMydbdr",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "text": "only answer the following, nothing else:\n\n1",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f64e0001Hje5NS5LoHtqfu",
+        "messageID": "msg_9cf8f64de0016tbfTQqWMydbdr",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "synthetic": true,
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/a-empty.txt\"}",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f64e0002LnLCHbA2pQoFLJ",
+        "messageID": "msg_9cf8f64de0016tbfTQqWMydbdr",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "synthetic": true,
+        "text": "<file>\n00001| \n</file>",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "filename": "a-empty.txt",
+        "id": "prt_9cf8f64e0003v1TrnWYP1id0EW",
+        "messageID": "msg_9cf8f64de0016tbfTQqWMydbdr",
+        "mime": "text/plain",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "type": "file",
+        "url": "file:///Users/cam/tmp/a/a-empty.txt"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "system": {},
+        "time": { "created": 1760123905353 },
+        "tokens": {
+          "cache": { "read": 0, "write": 0 },
+          "input": 0,
+          "output": 0,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f701b001ojnIOsDWtIIrRM",
+        "messageID": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "type": "step-start"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f7069001NijG6ReU9XlLwq",
+        "messageID": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "text": "1",
+        "time": { "start": 1760123908201 },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_9cf8f7069001NijG6ReU9XlLwq",
+        "messageID": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "text": "1",
+        "time": { "end": 1760123908202, "start": 1760123908202 },
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "cost": 0,
+        "id": "prt_9cf8f706a001BgsbkWs9dvxtt7",
+        "messageID": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "tokens": {
+          "cache": { "read": 8435, "write": 0 },
+          "input": 15511,
+          "output": 5,
+          "reasoning": 0
+        },
+        "type": "step-finish"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "path": { "cwd": "/Users/cam/tmp/a", "root": "/Users/cam/tmp/a" },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "system": {},
+        "time": { "created": 1760123905353 },
+        "tokens": {
+          "cache": { "read": 8435, "write": 0 },
+          "input": 15511,
+          "output": 5,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "path": { "cwd": "/Users/cam/tmp/a", "root": "/Users/cam/tmp/a" },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "system": {},
+        "time": { "completed": 1760123908223, "created": 1760123905353 },
+        "tokens": {
+          "cache": { "read": 8435, "write": 0 },
+          "input": 15511,
+          "output": 5,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "path": { "cwd": "/Users/cam/tmp/a", "root": "/Users/cam/tmp/a" },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "system": {},
+        "time": { "completed": 1760123908224, "created": 1760123905353 },
+        "tokens": {
+          "cache": { "read": 8435, "write": 0 },
+          "input": 15511,
+          "output": 5,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "cost": 0,
+        "id": "msg_9cf8f6549001tpoRuqkwS4Rxtl",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "path": { "cwd": "/Users/cam/tmp/a", "root": "/Users/cam/tmp/a" },
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "sessionID": "ses_6345495f3ffeHrPDfQKfwjff2i",
+        "system": {},
+        "time": { "completed": 1760123908224, "created": 1760123905353 },
+        "tokens": {
+          "cache": { "read": 8435, "write": 0 },
+          "input": 15511,
+          "output": 5,
+          "reasoning": 0
+        }
+      }
+    },
+    "type": "message.updated"
+  }
+]

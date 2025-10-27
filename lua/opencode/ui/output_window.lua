@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 
 local M = {}
+M.namespace = vim.api.nvim_create_namespace('opencode_output')
 
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
@@ -19,10 +20,6 @@ function M._build_output_win_config()
     border = 'rounded',
     zindex = 40,
   }
-end
-
-function M.create_window(windows)
-  windows.output_win = vim.api.nvim_open_win(windows.output_buf, true, M._build_output_win_config())
 end
 
 function M.mounted(windows)
@@ -50,13 +47,11 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
   vim.api.nvim_set_option_value('winfixheight', true, { win = windows.output_win })
   vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.output_win })
+  vim.api.nvim_set_option_value('signcolumn', 'yes', { scope = 'local', win = windows.output_win })
+  vim.api.nvim_set_option_value('list', false, { scope = 'local', win = windows.output_win })
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)
-  state.subscribe('restore_points', function(_, new_val, old_val)
-    local outout_renderer = require('opencode.ui.output_renderer')
-    outout_renderer.render(state.windows, true)
-  end)
 end
 
 function M.update_dimensions(windows)
@@ -66,34 +61,77 @@ function M.update_dimensions(windows)
   vim.api.nvim_win_set_config(windows.output_win, { width = width })
 end
 
-function M.set_content(lines)
+function M.get_buf_line_count()
   if not M.mounted() then
-    return
+    return 0
   end
 
-  local windows = state.windows
-  if not windows or not windows.output_buf then
-    return
-  end
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_lines(windows.output_buf, 0, -1, false, lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
-  M.append_content({ '', '' })
+  return vim.api.nvim_buf_line_count(state.windows.output_buf)
 end
 
-function M.append_content(lines)
+---Set the output buffer contents
+---@param lines string[] The lines to set
+---@param start_line? integer The starting line to set, defaults to 0
+---@param end_line? integer The last line to set, defaults to -1
+function M.set_lines(lines, start_line, end_line)
   if not M.mounted() then
     return
   end
+
+  start_line = start_line or 0
+  end_line = end_line or -1
 
   local windows = state.windows
   if not windows or not windows.output_buf then
     return
   end
+
   vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  local current_lines = vim.api.nvim_buf_get_lines(windows.output_buf, 0, -1, false)
-  vim.api.nvim_buf_set_lines(windows.output_buf, #current_lines, -1, false, lines)
+  vim.api.nvim_buf_set_lines(windows.output_buf, start_line, end_line, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+end
+
+---Clear output buf extmarks
+---@param start_line? integer Line to start clearing, defaults 0
+---@param end_line? integer Line to clear until, defaults to -1
+---@param clear_all? boolean If true, clears all extmarks in the buffer
+function M.clear_extmarks(start_line, end_line, clear_all)
+  if not M.mounted() or not state.windows.output_buf then
+    return
+  end
+
+  start_line = start_line or 0
+  end_line = end_line or -1
+
+  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
+end
+
+---Apply extmarks to the output buffer
+---@param extmarks table<number, OutputExtmark> Extmarks indexed by line
+---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
+function M.set_extmarks(extmarks, line_offset)
+  if not M.mounted() or not extmarks or type(extmarks) ~= 'table' then
+    return
+  end
+
+  line_offset = line_offset or 0
+
+  local output_buf = state.windows.output_buf
+
+  for line_idx, marks in pairs(extmarks) do
+    for _, mark in ipairs(marks) do
+      local actual_mark = type(mark) == 'function' and mark() or mark
+      local target_line = line_offset + line_idx
+      if actual_mark.end_row then
+        actual_mark.end_row = actual_mark.end_row + line_offset
+      end
+      local start_col = actual_mark.start_col
+      if actual_mark.start_col then
+        actual_mark.start_col = nil
+      end
+      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, actual_mark)
+    end
+  end
 end
 
 function M.focus_output(should_stop_insert)
@@ -143,11 +181,10 @@ function M.setup_autocmds(windows, group)
 end
 
 function M.clear()
-  if not M.mounted() then
-    return
-  end
-  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, -1, 0, -1)
-  M.set_content({})
+  M.set_lines({})
+  -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
+  -- extmarks behind
+  M.clear_extmarks(0, -1, true)
 end
 
 return M

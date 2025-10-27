@@ -6,8 +6,8 @@ local Promise = require('opencode.promise')
 --- @field job any The vim.system job handle
 --- @field url string|nil The server URL once ready
 --- @field handle any Compatibility property for job.stop interface
---- @field spawn_promise Promise|nil
---- @field shutdown_promise Promise|nil
+--- @field spawn_promise Promise<OpencodeServer>
+--- @field shutdown_promise Promise<boolean>
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -19,8 +19,8 @@ function OpencodeServer.new()
     group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
     callback = function()
       local state = require('opencode.state')
-      if state.opencode_server_job then
-        state.opencode_server_job:shutdown()
+      if state.opencode_server then
+        state.opencode_server:shutdown()
       end
     end,
   })
@@ -53,7 +53,7 @@ function OpencodeServer:shutdown()
 end
 
 --- @class OpencodeServerSpawnOpts
---- @field cwd string
+--- @field cwd? string
 --- @field on_ready fun(job: any, url: string)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(exit_opts: vim.SystemCompleted )

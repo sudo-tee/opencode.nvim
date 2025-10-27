@@ -1,4 +1,6 @@
 local state = require('opencode.state')
+local config = require('opencode.config')
+local ThrottlingEmitter = require('opencode.throttling_emitter')
 
 --- @class EventInstallationUpdated
 --- @field type "installation.updated"
@@ -10,7 +12,7 @@ local state = require('opencode.state')
 
 --- @class EventMessageUpdated
 --- @field type "message.updated"
---- @field properties {info: Message}
+--- @field properties {info: MessageInfo}
 
 --- @class EventMessageRemoved
 --- @field type "message.removed"
@@ -18,7 +20,7 @@ local state = require('opencode.state')
 
 --- @class EventMessagePartUpdated
 --- @field type "message.part.updated"
---- @field properties {part: MessagePart}
+--- @field properties {part: OpencodeMessagePart}
 
 --- @class EventMessagePartRemoved
 --- @field type "message.part.removed"
@@ -88,7 +90,10 @@ local state = require('opencode.state')
 
 --- @class ServerStoppedEvent
 
---- @alias EventName
+--- @class RestorePointCreatedEvent
+--- @field restore_point RestorePoint
+
+--- @alias OpencodeEventName
 --- | "installation.updated"
 --- | "lsp.client.diagnostics"
 --- | "message.updated"
@@ -106,49 +111,65 @@ local state = require('opencode.state')
 --- | "file.watcher.updated"
 --- | "server.connected"
 --- | "ide.installed"
---- | "server_starting"
---- | "server_ready"
---- | "server_stopped"
+--- | "custom.server_starting"
+--- | "custom.server_ready"
+--- | "custom.server_stopped"
+--- | "custom.restore_point.created"
+--- | "custom.emit_events.started"
+--- | "custom.emit_events.finished"
 
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
 --- @field is_started boolean Whether the event manager is started
+--- @field captured_events table[] List of captured events for debugging
+--- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
 local EventManager = {}
 EventManager.__index = EventManager
 
 --- Create a new EventManager instance
 --- @return EventManager
 function EventManager.new()
-  return setmetatable({
+  local self = setmetatable({
     events = {},
     server_subscription = nil,
     is_started = false,
+    captured_events = {},
   }, EventManager)
+
+  local throttle_ms = config.ui.output.rendering.event_throttle_ms
+  self.throttling_emitter = ThrottlingEmitter.new(function(events)
+    self:_on_drained_events(events)
+  end, throttle_ms)
+
+  return self
 end
 
 --- Subscribe to an event with type-safe callbacks using function overloads
---- @overload fun(self: EventManager, event_name: "installation.updated", callback: fun(data: EventInstallationUpdated): nil)
---- @overload fun(self: EventManager, event_name: "lsp.client.diagnostics", callback: fun(data: EventLspClientDiagnostics): nil)
---- @overload fun(self: EventManager, event_name: "message.updated", callback: fun(data: EventMessageUpdated): nil)
---- @overload fun(self: EventManager, event_name: "message.removed", callback: fun(data: EventMessageRemoved): nil)
---- @overload fun(self: EventManager, event_name: "message.part.updated", callback: fun(data: EventMessagePartUpdated): nil)
---- @overload fun(self: EventManager, event_name: "message.part.removed", callback: fun(data: EventMessagePartRemoved): nil)
---- @overload fun(self: EventManager, event_name: "session.compacted", callback: fun(data: EventSessionCompacted): nil)
---- @overload fun(self: EventManager, event_name: "session.idle", callback: fun(data: EventSessionIdle): nil)
---- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated): nil)
---- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted): nil)
---- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError): nil)
---- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated): nil)
---- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied): nil)
---- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited): nil)
---- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated): nil)
---- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected): nil)
---- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled): nil)
---- @overload fun(self: EventManager, event_name: "server_starting", callback: fun(data: ServerStartingEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_ready", callback: fun(data: ServerReadyEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_stopped", callback: fun(data: ServerStoppedEvent): nil)
---- @param event_name EventName The event name to listen for
+--- @overload fun(self: EventManager, event_name: "installation.updated", callback: fun(data: EventInstallationUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "lsp.client.diagnostics", callback: fun(data: EventLspClientDiagnostics['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.updated", callback: fun(data: EventMessageUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.removed", callback: fun(data: EventMessageRemoved['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.part.updated", callback: fun(data: EventMessagePartUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.part.removed", callback: fun(data: EventMessagePartRemoved['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.compacted", callback: fun(data: EventSessionCompacted['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.idle", callback: fun(data: EventSessionIdle['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.started", callback: fun(): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.finished", callback: fun(): nil)
+--- @param event_name OpencodeEventName The event name to listen for
 --- @param callback function Callback function to execute when event is triggered
 function EventManager:subscribe(event_name, callback)
   if not self.events[event_name] then
@@ -158,27 +179,30 @@ function EventManager:subscribe(event_name, callback)
 end
 
 --- Unsubscribe from an event with type-safe callbacks using function overloads
---- @overload fun(self: EventManager, event_name: "installation.updated", callback: fun(data: EventInstallationUpdated): nil)
---- @overload fun(self: EventManager, event_name: "lsp.client.diagnostics", callback: fun(data: EventLspClientDiagnostics): nil)
---- @overload fun(self: EventManager, event_name: "message.updated", callback: fun(data: EventMessageUpdated): nil)
---- @overload fun(self: EventManager, event_name: "message.removed", callback: fun(data: EventMessageRemoved): nil)
---- @overload fun(self: EventManager, event_name: "message.part.updated", callback: fun(data: EventMessagePartUpdated): nil)
---- @overload fun(self: EventManager, event_name: "message.part.removed", callback: fun(data: EventMessagePartRemoved): nil)
---- @overload fun(self: EventManager, event_name: "session.compacted", callback: fun(data: EventSessionCompacted): nil)
---- @overload fun(self: EventManager, event_name: "session.idle", callback: fun(data: EventSessionIdle): nil)
---- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated): nil)
---- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted): nil)
---- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError): nil)
---- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated): nil)
---- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied): nil)
---- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited): nil)
---- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated): nil)
---- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected): nil)
---- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled): nil)
---- @overload fun(self: EventManager, event_name: "server_starting", callback: fun(data: ServerStartingEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_ready", callback: fun(data: ServerReadyEvent): nil)
---- @overload fun(self: EventManager, event_name: "server_stopped", callback: fun(data: ServerStoppedEvent): nil)
---- @param event_name EventName The event name
+--- @overload fun(self: EventManager, event_name: "installation.updated", callback: fun(data: EventInstallationUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "lsp.client.diagnostics", callback: fun(data: EventLspClientDiagnostics['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.updated", callback: fun(data: EventMessageUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.removed", callback: fun(data: EventMessageRemoved['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.part.updated", callback: fun(data: EventMessagePartUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "message.part.removed", callback: fun(data: EventMessagePartRemoved['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.compacted", callback: fun(data: EventSessionCompacted['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.idle", callback: fun(data: EventSessionIdle['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "file.watcher.updated", callback: fun(data: EventFileWatcherUpdated['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "server.connected", callback: fun(data: EventServerConnected['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "ide.installed", callback: fun(data: EventIdeInstalled['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_starting", callback: fun(data: ServerStartingEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_ready", callback: fun(data: ServerReadyEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.server_stopped", callback: fun(data: ServerStoppedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.restore_point.created", callback: fun(data: RestorePointCreatedEvent['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.started", callback: fun(): nil)
+--- @overload fun(self: EventManager, event_name: "custom.emit_events.finished", callback: fun(): nil)
+--- @param event_name OpencodeEventName The event name
 --- @param callback function The callback function to remove
 function EventManager:unsubscribe(event_name, callback)
   local listeners = self.events[event_name]
@@ -194,13 +218,68 @@ function EventManager:unsubscribe(event_name, callback)
   end
 end
 
+---Callback from ThrottlingEmitter when the events are now ready to be processed.
+---Collapses parts that are duplicated, making sure to replace earlier parts with later
+---ones (but keeping the earlier position)
+---@param events any
+function EventManager:_on_drained_events(events)
+  self:emit('custom.emit_events.started', {})
+
+  if not config.ui.output.rendering.event_collapsing then
+    for _, event in ipairs(events) do
+      self:emit(event.type, event.properties)
+    end
+    self:emit('custom.emit_events.finished', {})
+    return
+  end
+
+  local collapsed_events = {}
+  local part_update_indices = {}
+
+  for i, event in ipairs(events) do
+    if event.type == 'message.part.updated' and event.properties.part then
+      local part_id = event.properties.part.id
+      if part_update_indices[part_id] then
+        -- vim.notify('collapsing: ' .. part_id .. ' text: ' .. vim.inspect(event.properties.part.text))
+        -- put this event in the earlier slot
+
+        -- move this newer part to the position of the original part
+        collapsed_events[part_update_indices[part_id]] = event
+
+        -- clear out this parts now unneeded position
+        collapsed_events[i] = nil
+      else
+        part_update_indices[part_id] = i
+        collapsed_events[i] = event
+      end
+    else
+      collapsed_events[i] = event
+    end
+  end
+
+  for i = 1, #events do
+    local event = collapsed_events[i]
+    if event then
+      self:emit(event.type, event.properties)
+    end
+  end
+
+  self:emit('custom.emit_events.finished', {})
+end
+
 --- Emit an event to all subscribers
---- @param event_name EventName The event name
+--- @param event_name OpencodeEventName The event name
 --- @param data any Data to pass to event listeners
 function EventManager:emit(event_name, data)
   local listeners = self.events[event_name]
   if not listeners then
     return
+  end
+
+  local event = { type = event_name, properties = data }
+
+  if require('opencode.config').debug.capture_streamed_events then
+    table.insert(self.captured_events, vim.deepcopy(event))
   end
 
   for _, callback in ipairs(listeners) do
@@ -217,27 +296,27 @@ function EventManager:start()
   self.is_started = true
 
   state.subscribe(
-    'opencode_server_job',
+    'opencode_server',
     --- @param key string
     --- @param current OpencodeServer|nil
     --- @param prev OpencodeServer|nil
     function(key, current, prev)
       if current and current:get_spawn_promise() then
-        self:emit('server_starting', { server_job = current })
+        self:emit('custom.server_starting', { server_job = current })
 
         current:get_spawn_promise():and_then(function(server)
-          self:emit('server_ready', { server_job = server, url = server.url })
+          self:emit('custom.server_ready', { server_job = server, url = server.url })
           vim.defer_fn(function()
             self:_subscribe_to_server_events(server)
           end, 200)
         end)
 
         current:get_shutdown_promise():and_then(function()
-          self:emit('server_stopped', {})
+          self:emit('custom.server_stopped', {})
           self:_cleanup_server_subscription()
         end)
       elseif prev and not current then
-        self:emit('server_stopped', {})
+        self:emit('custom.server_stopped', {})
         self:_cleanup_server_subscription()
       end
     end
@@ -252,6 +331,7 @@ function EventManager:stop()
   self.is_started = false
   self:_cleanup_server_subscription()
 
+  self.throttling_emitter:clear()
   self.events = {}
 end
 
@@ -266,11 +346,11 @@ function EventManager:_subscribe_to_server_events(server)
 
   local api_client = state.api_client
 
-  self.server_subscription = api_client:subscribe_to_events(nil, function(event)
-    vim.schedule(function()
-      self:emit(event.type, event)
-    end)
-  end)
+  local emitter = function(event)
+    self.throttling_emitter:enqueue(event)
+  end
+
+  self.server_subscription = api_client:subscribe_to_events(nil, emitter)
 end
 
 function EventManager:_cleanup_server_subscription()
@@ -279,7 +359,7 @@ function EventManager:_cleanup_server_subscription()
       if self.server_subscription.shutdown then
         self.server_subscription:shutdown()
       elseif self.server_subscription.pid and type(self.server_subscription.pid) == 'number' then
-        vim.fn.jobstop(self.server_subscription.pid)
+        vim.fn.jobstop(self.server_subscription.pid --[[@as integer]])
       end
     end)
     self.server_subscription = nil
@@ -297,7 +377,7 @@ function EventManager:get_event_names()
 end
 
 --- Get number of subscribers for an event
---- @param event_name EventName The event name
+--- @param event_name OpencodeEventName The event name
 --- @return number Number of subscribers
 function EventManager:get_subscriber_count(event_name)
   local listeners = self.events[event_name]
@@ -307,10 +387,6 @@ end
 function EventManager.setup()
   state.event_manager = EventManager.new()
   state.event_manager:start()
-
-  state.event_manager:subscribe('permission.updated', function(event_data)
-    state.current_permission = event_data.properties
-  end)
 end
 
 return EventManager

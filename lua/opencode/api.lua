@@ -32,8 +32,8 @@ function M.close()
   if state.display_route then
     state.display_route = nil
     ui.clear_output()
+    -- need to trigger a re-render here to re-display the session
     ui.render_output()
-    ui.scroll_to_bottom()
     return
   end
 
@@ -42,8 +42,7 @@ end
 
 function M.toggle(new_session)
   if state.windows == nil then
-    local focus = state.last_focused_opencode_window or 'input'
-
+    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
     core.open({ new_session = new_session == true, focus = focus, start_insert = false })
   else
     M.close()
@@ -52,7 +51,7 @@ end
 
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
-    local focus = state.last_focused_opencode_window or 'input'
+    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
     core.open({ new_session = new_session == true, focus = focus })
   else
     ui.return_to_last_code_win()
@@ -265,6 +264,13 @@ function M.prev_message()
 end
 
 function M.submit_input_prompt()
+  if state.display_route then
+    -- we're displaying /help or something similar, need to clear that and refresh
+    -- the session data before sending the command
+    state.display_route = nil
+    ui.render_output()
+  end
+
   input_window.handle_submit()
 end
 
@@ -282,14 +288,15 @@ end
 function M.mention()
   local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'mention')
-  ui.focus_input({ restore_position = true, start_insert = true })
+
+  ui.focus_input({ restore_position = false, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 
 function M.slash_commands()
   local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'slash_commands')
-  ui.focus_input({ restore_position = true, start_insert = true })
+  ui.focus_input({ restore_position = false, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 
@@ -351,12 +358,10 @@ end
 
 function M.agent_plan()
   state.current_mode = 'plan'
-  require('opencode.ui.topbar').render()
 end
 
 function M.agent_build()
   state.current_mode = 'build'
-  require('opencode.ui.topbar').render()
 end
 
 function M.select_agent()
@@ -369,7 +374,6 @@ function M.select_agent()
     end
 
     state.current_mode = selection
-    require('opencode.ui.topbar').render()
   end)
 end
 
@@ -386,7 +390,6 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   state.current_mode = modes[next_index]
-  require('opencode.ui.topbar').render()
 end
 
 function M.with_header(lines, show_welcome)
@@ -502,7 +505,6 @@ function M.compact_session(current_session)
     return
   end
 
-  ui.render_output(true)
   local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
   state.api_client
     :summarize_session(current_session.id, {
@@ -527,7 +529,6 @@ function M.share()
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :share_session(state.active_session.id)
     :and_then(function(response)
@@ -553,10 +554,9 @@ function M.unshare()
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :unshare_session(state.active_session.id)
-    :and_then(function()
+    :and_then(function(response)
       vim.schedule(function()
         vim.notify('Session unshared successfully', vim.log.levels.INFO)
       end)
@@ -568,28 +568,26 @@ function M.unshare()
     end)
 end
 
-function M.undo()
+---@param messageId? string
+function M.undo(messageId)
   if not state.active_session then
     vim.notify('No active session to undo', vim.log.levels.WARN)
     return
   end
 
-  local last_user_message = state.last_user_message
-  if not last_user_message then
+  local message_to_revert = messageId or state.last_user_message and state.last_user_message.info.id
+  if not message_to_revert then
     vim.notify('No user message to undo', vim.log.levels.WARN)
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :revert_message(state.active_session.id, {
-      messageID = last_user_message.id,
+      messageID = message_to_revert,
     })
     :and_then(function(response)
-      state.active_session.revert = response.revert
       vim.schedule(function()
-        vim.notify('Last message undone successfully', vim.log.levels.INFO)
-        ui.render_output(true)
+        vim.cmd('checktime')
       end)
     end)
     :catch(function(err)
@@ -599,27 +597,93 @@ function M.undo()
     end)
 end
 
+-- Returns the ID of the next user message after the current undo point
+-- This is a port of the opencode tui logic
+-- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
+function find_next_message_for_redo()
+  if not state.active_session then
+    return nil
+  end
+
+  local revert_time = 0
+  local revert = state.active_session.revert
+
+  if not revert then
+    return nil
+  end
+
+  for _, message in ipairs(state.messages or {}) do
+    if message.info.id == revert.messageID then
+      revert_time = math.floor(message.info.time.created)
+      break
+    end
+    if revert.partID and revert.partID ~= '' then
+      for _, part in ipairs(message.parts) do
+        if part.id == revert.partID and part.state and part.state.time then
+          revert_time = math.floor(part.state.time.start)
+          break
+        end
+      end
+    end
+  end
+
+  -- Find next user message after revert time
+  local next_message_id = nil
+  for _, msg in ipairs(state.messages or {}) do
+    if msg.info.role == 'user' and msg.info.time.created > revert_time then
+      next_message_id = msg.info.id
+      break
+    end
+  end
+  return next_message_id
+end
+
 function M.redo()
   if not state.active_session then
-    vim.notify('No active session to undo', vim.log.levels.WARN)
+    vim.notify('No active session to redo', vim.log.levels.WARN)
     return
   end
-  ui.render_output(true)
 
-  state.api_client
-    :unrevert_messages(state.active_session.id)
-    :and_then(function(response)
-      state.active_session.revert = response.revert
-      vim.schedule(function()
-        vim.notify('Last message rerterted successfully', vim.log.levels.INFO)
-        ui.render_output(true)
+  if not state.active_session.revert or state.active_session.revert.messageID == '' then
+    vim.notify('Nothing to redo', vim.log.levels.WARN)
+    return
+  end
+
+  if not state.messages then
+    return
+  end
+
+  local next_message_id = find_next_message_for_redo()
+  if not next_message_id then
+    state.api_client
+      :unrevert_messages(state.active_session.id)
+      :and_then(function(response)
+        vim.schedule(function()
+          vim.cmd('checktime')
+        end)
       end)
-    end)
-    :catch(function(err)
-      vim.schedule(function()
-        vim.notify('Failed to undo last message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      :catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to redo message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+        end)
       end)
-    end)
+  else
+    -- Calling revert on a "later" message is like a redo
+    state.api_client
+      :revert_message(state.active_session.id, {
+        messageID = next_message_id,
+      })
+      :and_then(function(response)
+        vim.schedule(function()
+          vim.cmd('checktime')
+        end)
+      end)
+      :catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to redo message: ' .. vim.inspect(err), vim.log.levels.ERROR)
+        end)
+      end)
+  end
 end
 
 ---@param answer? 'once'|'always'|'reject'
@@ -630,15 +694,8 @@ function M.respond_to_permission(answer)
     return
   end
 
-  ui.render_output(true)
   state.api_client
     :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
-    :and_then(function()
-      vim.schedule(function()
-        state.current_permission = nil
-        ui.render_output(true)
-      end)
-    end)
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -1088,8 +1145,8 @@ M.commands = {
 ---@return OpencodeSlashCommand[]
 function M.get_slash_commands()
   local commands = vim.tbl_filter(function(cmd)
-    return cmd.slash_cmd and cmd.slash_cmd ~= ''
-  end, M.commands)
+    return cmd.slash_cmd and cmd.slash_cmd ~= '' or false
+  end, M.commands) --[[@as OpencodeSlashCommand[] ]]
 
   local user_commands = require('opencode.config_file').get_user_commands()
   if user_commands then

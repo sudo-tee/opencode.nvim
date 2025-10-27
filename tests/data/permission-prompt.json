@@ -1,0 +1,657 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1760588856294
+        },
+        "mode": "plan",
+        "path": {
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "cost": 0,
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "tokens": {
+          "cache": {
+            "read": 0,
+            "write": 0
+          },
+          "reasoning": 0,
+          "input": 0,
+          "output": 0
+        },
+        "id": "msg_9eb45fbe60020xE560OGH3Vdoo",
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry"
+      },
+      "parts": [
+        {
+          "id": "prt_9eb46047e001a0A4qdfT2M7iK1",
+          "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo",
+          "type": "step-start",
+          "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry"
+        },
+        {
+          "type": "text",
+          "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+          "time": {
+            "start": 1760588862279,
+            "end": 1760588862279
+          },
+          "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+          "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the extmark namespace:",
+          "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+        },
+        {
+          "state": {
+            "input": {
+              "description": "Find extmark namespace usage",
+              "command": "rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2"
+            },
+            "status": "running",
+            "time": {
+              "start": 1760588861851
+            }
+          },
+          "type": "tool",
+          "id": "prt_9eb460c96001AONHjoXQlZBX1c",
+          "tool": "bash",
+          "callID": "toolu_vrtx_014myMV25GuNHmBhzL8czw1z",
+          "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+          "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+        }
+      ]
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_9eb46047e001a0A4qdfT2M7iK1",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo",
+        "type": "step-start",
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understan",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have ext",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `v",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text`",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`).",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understan",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the extmark namespace",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588858562
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the extmark namespace:",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "state": {
+          "status": "pending"
+        },
+        "type": "tool",
+        "id": "prt_9eb460c96001AONHjoXQlZBX1c",
+        "tool": "bash",
+        "callID": "toolu_vrtx_014myMV25GuNHmBhzL8czw1z",
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "time": {
+        "created": 1760588861851
+      },
+      "title": "rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2",
+      "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo",
+      "type": "bash",
+      "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+      "metadata": {
+        "patterns": [
+          "rg /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua *"
+        ],
+        "command": "rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2"
+      },
+      "id": "per_9eb46119b001UzsqMdsOXfX0Ij",
+      "callID": "toolu_vrtx_014myMV25GuNHmBhzL8czw1z",
+      "pattern": [
+        "rg /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua *"
+      ]
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "state": {
+          "input": {
+            "description": "Find extmark namespace usage",
+            "command": "rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2"
+          },
+          "status": "running",
+          "time": {
+            "start": 1760588861851
+          }
+        },
+        "type": "tool",
+        "id": "prt_9eb460c96001AONHjoXQlZBX1c",
+        "tool": "bash",
+        "callID": "toolu_vrtx_014myMV25GuNHmBhzL8czw1z",
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_9eb4604c2001bqoqmvAsSXl2Bs",
+        "time": {
+          "start": 1760588862279,
+          "end": 1760588862279
+        },
+        "sessionID": "ses_6157e31a8ffeqjFIL7oor5c3Ry",
+        "text": "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the extmark namespace:",
+        "messageID": "msg_9eb45fbe60020xE560OGH3Vdoo"
+      }
+    }
+  }
+]

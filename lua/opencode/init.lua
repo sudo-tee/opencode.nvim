@@ -1,19 +1,18 @@
 local M = {}
-local config = require('opencode.config')
-local keymap = require('opencode.keymap')
-local api = require('opencode.api')
-local config_file = require('opencode.config_file')
 
 function M.setup(opts)
-  vim.schedule(function()
-    require('opencode.core').setup()
-    config.setup(opts)
-    api.setup()
-    keymap.setup(config.keymap)
+  -- Have to setup config first, especially before state as
+  -- it initializes at least one value (current_mode) from config.
+  -- If state is require'd first then it will not get what may
+  -- be set by the user
+  local config = require('opencode.config')
+  config.setup(opts)
 
-    require('opencode.ui.completion').setup()
-    require('opencode.event_manager').setup()
-  end)
+  require('opencode.core').setup()
+  require('opencode.api').setup()
+  require('opencode.keymap').setup(config.keymap)
+  require('opencode.ui.completion').setup()
+  require('opencode.event_manager').setup()
 end
 
 return M

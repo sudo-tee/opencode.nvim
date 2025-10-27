@@ -1,18 +1,27 @@
-local state = require('opencode.state')
-local config = require('opencode.config')
 local Output = {}
 Output.__index = Output
 
 ---@class Output
----@field lines table<number, string>
----@field metadata table<number, OutputMetadata>
----@field extmarks table<number, OutputExtmark> -- Stores extmarks for each line
----@field actions table<number, OutputAction[]> -- Stores contextual actions for each line range
+---@field lines string[]
+---@field extmarks table<number, OutputExtmark>
+---@field actions OutputAction[]
+---@field add_line fun(self: Output, line: string, fit?: boolean): number
+---@field get_line fun(self: Output, idx: number): string?
+---@field merge_line fun(self: Output, idx: number, text: string)
+---@field add_lines fun(self: Output, lines: string[], prefix?: string)
+---@field add_empty_line fun(self: Output): number?
+---@field clear fun(self: Output)
+---@field get_line_count fun(self: Output): number
+---@field get_lines fun(self: Output): string[]
+---@field add_extmark fun(self: Output, idx: number, extmark: OutputExtmark|fun(): OutputExtmark)
+---@field get_extmarks fun(self: Output): table<number, table[]>
+---@field add_actions fun(self: Output, actions: OutputAction[])
+---@field add_action fun(self: Output, action: OutputAction)
+---@field get_actions_for_line fun(self: Output, line: number): OutputAction[]?
 ---@return self Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}
-  self.metadata = {}
   self.extmarks = {}
   self.actions = {}
   return self
@@ -20,13 +29,8 @@ end
 
 ---Add a new line
 ---@param line string
----@param fit? boolean Optional parameter to control line fitting
 ---@return number index The index of the added line
-function Output:add_line(line, fit)
-  local win_width = state.windows and vim.api.nvim_win_get_width(state.windows.output_win) or config.ui.window_width
-  if fit and #line > win_width then
-    line = vim.fn.strcharpart(line, 0, win_width - 7) .. '...'
-  end
+function Output:add_line(line)
   table.insert(self.lines, line)
   return #self.lines
 end
@@ -36,75 +40,6 @@ end
 ---@return string?
 function Output:get_line(idx)
   return self.lines[idx]
-end
-
----Get metadata for line
----@param idx number
----@return OutputMetadata|nil
-function Output:get_metadata(idx)
-  if not self.metadata[idx] then
-    return nil
-  end
-  return vim.deepcopy(self.metadata[idx])
-end
-
----@param idx number
----@param predicate? fun(metadata: OutputMetadata): boolean Optional predicate to filter metadata
----@param direction? 'next'|'previous' Optional direction to search for metadata
----@return OutputMetadata|nil
-function Output:get_nearest_metadata(idx, predicate, direction)
-  local step = direction == 'next' and 1 or -1
-  local limit = step == 1 and #self.lines or 1
-  for i = idx, limit, step do
-    local metadata = self.metadata[i]
-    if predicate and metadata then
-      if predicate(metadata) then
-        return vim.deepcopy(metadata)
-      end
-    elseif not predicate and metadata then
-      return vim.deepcopy(metadata)
-    end
-  end
-end
-
----Get metadata for all lines
----@return OutputMetadata[]
-function Output:get_all_metadata()
-  return vim.deepcopy(self.metadata or {})
-end
-
----@param line number Buffer line number
----@return string|nil Snapshot commit hash if available
-function Output:get_previous_snapshot(line)
-  local metadata = self:get_nearest_metadata(line, function(metadata)
-    return metadata.snapshot ~= nil
-  end, 'previous')
-  return metadata and metadata.snapshot or nil
-end
-
----@param line number Buffer line number
----@return string|nil Snapshot commit hash if available
-function Output:get_next_snapshot(line)
-  local metadata = self:get_nearest_metadata(line, function(metadata)
-    return metadata.snapshot ~= nil
-  end, 'next')
-  return metadata and metadata.snapshot or nil
-end
-
----@return string|nil Snapshot commit hash if available
-function Output:get_first_snapshot()
-  local metadata = self:get_nearest_metadata(1, function(metadata)
-    return metadata.snapshot ~= nil
-  end, 'next')
-  return metadata and metadata.snapshot or nil
-end
-
----@return string|nil Snapshot commit hash if available
-function Output:get_last_snapshot()
-  local metadata = self:get_nearest_metadata(#self.lines, function(metadata)
-    return metadata.snapshot ~= nil
-  end, 'previous')
-  return metadata and metadata.snapshot or nil
 end
 
 ---Merge text into an existing line
@@ -121,12 +56,11 @@ end
 ---@param prefix? string Optional prefix for each line
 function Output:add_lines(lines, prefix)
   for _, line in ipairs(lines) do
-    prefix = prefix or ''
-
     if line == '' then
-      self:add_empty_line()
+      table.insert(self.lines, '')
     else
-      self:add_line(prefix .. line)
+      prefix = prefix or ''
+      table.insert(self.lines, prefix .. line)
     end
   end
 end
@@ -134,29 +68,17 @@ end
 ---Add an empty line if the last line is not empty
 ---@return number? index The index of the added line, or nil if no line was added
 function Output:add_empty_line()
-  local last_line = self.lines[#self.lines]
-  if not last_line or last_line ~= '' then
-    return self:add_line('')
+  local line_count = #self.lines
+  if line_count == 0 or self.lines[line_count] ~= '' then
+    table.insert(self.lines, '')
+    return line_count + 1
   end
   return nil
 end
 
----Add metadata to the last line
----@param metadata OutputMetadata
----@return number? index The index of the last line, or nil if no lines exist
-function Output:add_metadata(metadata)
-  if #self.lines == 0 then
-    return nil
-  end
-  local last_index = #self.lines
-  self.metadata[last_index] = metadata
-  return last_index
-end
-
----Clear all lines and metadata
+---Clear all lines, extmarks, and actions
 function Output:clear()
   self.lines = {}
-  self.metadata = {}
   self.extmarks = {}
   self.actions = {}
 end

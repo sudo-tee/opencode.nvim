@@ -1,0 +1,890 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "role": "user",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "time": {
+          "created": 1760763748330
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b29feb001nsVQt5vsUKZ16m",
+        "text": "here's some context"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b29feb002LjlREkCMASrs0L",
+        "text": "{\"lines\":\"1, 1\",\"file\":{\"path\":\"/Users/cam/tmp/a/diff-test.txt\",\"name\":\"diff-test.txt\",\"extension\":\"txt\"},\"context_type\":\"selection\",\"content\":\"```txt\\nthis is a string\\n```\"}",
+        "synthetic": true
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b29feb003alXKd04Qr9Ssk8",
+        "text": "{\"lines\":\"1, 1\",\"file\":{\"path\":\"/Users/cam/tmp/a/diff-test.txt\",\"name\":\"diff-test.txt\",\"extension\":\"txt\"},\"context_type\":\"selection\",\"content\":\"```txt\\nthis is a selection test\\n```\"}",
+        "synthetic": true
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b29fec001P1JFsIPfR6wPdy",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/diff-test.txt\"}",
+        "synthetic": true
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b29fec002Co91CfXLyDz2Hr",
+        "text": "<file>\n00001| this is a string\n00002| \n</file>",
+        "synthetic": true
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b29fea001z6jYXF7CG9omHa",
+        "type": "file",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "mime": "text/plain",
+        "id": "prt_9f5b29fec003CECfxZhlhfClHc",
+        "filename": "diff-test.txt",
+        "url": "file:///Users/cam/tmp/a/diff-test.txt"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "directory": "/Users/cam/tmp/a",
+        "time": {
+          "created": 1760758363788,
+          "updated": 1760763748335
+        },
+        "id": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "version": "0.15.0",
+        "projectID": "b0b749d27ca2e03482d36bfe846b01ce40ba759b",
+        "title": "Reading /Users/cam/tmp/a/blah/test.txt"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 0,
+          "input": 0,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "time": {
+          "created": 1760763748409
+        },
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "cost": 0,
+        "id": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "mode": "plan"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_9f5b2ac560012xf47XJb7tcWNY",
+        "type": "step-start",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line ",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provide",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expecte",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in rea",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode,",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one of the selections",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one of the selections indicates",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one of the selections indicates shoul",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one of the selections indicates should be there.",
+        "time": {
+          "start": 1760763751592
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "text",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "id": "prt_9f5b2aca8001M0a52ww5Jxm2kI",
+        "text": "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.\n\nThe two selection contexts you provided show:\n1. Current content: \"this is a string\"\n2. Expected/desired content: \"this is a selection test\"\n\nSince I'm in read-only mode, I can only observe that there's a difference between what's currently in the file and what one of the selections indicates should be there.",
+        "time": {
+          "start": 1760763753752,
+          "end": 1760763753752
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "type": "step-finish",
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 108,
+          "input": 11784,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 2569
+          }
+        },
+        "id": "prt_9f5b2b5190013UzDXX4LF7ddXy",
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 108,
+          "input": 11784,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 2569
+          }
+        },
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "time": {
+          "created": 1760763748409
+        },
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "cost": 0,
+        "id": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "mode": "plan"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 108,
+          "input": 11784,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 2569
+          }
+        },
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "time": {
+          "created": 1760763748409,
+          "completed": 1760763753772
+        },
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "cost": 0,
+        "id": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "mode": "plan"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 108,
+          "input": 11784,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 2569
+          }
+        },
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "time": {
+          "created": 1760763748409,
+          "completed": 1760763753773
+        },
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "cost": 0,
+        "id": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "mode": "plan"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR",
+        "tokens": {
+          "output": 108,
+          "input": 11784,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 2569
+          }
+        },
+        "modelID": "claude-sonnet-4.5",
+        "providerID": "github-copilot",
+        "role": "assistant",
+        "time": {
+          "created": 1760763748409,
+          "completed": 1760763753773
+        },
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "cost": 0,
+        "id": "msg_9f5b2a039001xop8ITmXQq0Gjh",
+        "mode": "plan"
+      }
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": {
+      "sessionID": "ses_60a9f8973ffeLoleYOjU3GPTTR"
+    }
+  }
+]

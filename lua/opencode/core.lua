@@ -1,5 +1,4 @@
 -- This file was written by an automated tool.
-local M = {}
 local state = require('opencode.state')
 local context = require('opencode.context')
 local session = require('opencode.session')
@@ -7,8 +6,10 @@ local ui = require('opencode.ui.ui')
 local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
-local Promise = require('opencode.promise')
 local config = require('opencode.config')
+
+local M = {}
+M._abort_count = 0
 
 ---@param parent_id string?
 function M.select_session(parent_id)
@@ -27,9 +28,9 @@ function M.select_session(parent_id)
     state.active_session = selected_session
     if state.windows then
       state.restore_points = {}
-      ui.render_output(true)
+      -- Don't need to update either renderer because they subscribe to
+      -- session changes
       ui.focus_input()
-      ui.scroll_to_bottom()
     else
       M.open()
     end
@@ -40,12 +41,8 @@ end
 function M.open(opts)
   opts = opts or { focus = 'input', new_session = false }
 
-  if not state.opencode_server_job or not state.opencode_server_job:is_running() then
-    state.opencode_server_job = server_job.ensure_server() --[[@as OpencodeServer]]
-  end
-
-  if not M.opencode_ok() then
-    return
+  if not state.opencode_server or not state.opencode_server:is_running() then
+    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
   end
 
   local are_windows_closed = state.windows == nil
@@ -57,19 +54,18 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
-    if not state.active_session or opts.new_session then
-      state.active_session = M.create_new_session()
-    end
-
-    ui.clear_output()
+    state.active_session = M.create_new_session()
   else
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
-    end
-
-    if (are_windows_closed or ui.is_output_empty()) and not state.display_route then
-      ui.render_output()
-      ui.scroll_to_bottom()
+    else
+      if not state.display_route and are_windows_closed then
+        -- We're not displaying /help or something like that but we have an active session
+        -- and the windows were closed so we need to do a full refresh. This mostly happens
+        -- when opening the window after having closed it since we're not currently clearing
+        -- the session on api.close()
+        ui.render_output(false)
+      end
     end
   end
 
@@ -78,6 +74,7 @@ function M.open(opts)
   elseif opts.focus == 'output' then
     ui.focus_output({ restore_position = are_windows_closed })
   end
+  state.is_opencode_focused = true
 end
 
 --- Sends a message to the active session, creating one if necessary.
@@ -104,16 +101,20 @@ function M.send_message(prompt, opts)
 
   M.before_run(opts)
 
-  ui.render_output(true)
   state.api_client
     :create_message(state.active_session.id, params)
     :and_then(function(response)
-      state.last_output = os.time()
-      ui.render_output()
+      if not response or not response.info or not response.parts then
+        -- fall back to full render. incremental render is handled
+        -- event manager
+        ui.render_output()
+      end
+
       M.after_run(prompt)
     end)
     :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      M.stop()
     end)
 end
 
@@ -128,7 +129,7 @@ function M.create_new_session(title)
     :wait()
 
   if session_response and session_response.id then
-    local new_session = session.get_by_name(session_response.id)
+    local new_session = session.get_by_id(session_response.id)
     return new_session
   end
 end
@@ -138,10 +139,7 @@ function M.after_run(prompt)
   context.unload_attachments()
   state.last_sent_context = vim.deepcopy(context.context)
   require('opencode.history').write(prompt)
-
-  if state.windows then
-    ui.render_output()
-  end
+  M._abort_count = 0
 end
 
 ---@param opts? SendMessageOpts
@@ -150,7 +148,7 @@ function M.before_run(opts)
   opts = opts or {}
 
   M.stop()
-  ui.clear_output()
+  -- ui.clear_output()
 
   M.open({
     new_session = is_new_session,
@@ -180,12 +178,38 @@ end
 function M.stop()
   if state.windows and state.active_session then
     if state.is_running() then
-      vim.notify('Aborting current request...', vim.log.levels.WARN)
-      state.api_client:abort_session(state.active_session.id):wait()
+      M._abort_count = M._abort_count + 1
+
+      -- if there's a current permission, reject it
+      if state.current_permission then
+        require('opencode.api').permission_deny()
+      end
+
+      local ok, result = pcall(function()
+        return state.api_client:abort_session(state.active_session.id):wait()
+      end)
+
+      if not ok then
+        vim.notify('Abort error: ' .. vim.inspect(result))
+      end
+
+      if M._abort_count >= 3 then
+        vim.notify('Re-starting Opencode server')
+        M._abort_count = 0
+        -- close existing server
+        if state.opencode_server then
+          state.opencode_server:shutdown():wait()
+        end
+
+        -- start a new one
+        state.opencode_server = nil
+
+        -- NOTE: start a new server here to make sure we're subscribed
+        -- to server events before a user sends a message
+        state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
+      end
     end
     require('opencode.ui.footer').clear()
-    ui.stop_render_output()
-    ui.render_output()
     input_window.set_content('')
     require('opencode.history').index = nil
     ui.focus_input()
@@ -226,9 +250,18 @@ function M.opencode_ok()
   return true
 end
 
+local function on_opencode_server()
+  state.current_permission = nil
+end
+
 function M.setup()
+  state.subscribe('opencode_server', on_opencode_server)
+
+  vim.schedule(function()
+    M.opencode_ok()
+  end)
   local OpencodeApiClient = require('opencode.api_client')
-  state.api_client = OpencodeApiClient.new()
+  state.api_client = OpencodeApiClient.create()
 end
 
 return M

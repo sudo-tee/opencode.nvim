@@ -6,7 +6,7 @@ vim.opt.runtimepath:remove(vim.fn.expand('~/.config/nvim'))
 vim.opt.packpath:remove(vim.fn.expand('~/.local/share/nvim/site'))
 
 -- Add the plugin to the runtimepath
-local plugin_root = vim.fn.expand('$PWD')
+local plugin_root = vim.fn.getcwd()
 vim.opt.runtimepath:append(plugin_root)
 
 -- Add plenary to the runtimepath for testing

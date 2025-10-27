@@ -93,7 +93,7 @@ function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
     return nil
   end
 
-  state.append('restore_points', snapshot)
+  state.event_manager:emit('custom.restore_point.created', { restore_point = snapshot })
   return snapshot
 end
 
@@ -254,7 +254,7 @@ function M.restore_file(snapshot_id, file_path)
 end
 
 ---@param from_snapshot_id string
----@return RestorePoint[]
+---@return RestorePoint[]|nil
 function M.get_restore_points_by_parent(from_snapshot_id)
   local restore_points = M.get_restore_points()
   restore_points = vim.tbl_filter(function(item)
@@ -263,6 +263,9 @@ function M.get_restore_points_by_parent(from_snapshot_id)
   table.sort(restore_points, function(a, b)
     return a.created_at > b.created_at
   end)
+  if #restore_points == 0 then
+    return nil
+  end
   return restore_points
 end
 

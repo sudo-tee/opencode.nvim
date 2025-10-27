@@ -101,10 +101,17 @@ end
 local function snacks_picker_ui(callback, path)
   local Snacks = require('snacks')
 
+  local origin_win = vim.api.nvim_get_current_win()
+  local origin_mode = vim.fn.mode()
+  local origin_pos = vim.api.nvim_win_get_cursor(origin_win)
+
+  local confirmed = false
+
   local opts = {
-    confirm = function(picker)
-      local items = picker:selected({ fallback = true })
-      picker:close()
+    confirm = function(picker_obj)
+      local items = picker_obj:selected({ fallback = true })
+      confirmed = true
+      picker_obj:close()
 
       if items and callback then
         for _, it in ipairs(items) do
@@ -113,6 +120,20 @@ local function snacks_picker_ui(callback, path)
           end
         end
       end
+    end,
+    on_close = function(obj)
+      vim.notify(vim.inspect(obj))
+      -- snacks doesn't seem to restore window / mode / cursor position when you
+      -- cancel the picker. if we pick a file, we're already handling that case elsewhere
+      if confirmed or not vim.api.nvim_win_is_valid(origin_win) then
+        return
+      end
+
+      vim.api.nvim_set_current_win(origin_win)
+      if origin_mode:match('i') then
+        vim.cmd('startinsert')
+      end
+      vim.api.nvim_win_set_cursor(origin_win, origin_pos)
     end,
   }
 

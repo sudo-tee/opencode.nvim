@@ -46,7 +46,6 @@
 ---@field parts_path string
 ---@field snapshot_path string
 ---@field cache_path string
----@field workplace_slug string
 ---@field revert? SessionRevertInfo
 
 ---@class OpencodeKeymapEntry
@@ -68,10 +67,15 @@
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field permission OpencodeKeymapPermission
+---@field session_picker OpencodeSessionPickerKeymap
+
+---@class OpencodeSessionPickerKeymap
+---@field delete_session OpencodeKeymapEntry
+---@field new_session OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
----@field preferred_cli_tool 'fd'|'fdfind'|'rg'|'git'
+---@field preferred_cli_tool 'server'|'fd'|'fdfind'|'rg'|'git'
 ---@field ignore_patterns string[]
 ---@field max_files number
 ---@field max_display_length number
@@ -93,9 +97,19 @@
 ---@field window_highlight string
 ---@field icons { preset: 'emoji'|'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
----@field output { tools: { show_output: boolean } }
+---@field output OpencodeUIOutputConfig
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
+
+---@class OpencodeUIOutputRenderingConfig
+---@field markdown_debounce_ms number
+---@field on_data_rendered (fun(buf: integer, win: integer)|boolean)|nil
+---@field event_throttle_ms number
+---@field event_collapsing boolean
+
+---@class OpencodeUIOutputConfig
+---@field tools { show_output: boolean }
+---@field rendering OpencodeUIOutputRenderingConfig
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
@@ -142,7 +156,7 @@
 ---@field message string|nil Optional status or error message
 
 ---@class TaskToolMetadata: ToolMetadataBase
----@field summary MessagePart[]
+---@field summary OpencodeMessagePart[]
 
 ---@class WebFetchToolMetadata: ToolMetadataBase
 ---@field http_status number|nil HTTP response status code
@@ -203,19 +217,6 @@
 ---@field prompt string The subtask prompt
 ---@field description string Description of the subtask
 
----@class MessagePart
----@field type 'text'|'tool'|'step-start'|'patch' Type of the message part
----@field text string|nil Text content for text parts
----@field id string|nil Unique identifier for tool use parts
----@field tool string|nil Name of the tool being used
----@field state MessagePartState|nil State information for tool use parts
----@field snapshot string|nil Snapshot commit hash
----@field sessionID string|nil Session identifier
----@field messageID string|nil Message identifier
----@field hash string|nil Hash identifier for patch parts
----@field files string[]|nil List of file paths for patch parts
----@field synthetic boolean|nil Whether the message was generated synthetically
-
 ---@class MessageTokenCount
 ---@field reasoning number
 ---@field input number
@@ -237,13 +238,17 @@
 ---@field display_line number Line number to display the action
 ---@field range? { from: number, to: number } Optional range for the action
 
----@alias OutputExtmark vim.api.keyset.set_extmark|fun():vim.api.keyset.set_extmark
+---@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0}
+---@alias OutputExtmark OutputExtmarkType|fun():OutputExtmarkType
 
----@class Message
+---@class OpencodeMessage
+---@field info MessageInfo Metadata about the message
+---@field parts OpencodeMessagePart[] Parts that make up the message
+
+---@class MessageInfo
 ---@field id string Unique message identifier
 ---@field sessionID string Unique session identifier
 ---@field tokens MessageTokenCount Token usage statistics
----@field parts MessagePart[] Array of message parts
 ---@field system string[] System messages
 ---@field time { created: number, completed: number } Timestamps
 ---@field cost number Cost of the message
@@ -333,14 +338,23 @@
 ---@field value string|nil
 
 ---@class OpencodeMessagePart
----@field type 'text'|'file'|'agent'|string
+---@field type 'text'|'file'|'agent'|'tool'|'step-start'|'patch'|string
+---@field id string|nil Unique identifier for tool use parts
 ---@field text string|nil
+---@field tool string|nil Name of the tool being used
+---@field state MessagePartState|nil State information for tool use parts
 ---@field filename string|nil
 ---@field mime string|nil
 ---@field url string|nil
 ---@field source OpencodeMessagePartSource|nil
 ---@field name string|nil
 ---@field synthetic boolean|nil
+---@field snapshot string|nil Snapshot commit hash
+---@field sessionID string|nil Session identifier
+---@field messageID string|nil Message identifier
+---@field callID string|nil Call identifier (used for tools)
+---@field hash string|nil Hash identifier for patch parts
+---@field files string[]|nil List of file paths for patch parts
 
 ---@class OpencodeModelModalities
 ---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities
@@ -420,3 +434,8 @@
 ---@field desc string|nil Description of the command
 ---@field fn fun(args:string[]):nil Function to execute the command
 ---@field args boolean Whether the command accepts arguments
+
+---@class OpencodeRevertSummary
+---@field messages number Number of messages reverted
+---@field tool_calls number Number of tool calls reverted
+---@field files table<string, {additions: number, deletions: number}> Summary of file changes reverted

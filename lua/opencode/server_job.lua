@@ -4,6 +4,7 @@ local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 
 local M = {}
+M.requests = {}
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -34,23 +35,59 @@ function M.call_api(url, method, body)
     callback = function(response)
       handle_api_response(response, function(err, result)
         if err then
-          call_promise:reject(err)
-          state.job_count = state.job_count - 1
+          local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+          if not ok then
+            vim.schedule(function()
+              vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+            end)
+          end
         else
-          call_promise:resolve(result)
-          state.job_count = state.job_count - 1
+          local ok, pcall_err = pcall(call_promise.resolve, call_promise, result)
+          if not ok then
+            vim.schedule(function()
+              vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+            end)
+          end
         end
       end)
     end,
     on_error = function(err)
-      call_promise:reject(err)
-      state.job_count = state.job_count - 1
+      local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
+      if not ok then
+        vim.schedule(function()
+          vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+        end)
+      end
     end,
   }
 
   if body ~= nil then
     opts.body = body and vim.json.encode(body) or '{}'
   end
+
+  local request_entry = { opts, call_promise }
+  table.insert(M.requests, request_entry)
+
+  -- Remove completed promises from list, update job_count
+  local function remove_from_requests()
+    for i, entry in ipairs(M.requests) do
+      if entry == request_entry then
+        table.remove(M.requests, i)
+        break
+      end
+    end
+    state.job_count = #M.requests
+  end
+
+  call_promise:and_then(function(result)
+    remove_from_requests()
+    return result
+  end)
+
+  call_promise:catch(function(err)
+    remove_from_requests()
+    error(err)
+  end)
 
   curl.request(opts)
   return call_promise
@@ -92,22 +129,22 @@ function M.stream_api(url, method, body, on_chunk)
 end
 
 function M.ensure_server()
-  if state.opencode_server_job and state.opencode_server_job:is_running() then
-    return state.opencode_server_job
+  if state.opencode_server and state.opencode_server:is_running() then
+    return state.opencode_server
   end
 
   local promise = Promise.new()
-  state.opencode_server_job = opencode_server.new()
+  state.opencode_server = opencode_server.new()
 
-  state.opencode_server_job:spawn({
+  state.opencode_server:spawn({
     on_ready = function(_, base_url)
-      promise:resolve(state.opencode_server_job)
+      promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
       promise:reject(err)
     end,
     on_exit = function(exit_opts)
-      state.opencode_server_job:shutdown()
+      promise:reject('Server exited')
     end,
   })
 

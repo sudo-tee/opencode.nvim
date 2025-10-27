@@ -1,16 +1,17 @@
 local config = require('opencode.config')
 
 ---@class OpencodeWindowState
----@field input_win number|nil
----@field output_win number|nil
----@field footer_win number|nil
----@field footer_buf number|nil
----@field input_buf number|nil
----@field output_buf number|nil
+---@field input_win integer|nil
+---@field output_win integer|nil
+---@field footer_win integer|nil
+---@field footer_buf integer|nil
+---@field input_buf integer|nil
+---@field output_buf integer|nil
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
 ---@field input_content table
+---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
 ---@field last_input_window_position number|nil
 ---@field last_output_window_position number|nil
@@ -20,31 +21,33 @@ local config = require('opencode.config')
 ---@field last_output number
 ---@field last_sent_context any
 ---@field active_session Session|nil
----@field new_session_name string|nil
----@field restore_points table<string, any>
+---@field restore_points RestorePoint[]
 ---@field current_model string|nil
----@field messages Message[]|nil
----@field current_message Message|nil
----@field last_user_message Message|nil
+---@field current_model_info table|nil
+---@field messages OpencodeMessage[]|nil
+---@field current_message OpencodeMessage|nil
+---@field last_user_message OpencodeMessage|nil
 ---@field current_permission OpencodePermission|nil
 ---@field cost number
 ---@field tokens_count number
 ---@field job_count number
----@field opencode_server_job OpencodeServer|nil
+---@field opencode_server OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
+---@field required_version string
+---@field opencode_cli_version string|nil
+---@field append fun( key:string, value:any)
+---@field remove fun( key:string, idx:number)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
----@field append fun( key:string, value:any)
----@field required_version string
----@field opencode_cli_version string|nil
 
 -- Internal raw state table
 local _state = {
   -- ui
-  windows = nil, ---@type OpencodeWindowState
+  windows = nil, ---@type OpencodeWindowState|nil
   input_content = {},
+  is_opencode_focused = false,
   last_focused_opencode_window = nil,
   last_input_window_position = nil,
   last_output_window_position = nil,
@@ -56,9 +59,9 @@ local _state = {
   last_sent_context = nil,
   -- session
   active_session = nil,
-  new_session_name = nil,
   restore_points = {},
   current_model = nil,
+  current_model_info = nil,
   -- messages
   messages = nil,
   current_message = nil,
@@ -68,7 +71,7 @@ local _state = {
   tokens_count = 0,
   -- job
   job_count = 0,
-  opencode_server_job = nil,
+  opencode_server = nil,
   api_client = nil,
   event_manager = nil,
 
@@ -113,16 +116,23 @@ end
 
 -- Notify listeners
 local function _notify(key, new_val, old_val)
-  if _listeners[key] then
-    for _, cb in ipairs(_listeners[key]) do
-      pcall(cb, key, new_val, old_val)
+  -- schedule notification to make sure we're not in a fast event
+  -- context
+  vim.schedule(function()
+    if _listeners[key] then
+      for _, cb in ipairs(_listeners[key]) do
+        local ok, err = pcall(cb, key, new_val, old_val)
+        if not ok then
+          vim.notify(err --[[@as string]])
+        end
+      end
     end
-  end
-  if _listeners['*'] then
-    for _, cb in ipairs(_listeners['*']) do
-      pcall(cb, key, new_val, old_val)
+    if _listeners['*'] then
+      for _, cb in ipairs(_listeners['*']) do
+        pcall(cb, key, new_val, old_val)
+      end
     end
-  end
+  end)
 end
 
 local function append(key, value)
@@ -138,6 +148,19 @@ local function append(key, value)
 
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.insert(_state[key] --[[@as table]], value)
+  _notify(key, _state[key], old)
+end
+
+local function remove(key, idx)
+  if not _state[key] then
+    return
+  end
+  if type(_state[key]) ~= 'table' then
+    error('State key is not a table: ' .. key)
+  end
+
+  local old = vim.deepcopy(_state[key] --[[@as table]])
+  table.remove(_state[key] --[[@as table]], idx)
   _notify(key, _state[key], old)
 end
 
@@ -170,6 +193,7 @@ setmetatable(M, {
 })
 
 M.append = append
+M.remove = remove
 M.subscribe = subscribe
 M.unsubscribe = unsubscribe
 

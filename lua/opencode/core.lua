@@ -179,17 +179,30 @@ function M.stop()
   if state.windows and state.active_session then
     if state.is_running() then
       M._abort_count = M._abort_count + 1
-      state.api_client:abort_session(state.active_session.id):wait()
+
+      -- if there's a current permission, reject it
+      if state.current_permission then
+        require('opencode.api').permission_deny()
+      end
+
+      local ok, result = pcall(function()
+        return state.api_client:abort_session(state.active_session.id):wait()
+      end)
+
+      if not ok then
+        vim.notify('Abort error: ' .. vim.inspect(result))
+      end
 
       if M._abort_count >= 3 then
         vim.notify('Re-starting Opencode server')
         M._abort_count = 0
         -- close existing server
-        state.opencode_server:shutdown():wait()
+        if state.opencode_server then
+          state.opencode_server:shutdown():wait()
+        end
 
         -- start a new one
         state.opencode_server = nil
-        state.job_count = 0
 
         -- NOTE: start a new server here to make sure we're subscribed
         -- to server events before a user sends a message
@@ -237,7 +250,13 @@ function M.opencode_ok()
   return true
 end
 
+local function on_opencode_server()
+  state.current_permission = nil
+end
+
 function M.setup()
+  state.subscribe('opencode_server', on_opencode_server)
+
   vim.schedule(function()
     M.opencode_ok()
   end)

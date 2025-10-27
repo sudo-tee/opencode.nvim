@@ -10,7 +10,16 @@ function M.get_opencode_config()
     local state = require('opencode.state')
     M.config_promise = state.api_client:get_config()
   end
-  return M.config_promise:wait() --[[@as OpencodeConfigFile|nil]]
+  local ok, result = pcall(function()
+    return M.config_promise:wait()
+  end)
+
+  if not ok then
+    vim.notify('Error fetching Opencode config: ' .. vim.inspect(result), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return result --[[@as OpencodeConfigFile|nil]]
 end
 
 ---@return OpencodeProject|nil
@@ -19,7 +28,15 @@ function M.get_opencode_project()
     local state = require('opencode.state')
     M.project_promise = state.api_client:get_current_project()
   end
-  return M.project_promise:wait() --[[@as OpencodeProject|nil]]
+  local ok, result = pcall(function()
+    return M.project_promise:wait()
+  end)
+  if not ok then
+    vim.notify('Error fetching Opencode project: ' .. vim.inspect(result), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return result --[[@as OpencodeProject|nil]]
 end
 
 ---@return OpencodeProvidersResponse|nil
@@ -28,7 +45,15 @@ function M.get_opencode_providers()
     local state = require('opencode.state')
     M.providers_promise = state.api_client:list_providers()
   end
-  return M.providers_promise:wait() --[[@as OpencodeProvidersResponse|nil]]
+  local ok, result = pcall(function()
+    return M.providers_promise:wait()
+  end)
+  if not ok then
+    vim.notify('Error fetching Opencode providers: ' .. vim.inspect(result), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return result --[[@as OpencodeProvidersResponse|nil]]
 end
 
 function M.get_model_info(provider, model)

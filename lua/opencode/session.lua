@@ -43,9 +43,16 @@ end
 ---@return Session[]|nil
 function M.get_all_sessions()
   local state = require('opencode.state')
-  local sessions = state.api_client:list_sessions():wait()
+  local ok, result = pcall(function()
+    return state.api_client:list_sessions():wait()
+  end)
 
-  return vim.tbl_map(M.create_session_object, sessions)
+  if not ok then
+    vim.notify('Failed to fetch session list: ' .. vim.inspect(result), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return vim.tbl_map(M.create_session_object, result --[[@as Session[] ]])
 end
 
 ---Create a Session object from JSON

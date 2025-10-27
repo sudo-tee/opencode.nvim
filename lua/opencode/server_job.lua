@@ -134,7 +134,6 @@ function M.ensure_server()
   local promise = Promise.new()
   state.opencode_server = opencode_server.new()
 
-  ---@diagnostic disable-next-line: missing-fields
   state.opencode_server:spawn({
     on_ready = function(_, base_url)
       promise:resolve(state.opencode_server)

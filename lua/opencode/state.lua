@@ -45,7 +45,7 @@ local config = require('opencode.config')
 -- Internal raw state table
 local _state = {
   -- ui
-  windows = nil, ---@type OpencodeWindowState
+  windows = nil, ---@type OpencodeWindowState|nil
   input_content = {},
   is_opencode_focused = false,
   last_focused_opencode_window = nil,
@@ -123,7 +123,7 @@ local function _notify(key, new_val, old_val)
       for _, cb in ipairs(_listeners[key]) do
         local ok, err = pcall(cb, key, new_val, old_val)
         if not ok then
-          vim.notify(err)
+          vim.notify(err --[[@as string]])
         end
       end
     end

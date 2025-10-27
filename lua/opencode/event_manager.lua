@@ -359,7 +359,7 @@ function EventManager:_cleanup_server_subscription()
       if self.server_subscription.shutdown then
         self.server_subscription:shutdown()
       elseif self.server_subscription.pid and type(self.server_subscription.pid) == 'number' then
-        vim.fn.jobstop(self.server_subscription.pid)
+        vim.fn.jobstop(self.server_subscription.pid --[[@as integer]])
       end
     end)
     self.server_subscription = nil

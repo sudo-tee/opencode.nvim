@@ -53,7 +53,7 @@ function OpencodeServer:shutdown()
 end
 
 --- @class OpencodeServerSpawnOpts
---- @field cwd string
+--- @field cwd? string
 --- @field on_ready fun(job: any, url: string)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(exit_opts: vim.SystemCompleted )

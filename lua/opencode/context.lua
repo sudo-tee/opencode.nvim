@@ -55,7 +55,11 @@ function M.is_context_enabled(context_key)
   local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')
   local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
 
-  return is_state_enabled ~= nil and is_state_enabled or is_enabled
+  if is_state_enabled ~= nil then
+    return is_state_enabled
+  else
+    return is_enabled
+  end
 end
 
 function M.get_diagnostics(buf)

@@ -110,10 +110,25 @@ function M.add_selection(selection)
   state.context_updated_at = vim.uv.now()
 end
 
-function M.add_file(file)
-  --- TODO: probably need a way to remove a file once it's been added?
-  --- maybe a keymap like clear all context?
+function M.remove_selection(selection)
+  if not M.context.selections then
+    return
+  end
 
+  for i, sel in ipairs(M.context.selections) do
+    if sel.file.path == selection.file.path and sel.lines == selection.lines then
+      table.remove(M.context.selections, i)
+      break
+    end
+  end
+  state.context_updated_at = vim.uv.now()
+end
+
+function M.clear_selections()
+  M.context.selections = nil
+end
+
+function M.add_file(file)
   if not M.context.mentioned_files then
     M.context.mentioned_files = {}
   end

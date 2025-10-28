@@ -5,13 +5,15 @@ local icons = require('opencode.ui.icons')
 
 local M = {}
 
+---@generic T
 ---@param name string
 ---@param type string
 ---@param available boolean
 ---@param documentation string|nil
 ---@param icon string|nil
+---@param additional_data? T
 ---@return CompletionItem
-local function create_context_item(name, type, available, documentation, icon)
+local function create_context_item(name, type, available, documentation, icon, additional_data)
   local label = name
 
   return {
@@ -22,7 +24,7 @@ local function create_context_item(name, type, available, documentation, icon)
     documentation = documentation or (available and name or 'Enable ' .. name .. ' for this message'),
     insert_text = '',
     source_name = 'context',
-    data = { type = type, name = name, available = available },
+    data = { type = type, name = name, available = available, additional_data = additional_data },
   }
 end
 
@@ -52,15 +54,9 @@ local function format_diagnostics(diagnostics)
   return table.concat(parts, ', ')
 end
 
-local function format_selections(selections)
-  local content = {}
-  for _, sel in ipairs(selections or {}) do
-    local lang = sel.file and sel.file.extension or ''
-    local text = string.format('```%s\n%s\n```', lang, sel.content)
-
-    table.insert(content, text)
-  end
-  return table.concat(content, '\n')
+local function format_selection(selection)
+  local lang = selection.file and selection.file.extension or ''
+  return string.format('```%s\n%s\n```', lang, selection.content)
 end
 
 ---@param cursor_data? OpencodeContextCursorData
@@ -112,14 +108,24 @@ local function add_mentioned_files_items(ctx)
 end
 
 ---@param ctx OpencodeContext
----@return CompletionItem
-local function add_selection_item(ctx)
-  return create_context_item(
-    'Selection',
-    'selection',
-    context.is_context_enabled('selection'),
-    format_selections(ctx.selections or {})
-  )
+---@return CompletionItem[]
+local function add_selection_items(ctx)
+  local items = {
+    create_context_item(
+      'Selection' .. (ctx.selections and #ctx.selections > 0 and string.format(' (%d)', #ctx.selections) or ''),
+      'selection',
+      context.is_context_enabled('selection')
+    ),
+  }
+
+  for i, selection in ipairs(ctx.selections or {}) do
+    local label = 'Selection ' .. (selection.file and vim.fn.fnamemodify(selection.file.path, ':t')) or i
+    table.insert(
+      items,
+      create_context_item(label, 'selection_item', true, format_selection(selection), icons.get('selection'), selection)
+    )
+  end
+  return items
 end
 
 ---@param ctx OpencodeContext
@@ -176,10 +182,10 @@ local context_source = {
 
     local items = {
       add_current_file_item(ctx),
-      add_selection_item(ctx),
       add_diagnostics_item(ctx),
       add_cursor_data_item(ctx),
     }
+    vim.list_extend(items, add_selection_items(ctx))
     vim.list_extend(items, add_mentioned_files_items(ctx))
     vim.list_extend(items, add_subagents_items(ctx))
 
@@ -224,6 +230,8 @@ local context_source = {
       local subagent_name = item.data.name:gsub(' %(agent%)$', '')
       context.remove_subagent(subagent_name)
       input_win.remove_mention(subagent_name)
+    elseif type == 'selection_item' then
+      context.remove_selection(item.data.additional_data --[[@as OpencodeContextSelection]])
     end
 
     vim.schedule(function()

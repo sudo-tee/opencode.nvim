@@ -83,8 +83,8 @@ local function create_winbar_segments()
 
   if context.is_context_enabled('selection') and has_selection(ctx) then
     table.insert(segments, {
-      icon = '',
-      text = "'<'> Sel",
+      icon = icons.get('selection'),
+      text = '(' .. #ctx.selections .. ')',
       highlight = 'OpencodeContextSelection',
     })
   end

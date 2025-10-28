@@ -49,6 +49,10 @@ function M.open(opts)
 
   local are_windows_closed = state.windows == nil
 
+  if not require('opencode.ui.ui').is_opencode_focused() then
+    require('opencode.context').load()
+  end
+
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local context_module = require('opencode.context')

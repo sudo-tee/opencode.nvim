@@ -4,39 +4,6 @@ local config = require('opencode.config')
 local M = {}
 
 local presets = {
-  emoji = {
-    -- headers
-    header_user = '▌💬',
-    header_assistant = '🤖',
-    -- actions/tools
-    run = '💻',
-    task = '🧰',
-    read = '👀',
-    edit = '✏️',
-    write = '📝',
-    plan = '📃',
-    search = '🔍',
-    web = '🌐',
-    list = '📂',
-    tool = '🔧',
-    snapshot = '📸',
-    restore_point = '🕛',
-    file = '📄',
-    attached_file = '📎',
-    agent = '🤖',
-    -- statuses
-    status_on = '🟢',
-    status_off = '⚫',
-    guard_on = '🚫',
-    -- borders and misc
-    border = '▌',
-    -- context bar
-    cursor_data = '📍',
-    context = '📚 ',
-    error = '⛔ ',
-    warning = '⚠️',
-    info = 'ℹ️',
-  },
   nerdfonts = {
     -- headers
     header_user = '▌󰭻 ',
@@ -69,6 +36,7 @@ local presets = {
     error = ' ',
     warning = ' ',
     info = ' ',
+    selection = '󰫙 ',
   },
   text = {
     -- headers
@@ -102,6 +70,7 @@ local presets = {
     error = '[E]',
     warning = '[W]',
     info = '[I] ',
+    selection = "'<'> ",
   },
 }
 

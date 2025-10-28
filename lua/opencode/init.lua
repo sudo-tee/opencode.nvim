@@ -13,6 +13,7 @@ function M.setup(opts)
   require('opencode.keymap').setup(config.keymap)
   require('opencode.ui.completion').setup()
   require('opencode.event_manager').setup()
+  require('opencode.context').setup()
   require('opencode.ui.context_bar').setup()
 end
 

@@ -143,6 +143,10 @@ function M.remove_file(file)
   state.context_updated_at = vim.uv.now()
 end
 
+function M.clear_files()
+  M.context.mentioned_files = nil
+end
+
 function M.add_subagent(subagent)
   if not M.context.mentioned_subagents then
     M.context.mentioned_subagents = {}
@@ -166,6 +170,10 @@ function M.remove_subagent(subagent)
     end
   end
   state.context_updated_at = vim.uv.now()
+end
+
+function M.clear_subagents()
+  M.context.mentioned_subagents = nil
 end
 
 ---@param opts? OpencodeContextConfig

@@ -555,8 +555,6 @@ function M.on_part_updated(properties, revert_index)
       --- previous last part so it doesn't also display the message. If there was no previous
       --- part, then we need to rerender the header so it doesn't display the error
 
-      vim.notify('new part and error: ' .. part.id)
-
       if not prev_last_part_id then
         -- no previous part, we're the first part, re-render the message header
         -- so it doesn't also display the error

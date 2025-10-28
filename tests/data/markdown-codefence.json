@@ -1,0 +1,356 @@
+[
+  {
+    "properties": {
+      "info": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "providerID": "github-copilot",
+        "modelID": "claude-sonnet-4.5",
+        "id": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "role": "assistant",
+        "tokens": {
+          "output": 294,
+          "cache": {
+            "write": 0,
+            "read": 25665
+          },
+          "reasoning": 0,
+          "input": 30532
+        },
+        "mode": "build",
+        "cost": 0,
+        "path": {
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "time": {
+          "created": 1761688438152,
+          "completed": 1761688445680
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "c64ddee834f1b802020a8f880eafa689f0b99406",
+        "messageID": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "type": "step-start",
+        "id": "prt_a2cd04c4f001zZZIur2tR1Uyaf"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "type": "text",
+        "id": "prt_a2cd04c50001SHy8nM4WMmwzqt",
+        "text": "Now let me also update the Run opts examples to use the new command syntax:",
+        "time": {
+          "start": 1761688445628,
+          "end": 1761688445628
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "type": "tool",
+        "state": {
+          "output": "",
+          "title": "README.md",
+          "metadata": {
+            "diff": "Index: /Users/cam/Dev/neovim-dev/opencode.nvim/README.md\n===================================================================\n--- /Users/cam/Dev/neovim-dev/opencode.nvim/README.md\n+++ /Users/cam/Dev/neovim-dev/opencode.nvim/README.md\n@@ -382,10 +382,10 @@\n \n Run a prompt in a new session using the Plan agent and disabling current file context:\n \n ```vim\n-:OpencodeRunNewSession \"Please help me plan a new feature\" agent=plan context.current_file.enabled=false\n-:OpencodeRun \"Fix the bug in the current file\" model=github-copilot/claude-sonned-4\n+:Opencode run new_session \"Please help me plan a new feature\" agent=plan context.current_file.enabled=false\n+:Opencode run \"Fix the bug in the current file\" model=github-copilot/claude-sonned-4\n ```\n \n ##👮 Permissions\n \n",
+            "diagnostics": {}
+          },
+          "time": {
+            "start": 1761688445628,
+            "end": 1761688445630
+          },
+          "input": {
+            "oldString": "#### Example\n\nRun a prompt in a new session using the Plan agent and disabling current file context:\n\n```vim\n:OpencodeRunNewSession \"Please help me plan a new feature\" agent=plan context.current_file.enabled=false\n:OpencodeRun \"Fix the bug in the current file\" model=github-copilot/claude-sonned-4\n```",
+            "filePath": "/Users/cam/Dev/neovim-dev/opencode.nvim/README.md",
+            "newString": "#### Example\n\nRun a prompt in a new session using the Plan agent and disabling current file context:\n\n```vim\n:Opencode run new_session \"Please help me plan a new feature\" agent=plan context.current_file.enabled=false\n:Opencode run \"Fix the bug in the current file\" model=github-copilot/claude-sonned-4\n```"
+          },
+          "status": "completed"
+        },
+        "id": "prt_a2cd050a9001dIqjgV3uirKqtg",
+        "tool": "edit",
+        "callID": "toolu_vrtx_01KKnDuaH14FxzxtyaqmMNXV"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "32836dfa91d578d32a2034074e1ccaa2ea485907",
+        "messageID": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "type": "step-finish",
+        "id": "prt_a2cd062be001MHJb9phg0K7h0J",
+        "tokens": {
+          "output": 294,
+          "cache": {
+            "write": 0,
+            "read": 25665
+          },
+          "reasoning": 0,
+          "input": 30532
+        },
+        "cost": 0
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cd04588001P9plKmrFnsNH3M",
+        "type": "patch",
+        "id": "prt_a2cd062ef001UTYmIUspSQ06iA",
+        "files": [
+          "/Users/cam/Dev/neovim-dev/opencode.nvim/README.md"
+        ],
+        "hash": "c64ddee834f1b802020a8f880eafa689f0b99406"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "providerID": "github-copilot",
+        "modelID": "claude-sonnet-4.5",
+        "id": "msg_a2cd062fb001UA0ZzR6JxgLxDQ",
+        "role": "assistant",
+        "tokens": {
+          "output": 54,
+          "cache": {
+            "write": 0,
+            "read": 30526
+          },
+          "reasoning": 0,
+          "input": 30852
+        },
+        "mode": "build",
+        "cost": 0,
+        "path": {
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "time": {
+          "created": 1761688445691,
+          "completed": 1761688448997
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "32836dfa91d578d32a2034074e1ccaa2ea485907",
+        "messageID": "msg_a2cd062fb001UA0ZzR6JxgLxDQ",
+        "type": "step-start",
+        "id": "prt_a2cd069720010PKFurE1ezWkl5"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cd062fb001UA0ZzR6JxgLxDQ",
+        "type": "text",
+        "id": "prt_a2cd06974001JSrjzJwEDLqFVW",
+        "text": "README updated with the new nested command structure. The documentation now shows the new `:Opencode` subcommand syntax and includes a note that legacy `Opencode*` commands are still available by default but will be removed in the future.",
+        "time": {
+          "start": 1761688448908,
+          "end": 1761688448908
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "32836dfa91d578d32a2034074e1ccaa2ea485907",
+        "messageID": "msg_a2cd062fb001UA0ZzR6JxgLxDQ",
+        "type": "step-finish",
+        "id": "prt_a2cd06f8d001qX5lzqcjeLdGe8",
+        "tokens": {
+          "output": 54,
+          "cache": {
+            "write": 0,
+            "read": 30526
+          },
+          "reasoning": 0,
+          "input": 30852
+        },
+        "cost": 0
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "id": "msg_a2cf5ce65001YLvVsYxIboFcP4",
+        "time": {
+          "created": 1761690898021
+        },
+        "role": "user"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cf5ce65001YLvVsYxIboFcP4",
+        "type": "text",
+        "id": "prt_a2cf5ce66001XEGmUbBybiqmmw",
+        "text": "can you rename Opencode stop to Opencode cancel (and rename the api call)"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cf5ce65001YLvVsYxIboFcP4",
+        "type": "text",
+        "id": "prt_a2cf5ce69001IGe6ns05rFLjSu",
+        "synthetic": true,
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/Dev/neovim-dev/opencode.nvim/README.md\"}"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cf5ce65001YLvVsYxIboFcP4",
+        "type": "text",
+        "id": "prt_a2cf5ce69002nN6kcmP7oazjHK",
+        "synthetic": true,
+        "text": "<file>\n00001| # 🤖 opencode.nvim\n00002| \n00003| <div align=\"center\">\n00004|   <img src=\"https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg\" alt=\"Opencode logo\" width=\"30%\" />\n00005| </div>\n00006| \n00007| > neovim frontend for opencode - a terminal-based AI coding agent\n00008| \n00009| <div align=\"center\">\n00010| \n00011| ![Neovim](https://img.shields.io/badge/NeoVim-%2357A143.svg?&style=for-the-badge&logo=neovim&logoColor=white)\n00012| [![GitHub stars](https://img.shields.io/github/stars/sudo-tee/opencode.nvim?style=for-the-badge)](https://github.com/sudo-tee/opencode.nvim/stargazers)\n00013| ![Last Commit](https://img.shields.io/github/last-commit/sudo-tee/opencode.nvim?style=for-the-badge)\n00014| \n00015| </div>\n00016| \n00017| ## 🙏 Acknowledgements\n00018| \n00019| This plugin is a fork of the original [goose.nvim](https://github.com/azorng/goose.nvim) plugin by [azorng](https://github.com/azorng/)\n00020| For git history purposes the original code is copied instead of just forked.\n00021| \n00022| ## ✨ Description\n00023| \n00024| This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.\n00025| \n00026| <div align=\"center\">\n00027|   <img src=\"https://i.imgur.com/X6tFtc3.png\" alt=\"Opencode.nvim interface\" width=\"90%\" />\n00028|   <img src=\"https://i.imgur.com/erqtPND.png\" alt=\"Opencode.nvim help\" width=\"90%\" />\n00029| </div>\n00030| \n00031| ## 📑 Table of Contents\n00032| \n00033| - [⚠️Caution](#caution)\n00034| - [Requirements](#-requirements)\n00035| - [Installation](#-installation)\n00036| - [Configuration](#️-configuration)\n00037| - [Usage](#-usage)\n00038| - [Context](#-context)\n00039| - [Agents](#-agents)\n00040| - [User Commands](#user-commands)\n00041| - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)\n00042| - [Setting up opencode](#-setting-up-opencode)\n00043| \n00044| ## ⚠️Caution\n00045| \n00046| This plugin is in early development and may have bugs and breaking changes. It is not recommended for production use yet. Please report any issues you encounter on the [GitHub repository](https://github.com/sudo-tee/opencode.nvim/issues).\n00047| \n00048| [Opencode](https://github.com/sst/opencode) is also in early development and may have breaking changes. Ensure you are using a compatible version of the Opencode CLI (v0.6.3+ or more).\n00049| \n00050| If your upgrade breaks the plugin, please open an issue or downgrade to the last working version.\n00051| \n00052| ## 📋 Requirements\n00053| \n00054| - Opencode (v0.6.3+ or more) CLI installed and available (see [Setting up opencode](#-setting-up-opencode) below)\n00055| \n00056| ## 🚀 Installation\n00057| \n00058| Install the plugin with your favorite package manager. See the [Configuration](#️-configuration) section below for customization options.\n00059| \n00060| ### With lazy.nvim\n00061| \n00062| ```lua\n00063| {\n00064|   \"sudo-tee/opencode.nvim\",\n00065|   config = function()\n00066|     require(\"opencode\").setup({})\n00067|   end,\n00068|   dependencies = {\n00069|     \"nvim-lua/plenary.nvim\",\n00070|     {\n00071|       \"MeanderingProgrammer/render-markdown.nvim\",\n00072|       opts = {\n00073|         anti_conceal = { enabled = false },\n00074|         file_types = { 'markdown', 'opencode_output' },\n00075|       },\n00076|       ft = { 'markdown', 'Avante', 'copilot-chat', 'opencode_output' },\n00077|     },\n00078|     -- Optional, for file mentions and commands completion, pick only one\n00079|     'saghen/blink.cmp',\n00080|     -- 'hrsh7th/nvim-cmp',\n00081| \n00082|     -- Optional, for file mentions picker, pick only one\n00083|     'folke/snacks.nvim',\n00084|     -- 'nvim-telescope/telescope.nvim',\n00085|     -- 'ibhagwan/fzf-lua',\n00086|     -- 'nvim_mini/mini.nvim',\n00087|   },\n00088| }\n00089| ```\n00090| \n00091| ## ⚙️ Configuration\n00092| \n00093| > **Note**: The keymap configuration structure has been updated. Old keymaps (`keymap.global` and `keymap.window`) will be mapped to the new format (`keymap.editor`, `keymap.input_window`, `keymap.output_window`) but you should update your config to the new format. See [Keymap Configuration](#keymap-configuration) below for details.\n00094| \n00095| ```lua\n00096| -- Default configuration with all available options\n00097| require('opencode').setup({\n00098|   preferred_picker = nil, -- 'telescope', 'fzf', 'mini.pick', 'snacks', if nil, it will use the best available picker. Note mini.pick does not support multiple selections\n00099|   preferred_completion = nil, -- 'blink', 'nvim-cmp','vim_complete' if nil, it will use the best available completion\n00100|   default_global_keymaps = true, -- If false, disables all default global keymaps\n00101|   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)\n00102|   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o\n00103|   keymap = {\n00104|     editor = {\n00105|       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened\n00106|       ['<leader>oi'] = { 'open_input' }, -- Opens and focuses on input window on insert mode\n00107|       ['<leader>oI'] = { 'open_input_new_session' }, -- Opens and focuses on input window on insert mode. Creates a new session\n00108|       ['<leader>oo'] = { 'open_output' }, -- Opens and focuses on output window\n00109|       ['<leader>ot'] = { 'toggle_focus' }, -- Toggle focus between opencode and last window\n00110|       ['<leader>oq'] = { 'close' }, -- Close UI windows\n00111|       ['<leader>os'] = { 'select_session' }, -- Select and load a opencode session\n00112|       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list\n00113|       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt\n00114|       ['<leader>o]'] = { 'diff_next' }, -- Navigate to next file diff\n00115|       ['<leader>o['] = { 'diff_prev' }, -- Navigate to previous file diff\n00116|       ['<leader>oc'] = { 'diff_close' }, -- Close diff view tab and return to normal editing\n00117|       ['<leader>ora'] = { 'diff_revert_all_last_prompt' }, -- Revert all file changes since the last opencode prompt\n00118|       ['<leader>ort'] = { 'diff_revert_this_last_prompt' }, -- Revert current file changes since the last opencode prompt\n00119|       ['<leader>orA'] = { 'diff_revert_all' }, -- Revert all file changes since the last opencode session\n00120|       ['<leader>orT'] = { 'diff_revert_this' }, -- Revert current file changes since the last opencode session\n00121|       ['<leader>orr'] = { 'diff_restore_snapshot_file' }, -- Restore a file to a restore point\n00122|       ['<leader>orR'] = { 'diff_restore_snapshot_all' }, -- Restore all files to a restore point\n00123|       ['<leader>ox'] = { 'swap_position' }, -- Swap Opencode pane left/right\n00124|       ['<leader>opa'] = { 'permission_accept' }, -- Accept permission request once\n00125|       ['<leader>opA'] = { 'permission_accept_all' }, -- Accept all (for current tool)\n00126|       ['<leader>opd'] = { 'permission_deny' }, -- Deny permission request once\n00127|     },\n00128|     input_window = {\n00129|       ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)\n00130|       ['<esc>'] = { 'close' }, -- Close UI windows\n00131|       ['<C-c>'] = { 'stop' }, -- Stop opencode while it is running\n00132|       ['~'] = { 'mention_file', mode = 'i' }, -- Pick a file and add to context. See File Mentions section\n00133|       ['@'] = { 'mention', mode = 'i' }, -- Insert mention (file/agent)\n00134|       ['/'] = { 'slash_commands', mode = 'i' }, -- Pick a command to run in the input window\n00135|       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes\n00136|       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history\n00137|       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } }, -- Navigate to next prompt in history\n00138|       ['<M-m>'] = { 'switch_mode' }, -- Switch between modes (build/plan)\n00139|     },\n00140|     output_window = {\n00141|       ['<esc>'] = { 'close' }, -- Close UI windows\n00142|       ['<C-c>'] = { 'stop' }, -- Stop opencode while it is running\n00143|       [']]'] = { 'next_message' }, -- Navigate to next message in the conversation\n00144|       ['[['] = { 'prev_message' }, -- Navigate to previous message in the conversation\n00145|       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes\n00146|       ['i'] = { 'focus_input', 'n' }, -- Focus on input window and enter insert mode at the end of the input from the output window\n00147|       ['<leader>oS'] = { 'select_child_session' }, -- Select and load a child session\n00148|       ['<leader>oD'] = { 'debug_message' }, -- Open raw message in new buffer for debugging\n00149|       ['<leader>oO'] = { 'debug_output' }, -- Open raw output in new buffer for debugging\n00150|       ['<leader>ods'] = { 'debug_session' }, -- Open raw session in new buffer for debugging\n00151|     },\n00152|     permission = {\n00153|       accept = 'a', -- Accept permission request once (only available when there is a pending permission request)\n00154|       accept_all = 'A', -- Accept all (for current tool) permission request once (only available when there is a pending permission request)\n00155|       deny = 'd', -- Deny permission request once (only available when there is a pending permission request)\n00156|     },\n00157|     session_picker = {\n00158|       delete_session = { '<C-d>' }, -- Delete selected session in the session picker\n00159|     },\n00160|   },\n00161|   ui = {\n00162|     position = 'right', -- 'right' (default) or 'left'. Position of the UI split\n00163|     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window\n00164|     window_width = 0.40, -- Width as percentage of editor width\n00165|     input_height = 0.15, -- Input height as percentage of window height\n00166|     display_model = true, -- Display model name on top winbar\n00167|     display_context_size = true, -- Display context size in the footer\n00168|     display_cost = true, -- Display cost in the footer\n00169|     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window\n00170|     icons = {\n00171|       preset = 'nerdfonts', -- 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')\n00172|       overrides = {}, -- Optional per-key overrides, see section below\n00173|     },\n00174|     output = {\n00175|       tools = {\n00176|         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)\n00177|       },\n00178|       rendering = {\n00179|         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)\n00180|         on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior\n00181|       },\n00182|     },\n00183|     input = {\n00184|       text = {\n00185|         wrap = false, -- Wraps text inside input window\n00186|       },\n00187|     },\n00188|     completion = {\n00189|       file_sources = {\n00190|         enabled = true,\n00191|         preferred_cli_tool = 'server', -- 'fd','fdfind','rg','git','server' if nil, it will use the best available tool, 'server' uses opencode cli to get file list (works cross platform) and supports folders\n00192|         ignore_patterns = {\n00193|           '^%.git/',\n00194|           '^%.svn/',\n00195|           '^%.hg/',\n00196|           'node_modules/',\n00197|           '%.pyc$',\n00198|           '%.o$',\n00199|           '%.obj$',\n00200|           '%.exe$',\n00201|           '%.dll$',\n00202|           '%.so$',\n00203|           '%.dylib$',\n00204|           '%.class$',\n00205|           '%.jar$',\n00206|           '%.war$',\n00207|           '%.ear$',\n00208|           'target/',\n00209|           'build/',\n00210|           'dist/',\n00211|           'out/',\n00212|           'deps/',\n00213|           '%.tmp$',\n00214|           '%.temp$',\n00215|           '%.log$',\n00216|           '%.cache$',\n00217|         },\n00218|         max_files = 10,\n00219|         max_display_length = 50, -- Maximum length for file path display in completion, truncates from left with \"...\"\n00220|       },\n00221|     },\n00222|   },\n00223|   context = {\n00224|     enabled = true, -- Enable automatic context capturing\n00225|     cursor_data = {\n00226|       enabled = false, -- Include cursor position and line content in the context\n00227|     },\n00228|     diagnostics = {\n00229|       info = false, -- Include diagnostics info in the context (default to false\n00230|       warn = true, -- Include diagnostics warnings in the context\n00231|       error = true, -- Include diagnostics errors in the context\n00232|     },\n00233|     current_file = {\n00234|       enabled = true, -- Include current file path and content in the context\n00235|     },\n00236|     selection = {\n00237|       enabled = true, -- Include selected text in the context\n00238|     },\n00239|   },\n00240|   debug = {\n00241|     enabled = false, -- Enable debug messages in the output window\n00242|   },\n00243| })\n00244| ```\n00245| \n00246| ### Keymap Configuration\n00247| \n00248| The keymap configuration has been restructured for better organization and clarity:\n00249| \n00250| - **`editor`**: Global keymaps that are available throughout Neovim\n00251| - **`input_window`**: Keymaps specific to the input window\n00252| - **`output_window`**: Keymaps specific to the output window\n00253| - **`permission`**: Special keymaps for responding to permission requests (available in input/output windows when there's a pending permission)\n00254| \n00255| **Backward Compatibility**: The plugin automatically maps configurations that use `keymap.global` and `keymap.window` to the new structure. A deprecation warning will be shown during migration. Update your configuration to use the new structure to remove the warning.\n00256| \n00257| Each keymap entry is a table consising of:\n00258| \n00259| - The string name of an api function = `{ 'toggle' }`\n00260| - Or a custom function: `{ function() ... end }`\n00261| - An optional mode: `{ 'toggle', mode = { 'n', 'i' } }`\n00262| - An optional desc: `{'toggle', desc = 'Toggle Opencode' }`\n00263| \n00264| ### UI icons (disable emojis or customize)\n00265| \n00266| By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `text` preset or override icons individually.\n00267| \n00268| Minimal config to disable emojis everywhere:\n00269| \n00270| ```lua\n00271| require('opencode').setup({\n00272|   ui = {\n00273|     icons = {\n00274|       preset = 'text', -- switch all icons to text\n00275|     },\n00276|   },\n00277| })\n00278| ```\n00279| \n00280| Override specific icons while keeping the preset:\n00281| \n00282| ```lua\n00283| require('opencode').setup({\n00284|   ui = {\n00285|     icons = {\n00286|       preset = 'emoji',\n00287|       overrides = {\n00288|         header_user = '> U',\n00289|         header_assistant = 'AI',\n00290|         search = 'FIND',\n00291|         border = '|',\n00292|       },\n00293|     },\n00294|   },\n00295| })\n00296| ```\n00297| \n00298| Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29):\n00299| \n00300| - header_user, header_assistant\n00301| - run, task, read, edit, write\n00302| - plan, search, web, list, tool\n00303| - snapshot, restore_point, restore_count, file\n00304| - status_on, status_off\n00305| - border, bullet\n00306| \n00307| ## 🧰 Usage\n00308| \n00309| ### Available Actions\n00310| \n00311| The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:\n00312| \n00313| > **Note:** Commands have been restructured into a single `:Opencode` command with subcommands. Legacy `Opencode*` commands (e.g., `:OpencodeOpenInput`) are still available by default but will be removed in a future version. Update your scripts and workflows to use the new nested syntax.\n00314| \n00315| | Action                                              | Default keymap                        | Command                                        | API Function                                                           |\n00316| | --------------------------------------------------- | ------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------- |\n00317| | Open opencode. Close if opened                      | `<leader>og`                          | `:Opencode`                                    | `require('opencode.api').toggle()`                                     |\n00318| | Open input window (current session)                 | `<leader>oi`                          | `:Opencode open input`                         | `require('opencode.api').open_input()`                                 |\n00319| | Open input window (new session)                     | `<leader>oI`                          | `:Opencode open input_new_session`            | `require('opencode.api').open_input_new_session()`                     |\n00320| | Open output window                                  | `<leader>oo`                          | `:Opencode open output`                        | `require('opencode.api').open_output()`                                |\n00321| | Create and switch to a named session                | -                                     | `:Opencode session new <name>`                 | `:Opencode session new <name>` (user command)                          |\n00322| | Toggle focus opencode / last window                 | `<leader>ot`                          | `:Opencode toggle focus`                       | `require('opencode.api').toggle_focus()`                               |\n00323| | Close UI windows                                    | `<leader>oq`                          | `:Opencode close`                              | `require('opencode.api').close()`                                      |\n00324| | Select and load session                             | `<leader>os`                          | `:Opencode session select`                     | `require('opencode.api').select_session()`                             |\n00325| | **Select and load child session**                   | `<leader>oS`                          | `:Opencode session select_child`              | `require('opencode.api').select_child_session()`                       |\n00326| | Configure provider and model                        | `<leader>op`                          | `:Opencode configure provider`                | `require('opencode.api').configure_provider()`                         |\n00327| | Open diff view of changes                           | `<leader>od`                          | `:Opencode diff open`                          | `require('opencode.api').diff_open()`                                  |\n00328| | Navigate to next file diff                          | `<leader>o]`                          | `:Opencode diff next`                          | `require('opencode.api').diff_next()`                                  |\n00329| | Navigate to previous file diff                      | `<leader>o[`                          | `:Opencode diff prev`                          | `require('opencode.api').diff_prev()`                                  |\n00330| | Close diff view tab                                 | `<leader>oc`                          | `:Opencode diff close`                         | `require('opencode.api').diff_close()`                                 |\n00331| | Revert all file changes since last prompt           | `<leader>ora`                         | `:Opencode revert all prompt`                  | `require('opencode.api').diff_revert_all_last_prompt()`                |\n00332| | Revert current file changes last prompt             | `<leader>ort`                         | `:Opencode revert this prompt`                 | `require('opencode.api').diff_revert_this_last_prompt()`               |\n00333| | Revert all file changes since last session          | `<leader>orA`                         | `:Opencode revert all session`                 | `require('opencode.api').diff_revert_all_session()`                    |\n00334| | Revert current file changes last session            | `<leader>orT`                         | `:Opencode revert this session`                | `require('opencode.api').diff_revert_this_session()`                   |\n00335| | Revert all files to a specific snapshot             | -                                     | `:Opencode revert all_to_snapshot`             | `require('opencode.api').diff_revert_all(snapshot_id)`                 |\n00336| | Revert current file to a specific snapshot          | -                                     | `:Opencode revert this_to_snapshot`            | `require('opencode.api').diff_revert_this(snapshot_id)`                |\n00337| | Restore a file to a restore point                   | -                                     | `:Opencode restore snapshot_file`              | `require('opencode.api').diff_restore_snapshot_file(restore_point_id)` |\n00338| | Restore all files to a restore point                | -                                     | `:Opencode restore snapshot_all`               | `require('opencode.api').diff_restore_snapshot_all(restore_point_id)`  |\n00339| | Initialize/update AGENTS.md file                    | -                                     | `:Opencode session agents_init`                | `require('opencode.api').initialize()`                                 |\n00340| | Run prompt (continue session) [Run opts](#run-opts) | -                                     | `:Opencode run <prompt> <opts>`                | `require('opencode.api').run(\"prompt\", opts)`                          |\n00341| | Run prompt (new session) [Run opts](#run-opts)      | -                                     | `:Opencode run new_session <prompt> <opts>`    | `require('opencode.api').run_new_session(\"prompt\", opts)`              |\n00342| | Stop opencode while it is running                   | `<C-c>`                               | `:Opencode stop`                               | `require('opencode.api').stop()`                                       |\n00343| | Set mode to Build                                   | -                                     | `:Opencode agent build`                        | `require('opencode.api').agent_build()`                                |\n00344| | Set mode to Plan                                    | -                                     | `:Opencode agent plan`                         | `require('opencode.api').agent_plan()`                                 |\n00345| | Select and switch mode/agent                        | -                                     | `:Opencode agent select`                       | `require('opencode.api').select_agent()`                               |\n00346| | Display list of availale mcp servers                | -                                     | `:Opencode mcp`                                | `require('opencode.api').mcp()`                                        |\n00347| | Run user commands                                   | -                                     | `:Opencode run user_command`                   | `require('opencode.api').run_user_command()`                           |\n00348| | Share current session and get a link                | -                                     | `:Opencode session share` / `/share`           | `require('opencode.api').share()`                                      |\n00349| | Unshare current session (disable link)              | -                                     | `:Opencode session unshare` / `/unshare`       | `require('opencode.api').unshare()`                                    |\n00350| | Compact current session (summarize)                 | -                                     | `:Opencode session compact` / `/compact`       | `require('opencode.api').compact_session()`                            |\n00351| | Undo last opencode action                           | -                                     | `:Opencode undo` / `/undo`                     | `require('opencode.api').undo()`                                       |\n00352| | Redo last opencode action                           | -                                     | `:Opencode redo` / `/redo`                     | `require('opencode.api').redo()`                                       |\n00353| | Respond to permission requests (accept once)        | `a` (window) / `<leader>opa` (global) | `:Opencode permission accept`                  | `require('opencode.api').permission_accept()`                          |\n00354| | Respond to permission requests (accept all)         | `A` (window) / `<leader>opA` (global) | `:Opencode permission accept_all`              | `require('opencode.api').permission_accept_all()`                      |\n00355| | Respond to permission requests (deny)               | `d` (window) / `<leader>opd` (global) | `:Opencode permission deny`                    | `require('opencode.api').permission_deny()`                            |\n00356| | Insert mention (file/ agent)                        | `@`                                   | -                                              | -                                                                      |\n00357| | [Pick a file and add to context](#file-mentions)    | `~`                                   | -                                              | -                                                                      |\n00358| | Navigate to next message                            | `]]`                                  | -                                              | -                                                                      |\n00359| | Navigate to previous message                        | `[[`                                  | -                                              | -                                                                      |\n00360| | Navigate to previous prompt in history              | `<up>`                                | -                                              | `require('opencode.api').prev_history()`                               |\n00361| | Navigate to next prompt in history                  | `<down>`                              | -                                              | `require('opencode.api').next_history()`                               |\n00362| | Toggle input/output panes                           | `<tab>`                               | -                                              | -                                                                      |\n00363| | Swap Opencode pane left/right                       | `<leader>ox`                          | `:Opencode swap position`                      | `require('opencode.api').swap_position()`                              |\n00364| \n00365| ---\n00366| \n00367| ### Run opts\n00368| \n00369| You can pass additional options when running a prompt via command or API:\n00370| \n00371| - `agent=<agent_name>`: Specify the agent to use for this prompt (overrides current agent)\n00372| - `model=<provider/model_name>`: Specify the model to use for this prompt (overrides current model) e.g. `model=github-copilot/gpt-4.1`\n00373| - `context.<context_type>.enabled=<true|false>`: Enable/disable specific context types for this prompt only. Available context types:\n00374|   - `current_file`\n00375|   - `selection`\n00376|   - `diagnostics.info`\n00377|   - `diagnostics.warn`\n00378|   - `diagnostics.error`\n00379|   - `cursor_data`\n00380| \n00381| #### Example\n00382| \n00383| Run a prompt in a new session using the Plan agent and disabling current file context:\n00384| \n00385| ```vim\n00386| :Opencode run new_session \"Please help me plan a new feature\" agent=plan context.current_file.enabled=false\n00387| :Opencode run \"Fix the bug in the current file\" model=github-copilot/claude-sonned-4\n00388| ```\n00389| \n00390| ##👮 Permissions\n00391| \n00392| Opencode can issue permission requests for potentially destructive operations (file edits, reverting files, running shell commands, or enabling persistent tool access). Permission requests appear inline in the output and must be responded to before the agent performs the action. Visit [Opencode Permissions Documentation](https://opencode.ai/docs/permissions/) for more details.\n00393| \n00394| <div align=\"center\">\n00395|   <img src=\"https://i.imgur.com/LkZDta5.png\" alt=\"Opencode permission request\" width=\"90%\" />\n00396|   <img src=\"https://i.imgur.com/4mJH1Xg.png\" alt=\"Opencode permission request input window\" width=\"90%\" />\n00397| </div>\n00398| \n00399| ### Responding to Permission Requests\n00400| \n00401| - **Respond via keys:** In the input window press `a` to accept once, `A` to accept and remember (accept all), or `d` to deny. These window keys are configurable in `ui.keymap.window.permission_*`.\n00402| - **Global keymaps:** There are also global keymaps to respond outside the input window: `<leader>opa` (accept once), `<leader>opA` (accept all), `<leader>opd` (deny). These are configurable in `keymap.global.permission_*`.\n00403| - **API:** Programmatic responses are available: `require('opencode.api').permission_accept()`, `require('opencode.api').permission_accept_all()`, `require('opencode.api').permission_deny()` which map to responses `\"once\"`, `\"always\"`, and `\"reject\"` respectively.\n00404| - **Behavior:** `accept once` allows the single requested action, `accept all` grants persistent permission for similar requests in the current session, and `deny` rejects the request.\n00405| \n00406| ---\n00407| \n00408| ## 📝 Context\n00409| \n00410| The following editor context is automatically captured and included in your conversations.\n00411| \n00412| | Context Type    | Description                                          |\n00413| | --------------- | ---------------------------------------------------- |\n00414| | Current file    | Path to the focused file before entering opencode    |\n00415| | Selected text   | Text and lines currently selected in visual mode     |\n00416| | Mentioned files | File info added through [mentions](#file-mentions)   |\n00417| | Diagnostics     | Diagnostics from the current file (if any)           |\n00418| | Cursor position | Current cursor position and line content in the file |\n00419| \n00420| <a id=\"file-mentions\"></a>\n00421| \n00422| ### Adding more files to context through file mentions\n00423| \n00424| You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.\n00425| Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)\n00426| \n00427| ## 🔄 Agents\n00428| \n00429| Opencode provides two built-in agents and supports custom ones:\n00430| \n00431| ### Built-in Agents\n00432| \n00433| - **Build** (default): Full development agent with all tools enabled for making code changes\n00434| - **Plan**: Restricted agent for planning and analysis without making file changes. Useful for code review and understanding code without modifications\n00435| \n00436| ### Switching Agent\n00437| \n00438| Press `<M-m>` (Alt+M) in the input window to switch between agents during a session.\n00439| \n00440| ### Custom Agents\n00441| \n00442| You can create custom agents through your opencode config file. Each agent can have its own:\n00443| \n00444| - Agentl configuration\n00445| - Custom prompt\n00446| - Enabled/disabled tools\n00447| - And more\n00448| \n00449| See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.\n00450| \n00451| ## User Commands and Slash Commands\n00452| \n00453| You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.\n00454| \n00455| **Built-in slash commands** include:\n00456| \n00457| - `/share` — Share the current session and get a link\n00458| - `/unshare` — Unshare the current session\n00459| - `/compact` — Compact (summarize) the current session\n00460| - `/undo` — Undo the last opencode action\n00461| - `/redo` — Redo the last undone action\n00462| - `/init` — Initialize/update AGENTS.md\n00463| - `/help` — Show help\n00464| - `/mcp` — Show MCP servers\n00465| - `/models` — Switch provider/model\n00466| - `/sessions` — Switch session\n00467| - `/child-sessions` — Switch to a child session\n00468| - `/agent` — Switch agent/mode\n00469| - ...and more\n00470| \n00471| **User commands** are custom scripts you define. They are loaded from:\n00472| \n00473| - `.opencode/command/` (project-specific)\n00474| - `command/` (global, in config directory)\n00475| \n00476| You can also run user commands by name with `:OpencodeRunUserCommand <name>` or `/run_user_command <name>`.\n00477| \n00478| <img src=\"https://i.imgur.com/YQhhoPS.png\" alt=\"Opencode.nvim contextual actions\" width=\"90%\" />\n00479| \n00480| See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details.\n00481| \n00482| ## 📸 Contextual Actions for Snapshots\n00483| \n00484| > [!WARNING] > _Snapshots are an experimental feature_\n00485| > in opencode and sometimes the dev team may disable them or change their behavior.\n00486| > This repository will be updated to match the latest opencode changes as soon as possible.\n00487| \n00488| Opencode.nvim automatically creates **snapshots** of your workspace at key moments (such as after running prompts or making changes). These snapshots are like lightweight git commits, allowing you to review, compare, and restore your project state at any time.\n00489| \n00490| **Contextual actions** for snapshots are available directly in the output window. When a snapshot is referenced in the conversation, you can trigger actions on it via keymaps displayed by the UI.\n00491| \n00492| ### Available Snapshot Actions\n00493| \n00494| - **Diff:** View the differences between the current state and the snapshot.\n00495| - **Revert file:** Revert the selected file to the state it was in at the snapshot.\n00496| - **Revert all files:** Revert all files in the workspace to the state they were\n00497| \n00498| ### How to Use\n00499| \n00500| - When a message in the output references a snapshot (look for 📸 **Created Snapshot** or similar), move your cursor to that line and a little menu will be displayed above.\n00501| \n00502| ### Example\n00503| \n00504| When you see a snapshot in the output:\n00505| \n00506| <img src=\"https://i.imgur.com/eKOjhTN.png\" alt=\"Opencode.nvim contextual actions\" width=\"90%\" />\n00507| \n00508| > **Tip:** Reverting a snapshot will restore all files to the state they were in at that snapshot, so use it with caution!\n00509| \n00510| ## 🕛 Contextual Restore points\n00511| \n00512| Opencode.nvim automatically creates restore points before a revet operation. This allows you to undo a revert if needed.\n00513| \n00514| You will see restore points under the Snapshot line like so:\n00515| <img src=\"https://i.imgur.com/DKCOdt0.png\" alt=\"Opencode.nvim restore points\" width=\"90%\" />\n00516| \n00517| ### Available Restore Actions\n00518| \n00519| - **Restore file:** Restore the selected file to the state it was in before the last revert operation.\n00520| - **Restore all :** Restore all files in the workspace to the state they were in before the revert action\n00521| \n00522| ## Highlight Groups\n00523| \n00524| The plugin defines several highlight groups that can be customized to match your colorscheme:\n00525| \n00526| - `OpencodeBorder`: Border color for Opencode windows (default: #616161)\n00527| - `OpencodeBackground`: Background color for Opencode windows (linked to `Normal`)\n00528| - `OpencodeSessionDescription`: Session description text color (linked to `Comment`)\n00529| - `OpencodeMention`: Highlight for @file mentions (linked to `Special`)\n00530| - `OpencodeToolBorder`: Border color for tool execution blocks (default: #3b4261)\n00531| - `OpencodeMessageRoleAssistant`: Assistant message highlight (linked to `Added`)\n00532| - `OpencodeMessageRoleUser`: User message highlight (linked to `Question`)\n00533| - `OpencodeDiffAdd`: Highlight for added line in diffs (default: #2B3328)\n00534| - `OpencodeDiffDelete`: Highlight for deleted line in diffs (default: #43242B)\n00535| - `OpencodeAgentPlan`: Agent indicator in winbar for Plan mode (default: #61AFEF background)\n00536| - `OpencodeAgentBuild`: Agent indicator in winbar for Build mode (default: #616161 background)\n00537| - `OpencodeAgentCustom`: Agent indicator in winbar for custom modes (default: #3b4261 background)\n00538| - `OpencodeContestualAction`: Highlight for contextual actions in the output window (default: #3b4261 background)\n00539| - `OpencodeInputLegend`: Highlight for input window legend (default: #CCCCCC background)\n00540| - `OpencodeHint`: Highlight for hinting messages in input window and token info in output window footer (linked to `Comment`)\n00541| \n00542| ## 🔧 Setting up Opencode\n00543| \n00544| If you're new to opencode:\n00545| \n00546| 1. **What is Opencode?**\n00547|    - Opencode is an AI coding agent built for the terminal\n00548|    - It offers powerful AI assistance with extensible configurations such as LLMs and MCP servers\n00549| \n00550| 2. **Installation:**\n00551|    - Visit [Install Opencode](https://opencode.ai/docs/#install) for installation and configuration instructions\n00552|    - Ensure the `opencode` command is available after installation\n00553| \n00554| 3. **Configuration:**\n00555|    - Run `opencode auth login` to set up your LLM provider\n00556|    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file\n00557| \n</file>"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cf5ce65001YLvVsYxIboFcP4",
+        "type": "file",
+        "mime": "text/plain",
+        "id": "prt_a2cf5ce69003CMYHYUV1OXmQAP",
+        "url": "file:///Users/cam/Dev/neovim-dev/opencode.nvim/README.md",
+        "filename": "README.md"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "providerID": "github-copilot",
+        "modelID": "gpt-4.1",
+        "id": "msg_a2cf5cf0f002oBAjmnGIMGXjez",
+        "role": "assistant",
+        "tokens": {
+          "output": 387,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0,
+          "input": 34803
+        },
+        "mode": "plan",
+        "cost": 0,
+        "path": {
+          "root": "/Users/cam/Dev/neovim-dev/opencode.nvim",
+          "cwd": "/Users/cam/Dev/neovim-dev/opencode.nvim"
+        },
+        "time": {
+          "created": 1761690898191,
+          "completed": 1761690905088
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "32836dfa91d578d32a2034074e1ccaa2ea485907",
+        "messageID": "msg_a2cf5cf0f002oBAjmnGIMGXjez",
+        "type": "step-start",
+        "id": "prt_a2cf5db34001VdTj4aHg0ND2ZF"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "messageID": "msg_a2cf5cf0f002oBAjmnGIMGXjez",
+        "type": "text",
+        "id": "prt_a2cf5db35001u8Emaw1FUsutbW",
+        "text": "Here's the plan to rename `Opencode stop` to `Opencode cancel` and update the API call accordingly:\n\n---\n\n## 📝 Plan: Rename Opencode Stop to Cancel\n\n### 1. Update Command Table and Documentation\n- In README.md, change:\n  - Command: `:Opencode stop` → `:Opencode cancel`\n  - API: `require('opencode.api').stop()` → `require('opencode.api').cancel()`\n  - Keymap: `<C-c>` remains the same (unless you want to change it)\n\n### 2. Update Codebase\n- In `lua/opencode/api.lua`:\n  - Rename the function `M.stop()` to `M.cancel()`\n  - Update all references to `stop` (command registration, legacy command map, subcommand routing, etc.) to use `cancel`\n  - Ensure legacy command `OpencodeStop` still works (with deprecation warning), but routes to `cancel`\n- In any other files (keymap config, tests, etc.) update references to `stop` to `cancel` as needed\n\n### 3. Update Tests\n- In `tests/unit/api_spec.lua`:\n  - Update any tests that check for `stop` to check for `cancel`\n\n### 4. Update Slash Commands (if applicable)\n- If there is a `/stop` slash command, rename it to `/cancel`\n\n### 5. Verify\n- Run all tests to ensure everything works\n- Check that both `:Opencode cancel` and legacy `:OpencodeStop` work (with warning)\n\n---\n\n**Note:** You are currently in \"Plan mode\" (read-only phase), so I cannot make edits right now.  \nWhen you switch to edit mode, I will execute this plan step by step and verify all changes.\n\nWould you like to proceed with this plan when edits are allowed?",
+        "time": {
+          "start": 1761690905023,
+          "end": 1761690905023
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "sessionID": "ses_5d7b80586ffegAiPryF9rnLmp5",
+        "snapshot": "32836dfa91d578d32a2034074e1ccaa2ea485907",
+        "messageID": "msg_a2cf5cf0f002oBAjmnGIMGXjez",
+        "type": "step-finish",
+        "id": "prt_a2cf5e9c1001HT6e8kM5UJrOrr",
+        "tokens": {
+          "output": 387,
+          "cache": {
+            "write": 0,
+            "read": 0
+          },
+          "reasoning": 0,
+          "input": 34803
+        },
+        "cost": 0
+      }
+    },
+    "type": "message.part.updated"
+  }
+]

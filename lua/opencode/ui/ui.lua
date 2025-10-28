@@ -7,7 +7,7 @@ local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
 
----@param windows OpencodeWindowState
+---@param windows OpencodeWindowState?
 function M.close_windows(windows)
   if not windows then
     return

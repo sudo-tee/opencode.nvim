@@ -168,7 +168,7 @@ function M.get_messages(session)
 end
 
 ---Get snapshot IDs from a message's parts
----@param message OpencodeMessage
+---@param message OpencodeMessage?
 ---@return string[]|nil
 function M.get_message_snapshot_ids(message)
   if not message then

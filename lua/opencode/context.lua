@@ -6,6 +6,7 @@ local state = require('opencode.state')
 
 local M = {}
 
+---@type OpencodeContext
 M.context = {
   -- current file
   current_file = nil,

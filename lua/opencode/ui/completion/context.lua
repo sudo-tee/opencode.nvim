@@ -63,7 +63,7 @@ local function format_selections(selections)
   return table.concat(content, '\n')
 end
 
----@param cursor_data OpencodeContextCursorData
+---@param cursor_data? OpencodeContextCursorData
 ---@return string
 local function format_cursor_data(cursor_data)
   if context.is_context_enabled('cursor_data') == false then
@@ -83,6 +83,83 @@ local function format_cursor_data(cursor_data)
   return table.concat(parts, '\n')
 end
 
+---@param ctx OpencodeContext
+---@return CompletionItem
+local function add_current_file_item(ctx)
+  local current_file_available = context.is_context_enabled('current_file')
+  return create_context_item(
+    'Current File',
+    'current_file',
+    current_file_available,
+    string.format('Current file: %s', ctx.current_file and vim.fn.fnamemodify(ctx.current_file.path, ':~:.'))
+  )
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem[]
+local function add_mentioned_files_items(ctx)
+  local items = {}
+  if context.is_context_enabled('files') and ctx.mentioned_files and #ctx.mentioned_files > 0 then
+    for _, file in ipairs(ctx.mentioned_files) do
+      local filename = vim.fn.fnamemodify(file, ':~:.')
+      table.insert(
+        items,
+        create_context_item(filename, 'mentioned_file', true, 'Select to remove file ' .. filename, icons.get('file'))
+      )
+    end
+  end
+  return items
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem
+local function add_selection_item(ctx)
+  return create_context_item(
+    'Selection',
+    'selection',
+    context.is_context_enabled('selection'),
+    format_selections(ctx.selections or {})
+  )
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem[]
+local function add_subagents_items(ctx)
+  if not (context.is_context_enabled('agents') or ctx.mentioned_subagents) then
+    return {}
+  end
+  local items = {}
+  for _, agent in ipairs(ctx.mentioned_subagents or {}) do
+    table.insert(
+      items,
+      create_context_item(agent .. ' (agent)', 'subagent', true, 'Select to remove agent ' .. agent, icons.get('agent'))
+    )
+  end
+  return items
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem
+local function add_diagnostics_item(ctx)
+  return create_context_item(
+    'Diagnostics',
+    'diagnostics',
+    context.is_context_enabled('diagnostics'),
+    format_diagnostics(ctx.linter_errors)
+  )
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem
+local function add_cursor_data_item(ctx)
+  return create_context_item(
+    'Cursor Data',
+    'cursor_data',
+    context.is_context_enabled('cursor_data'),
+    format_cursor_data(ctx.cursor_data)
+  )
+end
+
 ---@type CompletionSource
 local context_source = {
   name = 'context',
@@ -95,75 +172,16 @@ local context_source = {
       return {}
     end
 
-    local items = {}
     local ctx = context.delta_context()
 
-    local current_file_available = context.is_context_enabled('current_file')
-
-    table.insert(
-      items,
-      create_context_item(
-        'Current File',
-        'current_file',
-        current_file_available,
-        string.format('Current file: %s', ctx.current_file and vim.fn.fnamemodify(ctx.current_file.path, ':~:.'))
-      )
-    )
-
-    if context.is_context_enabled('files') and ctx.mentioned_files and #ctx.mentioned_files > 0 then
-      for _, file in ipairs(ctx.mentioned_files) do
-        local filename = vim.fn.fnamemodify(file, ':~:.')
-        table.insert(
-          items,
-          create_context_item(filename, 'mentioned_file', true, 'Select to remove file ' .. filename, icons.get('file'))
-        )
-      end
-    end
-
-    table.insert(
-      items,
-      create_context_item(
-        'Selection',
-        'selection',
-        context.is_context_enabled('selection'),
-        format_selections(ctx.selections or {})
-      )
-    )
-
-    if context.is_context_enabled('agents') and ctx.mentioned_subagents then
-      for _, subagent in ipairs(ctx.mentioned_subagents) do
-        table.insert(
-          items,
-          create_context_item(
-            subagent .. ' (agent)',
-            'subagent',
-            true,
-            'Select to remove agent ' .. subagent,
-            icons.get('agent')
-          )
-        )
-      end
-    end
-
-    table.insert(
-      items,
-      create_context_item(
-        'Diagnostics',
-        'diagnostics',
-        context.is_context_enabled('diagnostics'),
-        format_diagnostics(ctx.linter_errors)
-      )
-    )
-
-    table.insert(
-      items,
-      create_context_item(
-        'Cursor Data',
-        'cursor_data',
-        context.is_context_enabled('cursor_data'),
-        format_cursor_data(ctx.cursor_data)
-      )
-    )
+    local items = {
+      add_current_file_item(ctx),
+      add_selection_item(ctx),
+      add_diagnostics_item(ctx),
+      add_cursor_data_item(ctx),
+    }
+    vim.list_extend(items, add_mentioned_files_items(ctx))
+    vim.list_extend(items, add_subagents_items(ctx))
 
     if #input > 0 then
       items = vim.tbl_filter(function(item)

@@ -216,7 +216,8 @@ function M.remove_mention(mention_name, windows)
 
   local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   for i, line in ipairs(lines) do
-    local updated_line = line:gsub(config.keymap.window.mention .. mention_name, '')
+    local mention_key = config.get_key_for_function('input_window', 'mention')
+    local updated_line = line:gsub(mention_key .. mention_name, '')
     if updated_line ~= line then
       lines[i] = updated_line
     end

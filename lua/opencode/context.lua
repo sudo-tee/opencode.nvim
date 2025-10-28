@@ -452,7 +452,7 @@ function M.extract_legacy_tag(tag, text)
 end
 
 function M.setup()
-  state.subscribe({ 'current_code_buf', 'current_context_config', 'opencode_focused' }, function()
+  state.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function(a)
     M.load()
   end)
 

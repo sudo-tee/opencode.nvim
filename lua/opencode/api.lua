@@ -210,6 +210,9 @@ function M.set_review_breakpoint()
 end
 
 function M.prev_history()
+  if not state.windows then
+    return
+  end
   local prev_prompt = history.prev()
   if prev_prompt then
     input_window.set_content(prev_prompt)
@@ -218,6 +221,9 @@ function M.prev_history()
 end
 
 function M.next_history()
+  if not state.windows then
+    return
+  end
   local next_prompt = history.next()
   if next_prompt then
     input_window.set_content(next_prompt)
@@ -428,7 +434,11 @@ function M.help()
     '|-----------|---------------------|',
   }, false)
 
-  local max_desc_length = (vim.api.nvim_win_get_width(state.windows.output_win) / 2) - 5
+  if not state.windows or not state.windows.output_win then
+    return
+  end
+
+  local max_desc_length = math.floor((vim.api.nvim_win_get_width(state.windows.output_win) / 2) - 5)
 
   for _, def in pairs(M.commands) do
     local desc = def.desc or ''

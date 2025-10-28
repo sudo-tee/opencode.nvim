@@ -35,6 +35,9 @@
 ---@field snapshot string
 ---@field diff string
 
+---@class SessionShareInfo
+---@field url string
+
 ---@class Session
 ---@field workspace string
 ---@field description string
@@ -47,6 +50,7 @@
 ---@field snapshot_path string
 ---@field cache_path string
 ---@field revert? SessionRevertInfo
+---@field share? SessionShareInfo
 
 ---@class OpencodeKeymapEntry
 ---@field [1] string # Function name

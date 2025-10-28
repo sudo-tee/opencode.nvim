@@ -175,7 +175,7 @@ function M.render(windows)
   vim.schedule(function()
     windows = windows or state.windows
     local win = windows and windows.input_win
-    if not win then
+    if not (win and vim.api.nvim_win_is_valid(win)) then
       return
     end
     local segments = create_winbar_segments()

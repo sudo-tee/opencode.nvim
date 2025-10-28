@@ -78,7 +78,7 @@ local function create_winbar_text(description, model_info, mode_info, show_guard
   local padding_width = desc_and_padding_width - #description
   local padding = string.rep(' ', math.max(0, padding_width))
 
-  return string.format(' %s%s%s%s %s', guard_icon, description, padding, model_info, mode_info_str)
+  return string.format(' %s%s%s%s %s', guard_icon, description, padding, model_info, get_mode_highlight() .. mode_info .. '%*')
 end
 
 local function update_winbar_highlights(win_id)

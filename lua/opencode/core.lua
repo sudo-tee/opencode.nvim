@@ -113,13 +113,16 @@ function M.send_message(prompt, opts)
   if opts.model then
     local provider, model = opts.model:match('^(.-)/(.+)$')
     params.model = { providerID = provider, modelID = model }
+    state.current_model = opts.model
   end
 
   if opts.agent then
     params.agent = opts.agent
+    state.current_mode = opts.agent
   end
 
   params.parts = context.format_message(prompt, opts.context)
+  state.current_context_config = opts.context
 
   M.before_run(opts)
 

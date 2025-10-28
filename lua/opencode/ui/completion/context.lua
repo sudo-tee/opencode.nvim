@@ -19,7 +19,7 @@ local function create_context_item(name, type, available, documentation, icon, a
   return {
     label = label,
     kind = 'context',
-    kind_icon = icon or (available and ' ' or ' '),
+    kind_icon = icon or (available and icons.get('status_on') or icons.get('status_off')),
     detail = name,
     documentation = documentation or (available and name or 'Enable ' .. name .. ' for this message'),
     insert_text = '',
@@ -69,7 +69,7 @@ local function format_cursor_data(cursor_data)
     return 'No cursor data available.'
   end
 
-  local filetype = context.context.current_file.extension
+  local filetype = context.context.current_file and context.context.current_file.extension
   local parts = {
     'Line: ' .. (cursor_data.line or 'N/A'),
     (cursor_data.column or ''),
@@ -119,7 +119,8 @@ local function add_selection_items(ctx)
   }
 
   for i, selection in ipairs(ctx.selections or {}) do
-    local label = 'Selection ' .. (selection.file and vim.fn.fnamemodify(selection.file.path, ':t')) or i
+    local label =
+      string.format('Selection %d %s (%s)', i, selection.file and selection.file.name or 'Untitled', selection.lines)
     table.insert(
       items,
       create_context_item(label, 'selection_item', true, format_selection(selection), icons.get('selection'), selection)
@@ -211,7 +212,7 @@ local context_source = {
     end
 
     local type = item.data.type
-    local context_cfg = vim.deepcopy(state.current_context_config) or {}
+    local context_cfg = vim.deepcopy(state.current_context_config or {})
     if not context_cfg or not context_cfg[type] then
       context_cfg[type] = vim.deepcopy(config.context[type])
     end

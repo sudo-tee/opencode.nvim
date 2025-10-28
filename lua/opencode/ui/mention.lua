@@ -108,7 +108,6 @@ end
 
 function M.mention(get_name)
   local windows = require('opencode.state').windows
-  local mention_key = require('opencode.config').get('keymap').window.mention_file
 
   get_name(function(name)
     vim.schedule(function()

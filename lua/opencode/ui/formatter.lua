@@ -628,7 +628,7 @@ end
 function M._format_code(output, lines, language)
   output:add_empty_line()
   output:add_line('```' .. (language or ''))
-  output:add_lines(util.strip_ansi_lines(lines))
+  output:add_lines(util.sanitize_lines(lines))
   output:add_line('```')
 end
 
@@ -644,6 +644,7 @@ function M._format_diff(output, code, file_type)
   end
 
   for _, line in ipairs(lines) do
+    line = util.replace_markdown_codefences(line)
     local first_char = line:sub(1, 1)
     if first_char == '+' or first_char == '-' then
       local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'

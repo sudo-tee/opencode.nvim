@@ -6,7 +6,7 @@
     "workspace": {
         "library": [
             "$VIMRUNTIME",
-            "$HOME/.local/share/nvim/lazy/luvit-meta/library/uv.lua",
+            "$HOME/.local/share/nvim/lazy/luvit-meta/library/uv.lua"
         ],
         "ignoreGlobs": [
             "**/*_spec.lua"

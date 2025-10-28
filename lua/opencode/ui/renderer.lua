@@ -450,15 +450,23 @@ function M.on_message_updated(message, revert_index)
   end
 
   if found_msg then
-    -- see if an error was added (or removed). have to check before we set
-    -- found_msg.info = message.info below
-    local rerender_message = not vim.deep_equal(found_msg.info.error, msg.info.error)
+    local error_changed = not vim.deep_equal(found_msg.info.error, msg.info.error)
 
     found_msg.info = msg.info
 
-    if rerender_message and not revert_index then
-      local header_data = formatter.format_message_header(found_msg)
-      M._replace_message_in_buffer(msg.info.id, header_data)
+    --- NOTE: error handling is a bit messy because errors come in on messages
+    --- but we want to display the error at the end. In this case, we an error
+    --- was added to this message. We find the last part and re-render it to
+    --- display the message. If there are no parts, we'll re-render the message
+
+    if error_changed and not revert_index then
+      local last_part_id = M._get_last_part_for_message(found_msg)
+      if last_part_id then
+        M._rerender_part(last_part_id)
+      else
+        local header_data = formatter.format_message_header(found_msg)
+        M._replace_message_in_buffer(msg.info.id, header_data)
+      end
     end
   else
     table.insert(state.messages, msg)
@@ -507,6 +515,9 @@ function M.on_part_updated(properties, revert_index)
   local part_data = M._render_state:get_part(part.id)
   local is_new_part = not part_data
 
+  local prev_last_part_id = M._get_last_part_for_message(message)
+  local is_last_part = is_new_part or (prev_last_part_id == part.id)
+
   if is_new_part then
     table.insert(message.parts, part)
   else
@@ -528,7 +539,7 @@ function M.on_part_updated(properties, revert_index)
     M._render_state:update_part_data(part)
   end
 
-  local formatted = formatter.format_part(part, message)
+  local formatted = formatter.format_part(part, message, is_last_part)
 
   if revert_index and is_new_part then
     return
@@ -536,6 +547,25 @@ function M.on_part_updated(properties, revert_index)
 
   if is_new_part then
     M._insert_part_to_buffer(part.id, formatted)
+
+    if message.info.error then
+      --- NOTE: More error display code. As mentioned above, errors come in on messages
+      --- but we want to display them after parts so we tack the error onto the last
+      --- part. When a part is added and there's an error, we need to rerender
+      --- previous last part so it doesn't also display the message. If there was no previous
+      --- part, then we need to rerender the header so it doesn't display the error
+
+      vim.notify('new part and error: ' .. part.id)
+
+      if not prev_last_part_id then
+        -- no previous part, we're the first part, re-render the message header
+        -- so it doesn't also display the error
+        local header_data = formatter.format_message_header(message)
+        M._replace_message_in_buffer(part.messageID, header_data)
+      elseif prev_last_part_id ~= part.id then
+        M._rerender_part(prev_last_part_id)
+      end
+    end
   else
     M._replace_part_in_buffer(part.id, formatted)
   end
@@ -737,6 +767,24 @@ function M._find_text_part_for_message(message)
   return nil
 end
 
+---Find the last part in a message
+---@param message OpencodeMessage The message containing the parts
+---@return string? last_part_id The ID of the last part
+function M._get_last_part_for_message(message)
+  if not message or not message.parts or #message.parts == 0 then
+    return nil
+  end
+
+  for i = #message.parts, 1, -1 do
+    local part = message.parts[i]
+    if part.type ~= 'step-start' and part.type ~= 'step-finish' and part.id then
+      return part.id
+    end
+  end
+
+  return nil
+end
+
 ---Re-render existing part with current state
 ---Used for permission updates and other dynamic changes
 ---@param part_id string Part ID to re-render
@@ -753,7 +801,9 @@ function M._rerender_part(part_id)
   end
 
   local message = rendered_message.message
-  local formatted = formatter.format_part(part, message)
+  local last_part_id = M._get_last_part_for_message(message)
+  local is_last_part = (last_part_id == part_id)
+  local formatted = formatter.format_part(part, message, is_last_part)
 
   M._replace_part_in_buffer(part_id, formatted)
 end

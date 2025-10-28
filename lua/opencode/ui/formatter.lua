@@ -145,7 +145,7 @@ function M._format_revert_message(session_data, start_idx)
             virt_text_pos = 'inline',
             virt_text_win_col = col,
             priority = 1000,
-          })
+          } --[[@as OutputExtmark]])
           col = col + #diff + 1
         end
       end
@@ -270,9 +270,16 @@ function M.format_message_header(message)
     },
     virt_text_win_col = -3,
     priority = 10,
-  })
+  } --[[@as OutputExtmark]])
 
-  if role == 'assistant' and message.info.error and message.info.error ~= '' then
+  -- Only want to show the error if we have no parts. If we have parts, they'll
+  -- handle rendering the error
+  if
+    role == 'assistant'
+    and message.info.error
+    and message.info.error ~= ''
+    and (not message.parts or #message.parts == 0)
+  then
     local error = message.info.error
     local error_messgage = error.data and error.data.message or vim.inspect(error)
 
@@ -676,19 +683,24 @@ function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
       virt_text_pos = 'overlay',
       virt_text_win_col = win_col,
       virt_text_repeat_linebreak = true,
-    })
+    } --[[@as OutputExtmark]])
   end
 end
 
 ---Formats a single message part and returns the resulting output object
 ---@param part OpencodeMessagePart The part to format
 ---@param message? OpencodeMessage Optional message object to extract role and mentions from
+---@param is_last_part? boolean Whether this is the last part in the message, used to show an error if there is one
 ---@return Output
-function M.format_part(part, message)
+function M.format_part(part, message, is_last_part)
   local output = Output.new()
 
+  if not message or not message.info or not message.info.role then
+    return output
+  end
+
   local content_added = false
-  local role = message and message.info and message.info.role
+  local role = message.info.role
 
   if role == 'user' then
     if part.type == 'text' and part.text then
@@ -722,18 +734,14 @@ function M.format_part(part, message)
     output:add_empty_line()
   end
 
+  if is_last_part and role == 'assistant' and message.info.error and message.info.error ~= '' then
+    local error = message.info.error
+    local error_messgage = error.data and error.data.message or vim.inspect(error)
+    M._format_callout(output, 'ERROR', error_messgage)
+    output:add_empty_line()
+  end
+
   return output
-end
-
----@param error_text string
----@return Output
-function M.format_error_callout(error_text)
-  local temp_output = Output.new()
-
-  temp_output:add_empty_line()
-  M._format_callout(temp_output, 'ERROR', error_text)
-
-  return temp_output
 end
 
 return M

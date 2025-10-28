@@ -1,0 +1,335 @@
+[
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "projectID": "b0b749d27ca2e03482d36bfe846b01ce40ba759b",
+        "directory": "/Users/cam/tmp/a",
+        "id": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "version": "0.15.13",
+        "title": "New session - 2025-10-27T22:44:06.340Z",
+        "time": {
+          "created": 1761605046340,
+          "updated": 1761605046340
+        }
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "time": {
+          "created": 1761605069213
+        },
+        "id": "msg_a27d8299d001nchmBunYlZcPyL",
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d8299d001nchmBunYlZcPyL",
+        "type": "text",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "id": "prt_a27d8299d002o6fc4py1iLEJPj",
+        "text": "can generate 10 numbers?"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d8299d001nchmBunYlZcPyL",
+        "synthetic": true,
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/Users/cam/tmp/a/a-empty.txt\"}",
+        "id": "prt_a27d8299e001Kg71eyeZS1raAB",
+        "type": "text"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d8299d001nchmBunYlZcPyL",
+        "synthetic": true,
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "text": "<file>\n00001| \n</file>",
+        "id": "prt_a27d8299e0020zKBqQjBQEByRP",
+        "type": "text"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "url": "file:///Users/cam/tmp/a/a-empty.txt",
+        "messageID": "msg_a27d8299d001nchmBunYlZcPyL",
+        "type": "file",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "mime": "text/plain",
+        "id": "prt_a27d8299e003vvZp3XoWl4LMie",
+        "filename": "a-empty.txt"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "projectID": "b0b749d27ca2e03482d36bfe846b01ce40ba759b",
+        "directory": "/Users/cam/tmp/a",
+        "id": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "version": "0.15.13",
+        "title": "New session - 2025-10-27T22:44:06.340Z",
+        "time": {
+          "created": 1761605046340,
+          "updated": 1761605069219
+        }
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1761605069305
+        },
+        "id": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "cost": 0,
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "projectID": "b0b749d27ca2e03482d36bfe846b01ce40ba759b",
+        "directory": "/Users/cam/tmp/a",
+        "id": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "version": "0.15.13",
+        "title": "Generating 10 numbers",
+        "time": {
+          "created": 1761605046340,
+          "updated": 1761605070051
+        }
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "type": "step-start",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "id": "prt_a27d82e3c0011Y0KMiLr9MSMQQ",
+        "snapshot": "f9284e833cda0e3b27329bea41f9f88f3da68297"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "type": "text",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "time": {
+          "start": 1761605070397
+        },
+        "id": "prt_a27d82e3d0011bWP7fvKvMv8ST",
+        "text": "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \""
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "type": "text",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "time": {
+          "start": 1761605070397
+        },
+        "id": "prt_a27d82e3d0011bWP7fvKvMv8ST",
+        "text": "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify"
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "type": "text",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "time": {
+          "start": 1761605070397
+        },
+        "id": "prt_a27d82e3d0011bWP7fvKvMv8ST",
+        "text": "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe"
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "messageID": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "type": "text",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "time": {
+          "start": 1761605070397
+        },
+        "id": "prt_a27d82e3d0011bWP7fvKvMv8ST",
+        "text": "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe,"
+      }
+    }
+  },
+  {
+    "type": "session.error",
+    "properties": {
+      "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+      "error": {
+        "name": "MessageAbortedError",
+        "data": {
+          "message": "The operation was aborted."
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "error": {
+          "name": "MessageAbortedError",
+          "data": {
+            "message": "The operation was aborted."
+          }
+        },
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1761605069305,
+          "completed": 1761605070674
+        },
+        "id": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "cost": 0,
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "error": {
+          "name": "MessageAbortedError",
+          "data": {
+            "message": "The operation was aborted."
+          }
+        },
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "mode": "plan",
+        "time": {
+          "created": 1761605069305,
+          "completed": 1761605070675
+        },
+        "id": "msg_a27d829f9002sfUFPslHq5P2b4",
+        "path": {
+          "cwd": "/Users/cam/tmp/a",
+          "root": "/Users/cam/tmp/a"
+        },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "sessionID": "ses_5d8282fbbfferOT3q8sNddDbV7",
+        "cost": 0,
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "custom.emit_events.finished",
+    "properties": []
+  }
+]

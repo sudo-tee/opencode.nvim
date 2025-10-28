@@ -77,7 +77,7 @@ end
 ---@param opts? SendMessageOpts
 function M.run_new_session(prompt, opts)
   opts = vim.tbl_deep_extend('force', { new_session = true, focus = 'output' }, opts or {})
-  core.send_message(prompt, { new_session = true, focus = 'output' })
+  core.send_message(prompt, opts)
 end
 
 ---@param parent_id? string

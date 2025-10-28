@@ -51,6 +51,9 @@ function M.load()
   state.context_updated_at = vim.uv.now()
 end
 
+-- Checks if a context feature is enabled in config or state
+---@param context_key string
+---@return boolean
 function M.is_context_enabled(context_key)
   local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')
   local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
@@ -177,6 +180,7 @@ function M.clear_subagents()
 end
 
 ---@param opts? OpencodeContextConfig
+---@return OpencodeContext
 function M.delta_context(opts)
   opts = opts or config.context
   if opts.enabled == false then

@@ -64,6 +64,7 @@ local function format_selections(selections)
 end
 
 ---@param cursor_data OpencodeContextCursorData
+---@return string
 local function format_cursor_data(cursor_data)
   if context.is_context_enabled('cursor_data') == false then
     return 'Enable cursor data context.'
@@ -114,7 +115,7 @@ local context_source = {
         local filename = vim.fn.fnamemodify(file, ':~:.')
         table.insert(
           items,
-          create_context_item(filename, 'mentioned_file', true, 'Remove ' .. filename, icons.get_glyph('file'))
+          create_context_item(filename, 'mentioned_file', true, 'Select to remove file ' .. filename, icons.get('file'))
         )
       end
     end
@@ -133,7 +134,13 @@ local context_source = {
       for _, subagent in ipairs(ctx.mentioned_subagents) do
         table.insert(
           items,
-          create_context_item(subagent .. ' (agent)', 'subagent', true, 'Remove ' .. subagent, icons.get_glyph('agent'))
+          create_context_item(
+            subagent .. ' (agent)',
+            'subagent',
+            true,
+            'Select to remove agent ' .. subagent,
+            icons.get('agent')
+          )
         )
       end
     end

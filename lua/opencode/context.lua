@@ -278,6 +278,10 @@ function M.get_current_selection()
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', true)
   vim.fn.setpos('.', current_pos)
 
+  if not text or text == '' then
+    return nil
+  end
+
   return {
     text = text and text:match('[^%s]') and text or nil,
     lines = start_line .. ', ' .. end_line,

@@ -144,6 +144,7 @@ function M.refresh_placeholder(windows, input_lines)
     local slash_key = config.get_key_for_function('input_window', 'slash_commands')
     local mention_key = config.get_key_for_function('input_window', 'mention')
     local mention_file_key = config.get_key_for_function('input_window', 'mention_file')
+    local context_key = config.get_key_for_function('input_window', 'context_items')
 
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
@@ -153,7 +154,9 @@ function M.refresh_placeholder(windows, input_lines)
         { mention_key or '@', 'OpencodeInputLegend' },
         { ' mentions ', 'OpenCodeHint' },
         { mention_file_key or '~', 'OpencodeInputLegend' },
-        { ' to pick files' .. padding, 'OpenCodeHint' },
+        { ' files ', 'OpenCodeHint' },
+        { context_key or '#', 'OpencodeInputLegend' },
+        { ' context' .. padding, 'OpenCodeHint' },
       },
 
       virt_text_pos = 'overlay',

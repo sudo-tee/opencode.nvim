@@ -168,7 +168,7 @@ require('opencode').setup({
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     icons = {
-      preset = 'emoji', -- 'emoji' | 'text'. Choose UI icon style (default: 'emoji')
+      preset = 'nerdfonts', -- 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')
       overrides = {}, -- Optional per-key overrides, see section below
     },
     output = {

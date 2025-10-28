@@ -78,13 +78,30 @@ local presets = {
   },
 }
 
+local deprecated_warning_shown = false
+
+local deprecated_warning_shown = false
+
 ---Get icon by key, honoring preset and user overrides
 ---@param key string
 ---@return string
 function M.get(key)
   local ui = (config.ui or {})
   local icons_cfg = ui.icons or {}
-  local preset_name = icons_cfg.preset or 'emoji'
+  if icons_cfg.preset == 'emoji' then
+    icons_cfg.preset = nil
+    if not deprecated_warning_shown then
+      vim.schedule(function()
+        vim.notify(
+          "[opencode] 'emoji' preset is deprecated. Using 'nerdfonts' preset instead. Please update your configuration.",
+          vim.log.levels.WARN,
+          { title = 'Opencode' }
+        )
+      end)
+      deprecated_warning_shown = true
+    end
+  end
+  local preset_name = icons_cfg.preset or 'nerdfonts'
   local preset = presets[preset_name] or presets.emoji
 
   -- user overrides table: icons = { overrides = { key = 'value' } }

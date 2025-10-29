@@ -137,6 +137,7 @@ function M.setup()
   state.subscribe('current_mode', on_change)
   state.subscribe('current_model', on_change)
   state.subscribe('active_session', on_change)
+  state.subscribe('is_opencode_focused', on_change)
   M.render()
 end
 
@@ -144,5 +145,6 @@ function M.close()
   state.unsubscribe('current_mode', on_change)
   state.unsubscribe('current_model', on_change)
   state.unsubscribe('active_session', on_change)
+  state.unsubscribe('is_opencode_focused', on_change)
 end
 return M

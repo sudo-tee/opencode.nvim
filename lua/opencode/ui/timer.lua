@@ -48,6 +48,12 @@ function Timer:start()
   end
 end
 
+--- Start the timer and immediately execute the callback
+function Timer:start_and_tick()
+  self:start()
+  self.on_tick(unpack(self.args))
+end
+
 function Timer:stop()
   if not self._uv_timer then
     return

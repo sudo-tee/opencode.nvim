@@ -10,6 +10,7 @@ M.defaults = {
   preferred_completion = nil,
   default_global_keymaps = true,
   default_mode = 'build',
+  legacy_commands = true,
   keymap_prefix = '<leader>o',
   keymap = {
     editor = {
@@ -38,7 +39,7 @@ M.defaults = {
     },
     output_window = {
       ['<esc>'] = { 'close' },
-      ['<C-c>'] = { 'stop' },
+      ['<C-c>'] = { 'cancel' },
       [']]'] = { 'next_message' },
       ['[['] = { 'prev_message' },
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
@@ -51,7 +52,7 @@ M.defaults = {
     input_window = {
       ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
       ['<esc>'] = { 'close' },
-      ['<C-c>'] = { 'stop' },
+      ['<C-c>'] = { 'cancel' },
       ['~'] = { 'mention_file', mode = 'i' },
       ['@'] = { 'mention', mode = 'i' },
       ['/'] = { 'slash_commands', mode = 'i' },

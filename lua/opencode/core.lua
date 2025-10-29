@@ -132,7 +132,7 @@ function M.send_message(prompt, opts)
     end)
     :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-      M.stop()
+      M.cancel()
     end)
 end
 
@@ -165,7 +165,7 @@ function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   opts = opts or {}
 
-  M.stop()
+  M.cancel()
   -- ui.clear_output()
 
   M.open({
@@ -193,7 +193,7 @@ function M.configure_provider()
   end)
 end
 
-function M.stop()
+function M.cancel()
   if state.windows and state.active_session then
     if state.is_running() then
       M._abort_count = M._abort_count + 1

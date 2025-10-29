@@ -3,7 +3,6 @@ local M = {}
 local state = require('opencode.state')
 local config_file = require('opencode.config_file')
 local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
-local icons = require('opencode.ui.icons')
 
 local LABELS = {
   NEW_SESSION_TITLE = 'New session',
@@ -44,41 +43,38 @@ end
 
 local function create_winbar_text(description, model_info, mode_info, show_guard_indicator, win_width)
   -- Calculate how many visible characters we have
-  -- Format: " [GUARD] description padding model_info MODE "
-  -- Where [GUARD] is optional (1 char + 1 space = 2 visible chars)
+  -- Format: " [GUARD ]description padding model_info MODE "
+  -- Where [GUARD ] is optional
 
-  local guard_icon = ''
+  local guard_info = ''
   local guard_visible_width = 0
   if show_guard_indicator then
-    guard_icon = prompt_guard_indicator.get_formatted()
+    guard_info = prompt_guard_indicator.get_formatted()
     guard_visible_width = 2 -- icon + space
   end
-
-  -- Total available width for all content
-  local total_width = win_width
 
   -- Calculate used width: leading space + guard + trailing space + model + mode
   local mode_info_str = get_mode_highlight() .. mode_info .. '%*'
   local mode_visible_width = #mode_info
   local model_visible_width = #model_info
 
-  -- Reserve space: 1 (leading) + guard_visible_width + 1 (space before description) + 1 (space before model) + model + mode
-  local reserved_width = 1 + guard_visible_width + 1 + 1 + model_visible_width + mode_visible_width
+  -- Reserve space: 1 (padding) + guard_visible_width (with padding) + model + 1 (space before mode) + mode + 1 (padding)
+  local reserved_width = 1 + guard_visible_width + model_visible_width + 1 + mode_visible_width + 1
 
   -- Available width for description and padding
-  local available_for_desc = total_width - reserved_width
+  local available_for_desc = win_width - reserved_width
 
   -- Truncate description if needed
   if #description > available_for_desc then
-    description = description:sub(1, math.max(1, available_for_desc - 4)) .. '...'
+    local space_for_desc = available_for_desc - 4 -- -4 for "... "
+    description = description:sub(1, space_for_desc) .. '...'
   end
 
   -- Calculate padding to right-align model and mode
-  local desc_and_padding_width = available_for_desc
-  local padding_width = desc_and_padding_width - #description
+  local padding_width = available_for_desc - #description
   local padding = string.rep(' ', math.max(0, padding_width))
 
-  return string.format(' %s%s%s%s %s', guard_icon, description, padding, model_info, get_mode_highlight() .. mode_info .. '%*')
+  return string.format(' %s %s%s%s %s ', guard_info, description, padding, model_info, mode_info_str)
 end
 
 local function update_winbar_highlights(win_id)

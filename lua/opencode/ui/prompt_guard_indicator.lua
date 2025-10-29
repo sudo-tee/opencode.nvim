@@ -30,7 +30,7 @@ function M.get_formatted()
   end
 
   -- Prompts will be denied - show red indicator
-  local icon = icons.get('status_off')
+  local icon = icons.get('guard_on')
   return string.format('%%#OpencodeGuardDenied#%s%%*', icon)
 end
 

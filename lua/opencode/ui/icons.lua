@@ -25,6 +25,7 @@ local presets = {
     -- statuses
     status_on = '🟢',
     status_off = '⚫',
+    guard_on = '🚫',
     -- borders and misc
     border = '▌',
   },
@@ -49,6 +50,7 @@ local presets = {
     -- statuses
     status_on = ' ',
     status_off = ' ',
+    guard_on = '',
     -- borders and misc
     border = '▌',
   },
@@ -73,6 +75,7 @@ local presets = {
     -- statuses
     status_on = 'ON',
     status_off = 'OFF',
+    guard_on = 'X',
     -- borders and misc
     border = '▌',
   },

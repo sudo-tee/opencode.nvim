@@ -280,6 +280,7 @@ end
 function M._replace_part_in_buffer(part_id, formatted_data)
   local cached = M._render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
+    -- return M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
@@ -536,7 +537,13 @@ function M.on_part_updated(properties, revert_index)
   if is_new_part then
     M._render_state:set_part(part)
   else
-    M._render_state:update_part_data(part)
+    local rendered_part = M._render_state:update_part_data(part)
+    -- NOTE: This isn't the first time we've seen the part but we haven't rendered it previously
+    -- so try and render it this time by setting is_new_part = true (otherwise we'd call
+    -- _replace_message_in_buffer and it wouldn't do anything because the part hasn't been rendered)
+    if not rendered_part or (not rendered_part.line_start and not rendered_part.line_end) then
+      is_new_part = true
+    end
   end
 
   local formatted = formatter.format_part(part, message, is_last_part)

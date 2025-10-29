@@ -114,7 +114,9 @@ local function add_selection_items(ctx)
     create_context_item(
       'Selection' .. (ctx.selections and #ctx.selections > 0 and string.format(' (%d)', #ctx.selections) or ''),
       'selection',
-      context.is_context_enabled('selection')
+      context.is_context_enabled('selection'),
+      ctx.selections and #ctx.selections > 0 and 'Manage your current selections individually'
+        or 'No selections available.'
     ),
   }
 

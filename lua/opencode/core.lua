@@ -48,6 +48,14 @@ function M.open(opts)
   local are_windows_closed = state.windows == nil
 
   if are_windows_closed then
+    -- Check if whether prompting will be allowed
+    local context_module = require('opencode.context')
+    local mentioned_files = context_module.context.mentioned_files or {}
+    local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
+    if not allowed then
+      vim.notify(err_msg or 'Prompts will be denied by prompt_guard', vim.log.levels.WARN)
+    end
+
     state.windows = ui.create_windows()
   end
 
@@ -81,6 +89,16 @@ end
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
+  -- Check if prompt is allowed
+  local context_module = require('opencode.context')
+  local mentioned_files = context_module.context.mentioned_files or {}
+  local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
+
+  if not allowed then
+    vim.notify(err_msg or 'Prompt denied by prompt_guard', vim.log.levels.ERROR)
+    return
+  end
+
   opts = opts or {}
   opts.context = opts.context or config.context
   opts.model = opts.model or state.current_model

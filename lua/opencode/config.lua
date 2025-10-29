@@ -167,6 +167,7 @@ M.defaults = {
     enabled = false,
     capture_streamed_events = false,
   },
+  prompt_guard = nil,
 }
 
 M.values = vim.deepcopy(M.defaults)

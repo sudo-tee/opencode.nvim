@@ -83,8 +83,6 @@ local presets = {
 
 local deprecated_warning_shown = false
 
-local deprecated_warning_shown = false
-
 ---Get icon by key, honoring preset and user overrides
 ---@param key string
 ---@return string

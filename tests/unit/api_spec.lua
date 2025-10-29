@@ -19,7 +19,7 @@ describe('opencode.api', function()
     end)
     stub(core, 'open')
     stub(core, 'run')
-    stub(core, 'stop')
+    stub(core, 'cancel')
     stub(core, 'send_message')
     stub(ui, 'close_windows')
   end)
@@ -31,19 +31,32 @@ describe('opencode.api', function()
   describe('commands table', function()
     it('contains the expected commands with proper structure', function()
       local expected_commands = {
-        'open_input',
-        'open_input_new_session',
-        'open_output',
+        'open',
         'close',
-        'stop',
+        'cancel',
+        'toggle',
+        'toggle_focus',
+        'toggle_pane',
+        'session',
+        'swap',
+        'undo',
+        'redo',
+        'diff',
+        'revert',
+        'restore',
+        'breakpoint',
+        'agent',
+        'models',
         'run',
-        'run_new_session',
+        'run_new',
+        'help',
+        'mcp',
+        'permission',
       }
 
       for _, cmd_name in ipairs(expected_commands) do
         local cmd = api.commands[cmd_name]
         assert.truthy(cmd, 'Command ' .. cmd_name .. ' should exist')
-        assert.truthy(cmd.name, 'Command should have a name')
         assert.truthy(cmd.desc, 'Command should have a description')
         assert.is_function(cmd.fn, 'Command should have a function')
       end
@@ -51,75 +64,51 @@ describe('opencode.api', function()
   end)
 
   describe('setup', function()
-    it('registers all commands', function()
+    it('registers the main Opencode command and legacy commands', function()
       api.setup()
 
-      local expected_count = 0
-      for _ in pairs(api.commands) do
-        expected_count = expected_count + 1
-      end
-
-      assert.equal(expected_count, #created_commands, 'All commands should be registered')
+      local main_cmd_found = false
+      local legacy_cmd_count = 0
 
       for i, cmd in ipairs(created_commands) do
-        local found = false
-        for _, def in pairs(api.commands) do
-          if def.name == cmd.name then
-            found = true
-            assert.equal(def.desc, cmd.opts.desc, 'Command should have correct description')
-            break
-          end
+        if cmd.name == 'Opencode' then
+          main_cmd_found = true
+          assert.equal('Opencode.nvim main command with nested subcommands', cmd.opts.desc)
+        else
+          legacy_cmd_count = legacy_cmd_count + 1
+          assert.truthy(string.match(cmd.opts.desc, 'deprecated'), 'Legacy command should be marked as deprecated')
         end
-        assert.truthy(found, 'Command ' .. cmd.name .. ' should be defined in commands table')
       end
+
+      assert.truthy(main_cmd_found, 'Main Opencode command should be registered')
+      assert.truthy(legacy_cmd_count > 0, 'Legacy commands should be registered')
     end)
 
-    it('sets up command functions that call the correct core functions', function()
-      -- We'll use the real vim.api.nvim_create_user_command implementation to store functions
+    it('sets up legacy command functions that route to main command', function()
       local stored_fns = {}
+      local cmd_stub
+
       vim.api.nvim_create_user_command = function(name, fn, _)
         stored_fns[name] = fn
       end
 
-      -- All core/ui methods are stubbed in before_each; no need for local spies or wrappers
+      cmd_stub = stub(vim, 'cmd')
 
       api.setup()
 
-      -- Test open_input command
       stored_fns['OpencodeOpenInput']()
-      assert.stub(core.open).was_called()
-      assert.stub(core.open).was_called_with({ new_session = false, focus = 'input', start_insert = true })
+      assert.stub(cmd_stub).was_called()
+      assert.stub(cmd_stub).was_called_with('Opencode open input')
 
-      -- Test open_input_new_session command
-      stored_fns['OpencodeOpenInputNewSession']()
-      assert.stub(core.open).was_called()
-      assert.stub(core.open).was_called_with({ new_session = true, focus = 'input', start_insert = true })
-
-      -- Test stop command
+      cmd_stub:clear()
       stored_fns['OpencodeStop']()
-      assert.stub(core.stop).was_called()
+      assert.stub(cmd_stub).was_called_with('Opencode cancel')
 
-      -- Test close command
+      cmd_stub:clear()
       stored_fns['OpencodeClose']()
-      assert.stub(ui.close_windows).was_called()
+      assert.stub(cmd_stub).was_called_with('Opencode close')
 
-      -- Test run command
-      local test_args = { args = 'test prompt' }
-      stored_fns['OpencodeRun'](test_args)
-      assert.stub(core.send_message).was_called()
-      assert.stub(core.send_message).was_called_with('test prompt', {
-        new_session = false,
-        focus = 'output',
-      })
-
-      -- Test run_new_session command
-      test_args = { args = 'test prompt new' }
-      stored_fns['OpencodeRunNewSession'](test_args)
-      assert.stub(core.send_message).was_called()
-      assert.stub(core.send_message).was_called_with('test prompt new', {
-        new_session = true,
-        focus = 'output',
-      })
+      cmd_stub:revert()
     end)
   end)
 

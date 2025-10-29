@@ -62,8 +62,8 @@ function M.configure_provider()
   core.configure_provider()
 end
 
-function M.stop()
-  core.stop()
+function M.cancel()
+  core.cancel()
 end
 
 ---@param prompt string
@@ -348,6 +348,10 @@ function M.initialize()
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
   end
+  if not state.current_model then
+    vim.notify('No model selected', vim.log.levels.ERROR)
+    return
+  end
   local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
   if not providerId or not modelId then
     vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
@@ -430,24 +434,38 @@ function M.help()
   local msg = M.with_header({
     '### Available Commands',
     '',
-    '| Command   | Description         |',
-    '|-----------|---------------------|',
+    'Use `:Opencode <subcommand>` to run commands. Examples:',
+    '',
+    '- `:Opencode open input` - Open the input window',
+    '- `:Opencode session new` - Create a new session',
+    '- `:Opencode diff open` - Open diff view',
+    '',
+    '### Subcommands',
+    '',
+    '| Command      | Description                                           |',
+    '|--------------|-------------------------------------------------------|',
   }, false)
 
   if not state.windows or not state.windows.output_win then
     return
   end
 
-  local max_desc_length = math.floor((vim.api.nvim_win_get_width(state.windows.output_win) / 2) - 5)
+  local max_desc_length = math.floor((vim.api.nvim_win_get_width(state.windows.output_win) / 1.3) - 5)
 
-  for _, def in pairs(M.commands) do
+  local sorted_commands = vim.tbl_keys(M.commands)
+  table.sort(sorted_commands)
+
+  for _, name in ipairs(sorted_commands) do
+    local def = M.commands[name]
     local desc = def.desc or ''
     if #desc > max_desc_length then
       desc = desc:sub(1, max_desc_length - 3) .. '...'
     end
-    table.insert(msg, string.format('| %-10s | %s |', def.name, desc))
+    table.insert(msg, string.format('| %-12s | %-53s |', name, desc))
   end
 
+  table.insert(msg, '')
+  table.insert(msg, 'For slash commands (e.g., /models, /help), type `/` in the input window.')
   table.insert(msg, '')
   ui.render_lines(msg)
 end
@@ -494,6 +512,10 @@ function M.run_user_command(name, args)
   M.open_input()
 
   ui.render_output(true)
+  if not state.active_session then
+    vim.notify('No active session', vim.log.levels.WARN)
+    return
+  end
   state.api_client
     :send_command(state.active_session.id, {
       command = name,
@@ -515,7 +537,16 @@ function M.compact_session(current_session)
     return
   end
 
-  local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+  local current_model = state.current_model
+  if not current_model then
+    vim.notify('No model selected', vim.log.levels.ERROR)
+    return
+  end
+  local providerId, modelId = current_model:match('^(.-)/(.+)$')
+  if not providerId or not modelId then
+    vim.notify('Invalid model format: ' .. tostring(current_model), vim.log.levels.ERROR)
+    return
+  end
   state.api_client
     :summarize_session(current_session.id, {
       providerID = providerId,
@@ -725,467 +756,423 @@ function M.permission_deny()
   M.respond_to_permission('reject')
 end
 
--- Command def/compactinitions that call the API functions
 M.commands = {
-  swap_position = {
-    name = 'OpencodeSwapPosition',
-    desc = 'Swap Opencode pane left/right',
-    fn = function()
-      M.swap_position()
-    end,
-  },
-
-  toggle = {
-    name = 'Opencode',
-    desc = 'Open opencode. Close if opened',
-    fn = function()
-      M.toggle()
-    end,
-  },
-
-  toggle_focus = {
-    name = 'OpencodeToggleFocus',
-    desc = 'Toggle focus between opencode and last window',
-    fn = function()
-      M.toggle_focus()
-    end,
-  },
-
-  open_input = {
-    name = 'OpencodeOpenInput',
-    desc = 'Opens and focuses on input window on insert mode',
-    fn = function()
-      M.open_input()
-    end,
-  },
-
-  open_input_new_session = {
-    name = 'OpencodeOpenInputNewSession',
-    slash_cmd = '/new',
-    desc = 'Opens and focuses on input window on insert mode. Creates a new session',
-    fn = function()
-      M.open_input_new_session()
-    end,
-  },
-
-  open_output = {
-    name = 'OpencodeOpenOutput',
-    desc = 'Opens and focuses on output window',
-    fn = function()
-      M.open_output()
-    end,
-  },
-
-  create_new_session = {
-    name = 'OpencodeCreateNewSession',
-    desc = 'Create a new opencode session',
-    fn = function(opts)
-      local title = opts.args and opts.args:match('^%s*(.+)')
-      if title and title ~= '' then
-        local new_session = core.create_new_session(title)
-        if not new_session then
-          vim.notify('Failed to create new session', vim.log.levels.ERROR)
-          return
-        end
-        state.active_session = new_session
+  open = {
+    desc = 'Open opencode window (input/output)',
+    completions = { 'input', 'output' },
+    fn = function(args)
+      local target = args[1] or 'input'
+      if target == 'input' then
         M.open_input()
+      elseif target == 'output' then
+        M.open_output()
       else
-        vim.notify('Session title cannot be empty', vim.log.levels.ERROR)
+        vim.notify('Invalid target. Use: input or output', vim.log.levels.ERROR)
       end
     end,
-    args = true,
   },
 
   close = {
-    name = 'OpencodeClose',
-    desc = 'Close UI windows',
-    fn = function()
+    desc = 'Close opencode windows',
+    fn = function(args)
       M.close()
     end,
   },
 
-  stop = {
-    name = 'OpencodeStop',
-    desc = 'Stop opencode while it is running',
-    fn = function()
-      M.stop()
-    end,
+  cancel = {
+    desc = 'Cancel running request',
+    fn = M.cancel,
   },
 
-  select_session = {
-    name = 'OpencodeSelectSession',
-    slash_cmd = '/sessions',
-    desc = 'Select and load a opencode session',
-    fn = function()
-      M.select_session()
-    end,
+  toggle = {
+    desc = 'Toggle opencode windows',
+    fn = M.toggle,
   },
 
-  select_child_session = {
-    name = 'OpencodeSelectChildSession',
-    slash_cmd = '/child-sessions',
-    desc = 'Select and load a child session of the current session',
-    fn = function()
-      M.select_child_session()
-    end,
+  toggle_focus = {
+    desc = 'Toggle focus between opencode and code',
+    fn = M.toggle_focus,
   },
 
   toggle_pane = {
-    name = 'OpencodeTogglePane',
-    desc = 'Toggle between input and output panes',
-    fn = function()
-      M.toggle_pane()
+    desc = 'Toggle between input/output panes',
+    fn = M.toggle_pane,
+  },
+
+  swap = {
+    desc = 'Swap pane position left/right',
+    fn = M.swap_position,
+  },
+
+  session = {
+    desc = 'Manage sessions (new/select/child/compact/share/unshare)',
+    completions = { 'new', 'select', 'child', 'compact', 'share', 'unshare', 'agents_init' },
+    fn = function(args)
+      local subcmd = args[1]
+      if subcmd == 'new' then
+        local title = table.concat(vim.list_slice(args, 2), ' ')
+        if title and title ~= '' then
+          local new_session = core.create_new_session(title)
+          if not new_session then
+            vim.notify('Failed to create new session', vim.log.levels.ERROR)
+            return
+          end
+          state.active_session = new_session
+          M.open_input()
+        else
+          M.open_input_new_session()
+        end
+      elseif subcmd == 'select' then
+        M.select_session()
+      elseif subcmd == 'child' then
+        M.select_child_session()
+      elseif subcmd == 'compact' then
+        M.compact_session()
+      elseif subcmd == 'share' then
+        M.share()
+      elseif subcmd == 'unshare' then
+        M.unshare()
+      elseif subcmd == 'agents_init' then
+        M.initialize()
+      else
+        local valid_subcmds = table.concat(M.commands.session.completions, ', ')
+        vim.notify('Invalid session subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
+      end
     end,
   },
 
-  configure_provider = {
-    name = 'OpencodeConfigureProvider',
-    slash_cmd = '/models',
-    desc = 'Quick provider and model switch from predefined list',
-    fn = function()
-      M.configure_provider()
+  undo = {
+    desc = 'Undo last action',
+    fn = M.undo,
+  },
+
+  redo = {
+    desc = 'Redo last action',
+    fn = M.redo,
+  },
+
+  diff = {
+    desc = 'View file diffs (open/next/prev/close)',
+    completions = { 'open', 'next', 'prev', 'close' },
+    fn = function(args)
+      local subcmd = args[1]
+      if not subcmd or subcmd == 'open' then
+        M.diff_open()
+      elseif subcmd == 'next' then
+        M.diff_next()
+      elseif subcmd == 'prev' then
+        M.diff_prev()
+      elseif subcmd == 'close' then
+        M.diff_close()
+      else
+        local valid_subcmds = table.concat(M.commands.diff.completions, ', ')
+        vim.notify('Invalid diff subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
+      end
     end,
+  },
+
+  revert = {
+    desc = 'Revert changes (all/this, prompt/session)',
+    completions = { 'all', 'this' },
+    sub_completions = { 'prompt', 'session' },
+    fn = function(args)
+      local scope = args[1]
+      local target = args[2]
+
+      if scope == 'all' then
+        if target == 'prompt' then
+          M.diff_revert_all_last_prompt()
+        elseif target == 'session' then
+          M.diff_revert_all(nil)
+        elseif target then
+          M.diff_revert_all(target)
+        else
+          vim.notify('Invalid revert target. Use: prompt, session, or <snapshot_id>', vim.log.levels.ERROR)
+        end
+      elseif scope == 'this' then
+        if target == 'prompt' then
+          M.diff_revert_this_last_prompt()
+        elseif target == 'session' then
+          M.diff_revert_this(nil)
+        elseif target then
+          M.diff_revert_this(target)
+        else
+          vim.notify('Invalid revert target. Use: prompt, session, or <snapshot_id>', vim.log.levels.ERROR)
+        end
+      else
+        vim.notify('Invalid revert scope. Use: all or this', vim.log.levels.ERROR)
+      end
+    end,
+  },
+
+  restore = {
+    desc = 'Restore from snapshot (file/all)',
+    completions = { 'file', 'all' },
+    fn = function(args)
+      local scope = args[1]
+      local snapshot_id = args[2]
+
+      if not snapshot_id then
+        vim.notify('Snapshot ID required', vim.log.levels.ERROR)
+        return
+      end
+
+      if scope == 'file' then
+        M.diff_restore_snapshot_file(snapshot_id)
+      elseif scope == 'all' then
+        M.diff_restore_snapshot_all(snapshot_id)
+      else
+        vim.notify('Invalid restore scope. Use: file or all', vim.log.levels.ERROR)
+      end
+    end,
+  },
+
+  breakpoint = {
+    desc = 'Set review breakpoint',
+    fn = M.set_review_breakpoint,
+  },
+
+  agent = {
+    desc = 'Manage agents (plan/build/select)',
+    completions = { 'plan', 'build', 'select' },
+    fn = function(args)
+      local subcmd = args[1]
+      if subcmd == 'plan' then
+        M.agent_plan()
+      elseif subcmd == 'build' then
+        M.agent_build()
+      elseif subcmd == 'select' then
+        M.select_agent()
+      else
+        local valid_subcmds = table.concat(M.commands.agent.completions, ', ')
+        vim.notify('Invalid agent subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
+      end
+    end,
+  },
+
+  models = {
+    desc = 'Switch provider/model',
+    fn = M.configure_provider,
   },
 
   run = {
-    name = 'OpencodeRun',
-    desc = 'Run opencode with a prompt (continue last session)',
-    fn = function(opts)
-      local prompt, rest = opts.args:match('^(.-)%s+(%S+=%S.*)$')
-      prompt = vim.trim(prompt or opts.args)
-      local extra_args = util.parse_dot_args(rest or '')
-      M.run(prompt, extra_args)
-    end,
-    args = true,
-  },
-
-  run_new_session = {
-    name = 'OpencodeRunNewSession',
-    desc = 'Run opencode with a prompt (new session)',
-    fn = function(opts)
-      local prompt, rest = opts.args:match('^(.-)%s+(%S+=%S.*)$')
-      prompt = vim.trim(prompt or opts.args)
-      local extra_args = util.parse_dot_args(rest or '')
-      M.run_new_session(prompt, extra_args)
-    end,
-    args = true,
-  },
-
-  diff_open = {
-    name = 'OpencodeDiff',
-    desc = 'Opens a diff tab of a modified file since the last opencode prompt',
-    fn = function()
-      M.diff_open()
-    end,
-  },
-
-  diff_next = {
-    name = 'OpencodeDiffNext',
-    desc = 'Navigate to next file diff',
-    fn = function()
-      M.diff_next()
-    end,
-  },
-
-  diff_prev = {
-    name = 'OpencodeDiffPrev',
-    desc = 'Navigate to previous file diff',
-    fn = function()
-      M.diff_prev()
-    end,
-  },
-
-  diff_close = {
-    name = 'OpencodeDiffClose',
-    desc = 'Close diff view tab and return to normal editing',
-    fn = function()
-      M.diff_close()
-    end,
-  },
-
-  diff_revert_all_last_prompt = {
-    name = 'OpencodeRevertAllLastPrompt',
-    desc = 'Revert all file changes since the last opencode prompt',
-    fn = function()
-      M.diff_revert_all_last_prompt()
-    end,
-  },
-
-  diff_revert_this_last_prompt = {
-    name = 'OpencodeRevertThisLastPrompt',
-    desc = 'Revert current file changes since the last opencode prompt',
-    fn = function()
-      M.diff_revert_this_last_prompt()
-    end,
-  },
-
-  diff_revert_all_session = {
-    name = 'OpencodeRevertAllSession',
-    desc = 'Revert all file changes since the last session',
-    fn = function()
-      M.diff_revert_all_session()
-    end,
-  },
-
-  diff_revert_this_session = {
-    name = 'OpencodeRevertThisSession',
-    desc = 'Revert current file changes since the last session',
-    fn = function()
-      M.diff_revert_this_session()
-    end,
-  },
-
-  diff_revert_all_to_snapshot = {
-    name = 'OpencodeRevertAllToSnapshot',
-    desc = 'Revert all file changes to a specific snapshot',
-    fn = function(snapshot)
-      if not snapshot then
-        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+    desc = 'Run prompt in current session',
+    fn = function(args)
+      local prompt = table.concat(args, ' ')
+      if prompt == '' then
+        vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.diff_revert_all(snapshot)
+      M.run(prompt)
     end,
-    args = true,
   },
 
-  diff_revert_this_to_snapshot = {
-    name = 'OpencodeRevertThisToSnapshot',
-    desc = 'Revert all file changes to a specific snapshot',
-    fn = function(snapshot)
-      if not snapshot then
-        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+  run_new = {
+    desc = 'Run prompt in new session',
+    fn = function(args)
+      local prompt = table.concat(args, ' ')
+      if prompt == '' then
+        vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.diff_revert_this(snapshot)
+      M.run_new_session(prompt)
     end,
-    args = true,
   },
 
-  diff_restore_snapshot_file = {
-    name = 'OpencodeRestoreSnapshotFile',
-    desc = 'Restore a file to a specific restore point',
-    fn = function(snapshot)
-      if not snapshot then
-        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
+  command = {
+    desc = 'Run user-defined command',
+    fn = function(args)
+      local name = args[1]
+      if not name or name == '' then
+        vim.notify('Command name required', vim.log.levels.ERROR)
         return
       end
-      M.diff_restore_snapshot_file(snapshot)
-    end,
-    args = true,
-  },
-
-  diff_restore_snapshot_all = {
-    name = 'OpencodeRestoreSnapshotAll',
-    desc = 'Restore all files to a specific restore point',
-    fn = function(snapshot)
-      if not snapshot then
-        vim.notify('Snapshot ID is required', vim.log.levels.ERROR)
-        return
-      end
-      M.diff_restore_snapshot_all(snapshot)
-    end,
-    args = true,
-  },
-
-  set_review_breakpoint = {
-    name = 'OpencodeSetReviewBreakpoint',
-    desc = 'Set a review breakpoint to track changes',
-    fn = function()
-      M.set_review_breakpoint()
-    end,
-  },
-
-  init = {
-    name = 'OpencodeInit',
-    slash_cmd = '/init',
-    desc = 'Initialize/Update AGENTS.md file',
-    fn = function()
-      M.initialize()
+      M.run_user_command(name, vim.list_slice(args, 2))
     end,
   },
 
   help = {
-    name = 'OpencodeHelp',
-    slash_cmd = '/help',
-    desc = 'Display help message',
-    fn = function()
-      M.help()
-    end,
+    desc = 'Show this help message',
+    fn = M.help,
   },
 
   mcp = {
-    name = 'OpencodeMCP',
-    slash_cmd = '/mcp',
-    desc = 'Display list of mcp servers',
-    fn = function()
-      M.mcp()
-    end,
+    desc = 'Show MCP server configuration',
+    fn = M.mcp,
   },
 
-  opencode_mode_plan = {
-    name = 'OpencodeAgentPlan',
-    desc = 'Set opencode agent to `plan`. (Tool calling disabled. No editor context besides selections)',
-    fn = function()
-      M.agent_plan()
-    end,
-  },
-
-  opencode_mode_build = {
-    name = 'OpencodeAgentBuild',
-    desc = 'Set opencode agent to `build`. (Default with full agent capabilities)',
-    fn = function()
-      M.agent_build()
-    end,
-  },
-
-  open_code_select_mode = {
-    name = 'OpencodeAgentSelect',
-    slash_cmd = '/agent',
-    desc = 'Select opencode agent',
-    fn = function()
-      M.select_agent()
-    end,
-  },
-
-  run_user_command = {
-    name = 'OpencodeRunUserCommand',
-    desc = 'Run a user-defined Opencode command by name',
-    fn = function(opts)
-      local parts = vim.split(opts.args or '', '%s+')
-      local name = parts[1]
-      if not name or name == '' then
-        vim.notify('User command name required. Usage: :OpencodeRunUserCommand <name>', vim.log.levels.ERROR)
-        return
+  permission = {
+    desc = 'Respond to permissions (accept/accept_all/deny)',
+    completions = { 'accept', 'accept_all', 'deny' },
+    fn = function(args)
+      local subcmd = args[1]
+      if subcmd == 'accept' then
+        M.permission_accept()
+      elseif subcmd == 'accept_all' then
+        M.permission_accept_all()
+      elseif subcmd == 'deny' then
+        M.permission_deny()
+      else
+        local valid_subcmds = table.concat(M.commands.permission.completions, ', ')
+        vim.notify('Invalid permission subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
-      M.run_user_command(name, vim.list_slice(parts, 2))
-    end,
-    args = true,
-  },
-
-  compact_session = {
-    name = 'OpencodeCompactSession',
-    desc = 'Compacts the current session by removing unnecessary data',
-    fn = function()
-      if not state.active_session then
-        vim.notify('No active session to compact', vim.log.levels.WARN)
-        return
-      end
-      M.compact_session(state.active_session)
-    end,
-    slash_cmd = '/compact',
-  },
-
-  share_session = {
-    name = 'OpencodeShareSession',
-    desc = 'Share the current session and get a shareable link',
-    fn = function()
-      if not state.active_session then
-        vim.notify('No active session to share', vim.log.levels.WARN)
-        return
-      end
-      M.share()
-    end,
-    slash_cmd = '/share',
-  },
-
-  unshare_session = {
-    name = 'OpencodeUnshareSession',
-    desc = 'Unshare the current session, disabling the shareable link',
-    fn = function()
-      if not state.active_session then
-        vim.notify('No active session to unshare', vim.log.levels.WARN)
-        return
-      end
-      M.unshare()
-    end,
-    slash_cmd = '/unshare',
-  },
-
-  undo = {
-    name = 'OpencodeUndo',
-    desc = 'Undo last opencode action',
-    fn = function()
-      if not state.active_session then
-        vim.notify('No active session to undo', vim.log.levels.WARN)
-        return
-      end
-      M.undo()
-    end,
-    slash_cmd = '/undo',
-  },
-
-  redo = {
-    name = 'OpencodeRedo',
-    desc = 'Redo last opencode action',
-    fn = function()
-      if not state.active_session then
-        vim.notify('No active session to undo', vim.log.levels.WARN)
-        return
-      end
-      M.redo()
-    end,
-    slash_cmd = '/redo',
-  },
-
-  permission_accept = {
-    name = 'OpencodePermissionAccept',
-    desc = 'Accept current permission request',
-    fn = function()
-      M.respond_to_permission('once')
-    end,
-  },
-
-  permission_accept_all = {
-    name = 'OpencodePermissionAcceptAll',
-    desc = 'Accept all permission requests',
-    fn = function()
-      M.respond_to_permission('always')
-    end,
-  },
-
-  permission_deny = {
-    name = 'OpencodePermissionDeny',
-    desc = 'Deny current permission request',
-    fn = function()
-      M.respond_to_permission('reject')
     end,
   },
 }
 
----@return OpencodeSlashCommand[]
-function M.get_slash_commands()
-  local commands = vim.tbl_filter(function(cmd)
-    return cmd.slash_cmd and cmd.slash_cmd ~= '' or false
-  end, M.commands) --[[@as OpencodeSlashCommand[] ]]
+M.slash_commands_map = {
+  ['/help'] = { fn = M.help, desc = 'Show help message' },
+  ['/agent'] = { fn = M.select_agent, desc = 'Select agent mode' },
+  ['/agents_init'] = { fn = M.initialize, desc = 'Initialize AGENTS.md session' },
+  ['/child-sessions'] = { fn = M.select_child_session, desc = 'Select child session' },
+  ['/compact'] = { fn = M.compact_session, desc = 'Compact current session' },
+  ['/mcp'] = { fn = M.mcp, desc = 'Show MCP server configuration' },
+  ['/models'] = { fn = M.configure_provider, desc = 'Switch provider/model' },
+  ['/new'] = { fn = M.open_input_new_session, desc = 'Create new session' },
+  ['/redo'] = { fn = M.redo, desc = 'Redo last action' },
+  ['/sessions'] = { fn = M.select_session, desc = 'Select session' },
+  ['/share'] = { fn = M.share, desc = 'Share current session' },
+  ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
+  ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
+}
 
-  local user_commands = require('opencode.config_file').get_user_commands()
-  if user_commands then
-    for name, cfg in pairs(user_commands) do
-      table.insert(commands, {
-        slash_cmd = '/' .. name,
-        desc = 'Run user command: ' .. name,
-        args = cfg.template and cfg.template:match('$ARGUMENTS') ~= nil,
-        fn = function(args)
-          M.run_user_command(name, args)
-        end,
-      })
-    end
+M.legacy_command_map = {
+  OpencodeSwapPosition = 'swap',
+  OpencodeToggleFocus = 'toggle_focus',
+  OpencodeOpenInput = 'open input',
+  OpencodeOpenInputNewSession = 'session new',
+  OpencodeOpenOutput = 'open output',
+  OpencodeCreateNewSession = 'session new',
+  OpencodeClose = 'close',
+  OpencodeStop = 'cancel',
+  OpencodeSelectSession = 'session select',
+  OpencodeSelectChildSession = 'session child',
+  OpencodeTogglePane = 'toggle_pane',
+  OpencodeConfigureProvider = 'models',
+  OpencodeRun = 'run',
+  OpencodeRunNewSession = 'run_new',
+  OpencodeDiff = 'diff open',
+  OpencodeDiffNext = 'diff next',
+  OpencodeDiffPrev = 'diff prev',
+  OpencodeDiffClose = 'diff close',
+  OpencodeRevertAllLastPrompt = 'revert all prompt',
+  OpencodeRevertThisLastPrompt = 'revert this prompt',
+  OpencodeRevertAllSession = 'revert all session',
+  OpencodeRevertThisSession = 'revert this session',
+  OpencodeRevertAllToSnapshot = 'revert all',
+  OpencodeRevertThisToSnapshot = 'revert this',
+  OpencodeRestoreSnapshotFile = 'restore file',
+  OpencodeRestoreSnapshotAll = 'restore all',
+  OpencodeSetReviewBreakpoint = 'breakpoint',
+  OpencodeInit = 'session agents_init',
+  OpencodeHelp = 'help',
+  OpencodeMCP = 'mcp',
+  OpencodeAgentPlan = 'agent plan',
+  OpencodeAgentBuild = 'agent build',
+  OpencodeAgentSelect = 'agent select',
+  OpencodeRunUserCommand = 'command',
+  OpencodeCompactSession = 'session compact',
+  OpencodeShareSession = 'session share',
+  OpencodeUnshareSession = 'session unshare',
+  OpencodeUndo = 'undo',
+  OpencodeRedo = 'redo',
+  OpencodePermissionAccept = 'permission accept',
+  OpencodePermissionAcceptAll = 'permission accept_all',
+  OpencodePermissionDeny = 'permission deny',
+}
+
+function M.route_command(opts)
+  local args = vim.split(opts.args or '', '%s+', { trimempty = true })
+
+  if #args == 0 then
+    M.toggle()
+    return
   end
 
-  table.sort(commands, function(a, b)
-    return a.slash_cmd < b.slash_cmd
-  end)
+  local subcommand = args[1]
+  local subcmd_def = M.commands[subcommand]
 
-  return commands
+  if subcmd_def and subcmd_def.fn then
+    subcmd_def.fn(vim.list_slice(args, 2))
+  else
+    vim.notify('Unknown subcommand: ' .. subcommand, vim.log.levels.ERROR)
+  end
+end
+
+function M.complete_command(arg_lead, cmd_line, cursor_pos)
+  local parts = vim.split(cmd_line, '%s+', { trimempty = false })
+  local num_parts = #parts
+
+  if num_parts <= 2 then
+    local subcommands = vim.tbl_keys(M.commands)
+    table.sort(subcommands)
+    return vim.tbl_filter(function(cmd)
+      return vim.startswith(cmd, arg_lead)
+    end, subcommands)
+  end
+
+  local subcommand = parts[2]
+  local subcmd_def = M.commands[subcommand]
+
+  if not subcmd_def then
+    return {}
+  end
+
+  if num_parts <= 3 and subcmd_def.completions then
+    return vim.tbl_filter(function(opt)
+      return vim.startswith(opt, arg_lead)
+    end, subcmd_def.completions)
+  end
+
+  if num_parts <= 4 and subcmd_def.sub_completions then
+    return vim.tbl_filter(function(opt)
+      return vim.startswith(opt, arg_lead)
+    end, subcmd_def.sub_completions)
+  end
+
+  return {}
+end
+
+function M.setup_legacy_commands()
+  local config = require('opencode.config')
+  if not config.legacy_commands then
+    return
+  end
+
+  for legacy_name, new_route in pairs(M.legacy_command_map) do
+    vim.api.nvim_create_user_command(legacy_name, function(opts)
+      vim.notify(
+        string.format(':%s is deprecated. Use `:Opencode %s` instead', legacy_name, new_route),
+        vim.log.levels.WARN
+      )
+      vim.cmd('Opencode ' .. new_route)
+    end, {
+      desc = 'deprecated',
+      nargs = '*',
+    })
+  end
+end
+
+function M.get_slash_commands()
+  local result = {}
+  for slash_cmd, def in pairs(M.slash_commands_map) do
+    table.insert(result, {
+      slash_cmd = slash_cmd,
+      desc = def.desc,
+      fn = def.fn,
+    })
+  end
+  return result
 end
 
 function M.setup()
-  for _, cmd in pairs(M.commands) do
-    vim.api.nvim_create_user_command(cmd.name, cmd.fn, {
-      desc = cmd.desc,
-      nargs = cmd.args and '+' or 0,
-    })
-  end
+  vim.api.nvim_create_user_command('Opencode', M.route_command, {
+    desc = 'Opencode.nvim main command with nested subcommands',
+    nargs = '*',
+    complete = M.complete_command,
+  })
+
+  M.setup_legacy_commands()
 end
 
 return M

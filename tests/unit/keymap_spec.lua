@@ -343,7 +343,7 @@ describe('opencode.keymap', function()
     it('falls back to API description when no custom desc provided', function()
       local test_keymap = {
         editor = {
-          ['<leader>test'] = { 'open_input' }, -- No custom desc
+          ['<leader>test'] = { 'toggle' },
         },
       }
 
@@ -351,9 +351,9 @@ describe('opencode.keymap', function()
 
       assert.equal(1, #set_keymaps, 'Should set up 1 keymap')
 
-      -- The API description should be used (assuming open_input has a description in the API)
       local keymap_entry = set_keymaps[1]
       assert.is_not_nil(keymap_entry.opts.desc, 'Should have a description from API fallback')
+      assert.equal('Toggle opencode windows', keymap_entry.opts.desc)
     end)
   end)
 
@@ -423,9 +423,7 @@ describe('opencode.keymap', function()
     end)
   end)
 
-
-
-  describe('setup_permisson_keymap', function()
+  describe('setup_permission_keymap', function()
     it('sets up permission keymaps when there is a current permission', function()
       local state = require('opencode.state')
       state.current_permission = { id = 'test' }

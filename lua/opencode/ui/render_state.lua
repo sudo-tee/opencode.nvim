@@ -243,16 +243,18 @@ end
 
 ---Update part data reference
 ---@param part_ref OpencodeMessagePart New part reference (must include id)
+---@return RenderedPart? part The rendered part
 function RenderState:update_part_data(part_ref)
   if not part_ref or not part_ref.id then
     return
   end
-  local part_data = self._parts[part_ref.id]
-  if not part_data then
+  local rendered_part = self._parts[part_ref.id]
+  if not rendered_part then
     return
   end
 
-  part_data.part = part_ref
+  rendered_part.part = part_ref
+  return rendered_part
 end
 
 ---Helper to update action line numbers

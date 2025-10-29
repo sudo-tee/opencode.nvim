@@ -3,6 +3,7 @@ local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 local assert = require('luassert')
+local config = require('opencode.config')
 
 local function assert_output_matches(expected, actual, name)
   local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
@@ -120,19 +121,29 @@ describe('renderer', function()
       local expected_path = 'tests/data/' .. name .. '.expected.json'
 
       if vim.fn.filereadable(expected_path) == 1 then
-        it('replays ' .. name .. ' correctly (event-by-event)', function()
-          local events = helpers.load_test_data(filepath)
-          state.active_session = helpers.get_session_from_events(events)
-          local expected = helpers.load_test_data(expected_path)
+        for i = 1, 2 do
+          config.ui.output.rendering.event_collapsing = i == 1 and true or false
+          it(
+            'replays '
+              .. name
+              .. ' correctly (event-by-event, '
+              .. (config.ui.output.rendering.event_collapsing and 'collapsing' or 'no collapsing')
+              .. ')',
+            function()
+              local events = helpers.load_test_data(filepath)
+              state.active_session = helpers.get_session_from_events(events)
+              local expected = helpers.load_test_data(expected_path)
 
-          helpers.replay_events(events)
-          vim.wait(1000, function()
-            return vim.tbl_isempty(state.event_manager.throttling_emitter.queue)
-          end)
+              helpers.replay_events(events)
+              vim.wait(1000, function()
+                return vim.tbl_isempty(state.event_manager.throttling_emitter.queue)
+              end)
 
-          local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
-          assert_output_matches(expected, actual, name)
-        end)
+              local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
+              assert_output_matches(expected, actual, name)
+            end
+          )
+        end
 
         if not vim.tbl_contains(skip_full_session, name) then
           it('replays ' .. name .. ' correctly (session)', function()

@@ -77,7 +77,7 @@ local function create_winbar_segments()
     table.insert(segments, {
       icon = icons.get('file'),
       text = '(' .. attached_count .. ')',
-      highlight = 'OpencodeContext',
+      highlight = 'OpencodeContextFile',
     })
   end
 

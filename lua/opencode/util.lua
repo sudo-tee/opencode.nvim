@@ -372,6 +372,7 @@ function M.get_markdown_filetype(filename)
     typescriptreact = 'tsx',
     sh = 'bash',
     yaml = 'yml',
+    text = 'txt', -- nvim 0.12-nightly returns text as the type which breaks our unit tests
   }
 
   local file_type = vim.filetype.match({ filename = filename }) or ''

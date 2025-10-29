@@ -146,7 +146,6 @@ end
 function M.sanitize_lines(lines)
   local stripped_lines = {}
   for _, line in pairs(lines) do
-    -- vim.notify(line)
     table.insert(stripped_lines, M.strip_ansi(line))
   end
 

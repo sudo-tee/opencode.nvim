@@ -627,9 +627,10 @@ end
 ---@param language string
 function M._format_code(output, lines, language)
   output:add_empty_line()
-  output:add_line('```' .. (language or ''))
+  --- NOTE: use longer code fence because lines could contain ```
+  output:add_line('`````' .. (language or ''))
   output:add_lines(util.sanitize_lines(lines))
-  output:add_line('```')
+  output:add_line('`````')
 end
 
 ---@param output Output Output object to write to
@@ -637,14 +638,15 @@ end
 ---@param file_type string
 function M._format_diff(output, code, file_type)
   output:add_empty_line()
-  output:add_line('```' .. file_type)
+
+  --- NOTE: use longer code fence because code could contain ```
+  output:add_line('`````' .. file_type)
   local lines = vim.split(code, '\n')
   if #lines > 5 then
     lines = vim.list_slice(lines, 6)
   end
 
   for _, line in ipairs(lines) do
-    line = util.replace_markdown_codefences(line)
     local first_char = line:sub(1, 1)
     if first_char == '+' or first_char == '-' then
       local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
@@ -669,7 +671,7 @@ function M._format_diff(output, code, file_type)
       output:add_line(line)
     end
   end
-  output:add_line('```')
+  output:add_line('`````')
 end
 
 ---@param output Output Output object to write to

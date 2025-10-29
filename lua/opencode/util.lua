@@ -140,13 +140,6 @@ function M.strip_ansi(str)
   return (str:gsub('\27%[[%d;]*m', ''))
 end
 
----Replace markdown codeblock markers with ` ` `
----@param str string: Input string
----@return string replaced_str
-function M.replace_markdown_codefences(str)
-  return (str:gsub('```', '` ` `'))
-end
-
 ---Strip ANSI escape sequences from all lines
 ---@param lines table
 ---@return table stripped_lines
@@ -154,7 +147,7 @@ function M.sanitize_lines(lines)
   local stripped_lines = {}
   for _, line in pairs(lines) do
     -- vim.notify(line)
-    table.insert(stripped_lines, M.replace_markdown_codefences(M.strip_ansi(line)))
+    table.insert(stripped_lines, M.strip_ansi(line))
   end
 
   return stripped_lines

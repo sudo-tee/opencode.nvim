@@ -427,6 +427,14 @@ The following editor context is automatically captured and included in your conv
 You can reference files in your project directly in your conversations with Opencode. This is useful when you want to ask about or provide context about specific files. Type `@` in the input window to trigger the file picker.
 Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`telescope`](https://github.com/nvim-telescope/telescope.nvim), [`mini.pick`](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-pick.md), [`snacks`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
+### Context bar
+
+You can quiclkly see the current context items in the context bar at the top of the input window:
+
+<div align="center">
+  <img src="https://i.imgur.com/c5ze2Fr.png" alt="Opencode.nvim context bar" width="90%" />
+</div>
+
 ### Context Items Completion
 
 You can quickly reference available context items by typing `#` in the input window. This will show a completion menu with all available context items:
@@ -436,8 +444,16 @@ You can quickly reference available context items by typing `#` in the input win
 - **Diagnostics** - LSP diagnostics from the current file
 - **Cursor Data** - Current cursor position and line content
 - **[filename]** - Files that have been mentioned in the conversation
+- **Agents** - Available agents to switch to
+- **Selections** - Previously made selections in visual mode
 
 Context items that are not currently available will be shown as disabled in the completion menu.
+
+You should also see the list of files agents and selections in the menu, selecting them in the menu will remove them from the context.
+
+<div align="center">
+  <img src="https://i.imgur.com/Be89SG7.png" alt="Opencode.nvim context items completion" width="90%" />
+</div>
 
 ## 🔄 Agents
 

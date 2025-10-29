@@ -269,14 +269,14 @@ end
 
 ---@param selection OpencodeContextSelection
 local function format_selection_part(selection)
-  local lang = selection.file and selection.file.extension or ''
+  local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
 
   return {
     type = 'text',
     text = vim.json.encode({
       context_type = 'selection',
       file = selection.file,
-      content = string.format('```%s\n%s\n```', lang, selection.content),
+      content = string.format('`````%s\n%s\n`````', lang, selection.content),
       lines = selection.lines,
     }),
     synthetic = true,

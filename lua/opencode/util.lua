@@ -361,4 +361,30 @@ function M.parse_dot_args(args_str)
   return result
 end
 
+--- Get the markdown type to use based on the filename. First gets the neovim type
+--- for the file. Then apply any specific overrides. Falls back to using the file
+--- extension if nothing else matches
+--- @param filename string filename, possibly including path
+--- @return string markdown_filetype
+function M.get_markdown_filetype(filename)
+  local file_type_overrides = {
+    javascriptreact = 'jsx',
+    typescriptreact = 'tsx',
+    sh = 'bash',
+    yaml = 'yml',
+  }
+
+  local file_type = vim.filetype.match({ filename = filename }) or ''
+
+  if file_type_overrides[file_type] then
+    return file_type_overrides[file_type]
+  end
+
+  if file_type and file_type ~= '' then
+    return file_type
+  end
+
+  return vim.fn.fnamemodify(filename, ':e')
+end
+
 return M

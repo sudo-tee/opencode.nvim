@@ -1,4 +1,3 @@
-local icons = require('lua.opencode.ui.icons')
 local M = {}
 
 local function get_available_commands()
@@ -25,6 +24,7 @@ local command_source = {
   name = 'commands',
   priority = 1,
   complete = function(context)
+    local icons = require('opencode.ui.icons')
     if not context.line:match('^' .. vim.pesc(context.trigger_char) .. '[^%s/]*$') then
       return {}
     end

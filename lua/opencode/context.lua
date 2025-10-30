@@ -259,7 +259,7 @@ function M.get_current_cursor_data(buf, win)
 
   local cursor_pos = vim.fn.getcurpos(win)
   local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, cursor_pos[2] - 1, cursor_pos[2], false)[1] or '')
-  return { line = cursor_pos[2], col = cursor_pos[3], line_content = cursor_content }
+  return { line = cursor_pos[2], column = cursor_pos[3], line_content = cursor_content }
 end
 
 function M.get_current_selection()
@@ -345,13 +345,15 @@ local function format_diagnostics_part(diagnostics)
 end
 
 local function format_cursor_data_part(cursor_data)
+  local buf = (M.get_current_buf() or 0) --[[@as integer]]
+  local lang = util.get_markdown_filetype(vim.api.nvim_buf_get_name(buf)) or ''
   return {
     type = 'text',
     text = vim.json.encode({
       context_type = 'cursor-data',
       line = cursor_data.line,
       column = cursor_data.column,
-      line_content = cursor_data.line_content,
+      line_content = string.format('`````%s\n%s\n`````', lang, cursor_data.line_content),
     }),
     synthetic = true,
   }

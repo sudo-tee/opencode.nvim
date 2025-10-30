@@ -15,12 +15,16 @@ function M.setup(completion_sources)
     local config = require('opencode.config')
     local mention_key = config.get_key_for_function('input_window', 'mention')
     local slash_key = config.get_key_for_function('input_window', 'slash_commands')
+    local context_key = config.get_key_for_function('input_window', 'context_items')
     local triggers = {}
     if mention_key then
       table.insert(triggers, mention_key)
     end
     if slash_key then
       table.insert(triggers, slash_key)
+    end
+    if context_key then
+      table.insert(triggers, context_key)
     end
     return triggers
   end
@@ -55,14 +59,20 @@ function M.setup(completion_sources)
       for j, item in ipairs(source_items) do
         table.insert(items, {
           label = item.label,
-          kind = item.kind,
+          kind = 1,
           cmp = {
             kind_text = item.kind_icon,
           },
           detail = item.detail,
           documentation = item.documentation,
-          insertText = item.insert_text or item.label,
-          sortText = string.format('%02d_%02d_%02d_%s', completion_source.priority or 999, item.priority or 999, j, item.label),
+          insertText = item.insert_text or '',
+          sortText = string.format(
+            '%02d_%02d_%02d_%s',
+            completion_source.priority or 999,
+            item.priority or 999,
+            j,
+            item.label
+          ),
           data = {
             original_item = item,
           },

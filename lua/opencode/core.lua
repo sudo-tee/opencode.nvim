@@ -94,7 +94,6 @@ end
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
-  -- Check if prompt is allowed
   local mentioned_files = context.context.mentioned_files or {}
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 
@@ -121,8 +120,9 @@ function M.send_message(prompt, opts)
     state.current_mode = opts.agent
   end
 
-  params.parts = context.format_message(prompt, opts.context)
   state.current_context_config = opts.context
+  context.load()
+  params.parts = context.format_message(prompt, opts.context)
 
   M.before_run(opts)
 
@@ -171,7 +171,6 @@ end
 function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   opts = opts or {}
-
 
   M.open({
     new_session = is_new_session,

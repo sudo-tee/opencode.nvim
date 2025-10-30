@@ -59,7 +59,7 @@ function Source:get_completions(ctx, callback)
     for i, item in ipairs(source_items) do
       table.insert(items, {
         label = item.label,
-        kind = item.kind == 'file' and 17 or item.kind == 'folder' and 19 or 1, -- 17: File, 19: Folder, 1: Text
+        kind = item.kind,
         kind_icon = item.kind_icon,
         detail = item.detail,
         documentation = item.documentation,

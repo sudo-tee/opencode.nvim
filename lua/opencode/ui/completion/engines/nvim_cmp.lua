@@ -55,9 +55,7 @@ function M.setup(completion_sources)
       for j, item in ipairs(source_items) do
         table.insert(items, {
           label = item.label,
-          kind = item.kind == 'file' and cmp.lsp.CompletionItemKind.File
-            or item.kind == 'folder' and cmp.lsp.CompletionItemKind.Folder
-            or cmp.lsp.CompletionItemKind.Text,
+          kind = item.kind,
           cmp = {
             kind_text = item.kind_icon,
           },

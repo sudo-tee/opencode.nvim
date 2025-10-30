@@ -122,7 +122,6 @@ local function snacks_picker_ui(callback, path)
       end
     end,
     on_close = function(obj)
-      vim.notify(vim.inspect(obj))
       -- snacks doesn't seem to restore window / mode / cursor position when you
       -- cancel the picker. if we pick a file, we're already handling that case elsewhere
       if confirmed or not vim.api.nvim_win_is_valid(origin_win) then

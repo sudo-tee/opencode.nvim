@@ -347,7 +347,12 @@ end
 local function format_cursor_data_part(cursor_data)
   return {
     type = 'text',
-    text = vim.json.encode({ context_type = 'cursor-data', line = cursor_data.line, column = cursor_data.column }),
+    text = vim.json.encode({
+      context_type = 'cursor-data',
+      line = cursor_data.line,
+      column = cursor_data.column,
+      line_content = cursor_data.line_content,
+    }),
     synthetic = true,
   }
 end

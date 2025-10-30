@@ -22,6 +22,7 @@ local presets = {
     snapshot = '󰻛 ',
     restore_point = '󱗚 ',
     file = ' ',
+    folder = ' ',
     attached_file = '󰌷 ',
     agent = '󰚩 ',
     -- statuses
@@ -37,6 +38,7 @@ local presets = {
     warning = ' ',
     info = ' ',
     selection = '󰫙 ',
+    command = ' ',
   },
   text = {
     -- headers
@@ -56,6 +58,7 @@ local presets = {
     snapshot = '::',
     restore_point = '::',
     file = '@',
+    folder = '[@]',
     attached_file = '@',
     agent = '@',
     -- statuses
@@ -71,6 +74,7 @@ local presets = {
     warning = '[W]',
     info = '[I] ',
     selection = "'<'> ",
+    command = '::',
   },
 }
 

@@ -1,4 +1,5 @@
 local config = require('opencode.config')
+local icons = require('opencode.ui.icons')
 local M = {}
 
 local last_successful_tool = nil
@@ -95,6 +96,7 @@ local function create_file_item(file, suffix)
   return {
     label = display_label .. (suffix or ''),
     kind = kind,
+    kind_icon = icons.get(kind),
     detail = detail,
     documentation = 'Path: ' .. detail,
     insert_text = file_path,

@@ -415,4 +415,9 @@ function M.get_markdown_filetype(filename)
   return vim.fn.fnamemodify(filename, ':e')
 end
 
+function M.strdisplaywidth(str)
+  local str = str:gsub('%%#.-#', ''):gsub('%%[%*]', '')
+  return vim.fn.strdisplaywidth(str)
+end
+
 return M

@@ -1,3 +1,5 @@
+local util = require('opencode.util')
+
 local M = {}
 
 local state = require('opencode.state')
@@ -42,39 +44,26 @@ local function get_mode_highlight()
 end
 
 local function create_winbar_text(description, model_info, mode_info, show_guard_indicator, win_width)
-  -- Calculate how many visible characters we have
-  -- Format: " [GUARD ]description padding model_info MODE "
-  -- Where [GUARD ] is optional
+  local left_content = ''
+  local right_content = ''
 
-  local guard_info = ''
-  local guard_visible_width = 0
   if show_guard_indicator then
-    guard_info = prompt_guard_indicator.get_formatted()
-    guard_visible_width = 2 -- icon + space
+    left_content = left_content .. prompt_guard_indicator.get_formatted() .. ' '
   end
 
-  -- Calculate used width: leading space + guard + trailing space + model + mode
-  local mode_info_str = get_mode_highlight() .. mode_info .. '%*'
-  local mode_visible_width = #mode_info
-  local model_visible_width = #model_info
+  right_content = model_info .. ' ' .. get_mode_highlight() .. mode_info .. '%*'
 
-  -- Reserve space: 1 (padding) + guard_visible_width (with padding) + model + 1 (space before mode) + mode + 1 (padding)
-  local reserved_width = 1 + guard_visible_width + model_visible_width + 1 + mode_visible_width + 1
+  local desc_width = win_width - util.strdisplaywidth(left_content) - util.strdisplaywidth(right_content)
 
-  -- Available width for description and padding
-  local available_for_desc = win_width - reserved_width
-
-  -- Truncate description if needed
-  if #description > available_for_desc then
-    local space_for_desc = available_for_desc - 4 -- -4 for "... "
-    description = description:sub(1, space_for_desc) .. '...'
+  local desc_formatted
+  if #description >= desc_width then
+    local ellipsis = '... '
+    desc_formatted = description:sub(1, desc_width - #ellipsis) .. ellipsis
+  else
+    desc_formatted = description .. string.rep(' ', math.floor(desc_width - #description))
   end
 
-  -- Calculate padding to right-align model and mode
-  local padding_width = available_for_desc - #description
-  local padding = string.rep(' ', math.max(0, padding_width))
-
-  return string.format(' %s %s%s%s %s ', guard_info, description, padding, model_info, mode_info_str)
+  return left_content .. desc_formatted .. right_content
 end
 
 local function update_winbar_highlights(win_id)
@@ -122,8 +111,13 @@ function M.render()
     vim.wo[win].winbar = ' '
 
     local show_guard_indicator = prompt_guard_indicator.is_denied()
-    vim.wo[win].winbar =
-      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), show_guard_indicator, vim.api.nvim_win_get_width(win))
+    vim.wo[win].winbar = create_winbar_text(
+      get_session_desc(),
+      format_model_info(),
+      format_mode_info(),
+      show_guard_indicator,
+      vim.api.nvim_win_get_width(win)
+    )
 
     update_winbar_highlights(win)
   end)

@@ -141,4 +141,77 @@ describe('opencode.api', function()
       })
     end)
   end)
+
+  describe('run command argument parsing', function()
+    it('parses agent prefix and passes to send_message', function()
+      api.commands.run.fn({ 'agent=plan', 'analyze', 'this', 'code' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('analyze this code', {
+        new_session = false,
+        focus = 'output',
+        agent = 'plan',
+      })
+    end)
+
+    it('parses model prefix and passes to send_message', function()
+      api.commands.run.fn({ 'model=openai/gpt-4', 'test', 'prompt' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt', {
+        new_session = false,
+        focus = 'output',
+        model = 'openai/gpt-4',
+      })
+    end)
+
+    it('parses context prefix and passes to send_message', function()
+      api.commands.run.fn({ 'context=current_file.enabled=false', 'test' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test', {
+        new_session = false,
+        focus = 'output',
+        context = { current_file = { enabled = false } },
+      })
+    end)
+
+    it('parses multiple prefixes and passes all to send_message', function()
+      api.commands.run.fn({ 'agent=plan', 'model=openai/gpt-4', 'context=current_file.enabled=false', 'analyze', 'code' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('analyze code', {
+        new_session = false,
+        focus = 'output',
+        agent = 'plan',
+        model = 'openai/gpt-4',
+        context = { current_file = { enabled = false } },
+      })
+    end)
+
+    it('works with run_new command', function()
+      api.commands.run_new.fn({ 'agent=plan', 'model=openai/gpt-4', 'new', 'session', 'prompt' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('new session prompt', {
+        new_session = true,
+        focus = 'output',
+        agent = 'plan',
+        model = 'openai/gpt-4',
+      })
+    end)
+
+    it('requires a prompt after prefixes', function()
+      local notify_stub = stub(vim, 'notify')
+      api.commands.run.fn({ 'agent=plan' })
+      assert.stub(notify_stub).was_called_with('Prompt required', vim.log.levels.ERROR)
+      notify_stub:revert()
+    end)
+
+    it('Lua API accepts opts directly without parsing', function()
+      api.run('test prompt', { agent = 'plan', model = 'openai/gpt-4' })
+      assert.stub(core.send_message).was_called()
+      assert.stub(core.send_message).was_called_with('test prompt', {
+        new_session = false,
+        focus = 'output',
+        agent = 'plan',
+        model = 'openai/gpt-4',
+      })
+    end)
+  end)
 end)

@@ -303,6 +303,7 @@
 ---@field documentation string Documentation text
 ---@field insert_text string Text to insert when selected
 ---@field source_name string Name of the completion source
+---@field priority? number Optional priority for individual item sorting (lower numbers have higher priority)
 ---@field data table Additional data associated with the item
 
 ---@class CompletionSource

@@ -4,6 +4,11 @@ local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 
 local M = {}
+local kind_priority = {
+  selection_item = 3,
+  mentioned_file = 4,
+  subagent = 5,
+}
 
 ---@generic T
 ---@param name string
@@ -13,7 +18,7 @@ local M = {}
 ---@param icon string|nil
 ---@param additional_data? T
 ---@return CompletionItem
-local function create_context_item(name, type, available, documentation, icon, additional_data)
+local function create_context_item(name, type, available, documentation, icon, additional_data, priority)
   local label = name
 
   return {
@@ -24,6 +29,7 @@ local function create_context_item(name, type, available, documentation, icon, a
     documentation = documentation or (available and name or 'Enable ' .. name .. ' for this message'),
     insert_text = '',
     source_name = 'context',
+    priority = priority or (available and 100 or 200),
     data = { type = type, name = name, available = available, additional_data = additional_data },
   }
 end
@@ -100,7 +106,15 @@ local function add_mentioned_files_items(ctx)
       local filename = vim.fn.fnamemodify(file, ':~:.')
       table.insert(
         items,
-        create_context_item(filename, 'mentioned_file', true, 'Select to remove file ' .. filename, icons.get('file'))
+        create_context_item(
+          filename,
+          'mentioned_file',
+          true,
+          'Select to remove file ' .. filename,
+          icons.get('file'),
+          nil,
+          kind_priority.mentioned_file
+        )
       )
     end
   end
@@ -125,7 +139,15 @@ local function add_selection_items(ctx)
       string.format('Selection %d %s (%s)', i, selection.file and selection.file.name or 'Untitled', selection.lines)
     table.insert(
       items,
-      create_context_item(label, 'selection_item', true, format_selection(selection), icons.get('selection'), selection)
+      create_context_item(
+        label,
+        'selection_item',
+        true,
+        format_selection(selection),
+        icons.get('selection'),
+        selection,
+        kind_priority.selection_item
+      )
     )
   end
   return items
@@ -141,7 +163,15 @@ local function add_subagents_items(ctx)
   for _, agent in ipairs(ctx.mentioned_subagents or {}) do
     table.insert(
       items,
-      create_context_item(agent .. ' (agent)', 'subagent', true, 'Select to remove agent ' .. agent, icons.get('agent'))
+      create_context_item(
+        agent .. ' (agent)',
+        'subagent',
+        true,
+        'Select to remove agent ' .. agent,
+        icons.get('agent'),
+        nil,
+        kind_priority.subagent
+      )
     )
   end
   return items
@@ -197,13 +227,6 @@ local context_source = {
         return item.label:lower():find(input:lower(), 1, true) ~= nil
       end, items)
     end
-
-    table.sort(items, function(a, b)
-      if a.data.available ~= b.data.available then
-        return a.data.available
-      end
-      return a.label < b.label
-    end)
 
     return items
   end,

@@ -87,19 +87,26 @@ function M._update()
   local items = {}
   for _, source in ipairs(M._completion_sources or {}) do
     local source_items = source.complete(context)
-    for _, item in ipairs(source_items) do
+    for i, item in ipairs(source_items) do
       if vim.startswith(item.insert_text or '', trigger_char) then
         item.insert_text = item.insert_text:sub(2)
       end
+      local source_priority = source.priority or 999
+      local item_priority = item.priority or 999
       table.insert(items, {
         word = #item.insert_text > 0 and item.insert_text or item.label,
         abbr = (item.kind_icon or '') .. item.label,
         menu = source.name,
         kind = item.kind:sub(1, 1):upper(),
         user_data = item,
+        _sort_text = string.format('%02d_%02d_%02d_%s', source_priority, item_priority, i, item.label),
       })
     end
   end
+
+  table.sort(items, function(a, b)
+    return a._sort_text < b._sort_text
+  end)
 
   if #items > 0 then
     local start_col = before_cursor:find(vim.pesc(trigger_char) .. '[%w_%-%.]*$')

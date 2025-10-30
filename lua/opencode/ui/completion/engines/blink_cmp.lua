@@ -64,8 +64,15 @@ function Source:get_completions(ctx, callback)
         detail = item.detail,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,
-        sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, i, item.label),
-        score_offset = -(completion_source.priority or 999) * 1000,
+        sortText = string.format(
+          '%02d_%02d_%02d_%s',
+          completion_source.priority or 999,
+          item.priority or 999,
+          i,
+          item.label
+        ),
+        score_offset = -(completion_source.priority or 999) * 1000 + (item.priority or 999),
+
         data = {
           original_item = item,
         },

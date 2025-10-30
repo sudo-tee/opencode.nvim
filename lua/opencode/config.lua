@@ -149,7 +149,7 @@ M.defaults = {
       enabled = false,
     },
     diagnostics = {
-      enabled = false,
+      enabled = true,
       info = false,
       warning = true,
       error = true,

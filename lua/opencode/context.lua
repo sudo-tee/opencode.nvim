@@ -71,7 +71,9 @@ function M.get_diagnostics(buf)
     return nil
   end
 
-  local diagnostic_conf = config.context and state.current_context_config.diagnostics or config.context.diagnostics
+  local current_conf = vim.tbl_get(state, 'current_context_config', 'diagnostics') or {}
+  local global_conf = vim.tbl_get(config, 'context', 'diagnostics') or {}
+  local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf) or {}
 
   local severity_levels = {}
   if diagnostic_conf.error then

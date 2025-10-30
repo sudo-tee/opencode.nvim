@@ -26,11 +26,11 @@ local function format_model_info()
 end
 
 local function format_mode_info()
-  return ' ' .. state.current_mode:upper() .. ' '
+  return ' ' .. (state.current_mode or ''):upper() .. ' '
 end
 
 local function get_mode_highlight()
-  local mode = state.current_mode:lower()
+  local mode = (state.current_mode or ''):lower()
   if mode == 'build' then
     return '%#OpencodeAgentBuild#'
   elseif mode == 'plan' then

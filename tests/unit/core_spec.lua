@@ -21,6 +21,9 @@ local function mock_api_client()
     get_current_project = function()
       return Promise.new():resolve({ id = 'test-project-id' })
     end,
+    get_config = function()
+      return Promise.new():resolve({ model = 'gpt-4' })
+    end,
   }
 end
 

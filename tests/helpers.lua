@@ -20,6 +20,7 @@ function M.replay_setup()
     return nil
   end
 
+  state.current_mode = 'build' -- default mode for tests
   state.windows = ui.create_windows()
 
   -- we use the event manager to dispatch events

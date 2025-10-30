@@ -260,17 +260,27 @@ local context_source = {
       context.remove_selection(item.data.additional_data --[[@as OpencodeContextSelection]])
     end
 
+    -- Remove the inserted completion text from the input buffer
     vim.schedule(function()
       vim.fn.feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n')
 
       local _, col = unpack(vim.api.nvim_win_get_cursor(0))
       local line = vim.api.nvim_get_current_line()
       local key = config.get_key_for_function('input_window', 'context_items')
-      if col > 0 and line:sub(col, col) == key then
+
+      local completion_text = key .. (item.label or item.insert_text or '')
+      local text_start = col - #completion_text
+
+      if text_start >= 0 and line:sub(text_start + 1, col) == completion_text then
+        line = line:sub(1, text_start) .. line:sub(col + 1)
+        input_win.set_current_line(line)
+        vim.api.nvim_win_set_cursor(0, { vim.api.nvim_win_get_cursor(0)[1], text_start })
+      elseif col > 0 and line:sub(col, col) == key then
         line = line:sub(1, col - 1) .. line:sub(col + 1)
         input_win.set_current_line(line)
-        vim.fn.feedkeys(vim.api.nvim_replace_termcodes('a', true, false, true), 'n')
       end
+
+      vim.fn.feedkeys(vim.api.nvim_replace_termcodes('a', true, false, true), 'n')
     end)
   end,
 }

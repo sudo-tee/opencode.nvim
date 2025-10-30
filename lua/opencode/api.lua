@@ -958,24 +958,24 @@ M.commands = {
   run = {
     desc = 'Run prompt in current session',
     fn = function(args)
-      local prompt = table.concat(args, ' ')
+      local opts, prompt = util.parse_run_args(args)
       if prompt == '' then
         vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.run(prompt)
+      M.run(prompt, opts)
     end,
   },
 
   run_new = {
     desc = 'Run prompt in new session',
     fn = function(args)
-      local prompt = table.concat(args, ' ')
+      local opts, prompt = util.parse_run_args(args)
       if prompt == '' then
         vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.run_new_session(prompt)
+      M.run_new_session(prompt, opts)
     end,
   },
 

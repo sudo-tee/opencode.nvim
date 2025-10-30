@@ -64,6 +64,21 @@ describe('config_file.setup', function()
     assert.True(vim.tbl_contains(agents, 'plan'))
   end)
 
+  it('get_opencode_agents respects disabled defaults', function()
+    state.api_client = {
+      get_config = function()
+        return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' }, ['build'] = { disable = true }, ['plan'] = { disable = false } } })
+      end,
+      get_current_project = function()
+        return Promise.new():resolve({ id = 'p1' })
+      end,
+    }
+    local agents = config_file.get_opencode_agents()
+    assert.True(vim.tbl_contains(agents, 'custom'))
+    assert.False(vim.tbl_contains(agents, 'build'))
+    assert.True(vim.tbl_contains(agents, 'plan'))
+  end)
+
   it('get_opencode_project returns project', function()
     local project = { id = 'p1', name = 'X' }
     state.api_client = {

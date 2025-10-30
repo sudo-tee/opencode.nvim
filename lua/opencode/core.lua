@@ -320,8 +320,6 @@ function M.ensure_current_mode()
       -- Fallback to first available agent
       state.current_mode = available_agents[1]
     end
-
-    ui.render_output()
   end
   return true
 end

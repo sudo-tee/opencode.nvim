@@ -53,8 +53,7 @@
 ---@field share? SessionShareInfo
 
 ---@class OpencodeKeymapEntry
----@field [1] string # Function nam
-
+---@field [1] string # Function name
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
 
@@ -122,7 +121,7 @@
 ---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
----@field subagents { enabled: boolean }
+---@field agents { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean

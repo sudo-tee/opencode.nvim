@@ -1,7 +1,7 @@
 -- Gathers editor context
 
 local util = require('opencode.util')
-local config = require('opencode.config') --[[@as OpencodeConfig]]
+local config = require('opencode.config')
 local state = require('opencode.state')
 
 local M = {}

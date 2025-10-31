@@ -31,6 +31,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeContextError', { link = '@label', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeContextWarning', { link = 'DiagnosticWarn', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeContextInfo', { link = 'DiagnosticInfo', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeContextSwitchOn', { link = '@label', default = true })
   else
     vim.api.nvim_set_hl(0, 'OpencodeBorder', { fg = '#616161', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeBackground', { link = 'Normal', default = true })
@@ -58,7 +59,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeContextSelection', { link = '@label', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeContextError', { link = 'DiagnosticError', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeContextWarning', { link = 'DiagnosticWarn', default = true })
-    vim.api.nvim_set_hl(0, 'OpencodeContextInfo', { link = 'DiagnosticInfo', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeContextSwitchOn', { link = '@label', default = true })
   end
 end
 

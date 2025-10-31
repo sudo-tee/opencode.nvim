@@ -56,6 +56,7 @@ function Source:get_completions(ctx, callback)
         label = item.label,
         kind = item.kind,
         kind_icon = item.kind_icon,
+        kind_hl = item.kind_hl,
         detail = item.detail,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,

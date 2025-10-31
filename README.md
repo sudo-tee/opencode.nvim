@@ -432,7 +432,7 @@ Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`te
 You can quiclkly see the current context items in the context bar at the top of the input window:
 
 <div align="center">
-  <img src="https://i.imgur.com/c5ze2Fr.png" alt="Opencode.nvim context bar" width="90%" />
+  <img src="https://i.imgur.com/vGgu6br.png" alt="Opencode.nvim context bar" width="90%" />
 </div>
 
 ### Context Items Completion
@@ -452,7 +452,7 @@ Context items that are not currently available will be shown as disabled in the 
 You should also see the list of files agents and selections in the menu, selecting them in the menu will remove them from the context.
 
 <div align="center">
-  <img src="https://i.imgur.com/Be89SG7.png" alt="Opencode.nvim context items completion" width="90%" />
+  <img src="https://i.imgur.com/UqQKW33.png" alt="Opencode.nvim context items completion" width="90%" />
 </div>
 
 ## 🔄 Agents

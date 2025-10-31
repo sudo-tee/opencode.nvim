@@ -42,7 +42,6 @@ local config = require('opencode.config')
 ---@field append fun( key:string, value:any)
 ---@field remove fun( key:string, idx:number)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
----@field opencode_server_job OpencodeServer
 ---@field subscribe fun( key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean

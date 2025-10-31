@@ -3,6 +3,7 @@ local M = {}
 local context = require('opencode.context')
 local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
+local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
 
 local function get_current_file_info(ctx)
   local current_file = ctx.current_file
@@ -139,7 +140,9 @@ local function format_winbar_text(segments)
     end
   end
 
-  return right_align .. table.concat(parts, '')
+  local show_guard_indicator = prompt_guard_indicator.is_denied()
+  local left = show_guard_indicator and prompt_guard_indicator.get_formatted() or ''
+  return left .. right_align .. table.concat(parts, '')
 end
 
 local function update_winbar_highlights(win_id)

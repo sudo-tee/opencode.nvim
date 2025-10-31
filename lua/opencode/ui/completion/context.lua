@@ -25,6 +25,7 @@ local function create_context_item(name, type, available, documentation, icon, a
     label = label,
     kind = 'context',
     kind_icon = icon or (available and icons.get('status_on') or icons.get('status_off')),
+    kind_hl = not icon and available and 'OpencodeContextSwitchOn' or nil,
     detail = name,
     documentation = documentation or (available and name or 'Enable ' .. name .. ' for this message'),
     insert_text = '',

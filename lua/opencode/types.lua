@@ -299,6 +299,7 @@
 ---@field label string Display text for the completion item
 ---@field kind string Type of completion item (e.g., 'file', 'subagent')
 ---@field kind_icon string Icon representing the kind
+---@field kind_hl? string Highlight group for the kind
 ---@field detail string Additional detail text
 ---@field documentation string Documentation text
 ---@field insert_text string Text to insert when selected

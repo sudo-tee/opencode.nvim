@@ -57,6 +57,7 @@ function M.setup(completion_sources)
           cmp = {
             kind_text = item.kind_icon,
           },
+          kind_hl_group = item.kind_hl,
           detail = item.detail,
           documentation = item.documentation,
           insertText = item.insert_text or '',

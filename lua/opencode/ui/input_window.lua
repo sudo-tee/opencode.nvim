@@ -110,6 +110,8 @@ function M.setup(windows)
   M.refresh_placeholder(windows)
   M.setup_keymaps(windows)
   M.recover_input(windows)
+
+  require('opencode.ui.context_bar').render(windows)
 end
 
 function M.update_dimensions(windows)
@@ -140,6 +142,7 @@ function M.refresh_placeholder(windows, input_lines)
     local slash_key = config.get_key_for_function('input_window', 'slash_commands')
     local mention_key = config.get_key_for_function('input_window', 'mention')
     local mention_file_key = config.get_key_for_function('input_window', 'mention_file')
+    local context_key = config.get_key_for_function('input_window', 'context_items')
 
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
@@ -149,7 +152,9 @@ function M.refresh_placeholder(windows, input_lines)
         { mention_key or '@', 'OpencodeInputLegend' },
         { ' mentions ', 'OpenCodeHint' },
         { mention_file_key or '~', 'OpencodeInputLegend' },
-        { ' to pick files' .. padding, 'OpenCodeHint' },
+        { ' files ', 'OpenCodeHint' },
+        { context_key or '#', 'OpencodeInputLegend' },
+        { ' context' .. padding, 'OpenCodeHint' },
       },
 
       virt_text_pos = 'overlay',
@@ -193,6 +198,35 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
+function M.set_current_line(text, windows)
+  windows = windows or state.windows
+  if not M.mounted(windows) then
+    return
+  end
+
+  vim.api.nvim_set_current_line(text)
+end
+
+function M.remove_mention(mention_name, windows)
+  windows = windows or state.windows
+  if not M.mounted(windows) then
+    return
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+  for i, line in ipairs(lines) do
+    local mention_key = config.get_key_for_function('input_window', 'mention')
+    local pattern = vim.pesc(mention_key .. mention_name)
+    local updated_line = line:gsub(pattern, '')
+    if updated_line ~= line then
+      lines[i] = updated_line
+    end
+  end
+
+  vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
+  require('opencode.ui.mention').highlight_all_mentions(windows.input_buf)
+end
+
 function M.is_empty()
   local windows = state.windows
   if not windows or not M.mounted() then
@@ -215,6 +249,7 @@ function M.setup_autocmds(windows, group)
     callback = function()
       M.refresh_placeholder(windows)
       state.last_focused_opencode_window = 'input'
+      require('opencode.ui.context_bar').render()
     end,
   })
 
@@ -224,6 +259,7 @@ function M.setup_autocmds(windows, group)
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
       state.input_content = input_lines
       M.refresh_placeholder(windows, input_lines)
+      require('opencode.ui.context_bar').render()
     end,
   })
 

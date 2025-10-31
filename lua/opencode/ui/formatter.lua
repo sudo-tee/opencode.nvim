@@ -373,6 +373,23 @@ function M._format_selection_context(output, part)
   M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
+---@param output Output Output object to write to
+---@param part OpencodeMessagePart
+function M._format_cursor_data_context(output, part)
+  local json = context_module.decode_json_context(part.text, 'cursor-data')
+  if not json then
+    return
+  end
+  local start_line = output:get_line_count()
+  output:add_line('Line ' .. json.line .. ':')
+  output:add_lines(vim.split(json.line_content or '', '\n'))
+  output:add_empty_line()
+
+  local end_line = output:get_line_count()
+
+  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
 ---Format and display the file path in the context
 ---@param output Output Output object to write to
 ---@param path string|nil File path
@@ -709,6 +726,7 @@ function M.format_part(part, message, is_last_part)
     if part.type == 'text' and part.text then
       if part.synthetic == true then
         M._format_selection_context(output, part)
+        M._format_cursor_data_context(output, part)
       else
         M._format_user_prompt(output, vim.trim(part.text), message)
         content_added = true

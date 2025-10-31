@@ -15,14 +15,12 @@ function M.setup(completion_sources)
     local config = require('opencode.config')
     local mention_key = config.get_key_for_function('input_window', 'mention')
     local slash_key = config.get_key_for_function('input_window', 'slash_commands')
-    local triggers = {}
-    if mention_key then
-      table.insert(triggers, mention_key)
-    end
-    if slash_key then
-      table.insert(triggers, slash_key)
-    end
-    return triggers
+    local context_key = config.get_key_for_function('input_window', 'context_items')
+    return {
+      slash_key or '',
+      mention_key or '',
+      context_key or '',
+    }
   end
 
   function source:is_available()
@@ -50,18 +48,26 @@ function M.setup(completion_sources)
     }
 
     local items = {}
-    for i, completion_source in ipairs(completion_sources) do
+    for _, completion_source in ipairs(completion_sources) do
       local source_items = completion_source.complete(context)
       for j, item in ipairs(source_items) do
         table.insert(items, {
           label = item.label,
-          kind = item.kind == 'file' and cmp.lsp.CompletionItemKind.File
-            or item.kind == 'folder' and cmp.lsp.CompletionItemKind.Folder
-            or cmp.lsp.CompletionItemKind.Text,
+          kind = 1,
+          cmp = {
+            kind_text = item.kind_icon,
+          },
+          kind_hl_group = item.kind_hl,
           detail = item.detail,
           documentation = item.documentation,
-          insertText = item.insert_text or item.label,
-          sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, j, item.label),
+          insertText = item.insert_text or '',
+          sortText = string.format(
+            '%02d_%02d_%02d_%s',
+            completion_source.priority or 999,
+            item.priority or 999,
+            j,
+            item.label
+          ),
           data = {
             original_item = item,
           },

@@ -4,7 +4,6 @@ local M = {}
 
 local state = require('opencode.state')
 local config_file = require('opencode.config_file')
-local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
 
 local LABELS = {
   NEW_SESSION_TITLE = 'New session',
@@ -43,13 +42,9 @@ local function get_mode_highlight()
   end
 end
 
-local function create_winbar_text(description, model_info, mode_info, show_guard_indicator, win_width)
+local function create_winbar_text(description, model_info, mode_info, win_width)
   local left_content = ''
   local right_content = ''
-
-  if show_guard_indicator then
-    left_content = left_content .. prompt_guard_indicator.get_formatted() .. ' '
-  end
 
   right_content = model_info .. ' ' .. get_mode_highlight() .. mode_info .. '%*'
 
@@ -110,14 +105,8 @@ function M.render()
     -- topbar needs to at least have a value to make sure footer is positioned correctly
     vim.wo[win].winbar = ' '
 
-    local show_guard_indicator = prompt_guard_indicator.is_denied()
-    vim.wo[win].winbar = create_winbar_text(
-      get_session_desc(),
-      format_model_info(),
-      format_mode_info(),
-      show_guard_indicator,
-      vim.api.nvim_win_get_width(win)
-    )
+    vim.wo[win].winbar =
+      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
 
     update_winbar_highlights(win)
   end)

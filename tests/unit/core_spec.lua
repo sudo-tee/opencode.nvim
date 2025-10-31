@@ -5,6 +5,7 @@ local ui = require('opencode.ui.ui')
 local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
+local assert = require('luassert')
 
 -- Provide a mock api_client for tests that need it
 local function mock_api_client()
@@ -235,6 +236,28 @@ describe('opencode.core', function()
       assert.truthy(new)
       assert.equal('sess-new', new.id)
       state.api_client.create_session = orig_session
+    end)
+
+    it('persist options in state when sending message', function()
+      local orig = state.api_client.create_message
+      state.windows = { mock = 'windows' }
+      state.active_session = { id = 'sess1' }
+
+      state.api_client.create_message = function(_, sid, params)
+        create_called = true
+        assert.equal('sess1', sid)
+        assert.truthy(params.parts)
+        return Promise.new():resolve({ id = 'm1' })
+      end
+
+      core.send_message(
+        'hello world',
+        { context = { current_file = { enabled = false } }, agent = 'plan', model = 'test/model' }
+      )
+      assert.same(state.current_context_config, { current_file = { enabled = false } })
+      assert.equal(state.current_mode, 'plan')
+      assert.equal(state.current_model, 'test/model')
+      state.api_client.create_message = orig
     end)
   end)
 

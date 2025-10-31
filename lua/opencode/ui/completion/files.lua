@@ -1,4 +1,5 @@
 local config = require('opencode.config')
+local icons = require('opencode.ui.icons')
 local M = {}
 
 local last_successful_tool = nil
@@ -78,7 +79,7 @@ end
 
 ---@param file string
 ---@return CompletionItem
-local function create_file_item(file, suffix)
+local function create_file_item(file, suffix, priority)
   local filename = vim.fn.fnamemodify(file, ':t')
   local dir = vim.fn.fnamemodify(file, ':h')
   local file_path = dir == '.' and filename or dir .. '/' .. filename
@@ -95,10 +96,12 @@ local function create_file_item(file, suffix)
   return {
     label = display_label .. (suffix or ''),
     kind = kind,
+    kind_icon = icons.get(kind),
     detail = detail,
     documentation = 'Path: ' .. detail,
     insert_text = file_path,
     source_name = 'files',
+    priority = priority,
     data = { name = filename, full_path = full_path },
   }
 end
@@ -124,7 +127,7 @@ local file_source = {
     end
 
     local files_and_dirs = find_files_fast(input)
-    local items = vim.tbl_map(create_file_item, files_and_dirs)
+    local items = vim.tbl_map(function(file) return create_file_item(file, nil, 10) end, files_and_dirs)
     sort_util.sort_by_relevance(items, input, function(item)
       return vim.fn.fnamemodify(item.label, ':t')
     end, function(a, b)
@@ -153,7 +156,7 @@ function M.get_recent_files()
   if result then
     for _, file in ipairs(result) do
       local suffix = table.concat({ file.added and '+' .. file.added, file.removed and '-' .. file.removed }, ' ')
-      table.insert(recent_files, create_file_item(file.path, ' ' .. suffix))
+      table.insert(recent_files, create_file_item(file.path, ' ' .. suffix, 1))
     end
   end
   return recent_files

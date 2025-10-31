@@ -118,9 +118,10 @@
 ---@class OpencodeContextConfig
 ---@field enabled boolean
 ---@field cursor_data { enabled: boolean }
----@field diagnostics { info: boolean, warning: boolean, error: boolean }
----@field current_file { enabled: boolean, show_full_path: boolean }
+---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
+---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
+---@field agents { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -296,10 +297,13 @@
 ---@class CompletionItem
 ---@field label string Display text for the completion item
 ---@field kind string Type of completion item (e.g., 'file', 'subagent')
+---@field kind_icon string Icon representing the kind
+---@field kind_hl? string Highlight group for the kind
 ---@field detail string Additional detail text
 ---@field documentation string Documentation text
 ---@field insert_text string Text to insert when selected
 ---@field source_name string Name of the completion source
+---@field priority? number Optional priority for individual item sorting (lower numbers have higher priority)
 ---@field data table Additional data associated with the item
 
 ---@class CompletionSource
@@ -314,7 +318,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
----@field linter_errors string|nil
+---@field linter_errors vim.Diagnostic[]|nil
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

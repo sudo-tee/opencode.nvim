@@ -46,13 +46,7 @@ end
 
 local function create_winbar_segments()
   local ctx = context.delta_context()
-  local segments = {
-    {
-      icon = icons.get('context'),
-      text = '',
-      highlight = 'OpencodeContext',
-    },
-  }
+  local segments = {}
 
   local current_file = get_current_file_info(ctx)
   if context.is_context_enabled('current_file') and current_file then
@@ -127,8 +121,9 @@ local function create_winbar_segments()
 end
 
 local function format_winbar_text(segments)
+  local right_align = '%='
   if #segments == 0 then
-    return ''
+    return right_align
   end
 
   local parts = {}
@@ -144,7 +139,7 @@ local function format_winbar_text(segments)
     end
   end
 
-  return ' ' .. table.concat(parts, '')
+  return right_align .. table.concat(parts, '')
 end
 
 local function update_winbar_highlights(win_id)

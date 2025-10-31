@@ -33,7 +33,6 @@ local presets = {
     border = '▌',
     -- context bar
     cursor_data = '󰗧 ',
-    context = ' ',
     error = ' ',
     warning = ' ',
     info = ' ',
@@ -69,7 +68,6 @@ local presets = {
     border = '▌',
     -- context bar
     cursor_data = '[|] ',
-    context = '[Ctx] ',
     error = '[E]',
     warning = '[W]',
     info = '[I] ',

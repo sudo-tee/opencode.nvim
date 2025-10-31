@@ -95,7 +95,6 @@ describe('opencode.ui.context_bar', function()
   end)
 
   after_each(function()
-    -- Restore original functions
     context.delta_context = original_delta_context
     context.is_context_enabled = original_is_context_enabled
     icons.get = original_get_icon
@@ -109,7 +108,7 @@ describe('opencode.ui.context_bar', function()
   end)
 
   describe('opencode.ui.context_bar', function()
-    it('renders minimal winbar with context icon only', function()
+    it('renders minimal winbar with right aligh token only', function()
       local mock_input_win = 2001
       local winbar_capture = create_mock_window(mock_input_win)
 
@@ -117,7 +116,7 @@ describe('opencode.ui.context_bar', function()
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
-      assert.is_not_nil(winbar_capture.value:find(icons.get('context')))
+      assert.is_equal(winbar_capture.value, '%=')
     end)
 
     it('renders winbar with current file when present', function()
@@ -207,7 +206,7 @@ describe('opencode.ui.context_bar', function()
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
-      assert.is_not_nil(winbar_capture.value:find(icons.get('context'))) -- Should still have context icon
+      assert.is_equal(winbar_capture.value, '%=')
     end)
 
     it('does nothing when window is invalid', function()

@@ -112,8 +112,6 @@ function M.setup(windows)
   M.recover_input(windows)
 
   require('opencode.ui.context_bar').render(windows)
-
-  M.add_winbar_padding(windows)
 end
 
 function M.update_dimensions(windows)
@@ -198,7 +196,6 @@ function M.set_content(text, windows)
   local lines = type(text) == 'table' and text or vim.split(tostring(text), '\n')
 
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
-  M.add_winbar_padding(windows)
 end
 
 function M.set_current_line(text, windows)
@@ -208,7 +205,6 @@ function M.set_current_line(text, windows)
   end
 
   vim.api.nvim_set_current_line(text)
-  M.add_winbar_padding(windows)
 end
 
 function M.remove_mention(mention_name, windows)
@@ -229,7 +225,6 @@ function M.remove_mention(mention_name, windows)
 
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
   require('opencode.ui.mention').highlight_all_mentions(windows.input_buf)
-  M.add_winbar_padding(windows)
 end
 
 function M.is_empty()
@@ -240,34 +235,6 @@ function M.is_empty()
 
   local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   return #lines == 0 or (#lines == 1 and lines[1] == '')
-end
-
-function M.add_winbar_padding(windows)
-  if not M.mounted(windows) then
-    return
-  end
-
-  local ns_id = vim.api.nvim_create_namespace('winbar_padding')
-  vim.api.nvim_buf_clear_namespace(windows.input_buf, ns_id, 0, -1)
-
-  vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
-    virt_lines = { { { '   ' } } },
-    virt_lines_above = true,
-  })
-
-  M.apply_topfill_workaround(windows)
-end
-
-function M.apply_topfill_workaround(windows)
-  if not M.mounted(windows) then
-    return
-  end
-
-  local topfill = 1
-  local win = windows.input_win
-  if win and vim.api.nvim_win_is_valid(win) then
-    vim.fn.win_execute(win, 'lua vim.fn.winrestview({ topfill = ' .. topfill .. ' })')
-  end
 end
 
 function M.setup_keymaps(windows)
@@ -283,7 +250,6 @@ function M.setup_autocmds(windows, group)
       M.refresh_placeholder(windows)
       state.last_focused_opencode_window = 'input'
       require('opencode.ui.context_bar').render()
-      M.apply_topfill_workaround(windows)
     end,
   })
 
@@ -294,9 +260,6 @@ function M.setup_autocmds(windows, group)
       state.input_content = input_lines
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
-      if #input_lines == 0 or (#input_lines == 1 and input_lines[1] == '') then
-        M.add_winbar_padding(windows)
-      end
     end,
   })
 

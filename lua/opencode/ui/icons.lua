@@ -28,7 +28,7 @@ local presets = {
     -- statuses
     status_on = ' ',
     status_off = ' ',
-    guard_on = '',
+    guard_on = ' ',
     -- borders and misc
     border = '▌',
     -- context bar

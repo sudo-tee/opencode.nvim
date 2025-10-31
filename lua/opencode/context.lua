@@ -497,8 +497,10 @@ function M.setup()
     M.load()
   end)
 
+  local augroup = vim.api.nvim_create_augroup('OpenCodeContext', { clear = true })
   vim.api.nvim_create_autocmd('BufWritePost', {
     pattern = '*',
+    group = augroup,
     callback = function(args)
       local buf = args.buf
       local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
@@ -510,6 +512,7 @@ function M.setup()
 
   vim.api.nvim_create_autocmd('DiagnosticChanged', {
     pattern = '*',
+    group = augroup,
     callback = function(args)
       local buf = args.buf
       local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()

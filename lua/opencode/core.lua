@@ -295,7 +295,6 @@ function M.switch_to_mode(mode)
   end
 
   state.current_mode = mode
-  ui.render_output()
   return true
 end
 

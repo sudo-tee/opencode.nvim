@@ -165,8 +165,6 @@ function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   opts = opts or {}
 
-  M.cancel()
-  -- ui.clear_output()
 
   M.open({
     new_session = is_new_session,

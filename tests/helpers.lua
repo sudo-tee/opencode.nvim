@@ -34,7 +34,7 @@ function M.replay_setup()
 
   renderer.reset()
 
-  M.mock_time_ago()
+  M.mock_time_utils()
 
   if not config.config then
     config.config = vim.deepcopy(config.defaults)
@@ -131,9 +131,10 @@ function M.mock_notify()
   }
 end
 
-function M.mock_time_ago()
+function M.mock_time_utils()
   local util = require('opencode.util')
   local original_time_ago = util.time_ago
+  local original_format_time = util.format_time
 
   ---@diagnostic disable-next-line: duplicate-set-field
   util.time_ago = function(timestamp)
@@ -142,9 +143,11 @@ function M.mock_time_ago()
     end
     return os.date('!%Y-%m-%d %H:%M:%S', timestamp)
   end
+  util.format_time = util.time_ago
 
   return function()
     util.time_ago = original_time_ago
+    util.format_time = original_format_time
   end
 end
 

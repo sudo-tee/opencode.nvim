@@ -194,7 +194,7 @@ function M._format_patch(output, part)
           '  %s Restore point `%s` - %s',
           icons.get('restore_point'),
           restore_point.id:sub(1, 8),
-          util.time_ago(restore_point.created_at)
+          util.format_time(restore_point.created_at)
         )
       )
       local restore_line = output:get_line_count()
@@ -235,7 +235,7 @@ function M.format_message_header(message)
   local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
   local time = message.info.time and message.info.time.created or nil
-  local time_text = (time and ' (' .. util.time_ago(time) .. ')' or '')
+  local time_text = (time and ' (' .. util.format_time(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
   local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
   local debug_text = config.debug and ' [' .. message.info.id .. ']' or ''

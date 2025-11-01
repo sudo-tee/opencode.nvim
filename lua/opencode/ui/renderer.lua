@@ -218,14 +218,16 @@ end
 ---Write data to output_buf, including normal text and extmarks
 ---@param formatted_data Output Formatted data as Output object
 ---@param part_id? string Optional part ID to store actions
+---@param start_line? integer Optional line to insert at (shifts content down). If nil, appends to end of buffer.
 ---@return {line_start: integer, line_end: integer}? Range where data was written
-function M._write_formatted_data(formatted_data, part_id)
+function M._write_formatted_data(formatted_data, part_id, start_line)
   if not state.windows or not state.windows.output_buf then
     return
   end
 
   local buf = state.windows.output_buf
-  local start_line = output_window.get_buf_line_count()
+  local is_insertion = start_line ~= nil
+  local target_line = start_line or output_window.get_buf_line_count()
   local new_lines = formatted_data.lines
   local extmarks = formatted_data.extmarks
 
@@ -234,19 +236,23 @@ function M._write_formatted_data(formatted_data, part_id)
   end
 
   if part_id and formatted_data.actions then
-    M._render_state:add_actions(part_id, formatted_data.actions, start_line)
+    M._render_state:add_actions(part_id, formatted_data.actions, target_line)
   end
 
-  output_window.set_lines(new_lines, start_line)
-  output_window.set_extmarks(extmarks, start_line)
+  if is_insertion then
+    output_window.set_lines(new_lines, target_line, target_line)
+  else
+    output_window.set_lines(new_lines, target_line)
+  end
+  output_window.set_extmarks(extmarks, target_line)
 
   return {
-    line_start = start_line,
-    line_end = start_line + #new_lines - 1,
+    line_start = target_line,
+    line_end = target_line + #new_lines - 1,
   }
 end
 
----Insert new part at end of buffer
+---Insert new part, either at end of buffer or in the middle for out-of-order parts
 ---@param part_id string Part ID
 ---@param formatted_data Output Formatted data as Output object
 ---@return boolean Success status
@@ -260,14 +266,42 @@ function M._insert_part_to_buffer(part_id, formatted_data)
     return true
   end
 
-  local range = M._write_formatted_data(formatted_data, part_id)
+  local is_current_message = state.current_message
+    and state.current_message.info
+    and state.current_message.info.id == cached.message_id
+
+  if is_current_message then
+    -- NOTE: we're inserting a part for the current message, just add it to the end
+
+    local range = M._write_formatted_data(formatted_data, part_id)
+    if not range then
+      return false
+    end
+
+    M._render_state:set_part(cached.part, range.line_start, range.line_end)
+
+    M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
+
+    return true
+  end
+
+  -- NOTE: We're inserting a part for the first time for a previous message. We need to find
+  -- the insertion line (after the last part of this message or after the message header if
+  -- no parts).
+  local insertion_line = M._get_insertion_point_for_part(part_id, cached.message_id)
+  if not insertion_line then
+    return false
+  end
+
+  local range = M._write_formatted_data(formatted_data, part_id, insertion_line)
   if not range then
     return false
   end
 
-  M._render_state:set_part(cached.part, range.line_start, range.line_end)
+  local line_count = #formatted_data.lines
+  M._render_state:shift_all(insertion_line, line_count)
 
-  M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
+  M._render_state:set_part(cached.part, range.line_start, range.line_end)
 
   return true
 end
@@ -280,13 +314,11 @@ end
 function M._replace_part_in_buffer(part_id, formatted_data)
   local cached = M._render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
-    -- return M._insert_part_to_buffer(part_id, formatted_data)
     return false
   end
 
   local new_lines = formatted_data.lines
   local new_line_count = #new_lines
-  -- local old_line_count = cached.line_end - cached.line_start + 1
 
   local old_formatted = M._last_part_formatted
   local can_optimize = old_formatted
@@ -298,10 +330,14 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   local write_start_line = cached.line_start
 
   if can_optimize then
+    -- NOTE: This is an optimization to only replace the lines that are different
+    -- if we're replacing the most recently formatted part.
+
     ---@cast old_formatted { formatted_data: { lines: string[] } }
     local old_lines = old_formatted.formatted_data.lines
     local first_diff_line = nil
 
+    -- Find the first line that's different
     for i = 1, math.min(#old_lines, new_line_count) do
       if old_lines[i] ~= new_lines[i] then
         first_diff_line = i
@@ -310,6 +346,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
     end
 
     if not first_diff_line and new_line_count > #old_lines then
+      -- The old lines all matched but maybe there are more new lines
       first_diff_line = #old_lines + 1
     end
 
@@ -317,6 +354,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
       lines_to_write = vim.list_slice(new_lines, first_diff_line, new_line_count)
       write_start_line = cached.line_start + first_diff_line - 1
     elseif new_line_count == #old_lines then
+      -- Nothing was different, so we're done
       M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }
       return true
     end
@@ -788,6 +826,51 @@ function M._get_last_part_for_message(message)
   end
 
   return nil
+end
+
+---Get insertion point for an out-of-order part
+---@param part_id string The part ID to insert
+---@param message_id string The message ID the part belongs to
+---@return integer? insertion_line The line to insert at (1-indexed), or nil on error
+function M._get_insertion_point_for_part(part_id, message_id)
+  local rendered_message = M._render_state:get_message(message_id)
+  if not rendered_message or not rendered_message.message then
+    return nil
+  end
+
+  local message = rendered_message.message
+
+  local insertion_line = rendered_message.line_end and (rendered_message.line_end + 1)
+  if not insertion_line then
+    return nil
+  end
+
+  local current_part_index = nil
+  if message.parts then
+    for i, part in ipairs(message.parts) do
+      if part.id == part_id then
+        current_part_index = i
+        break
+      end
+    end
+  end
+
+  if not current_part_index then
+    return insertion_line
+  end
+
+  for i = current_part_index - 1, 1, -1 do
+    local prev_part = message.parts[i]
+    if prev_part and prev_part.id then
+      local prev_rendered = M._render_state:get_part(prev_part.id)
+
+      if prev_rendered and prev_rendered.line_end then
+        return prev_rendered.line_end + 1
+      end
+    end
+  end
+
+  return insertion_line
 end
 
 ---Re-render existing part with current state

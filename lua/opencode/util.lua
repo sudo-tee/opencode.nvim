@@ -187,6 +187,24 @@ function M.time_ago(timestamp)
   end
 end
 
+--- Format a timestamp as time (e.g., "10:23 AM" or "13 Oct 2025 03:32 PM")
+--- @param timestamp number
+--- @return string: Formatted time string
+function M.format_time(timestamp)
+  if timestamp > 1e12 then
+    timestamp = math.floor(timestamp / 1000)
+  end
+  
+  local now = os.time()
+  local today_start = os.time(os.date('*t', now)) - os.date('*t', now).hour * 3600 - os.date('*t', now).min * 60 - os.date('*t', now).sec
+  
+  if timestamp >= today_start then
+    return os.date('%I:%M %p', timestamp)
+  else
+    return os.date('%d %b %Y %I:%M %p', timestamp)
+  end
+end
+
 function M.index_of(tbl, value)
   for i, v in ipairs(tbl) do
     if v == value then

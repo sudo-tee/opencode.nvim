@@ -1022,6 +1022,16 @@ M.commands = {
 
   command = {
     desc = 'Run user-defined command',
+    completions = function()
+      local config_file = require('opencode.config_file')
+      local user_commands = config_file.get_user_commands()
+      if not user_commands then
+        return {}
+      end
+      local names = vim.tbl_keys(user_commands)
+      table.sort(names)
+      return names
+    end,
     fn = function(args)
       local name = args[1]
       if not name or name == '' then
@@ -1071,7 +1081,7 @@ M.slash_commands_map = {
   ['/agent'] = { fn = M.select_agent, desc = 'Select agent mode' },
   ['/agents_init'] = { fn = M.initialize, desc = 'Initialize AGENTS.md session' },
   ['/child-sessions'] = { fn = M.select_child_session, desc = 'Select child session' },
-  ['/commands'] = { fn = M.commands_list, desc = 'Show user-defined commands' },
+  ['/command-list'] = { fn = M.commands_list, desc = 'Show user-defined commands' },
   ['/compact'] = { fn = M.compact_session, desc = 'Compact current session' },
   ['/mcp'] = { fn = M.mcp, desc = 'Show MCP server configuration' },
   ['/models'] = { fn = M.configure_provider, desc = 'Switch provider/model' },
@@ -1166,9 +1176,13 @@ function M.complete_command(arg_lead, cmd_line, cursor_pos)
   end
 
   if num_parts <= 3 and subcmd_def.completions then
+    local completions = subcmd_def.completions
+    if type(completions) == 'function' then
+      completions = completions()
+    end
     return vim.tbl_filter(function(opt)
       return vim.startswith(opt, arg_lead)
-    end, subcmd_def.completions)
+    end, completions)
   end
 
   if num_parts <= 4 and subcmd_def.sub_completions then
@@ -1209,6 +1223,22 @@ function M.get_slash_commands()
       fn = def.fn,
     })
   end
+
+  local config_file = require('opencode.config_file')
+  local user_commands = config_file.get_user_commands()
+  if user_commands then
+    for name, def in pairs(user_commands) do
+      table.insert(result, {
+        slash_cmd = '/' .. name,
+        desc = def.description or 'User command',
+        fn = function()
+          M.run_user_command(name, {})
+        end,
+        args = false,
+      })
+    end
+  end
+
   return result
 end
 

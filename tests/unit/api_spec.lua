@@ -174,7 +174,13 @@ describe('opencode.api', function()
     end)
 
     it('parses multiple prefixes and passes all to send_message', function()
-      api.commands.run.fn({ 'agent=plan', 'model=openai/gpt-4', 'context=current_file.enabled=false', 'analyze', 'code' })
+      api.commands.run.fn({
+        'agent=plan',
+        'model=openai/gpt-4',
+        'context=current_file.enabled=false',
+        'analyze',
+        'code',
+      })
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('analyze code', {
         new_session = false,
@@ -267,10 +273,9 @@ describe('opencode.api', function()
 
       api.mcp()
 
-      assert.stub(notify_stub).was_called_with(
-        'No MCP configuration found. Please check your opencode config file.',
-        vim.log.levels.WARN
-      )
+      assert
+        .stub(notify_stub)
+        .was_called_with('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
 
       config_file.get_mcp_servers = original_get_mcp_servers
       notify_stub:revert()
@@ -325,13 +330,161 @@ describe('opencode.api', function()
 
       api.commands_list()
 
-      assert.stub(notify_stub).was_called_with(
-        'No user commands found. Please check your opencode config file.',
-        vim.log.levels.WARN
-      )
+      assert
+        .stub(notify_stub)
+        .was_called_with('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
 
       config_file.get_user_commands = original_get_user_commands
       notify_stub:revert()
+    end)
+  end)
+
+  describe('command autocomplete', function()
+    it('provides user command names for completion', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['build'] = { description = 'Build the project' },
+          ['test'] = { description = 'Run tests' },
+          ['deploy'] = { description = 'Deploy to production' },
+        }
+      end
+
+      local completions = api.commands.command.completions()
+
+      assert.truthy(vim.tbl_contains(completions, 'build'))
+      assert.truthy(vim.tbl_contains(completions, 'test'))
+      assert.truthy(vim.tbl_contains(completions, 'deploy'))
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+
+    it('returns empty array when no user commands exist', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return nil
+      end
+
+      local completions = api.commands.command.completions()
+
+      assert.same({}, completions)
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+
+    it('integrates with complete_command for Opencode command <TAB>', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['build'] = { description = 'Build the project' },
+          ['test'] = { description = 'Run tests' },
+        }
+      end
+
+      local results = api.complete_command('b', 'Opencode command b', 18)
+
+      assert.truthy(vim.tbl_contains(results, 'build'))
+      assert.falsy(vim.tbl_contains(results, 'test'))
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+  end)
+
+  describe('slash commands with user commands', function()
+    it('includes user commands in get_slash_commands', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['build'] = { description = 'Build the project' },
+          ['test'] = { description = 'Run tests' },
+        }
+      end
+
+      local slash_commands = api.get_slash_commands()
+
+      local build_found = false
+      local test_found = false
+
+      for _, cmd in ipairs(slash_commands) do
+        if cmd.slash_cmd == '/build' then
+          build_found = true
+          assert.equal('Build the project', cmd.desc)
+          assert.is_function(cmd.fn)
+          assert.truthy(cmd.args)
+        elseif cmd.slash_cmd == '/test' then
+          test_found = true
+          assert.equal('Run tests', cmd.desc)
+          assert.is_function(cmd.fn)
+          assert.falsy(cmd.args)
+        end
+      end
+
+      assert.truthy(build_found, 'Should include /build command')
+      assert.truthy(test_found, 'Should include /test command')
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+
+    it('uses default description when none provided', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['custom'] = {},
+        }
+      end
+
+      local slash_commands = api.get_slash_commands()
+
+      local custom_found = false
+      for _, cmd in ipairs(slash_commands) do
+        if cmd.slash_cmd == '/custom' then
+          custom_found = true
+          assert.equal('User command', cmd.desc)
+        end
+      end
+
+      assert.truthy(custom_found, 'Should include /custom command')
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+
+    it('includes built-in slash commands alongside user commands', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['build'] = { description = 'Build the project' },
+        }
+      end
+
+      local slash_commands = api.get_slash_commands()
+
+      local help_found = false
+      local build_found = false
+
+      for _, cmd in ipairs(slash_commands) do
+        if cmd.slash_cmd == '/help' then
+          help_found = true
+        elseif cmd.slash_cmd == '/build' then
+          build_found = true
+        end
+      end
+
+      assert.truthy(help_found, 'Should include built-in /help command')
+      assert.truthy(build_found, 'Should include user /build command')
+
+      config_file.get_user_commands = original_get_user_commands
     end)
   end)
 end)

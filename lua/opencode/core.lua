@@ -277,7 +277,7 @@ local function on_opencode_server()
 end
 
 --- Switches the current mode to the specified agent.
---- @param mode string The agent/mode to switch to
+--- @param mode string|nil The agent/mode to switch to
 --- @return boolean success Returns true if the mode was switched successfully, false otherwise
 function M.switch_to_mode(mode)
   if not mode or mode == '' then

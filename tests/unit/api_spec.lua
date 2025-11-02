@@ -276,4 +276,62 @@ describe('opencode.api', function()
       notify_stub:revert()
     end)
   end)
+
+  describe('/commands command', function()
+    it('displays user commands when available', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return {
+          ['build'] = { description = 'Build the project' },
+          ['test'] = { description = 'Run tests' },
+          ['deploy'] = { description = 'Deploy to production' },
+        }
+      end
+
+      stub(ui, 'render_lines')
+      stub(api, 'open_input')
+
+      api.commands_list()
+
+      assert.stub(api.open_input).was_called()
+      assert.stub(ui.render_lines).was_called()
+
+      local render_args = ui.render_lines.calls[1].refs[1]
+      local rendered_text = table.concat(render_args, '\n')
+
+      assert.truthy(rendered_text:match('Available User Commands'))
+      assert.truthy(rendered_text:match('Description'))
+      assert.truthy(rendered_text:match('build'))
+      assert.truthy(rendered_text:match('Build the project'))
+      assert.truthy(rendered_text:match('test'))
+      assert.truthy(rendered_text:match('Run tests'))
+      assert.truthy(rendered_text:match('deploy'))
+      assert.truthy(rendered_text:match('Deploy to production'))
+
+      config_file.get_user_commands = original_get_user_commands
+    end)
+
+    it('shows warning when no user commands exist', function()
+      local config_file = require('opencode.config_file')
+      local original_get_user_commands = config_file.get_user_commands
+
+      config_file.get_user_commands = function()
+        return nil
+      end
+
+      local notify_stub = stub(vim, 'notify')
+
+      api.commands_list()
+
+      assert.stub(notify_stub).was_called_with(
+        'No user commands found. Please check your opencode config file.',
+        vim.log.levels.WARN
+      )
+
+      config_file.get_user_commands = original_get_user_commands
+      notify_stub:revert()
+    end)
+  end)
 end)

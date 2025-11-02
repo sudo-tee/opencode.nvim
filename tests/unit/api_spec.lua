@@ -418,7 +418,7 @@ describe('opencode.api', function()
           build_found = true
           assert.equal('Build the project', cmd.desc)
           assert.is_function(cmd.fn)
-          assert.truthy(cmd.args)
+          assert.falsy(cmd.args)
         elseif cmd.slash_cmd == '/test' then
           test_found = true
           assert.equal('Run tests', cmd.desc)

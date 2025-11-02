@@ -305,4 +305,4 @@ return setmetatable(M, {
   __tostring = function(_)
     return vim.inspect(M.values)
   end,
-}) --[[@as OpencodeConfig]]
+}) --[[@as OpencodeConfig &  OpencodeConfigModule]]

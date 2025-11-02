@@ -214,4 +214,66 @@ describe('opencode.api', function()
       })
     end)
   end)
+
+  describe('/mcp command', function()
+    it('displays MCP server configuration when available', function()
+      local config_file = require('opencode.config_file')
+      local original_get_mcp_servers = config_file.get_mcp_servers
+
+      config_file.get_mcp_servers = function()
+        return {
+          filesystem = {
+            type = 'local',
+            enabled = true,
+            command = { 'npx', '-y', '@modelcontextprotocol/server-filesystem' },
+          },
+          github = {
+            type = 'remote',
+            enabled = false,
+            url = 'https://example.com/mcp',
+          },
+        }
+      end
+
+      stub(ui, 'render_lines')
+      stub(api, 'open_input')
+
+      api.mcp()
+
+      assert.stub(api.open_input).was_called()
+      assert.stub(ui.render_lines).was_called()
+
+      local render_args = ui.render_lines.calls[1].refs[1]
+      local rendered_text = table.concat(render_args, '\n')
+
+      assert.truthy(rendered_text:match('Available MCP servers'))
+      assert.truthy(rendered_text:match('filesystem'))
+      assert.truthy(rendered_text:match('github'))
+      assert.truthy(rendered_text:match('local'))
+      assert.truthy(rendered_text:match('remote'))
+
+      config_file.get_mcp_servers = original_get_mcp_servers
+    end)
+
+    it('shows warning when no MCP configuration exists', function()
+      local config_file = require('opencode.config_file')
+      local original_get_mcp_servers = config_file.get_mcp_servers
+
+      config_file.get_mcp_servers = function()
+        return nil
+      end
+
+      local notify_stub = stub(vim, 'notify')
+
+      api.mcp()
+
+      assert.stub(notify_stub).was_called_with(
+        'No MCP configuration found. Please check your opencode config file.',
+        vim.log.levels.WARN
+      )
+
+      config_file.get_mcp_servers = original_get_mcp_servers
+      notify_stub:revert()
+    end)
+  end)
 end)

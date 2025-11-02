@@ -481,7 +481,7 @@ function M.mcp()
   local info = require('opencode.config_file')
   local mcp = info.get_mcp_servers()
   if not mcp then
-    ui.notify('No MCP configuration found. Please check your opencode config file.', 'warn')
+    vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
     return
   end
 
@@ -491,11 +491,18 @@ function M.mcp()
   local msg = M.with_header({
     '### Available MCP servers',
     '',
-    '| Name   | Type | cmd |',
-    '|--------|------|-----|',
+    '| Name   | Type | cmd/url |',
+    '|--------|------|---------|',
   })
 
   for name, def in pairs(mcp) do
+    local cmd_or_url
+    if def.type == 'local' then
+      cmd_or_url = def.command and table.concat(def.command, ' ')
+    elseif def.type == 'remote' then
+      cmd_or_url = def.url
+    end
+
     table.insert(
       msg,
       string.format(
@@ -503,7 +510,7 @@ function M.mcp()
         (def.enabled and icons.get('status_on') or icons.get('status_off')),
         name,
         def.type,
-        table.concat(def.command, ' ')
+        cmd_or_url
       )
     )
   end

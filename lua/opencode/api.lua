@@ -395,7 +395,7 @@ function M.select_agent()
 end
 
 function M.switch_mode()
-  local modes = require('opencode.config_file').get_opencode_agents()
+  local modes = require('opencode.config_file').get_opencode_agents() --[[@as string[] ]]
 
   local current_index = util.index_of(modes, state.current_mode)
 
@@ -513,6 +513,33 @@ function M.mcp()
         cmd_or_url
       )
     )
+  end
+
+  table.insert(msg, '')
+  ui.render_lines(msg)
+end
+
+function M.commands_list()
+  local info = require('opencode.config_file')
+  local commands = info.get_user_commands()
+  if not commands then
+    vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
+    return
+  end
+
+  state.display_route = '/commands'
+  M.open_input()
+
+  local msg = M.with_header({
+    '### Available User Commands',
+    '',
+    '| Name | Description |',
+    '|------|-------------|',
+  })
+
+  for name, def in pairs(commands) do
+    local desc = def.description or ''
+    table.insert(msg, string.format('| %s | %s |', name, desc))
   end
 
   table.insert(msg, '')
@@ -1015,6 +1042,11 @@ M.commands = {
     fn = M.mcp,
   },
 
+  commands_list = {
+    desc = 'Show user-defined commands',
+    fn = M.commands_list,
+  },
+
   permission = {
     desc = 'Respond to permissions (accept/accept_all/deny)',
     completions = { 'accept', 'accept_all', 'deny' },
@@ -1039,6 +1071,7 @@ M.slash_commands_map = {
   ['/agent'] = { fn = M.select_agent, desc = 'Select agent mode' },
   ['/agents_init'] = { fn = M.initialize, desc = 'Initialize AGENTS.md session' },
   ['/child-sessions'] = { fn = M.select_child_session, desc = 'Select child session' },
+  ['/commands'] = { fn = M.commands_list, desc = 'Show user-defined commands' },
   ['/compact'] = { fn = M.compact_session, desc = 'Compact current session' },
   ['/mcp'] = { fn = M.mcp, desc = 'Show MCP server configuration' },
   ['/models'] = { fn = M.configure_provider, desc = 'Switch provider/model' },

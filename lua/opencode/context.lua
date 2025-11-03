@@ -72,6 +72,10 @@ function M.get_diagnostics(buf)
   end
 
   local current_conf = vim.tbl_get(state, 'current_context_config', 'diagnostics') or {}
+  if current_conf.enabled == false then
+    return {}
+  end
+
   local global_conf = vim.tbl_get(config, 'context', 'diagnostics') or {}
   local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf) or {}
 

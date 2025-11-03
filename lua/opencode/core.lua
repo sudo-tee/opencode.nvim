@@ -103,7 +103,10 @@ function M.send_message(prompt, opts)
   end
 
   opts = opts or {}
-  opts.context = opts.context or config.context
+
+  opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
+  state.current_context_config = opts.context
+  context.load()
   opts.model = opts.model or state.current_model
   opts.agent = opts.agent or state.current_mode or config.default_mode
 
@@ -120,10 +123,7 @@ function M.send_message(prompt, opts)
     state.current_mode = opts.agent
   end
 
-  state.current_context_config = opts.context
-  context.load()
   params.parts = context.format_message(prompt, opts.context)
-
   M.before_run(opts)
 
   state.api_client

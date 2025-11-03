@@ -1231,10 +1231,10 @@ function M.get_slash_commands()
       table.insert(result, {
         slash_cmd = '/' .. name,
         desc = def.description or 'User command',
-        fn = function()
-          M.run_user_command(name, {})
+        fn = function(...)
+          M.run_user_command(name, ...)
         end,
-        args = false,
+        args = config_file.command_takes_arguments(def),
       })
     end
   end

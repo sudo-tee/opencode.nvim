@@ -126,4 +126,11 @@ function M.get_mcp_servers()
   return cfg and cfg.mcp or nil
 end
 
+---Does this opencode user command take arguments?
+---@param command OpencodeCommand
+---@return boolean
+function M.command_takes_arguments(command)
+  return command.template and command.template:find('$ARGUMENTS') ~= nil or false
+end
+
 return M

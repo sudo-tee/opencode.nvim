@@ -404,7 +404,7 @@ describe('opencode.api', function()
       config_file.get_user_commands = function()
         return {
           ['build'] = { description = 'Build the project' },
-          ['test'] = { description = 'Run tests' },
+          ['test'] = { description = 'Run tests', template = 'Run tests with $ARGUMENTS' },
         }
       end
 
@@ -423,7 +423,7 @@ describe('opencode.api', function()
           test_found = true
           assert.equal('Run tests', cmd.desc)
           assert.is_function(cmd.fn)
-          assert.falsy(cmd.args)
+          assert.truthy(cmd.args)
         end
       end
 

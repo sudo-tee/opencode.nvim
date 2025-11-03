@@ -4,31 +4,6 @@ local config = require('opencode.config')
 local M = {}
 
 local presets = {
-  emoji = {
-    -- headers
-    header_user = '▌💬',
-    header_assistant = '🤖',
-    -- actions/tools
-    run = '💻',
-    task = '💻',
-    read = '👀',
-    edit = '✏️',
-    write = '📝',
-    plan = '📃',
-    search = '🔍',
-    web = '🌐',
-    list = '📂',
-    tool = '🔧',
-    snapshot = '📸',
-    restore_point = '🕛',
-    file = '📄',
-    -- statuses
-    status_on = '🟢',
-    status_off = '⚫',
-    guard_on = '🚫',
-    -- borders and misc
-    border = '▌',
-  },
   nerdfonts = {
     -- headers
     header_user = '▌󰭻 ',
@@ -47,12 +22,22 @@ local presets = {
     snapshot = '󰻛 ',
     restore_point = '󱗚 ',
     file = ' ',
+    folder = ' ',
+    attached_file = '󰌷 ',
+    agent = '󰚩 ',
     -- statuses
     status_on = ' ',
     status_off = ' ',
-    guard_on = '',
+    guard_on = ' ',
     -- borders and misc
     border = '▌',
+    -- context bar
+    cursor_data = '󰗧 ',
+    error = ' ',
+    warning = ' ',
+    info = ' ',
+    selection = '󰫙 ',
+    command = ' ',
   },
   text = {
     -- headers
@@ -71,13 +56,23 @@ local presets = {
     tool = '::',
     snapshot = '::',
     restore_point = '::',
-    file = '::',
+    file = '@',
+    folder = '[@]',
+    attached_file = '@',
+    agent = '@',
     -- statuses
     status_on = 'ON',
     status_off = 'OFF',
     guard_on = 'X',
     -- borders and misc
     border = '▌',
+    -- context bar
+    cursor_data = '[|] ',
+    error = '[E]',
+    warning = '[W]',
+    info = '[I] ',
+    selection = "'<'> ",
+    command = '::',
   },
 }
 

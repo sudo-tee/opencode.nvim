@@ -49,6 +49,10 @@ function M.open(opts)
 
   local are_windows_closed = state.windows == nil
 
+  if not require('opencode.ui.ui').is_opencode_focused() then
+    require('opencode.context').load()
+  end
+
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local mentioned_files = context.context.mentioned_files or {}
@@ -90,7 +94,6 @@ end
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
-  -- Check if prompt is allowed
   local mentioned_files = context.context.mentioned_files or {}
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 
@@ -100,7 +103,10 @@ function M.send_message(prompt, opts)
   end
 
   opts = opts or {}
-  opts.context = opts.context or config.context
+
+  opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
+  state.current_context_config = opts.context
+  context.load()
   opts.model = opts.model or state.current_model
   opts.agent = opts.agent or state.current_mode or config.default_mode
 
@@ -109,14 +115,15 @@ function M.send_message(prompt, opts)
   if opts.model then
     local provider, model = opts.model:match('^(.-)/(.+)$')
     params.model = { providerID = provider, modelID = model }
+    state.current_model = opts.model
   end
 
   if opts.agent then
     params.agent = opts.agent
+    state.current_mode = opts.agent
   end
 
   params.parts = context.format_message(prompt, opts.context)
-
   M.before_run(opts)
 
   state.api_client
@@ -164,7 +171,6 @@ end
 function M.before_run(opts)
   local is_new_session = opts and opts.new_session or not state.active_session
   opts = opts or {}
-
 
   M.open({
     new_session = is_new_session,

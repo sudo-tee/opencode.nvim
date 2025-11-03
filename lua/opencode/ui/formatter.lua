@@ -360,14 +360,69 @@ end
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
 function M._format_selection_context(output, part)
-  local json = context_module.decode_json_context(part.text, 'selection')
+  local json = context_module.decode_json_context(part.text or '', 'selection')
   if not json then
     return
   end
   local start_line = output:get_line_count()
-  output:add_lines(vim.split(json.content, '\n'))
+  output:add_lines(vim.split(json.content or '', '\n'))
   output:add_empty_line()
 
+  local end_line = output:get_line_count()
+
+  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
+---@param output Output Output object to write to
+---@param part OpencodeMessagePart
+function M._format_cursor_data_context(output, part)
+  local json = context_module.decode_json_context(part.text or '', 'cursor-data')
+  if not json then
+    return
+  end
+  local start_line = output:get_line_count()
+  output:add_line('Line ' .. json.line .. ':')
+  output:add_lines(vim.split(json.line_content or '', '\n'))
+  output:add_empty_line()
+
+  local end_line = output:get_line_count()
+
+  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
+---@param output Output Output object to write to
+---@param part OpencodeMessagePart
+function M._format_diagnostics_context(output, part)
+  local json = context_module.decode_json_context(part.text or '', 'diagnostics')
+  if not json then
+    return
+  end
+  local start_line = output:get_line_count()
+  local diagnostics = json.content --[[@as vim.Diagnostic[] ]]
+  if not diagnostics or type(diagnostics) ~= 'table' or #diagnostics == 0 then
+    return
+  end
+
+  local diagnostics_count = { error = 0, warn = 0, info = 0 }
+  local diagnostics_icons = {
+    error = icons.get('error'),
+    warn = icons.get('warning'),
+    info = icons.get('info'),
+  }
+
+  for _, diag in ipairs(diagnostics) do
+    local name = vim.diagnostic.severity[diag.severity]:lower()
+    diagnostics_count[name] = diagnostics_count[name] + 1
+  end
+
+  local diag_line = '**Diagnostics:**'
+  for name, count in pairs(diagnostics_count) do
+    if count > 0 then
+      diag_line = diag_line .. (string.format(' %s(%d)', diagnostics_icons[name], count))
+    end
+  end
+  output:add_line(diag_line)
+  output:add_empty_line()
   local end_line = output:get_line_count()
 
   M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
@@ -709,6 +764,8 @@ function M.format_part(part, message, is_last_part)
     if part.type == 'text' and part.text then
       if part.synthetic == true then
         M._format_selection_context(output, part)
+        M._format_cursor_data_context(output, part)
+        M._format_diagnostics_context(output, part)
       else
         M._format_user_prompt(output, vim.trim(part.text), message)
         content_added = true

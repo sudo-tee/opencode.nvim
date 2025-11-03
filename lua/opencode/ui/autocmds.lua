@@ -22,21 +22,16 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd('WinLeave', {
+  vim.api.nvim_create_autocmd({ 'BufWinEnter', 'BufFilePost', 'WinLeave' }, {
     group = group,
     pattern = '*',
-    callback = function(e)
-      if not require('opencode.ui.ui').is_opencode_focused() then
-        require('opencode.context').load()
-        require('opencode.state').last_code_win_before_opencode = vim.api.nvim_get_current_win()
-      else
-        local pos = vim.api.nvim_win_get_cursor(0)
-        if windows.input_win and vim.api.nvim_get_current_win() == windows.input_win then
-          require('opencode.state').last_input_window_position = pos
-        elseif windows.output_win and vim.api.nvim_get_current_win() == windows.output_win then
-          require('opencode.state').last_output_window_position = pos
-        end
+    callback = function(args)
+      if args.file == '' then
+        return
       end
+      local state = require('opencode.state')
+      state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
+      state.current_code_buf = vim.api.nvim_get_current_buf()
     end,
   })
 

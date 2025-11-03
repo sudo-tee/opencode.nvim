@@ -56,6 +56,7 @@ M.defaults = {
       ['~'] = { 'mention_file', mode = 'i' },
       ['@'] = { 'mention', mode = 'i' },
       ['/'] = { 'slash_commands', mode = 'i' },
+      ['#'] = { 'context_items', mode = 'i' },
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },
@@ -148,6 +149,7 @@ M.defaults = {
       enabled = false,
     },
     diagnostics = {
+      enabled = true,
       info = false,
       warning = true,
       error = true,
@@ -161,6 +163,9 @@ M.defaults = {
       show_full_path = true,
     },
     selection = {
+      enabled = true,
+    },
+    agents = {
       enabled = true,
     },
   },
@@ -300,4 +305,4 @@ return setmetatable(M, {
   __tostring = function(_)
     return vim.inspect(M.values)
   end,
-})
+}) --[[@as OpencodeConfig &  OpencodeConfigModule]]

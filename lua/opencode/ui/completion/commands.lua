@@ -24,9 +24,7 @@ local command_source = {
   name = 'commands',
   priority = 1,
   complete = function(context)
-    local config = require('opencode.config')
-    local input_text = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-
+    local icons = require('opencode.ui.icons')
     if not context.line:match('^' .. vim.pesc(context.trigger_char) .. '[^%s/]*$') then
       return {}
     end
@@ -49,6 +47,7 @@ local command_source = {
         local item = {
           label = command.name .. (command.args and ' *' or ''),
           kind = 'command',
+          kind_icon = icons.get('command'),
           detail = command.description,
           documentation = command.documentation .. (command.args and '\n\n* This command takes arguments.' or ''),
           insert_text = command.name,

@@ -12,14 +12,13 @@ function Source:get_trigger_characters()
   local config = require('opencode.config')
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
+  local context_key = config.get_key_for_function('input_window', 'context_items')
   local triggers = {}
-  if mention_key then
-    table.insert(triggers, mention_key)
-  end
-  if slash_key then
-    table.insert(triggers, slash_key)
-  end
-  return triggers
+  return {
+    slash_key or '',
+    mention_key or '',
+    context_key or '',
+  }
 end
 
 function Source:is_available()
@@ -55,12 +54,21 @@ function Source:get_completions(ctx, callback)
     for i, item in ipairs(source_items) do
       table.insert(items, {
         label = item.label,
-        kind = item.kind == 'file' and 17 or item.kind == 'folder' and 19 or 1, -- 17: File, 19: Folder, 1: Text
+        kind = item.kind,
+        kind_icon = item.kind_icon,
+        kind_hl = item.kind_hl,
         detail = item.detail,
         documentation = item.documentation,
         insertText = item.insert_text or item.label,
-        sortText = string.format('%02d_%02d_%s', completion_source.priority or 999, i, item.label),
-        score_offset = -(completion_source.priority or 999) * 1000,
+        sortText = string.format(
+          '%02d_%02d_%02d_%s',
+          completion_source.priority or 999,
+          item.priority or 999,
+          i,
+          item.label
+        ),
+        score_offset = -(completion_source.priority or 999) * 1000 + (item.priority or 999),
+
         data = {
           original_item = item,
         },

@@ -30,9 +30,12 @@ function M._get_trigger(before_cursor)
   local config = require('opencode.config')
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
-  local triggers = {}
-  if mention_key then table.insert(triggers, mention_key) end
-  if slash_key then table.insert(triggers, slash_key) end
+  local context_key = config.get_key_for_function('input_window', 'context_items')
+  local triggers = {
+    slash_key or '',
+    mention_key or '',
+    context_key or '',
+  }
   local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
   local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
   return trigger_char, trigger_match
@@ -79,19 +82,26 @@ function M._update()
   local items = {}
   for _, source in ipairs(M._completion_sources or {}) do
     local source_items = source.complete(context)
-    for _, item in ipairs(source_items) do
+    for i, item in ipairs(source_items) do
       if vim.startswith(item.insert_text or '', trigger_char) then
         item.insert_text = item.insert_text:sub(2)
       end
+      local source_priority = source.priority or 999
+      local item_priority = item.priority or 999
       table.insert(items, {
-        word = item.insert_text,
-        abbr = item.label,
+        word = #item.insert_text > 0 and item.insert_text or item.label,
+        abbr = (item.kind_icon or '') .. item.label,
         menu = source.name,
         kind = item.kind:sub(1, 1):upper(),
         user_data = item,
+        _sort_text = string.format('%02d_%02d_%02d_%s', source_priority, item_priority, i, item.label),
       })
     end
   end
+
+  table.sort(items, function(a, b)
+    return a._sort_text < b._sort_text
+  end)
 
   if #items > 0 then
     local start_col = before_cursor:find(vim.pesc(trigger_char) .. '[%w_%-%.]*$')

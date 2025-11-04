@@ -198,10 +198,13 @@ function M.format_time(timestamp)
   if timestamp > 1e12 then
     timestamp = math.floor(timestamp / 1000)
   end
-  
+
   local now = os.time()
-  local today_start = os.time(os.date('*t', now)) - os.date('*t', now).hour * 3600 - os.date('*t', now).min * 60 - os.date('*t', now).sec
-  
+  local today_start = os.time(os.date('*t', now))
+    - os.date('*t', now).hour * 3600
+    - os.date('*t', now).min * 60
+    - os.date('*t', now).sec
+
   if timestamp >= today_start then
     return os.date('%I:%M %p', timestamp)
   else
@@ -416,6 +419,10 @@ end
 --- @param filename string filename, possibly including path
 --- @return string markdown_filetype
 function M.get_markdown_filetype(filename)
+  if not filename or filename == '' then
+    return ''
+  end
+
   local file_type_overrides = {
     javascriptreact = 'jsx',
     typescriptreact = 'tsx',
@@ -474,6 +481,13 @@ function M.parse_run_args(args)
   local prompt = table.concat(prompt_tokens, ' ')
 
   return opts, prompt
+end
+
+---pcall but returns a full stacktrace on error
+function M.pcall_trace(fn, ...)
+  return xpcall(fn, function(err)
+    return debug.traceback(err, 2)
+  end, ...)
 end
 
 return M

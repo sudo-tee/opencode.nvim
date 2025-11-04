@@ -148,6 +148,7 @@
 ---@field context OpencodeContextConfig
 ---@field debug OpencodeDebugConfig
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
+---@field legacy_commands boolean
 
 ---@class MessagePartState
 ---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput Input data for the tool

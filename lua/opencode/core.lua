@@ -25,6 +25,9 @@ function M.select_session(parent_id)
       end
       return
     end
+    -- clear the model so it can be set by the session. If it doesn't get set
+    -- then core.get_model() will reset it to the default
+    state.current_model = nil
     state.active_session = selected_session
     if state.windows then
       state.restore_points = {}
@@ -67,6 +70,8 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
+    -- clear current_model here so it can be reset to the default (if one is set)
+    state.current_model = nil
     state.active_session = M.create_new_session()
   else
     if not state.active_session then
@@ -107,7 +112,7 @@ function M.send_message(prompt, opts)
   opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
   state.current_context_config = opts.context
   context.load()
-  opts.model = opts.model or state.current_model
+  opts.model = opts.model or M.initialize_current_model()
   opts.agent = opts.agent or state.current_mode or config.default_mode
 
   local params = {}
@@ -323,6 +328,22 @@ function M.ensure_current_mode()
     end
   end
   return true
+end
+
+---Initialize current model if it's not already set.
+---@return string|nil The current model (or the default model, if configured)
+function M.initialize_current_model()
+  if state.current_model then
+    return state.current_model
+  end
+
+  local config_file = require('opencode.config_file').get_opencode_config()
+
+  if config_file and config_file.model and config_file.model ~= '' then
+    state.current_model = config_file.model
+  end
+
+  return state.current_model
 end
 
 function M.setup()

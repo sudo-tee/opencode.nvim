@@ -355,7 +355,7 @@ function M.initialize()
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
   end
-  if not state.current_model then
+  if not core.initialize_current_model() or not state.current_model then
     vim.notify('No model selected', vim.log.levels.ERROR)
     return
   end

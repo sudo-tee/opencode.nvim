@@ -5,14 +5,14 @@ local output_window = require('opencode.ui.output_window')
 local Promise = require('opencode.promise')
 local RenderState = require('opencode.ui.render_state')
 
-local M = {}
-
-M._subscriptions = {}
-M._prev_line_count = 0
-M._render_state = RenderState.new()
-M._last_part_formatted = {
-  part_id = nil,
-  formatted_data = nil --[[@as Output|nil]],
+local M = {
+  _subscriptions = {},
+  _prev_line_count = 0,
+  _render_state = RenderState.new(),
+  _last_part_formatted = {
+    part_id = nil,
+    formatted_data = nil --[[@as Output|nil]],
+  },
 }
 
 local trigger_on_data_rendered = require('opencode.util').debounce(function()
@@ -135,6 +135,10 @@ function M._render_full_session_data(session_data)
 
   -- local event_manager = state.event_manager
 
+  -- if we're loading a session and there's no currently selected model, set it
+  -- from the messages
+  local set_mode_from_messages = not state.current_model
+
   for i, msg in ipairs(session_data) do
     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
       revert_index = i
@@ -153,6 +157,9 @@ function M._render_full_session_data(session_data)
     M._write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
   end
 
+  if set_mode_from_messages then
+    M._set_model_from_messages()
+  end
   M.scroll_to_bottom()
 end
 
@@ -180,6 +187,25 @@ end
 ---Called when EventManager has finished emitting a batch of events
 function M.on_emit_events_finished()
   M.scroll_to_bottom()
+end
+
+---Find the most recently used model from the messages
+function M._set_model_from_messages()
+  if not state.messages then
+    return
+  end
+
+  for i = #state.messages, 1, -1 do
+    local message = state.messages[i]
+
+    if message and message.info and message.info.modelID and message.info.providerID then
+      state.current_model = message.info.providerID .. '/' .. message.info.modelID
+      return
+    end
+  end
+
+  -- we didn't find a model from any messages, set it to the default
+  require('opencode.core').initialize_current_model()
 end
 
 ---Auto-scroll to bottom if user was already at bottom
@@ -917,14 +943,6 @@ end
 ---@return table[] List of actions available at that line
 function M.get_actions_for_line(line)
   return M._render_state:get_actions_at_line(line)
-end
-
----Update stats from all messages in session
----@param messages OpencodeMessage[]
-function M._update_stats_from_messages(messages)
-  for _, msg in ipairs(messages) do
-    M._update_stats_from_message(msg)
-  end
 end
 
 ---Update display stats from a single message

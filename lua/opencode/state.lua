@@ -1,5 +1,3 @@
-local config = require('opencode.config')
-
 ---@class OpencodeWindowState
 ---@field input_win integer|nil
 ---@field output_win integer|nil

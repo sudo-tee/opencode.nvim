@@ -545,13 +545,7 @@ function M.commands_list()
 end
 
 function M.current_model()
-    if state.current_model and state.current_model ~= "" then
-        return state.current_model
-    else
-        local conf = require('opencode.config_file').get_opencode_config()
-        local model = conf and conf.model
-        return model or ''
-    end
+  return core.initialize_current_model()
 end
 
 --- Runs a user-defined command by name.

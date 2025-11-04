@@ -487,4 +487,35 @@ describe('opencode.api', function()
       config_file.get_user_commands = original_get_user_commands
     end)
   end)
+
+  describe('current_model', function()
+    it('returns the current model from state', function()
+      local original_model = state.current_model
+      state.current_model = 'testmodel'
+
+      local model = api.current_model()
+      assert.equal('testmodel', model)
+
+      state.current_model = original_model
+    end)
+
+    it('falls back to config file model when state.current_model is nil', function()
+      local original_model = state.current_model
+      state.current_model = nil
+
+      local config_file = require('opencode.config_file')
+      local original_get_opencode_config = config_file.get_opencode_config
+
+      config_file.get_opencode_config = function()
+        return { model = 'testmodel' }
+      end
+
+      local model = api.current_model()
+
+      assert.equal('testmodel', model)
+
+      config_file.get_opencode_config = original_get_opencode_config
+      state.current_model = original_model
+    end)
+  end)
 end)

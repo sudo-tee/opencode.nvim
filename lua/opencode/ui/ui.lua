@@ -174,8 +174,16 @@ function M.clear_output()
   -- state.restore_points = {}
 end
 
-function M.render_output(_)
-  renderer.render_full_session()
+---Force a full rerender of the output buffer. Should be done synchronously if
+---called before submitting input or doing something that might generate events
+---from opencode
+---@param synchronous? boolean If true, waits until session is fully rendered
+function M.render_output(synchronous)
+  local ret = renderer.render_full_session()
+
+  if ret and synchronous then
+    ret:wait()
+  end
 end
 
 function M.render_lines(lines)

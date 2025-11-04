@@ -274,7 +274,7 @@ function M.submit_input_prompt()
     -- we're displaying /help or something similar, need to clear that and refresh
     -- the session data before sending the command
     state.display_route = nil
-    ui.render_output()
+    ui.render_output(true)
   end
 
   input_window.handle_submit()

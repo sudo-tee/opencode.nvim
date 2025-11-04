@@ -114,12 +114,14 @@ local function fetch_session()
   return require('opencode.session').get_messages(session)
 end
 
+---Request all of the session data from the opencode server and render it
+---@return Promise<OpencodeMessage[]>
 function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
-    return
+    return Promise.new():resolve(nil)
   end
 
-  fetch_session():and_then(M._render_full_session_data)
+  return fetch_session():and_then(M._render_full_session_data)
 end
 
 function M._render_full_session_data(session_data)

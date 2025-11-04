@@ -1,3 +1,4 @@
+local config = require('opencode.config')
 local util = require('opencode.util')
 
 local M = {}
@@ -10,16 +11,10 @@ local LABELS = {
 }
 
 local function format_model_info()
-  if not state.current_model or state.current_model == '' then
-    local info = config_file.get_opencode_config()
-    state.current_model = info and info.model
-  end
-
-  local config = require('opencode.config')
   local parts = {}
 
-  if config.ui.display_model and state.current_model then
-    if state.current_model ~= '' then
+  if config.ui.display_model then
+    if state.current_model then
       table.insert(parts, state.current_model)
     end
   end

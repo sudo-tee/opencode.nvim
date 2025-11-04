@@ -46,6 +46,8 @@ local config = require('opencode.config')
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
 
+local M = {}
+
 -- Internal raw state table
 local _state = {
   -- ui
@@ -96,10 +98,10 @@ local _listeners = {}
 ---@usage
 ---   state.subscribe('foo', function(key, new, old) ... end)
 ---   state.subscribe('*', function(key, new, old) ... end)
-local function subscribe(key, cb)
+function M.subscribe(key, cb)
   if type(key) == 'table' then
     for _, k in ipairs(key) do
-      subscribe(k, cb)
+      M.subscribe(k, cb)
     end
     return
   end
@@ -113,7 +115,7 @@ end
 --- Unsubscribe a callback for a key (or all keys)
 ---@param key string|nil
 ---@param cb fun(key:string, new_val:any, old_val:any)
-local function unsubscribe(key, cb)
+function M.unsubscribe(key, cb)
   key = key or '*'
   local list = _listeners[key]
   if not list then
@@ -148,7 +150,7 @@ local function _notify(key, new_val, old_val)
   end)
 end
 
-local function append(key, value)
+function M.append(key, value)
   if type(value) ~= 'table' then
     error('Value must be a table to append')
   end
@@ -164,7 +166,7 @@ local function append(key, value)
   _notify(key, _state[key], old)
 end
 
-local function remove(key, idx)
+function M.remove(key, idx)
   if not _state[key] then
     return
   end
@@ -177,6 +179,13 @@ local function remove(key, idx)
   _notify(key, _state[key], old)
 end
 
+---
+--- Returns true if any job (run or server) is running
+---
+function M.is_running()
+  return M.job_count > 0
+end
+
 --- Observable state proxy. All reads/writes go through this table.
 --- Use `state.subscribe(key, cb)` to listen for changes.
 --- Use `state.unsubscribe(key, cb)` to remove listeners.
@@ -184,9 +193,7 @@ end
 --- Example:
 ---   state.subscribe('foo', function(key, new, old) print(key, new, old) end)
 ---   state.foo = 42 -- triggers callback
----@type OpencodeState
-local M = {}
-setmetatable(M, {
+return setmetatable(M, {
   __index = function(_, k)
     return _state[k]
   end,
@@ -203,18 +210,4 @@ setmetatable(M, {
   __ipairs = function()
     return ipairs(_state)
   end,
-})
-
-M.append = append
-M.remove = remove
-M.subscribe = subscribe
-M.unsubscribe = unsubscribe
-
----
---- Returns true if any job (run or server) is running
----
-function M.is_running()
-  return M.job_count > 0
-end
-
-return M
+}) --[[@as OpencodeState]]

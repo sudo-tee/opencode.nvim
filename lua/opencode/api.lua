@@ -449,15 +449,15 @@ function M.help()
     '',
     '### Subcommands',
     '',
-    '| Command      | Description                                           |',
-    '|--------------|-------------------------------------------------------|',
+    '| Command      | Description |',
+    '|--------------|-------------|',
   }, false)
 
   if not state.windows or not state.windows.output_win then
     return
   end
 
-  local max_desc_length = math.floor((vim.api.nvim_win_get_width(state.windows.output_win) / 1.3) - 5)
+  local max_desc_length = vim.api.nvim_win_get_width(state.windows.output_win) - 22
 
   local sorted_commands = vim.tbl_keys(M.commands)
   table.sort(sorted_commands)
@@ -468,7 +468,7 @@ function M.help()
     if #desc > max_desc_length then
       desc = desc:sub(1, max_desc_length - 3) .. '...'
     end
-    table.insert(msg, string.format('| %-12s | %-53s |', name, desc))
+    table.insert(msg, string.format('| %-12s | %-' .. max_desc_length .. 's |', name, desc))
   end
 
   table.insert(msg, '')

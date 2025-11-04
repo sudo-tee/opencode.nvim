@@ -1,14 +1,14 @@
 local core = require('opencode.core')
 local util = require('opencode.util')
 local session = require('opencode.session')
-local input_window = require('opencode.ui.input_window')
+local config_file = require('opencode.config_file')
+local state = require('opencode.state')
 
+local input_window = require('opencode.ui.input_window')
 local ui = require('opencode.ui.ui')
 local icons = require('opencode.ui.icons')
-local state = require('opencode.state')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
-local id = require('opencode.id')
 
 local M = {}
 
@@ -348,6 +348,8 @@ function M.debug_session()
 end
 
 function M.initialize()
+  local id = require('opencode.id')
+
   ui.render_output(true)
 
   local new_session = core.create_new_session('AGENTS.md Initialization')
@@ -382,7 +384,7 @@ function M.agent_build()
 end
 
 function M.select_agent()
-  local modes = require('opencode.config_file').get_opencode_agents()
+  local modes = config_file.get_opencode_agents()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
@@ -395,7 +397,7 @@ function M.select_agent()
 end
 
 function M.switch_mode()
-  local modes = require('opencode.config_file').get_opencode_agents() --[[@as string[] ]]
+  local modes = config_file.get_opencode_agents() --[[@as string[] ]]
 
   local current_index = util.index_of(modes, state.current_mode)
 
@@ -478,8 +480,7 @@ function M.help()
 end
 
 function M.mcp()
-  local info = require('opencode.config_file')
-  local mcp = info.get_mcp_servers()
+  local mcp = config_file.get_mcp_servers()
   if not mcp then
     vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -520,8 +521,7 @@ function M.mcp()
 end
 
 function M.commands_list()
-  local info = require('opencode.config_file')
-  local commands = info.get_user_commands()
+  local commands = config_file.get_user_commands()
   if not commands then
     vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -533,13 +533,13 @@ function M.commands_list()
   local msg = M.with_header({
     '### Available User Commands',
     '',
-    '| Name | Description |',
-    '|------|-------------|',
+    '| Name | Description |Arguments|',
+    '|------|-------------|---------|',
   })
 
   for name, def in pairs(commands) do
     local desc = def.description or ''
-    table.insert(msg, string.format('| %s | %s |', name, desc))
+    table.insert(msg, string.format('| %s | %s | %s |', name, desc, tostring(config_file.command_takes_arguments(def))))
   end
 
   table.insert(msg, '')
@@ -552,7 +552,6 @@ end
 function M.run_user_command(name, args)
   M.open_input()
 
-  ui.render_output(true)
   if not state.active_session then
     vim.notify('No active session', vim.log.levels.WARN)
     return
@@ -1023,7 +1022,6 @@ M.commands = {
   command = {
     desc = 'Run user-defined command',
     completions = function()
-      local config_file = require('opencode.config_file')
       local user_commands = config_file.get_user_commands()
       if not user_commands then
         return {}
@@ -1224,7 +1222,6 @@ function M.get_slash_commands()
     })
   end
 
-  local config_file = require('opencode.config_file')
   local user_commands = config_file.get_user_commands()
   if user_commands then
     for name, def in pairs(user_commands) do

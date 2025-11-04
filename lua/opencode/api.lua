@@ -350,8 +350,6 @@ end
 function M.initialize()
   local id = require('opencode.id')
 
-  ui.render_output(true)
-
   local new_session = core.create_new_session('AGENTS.md Initialization')
   if not new_session then
     vim.notify('Failed to create new session', vim.log.levels.ERROR)

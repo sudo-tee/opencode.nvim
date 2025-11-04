@@ -164,34 +164,6 @@ function M.get_recent_files()
   return recent_files
 end
 
----Get the list of old files in the current working directory
----@return string[]
-function M.get_old_files()
-  local result = {}
-  for _, file in ipairs(vim.v.oldfiles) do
-    if vim.startswith(vim.fn.fnamemodify(file, ':p'), vim.fn.getcwd()) then
-      table.insert(result, vim.fn.fnamemodify(file, ':.'))
-    end
-  end
-  return result
-end
-
----Get the list of changed files in git (staged, unstaged, untracked)
----@return string[]|nil
-function M.get_git_changed_files()
-  local results = run_systemlist('git status --porcelain')
-
-  local files = {}
-  for _, line in ipairs(results or {}) do
-    local file = line:sub(4)
-    if file and file ~= '' and vim.trim(line:sub(1, 2)) ~= 'D' then
-      table.insert(files, file)
-    end
-  end
-
-  return #files > 0 and files or nil
-end
-
 ---Get the file completion source
 ---@return CompletionSource
 function M.get_source()

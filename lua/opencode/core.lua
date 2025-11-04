@@ -77,7 +77,7 @@ function M.open(opts)
         -- and the windows were closed so we need to do a full refresh. This mostly happens
         -- when opening the window after having closed it since we're not currently clearing
         -- the session on api.close()
-        ui.render_output(false)
+        ui.render_output()
       end
     end
   end

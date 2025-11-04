@@ -129,9 +129,13 @@ M.get_first_snapshot = require_git_project(function()
     vim.notify('No active session found.')
     return nil
   end
-  local snapshots = session.get_message_snapshot_ids(state.current_message)
 
-  return snapshots and snapshots[1] or nil
+  for _, msg in ipairs(state.messages or {}) do
+    local snapshots = session.get_message_snapshot_ids(msg)
+    if snapshots and #snapshots > 0 then
+      return snapshots[1]
+    end
+  end
 end)
 
 M.review = require_git_project(function(ref)

@@ -1174,7 +1174,7 @@ function M.complete_command(arg_lead, cmd_line, cursor_pos)
   if num_parts <= 3 and subcmd_def.completions then
     local completions = subcmd_def.completions
     if type(completions) == 'function' then
-      completions = completions()
+      completions = completions() --[[@as string[] ]]
     end
     return vim.tbl_filter(function(opt)
       return vim.startswith(opt, arg_lead)

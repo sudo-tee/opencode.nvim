@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local ThrottlingEmitter = require('opencode.throttling_emitter')
+local util = require('opencode.util')
 
 --- @class EventInstallationUpdated
 --- @field type "installation.updated"
@@ -278,12 +279,16 @@ function EventManager:emit(event_name, data)
 
   local event = { type = event_name, properties = data }
 
-  if require('opencode.config').debug.capture_streamed_events then
+  if config.debug.capture_streamed_events then
     table.insert(self.captured_events, vim.deepcopy(event))
   end
 
   for _, callback in ipairs(listeners) do
-    pcall(callback, data)
+    local ok, result = util.pcall_trace(callback, data)
+
+    if not ok then
+      vim.notify('Error calling ' .. event_name .. ' listener: ' .. result, vim.log.levels.ERROR)
+    end
   end
 end
 

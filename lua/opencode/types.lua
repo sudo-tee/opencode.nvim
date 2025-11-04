@@ -125,6 +125,7 @@
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
+---@field capture_streamed_events any[]
 
 --- @class OpencodeProviders
 --- @field [string] string[]

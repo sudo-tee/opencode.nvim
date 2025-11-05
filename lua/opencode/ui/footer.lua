@@ -98,11 +98,11 @@ function M.setup(windows)
 end
 
 function M.close()
-  if M.mounted() then
-    ---@cast state.windows { footer_win: integer, footer_buf: integer }
-
-    pcall(vim.api.nvim_win_close, state.windows.footer_win, true)
-    pcall(vim.api.nvim_buf_delete, state.windows.footer_buf, { force = true })
+  local windows = state.windows
+  if windows then
+    ---@cast windows {footer_win: integer, footer_buf: integer}
+    pcall(vim.api.nvim_win_close, windows.footer_win, true)
+    pcall(vim.api.nvim_buf_delete, windows.footer_buf, { force = true })
   end
 
   state.unsubscribe('current_model', on_change)
@@ -113,7 +113,7 @@ function M.close()
 end
 
 function M.mounted(windows)
-  windows = state.windows
+  windows = windows or state.windows
   return windows
     and windows.footer_win
     and vim.api.nvim_win_is_valid(windows.footer_win)

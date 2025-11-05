@@ -11,9 +11,9 @@
 ---@field input_content table
 ---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
----@field last_input_window_position number|nil
----@field last_output_window_position number|nil
----@field last_code_win_before_opencode number|nil
+---@field last_input_window_position integer[]|nil
+---@field last_output_window_position integer[]|nil
+---@field last_code_win_before_opencode integer|nil
 ---@field current_code_buf number|nil
 ---@field display_route any|nil
 ---@field current_mode string

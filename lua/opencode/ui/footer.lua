@@ -10,10 +10,10 @@ local loading_animation = require('opencode.ui.loading_animation')
 local M = {}
 
 function M.render()
-  local windows = state.windows
-  if not output_window.mounted(windows) or not M.mounted(windows) then
+  if not output_window.mounted() or not M.mounted() then
     return
   end
+  ---@cast state.windows { output_win: integer }
 
   local segments = {}
 
@@ -46,23 +46,22 @@ function M.render()
     append_to_footer(restore_point_text)
   end
 
-  ---@diagnostic disable-next-line: need-check-nil
-  local win_width = vim.api.nvim_win_get_width(windows.output_win)
+  local win_width = vim.api.nvim_win_get_width(state.windows.output_win)
   local footer_text = table.concat(segments, ' | ') .. ' '
   footer_text = string.rep(' ', win_width - #footer_text) .. footer_text
 
   M.set_content({ footer_text })
 end
 
----@param windows OpencodeWindowState
-function M._build_footer_win_config(windows)
+---@param output_win integer
+function M._build_footer_win_config(output_win)
   return {
     relative = 'win',
-    win = windows.output_win,
+    win = output_win,
     anchor = 'SW',
-    width = vim.api.nvim_win_get_width(windows.output_win),
+    width = vim.api.nvim_win_get_width(output_win),
     height = 1,
-    row = vim.api.nvim_win_get_height(windows.output_win) - 1,
+    row = vim.api.nvim_win_get_height(output_win) - 1,
     col = 0,
     focusable = false,
     style = 'minimal',
@@ -82,7 +81,11 @@ local function on_job_count_changed(_, new, old)
 end
 
 function M.setup(windows)
-  windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows))
+  if not windows.output_win then
+    return false
+  end
+
+  windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows.output_win))
   vim.api.nvim_set_option_value('winhl', 'Normal:OpenCodeHint', { win = windows.footer_win })
 
   -- for stats changes
@@ -95,7 +98,9 @@ function M.setup(windows)
 end
 
 function M.close()
-  if state.windows then
+  if M.mounted() then
+    ---@cast state.windows { footer_win: integer, footer_buf: integer }
+
     pcall(vim.api.nvim_win_close, state.windows.footer_win, true)
     pcall(vim.api.nvim_buf_delete, state.windows.footer_buf, { force = true })
   end
@@ -112,7 +117,9 @@ function M.mounted(windows)
   return windows
     and windows.footer_win
     and vim.api.nvim_win_is_valid(windows.footer_win)
+    and windows.output_win
     and vim.api.nvim_win_is_valid(windows.output_win)
+    and windows.footer_buf
 end
 
 function M.update_window(windows)
@@ -120,7 +127,7 @@ function M.update_window(windows)
     return
   end
 
-  vim.api.nvim_win_set_config(windows.footer_win, M._build_footer_win_config(windows))
+  vim.api.nvim_win_set_config(windows.footer_win, M._build_footer_win_config(windows.output_win))
   M.render()
 end
 
@@ -132,29 +139,26 @@ function M.create_buf()
 end
 
 function M.clear()
-  local windows = state.windows
-  if not M.mounted() or not windows then
+  if not M.mounted() then
     return
   end
+  ---@cast state.windows { footer_buf: integer }
 
   local foot_ns_id = vim.api.nvim_create_namespace('opencode_footer')
-  vim.api.nvim_buf_clear_namespace(windows.footer_buf, foot_ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, foot_ns_id, 0, -1)
 
   M.set_content({})
-  --
-  -- state.tokens_count = 0
-  -- state.cost = 0
 end
 
 function M.set_content(lines)
-  local windows = state.windows
-  if not M.mounted() or not windows then
+  if not M.mounted() then
     return
   end
+  ---@cast state.windows { footer_buf: integer }
 
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.footer_buf })
-  vim.api.nvim_buf_set_lines(windows.footer_buf, 0, -1, false, lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.footer_buf })
+  vim.api.nvim_set_option_value('modifiable', true, { buf = state.windows.footer_buf })
+  vim.api.nvim_buf_set_lines(state.windows.footer_buf, 0, -1, false, lines)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = state.windows.footer_buf })
 end
 
 return M

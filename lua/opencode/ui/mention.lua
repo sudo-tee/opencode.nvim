@@ -1,5 +1,3 @@
-local config = require('opencode.config')
-
 local M = {}
 
 local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
@@ -25,6 +23,7 @@ function M.highlight_all_mentions(buf, callback)
       if not mention_start then
         break
       end
+      ---@cast mention_start integer
 
       if callback then
         callback(line:sub(mention_start + 1, mention_end), row, mention_start, mention_end)
@@ -82,7 +81,7 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
             end_col = col_end,
             hl_group = 'OpencodeMention',
             priority = 1000,
-          })
+          } --[[@as OutputExtmark]])
           break
         end
 
@@ -91,8 +90,13 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
     end
   end
 end
+
 local function insert_mention(windows, row, col, name)
   local current_line = vim.api.nvim_buf_get_lines(windows.input_buf, row - 1, row, false)[1]
+
+  if not current_line then
+    return
+  end
 
   local insert_name = '@' .. name .. ' '
 
@@ -111,7 +115,7 @@ function M.mention(get_name)
 
   get_name(function(name)
     vim.schedule(function()
-      if not windows or not name then
+      if not windows or not windows.input_win or not name then
         return
       end
       local cursor_pos = vim.api.nvim_win_get_cursor(windows.input_win)

@@ -4,7 +4,7 @@ local M = {}
 --- @field queue table[] Queue of pending items to be processed
 --- @field drain_scheduled boolean Whether a drain is already scheduled
 --- @field process_fn fun(table): nil Function to process the queue of events
---- @field drain_interval_ms number Interval between drains in milliseconds
+--- @field drain_interval_ms integer Interval between drains in milliseconds
 --- @field enqueue fun(self: ThrottlingEmitter, item: any) Enqueue an item for batch processing
 --- @field clear fun(self: ThrottlingEmitter) Clear the queue and cancel any pending drain
 local ThrottlingEmitter = {}

@@ -23,6 +23,7 @@ function M.close_windows(windows)
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
 
+  ---@cast windows { input_win: integer, output_win: integer, input_buf: integer, output_buf: integer }
   pcall(vim.api.nvim_win_close, windows.input_win, true)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
@@ -111,7 +112,7 @@ end
 function M.focus_input(opts)
   opts = opts or {}
   local windows = state.windows
-  if not windows then
+  if not windows or not windows.input_win then
     return
   end
 
@@ -130,7 +131,7 @@ end
 function M.focus_output(opts)
   opts = opts or {}
   local windows = state.windows
-  if not windows then
+  if not windows or not windows.output_win then
     return
   end
 
@@ -225,7 +226,7 @@ end
 
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
-  if current_win == state.windows.input_win then
+  if state.windows and current_win == state.windows.input_win then
     output_window.focus_output(true)
   else
     input_window.focus_input()

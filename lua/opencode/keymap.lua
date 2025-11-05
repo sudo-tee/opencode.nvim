@@ -34,7 +34,7 @@ end
 
 -- Setup window-specific keymaps (shared helper for input/output windows)
 ---@param keymap_config table Window keymap configuration
----@param buf_id number Buffer ID to set keymaps for
+---@param buf_id integer Buffer ID to set keymaps for
 function M.setup_window_keymaps(keymap_config, buf_id)
   if not vim.api.nvim_buf_is_valid(buf_id) then
     return

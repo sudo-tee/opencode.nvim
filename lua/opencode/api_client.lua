@@ -37,6 +37,10 @@ function OpencodeApiClient:_ensure_base_url()
     end
   end
 
+  if not state.opencode_server.url then
+    return false
+  end
+
   self.base_url = state.opencode_server.url:gsub('/$', '')
   return true
 end
@@ -49,7 +53,7 @@ end
 --- @return Promise<any> promise
 function OpencodeApiClient:_call(endpoint, method, body, query)
   if not self:_ensure_base_url() then
-    return nil
+    return require('opencode.promise').new():reject('No server base url')
   end
   local url = self.base_url .. endpoint
 
@@ -393,7 +397,7 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     chunk = chunk:gsub('^data:%s*', '')
     local ok, event = pcall(vim.json.decode, vim.trim(chunk))
     if ok and event then
-      on_event(event)
+      on_event(event --[[@as table]])
     end
   end)
 end

@@ -24,16 +24,7 @@ end
 
 function M.mounted(windows)
   windows = windows or state.windows
-  if
-    not state.windows
-    or not state.windows.output_buf
-    or not state.windows.output_win
-    or not vim.api.nvim_win_is_valid(windows.output_win)
-  then
-    return false
-  end
-
-  return true
+  return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)
 end
 
 function M.setup(windows)
@@ -66,6 +57,7 @@ function M.get_buf_line_count()
   if not M.mounted() then
     return 0
   end
+  ---@cast state.windows { output_buf: integer }
 
   return vim.api.nvim_buf_line_count(state.windows.output_buf)
 end
@@ -78,18 +70,14 @@ function M.set_lines(lines, start_line, end_line)
   if not M.mounted() then
     return
   end
+  ---@cast state.windows { output_buf: integer }
 
   start_line = start_line or 0
   end_line = end_line or -1
 
-  local windows = state.windows
-  if not windows or not windows.output_buf then
-    return
-  end
-
-  vim.api.nvim_set_option_value('modifiable', true, { buf = windows.output_buf })
-  vim.api.nvim_buf_set_lines(windows.output_buf, start_line, end_line, false, lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
+  vim.api.nvim_set_option_value('modifiable', true, { buf = state.windows.output_buf })
+  vim.api.nvim_buf_set_lines(state.windows.output_buf, start_line, end_line, false, lines)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = state.windows.output_buf })
 end
 
 ---Clear output buf extmarks
@@ -97,9 +85,10 @@ end
 ---@param end_line? integer Line to clear until, defaults to -1
 ---@param clear_all? boolean If true, clears all extmarks in the buffer
 function M.clear_extmarks(start_line, end_line, clear_all)
-  if not M.mounted() or not state.windows.output_buf then
+  if not M.mounted() then
     return
   end
+  ---@cast state.windows { output_buf: integer }
 
   start_line = start_line or 0
   end_line = end_line or -1
@@ -108,12 +97,13 @@ function M.clear_extmarks(start_line, end_line, clear_all)
 end
 
 ---Apply extmarks to the output buffer
----@param extmarks table<number, OutputExtmark> Extmarks indexed by line
+---@param extmarks table<number, OutputExtmark[]> Extmarks indexed by line
 ---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
 function M.set_extmarks(extmarks, line_offset)
   if not M.mounted() or not extmarks or type(extmarks) ~= 'table' then
     return
   end
+  ---@cast state.windows { output_buf: integer }
 
   line_offset = line_offset or 0
 
@@ -122,7 +112,7 @@ function M.set_extmarks(extmarks, line_offset)
   for line_idx, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do
       local actual_mark = type(mark) == 'function' and mark() or mark
-      local target_line = line_offset + line_idx
+      local target_line = line_offset + line_idx --[[@as integer]]
       if actual_mark.end_row then
         actual_mark.end_row = actual_mark.end_row + line_offset
       end
@@ -130,12 +120,18 @@ function M.set_extmarks(extmarks, line_offset)
       if actual_mark.start_col then
         actual_mark.start_col = nil
       end
+      ---@cast actual_mark vim.api.keyset.set_extmark
       pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, actual_mark)
     end
   end
 end
 
 function M.focus_output(should_stop_insert)
+  if not M.mounted() then
+    return
+  end
+  ---@cast state.windows { output_win: integer }
+
   if should_stop_insert then
     vim.cmd('stopinsert')
   end
@@ -146,6 +142,8 @@ function M.close()
   if M.mounted() then
     return
   end
+  ---@cast state.windows { output_win: integer, output_buf: integer }
+
   pcall(vim.api.nvim_win_close, state.windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
 end

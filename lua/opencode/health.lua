@@ -111,6 +111,8 @@ local function check_configuration()
     return
   end
 
+  ---@cast config OpencodeConfig
+
   local valid_positions = { 'left', 'right', 'top', 'bottom' }
   if not vim.tbl_contains(valid_positions, config.ui.position) then
     health.warn(

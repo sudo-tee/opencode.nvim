@@ -22,7 +22,7 @@ local trigger_on_data_rendered = require('opencode.util').debounce(function()
     return
   end
 
-  if not state.windows then
+  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
     return
   end
 

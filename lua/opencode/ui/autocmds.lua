@@ -59,7 +59,7 @@ function M.setup_resize_handler(windows)
   vim.api.nvim_create_autocmd('WinResized', {
     group = resize_group,
     callback = function(args)
-      local win = tonumber(args.match)
+      local win = tonumber(args.match) --[[@as integer]]
       if not win or not vim.api.nvim_win_is_valid(win) or not output_window.mounted() then
         return
       end

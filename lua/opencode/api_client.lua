@@ -213,6 +213,15 @@ function OpencodeApiClient:summarize_session(id, summary_data, directory)
   return self:_call('/session/' .. id .. '/summarize', 'POST', summary_data, { directory = directory })
 end
 
+--- Fork an existing session at a specific message
+--- @param id string Session ID (required)
+--- @param fork_data {messageID?: string}|nil Fork data
+--- @param directory string|nil Directory path
+--- @return Promise<Session>
+function OpencodeApiClient:fork_session(id, fork_data, directory)
+  return self:_call('/session/' .. id .. '/fork', 'POST', fork_data, { directory = directory })
+end
+
 -- Message endpoints
 
 --- List messages for a session

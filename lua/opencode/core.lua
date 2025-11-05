@@ -25,19 +25,24 @@ function M.select_session(parent_id)
       end
       return
     end
-    -- clear the model so it can be set by the session. If it doesn't get set
-    -- then core.get_model() will reset it to the default
-    state.current_model = nil
-    state.active_session = selected_session
-    if state.windows then
-      state.restore_points = {}
-      -- Don't need to update either renderer because they subscribe to
-      -- session changes
-      ui.focus_input()
-    else
-      M.open()
-    end
+    M.switch_session(selected_session.id)
   end)
+end
+
+function M.switch_session(session_id)
+  local selected_session = session.get_by_id(session_id)
+  -- clear the model so it can be set by the session. If it doesn't get set
+  -- then core.get_model() will reset it to the default
+  state.current_model = nil
+  state.active_session = selected_session
+  if state.windows then
+    state.restore_points = {}
+    -- Don't need to update either renderer because they subscribe to
+    -- session changes
+    ui.focus_input()
+  else
+    M.open()
+  end
 end
 
 ---@param opts? OpenOpts

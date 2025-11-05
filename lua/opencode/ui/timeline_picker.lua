@@ -1,6 +1,7 @@
 local M = {}
 local picker = require('opencode.ui.picker')
 local config = require('lua.opencode.config')
+local api = require('opencode.api')
 
 local picker_title = function()
   local config = require('opencode.config') --[[@as OpencodeConfig]]
@@ -329,8 +330,7 @@ function M.pick(messages, callback)
   end
 
   local function on_fork(msg)
-    -- TODO: Implement fork functionality
-    vim.notify('Fork functionality not yet implemented', vim.log.levels.WARN)
+    api.fork_session(msg.info.id)
   end
 
   vim.schedule(function()

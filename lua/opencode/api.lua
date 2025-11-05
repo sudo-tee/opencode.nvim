@@ -683,7 +683,9 @@ end
 function M.timeline()
   local user_messages = {}
   for _, msg in ipairs(state.messages or {}) do
-    if msg.info.role == 'user' then
+    local parts = msg.parts or {}
+    local is_summary = #parts == 1 and parts[1].synthetic == true
+    if msg.info.role == 'user' and not is_summary then
       table.insert(user_messages, msg)
     end
   end
@@ -698,6 +700,39 @@ function M.timeline()
       require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
     end
   end)
+end
+
+function M.fork_session(message_id)
+  if not state.active_session then
+    vim.notify('No active session to fork', vim.log.levels.WARN)
+    return
+  end
+
+  local message_to_fork = message_id or state.last_user_message and state.last_user_message.info.id
+  if not message_to_fork then
+    vim.notify('No user message to fork from', vim.log.levels.WARN)
+    return
+  end
+
+  state.api_client
+    :fork_session(state.active_session.id, {
+      messageID = message_to_fork,
+    })
+    :and_then(function(response)
+      vim.schedule(function()
+        if response and response.id then
+          vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)
+          core.switch_session(response.id)
+        else
+          vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)
+        end
+      end)
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to fork session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end)
 end
 
 -- Returns the ID of the next user message after the current undo point

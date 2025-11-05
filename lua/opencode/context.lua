@@ -56,7 +56,7 @@ end
 ---@param context_key string
 ---@return boolean
 function M.is_context_enabled(context_key)
-  local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')
+  local is_enabled = vim.tbl_get(config --[[@as table]], 'context', context_key, 'enabled')
   local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
 
   if is_state_enabled ~= nil then
@@ -76,7 +76,7 @@ function M.get_diagnostics(buf)
     return {}
   end
 
-  local global_conf = vim.tbl_get(config, 'context', 'diagnostics') or {}
+  local global_conf = vim.tbl_get(config --[[@as table]], 'context', 'diagnostics') or {}
   local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf) or {}
 
   local severity_levels = {}
@@ -264,7 +264,8 @@ function M.get_current_cursor_data(buf, win)
   end
 
   local cursor_pos = vim.fn.getcurpos(win)
-  local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, cursor_pos[2] - 1, cursor_pos[2], false)[1] or '')
+  local start_line = (cursor_pos[2] - 1) --[[@as integer]]
+  local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, start_line, cursor_pos[2], false)[1] or '')
   return { line = cursor_pos[2], column = cursor_pos[3], line_content = cursor_content }
 end
 
@@ -384,7 +385,6 @@ end
 function M.format_message(prompt, opts)
   opts = opts or config.context
   local context = M.delta_context(opts)
-  context.prompt = prompt
 
   local parts = { { type = 'text', text = prompt } }
 
@@ -430,7 +430,7 @@ end
 
 --- Extracts context from an OpencodeMessage (with parts)
 ---@param message { parts: OpencodeMessagePart[] }
----@return { prompt: string, selected_text: string|nil, current_file: string|nil, mentioned_files: string[]|nil}
+---@return { prompt: string|nil, selected_text: string|nil, current_file: string|nil, mentioned_files: string[]|nil}
 function M.extract_from_opencode_message(message)
   local ctx = { prompt = nil, selected_text = nil, current_file = nil }
 

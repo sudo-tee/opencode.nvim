@@ -99,6 +99,10 @@ end
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 function M.send_message(prompt, opts)
+  if not state.active_session or not state.active_session.id then
+    return false
+  end
+
   local mentioned_files = context.context.mentioned_files or {}
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 

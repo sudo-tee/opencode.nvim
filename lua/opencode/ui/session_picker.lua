@@ -1,5 +1,6 @@
 local M = {}
 local picker = require('opencode.ui.picker')
+local config = require('lua.opencode.config')
 
 local picker_title = function()
   local config = require('opencode.config') --[[@as OpencodeConfig]]
@@ -37,7 +38,9 @@ local function format_session(session)
     table.insert(parts, modified)
   end
 
-  table.insert(parts, 'ID: ' .. (session.id or 'N/A'))
+  if config.debug then
+    table.insert(parts, 'ID: ' .. (session.id or 'N/A'))
+  end
   return table.concat(parts, ' ~ ')
 end
 

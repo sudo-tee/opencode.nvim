@@ -77,6 +77,10 @@
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
 
+---@class OpencodeTimelinePickerKeymap
+---@field undo OpencodeKeymapEntry
+---@field fork OpencodeKeymapEntry
+
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
 ---@field preferred_cli_tool 'server'|'fd'|'fdfind'|'rg'|'git'

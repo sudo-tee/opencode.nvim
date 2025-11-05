@@ -680,6 +680,26 @@ function M.undo(messageId)
     end)
 end
 
+function M.timeline()
+  local user_messages = {}
+  for _, msg in ipairs(state.messages or {}) do
+    if msg.info.role == 'user' then
+      table.insert(user_messages, msg)
+    end
+  end
+  if #user_messages == 0 then
+    vim.notify('No user messages in the current session', vim.log.levels.WARN)
+    return
+  end
+
+  local timeline_picker = require('opencode.ui.timeline_picker')
+  timeline_picker.pick(user_messages, function(selected_msg)
+    if selected_msg then
+      require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
+    end
+  end)
+end
+
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
 -- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
@@ -1074,6 +1094,11 @@ M.commands = {
       end
     end,
   },
+
+  timeline = {
+    desc = 'Open timeline picker to navigate/undo/redo/fork to message',
+    fn = M.timeline,
+  },
 }
 
 M.slash_commands_map = {
@@ -1089,6 +1114,7 @@ M.slash_commands_map = {
   ['/redo'] = { fn = M.redo, desc = 'Redo last action' },
   ['/sessions'] = { fn = M.select_session, desc = 'Select session' },
   ['/share'] = { fn = M.share, desc = 'Share current session' },
+  ['/timeline'] = { fn = M.timeline, desc = 'Open timeline picker' },
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
 }

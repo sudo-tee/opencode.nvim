@@ -75,6 +75,10 @@ M.defaults = {
       delete_session = { '<C-d>' },
       new_session = { '<C-n>' },
     },
+    timeline_picker = {
+      undo = { '<C-u>', mode = { 'i', 'n' } },
+      fork = { '<C-f>', mode = { 'i', 'n' } },
+    },
   },
   ui = {
     position = 'right',

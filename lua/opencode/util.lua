@@ -66,72 +66,6 @@ function M.indent_code_block(text)
   return vim.trim(table.concat(content, '\n'))
 end
 
--- Get timezone offset in seconds for various timezone formats
-function M.get_timezone_offset(timezone)
-  -- Handle numeric timezone formats (+HHMM, -HHMM)
-  if timezone:match('^[%+%-]%d%d:?%d%d$') then
-    local sign = timezone:sub(1, 1) == '+' and 1 or -1
-    local hours = tonumber(timezone:match('^[%+%-](%d%d)'))
-    local mins = tonumber(timezone:match('^[%+%-]%d%d:?(%d%d)$') or '00')
-    return sign * (hours * 3600 + mins * 60)
-  end
-
-  -- Map of common timezone abbreviations to their offset in seconds from UTC
-  local timezone_map = {
-    -- Zero offset timezones
-    ['UTC'] = 0,
-    ['GMT'] = 0,
-
-    -- North America
-    ['EST'] = -5 * 3600,
-    ['EDT'] = -4 * 3600,
-    ['CST'] = -6 * 3600,
-    ['CDT'] = -5 * 3600,
-    ['MST'] = -7 * 3600,
-    ['MDT'] = -6 * 3600,
-    ['PST'] = -8 * 3600,
-    ['PDT'] = -7 * 3600,
-    ['AKST'] = -9 * 3600,
-    ['AKDT'] = -8 * 3600,
-    ['HST'] = -10 * 3600,
-
-    -- Europe
-    ['WET'] = 0,
-    ['WEST'] = 1 * 3600,
-    ['CET'] = 1 * 3600,
-    ['CEST'] = 2 * 3600,
-    ['EET'] = 2 * 3600,
-    ['EEST'] = 3 * 3600,
-    ['MSK'] = 3 * 3600,
-    ['BST'] = 1 * 3600,
-
-    -- Asia & Middle East
-    ['IST'] = 5.5 * 3600,
-    ['PKT'] = 5 * 3600,
-    ['HKT'] = 8 * 3600,
-    ['PHT'] = 8 * 3600,
-    ['JST'] = 9 * 3600,
-    ['KST'] = 9 * 3600,
-
-    -- Australia & Pacific
-    ['AWST'] = 8 * 3600,
-    ['ACST'] = 9.5 * 3600,
-    ['AEST'] = 10 * 3600,
-    ['AEDT'] = 11 * 3600,
-    ['NZST'] = 12 * 3600,
-    ['NZDT'] = 13 * 3600,
-  }
-
-  -- Handle special cases for ambiguous abbreviations
-  if timezone == 'CST' and not timezone_map[timezone] then
-    -- In most contexts, CST refers to Central Standard Time (US)
-    return -6 * 3600
-  end
-
-  -- Return the timezone offset or default to UTC (0)
-  return timezone_map[timezone] or 0
-end
-
 -- Reset all ANSI styling
 function M.ansi_reset()
   return '\27[0m'
@@ -199,17 +133,14 @@ function M.format_time(timestamp)
     timestamp = math.floor(timestamp / 1000)
   end
 
-  local now = os.time()
-  local today_start = os.time(os.date('*t', now))
-    - os.date('*t', now).hour * 3600
-    - os.date('*t', now).min * 60
-    - os.date('*t', now).sec
+  local local_t = os.date('*t') --[[@as std.osdateparam]]
+  local today_start = os.time({ year = local_t.year, month = local_t.month, day = local_t.day })
 
   if timestamp >= today_start then
-    return os.date('%I:%M %p', timestamp)
-  else
-    return os.date('%d %b %Y %I:%M %p', timestamp)
+    return os.date('%I:%M %p', timestamp) --[[@as string]]
   end
+
+  return os.date('%d %b %Y %I:%M %p', timestamp) --[[@as string]]
 end
 
 function M.index_of(tbl, value)
@@ -410,6 +341,7 @@ function M.check_prompt_allowed(guard_callback, mentioned_files)
     return false, 'prompt_guard must return a boolean'
   end
 
+  ---@cast result boolean
   return result, nil
 end
 

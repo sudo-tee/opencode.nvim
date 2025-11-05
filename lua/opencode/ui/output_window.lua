@@ -27,6 +27,32 @@ function M.mounted(windows)
   return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)
 end
 
+---Check if the output window is currently at the bottom
+---@param win? integer Window ID, defaults to state.windows.output_win
+---@return boolean true if at bottom, false otherwise
+function M.is_at_bottom(win)
+  win = win or (state.windows and state.windows.output_win)
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return true  -- Assume at bottom if window invalid
+  end
+
+  if not state.windows or not state.windows.output_buf then
+    return true
+  end
+
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
+  if not ok or not line_count or line_count == 0 then
+    return true  -- Empty buffer, consider at bottom
+  end
+
+  local botline = vim.fn.line('w$', win)
+
+  -- Consider at bottom if bottom visible line is at or near the end
+  -- Use -1 tolerance for wrapped lines
+  return botline >= line_count - 1
+end
+
 function M.setup(windows)
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
   vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
@@ -177,6 +203,16 @@ function M.setup_autocmds(windows, group)
   state.subscribe('current_permission', function()
     require('opencode.keymap').toggle_permission_keymap(windows.output_buf)
   end)
+
+  -- Track scroll position when window is scrolled
+  vim.api.nvim_create_autocmd('WinScrolled', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      -- Update state to track if user is at bottom
+      state.output_window_at_bottom = M.is_at_bottom(windows.output_win)
+    end,
+  })
 end
 
 function M.clear()

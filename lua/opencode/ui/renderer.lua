@@ -50,6 +50,10 @@ function M.reset()
     require('opencode.api').respond_to_permission('reject')
   end
   state.current_permission = nil
+
+  -- Reset scroll state when session changes
+  state.output_window_at_bottom = true
+
   trigger_on_data_rendered()
 end
 
@@ -224,26 +228,30 @@ function M.scroll_to_bottom()
     return
   end
 
-  local botline = vim.fn.line('w$', state.windows.output_win)
-  local cursor = vim.api.nvim_win_get_cursor(state.windows.output_win)
-  local cursor_row = cursor[1] or 0
-  local is_focused = vim.api.nvim_get_current_win() == state.windows.output_win
-
   local prev_line_count = M._prev_line_count or 0
 
   ---@cast line_count integer
   M._prev_line_count = line_count
 
-  local was_at_bottom = (botline >= prev_line_count) or prev_line_count == 0
-
   trigger_on_data_rendered()
 
-  if is_focused and cursor_row < prev_line_count - 1 then
-    return
+  -- Determine if we should scroll to bottom
+  local should_scroll = false
+
+  -- Always scroll on initial render
+  if prev_line_count == 0 then
+    should_scroll = true
+  -- Scroll if user is at bottom (respects manual scroll position)
+  elseif state.output_window_at_bottom then
+    should_scroll = true
   end
 
-  if was_at_bottom or not is_focused then
+  if should_scroll then
     vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
+    state.output_window_at_bottom = true
+  else
+    -- User has scrolled up, don't scroll
+    state.output_window_at_bottom = false
   end
 end
 

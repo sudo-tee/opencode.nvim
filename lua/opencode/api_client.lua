@@ -221,7 +221,7 @@ end
 
 --- Create and send a new message to a session
 --- @param id string Session ID (required)
---- @param message_data {messageID?: string, model?: {providerID: string, modelID: string}, agent?: string, system?: string, tools?: table<string, boolean>, parts: Part[]} Message creation data
+--- @param message_data {messageID?: string, model?: {providerID: string, modelID: string}, agent?: string, system?: string, tools?: table<string, boolean>, parts: OpencodeMessagePart[]} Message creation data
 --- @param directory string|nil Directory path
 --- @return Promise<{info: MessageInfo, parts: OpencodeMessagePart[]}>
 function OpencodeApiClient:create_message(id, message_data, directory)

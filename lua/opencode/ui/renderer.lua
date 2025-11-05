@@ -46,7 +46,7 @@ function M.reset()
   state.messages = {}
   state.last_user_message = nil
 
-  if state.current_permission then
+  if state.current_permission and state.api_client then
     require('opencode.api').respond_to_permission('reject')
     state.current_permission = nil
   end

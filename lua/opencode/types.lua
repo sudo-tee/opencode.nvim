@@ -114,6 +114,7 @@
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
+---@field always_scroll_to_bottom boolean
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean

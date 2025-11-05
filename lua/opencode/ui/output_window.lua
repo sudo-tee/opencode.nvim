@@ -31,6 +31,11 @@ end
 ---@param win? integer Window ID, defaults to state.windows.output_win
 ---@return boolean true if at bottom, false otherwise
 function M.is_at_bottom(win)
+  -- If always_scroll_to_bottom is enabled, always return true
+  if config.ui.output.always_scroll_to_bottom then
+    return true
+  end
+
   win = win or (state.windows and state.windows.output_win)
 
   if not win or not vim.api.nvim_win_is_valid(win) then

@@ -133,10 +133,7 @@ function M.format_time(timestamp)
     timestamp = math.floor(timestamp / 1000)
   end
 
-  local local_t = os.date('*t') --[[@as std.osdateparam]]
-  local today_start = os.time({ year = local_t.year, month = local_t.month, day = local_t.day })
-
-  if timestamp >= today_start then
+  if os.date('%Y-%m-%d', timestamp) == os.date('%Y-%m-%d') then
     return os.date('%I:%M %p', timestamp) --[[@as string]]
   end
 

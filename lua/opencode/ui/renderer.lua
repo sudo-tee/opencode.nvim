@@ -48,14 +48,14 @@ function M.reset()
 
   if state.current_permission and state.api_client then
     require('opencode.api').respond_to_permission('reject')
-    state.current_permission = nil
   end
+  state.current_permission = nil
   trigger_on_data_rendered()
 end
 
 ---Set up all subscriptions, for both local and server events
 function M.setup_subscriptions(_)
-  M._subscriptions.active_session = function(_, new, old)
+  M._subscriptions.active_session = function(_, new, _)
     M.reset()
     if new then
       M.render_full_session()

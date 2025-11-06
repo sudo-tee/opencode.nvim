@@ -14,7 +14,6 @@
 ---@field last_input_window_position integer[]|nil
 ---@field last_output_window_position integer[]|nil
 ---@field last_code_win_before_opencode integer|nil
----@field output_window_at_bottom boolean
 ---@field current_code_buf number|nil
 ---@field display_route any|nil
 ---@field current_mode string
@@ -56,7 +55,6 @@ local _state = {
   last_focused_opencode_window = nil,
   last_input_window_position = nil,
   last_output_window_position = nil,
-  output_window_at_bottom = true,
   last_code_win_before_opencode = nil,
   current_code_buf = nil,
   display_route = nil,

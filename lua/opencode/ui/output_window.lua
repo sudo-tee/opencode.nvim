@@ -3,6 +3,7 @@ local config = require('opencode.config')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
+M.viewport_at_bottom = true
 
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
@@ -215,7 +216,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       -- Update state to track if user is at bottom
-      state.output_window_at_bottom = M.is_at_bottom(windows.output_win)
+      M.viewport_at_bottom = M.is_at_bottom(windows.output_win)
     end,
   })
 end
@@ -225,6 +226,7 @@ function M.clear()
   -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
   -- extmarks behind
   M.clear_extmarks(0, -1, true)
+  M.viewport_at_bottom = true
 end
 
 return M

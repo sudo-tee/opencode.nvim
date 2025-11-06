@@ -51,9 +51,6 @@ function M.reset()
   end
   state.current_permission = nil
 
-  -- Reset scroll state when session changes
-  state.output_window_at_bottom = true
-
   trigger_on_data_rendered()
 end
 
@@ -242,16 +239,16 @@ function M.scroll_to_bottom()
   if prev_line_count == 0 then
     should_scroll = true
   -- Scroll if user is at bottom (respects manual scroll position)
-  elseif state.output_window_at_bottom then
+  elseif output_window.viewport_at_bottom then
     should_scroll = true
   end
 
   if should_scroll then
     vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
-    state.output_window_at_bottom = true
+    output_window.viewport_at_bottom = true
   else
     -- User has scrolled up, don't scroll
-    state.output_window_at_bottom = false
+    output_window.viewport_at_bottom = false
   end
 end
 

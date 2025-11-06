@@ -231,7 +231,6 @@ end
 
 local function mini_pick_ui(sessions, callback, on_delete, on_new)
   local mini_pick = require('mini.pick')
-  local config = require('opencode.config')
 
   local items = vim.tbl_map(function(session)
     return {
@@ -255,7 +254,7 @@ local function mini_pick_ui(sessions, callback, on_delete, on_new)
             on_delete(selected.session)
             items = vim.tbl_map(function(session)
               return {
-                text = format_session(session),
+                text = format_session_item(session):to_string(),
                 session = session,
               }
             end, sessions)
@@ -278,7 +277,7 @@ local function mini_pick_ui(sessions, callback, on_delete, on_new)
             table.insert(sessions, 1, new_session)
             items = vim.tbl_map(function(session)
               return {
-                text = format_session(session),
+                text = format_session_item(session):to_string(),
                 session = session,
               }
             end, sessions)

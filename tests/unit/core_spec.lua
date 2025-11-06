@@ -170,6 +170,18 @@ describe('opencode.core', function()
       assert.is_false(input_focused)
       assert.is_true(output_focused)
     end)
+
+    it('creates a new session when no active session and no last session exists', function()
+      state.windows = nil
+      state.active_session = nil
+      session.get_last_workspace_session:revert()
+      stub(session, 'get_last_workspace_session').returns(nil)
+
+      core.open({ new_session = false, focus = 'input' })
+
+      assert.truthy(state.active_session)
+      assert.truthy(state.active_session.id)
+    end)
   end)
 
   describe('select_session', function()

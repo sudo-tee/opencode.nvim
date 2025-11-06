@@ -19,6 +19,7 @@ M.defaults = {
       ['<leader>oI'] = { 'open_input_new_session', desc = 'Open input (new session)' },
       ['<leader>oo'] = { 'open_output', desc = 'Open output window' },
       ['<leader>ot'] = { 'toggle_focus', desc = 'Toggle focus' },
+      ['<leader>oT'] = { 'timeline', desc = 'Session timeline' },
       ['<leader>oq'] = { 'close', desc = 'Close Opencode window' },
       ['<leader>os'] = { 'select_session', desc = 'Select session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },

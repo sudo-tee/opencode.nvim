@@ -76,6 +76,9 @@ function M.open(opts)
   else
     if not state.active_session then
       state.active_session = session.get_last_workspace_session()
+      if not state.active_session then
+        state.active_session = M.create_new_session()
+      end
     else
       if not state.display_route and are_windows_closed then
         -- We're not displaying /help or something like that but we have an active session

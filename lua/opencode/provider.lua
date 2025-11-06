@@ -4,6 +4,10 @@ function M._get_models()
   local config_file = require('opencode.config_file')
   local response = config_file.get_opencode_providers()
 
+  if not response then
+    return {}
+  end
+
   local models = {}
   for _, provider in ipairs(response.providers) do
     for _, model in pairs(provider.models) do

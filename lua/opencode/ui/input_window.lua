@@ -16,7 +16,7 @@ function M._build_input_win_config()
     col = 2,
     style = 'minimal',
     zindex = 41,
-  }
+  } --[[@as vim.api.keyset.win_config]]
 end
 
 function M.create_window(windows)
@@ -41,6 +41,7 @@ function M.close()
   if not M.mounted() then
     return
   end
+  ---@cast state.windows { input_win: integer, input_buf: integer }
 
   pcall(vim.api.nvim_win_close, state.windows.input_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
@@ -51,6 +52,8 @@ function M.handle_submit()
   if not windows or not M.mounted(windows) then
     return
   end
+  ---@cast windows { input_buf: integer }
+
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
   vim.api.nvim_exec_autocmds('TextChanged', {
@@ -177,6 +180,11 @@ function M.recover_input(windows)
 end
 
 function M.focus_input()
+  if not M.mounted() then
+    return
+  end
+  ---@cast state.windows { input_win: integer, input_buf: integer }
+
   vim.api.nvim_set_current_win(state.windows.input_win)
 
   local lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
@@ -192,6 +200,7 @@ function M.set_content(text, windows)
   if not M.mounted(windows) then
     return
   end
+  ---@cast windows { input_win: integer, input_buf: integer }
 
   local lines = type(text) == 'table' and text or vim.split(tostring(text), '\n')
 
@@ -212,6 +221,7 @@ function M.remove_mention(mention_name, windows)
   if not M.mounted(windows) then
     return
   end
+  ---@cast windows { input_buf: integer }
 
   local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   for i, line in ipairs(lines) do
@@ -228,12 +238,12 @@ function M.remove_mention(mention_name, windows)
 end
 
 function M.is_empty()
-  local windows = state.windows
-  if not windows or not M.mounted() then
+  if not M.mounted() then
     return true
   end
+  ---@cast state.windows { input_buf: integer }
 
-  local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+  local lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
   return #lines == 0 or (#lines == 1 and lines[1] == '')
 end
 

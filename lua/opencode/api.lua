@@ -702,6 +702,8 @@ function M.timeline()
   end)
 end
 
+--- Forks the current session from a specific user message.
+---@param message_id? string The ID of the user message to fork from. If not provided, uses the last user message.
 function M.fork_session(message_id)
   if not state.active_session then
     vim.notify('No active session to fork', vim.log.levels.WARN)

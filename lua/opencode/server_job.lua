@@ -27,45 +27,8 @@ end
 function M.call_api(url, method, body)
   local call_promise = Promise.new()
   state.job_count = state.job_count + 1
-  local opts = {
-    url = url,
-    method = method or 'GET',
-    headers = { ['Content-Type'] = 'application/json' },
-    proxy = '',
-    callback = function(response)
-      handle_api_response(response, function(err, result)
-        if err then
-          local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
-          if not ok then
-            vim.schedule(function()
-              vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
-            end)
-          end
-        else
-          local ok, pcall_err = pcall(call_promise.resolve, call_promise, result)
-          if not ok then
-            vim.schedule(function()
-              vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
-            end)
-          end
-        end
-      end)
-    end,
-    on_error = function(err)
-      local ok, pcall_err = pcall(call_promise.reject, call_promise, err)
-      if not ok then
-        vim.schedule(function()
-          vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
-        end)
-      end
-    end,
-  }
 
-  if body ~= nil then
-    opts.body = body and vim.json.encode(body) or '{}'
-  end
-
-  local request_entry = { opts, call_promise }
+  local request_entry = { nil, call_promise }
   table.insert(M.requests, request_entry)
 
   -- Remove completed promises from list, update job_count
@@ -79,15 +42,54 @@ function M.call_api(url, method, body)
     state.job_count = #M.requests
   end
 
-  call_promise:and_then(function(result)
-    remove_from_requests()
-    return result
-  end)
+  local opts = {
+    url = url,
+    method = method or 'GET',
+    headers = { ['Content-Type'] = 'application/json' },
+    proxy = '',
+    callback = function(response)
+      remove_from_requests()
+      handle_api_response(response, function(err, result)
+        if err then
+          local ok, pcall_err = pcall(function()
+            call_promise:reject(err)
+          end)
+          if not ok then
+            vim.schedule(function()
+              vim.notify('Error while handling API error response: ' .. vim.inspect(pcall_err))
+            end)
+          end
+        else
+          local ok, pcall_err = pcall(function()
+            call_promise:resolve(result)
+          end)
+          if not ok then
+            vim.schedule(function()
+              vim.notify('Error while handling API response: ' .. vim.inspect(pcall_err))
+            end)
+          end
+        end
+      end)
+    end,
+    on_error = function(err)
+      remove_from_requests()
+      local ok, pcall_err = pcall(function()
+        call_promise:reject(err)
+      end)
+      if not ok then
+        vim.schedule(function()
+          vim.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err))
+        end)
+      end
+    end,
+  }
 
-  call_promise:catch(function(err)
-    remove_from_requests()
-    error(err)
-  end)
+  if body ~= nil then
+    opts.body = body and vim.json.encode(body) or '{}'
+  end
+
+  -- add opts to request_entry for request tracking
+  request_entry[1] = opts
 
   curl.request(opts)
   return call_promise
@@ -98,7 +100,7 @@ end
 --- @param method string|nil HTTP method (default: 'GET')
 --- @param body table|nil|boolean Request body (will be JSON encoded)
 --- @param on_chunk fun(chunk: string) Callback invoked for each chunk of data received
---- @return Job job The underlying job instance
+--- @return table The underlying job instance
 function M.stream_api(url, method, body, on_chunk)
   local opts = {
     url = url,
@@ -125,7 +127,7 @@ function M.stream_api(url, method, body, on_chunk)
     opts.body = body and vim.json.encode(body) or '{}'
   end
 
-  return curl.request(opts)
+  return curl.request(opts) --[[@as table]]
 end
 
 function M.ensure_server()

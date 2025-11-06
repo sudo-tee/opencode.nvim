@@ -149,15 +149,15 @@ function M.refresh_placeholder(windows, input_lines)
 
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
-        { 'Type your prompt here... ', 'OpenCodeHint' },
+        { 'Type your prompt here... ', 'OpencodeHint' },
         { slash_key or '/', 'OpencodeInputLegend' },
-        { ' commands ', 'OpenCodeHint' },
+        { ' commands ', 'OpencodeHint' },
         { mention_key or '@', 'OpencodeInputLegend' },
-        { ' mentions ', 'OpenCodeHint' },
+        { ' mentions ', 'OpencodeHint' },
         { mention_file_key or '~', 'OpencodeInputLegend' },
-        { ' files ', 'OpenCodeHint' },
+        { ' files ', 'OpencodeHint' },
         { context_key or '#', 'OpencodeInputLegend' },
-        { ' context' .. padding, 'OpenCodeHint' },
+        { ' context' .. padding, 'OpencodeHint' },
       },
 
       virt_text_pos = 'overlay',

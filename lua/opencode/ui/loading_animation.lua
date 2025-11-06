@@ -45,7 +45,7 @@ M.render = vim.schedule_wrap(function(windows)
 
   M._animation.extmark_id = vim.api.nvim_buf_set_extmark(windows.footer_buf, M._animation.ns_id, 0, 0, {
     id = M._animation.extmark_id or nil,
-    virt_text = { { loading_text, 'OpenCodeHint' } },
+    virt_text = { { loading_text, 'OpencodeHint' } },
     virt_text_pos = 'overlay',
     hl_mode = 'replace',
   })

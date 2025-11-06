@@ -1,9 +1,9 @@
 local M = {}
 local picker = require('opencode.ui.picker')
-local config = require('lua.opencode.config')
+local picker_utils = require('opencode.ui.picker_utils')
+local config = require('opencode.config')
 
 local picker_title = function()
-  local config = require('opencode.config') --[[@as OpencodeConfig]]
   local keymap_config = config.keymap.session_picker
 
   local legend = {}
@@ -21,27 +21,13 @@ local picker_title = function()
   return 'Select A Session' .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
 end
 
-local function format_session(session)
-  local util = require('opencode.util')
-  local parts = {}
+---Format session parts for session picker
+---@param session Session object
+---@return PickerItem
+function format_session_item(session)
+  local debug_text = 'ID: ' .. (session.id or 'N/A')
 
-  if session.description then
-    table.insert(parts, session.description)
-  end
-
-  if session.message_count then
-    table.insert(parts, session.message_count .. ' messages')
-  end
-
-  local modified = util.time_ago(session.modified)
-  if modified then
-    table.insert(parts, modified)
-  end
-
-  if config.debug then
-    table.insert(parts, 'ID: ' .. (session.id or 'N/A'))
-  end
-  return table.concat(parts, ' ~ ')
+  return picker_utils.create_picker_item(session.description, session.modified, debug_text)
 end
 
 local function telescope_ui(sessions, callback, on_delete, on_new)
@@ -50,6 +36,15 @@ local function telescope_ui(sessions, callback, on_delete, on_new)
   local conf = require('telescope.config').values
   local actions = require('telescope.actions')
   local action_state = require('telescope.actions.state')
+  local entry_display = require('telescope.pickers.entry_display')
+  local displayer = entry_display.create({
+    separator = ' ',
+    items = {
+      {},
+      {},
+      config.debug.show_ids and {} or nil,
+    },
+  })
 
   local current_picker
 
@@ -65,8 +60,10 @@ local function telescope_ui(sessions, callback, on_delete, on_new)
         entry_maker = function(session)
           return {
             value = session,
-            display = format_session(session),
-            ordinal = format_session(session),
+            display = function(entry)
+              return displayer(format_session_item(entry.value):to_formatted_text())
+            end,
+            ordinal = format_session_item(session):to_string(),
           }
         end,
       }),
@@ -81,8 +78,10 @@ local function telescope_ui(sessions, callback, on_delete, on_new)
       entry_maker = function(session)
         return {
           value = session,
-          display = format_session(session),
-          ordinal = format_session(session),
+          display = function(entry)
+            return displayer(format_session_item(entry.value):to_formatted_text())
+          end,
+          ordinal = format_session_item(session):to_string(),
         }
       end,
     }),
@@ -210,7 +209,7 @@ local function fzf_ui(sessions, callback, on_delete, on_new)
 
   fzf_lua.fzf_exec(function(fzf_cb)
     for _, session in ipairs(sessions) do
-      fzf_cb(format_session(session))
+      fzf_cb(format_session_item(session):to_string())
     end
     fzf_cb()
   end, {
@@ -221,7 +220,7 @@ local function fzf_ui(sessions, callback, on_delete, on_new)
     actions = actions_config,
     fn_fzf_index = function(line)
       for i, session in ipairs(sessions) do
-        if format_session(session) == line then
+        if format_session_item(session):to_string() == line then
           return i
         end
       end
@@ -236,7 +235,7 @@ local function mini_pick_ui(sessions, callback, on_delete, on_new)
 
   local items = vim.tbl_map(function(session)
     return {
-      text = format_session(session),
+      text = format_session_item(session):to_string(),
       session = session,
     }
   end, sessions)
@@ -307,7 +306,6 @@ end
 
 local function snacks_picker_ui(sessions, callback, on_delete, on_new)
   local Snacks = require('snacks')
-  local config = require('opencode.config')
 
   local delete_config = config.keymap.session_picker.delete_session
 
@@ -317,9 +315,8 @@ local function snacks_picker_ui(sessions, callback, on_delete, on_new)
     finder = function()
       return sessions
     end,
-    format = 'text',
-    transform = function(item)
-      item.text = format_session(item)
+    format = function(item)
+      return format_session_item(item, config.debug.show_ids):to_formatted_text()
     end,
     actions = {
       confirm = function(picker, item)

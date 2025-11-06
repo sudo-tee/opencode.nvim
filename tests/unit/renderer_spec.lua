@@ -92,8 +92,6 @@ local function assert_output_matches(expected, actual, name)
 end
 
 describe('renderer', function()
-  local restore_time_ago
-
   before_each(function()
     helpers.replay_setup()
   end)

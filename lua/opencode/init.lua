@@ -8,6 +8,7 @@ function M.setup(opts)
   local config = require('opencode.config')
   config.setup(opts)
 
+  require('opencode.ui.highlight').setup()
   require('opencode.core').setup()
   require('opencode.api').setup()
   require('opencode.keymap').setup(config.keymap)

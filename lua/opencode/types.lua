@@ -130,6 +130,7 @@
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 ---@field capture_streamed_events boolean
+---@field show_ids boolean
 
 --- @class OpencodeProviders
 --- @field [string] string[]

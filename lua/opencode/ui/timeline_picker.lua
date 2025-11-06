@@ -1,5 +1,6 @@
 local M = {}
 local picker = require('opencode.ui.picker')
+local picker_utils = require('opencode.ui.picker_utils')
 local config = require('lua.opencode.config')
 local api = require('opencode.api')
 
@@ -22,30 +23,15 @@ local picker_title = function()
   return 'Timeline' .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
 end
 
-local function format_message(msg)
-  local util = require('opencode.util')
-  local parts = {}
-  local length_limit = config.debug and 50 or 70
-
+---Format message parts for timeline picker
+---@param msg OpencodeMessage Message object
+---@return PickerItem
+function format_message_item(msg)
   local preview = msg.parts and msg.parts[1] and msg.parts[1].text or ''
-  if #preview > length_limit then
-    preview = preview:sub(1, length_limit - 3) .. '...'
-  end
 
-  if preview and preview ~= '' then
-    table.insert(parts, preview)
-  end
+  local debug_text = 'ID: ' .. (msg.info.id or 'N/A')
 
-  local time_str = util.format_time(msg.info.time.created)
-  if time_str then
-    table.insert(parts, time_str)
-  end
-
-  if config.debug then
-    table.insert(parts, 'ID: ' .. (msg.info.id or 'N/A'))
-  end
-
-  return table.concat(parts, ' ~ ')
+  return picker_utils.create_picker_item(preview, msg.info.time.created, debug_text)
 end
 
 local function telescope_ui(messages, callback, on_undo, on_fork)
@@ -54,6 +40,15 @@ local function telescope_ui(messages, callback, on_undo, on_fork)
   local conf = require('telescope.config').values
   local actions = require('telescope.actions')
   local action_state = require('telescope.actions.state')
+  local entry_display = require('telescope.pickers.entry_display')
+  local displayer = entry_display.create({
+    separator = ' ',
+    items = {
+      {},
+      {},
+      config.debug.show_ids and {} or nil,
+    },
+  })
 
   local current_picker = pickers.new({}, {
     prompt_title = picker_title(),
@@ -62,8 +57,10 @@ local function telescope_ui(messages, callback, on_undo, on_fork)
       entry_maker = function(msg)
         return {
           value = msg,
-          display = format_message(msg),
-          ordinal = format_message(msg),
+          display = function(entry)
+            return displayer(format_message_item(entry):to_formatted_text())
+          end,
+          ordinal = format_message_item(msg):to_string(),
         }
       end,
     }),
@@ -178,7 +175,7 @@ local function fzf_ui(messages, callback, on_undo, on_fork)
 
   fzf_lua.fzf_exec(function(fzf_cb)
     for _, msg in ipairs(messages) do
-      fzf_cb(format_message(msg))
+      fzf_cb(format_message_item(msg):to_string())
     end
     fzf_cb()
   end, {
@@ -189,7 +186,7 @@ local function fzf_ui(messages, callback, on_undo, on_fork)
     actions = actions_config,
     fn_fzf_index = function(line)
       for i, msg in ipairs(messages) do
-        if format_message(msg) == line then
+        if format_message_item(msg):to_string() == line then
           return i
         end
       end
@@ -200,11 +197,10 @@ end
 
 local function mini_pick_ui(messages, callback, on_undo, on_fork)
   local mini_pick = require('mini.pick')
-  local config = require('opencode.config')
 
   local items = vim.tbl_map(function(msg)
     return {
-      text = format_message(msg),
+      text = format_message_item(msg):to_string(),
       message = msg,
     }
   end, messages)
@@ -263,10 +259,10 @@ local function snacks_picker_ui(messages, callback, on_undo, on_fork)
     finder = function()
       return messages
     end,
-    format = 'text',
-    transform = function(item)
-      item.text = format_message(item)
+    format = function(item, picker)
+      return format_message_item(item):to_formatted_text()
     end,
+
     actions = {
       confirm = function(picker, item)
         picker:close()

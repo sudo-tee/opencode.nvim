@@ -176,6 +176,7 @@ M.defaults = {
   debug = {
     enabled = false,
     capture_streamed_events = false,
+    show_ids = false,
   },
   prompt_guard = nil,
 }

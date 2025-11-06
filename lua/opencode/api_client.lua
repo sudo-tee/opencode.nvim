@@ -384,7 +384,7 @@ end
 --- Subscribe to events (streaming)
 --- @param directory string|nil Directory path
 --- @param on_event fun(event: table) Event callback
---- @return Job The streaming job handle
+--- @return table The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
   self:_ensure_base_url()
   local url = self.base_url .. '/event'

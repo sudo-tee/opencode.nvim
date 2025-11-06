@@ -30,7 +30,6 @@ function Promise.new()
 end
 
 ---@generic T
----@param self Promise<T>
 ---@param value T
 ---@return Promise<T>
 function Promise:resolve(value)
@@ -50,8 +49,7 @@ function Promise:resolve(value)
 end
 
 ---@generic T
----@param self Promise<T>
----@param error any
+---@param err any
 ---@return self
 function Promise:reject(err)
   if self._resolved then
@@ -70,7 +68,6 @@ function Promise:reject(err)
 end
 
 ---@generic T, U
----@param self Promise<T>
 ---@param callback fun(value: T): U | Promise<U>
 ---@return Promise<U>
 function Promise:and_then(callback)
@@ -116,7 +113,6 @@ function Promise:and_then(callback)
 end
 
 ---@generic T
----@param self Promise<T>
 ---@param error_callback fun(err: any): any | Promise<any>
 ---@return Promise<T>
 function Promise:catch(error_callback)
@@ -161,7 +157,6 @@ function Promise:catch(error_callback)
 end
 
 ---@generic T
----@param self Promise<T>
 ---@param timeout integer|nil Timeout in milliseconds (default: 5000)
 ---@param interval integer|nil Interval in milliseconds to check (default: 20)
 ---@return T

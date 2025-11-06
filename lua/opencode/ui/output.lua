@@ -3,7 +3,7 @@ Output.__index = Output
 
 ---@class Output
 ---@field lines string[]
----@field extmarks table<number, OutputExtmark>
+---@field extmarks table<number, OutputExtmark[]>
 ---@field actions OutputAction[]
 ---@field add_line fun(self: Output, line: string, fit?: boolean): number
 ---@field get_line fun(self: Output, idx: number): string?

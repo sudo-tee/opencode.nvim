@@ -360,7 +360,7 @@ end
 ---@param width? number Optional width override
 ---@return PickerItem
 function M.create_picker_item(text, time, debug_text, width)
-  local time_width = time and #util.format_time(0) + 1 or 0 -- longest time format by using 0
+  local time_width = time and #util.format_time(time) + 1 or 0
   local debug_width = config.debug.show_ids and debug_text and #debug_text + 1 or 0
   local item_width = width or vim.api.nvim_win_get_width(0)
   local text_width = item_width - (debug_width + time_width)

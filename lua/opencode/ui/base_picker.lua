@@ -245,11 +245,13 @@ local function mini_pick_ui(opts)
   end
 
   mini_pick.start({
-    window = opts.width and {
-        config = {
-          width = opts.width + 2, -- extra space for mini.pick UI
-        },
-      } or nil,
+    window = opts.width
+        and {
+          config = {
+            width = opts.width + 2, -- extra space for mini.pick UI
+          },
+        }
+      or nil,
     source = {
       items = items,
       name = opts.title,
@@ -271,7 +273,16 @@ local function snacks_picker_ui(opts)
 
   local snack_opts = {
     title = opts.title,
-    layout = { preset = 'select', width = opts.width or nil },
+    layout = {
+      preset = 'select',
+      config = function(layout)
+        local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
+        layout.layout.width = width
+        layout.layout.max_width = width
+        layout.layout.min_width = width
+        return layout
+      end,
+    },
     finder = function()
       return opts.items
     end,

@@ -86,7 +86,7 @@ function M.setup(windows)
   end
 
   windows.footer_win = vim.api.nvim_open_win(windows.footer_buf, false, M._build_footer_win_config(windows.output_win))
-  vim.api.nvim_set_option_value('winhl', 'Normal:OpenCodeHint', { win = windows.footer_win })
+  vim.api.nvim_set_option_value('winhl', 'Normal:OpencodeHint', { win = windows.footer_win })
 
   -- for stats changes
   state.subscribe('current_model', on_change)

@@ -19,6 +19,7 @@ M.defaults = {
       ['<leader>oI'] = { 'open_input_new_session', desc = 'Open input (new session)' },
       ['<leader>oo'] = { 'open_output', desc = 'Open output window' },
       ['<leader>ot'] = { 'toggle_focus', desc = 'Toggle focus' },
+      ['<leader>oT'] = { 'timeline', desc = 'Session timeline' },
       ['<leader>oq'] = { 'close', desc = 'Close Opencode window' },
       ['<leader>os'] = { 'select_session', desc = 'Select session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },
@@ -75,12 +76,17 @@ M.defaults = {
       delete_session = { '<C-d>' },
       new_session = { '<C-n>' },
     },
+    timeline_picker = {
+      undo = { '<C-u>', mode = { 'i', 'n' } },
+      fork = { '<C-f>', mode = { 'i', 'n' } },
+    },
   },
   ui = {
     position = 'right',
     input_position = 'bottom',
     window_width = 0.40,
     input_height = 0.15,
+    picker_width = 100,
     display_model = true,
     display_context_size = true,
     display_cost = true,
@@ -173,6 +179,7 @@ M.defaults = {
   debug = {
     enabled = false,
     capture_streamed_events = false,
+    show_ids = false,
   },
   prompt_guard = nil,
 }

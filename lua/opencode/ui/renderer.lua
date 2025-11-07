@@ -971,4 +971,15 @@ function M._update_stats_from_message(message)
   end
 end
 
+---Get rendered message by ID
+---@param message_id string Message ID
+---@return RenderedMessage|nil Rendered message or nil if not found
+function M.get_rendered_message(message_id)
+  local rendered_msg = M._render_state:get_message(message_id)
+  if rendered_msg then
+    return rendered_msg
+  end
+  return nil
+end
+
 return M

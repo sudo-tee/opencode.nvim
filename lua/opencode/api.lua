@@ -680,6 +680,63 @@ function M.undo(messageId)
     end)
 end
 
+function M.timeline()
+  local user_messages = {}
+  for _, msg in ipairs(state.messages or {}) do
+    local parts = msg.parts or {}
+    local is_summary = #parts == 1 and parts[1].synthetic == true
+    if msg.info.role == 'user' and not is_summary then
+      table.insert(user_messages, msg)
+    end
+  end
+  if #user_messages == 0 then
+    vim.notify('No user messages in the current session', vim.log.levels.WARN)
+    return
+  end
+
+  local timeline_picker = require('opencode.ui.timeline_picker')
+  timeline_picker.pick(user_messages, function(selected_msg)
+    if selected_msg then
+      require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
+    end
+  end)
+end
+
+--- Forks the current session from a specific user message.
+---@param message_id? string The ID of the user message to fork from. If not provided, uses the last user message.
+function M.fork_session(message_id)
+  if not state.active_session then
+    vim.notify('No active session to fork', vim.log.levels.WARN)
+    return
+  end
+
+  local message_to_fork = message_id or state.last_user_message and state.last_user_message.info.id
+  if not message_to_fork then
+    vim.notify('No user message to fork from', vim.log.levels.WARN)
+    return
+  end
+
+  state.api_client
+    :fork_session(state.active_session.id, {
+      messageID = message_to_fork,
+    })
+    :and_then(function(response)
+      vim.schedule(function()
+        if response and response.id then
+          vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)
+          core.switch_session(response.id)
+        else
+          vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)
+        end
+      end)
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to fork session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+    end)
+end
+
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
 -- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
@@ -1074,6 +1131,11 @@ M.commands = {
       end
     end,
   },
+
+  timeline = {
+    desc = 'Open timeline picker to navigate/undo/redo/fork to message',
+    fn = M.timeline,
+  },
 }
 
 M.slash_commands_map = {
@@ -1089,6 +1151,7 @@ M.slash_commands_map = {
   ['/redo'] = { fn = M.redo, desc = 'Redo last action' },
   ['/sessions'] = { fn = M.select_session, desc = 'Select session' },
   ['/share'] = { fn = M.share, desc = 'Share current session' },
+  ['/timeline'] = { fn = M.timeline, desc = 'Open timeline picker' },
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
 }

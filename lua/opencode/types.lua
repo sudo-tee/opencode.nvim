@@ -72,10 +72,15 @@
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field permission OpencodeKeymapPermission
 ---@field session_picker OpencodeSessionPickerKeymap
+---@field timeline_picker OpencodeTimelinePickerKeymap
 
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
+
+---@class OpencodeTimelinePickerKeymap
+---@field undo OpencodeKeymapEntry
+---@field fork OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
@@ -95,6 +100,7 @@
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field input_height number
+---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean
 ---@field display_context_size boolean
 ---@field display_cost boolean
@@ -127,6 +133,7 @@
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 ---@field capture_streamed_events boolean
+---@field show_ids boolean
 
 --- @class OpencodeProviders
 --- @field [string] string[]

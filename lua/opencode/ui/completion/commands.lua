@@ -76,7 +76,9 @@ local command_source = {
           vim.api.nvim_win_set_cursor(0, { 1, #item.insert_text + 1 })
           return
         end
-        item.data.fn()
+        vim.defer_fn(function()
+          item.data.fn()
+        end, 10) -- slight delay to allow completion menu to close, this prevent a weird bug with mini.pick where it displays an empty window with `BlinkDonotRepeatHack` text inserted
         require('opencode.ui.input_window').set_content('')
       else
         vim.notify('Command not found: ' .. item.label, vim.log.levels.ERROR)

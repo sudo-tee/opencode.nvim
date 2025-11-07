@@ -133,20 +133,17 @@ end
 
 function M.mock_time_utils()
   local util = require('opencode.util')
-  local original_time_ago = util.time_ago
   local original_format_time = util.format_time
 
   ---@diagnostic disable-next-line: duplicate-set-field
-  util.time_ago = function(timestamp)
+  util.format_time = function(timestamp)
     if timestamp > 1e12 then
       timestamp = math.floor(timestamp / 1000)
     end
     return os.date('!%Y-%m-%d %H:%M:%S', timestamp)
   end
-  util.format_time = util.time_ago
 
   return function()
-    util.time_ago = original_time_ago
     util.format_time = original_format_time
   end
 end

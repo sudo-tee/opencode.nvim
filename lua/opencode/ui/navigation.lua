@@ -20,6 +20,24 @@ local function is_message_header(details)
   return first_virt_text[1] == header_user_icon or first_virt_text[1] == header_assistant_icon
 end
 
+function M.goto_message_by_id(message_id)
+  require('opencode.ui.ui').focus_output()
+  local windows = state.windows or {}
+  local win = windows.output_win
+  local buf = windows.output_buf
+
+  if not win or not buf then
+    return
+  end
+
+  local rendered_msg = require('opencode.ui.renderer').get_rendered_message(message_id)
+  if not rendered_msg or not rendered_msg.line_start then
+    return
+  end
+  local sep_offset = #require('opencode.ui.formatter').separator
+  vim.api.nvim_win_set_cursor(win, { rendered_msg.line_start + sep_offset, 0 })
+end
+
 function M.goto_next_message()
   require('opencode.ui.ui').focus_output()
   local windows = state.windows or {}

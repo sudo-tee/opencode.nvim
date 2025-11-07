@@ -90,54 +90,22 @@ function M.sanitize_lines(lines)
   return stripped_lines
 end
 
---- Convert a datetime to a human-readable "time ago" format
---- @param timestamp number
---- @return string: Human-readable time ago string (e.g., "2 hours ago")
-function M.time_ago(timestamp)
-  if timestamp > 1e12 then
-    timestamp = math.floor(timestamp / 1000)
-  end
-
-  local now = os.time()
-  local diff = now - timestamp
-  if diff < 0 then
-    return 'in the future'
-  elseif diff < 60 then
-    return 'just now'
-  elseif diff < 3600 then
-    local mins = math.floor(diff / 60)
-    return mins == 1 and '1 minute ago' or mins .. ' minutes ago'
-  elseif diff < 86400 then
-    local hours = math.floor(diff / 3600)
-    return hours == 1 and '1 hour ago' or hours .. ' hours ago'
-  elseif diff < 604800 then
-    local days = math.floor(diff / 86400)
-    return days == 1 and '1 day ago' or days .. ' days ago'
-  elseif diff < 2592000 then
-    local weeks = math.floor(diff / 604800)
-    return weeks == 1 and '1 week ago' or weeks .. ' weeks ago'
-  elseif diff < 31536000 then
-    local months = math.floor(diff / 2592000)
-    return months == 1 and '1 month ago' or months .. ' months ago'
-  else
-    local years = math.floor(diff / 31536000)
-    return years == 1 and '1 year ago' or years .. ' years ago'
-  end
-end
-
---- Format a timestamp as time (e.g., "10:23 AM" or "13 Oct 2025 03:32 PM")
+--- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string
 function M.format_time(timestamp)
+  local formats = { day = '%I:%M %p', year = '%d %b %I:%M %p', full = '%d %b %Y %I:%M %p' }
+
   if timestamp > 1e12 then
     timestamp = math.floor(timestamp / 1000)
   end
 
-  if os.date('%Y-%m-%d', timestamp) == os.date('%Y-%m-%d') then
-    return os.date('%I:%M %p', timestamp) --[[@as string]]
-  end
+  local same_day = os.date('%Y-%m-%d') == os.date('%Y-%m-%d', timestamp)
+  local same_year = os.date('%Y') == os.date('%Y', timestamp)
 
-  return os.date('%d %b %Y %I:%M %p', timestamp) --[[@as string]]
+  local format_str = same_day and formats.day or (same_year and formats.year or formats.full)
+
+  return os.date(format_str, timestamp) --[[@as string]]
 end
 
 function M.index_of(tbl, value)

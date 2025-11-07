@@ -78,7 +78,6 @@ function M.create_split_windows(input_buf, output_buf)
 end
 
 function M.create_windows()
-  require('opencode.ui.highlight').setup()
   vim.treesitter.language.register('markdown', 'opencode_output')
 
   local autocmds = require('opencode.ui.autocmds')
@@ -211,7 +210,7 @@ function M.select_session(sessions, cb)
           table.insert(parts, session.message_count .. ' messages')
         end
 
-        local modified = util.time_ago(session.modified)
+        local modified = util.format_time(session.modified)
         if modified then
           table.insert(parts, modified)
         end

@@ -365,7 +365,7 @@ function M.with_restore_point(restore_point_id, fn)
         item.files and #item.files or 0,
         item.deleted_files and #item.deleted_files or 0,
         item.id:sub(1, 8),
-        utils.time_ago(item.created_at) or 'unknown',
+        utils.format_time(item.created_at) or 'unknown',
         item.from_snapshot_id and item.from_snapshot_id:sub(1, 8) or 'none'
       )
     end,

@@ -286,6 +286,13 @@ local function snacks_picker_ui(opts)
     finder = function()
       return opts.items
     end,
+    transform = function(item, ctx)
+      -- Snacks requires item.text to be set to do matching
+      if not item.text then
+        local picker_item = opts.format_fn(item)
+        item.text = picker_item:to_string()
+      end
+    end,
     format = function(item)
       return opts.format_fn(item):to_formatted_text()
     end,

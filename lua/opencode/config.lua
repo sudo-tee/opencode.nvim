@@ -102,6 +102,7 @@ M.defaults = {
       tools = {
         show_output = true,
       },
+      always_scroll_to_bottom = false,
     },
     input = {
       text = {

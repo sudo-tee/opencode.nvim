@@ -3,6 +3,7 @@ local config = require('opencode.config')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
+M.viewport_at_bottom = true
 
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
@@ -25,6 +26,36 @@ end
 function M.mounted(windows)
   windows = windows or state.windows
   return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)
+end
+
+---Check if the output window is currently at the bottom
+---@param win? integer Window ID, defaults to state.windows.output_win
+---@return boolean true if at bottom, false otherwise
+function M.is_at_bottom(win)
+  if config.ui.output.always_scroll_to_bottom then
+    return true
+  end
+
+  win = win or (state.windows and state.windows.output_win)
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return true
+  end
+
+  if not state.windows or not state.windows.output_buf then
+    return true
+  end
+
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
+  if not ok or not line_count or line_count == 0 then
+    return true
+  end
+
+  local botline = vim.fn.line('w$', win)
+
+  -- Consider at bottom if bottom visible line is at or near the end
+  -- Use -1 tolerance for wrapped lines
+  return botline >= line_count - 1
 end
 
 function M.setup(windows)
@@ -177,6 +208,15 @@ function M.setup_autocmds(windows, group)
   state.subscribe('current_permission', function()
     require('opencode.keymap').toggle_permission_keymap(windows.output_buf)
   end)
+
+  -- Track scroll position when window is scrolled
+  vim.api.nvim_create_autocmd('WinScrolled', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      M.viewport_at_bottom = M.is_at_bottom(windows.output_win)
+    end,
+  })
 end
 
 function M.clear()
@@ -184,6 +224,7 @@ function M.clear()
   -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
   -- extmarks behind
   M.clear_extmarks(0, -1, true)
+  M.viewport_at_bottom = true
 end
 
 return M

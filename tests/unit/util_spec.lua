@@ -110,6 +110,7 @@ describe('util.format_time', function()
 
   local yesterday = os.time() - 86400 -- 24 hours ago
   local last_week = os.time() - (7 * 86400) -- 7 days ago
+  local last_month = os.time() - (30 * 86400) -- 30 days ago
   local next_year = make_timestamp(today.year + 1, 6, 15, 12, 0, 0)
 
   describe('today timestamps', function()
@@ -140,16 +141,14 @@ describe('util.format_time', function()
   end)
 
   describe('other day timestamps', function()
-    it('formats yesterday with full date', function()
+    it('formats yesterday with same month date', function()
       local result = util.format_time(yesterday)
-      assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
-      assert.matches('%d%d%d%d', result)
+      assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
     end)
 
-    it('formats last week with full date', function()
+    it('formats last week with same month date', function()
       local result = util.format_time(last_week)
-      assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
-      assert.matches('%d%d%d%d', result)
+      assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
     end)
 
     it('formats future date with full date', function()
@@ -178,7 +177,7 @@ describe('util.format_time', function()
       assert.is_string(result)
 
       local is_time_only = result:match('^%d%d?:%d%d [AP]M$')
-      local is_full_date = result:match('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$')
+      local is_full_date = result:match('^%d%d? %a%a%a %d%d?:%d%d [AP]M$')
       assert.is_true(is_time_only ~= nil or is_full_date ~= nil)
     end)
 
@@ -229,7 +228,7 @@ describe('util.format_time', function()
         assert.matches('^%d%d?:%d%d [AP]M$', early_result)
       else
         -- Actually tomorrow
-        assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', early_result)
+        assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', early_result)
       end
     end)
   end)

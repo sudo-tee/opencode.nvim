@@ -105,7 +105,7 @@ local function telescope_ui(opts)
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
     layout_config = opts.width and {
-        width = opts.width + 4, -- extra space for telescope UI
+        width = opts.width + 7, -- extra space for telescope UI
       } or nil,
     attach_mappings = function(prompt_bufnr, map)
       actions.select_default:replace(function()

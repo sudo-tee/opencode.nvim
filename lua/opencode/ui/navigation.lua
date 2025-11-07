@@ -34,7 +34,7 @@ function M.goto_message_by_id(message_id)
   if not rendered_msg or not rendered_msg.line_start then
     return
   end
-  local sep_offset = 2
+  local sep_offset = #require('opencode.ui.formatter').separator
   vim.api.nvim_win_set_cursor(win, { rendered_msg.line_start + sep_offset, 0 })
 end
 

@@ -245,7 +245,11 @@ local function mini_pick_ui(opts)
   end
 
   mini_pick.start({
-    window = opts.width and { config = { width = opts.width } } or nil,
+    window = opts.width and {
+        config = {
+          width = opts.width + 2, -- extra space for mini.pick UI
+        },
+      } or nil,
     source = {
       items = items,
       name = opts.title,

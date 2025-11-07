@@ -72,6 +72,7 @@
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field permission OpencodeKeymapPermission
 ---@field session_picker OpencodeSessionPickerKeymap
+---@field timeline_picker OpencodeTimelinePickerKeymap
 
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
@@ -99,6 +100,7 @@
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field input_height number
+---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean
 ---@field display_context_size boolean
 ---@field display_cost boolean

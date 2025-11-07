@@ -37,8 +37,6 @@ function M.switch_session(session_id)
   state.active_session = selected_session
   if state.windows then
     state.restore_points = {}
-    -- Don't need to update either renderer because they subscribe to
-    -- session changes
     ui.focus_input()
   else
     M.open()

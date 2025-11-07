@@ -90,19 +90,22 @@ function M.sanitize_lines(lines)
   return stripped_lines
 end
 
---- Format a timestamp as time (e.g., "10:23 AM" or "13 Oct 2025 03:32 PM")
+--- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string
 function M.format_time(timestamp)
+  local formats = { day = '%I:%M %p', year = '%d %b %I:%M %p', full = '%d %b %Y %I:%M %p' }
+
   if timestamp > 1e12 then
     timestamp = math.floor(timestamp / 1000)
   end
 
-  if os.date('%Y-%m-%d', timestamp) == os.date('%Y-%m-%d') then
-    return os.date('%I:%M %p', timestamp) --[[@as string]]
-  end
+  local same_day = os.date('%Y-%m-%d') == os.date('%Y-%m-%d', timestamp)
+  local same_year = os.date('%Y') == os.date('%Y', timestamp)
 
-  return os.date('%d %b %Y %I:%M %p', timestamp) --[[@as string]]
+  local format_str = same_day and formats.day or (same_year and formats.year or formats.full)
+
+  return os.date(format_str, timestamp) --[[@as string]]
 end
 
 function M.index_of(tbl, value)

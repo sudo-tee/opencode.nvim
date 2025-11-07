@@ -32,7 +32,6 @@ end
 ---@param win? integer Window ID, defaults to state.windows.output_win
 ---@return boolean true if at bottom, false otherwise
 function M.is_at_bottom(win)
-  -- If always_scroll_to_bottom is enabled, always return true
   if config.ui.output.always_scroll_to_bottom then
     return true
   end
@@ -40,7 +39,7 @@ function M.is_at_bottom(win)
   win = win or (state.windows and state.windows.output_win)
 
   if not win or not vim.api.nvim_win_is_valid(win) then
-    return true  -- Assume at bottom if window invalid
+    return true
   end
 
   if not state.windows or not state.windows.output_buf then
@@ -49,7 +48,7 @@ function M.is_at_bottom(win)
 
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
   if not ok or not line_count or line_count == 0 then
-    return true  -- Empty buffer, consider at bottom
+    return true
   end
 
   local botline = vim.fn.line('w$', win)
@@ -215,7 +214,6 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      -- Update state to track if user is at bottom
       M.viewport_at_bottom = M.is_at_bottom(windows.output_win)
     end,
   })

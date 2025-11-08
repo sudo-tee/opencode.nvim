@@ -32,6 +32,7 @@
 ---@field cost number
 ---@field tokens_count number
 ---@field job_count number
+---@field user_message_count number
 ---@field opencode_server OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
@@ -80,6 +81,7 @@ local _state = {
   tokens_count = 0,
   -- job
   job_count = 0,
+  user_message_count = 0,
   opencode_server = nil,
   api_client = nil,
   event_manager = nil,

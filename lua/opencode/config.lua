@@ -182,6 +182,10 @@ M.defaults = {
     show_ids = false,
   },
   prompt_guard = nil,
+  hooks = {
+    on_file_edited = nil,
+    on_session_loaded = nil,
+  },
 }
 
 M.values = vim.deepcopy(M.defaults)

@@ -135,8 +135,12 @@
 ---@field capture_streamed_events boolean
 ---@field show_ids boolean
 
---- @class OpencodeProviders
---- @field [string] string[]
+---@class OpencodeHooks
+---@field on_file_edited? fun(file: string): nil
+---@field on_session_loaded? fun(session: Session): nil
+
+---@class OpencodeProviders
+---@field [string] string[]
 
 ---@class OpencodeConfigModule
 ---@field defaults OpencodeConfig
@@ -156,6 +160,7 @@
 ---@field context OpencodeContextConfig
 ---@field debug OpencodeDebugConfig
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
+---@field hooks OpencodeHooks
 ---@field legacy_commands boolean
 
 ---@class MessagePartState

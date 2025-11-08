@@ -4,13 +4,14 @@ local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 local config = require('opencode.config')
 
-local M = {}
-
-M.events = {}
-M.current_index = 0
-M.stop = false
-M.last_loaded_file = nil
-M.headless_mode = false
+local M = {
+  events = {},
+  event_index = 0, -- which events we have dispatched up to
+  events_received = 0, -- how many events we have received, just used for logging
+  stop = false,
+  last_loaded_file = nil,
+  headless_mode = false,
+}
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
@@ -42,6 +43,7 @@ function M.load_events(file_path)
 end
 
 function M.setup_windows(opts)
+  require('opencode.ui.highlight').setup()
   helpers.replay_setup()
 
   vim.schedule(function()
@@ -64,9 +66,9 @@ function M.replay_next(steps)
   steps = tonumber(steps) or 1
 
   for _ = 1, steps do
-    if M.current_index < #M.events then
-      M.current_index = M.current_index + 1
-      helpers.replay_event(M.events[M.current_index])
+    if M.event_index < #M.events then
+      M.event_index = M.event_index + 1
+      helpers.replay_event(M.events[M.event_index])
     else
       vim.notify('No more events to replay', vim.log.levels.WARN)
       return
@@ -100,7 +102,7 @@ function M.replay_all(delay_ms)
   -- will call renderer
   local function tick()
     M.replay_next()
-    if M.current_index >= #M.events or M.stop then
+    if M.event_index >= #M.events or M.stop then
       state.job_count = 0
 
       if M.headless_mode then
@@ -121,7 +123,8 @@ function M.replay_stop()
 end
 
 function M.reset()
-  M.current_index = 0
+  M.event_index = 0
+  M.events_received = 0
   M.clear()
 end
 
@@ -129,7 +132,7 @@ function M.show_status()
   local status = string.format(
     'Replay Status:\n  Events loaded: %d\n  Current index: %d\n  Playing: %s',
     #M.events,
-    M.current_index,
+    M.event_index,
     not M.stop
   )
   vim.notify(status, vim.log.levels.INFO)
@@ -345,7 +348,8 @@ function M.start(opts)
 
   -- NOTE: the index numbers will be incorrect when event collapsing happens
   local log_event = function(type, event)
-    local index = M.current_index
+    M.events_received = M.events_received + 1
+    local index = M.events_received
     local count = #M.events
     local id = event.info and event.info.id
       or event.part and event.part.id
@@ -357,33 +361,26 @@ function M.start(opts)
     vim.notify('Event ' .. index .. '/' .. count .. ': ' .. type .. ' ' .. id, vim.log.levels.INFO)
   end
 
-  state.event_manager:subscribe('session.updated', function(event)
-    log_event('session.updated', event)
-  end)
-  state.event_manager:subscribe('session.compacted', function(event)
-    log_event('session.compacted', event)
-  end)
-  state.event_manager:subscribe('session.error', function(event)
-    log_event('session.error', event)
-  end)
-  state.event_manager:subscribe('message.updated', function(event)
-    log_event('message.updated', event)
-  end)
-  state.event_manager:subscribe('message.removed', function(event)
-    log_event('message.removed', event)
-  end)
-  state.event_manager:subscribe('message.part.updated', function(event)
-    log_event('message.part.updated', event)
-  end)
-  state.event_manager:subscribe('message.removed', function(event)
-    log_event('message.removed', event)
-  end)
-  state.event_manager:subscribe('permission.updated', function(event)
-    log_event('permission.updated', event)
-  end)
-  state.event_manager:subscribe('permission.replied', function(event)
-    log_event('permission.replied', event)
-  end)
+  local events = {
+    'session.updated',
+    'session.compacted',
+    'session.error',
+    'session.idle',
+    'message.updated',
+    'message.removed',
+    'message.part.updated',
+    'message.removed',
+    'permission.updated',
+    'permission.replied',
+    'file.edited',
+    'server.connected',
+  }
+
+  for _, event_name in ipairs(events) do
+    state.event_manager:subscribe(event_name, function(event)
+      log_event(event_name, event)
+    end)
+  end
 end
 
 return M

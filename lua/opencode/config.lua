@@ -189,6 +189,8 @@ M.defaults = {
   hooks = {
     on_file_edited = nil,
     on_session_loaded = nil,
+    on_done_thinking = nil,
+    on_permission_requested = nil,
   },
 }
 

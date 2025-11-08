@@ -58,10 +58,12 @@ end
 
 function M.get_model_info(provider, model)
   local config_file = require('opencode.config_file')
-  local providers = config_file.get_opencode_providers() or {}
+  local providers_response = config_file.get_opencode_providers()
+  local providers = providers_response and providers_response.providers or {}
+
   local filtered_providers = vim.tbl_filter(function(p)
     return p.id == provider
-  end, providers.providers)
+  end, providers)
 
   if #filtered_providers == 0 then
     return nil

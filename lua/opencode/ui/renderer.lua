@@ -166,6 +166,10 @@ function M._render_full_session_data(session_data)
     M._set_model_from_messages()
   end
   M.scroll_to_bottom()
+
+  if config.hooks and config.hooks.on_session_loaded then
+    pcall(config.hooks.on_session_loaded, state.active_session)
+  end
 end
 
 ---Render lines as the entire output buffer
@@ -805,8 +809,11 @@ function M.on_permission_replied(properties)
   end
 end
 
-function M.on_file_edited(_)
+function M.on_file_edited(properties)
   vim.cmd('checktime')
+  if config.hooks and config.hooks.on_file_edited then
+    pcall(config.hooks.on_file_edited, properties.file)
+  end
 end
 
 ---@param properties RestorePointCreatedEvent

@@ -24,8 +24,7 @@ For git history purposes the original code is copied instead of just forked.
 This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.
 
 <div align="center">
-  <img src="https://i.imgur.com/X6tFtc3.png" alt="Opencode.nvim interface" width="90%" />
-  <img src="https://i.imgur.com/erqtPND.png" alt="Opencode.nvim help" width="90%" />
+  <img src="https://github.com/user-attachments/assets/197d69ba-6db9-4989-97ff-557c89000cf5">
 </div>
 
 ## 📑 Table of Contents

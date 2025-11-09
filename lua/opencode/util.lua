@@ -1,12 +1,6 @@
 local Path = require('plenary.path')
 local M = {}
 
-function M.template(str, vars)
-  return (str:gsub('{(.-)}', function(key)
-    return tostring(vars[key] or '')
-  end))
-end
-
 function M.uid()
   return tostring(os.time()) .. '-' .. tostring(math.random(1000, 9999))
 end
@@ -234,23 +228,6 @@ function M.is_version_greater_or_equal(version, required_version)
     return minor > req_minor
   end
   return patch >= req_patch
-end
-
-function M.read_file_content(filepath, with_lines_numbers)
-  with_lines_numbers = with_lines_numbers or false
-  if not filepath or vim.fn.filereadable(filepath) ~= 1 then
-    return nil
-  end
-  local ok, content = pcall(vim.fn.readfile, filepath)
-  if not ok or not content then
-    return nil
-  end
-  if with_lines_numbers then
-    for i, line in ipairs(content) do
-      content[i] = string.format('%06d | %s', i, line)
-    end
-  end
-  return table.concat(content, '\n')
 end
 
 --- Parse arguments in the form of key=value, supporting dot notation for nested tables.

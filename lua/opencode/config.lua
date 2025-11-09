@@ -234,31 +234,7 @@ function M.setup(opts)
     M.values.keymap.editor = {}
   end
 
-  -- Check for old keymap structure and migrate to new structure
-  if opts.keymap and (opts.keymap.global or opts.keymap.window) then
-    vim.notify('opencode.nvim: Legacy keymap format detected. Consider migrating to new format.', vim.log.levels.WARN)
-
-    -- Migrate old global section to editor
-    if opts.keymap.global then
-      opts.keymap.editor = M.normalize_keymap(opts.keymap.global)
-      ---@diagnostic disable-next-line: inject-field
-      opts.keymap.global = nil
-    end
-
-    -- Migrate old window section to input_window and output_window
-    if opts.keymap.window then
-      opts.keymap.input_window =
-        M.normalize_keymap(opts.keymap.window, get_function_names(M.values.keymap.input_window))
-      opts.keymap.output_window =
-        M.normalize_keymap(opts.keymap.window, get_function_names(M.values.keymap.output_window))
-      ---@diagnostic disable-next-line: inject-field
-      opts.keymap.window = nil
-    end
-  end
-
-  -- vim.notify(vim.inspect(opts))
   M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
-  -- vim.notify(vim.inspect(M.values))
 
   update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)
 end
@@ -289,21 +265,6 @@ function M.get_key_for_function(scope, function_name)
     end
   end
   return nil
-end
-
----Normalize keymap configuration from old format to new format (exported for testing)
----@param legacy_config table Old config format
----@param filter_functions? table If set, only move functions in this table
----@return table
-function M.normalize_keymap(legacy_config, filter_functions)
-  local converted = {}
-  for func_name, key in pairs(legacy_config) do
-    local api_name = func_name == 'submit' and 'submit_input_prompt' or func_name
-    if not filter_functions or vim.tbl_contains(filter_functions, api_name) then
-      converted[key] = { api_name }
-    end
-  end
-  return converted
 end
 
 ---@export Config

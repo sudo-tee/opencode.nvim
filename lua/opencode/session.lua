@@ -1,5 +1,4 @@
 local util = require('opencode.util')
-local review = require('opencode.review')
 local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local M = {}

@@ -73,22 +73,36 @@ function M._setup_event_subscriptions(subscribe)
     return
   end
 
-  local method = (subscribe == false) and 'unsubscribe' or 'subscribe'
+  subscribe = subscribe or true
 
-  state.event_manager[method](state.event_manager, 'session.updated', M.on_session_updated)
-  state.event_manager[method](state.event_manager, 'session.compacted', M.on_session_compacted)
-  state.event_manager[method](state.event_manager, 'session.error', M.on_session_error)
-  state.event_manager[method](state.event_manager, 'message.updated', M.on_message_updated)
-  state.event_manager[method](state.event_manager, 'message.removed', M.on_message_removed)
-  state.event_manager[method](state.event_manager, 'message.part.updated', M.on_part_updated)
-  state.event_manager[method](state.event_manager, 'message.part.removed', M.on_part_removed)
-  state.event_manager[method](state.event_manager, 'permission.updated', M.on_permission_updated)
-  state.event_manager[method](state.event_manager, 'permission.replied', M.on_permission_replied)
-  state.event_manager[method](state.event_manager, 'file.edited', M.on_file_edited)
-  state.event_manager[method](state.event_manager, 'custom.restore_point.created', M.on_restore_points)
-  state.event_manager[method](state.event_manager, 'custom.emit_events.finished', M.on_emit_events_finished)
+  local event_subscriptions = {
+    { 'session.updated', M.on_session_updated },
+    { 'session.compacted', M.on_session_compacted },
+    { 'session.error', M.on_session_error },
+    { 'message.updated', M.on_message_updated },
+    { 'message.removed', M.on_message_removed },
+    { 'message.part.updated', M.on_part_updated },
+    { 'message.part.removed', M.on_part_removed },
+    { 'permission.updated', M.on_permission_updated },
+    { 'permission.replied', M.on_permission_replied },
+    { 'file.edited', M.on_file_edited },
+    { 'custom.restore_point.created', M.on_restore_points },
+    { 'custom.emit_events.finished', M.on_emit_events_finished },
+  }
 
-  state[method]('is_opencode_focused', M.on_focus_changed)
+  for _, sub in ipairs(event_subscriptions) do
+    if subscribe then
+      state.event_manager:subscribe(sub[1], sub[2])
+    else
+      state.event_manager:unsubscribe(sub[1], sub[2])
+    end
+  end
+
+  if subscribe then
+    state.subscribe('is_opencode_focused', M.on_focus_changed)
+  else
+    state.unsubscribe('is_opencode_focused', M.on_focus_changed)
+  end
 end
 
 ---Unsubscribe from local state and server subscriptions

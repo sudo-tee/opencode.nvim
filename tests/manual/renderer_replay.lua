@@ -81,12 +81,12 @@ function M.replay_next(steps)
 end
 
 function M.replay_all(delay_ms)
-  M.stop = false
   if #M.events == 0 then
     M.load_events()
   else
     M.reset()
   end
+  M.stop = false
 
   delay_ms = delay_ms or 50
 
@@ -123,6 +123,7 @@ function M.replay_stop()
 end
 
 function M.reset()
+  M.stop = true
   M.event_index = 0
   M.events_received = 0
   M.clear()

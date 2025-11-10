@@ -337,4 +337,68 @@ describe('opencode.core', function()
       assert.is_true(core.opencode_ok())
     end)
   end)
+
+  describe('switch_to_mode', function()
+    it('sets current model from config file when mode has a model configured', function()
+      stub(config_file, 'get_opencode_agents').returns({ 'plan', 'build', 'custom' })
+      stub(config_file, 'get_opencode_config').returns({
+        agent = {
+          custom = {
+            model = 'anthropic/claude-3-opus',
+          },
+        },
+      })
+
+      state.current_mode = nil
+      state.current_model = nil
+
+      local success = core.switch_to_mode('custom')
+
+      assert.is_true(success)
+      assert.equal('custom', state.current_mode)
+      assert.equal('anthropic/claude-3-opus', state.current_model)
+
+      config_file.get_opencode_agents:revert()
+      config_file.get_opencode_config:revert()
+    end)
+
+    it('does not change current model when mode has no model configured', function()
+      stub(config_file, 'get_opencode_agents').returns({ 'plan', 'build' })
+      stub(config_file, 'get_opencode_config').returns({
+        agent = {
+          plan = {},
+        },
+      })
+
+      state.current_mode = nil
+      state.current_model = 'existing/model'
+
+      local success = core.switch_to_mode('plan')
+
+      assert.is_true(success)
+      assert.equal('plan', state.current_mode)
+      assert.equal('existing/model', state.current_model)
+
+      config_file.get_opencode_agents:revert()
+      config_file.get_opencode_config:revert()
+    end)
+
+    it('returns false when mode is invalid', function()
+      stub(config_file, 'get_opencode_agents').returns({ 'plan', 'build' })
+
+      local success = core.switch_to_mode('nonexistent')
+
+      assert.is_false(success)
+
+      config_file.get_opencode_agents:revert()
+    end)
+
+    it('returns false when mode is empty', function()
+      local success = core.switch_to_mode('')
+      assert.is_false(success)
+
+      success = core.switch_to_mode(nil)
+      assert.is_false(success)
+    end)
+  end)
 end)

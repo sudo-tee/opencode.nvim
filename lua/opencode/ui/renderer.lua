@@ -177,7 +177,7 @@ function M._render_full_session_data(session_data)
   end
 
   if set_mode_from_messages then
-    M._set_model_from_messages()
+    M._set_model_and_mode_from_messages()
   end
   M.scroll_to_bottom()
 
@@ -213,7 +213,7 @@ function M.on_emit_events_finished()
 end
 
 ---Find the most recently used model from the messages
-function M._set_model_from_messages()
+function M._set_model_and_mode_from_messages()
   if not state.messages then
     return
   end
@@ -221,9 +221,14 @@ function M._set_model_from_messages()
   for i = #state.messages, 1, -1 do
     local message = state.messages[i]
 
-    if message and message.info and message.info.modelID and message.info.providerID then
-      state.current_model = message.info.providerID .. '/' .. message.info.modelID
-      return
+    if message and message.info then
+      if message.info.modelID and message.info.providerID then
+        state.current_model = message.info.providerID .. '/' .. message.info.modelID
+        if message.info.mode then
+          state.current_mode = message.info.mode
+        end
+        return
+      end
     end
   end
 

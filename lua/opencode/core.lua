@@ -31,9 +31,11 @@ end
 
 function M.switch_session(session_id)
   local selected_session = session.get_by_id(session_id)
-  -- clear the model so it can be set by the session. If it doesn't get set
-  -- then core.get_model() will reset it to the default
+
   state.current_model = nil
+  state.current_mode = nil
+  M.ensure_current_mode()
+
   state.active_session = selected_session
   if state.windows then
     state.restore_points = {}
@@ -73,8 +75,11 @@ function M.open(opts)
   if opts.new_session then
     state.active_session = nil
     state.last_sent_context = nil
-    -- clear current_model here so it can be reset to the default (if one is set)
+
     state.current_model = nil
+    state.current_mode = nil
+    M.ensure_current_mode()
+
     state.active_session = M.create_new_session()
   else
     if not state.active_session then

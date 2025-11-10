@@ -312,6 +312,11 @@ function M.switch_to_mode(mode)
   end
 
   state.current_mode = mode
+  local agents_config = config_file.get_opencode_config().agent or {}
+  local mode_config = agents_config[mode] or {}
+  if mode_config.model and mode_config.model ~= '' then
+    state.current_model = mode_config.model
+  end
   return true
 end
 

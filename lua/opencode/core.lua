@@ -15,7 +15,7 @@ M._abort_count = 0
 function M.select_session(parent_id)
   local all_sessions = session.get_all_workspace_sessions() or {}
   local filtered_sessions = vim.tbl_filter(function(s)
-    return s.description ~= '' and s ~= nil and s.parentID == parent_id
+    return s.title ~= '' and s ~= nil and s.parentID == parent_id
   end, all_sessions)
 
   ui.select_session(filtered_sessions, function(selected_session)

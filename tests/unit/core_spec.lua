@@ -73,14 +73,14 @@ describe('opencode.core', function()
         if not id then
           return nil
         end
-        return { id = id, description = id, modified = os.time(), parentID = nil }
+        return { id = id, title = id, modified = os.time(), parentID = nil }
       end)
       -- stub get_by_name to return a simple session object without filesystem access
       stub(session, 'get_by_name').invokes(function(name)
         if not name then
           return nil
         end
-        return { id = name, description = name, modified = os.time(), parentID = nil }
+        return { id = name, title = name, modified = os.time(), parentID = nil }
       end)
     end
     mock_api_client()
@@ -185,11 +185,11 @@ describe('opencode.core', function()
   end)
 
   describe('select_session', function()
-    it('filters sessions by description and parentID', function()
+    it('filters sessions by title and parentID', function()
       local mock_sessions = {
-        { id = 'session1', description = 'First session', modified = 1, parentID = nil },
-        { id = 'session2', description = '', modified = 2, parentID = nil },
-        { id = 'session3', description = 'Third session', modified = 3, parentID = nil },
+        { id = 'session1', title = 'First session', modified = 1, parentID = nil },
+        { id = 'session2', title = '', modified = 2, parentID = nil },
+        { id = 'session3', title = 'Third session', modified = 3, parentID = nil },
       }
       stub(session, 'get_all_workspace_sessions').returns(mock_sessions)
       local passed

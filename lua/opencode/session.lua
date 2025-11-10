@@ -62,7 +62,7 @@ function M.create_session_object(session_json)
   local storage_path = M.get_storage_path()
   return {
     workspace = session_json.directory,
-    description = session_json.title or '',
+    title = session_json.title or '',
     modified = session_json.time and session_json.time.updated or os.time(),
     id = session_json.id,
     parentID = session_json.parentID,

@@ -1,10 +1,11 @@
 local config = require('opencode.config')
 local util = require('opencode.util')
+local Promise = require('opencode.promise')
 
 ---@class PickerAction
 ---@field key? OpencodeKeymapEntry|string The key binding for this action
 ---@field label string The display label for this action
----@field fn fun(selected: any, opts: PickerOptions): any[]? The action function
+---@field fn fun(selected: any, opts: PickerOptions): any[]|Promise<any[]>? The action function
 ---@field reload? boolean Whether to reload the picker after action
 
 ---@class PickerOptions
@@ -24,7 +25,7 @@ local util = require('opencode.util')
 ---@field fn_fzf_index fun(line: string): integer?
 
 ---@class FzfAction
----@field fn fun(selected: string[], fzf_opts: FzfLuaOptions): nil
+---@field fn fun(selected: string[], fzf_opts: FzfLuaOptions): nil|Promise<nil>
 ---@field header string
 ---@field reload boolean
 
@@ -127,10 +128,12 @@ local function telescope_ui(opts)
             local selection = action_state.get_selected_entry()
             if selection then
               local new_items = action.fn(selection.value, opts)
-              if action.reload and new_items then
-                opts.items = new_items
-                refresh_picker()
-              end
+              Promise.wrap(new_items):and_then(function(resolved_items)
+                if action.reload and resolved_items then
+                  opts.items = resolved_items
+                  refresh_picker()
+                end
+              end)
             end
           end
 
@@ -151,6 +154,39 @@ end
 ---@param opts PickerOptions The picker options
 local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
+
+  local function create_fzf_config()
+    return {
+      winopts = opts.width and {
+          width = opts.width + 8, -- extra space for fzf UI
+        } or nil,
+      fzf_opts = { ['--prompt'] = opts.title .. ' > ' },
+      _headers = { 'actions' },
+      fn_fzf_index = function(line)
+        for i, item in ipairs(opts.items) do
+          if opts.format_fn(item):to_string() == line then
+            return i
+          end
+        end
+        return nil
+      end,
+    }
+  end
+
+  local function create_finder()
+    return function(fzf_cb)
+      for _, item in ipairs(opts.items) do
+        fzf_cb(opts.format_fn(item):to_string())
+      end
+      fzf_cb()
+    end
+  end
+
+  local function refresh_fzf()
+    vim.schedule(function()
+      fzf_ui(opts)
+    end)
+  end
 
   ---@type FzfLuaActions
   local actions_config = {
@@ -176,9 +212,13 @@ local function fzf_ui(opts)
           local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
           if idx and opts.items[idx] then
             local new_items = action.fn(opts.items[idx], opts)
-            if action.reload and new_items then
-              opts.items = new_items
-            end
+            Promise.wrap(new_items):and_then(function(resolved_items)
+              if action.reload and resolved_items then
+                ---@cast resolved_items any[]
+                opts.items = resolved_items
+                refresh_fzf()
+              end
+            end)
           end
         end,
         header = action.label,
@@ -187,27 +227,10 @@ local function fzf_ui(opts)
     end
   end
 
-  fzf_lua.fzf_exec(function(fzf_cb)
-    for _, item in ipairs(opts.items) do
-      fzf_cb(opts.format_fn(item):to_string())
-    end
-    fzf_cb()
-  end, {
-    winopts = opts.width and {
-        width = opts.width + 8, -- extra space for fzf UI
-      } or nil,
-    fzf_opts = { ['--prompt'] = opts.title .. ' > ' },
-    _headers = { 'actions' },
-    actions = actions_config,
-    fn_fzf_index = function(line)
-      for i, item in ipairs(opts.items) do
-        if opts.format_fn(item):to_string() == line then
-          return i
-        end
-      end
-      return nil
-    end,
-  })
+  local fzf_config = create_fzf_config()
+  fzf_config.actions = actions_config
+
+  fzf_lua.fzf_exec(create_finder(), fzf_config)
 end
 
 ---Mini.pick UI implementation
@@ -230,15 +253,14 @@ local function mini_pick_ui(opts)
           local selected = mini_pick.get_picker_matches().current
           if selected and selected.item then
             local new_items = action.fn(selected.item, opts)
-            if action.reload and new_items then
-              opts.items = new_items
-              ---@type MiniPickItem[]
-              items = vim.tbl_map(function(it)
-                return { text = opts.format_fn(it):to_string(), item = it }
-              end, opts.items)
-              mini_pick.set_picker_items(items)
-            end
+            Promise.wrap(new_items):and_then(function(resolved_items)
+              if action.reload and resolved_items then
+                opts.items = resolved_items
+                mini_pick_ui(opts)
+              end
+            end)
           end
+          return true
         end,
       }
     end
@@ -318,10 +340,12 @@ local function snacks_picker_ui(opts)
         if item then
           vim.schedule(function()
             local new_items = action.fn(item, opts)
-            if action.reload and new_items then
-              opts.items = new_items
-              _picker:find()
-            end
+            Promise.wrap(new_items):and_then(function(resolved_items)
+              if action.reload and resolved_items then
+                opts.items = resolved_items
+                _picker:find()
+              end
+            end)
           end)
         end
       end

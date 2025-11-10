@@ -1,17 +1,49 @@
 local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
+local util = require('opencode.util')
 
 ---Format session parts for session picker
 ---@param session Session object
 ---@return PickerItem
 function format_session_item(session, width)
   local debug_text = 'ID: ' .. (session.id or 'N/A')
-  return base_picker.create_picker_item(session.description, session.modified, debug_text, width)
+  return base_picker.create_picker_item(session.title, session.modified, debug_text, width)
 end
 
 function M.pick(sessions, callback)
   local actions = {
+    rename = {
+      key = config.keymap.session_picker.rename_session,
+      label = 'rename',
+      fn = function(selected, opts)
+        local promise = require('opencode.promise').new()
+        local state = require('opencode.state')
+
+        vim.schedule(function()
+          vim.ui.input({ prompt = 'New session name: ', default = selected.title or '' }, function(input)
+            if input and input ~= '' then
+              state.api_client:update_session(selected.id, { title = input }):catch(function(err)
+                vim.schedule(function()
+                  vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+                end)
+              end)
+              selected.title = input
+              local idx = util.find_index_of(opts.items, function(item)
+                return item.id == selected.id
+              end)
+
+              if idx > 0 then
+                opts.items[idx].title = input
+              end
+            end
+            promise:resolve(opts.items)
+          end)
+        end)
+        return promise
+      end,
+      reload = true,
+    },
     delete = {
       key = config.keymap.session_picker.delete_session,
       label = 'delete',
@@ -31,7 +63,9 @@ function M.pick(sessions, callback)
           end)
         end)
 
-        local idx = vim.fn.index(opts.items, selected) + 1
+        local idx = util.find_index_of(opts.items, function(item)
+          return item.id == selected.id
+        end)
         if idx > 0 then
           table.remove(opts.items, idx)
         end

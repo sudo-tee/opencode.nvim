@@ -73,6 +73,7 @@ M.defaults = {
       deny = 'd',
     },
     session_picker = {
+      rename_session = { '<C-r>' },
       delete_session = { '<C-d>' },
       new_session = { '<C-n>' },
     },

@@ -40,7 +40,7 @@
 
 ---@class Session
 ---@field workspace string
----@field description string
+---@field title string
 ---@field modified number
 ---@field id string
 ---@field parentID string|nil
@@ -77,6 +77,7 @@
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
+---@field rename_session OpencodeKeymapEntry
 
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry

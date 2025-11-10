@@ -80,8 +80,8 @@ local function get_session_desc()
 
   if state.active_session then
     local session = require('opencode.session').get_by_id(state.active_session.id)
-    if session and session.description ~= '' then
-      session_desc = session.description
+    if session and session.title ~= '' then
+      session_desc = session.title
     end
   end
 

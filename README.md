@@ -157,7 +157,9 @@ require('opencode').setup({
       deny = 'd', -- Deny permission request once (only available when there is a pending permission request)
     },
     session_picker = {
+      rename_session = { '<C-r>' }, -- Rename selected session in the session picker
       delete_session = { '<C-d>' }, -- Delete selected session in the session picker
+      new_session = { '<C-n>' }, -- Create and switch to a new session in the session picker
     },
     timeline_picker = {
       undo = { '<C-u>', mode = { 'i', 'n' } }, -- Undo to selected message in timeline picker

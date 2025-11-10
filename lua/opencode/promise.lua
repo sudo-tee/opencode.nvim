@@ -194,4 +194,20 @@ function Promise:is_rejected()
   return self._resolved and self._error ~= nil
 end
 
+function Promise.is_promise(obj)
+  return type(obj) == 'table' and type(obj.and_then) == 'function' and type(obj.catch) == 'function'
+end
+
+---@generic T
+---@param obj T | Promise<T>
+---@return Promise<T>
+function Promise.wrap(obj)
+  if Promise.is_promise(obj) then
+    ---@cast obj Promise<T>
+    return obj
+  else
+    return Promise.new():resolve(obj)
+  end
+end
+
 return Promise

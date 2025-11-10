@@ -170,7 +170,6 @@ function M.clear_output()
   renderer.reset()
   output_window.clear()
   footer.clear()
-  topbar.render()
   -- state.restore_points = {}
 end
 

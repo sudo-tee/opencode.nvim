@@ -752,10 +752,7 @@ end
 ---Event handler for session.compacted events
 ---@param properties {sessionID: string} Event properties
 function M.on_session_compacted(properties)
-  vim.notify('on_session_compacted')
-  -- TODO: render a note that the session was compacted
-  -- FIXME: did we need unset state.last_sent_context because the
-  -- session was compacted?
+  vim.notify('Session has been compacted')
 end
 
 ---Event handler for session.updated events
@@ -764,7 +761,6 @@ function M.on_session_updated(properties)
   if not properties or not properties.info or not state.active_session then
     return
   end
-  require('opencode.ui.topbar').render()
   if not vim.deep_equal(state.active_session.revert, properties.info.revert) then
     state.active_session.revert = properties.info.revert
     M._render_full_session_data(state.messages)
@@ -779,7 +775,6 @@ function M.on_session_error(properties)
   end
 
   -- NOTE: we're handling message errors so session errors seem duplicative
-
   if config.debug.enabled then
     vim.notify('Session error: ' .. vim.inspect(properties.error))
   end

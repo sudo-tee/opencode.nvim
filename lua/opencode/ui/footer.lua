@@ -90,6 +90,7 @@ function M.setup(windows)
 
   -- for stats changes
   state.subscribe('current_model', on_change)
+  state.subscribe('active_session', on_change)
   -- to show C-c message
   state.subscribe('job_count', on_job_count_changed)
   state.subscribe('restore_points', on_change)

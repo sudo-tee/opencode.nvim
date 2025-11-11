@@ -100,8 +100,10 @@ function M._setup_event_subscriptions(subscribe)
 
   if subscribe then
     state.subscribe('is_opencode_focused', M.on_focus_changed)
+    state.subscribe('active_session', M.on_session_changed)
   else
     state.unsubscribe('is_opencode_focused', M.on_focus_changed)
+    state.unsubscribe('active_session', M.on_session_changed)
   end
 end
 
@@ -966,6 +968,10 @@ function M.on_focus_changed()
     M._rerender_part(part_id)
     trigger_on_data_rendered()
   end
+end
+
+function M.on_session_changed()
+  state.tokens_count = 0
 end
 
 ---Get all actions available at a specific line

@@ -29,9 +29,6 @@ local function format_token_info()
   end
 
   local result = table.concat(parts, ' | ')
-  if not result or type(result) ~= 'string' then
-    result = ''
-  end
   result = result:gsub('%%', '%%%%')
   return result
 end

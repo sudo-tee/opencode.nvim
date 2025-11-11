@@ -282,7 +282,10 @@ function M._write_formatted_data(formatted_data, part_id, start_line)
   if is_insertion then
     output_window.set_lines(new_lines, target_line, target_line)
   else
-    output_window.set_lines(new_lines, target_line)
+    local extra_newline = vim.tbl_extend('keep', {}, new_lines)
+    table.insert(extra_newline, '')
+    target_line = target_line - 1
+    output_window.set_lines(extra_newline, target_line)
   end
   output_window.set_extmarks(extmarks, target_line)
 

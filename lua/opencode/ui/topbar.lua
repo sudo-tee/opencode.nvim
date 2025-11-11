@@ -10,38 +10,35 @@ local LABELS = {
   NEW_SESSION_TITLE = 'New session',
 }
 
-local function format_model_info()
+local function format_token_info()
   local parts = {}
 
-  if config.ui.display_model then
-    if state.current_model then
-      table.insert(parts, state.current_model)
+  if state.current_model then
+    if config.ui.display_context_size then
+      local provider, model = state.current_model:match('^(.-)/(.+)$')
+      local model_info = config_file.get_model_info(provider, model)
+      local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
+      table.insert(parts, util.format_number(state.tokens_count))
+      if limit > 0 then
+        table.insert(parts, util.format_percentage(state.tokens_count / limit))
+      end
+    end
+    if config.ui.display_cost then
+      table.insert(parts, util.format_cost(state.cost))
     end
   end
 
-  return table.concat(parts, ' ')
-end
-
-local function format_mode_info()
-  return ' ' .. (state.current_mode or ''):upper() .. ' '
-end
-
-local function get_mode_highlight()
-  local mode = (state.current_mode or ''):lower()
-  if mode == 'build' then
-    return '%#OpencodeAgentBuild#'
-  elseif mode == 'plan' then
-    return '%#OpencodeAgentPlan#'
-  else
-    return '%#OpencodeAgentCustom#'
+  local result = table.concat(parts, ' | ')
+  if not result or type(result) ~= 'string' then
+    result = ''
   end
+  result = result:gsub('%%', '%%%%')
+  return result
 end
 
-local function create_winbar_text(description, model_info, mode_info, win_width)
+local function create_winbar_text(description, token_info, win_width)
   local left_content = ''
-  local right_content = ''
-
-  right_content = model_info .. ' ' .. get_mode_highlight() .. mode_info .. '%*'
+  local right_content = token_info
 
   local desc_width = win_width - util.strdisplaywidth(left_content) - util.strdisplaywidth(right_content)
 
@@ -76,16 +73,19 @@ local function update_winbar_highlights(win_id)
 end
 
 local function get_session_desc()
-  local session_desc = LABELS.NEW_SESSION_TITLE
+  local session_title = LABELS.NEW_SESSION_TITLE
 
   if state.active_session then
     local session = require('opencode.session').get_by_id(state.active_session.id)
     if session and session.title ~= '' then
-      session_desc = session.title
+      session_title = session.title
     end
   end
 
-  return session_desc
+  if not session_title or type(session_title) ~= 'string' then
+    session_title = ''
+  end
+  return session_title
 end
 
 function M.render()
@@ -97,11 +97,13 @@ function M.render()
     if not win then
       return
     end
-    -- topbar needs to at least have a value to make sure footer is positioned correctly
+
     vim.wo[win].winbar = ' '
 
-    vim.wo[win].winbar =
-      create_winbar_text(get_session_desc(), format_model_info(), format_mode_info(), vim.api.nvim_win_get_width(win))
+    local desc = get_session_desc()
+    local token_info = format_token_info()
+    local winbar_str = create_winbar_text(desc, token_info, vim.api.nvim_win_get_width(win))
+    vim.wo[win].winbar = winbar_str
 
     update_winbar_highlights(win)
   end)
@@ -116,6 +118,8 @@ function M.setup()
   state.subscribe('current_model', on_change)
   state.subscribe('active_session', on_change)
   state.subscribe('is_opencode_focused', on_change)
+  state.subscribe('tokens_count', on_change)
+  state.subscribe('cost', on_change)
   M.render()
 end
 
@@ -124,5 +128,7 @@ function M.close()
   state.unsubscribe('current_model', on_change)
   state.unsubscribe('active_session', on_change)
   state.unsubscribe('is_opencode_focused', on_change)
+  state.unsubscribe('tokens_count', on_change)
+  state.unsubscribe('cost', on_change)
 end
 return M

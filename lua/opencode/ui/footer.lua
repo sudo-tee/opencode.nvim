@@ -169,7 +169,7 @@ local function is_valid_state(windows)
 end
 
 ---@param windows? table Optional windows table, defaults to state.windows
----@return_cast windows OpencodeWindowState
+---@return boolean # True if the footer is properly mounted and windows are valid
 function M.mounted(windows)
   windows = windows or state.windows
   return windows

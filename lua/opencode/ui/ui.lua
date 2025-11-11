@@ -99,7 +99,7 @@ function M.create_windows()
   footer.setup(windows)
   topbar.setup()
 
-  renderer.setup_subscriptions(windows)
+  renderer.setup_subscriptions()
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)

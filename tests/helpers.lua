@@ -26,11 +26,7 @@ function M.replay_setup()
   -- we use the event manager to dispatch events
   require('opencode.event_manager').setup()
 
-  -- we don't change any changes on session
-  renderer._cleanup_subscriptions()
-
-  -- but we do want event_manager subscriptions so set those back up
-  renderer._setup_event_subscriptions()
+  renderer.setup_subscriptions()
 
   renderer.reset()
 

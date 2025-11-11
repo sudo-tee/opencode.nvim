@@ -6,7 +6,6 @@ local Promise = require('opencode.promise')
 local RenderState = require('opencode.ui.render_state')
 
 local M = {
-  _subscriptions = {},
   _prev_line_count = 0,
   _render_state = RenderState.new(),
   _last_part_formatted = {
@@ -45,6 +44,7 @@ function M.reset()
 
   state.messages = {}
   state.last_user_message = nil
+  state.tokens_count = 0
 
   if state.current_permission and state.api_client then
     require('opencode.api').respond_to_permission('reject')
@@ -54,26 +54,22 @@ function M.reset()
   trigger_on_data_rendered()
 end
 
----Set up all subscriptions, for both local and server events
-function M.setup_subscriptions(_)
-  M._subscriptions.active_session = function(_, new, _)
-    M.reset()
-    if new then
-      M.render_full_session()
-    end
-  end
-  state.subscribe('active_session', M._subscriptions.active_session)
-  M._setup_event_subscriptions()
-end
-
----Set up server event subscriptions
+---Set up event subscriptions
 ---@param subscribe? boolean false to unsubscribe
-function M._setup_event_subscriptions(subscribe)
+function M.setup_subscriptions(subscribe)
+  subscribe = subscribe or true
+
+  if subscribe then
+    state.subscribe('is_opencode_focused', M.on_focus_changed)
+    state.subscribe('active_session', M.on_session_changed)
+  else
+    state.unsubscribe('is_opencode_focused', M.on_focus_changed)
+    state.unsubscribe('active_session', M.on_session_changed)
+  end
+
   if not state.event_manager then
     return
   end
-
-  subscribe = subscribe or true
 
   local event_subscriptions = {
     { 'session.updated', M.on_session_updated },
@@ -97,29 +93,11 @@ function M._setup_event_subscriptions(subscribe)
       state.event_manager:unsubscribe(sub[1], sub[2])
     end
   end
-
-  if subscribe then
-    state.subscribe('is_opencode_focused', M.on_focus_changed)
-    state.subscribe('active_session', M.on_session_changed)
-  else
-    state.unsubscribe('is_opencode_focused', M.on_focus_changed)
-    state.unsubscribe('active_session', M.on_session_changed)
-  end
 end
 
----Unsubscribe from local state and server subscriptions
-function M._cleanup_subscriptions()
-  M._setup_event_subscriptions(false)
-  for key, cb in pairs(M._subscriptions) do
-    state.unsubscribe(key, cb)
-  end
-  M._subscriptions = {}
-end
-
----Clean up and teardown renderer. Unsubscribes from all
----events, local state and server
+---Clean up and teardown renderer. Unsubscribes from all events
 function M.teardown()
-  M._cleanup_subscriptions()
+  M.setup_subscriptions(false)
   M.reset()
 end
 
@@ -970,8 +948,11 @@ function M.on_focus_changed()
   end
 end
 
-function M.on_session_changed()
-  state.tokens_count = 0
+function M.on_session_changed(_, new, _)
+  M.reset()
+  if new then
+    M.render_full_session()
+  end
 end
 
 ---Get all actions available at a specific line

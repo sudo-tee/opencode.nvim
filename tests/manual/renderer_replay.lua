@@ -196,13 +196,14 @@ function M.replay_full_session()
   end
 
   state.active_session = helpers.get_session_from_events(M.events, true)
-  local session_data = helpers.load_session_from_events(M.events)
+  vim.schedule(function()
+    local session_data = helpers.load_session_from_events(M.events)
 
-  renderer.reset()
-  renderer._render_full_session_data(session_data)
-  state.job_count = 0
+    renderer._render_full_session_data(session_data)
+    state.job_count = 0
 
-  vim.notify('Rendered full session from loaded events', vim.log.levels.INFO)
+    vim.notify('Rendered full session from loaded events', vim.log.levels.INFO)
+  end)
   return true
 end
 

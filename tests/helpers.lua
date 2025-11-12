@@ -21,12 +21,11 @@ function M.replay_setup()
   end
 
   state.current_mode = 'build' -- default mode for tests
-  state.windows = ui.create_windows()
 
-  -- we use the event manager to dispatch events
+  -- we use the event manager to dispatch events, have to setup before ui.create_windows
   require('opencode.event_manager').setup()
 
-  renderer.setup_subscriptions()
+  state.windows = ui.create_windows()
 
   renderer.reset()
 

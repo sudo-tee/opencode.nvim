@@ -7,6 +7,10 @@ local loading_animation = require('opencode.ui.loading_animation')
 
 local M = {}
 
+local function utf8_len(str)
+  return vim.fn.strchars(str)
+end
+
 local function get_mode_highlight()
   local mode = (state.current_mode or ''):lower()
   local highlights = {
@@ -18,8 +22,12 @@ end
 
 local function build_left_segments()
   local segments = {}
-  if not state.is_running() and state.current_model then
-    table.insert(segments, state.current_model)
+  local restore_points = snapshot.get_restore_points()
+  if restore_points and #restore_points > 0 then
+    table.insert(segments, {
+      string.format('%s %d', icons.get('restore_point'), #restore_points),
+      'OpencodeHint',
+    })
   end
   return segments
 end
@@ -29,53 +37,64 @@ local function build_right_segments()
 
   if state.is_running() then
     local cancel_keymap = config.get_key_for_function('input_window', 'stop') or '<C-c>'
-    table.insert(segments, string.format(' %s to cancel', cancel_keymap))
+    table.insert(segments, { string.format('%s ', cancel_keymap), 'OpencodeInputLegend' })
+    table.insert(segments, { 'to cancel', 'OpencodeHint' })
+    table.insert(segments, { ' ' })
   end
 
-  local restore_points = snapshot.get_restore_points()
-  if restore_points and #restore_points > 0 then
-    table.insert(segments, string.format('%s %d', icons.get('restore_point'), #restore_points))
+  if not state.is_running() and state.current_model then
+    table.insert(segments, { state.current_model, 'OpencodeHint' })
+    table.insert(segments, { ' ' })
   end
 
   if state.current_mode then
-    table.insert(segments, string.format(' %s ', state.current_mode:upper()))
+    table.insert(segments, {
+      string.format(' %s ', state.current_mode:upper()),
+      get_mode_highlight(),
+    })
   end
 
   return segments
 end
 
-local function build_footer_text(left_text, right_text, win_width)
-  local left_len = #left_text > 0 and #left_text + 1 or 0
-  local right_len = #right_text > 0 and #right_text + 1 or 0
-  local padding = math.max(0, win_width - left_len - right_len)
+local function add_segments(segments, parts, highlights, col)
+  for _, segment in ipairs(segments) do
+    local text = segment[1]
+    table.insert(parts, text)
 
-  local parts = {}
-  if #left_text > 0 then
-    table.insert(parts, left_text)
-  end
-  table.insert(parts, string.rep(' ', padding))
-  if #right_text > 0 then
-    table.insert(parts, right_text)
-  end
+    if segment[2] then
+      table.insert(highlights, { group = segment[2], start_col = col, end_col = col + #text })
+    end
 
-  return table.concat(parts, ' ')
+    col = col + #text
+  end
+  return col
 end
 
-local function create_mode_highlight(left_len, right_text, padding)
-  if not state.current_mode then
-    return {}
+local function build_footer_from_segments(left_segments, right_segments, win_width)
+  local footer_parts = {}
+  local highlights = {}
+  local current_col = 0
+
+  current_col = add_segments(left_segments, footer_parts, highlights, current_col)
+
+  local left_text = table.concat(footer_parts, '')
+  local left_len = utf8_len(left_text)
+
+  local right_len = 0
+  for _, segment in ipairs(right_segments) do
+    right_len = right_len + utf8_len(segment[1])
   end
 
-  local mode_text = string.format(' %s ', state.current_mode:upper())
-  local mode_start = left_len + padding + (#right_text > 0 and 1 or 0)
+  local padding_len = math.max(0, win_width - left_len - right_len)
+  local padding = string.rep(' ', padding_len)
+  table.insert(footer_parts, padding)
+  current_col = current_col + padding_len
 
-  return {
-    {
-      group = get_mode_highlight(),
-      start_col = mode_start + #right_text - #mode_text,
-      end_col = mode_start + #right_text,
-    },
-  }
+  current_col = add_segments(right_segments, footer_parts, highlights, current_col)
+
+  local footer_text = table.concat(footer_parts, '')
+  return footer_text, highlights
 end
 
 function M.render()
@@ -84,12 +103,11 @@ function M.render()
   end
   ---@cast state.windows OpencodeWindowState
 
-  local left_text = table.concat(build_left_segments(), ' ')
-  local right_text = table.concat(build_right_segments(), ' ')
+  local left_segments = build_left_segments()
+  local right_segments = build_right_segments()
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win --[[@as integer]])
 
-  local footer_text = build_footer_text(left_text, right_text, win_width)
-  local highlights = create_mode_highlight(#left_text, right_text, win_width - #left_text - #right_text - 1)
+  local footer_text, highlights = build_footer_from_segments(left_segments, right_segments, win_width)
 
   M.set_content({ footer_text }, highlights)
 end

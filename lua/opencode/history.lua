@@ -15,11 +15,16 @@ local function get_history_file()
 end
 
 M.write = function(prompt)
-  local file = io.open(get_history_file().filename, "a")
+  local history = M.read()
+  if #history > 0 and history[1] == prompt then
+    return
+  end
+
+  local file = io.open(get_history_file().filename, 'a')
   if file then
     -- Escape any newlines in the prompt
-    local escaped_prompt = prompt:gsub("\n", "\\n")
-    file:write(escaped_prompt .. "\n")
+    local escaped_prompt = prompt:gsub('\n', '\\n')
+    file:write(escaped_prompt .. '\n')
     file:close()
     -- Invalidate cache when writing new history
     cached_history = nil
@@ -33,16 +38,16 @@ M.read = function()
   end
 
   local line_by_index = {}
-  local file = io.open(get_history_file().filename, "r")
+  local file = io.open(get_history_file().filename, 'r')
 
   if file then
     local lines = {}
 
     -- Read all non-empty lines
     for line in file:lines() do
-      if line:gsub("%s", "") ~= "" then
+      if line:gsub('%s', '') ~= '' then
         -- Unescape any escaped newlines
-        local unescaped_line = line:gsub("\\n", "\n")
+        local unescaped_line = line:gsub('\\n', '\n')
         table.insert(lines, unescaped_line)
       end
     end

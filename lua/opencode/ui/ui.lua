@@ -1,4 +1,3 @@
-local M = {}
 local config = require('opencode.config')
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
@@ -6,6 +5,8 @@ local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
+
+local M = {}
 
 ---@param windows OpencodeWindowState?
 function M.close_windows(windows)
@@ -242,6 +243,26 @@ function M.swap_position()
   vim.schedule(function()
     require('opencode.api').toggle(state.active_session == nil)
   end)
+end
+
+function M.toggle_zoom()
+  local windows = state.windows
+  if not windows or not state.windows.output_win or not state.windows.input_win then
+    return
+  end
+
+  local width
+
+  if state.pre_zoom_width then
+    width = state.pre_zoom_width
+    state.pre_zoom_width = nil
+  else
+    state.pre_zoom_width = vim.api.nvim_win_get_width(windows.output_win)
+    width = math.floor(config.ui.zoom_width * vim.o.columns)
+  end
+
+  vim.api.nvim_win_set_config(windows.input_win, { width = width })
+  vim.api.nvim_win_set_config(windows.output_win, { width = width })
 end
 
 return M

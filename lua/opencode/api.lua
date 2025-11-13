@@ -16,6 +16,10 @@ function M.swap_position()
   require('opencode.ui.ui').swap_position()
 end
 
+function M.toggle_zoom()
+  require('opencode.ui.ui').toggle_zoom()
+end
+
 function M.open_input()
   core.open({ new_session = false, focus = 'input', start_insert = true })
 end
@@ -896,6 +900,11 @@ M.commands = {
   toggle_pane = {
     desc = 'Toggle between input/output panes',
     fn = M.toggle_pane,
+  },
+
+  toggle_zoom = {
+    desc = 'Toggle window zoom',
+    fn = M.toggle_zoom,
   },
 
   swap = {

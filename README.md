@@ -110,6 +110,7 @@ require('opencode').setup({
       ['<leader>oq'] = { 'close' }, -- Close UI windows
       ['<leader>os'] = { 'select_session' }, -- Select and load a opencode session
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
+      ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
       ['<leader>o]'] = { 'diff_next' }, -- Navigate to next file diff
       ['<leader>o['] = { 'diff_prev' }, -- Navigate to previous file diff
@@ -170,6 +171,7 @@ require('opencode').setup({
     position = 'right', -- 'right' (default) or 'left'. Position of the UI split
     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window
     window_width = 0.40, -- Width as percentage of editor width
+    zoom_width = 0.8, -- Zoom width as percentage of editor width
     input_height = 0.15, -- Input height as percentage of window height
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer

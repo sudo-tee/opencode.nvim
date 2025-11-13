@@ -35,6 +35,7 @@
 ---@field opencode_server OpencodeServer|nil
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
+---@field pre_zoom_width integer|nil
 ---@field required_version string
 ---@field opencode_cli_version string|nil
 ---@field append fun( key:string, value:any)
@@ -60,6 +61,7 @@ local _state = {
   display_route = nil,
   current_mode = nil,
   last_output = 0,
+  pre_zoom_width = nil,
   -- context
   last_sent_context = nil,
   current_context_config = {},

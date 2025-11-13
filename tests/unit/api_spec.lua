@@ -518,4 +518,29 @@ describe('opencode.api', function()
       state.current_model = original_model
     end)
   end)
+
+  describe('toggle_zoom', function()
+    it('calls ui.toggle_zoom when toggle_zoom is called', function()
+      stub(ui, 'toggle_zoom')
+
+      api.toggle_zoom()
+
+      assert.stub(ui.toggle_zoom).was_called()
+    end)
+
+    it('is available in the commands table', function()
+      local cmd = api.commands['toggle_zoom']
+      assert.truthy(cmd, 'toggle_zoom command should exist')
+      assert.equal('Toggle window zoom', cmd.desc)
+      assert.is_function(cmd.fn)
+    end)
+
+    it('routes through command interface', function()
+      stub(ui, 'toggle_zoom')
+
+      api.commands.toggle_zoom.fn({})
+
+      assert.stub(ui.toggle_zoom).was_called()
+    end)
+  end)
 end)

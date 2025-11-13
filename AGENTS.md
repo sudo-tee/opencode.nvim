@@ -3,10 +3,12 @@
 ## Build, Lint, and Test
 
 - **Run all tests:** `./run_tests.sh`
-- **Minimal tests:**
+- **Minimal tests:** `./run_tests.sh -t minimal`
   `nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/minimal', {minimal_init = './tests/minimal/init.lua', sequential = true})"`
-- **Unit tests:**
+- **Unit tests:** `./run_tests.sh -t unit`
   `nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit', {minimal_init = './tests/minimal/init.lua'})"`
+- **Replay tests:** `./run_tests.sh -t replay`
+  `nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'})"`
 - **Run a single test:** Replace the directory in the above command with the test file path, e.g.:
   `nvim --headless -u tests/manual/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit/job_spec.lua', {minimal_init = './tests/minimal/init.lua'})"`
 - **Manual/Visual tests:** `./tests/manual/run_replay.sh` - Replay captured event data for visual testing
@@ -27,6 +29,6 @@
 - **Comments:** Only when necessary for clarity. Prefer self-explanatory code.
 - **Functions:** Prefer local functions. Use `M.func` for module exports.
 - **Config:** Centralize in `config.lua`. Use deep merge for user overrides.
-- **Tests:** Place in `tests/minimal/` or `tests/unit/`. Manual/visual tests in `tests/manual/`.
+- **Tests:** Place in `tests/minimal/`, `tests/unit/`, or `tests/replay/`. Manual/visual tests in `tests/manual/`.
 
 _Agentic coding agents must follow these conventions strictly for consistency and reliability._

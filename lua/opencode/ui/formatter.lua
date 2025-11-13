@@ -238,7 +238,8 @@ function M.format_message_header(message)
   local time_text = (time and ' (' .. util.format_time(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
   local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
-  local debug_text = config.debug and ' [' .. message.info.id .. ']' or ''
+
+  local debug_text = config.debug.show_ids and ' [' .. message.info.id .. ']' or ''
 
   local display_name
   if role == 'assistant' then

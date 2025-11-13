@@ -257,6 +257,7 @@ function M.start(opts)
   opts = opts or {}
 
   config.debug.enabled = true
+  config.debug.show_ids = true
 
   local buf = vim.api.nvim_get_current_buf()
   local name = vim.api.nvim_buf_get_name(buf)

@@ -92,6 +92,8 @@ local function assert_output_matches(expected, actual, name)
 end
 
 describe('renderer', function()
+  config.debug.show_ids = true
+
   before_each(function()
     helpers.replay_setup()
   end)

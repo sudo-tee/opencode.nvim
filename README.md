@@ -109,6 +109,7 @@ require('opencode').setup({
       ['<leader>oT'] = { 'timeline' }, -- Display timeline picker to navigate/undo/redo/fork messages
       ['<leader>oq'] = { 'close' }, -- Close UI windows
       ['<leader>os'] = { 'select_session' }, -- Select and load a opencode session
+      ['<leader>oR'] = { 'rename_session' }, -- Rename current session
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
       ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
@@ -330,6 +331,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Open input window (new session)                           | `<leader>oI`                          | `:Opencode open input_new_session`          | `require('opencode.api').open_input_new_session()`                     |
 | Open output window                                        | `<leader>oo`                          | `:Opencode open output`                     | `require('opencode.api').open_output()`                                |
 | Create and switch to a named session                      | -                                     | `:Opencode session new <name>`              | `:Opencode session new <name>` (user command)                          |
+| Rename current session                                    | `<leader>oR`                          | `:Opencode session rename <name>`           | `:Opencode session rename <name>` (user command)                       |
 | Toggle focus opencode / last window                       | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                          | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |
 | Select and load session                                   | `<leader>os`                          | `:Opencode session select`                  | `require('opencode.api').select_session()`                             |

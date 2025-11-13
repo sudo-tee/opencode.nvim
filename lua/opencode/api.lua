@@ -741,6 +741,54 @@ function M.fork_session(message_id)
     end)
 end
 
+---@param current_session? Session
+--- @param new_title? string
+function M.rename_session(current_session, new_title)
+  local promise = require('opencode.promise').new()
+  current_session = current_session or vim.deepcopy(state.active_session) --[[@as Session]]
+  if not current_session then
+    vim.notify('No active session to rename', vim.log.levels.WARN)
+    promise:resolve(nil)
+    return promise
+  end
+  local function rename_session_with_title(title)
+    state.api_client
+      :update_session(current_session.id, { title = title })
+      :catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+        end)
+      end)
+      :and_then(function()
+        current_session.title = title
+        if state.active_session and state.active_session.id == current_session.id then
+          local session_obj = session.get_by_id(current_session.id)
+          if session_obj then
+            session_obj.title = title
+            state.active_session = vim.deepcopy(session_obj)
+          end
+        end
+        promise:resolve(current_session)
+      end)
+  end
+
+  if new_title and new_title ~= '' then
+    rename_session_with_title(new_title)
+    return promise
+  end
+
+  vim.schedule(function()
+    vim.ui.input({ prompt = 'New session name: ', default = current_session.title or '' }, function(input)
+      if input and input ~= '' then
+        rename_session_with_title(input)
+      else
+        promise:resolve(nil)
+      end
+    end)
+  end)
+  return promise
+end
+
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
 -- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
@@ -913,8 +961,8 @@ M.commands = {
   },
 
   session = {
-    desc = 'Manage sessions (new/select/child/compact/share/unshare)',
-    completions = { 'new', 'select', 'child', 'compact', 'share', 'unshare', 'agents_init' },
+    desc = 'Manage sessions (new/select/child/compact/share/unshare/rename)',
+    completions = { 'new', 'select', 'child', 'compact', 'share', 'unshare', 'agents_init', 'rename' },
     fn = function(args)
       local subcmd = args[1]
       if subcmd == 'new' then
@@ -942,6 +990,9 @@ M.commands = {
         M.unshare()
       elseif subcmd == 'agents_init' then
         M.initialize()
+      elseif subcmd == 'rename' then
+        local title = table.concat(vim.list_slice(args, 2), ' ')
+        M.rename_session(state.active_session, title)
       else
         local valid_subcmds = table.concat(M.commands.session.completions, ', ')
         vim.notify('Invalid session subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)

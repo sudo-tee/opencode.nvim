@@ -22,6 +22,7 @@ M.defaults = {
       ['<leader>oT'] = { 'timeline', desc = 'Session timeline' },
       ['<leader>oq'] = { 'close', desc = 'Close Opencode window' },
       ['<leader>os'] = { 'select_session', desc = 'Select session' },
+      ['<leader>oR'] = { 'rename_session', desc = 'Rename session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },
       ['<leader>oz'] = { 'toggle_zoom', desc = 'Toggle zoom' },
       ['<leader>od'] = { 'diff_open', desc = 'Open diff view' },

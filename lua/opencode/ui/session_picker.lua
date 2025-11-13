@@ -2,6 +2,7 @@ local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local util = require('opencode.util')
+local api = require('lua.opencode.api')
 
 ---Format session parts for session picker
 ---@param session Session object
@@ -18,28 +19,24 @@ function M.pick(sessions, callback)
       label = 'rename',
       fn = function(selected, opts)
         local promise = require('opencode.promise').new()
-        local state = require('opencode.state')
-
-        vim.schedule(function()
-          vim.ui.input({ prompt = 'New session name: ', default = selected.title or '' }, function(input)
-            if input and input ~= '' then
-              state.api_client:update_session(selected.id, { title = input }):catch(function(err)
-                vim.schedule(function()
-                  vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-                end)
-              end)
-              selected.title = input
-              local idx = util.find_index_of(opts.items, function(item)
-                return item.id == selected.id
-              end)
-
-              if idx > 0 then
-                opts.items[idx].title = input
-              end
+        api
+          .rename_session(selected)
+          :and_then(function(updated_session)
+            local idx = util.find_index_of(opts.items, function(item)
+              return item.id == updated_session.id
+            end)
+            if idx > 0 then
+              opts.items[idx] = updated_session
             end
             promise:resolve(opts.items)
           end)
-        end)
+          :catch(function(err)
+            vim.schedule(function()
+              vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+              promise:resolve(nil)
+            end)
+          end)
+
         return promise
       end,
       reload = true,

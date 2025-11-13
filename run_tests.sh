@@ -18,13 +18,14 @@ print_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
     echo "  -f, --filter PATTERN    Filter tests by pattern (matches test descriptions)"
-    echo "  -t, --type TYPE         Test type: all, minimal, unit, or specific file path"
+    echo "  -t, --type TYPE         Test type: all, minimal, unit, replay, or specific file path"
     echo "  -h, --help              Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0                                    # Run all tests"
     echo "  $0 -f \"Timer\"                        # Run tests matching 'Timer'"
     echo "  $0 -t unit                           # Run only unit tests"
+    echo "  $0 -t replay                         # Run only replay tests"
     echo "  $0 -t tests/unit/timer_spec.lua      # Run specific test file"
     echo "  $0 -f \"creates a new timer\" -t unit  # Filter unit tests"
 }
@@ -72,8 +73,10 @@ echo "------------------------------------------------"
 # Run tests based on type
 minimal_status=0
 unit_status=0
+replay_status=0
 minimal_output=""
 unit_output=""
+replay_output=""
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "minimal" ]; then
     # Run minimal tests
@@ -103,8 +106,22 @@ if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "unit" ]; then
     echo "------------------------------------------------"
 fi
 
+if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "replay" ]; then
+    # Run replay tests
+    replay_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
+    replay_status=$?
+    clean_output "$replay_output"
+
+    if [ $replay_status -eq 0 ]; then
+        echo -e "${GREEN}✓ Replay tests passed${NC}"
+    else
+        echo -e "${RED}✗ Replay tests failed${NC}"
+    fi
+    echo "------------------------------------------------"
+fi
+
 # Handle specific test file
-if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" != "unit" ]; then
+if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" != "unit" ] && [ "$TEST_TYPE" != "replay" ]; then
     # Assume it's a specific test file path
     if [ -f "$TEST_TYPE" ]; then
         specific_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./$TEST_TYPE', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
@@ -129,9 +146,10 @@ fi
 
 # Check for any failures
 all_output="$minimal_output
-$unit_output"
+$unit_output
+$replay_output"
 
-if [ $minimal_status -ne 0 ] || [ $unit_status -ne 0 ] || echo "$all_output" | grep -q "\[31mFail.*||"; then
+if [ $minimal_status -ne 0 ] || [ $unit_status -ne 0 ] || [ $replay_status -ne 0 ] || echo "$all_output" | grep -q "\[31mFail.*||"; then
     echo -e "\n${RED}======== TEST FAILURES SUMMARY ========${NC}"
 
     # Extract and format failures

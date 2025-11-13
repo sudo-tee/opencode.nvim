@@ -47,28 +47,33 @@ function M.pick(sessions, callback)
     delete = {
       key = config.keymap.session_picker.delete_session,
       label = 'delete',
+      multi_selection = true,
       fn = function(selected, opts)
         local state = require('opencode.state')
 
-        local session_id_to_delete = selected.id
+        local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
 
-        if state.active_session and state.active_session.id == selected.id then
-          vim.notify('deleting current session, creating new session')
-          state.active_session = require('opencode.core').create_new_session()
-        end
+        for _, session in ipairs(sessions_to_delete) do
+          if state.active_session and state.active_session.id == session.id then
+            vim.notify('deleting current session, creating new session')
+            state.active_session = require('opencode.core').create_new_session()
+          end
 
-        state.api_client:delete_session(session_id_to_delete):catch(function(err)
-          vim.schedule(function()
-            vim.notify('Failed to delete session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+          state.api_client:delete_session(session.id):catch(function(err)
+            vim.schedule(function()
+              vim.notify('Failed to delete session ' .. session.id .. ': ' .. vim.inspect(err), vim.log.levels.ERROR)
+            end)
           end)
-        end)
 
-        local idx = util.find_index_of(opts.items, function(item)
-          return item.id == selected.id
-        end)
-        if idx > 0 then
-          table.remove(opts.items, idx)
+          local idx = util.find_index_of(opts.items, function(item)
+            return item.id == session.id
+          end)
+          if idx > 0 then
+            table.remove(opts.items, idx)
+          end
         end
+
+        vim.notify('Deleted ' .. #sessions_to_delete .. ' session(s)', vim.log.levels.INFO)
         return opts.items
       end,
       reload = true,

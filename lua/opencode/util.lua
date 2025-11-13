@@ -120,6 +120,15 @@ function M.find_index_of(tbl, predicate)
   return nil
 end
 
+function M.some(tbl, predicate)
+  for _, v in ipairs(tbl) do
+    if predicate(v) then
+      return true
+    end
+  end
+  return false
+end
+
 local _is_git_project = nil
 function M.is_git_project()
   if _is_git_project ~= nil then

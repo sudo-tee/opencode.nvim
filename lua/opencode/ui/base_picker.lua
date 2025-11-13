@@ -5,8 +5,9 @@ local Promise = require('opencode.promise')
 ---@class PickerAction
 ---@field key? OpencodeKeymapEntry|string The key binding for this action
 ---@field label string The display label for this action
----@field fn fun(selected: any, opts: PickerOptions): any[]|Promise<any[]>? The action function
+---@field fn fun(selected: any|any[], opts: PickerOptions): any[]|Promise<any[]>? The action function
 ---@field reload? boolean Whether to reload the picker after action
+---@field multi_selection? boolean Whether this action supports multi-selection
 
 ---@class PickerOptions
 ---@field items any[] The list of items to pick from
@@ -15,6 +16,7 @@ local Promise = require('opencode.promise')
 ---@field callback fun(selected: any?) Callback when item is selected
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
+---@field multi_selection? table<string, boolean> Actions that support multi-selection
 
 ---@class TelescopeEntry
 ---@field value any
@@ -53,12 +55,14 @@ local picker = require('opencode.ui.picker')
 ---Build title with action legend
 ---@param base_title string The base title
 ---@param actions table<string, PickerAction> The available actions
+---@param support_multi? boolean Whether multi-selection is supported
 ---@return string title The formatted title with action legend
-local function build_title(base_title, actions)
+local function build_title(base_title, actions, support_multi)
   local legend = {}
   for _, action in pairs(actions) do
     if action.key and action.key[1] then
-      table.insert(legend, action.key[1] .. ' ' .. action.label)
+      local label = action.label .. (action.multi_selection and support_multi ~= false and ' (multi)' or '')
+      table.insert(legend, action.key[1] .. ' ' .. label)
     end
   end
   return base_title .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
@@ -72,6 +76,7 @@ local function telescope_ui(opts)
   local conf = require('telescope.config').values
   local actions = require('telescope.actions')
   local action_state = require('telescope.actions.state')
+  local action_utils = require('telescope.actions.utils')
   local entry_display = require('telescope.pickers.entry_display')
   local displayer = entry_display.create({
     separator = ' ',
@@ -87,7 +92,8 @@ local function telescope_ui(opts)
     return {
       value = item,
       display = function(entry)
-        return displayer(opts.format_fn(entry.value):to_formatted_text())
+        local formatted = opts.format_fn(entry.value):to_formatted_text()
+        return displayer(formatted)
       end,
       ordinal = opts.format_fn(item):to_string(),
     }
@@ -125,9 +131,27 @@ local function telescope_ui(opts)
           end
 
           local action_fn = function()
-            local selection = action_state.get_selected_entry()
-            if selection then
-              local new_items = action.fn(selection.value, opts)
+            local items_to_process
+
+            if action.multi_selection then
+              local multi_selection = {}
+              action_utils.map_selections(prompt_bufnr, function(entry, index)
+                table.insert(multi_selection, entry.value)
+              end)
+
+              if #multi_selection > 0 then
+                items_to_process = multi_selection
+              else
+                local selection = action_state.get_selected_entry()
+                items_to_process = selection and selection.value or nil
+              end
+            else
+              local selection = action_state.get_selected_entry()
+              items_to_process = selection and selection.value or nil
+            end
+
+            if items_to_process then
+              local new_items = action.fn(items_to_process, opts)
               Promise.wrap(new_items):and_then(function(resolved_items)
                 if action.reload and resolved_items then
                   opts.items = resolved_items
@@ -156,11 +180,18 @@ local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
 
   local function create_fzf_config()
+    local has_multi_action = util.some(opts.actions, function(action)
+      return action.multi_selection
+    end)
+
     return {
       winopts = opts.width and {
           width = opts.width + 8, -- extra space for fzf UI
         } or nil,
-      fzf_opts = { ['--prompt'] = opts.title .. ' > ' },
+      fzf_opts = {
+        ['--prompt'] = opts.title .. ' > ',
+        ['--multi'] = has_multi_action and true or nil,
+      },
       _headers = { 'actions' },
       fn_fzf_index = function(line)
         for i, item in ipairs(opts.items) do
@@ -209,9 +240,25 @@ local function fzf_ui(opts)
           if not selected or #selected == 0 then
             return
           end
-          local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
-          if idx and opts.items[idx] then
-            local new_items = action.fn(opts.items[idx], opts)
+
+          local items_to_process
+          if action.multi_selection and #selected > 1 then
+            items_to_process = {}
+            for _, sel in ipairs(selected) do
+              local idx = fzf_opts.fn_fzf_index(sel --[[@as string]])
+              if idx and opts.items[idx] then
+                table.insert(items_to_process, opts.items[idx])
+              end
+            end
+          else
+            local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
+            if idx and opts.items[idx] then
+              items_to_process = opts.items[idx]
+            end
+          end
+
+          if items_to_process then
+            local new_items = action.fn(items_to_process, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
                 ---@cast resolved_items any[]
@@ -250,9 +297,10 @@ local function mini_pick_ui(opts)
       mappings[action_name] = {
         char = action.key[1],
         func = function()
-          local selected = mini_pick.get_picker_matches().current
-          if selected and selected.item then
-            local new_items = action.fn(selected.item, opts)
+          local current = mini_pick.get_picker_matches().current
+          if current and current.item then
+            -- Mini.pick doesn't have native multi-selection, we fallback single selection
+            local new_items = action.fn(current.item, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
                 opts.items = resolved_items
@@ -330,19 +378,29 @@ local function snacks_picker_ui(opts)
     },
   }
 
+  snack_opts.win = snack_opts.win or {}
+  snack_opts.win.input = snack_opts.win.input or { keys = {} }
+
   for action_name, action in pairs(opts.actions) do
     if action.key and action.key[1] then
-      snack_opts.win = snack_opts.win or {}
-      snack_opts.win.input = snack_opts.win.input or { keys = {} }
       snack_opts.win.input.keys[action.key[1]] = { action_name, mode = action.key.mode or 'i' }
 
       snack_opts.actions[action_name] = function(_picker, item)
         if item then
           vim.schedule(function()
-            local new_items = action.fn(item, opts)
+            local items_to_process
+            if action.multi_selection then
+              local selected_items = _picker:selected({ fallback = true })
+              items_to_process = #selected_items > 1 and selected_items or item
+            else
+              items_to_process = item
+            end
+
+            local new_items = action.fn(items_to_process, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
                 opts.items = resolved_items
+                _picker:refresh()
                 _picker:find()
               end
             end)
@@ -429,16 +487,19 @@ function M.pick(opts)
   end
 
   local title_str = type(opts.title) == 'function' and opts.title() or opts.title --[[@as string]]
-  opts.title = build_title(title_str, opts.actions)
 
   vim.schedule(function()
     if picker_type == 'telescope' then
+      opts.title = build_title(title_str, opts.actions)
       telescope_ui(opts)
     elseif picker_type == 'fzf' then
+      opts.title = title_str
       fzf_ui(opts)
     elseif picker_type == 'mini.pick' then
+      opts.title = build_title(title_str, opts.actions, false)
       mini_pick_ui(opts)
     elseif picker_type == 'snacks' then
+      opts.title = build_title(title_str, opts.actions)
       snacks_picker_ui(opts)
     else
       opts.callback(nil)

@@ -4,7 +4,11 @@ function M.get_best_picker()
   local config = require('opencode.config')
 
   local preferred_picker = config.preferred_picker
-  if preferred_picker and preferred_picker ~= '' then
+  if preferred_picker and type(preferred_picker) == 'string' and preferred_picker ~= '' then
+    if preferred_picker == 'select' then
+      return nil
+    end
+
     return preferred_picker
   end
 

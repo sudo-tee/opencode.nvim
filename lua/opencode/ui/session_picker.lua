@@ -2,7 +2,7 @@ local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local util = require('opencode.util')
-local api = require('lua.opencode.api')
+local api = require('opencode.api')
 
 ---Format session parts for session picker
 ---@param session Session object

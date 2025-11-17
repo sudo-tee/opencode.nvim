@@ -316,7 +316,22 @@ local function format_file_part(path, prompt)
   local pos = prompt and prompt:find(mention)
   pos = pos and pos - 1 or 0 -- convert to 0-based index
 
-  local file_part = { filename = rel_path, type = 'file', mime = 'text/plain', url = 'file://' .. path }
+  -- Determine MIME type based on file extension
+  local ext = vim.fn.fnamemodify(path, ':e'):lower()
+  local mime_type = 'text/plain'
+  if ext == 'png' then
+    mime_type = 'image/png'
+  elseif ext == 'jpg' or ext == 'jpeg' then
+    mime_type = 'image/jpeg'
+  elseif ext == 'gif' then
+    mime_type = 'image/gif'
+  elseif ext == 'webp' then
+    mime_type = 'image/webp'
+  elseif ext == 'svg' then
+    mime_type = 'image/svg+xml'
+  end
+
+  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }
   if prompt then
     file_part.source = {
       path = path,

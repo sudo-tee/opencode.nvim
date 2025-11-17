@@ -25,6 +25,7 @@ M.defaults = {
       ['<leader>oR'] = { 'rename_session', desc = 'Rename session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },
       ['<leader>oz'] = { 'toggle_zoom', desc = 'Toggle zoom' },
+      ['<leader>ov'] = { 'paste_image', desc = 'Paste image from clipboard' },
       ['<leader>od'] = { 'diff_open', desc = 'Open diff view' },
       ['<leader>o]'] = { 'diff_next', desc = 'Next diff' },
       ['<leader>o['] = { 'diff_prev', desc = 'Previous diff' },

@@ -77,8 +77,8 @@ end
 ---@param snapshot_id string Call ID
 ---@return OpencodeMessagePart? part Part if found
 function RenderState:get_part_by_snapshot_id(snapshot_id)
-  for _, rendered_message in pairs(self._messages) do
-    for _, part in ipairs(rendered_message.message.parts) do
+  for _, rendered_message in pairs(self._messages or {}) do
+    for _, part in ipairs(rendered_message.message.parts or {}) do
       if part.type == 'patch' and part.hash == snapshot_id then
         return part
       end

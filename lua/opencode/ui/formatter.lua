@@ -155,6 +155,7 @@ function M._format_revert_message(session_data, start_idx)
 end
 
 local function add_action(output, text, action_type, args, key, line)
+  -- actions use api-indexing (e.g. 0 indexed)
   line = (line or output:get_line_count()) - 1
   output:add_action({
     text = text,

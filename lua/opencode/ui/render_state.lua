@@ -119,7 +119,7 @@ function RenderState:get_message_at_line(line)
 end
 
 ---Get actions at specific line
----@param line integer Line number (1-indexed)
+---@param line integer Line number (0-indexed)
 ---@return table[] List of actions at that line
 function RenderState:get_actions_at_line(line)
   self:_ensure_line_index()

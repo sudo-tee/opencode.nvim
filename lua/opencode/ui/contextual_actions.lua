@@ -1,5 +1,4 @@
 local state = require('opencode.state')
-local keymap = require('opencode.keymap')
 local output_window = require('opencode.ui.output_window')
 
 local M = {}
@@ -26,6 +25,13 @@ function M.setup_contextual_actions(windows)
     callback = function()
       vim.schedule(function()
         local line_num = vim.api.nvim_win_get_cursor(0)[1]
+
+        if not line_num or line_num <= 0 or not state.windows or not state.windows.output_buf then
+          return
+        end
+
+        line_num = line_num - 1 -- need api-indexing (e.g. 0 based line #), win_get_cursor returns 1 based line #
+
         local actions = require('opencode.ui.renderer').get_actions_for_line(line_num)
         last_line_num = line_num
 
@@ -34,7 +40,7 @@ function M.setup_contextual_actions(windows)
 
         if actions and #actions > 0 then
           dirty = true
-          M.show_contextual_actions_menu(state.windows.output_buf, line_num, actions, ns_id)
+          M.show_contextual_actions_menu(state.windows.output_buf, actions, ns_id)
         end
       end)
     end,
@@ -48,6 +54,7 @@ function M.setup_contextual_actions(windows)
         if not output_window.mounted() then
           return
         end
+        ---@cast state.windows { output_buf: integer}
         local line_num = vim.api.nvim_win_get_cursor(0)[1]
         if last_line_num == line_num and not dirty then
           return
@@ -61,15 +68,17 @@ function M.setup_contextual_actions(windows)
     group = augroup,
     buffer = windows.output_buf,
     callback = function()
-      vim.api.nvim_buf_clear_namespace(state.windows.output_buf, ns_id, 0, -1)
-      clear_keymaps(state.windows.output_buf)
+      if state.windows and state.windows.output_buf then
+        vim.api.nvim_buf_clear_namespace(state.windows.output_buf, ns_id, 0, -1)
+        clear_keymaps(state.windows.output_buf)
+      end
       last_line_num = nil
       dirty = false
     end,
   })
 end
 
-function M.show_contextual_actions_menu(buf, line_num, actions, ns_id)
+function M.show_contextual_actions_menu(buf, actions, ns_id)
   clear_keymaps(buf)
 
   for _, action in ipairs(actions) do
@@ -80,7 +89,7 @@ function M.show_contextual_actions_menu(buf, line_num, actions, ns_id)
       hl_mode = 'combine',
     }
 
-    vim.api.nvim_buf_set_extmark(buf, ns_id, action.display_line - 1, 0, mark)
+    vim.api.nvim_buf_set_extmark(buf, ns_id, action.display_line, 0, mark --[[@as vim.api.keyset.set_extmark]])
   end
   -- Setup key mappings for actions
   for _, action in ipairs(actions) do

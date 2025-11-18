@@ -413,7 +413,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
   if formatted_data.actions then
-    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start)
+    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start + 1)
   end
 
   M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)

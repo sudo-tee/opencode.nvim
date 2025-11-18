@@ -154,66 +154,45 @@ function M._format_revert_message(session_data, start_idx)
   return output
 end
 
+local function add_action(output, text, action_type, args, key, line)
+  line = (line or output:get_line_count()) - 1
+  output:add_action({
+    text = text,
+    type = action_type,
+    args = args,
+    key = key,
+    display_line = line,
+    range = { from = line, to = line },
+  })
+end
+
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
 function M._format_patch(output, part)
+  if not part.hash then
+    return
+  end
+
   local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
   M._format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
-  local snapshot_header_line = output:get_line_count()
 
   -- Anchor all snapshot-level actions to the snapshot header line
-  output:add_action({
-    text = '[R]evert file',
-    type = 'diff_revert_selected_file',
-    args = { part.hash },
-    key = 'R',
-    display_line = snapshot_header_line,
-    range = { from = snapshot_header_line, to = snapshot_header_line },
-  })
-  output:add_action({
-    text = 'Revert [A]ll',
-    type = 'diff_revert_all',
-    args = { part.hash },
-    key = 'A',
-    display_line = snapshot_header_line,
-    range = { from = snapshot_header_line, to = snapshot_header_line },
-  })
-  output:add_action({
-    text = '[D]iff',
-    type = 'diff_open',
-    args = { part.hash },
-    key = 'D',
-    display_line = snapshot_header_line,
-    range = { from = snapshot_header_line, to = snapshot_header_line },
-  })
+  add_action(output, '[R]evert file', 'diff_revert_selected_file', { part.hash }, 'R')
+  add_action(output, 'Revert [A]ll', 'diff_revert_all', { part.hash }, 'A')
+  add_action(output, '[D]iff', 'diff_open', { part.hash }, 'D')
 
   if #restore_points > 0 then
     for _, restore_point in ipairs(restore_points) do
       output:add_line(
         string.format(
-          '  %s Restore point `%s` - %s',
+          '  %s Restore point `%s` - %s ',
           icons.get('restore_point'),
-          restore_point.id:sub(1, 8),
+          vim.trim(restore_point.id:sub(1, 8)),
           util.format_time(restore_point.created_at)
         )
       )
-      local restore_line = output:get_line_count()
-      output:add_action({
-        text = 'Restore [A]ll',
-        type = 'diff_restore_snapshot_all',
-        args = { restore_point.id },
-        key = 'A',
-        display_line = restore_line,
-        range = { from = restore_line, to = restore_line },
-      })
-      output:add_action({
-        text = '[R]estore file',
-        type = 'diff_restore_snapshot_file',
-        args = { restore_point.id },
-        key = 'R',
-        display_line = restore_line,
-        range = { from = restore_line, to = restore_line },
-      })
+      add_action(output, 'Restore [A]ll', 'diff_restore_snapshot_all', { restore_point.id }, 'A')
+      add_action(output, '[R]estore file', 'diff_restore_snapshot_file', { restore_point.id }, 'R')
     end
   end
 end
@@ -282,10 +261,10 @@ function M.format_message_header(message)
     and (not message.parts or #message.parts == 0)
   then
     local error = message.info.error
-    local error_messgage = error.data and error.data.message or vim.inspect(error)
+    local error_message = error.data and error.data.message or vim.inspect(error)
 
     output:add_line('')
-    M._format_callout(output, 'ERROR', error_messgage)
+    M._format_callout(output, 'ERROR', error_message)
   end
 
   output:add_line('')
@@ -797,8 +776,8 @@ function M.format_part(part, message, is_last_part)
 
   if is_last_part and role == 'assistant' and message.info.error and message.info.error ~= '' then
     local error = message.info.error
-    local error_messgage = error.data and error.data.message or vim.inspect(error)
-    M._format_callout(output, 'ERROR', error_messgage)
+    local error_message = error.data and error.data.message or vim.inspect(error)
+    M._format_callout(output, 'ERROR', error_message)
     output:add_empty_line()
   end
 

@@ -343,10 +343,19 @@ local function format_selection_part(selection)
   }
 end
 
+---@param diagnostics vim.Diagnostic[]
 local function format_diagnostics_part(diagnostics)
+  local diag_list = {}
+  for _, diag in ipairs(diagnostics) do
+    local short_msg = diag.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
+    table.insert(
+      diag_list,
+      { msg = short_msg, severity = diag.severity, pos = 'l' .. diag.lnum + 1 .. ':c' .. diag.col + 1 }
+    )
+  end
   return {
     type = 'text',
-    text = vim.json.encode({ context_type = 'diagnostics', content = diagnostics }),
+    text = vim.json.encode({ context_type = 'diagnostics', content = diag_list }),
     synthetic = true,
   }
 end

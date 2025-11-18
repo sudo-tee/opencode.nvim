@@ -407,7 +407,7 @@ function M.format_message(prompt, opts)
     table.insert(parts, format_file_part(context.current_file.path))
   end
 
-  if context.linter_errors then
+  if context.linter_errors and #context.linter_errors > 0 then
     table.insert(parts, format_diagnostics_part(context.linter_errors))
   end
 

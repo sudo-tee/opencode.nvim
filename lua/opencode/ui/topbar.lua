@@ -18,13 +18,13 @@ local function format_token_info()
       local provider, model = state.current_model:match('^(.-)/(.+)$')
       local model_info = config_file.get_model_info(provider, model)
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
-      table.insert(parts, util.format_number(state.tokens_count))
+      table.insert(parts, util.format_number(state.tokens_count) or nil)
       if limit > 0 then
-        table.insert(parts, util.format_percentage(state.tokens_count / limit))
+        table.insert(parts, util.format_percentage(state.tokens_count / limit) or nil)
       end
     end
-    if config.ui.display_cost then
-      table.insert(parts, util.format_cost(state.cost))
+    if config.ui.display_cost and state.cost then
+      table.insert(parts, util.format_cost(state.cost) or nil)
     end
   end
 

@@ -66,6 +66,7 @@ function M.is_context_enabled(context_key)
   end
 end
 
+---@return OpencodeDiagnostic[]|nil
 function M.get_diagnostics(buf)
   if not M.is_context_enabled('diagnostics') then
     return nil
@@ -146,11 +147,18 @@ function M.add_file(file)
     return
   end
 
+  if not util.is_path_in_cwd(file) and not util.is_temp_path(file, 'pasted_image') then
+    vim.notify('File not added to context. Must be inside current working directory.')
+    return
+  end
+
   file = vim.fn.fnamemodify(file, ':p')
 
   if not vim.tbl_contains(M.context.mentioned_files, file) then
     table.insert(M.context.mentioned_files, file)
   end
+
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.remove_file(file)
@@ -358,7 +366,7 @@ local function format_selection_part(selection)
   }
 end
 
----@param diagnostics vim.Diagnostic[]
+---@param diagnostics OpencodeDiagnostic[]
 local function format_diagnostics_part(diagnostics)
   local diag_list = {}
   for _, diag in ipairs(diagnostics) do

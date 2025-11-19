@@ -1,4 +1,15 @@
 
+---@class OpencodeDiagnostic
+---@field message string
+---@field severity number
+---@field lnum number
+---@field col number
+---@field end_lnum? number
+---@field end_col? number
+---@field source? string
+---@field code? string|number
+---@field user_data? any
+
 ---@class OpencodeConfigFile
 ---@field theme string
 ---@field autoshare boolean
@@ -333,7 +344,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
----@field linter_errors vim.Diagnostic[]|nil
+---@field linter_errors OpencodeDiagnostic[]|nil
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

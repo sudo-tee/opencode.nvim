@@ -27,7 +27,10 @@ function M.replay_setup()
 
   state.windows = ui.create_windows()
 
-  renderer.reset()
+  -- disable fetching session and rendering it (we'll handle it at a lower level)
+  renderer.render_full_session = function()
+    return require('opencode.promise').new():resolve(nil)
+  end
 
   M.mock_time_utils()
 

@@ -77,8 +77,8 @@ end
 ---@param snapshot_id string Call ID
 ---@return OpencodeMessagePart? part Part if found
 function RenderState:get_part_by_snapshot_id(snapshot_id)
-  for _, rendered_message in pairs(self._messages) do
-    for _, part in ipairs(rendered_message.message.parts) do
+  for _, rendered_message in pairs(self._messages or {}) do
+    for _, part in ipairs(rendered_message.message.parts or {}) do
       if part.type == 'patch' and part.hash == snapshot_id then
         return part
       end
@@ -119,7 +119,7 @@ function RenderState:get_message_at_line(line)
 end
 
 ---Get actions at specific line
----@param line integer Line number (1-indexed)
+---@param line integer Line number (0-indexed)
 ---@return table[] List of actions at that line
 function RenderState:get_actions_at_line(line)
   self:_ensure_line_index()

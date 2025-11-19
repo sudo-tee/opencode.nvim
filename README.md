@@ -252,6 +252,12 @@ require('opencode').setup({
     enabled = false, -- Enable debug messages in the output window
   },
   prompt_guard = nil, -- Optional function that returns boolean to control when prompts can be sent (see Prompt Guard section)
+
+  -- User Hooks for custom behavior at certain events
+  hooks = {
+    on_file_edited = nil, -- Called after a file is edited by opencode.
+    on_session_loaded = nil, -- Called after a session is loaded.
+  },
 })
 ```
 
@@ -584,6 +590,28 @@ The plugin defines several highlight groups that can be customized to match your
 ## 🛡️ Prompt Guard
 
 The `prompt_guard` configuration option allows you to control when prompts can be sent to Opencode. This is useful for preventing accidental or unauthorized AI interactions in certain contexts.
+
+## 🪝Custom user hooks
+
+You can define custom functions to be called at specific events in Opencode:
+
+- `on_file_edited`: Called after a file is edited by Opencode.
+- `on_session_loaded`: Called after a session is loaded.
+
+```lua
+require('opencode').setup({
+  hooks = {
+    on_file_edited = function(file_path, edit_type)
+      -- Custom logic after a file is edited
+      print("File edited: " .. file_path .. " Type: " .. edit_type)
+    end,
+    on_session_loaded = function(session_name)
+      -- Custom logic after a session is loaded
+      print("Session loaded: " .. session_name)
+    end,
+  },
+})
+```
 
 ### Configuration
 

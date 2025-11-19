@@ -275,10 +275,6 @@ function M._write_formatted_data(formatted_data, part_id, start_line)
     return nil
   end
 
-  if part_id and formatted_data.actions then
-    M._render_state:add_actions(part_id, formatted_data.actions, target_line)
-  end
-
   if is_insertion then
     output_window.set_lines(new_lines, target_line, target_line)
   else
@@ -287,6 +283,15 @@ function M._write_formatted_data(formatted_data, part_id, start_line)
     target_line = target_line - 1
     output_window.set_lines(extra_newline, target_line)
   end
+
+  -- update actions and extmarks after the insertion because that may
+  -- adjust target_line (e.g. when we we're replacing the double newline at
+  -- the end)
+
+  if part_id and formatted_data.actions then
+    M._render_state:add_actions(part_id, formatted_data.actions, target_line)
+  end
+
   output_window.set_extmarks(extmarks, target_line)
 
   return {
@@ -413,7 +418,7 @@ function M._replace_part_in_buffer(part_id, formatted_data)
   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
 
   if formatted_data.actions then
-    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start)
+    M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start + 1)
   end
 
   M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)
@@ -959,7 +964,7 @@ function M.on_session_changed(_, new, _)
 end
 
 ---Get all actions available at a specific line
----@param line integer 1-indexed line number
+---@param line integer 0-indexed line number
 ---@return table[] List of actions available at that line
 function M.get_actions_for_line(line)
   return M._render_state:get_actions_at_line(line)

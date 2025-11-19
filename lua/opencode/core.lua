@@ -146,6 +146,7 @@ function M.send_message(prompt, opts)
   params.parts = context.format_message(prompt, opts.context)
   M.before_run(opts)
 
+  state.user_message_count = state.user_message_count + 1
   state.api_client
     :create_message(state.active_session.id, params)
     :and_then(function(response)
@@ -154,6 +155,7 @@ function M.send_message(prompt, opts)
         -- event manager
         ui.render_output()
       end
+      state.user_message_count = state.user_message_count - 1
 
       M.after_run(prompt)
     end)
@@ -366,7 +368,7 @@ function M.initialize_current_model()
   return state.current_model
 end
 
-local function on_job_count_change(_, new, old)
+local function on_user_message_count_change(_, new, old)
   local done_thinking = new == 0 and old > 0
   if config.hooks and config.hooks.on_done_thinking and done_thinking then
     pcall(config.hooks.on_done_thinking)
@@ -382,7 +384,7 @@ end
 
 function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
-  state.subscribe('user_message_count', on_job_count_change)
+  state.subscribe('user_message_count', on_user_message_count_change)
   state.subscribe('current_permission', on_current_permission_change)
 
   vim.schedule(function()

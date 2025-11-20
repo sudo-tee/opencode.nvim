@@ -9,6 +9,7 @@ local ui = require('opencode.ui.ui')
 local icons = require('opencode.ui.icons')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
+local config = require('opencode.config')
 
 local M = {}
 
@@ -907,6 +908,11 @@ function M.permission_deny()
   M.respond_to_permission('reject')
 end
 
+function M.toggle_tool_output()
+  config.values.ui.output.tools.show_output = not config.ui.output.tools.show_output
+  ui.render_output()
+end
+
 M.commands = {
   open = {
     desc = 'Open opencode window (input/output)',
@@ -1195,6 +1201,11 @@ M.commands = {
   timeline = {
     desc = 'Open timeline picker to navigate/undo/redo/fork to message',
     fn = M.timeline,
+  },
+
+  toggle_tool_output = {
+    desc = 'Toggle tool output visibility in the output window',
+    fn = M.toggle_tool_output,
   },
 }
 

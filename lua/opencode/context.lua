@@ -324,7 +324,6 @@ local function format_file_part(path, prompt)
   local pos = prompt and prompt:find(mention)
   pos = pos and pos - 1 or 0 -- convert to 0-based index
 
-  -- Determine MIME type based on file extension
   local ext = vim.fn.fnamemodify(path, ':e'):lower()
   local mime_type = 'text/plain'
   if ext == 'png' then

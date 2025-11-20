@@ -61,6 +61,7 @@ M.defaults = {
       ['@'] = { 'mention', mode = 'i' },
       ['/'] = { 'slash_commands', mode = 'i' },
       ['#'] = { 'context_items', mode = 'i' },
+      ['<M-v>'] = { 'paste_image', mode = 'i' },
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },

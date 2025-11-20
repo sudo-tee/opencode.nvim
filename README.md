@@ -112,6 +112,7 @@ require('opencode').setup({
       ['<leader>oR'] = { 'rename_session' }, -- Rename current session
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
       ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
+      ['<leader>ov'] = { 'paste_image'}, -- Paste image from clipboard into current session
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
       ['<leader>o]'] = { 'diff_next' }, -- Navigate to next file diff
       ['<leader>o['] = { 'diff_prev' }, -- Navigate to previous file diff
@@ -135,6 +136,7 @@ require('opencode').setup({
       ['@'] = { 'mention', mode = 'i' }, -- Insert mention (file/agent)
       ['/'] = { 'slash_commands', mode = 'i' }, -- Pick a command to run in the input window
       ['#'] = { 'context_items', mode = 'i' }, -- Manage context items (current file, selection, diagnostics, mentioned files)
+      ['<M-v>'] = { 'paste_image', mode = 'i' }, -- Paste image from clipboard as attachment
       ['<C-i>'] = { 'focus_input', mode = { 'n', 'i' } }, -- Focus on input window and enter insert mode at the end of the input from the output window
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history

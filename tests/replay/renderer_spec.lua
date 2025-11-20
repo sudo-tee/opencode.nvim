@@ -91,7 +91,61 @@ local function assert_output_matches(expected, actual, name)
   end
 end
 
-describe('renderer', function()
+describe('renderer unit tests', function()
+  local event_subscriptions = {
+    'session.updated',
+    'session.compacted',
+    'session.error',
+    'session.idle',
+    'message.updated',
+    'message.removed',
+    'message.part.updated',
+    'message.part.removed',
+    'permission.updated',
+    'permission.replied',
+    'file.edited',
+    'custom.restore_point.created',
+    'custom.emit_events.finished',
+  }
+
+  before_each(function()
+    require('opencode.event_manager').setup()
+  end)
+
+  it('subsribes to events correctly', function()
+    local renderer = require('opencode.ui.renderer')
+    local event_manager = state.event_manager
+
+    event_manager.events = {}
+
+    renderer.setup_subscriptions()
+
+    for _, event_name in ipairs(event_subscriptions) do
+      assert.is_true(
+        event_manager.events[event_name] ~= nil,
+        string.format('Renderer did not subscribe to event: %s', event_name)
+      )
+    end
+  end)
+
+  it('unsubsribes from events correctly', function()
+    local renderer = require('opencode.ui.renderer')
+    local event_manager = state.event_manager
+
+    renderer.setup_subscriptions()
+
+    renderer.setup_subscriptions(false)
+
+    for _, event_name in ipairs(event_subscriptions) do
+      assert.is_true(
+        vim.tbl_isempty(event_manager.events[event_name]),
+        string.format('Renderer did not unsubscribe from event: %s', event_name)
+      )
+    end
+  end)
+end)
+
+describe('renderer functional tests', function()
   config.debug.show_ids = true
 
   before_each(function()

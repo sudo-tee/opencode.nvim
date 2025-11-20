@@ -54,10 +54,6 @@ function M.reset()
   trigger_on_data_rendered()
 end
 
-M.on_session_idle = function()
-  vim.notify('Session is idle, no-op')
-end
-
 ---Set up event subscriptions
 ---@param subscribe? boolean false to unsubscribe
 function M.setup_subscriptions(subscribe)
@@ -79,7 +75,6 @@ function M.setup_subscriptions(subscribe)
     { 'session.updated', M.on_session_updated },
     { 'session.compacted', M.on_session_compacted },
     { 'session.error', M.on_session_error },
-    { 'session.idle', M.on_session_idle },
     { 'message.updated', M.on_message_updated },
     { 'message.removed', M.on_message_removed },
     { 'message.part.updated', M.on_part_updated },

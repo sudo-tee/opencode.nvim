@@ -96,7 +96,6 @@ describe('renderer unit tests', function()
     'session.updated',
     'session.compacted',
     'session.error',
-    'session.idle',
     'message.updated',
     'message.removed',
     'message.part.updated',

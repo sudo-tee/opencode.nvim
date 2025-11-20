@@ -139,8 +139,8 @@
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
 ---@field on_session_loaded? fun(session: Session): nil
----@field on_done_thinking? fun(): nil
----@field on_permission_requested? fun(): nil
+---@field on_done_thinking? fun(session: Session): nil
+---@field on_permission_requested? fun(session: Session): nil
 
 ---@class OpencodeProviders
 ---@field [string] string[]

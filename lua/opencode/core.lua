@@ -371,14 +371,14 @@ end
 local function on_user_message_count_change(_, new, old)
   local done_thinking = new == 0 and old > 0
   if config.hooks and config.hooks.on_done_thinking and done_thinking then
-    pcall(config.hooks.on_done_thinking)
+    pcall(config.hooks.on_done_thinking, state.active_session)
   end
 end
 
 local function on_current_permission_change(_, new, old)
   local permission_requested = old == nil and new ~= nil
   if config.hooks and config.hooks.on_permission_requested and permission_requested then
-    pcall(config.hooks.on_permission_requested)
+    pcall(config.hooks.on_permission_requested, state.active_session)
   end
 end
 

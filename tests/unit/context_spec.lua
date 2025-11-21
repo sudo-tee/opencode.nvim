@@ -120,8 +120,16 @@ describe('add_file/add_selection/add_subagent', function()
     vim.fn.filereadable = function()
       return 1
     end
+    local util = require('opencode.util')
+    local original_is_path_in_cwd = util.is_path_in_cwd
+    util.is_path_in_cwd = function()
+      return true
+    end
+
     context.add_file('/tmp/foo.lua')
     assert.same({ '/tmp/foo.lua' }, context.context.mentioned_files)
+
+    util.is_path_in_cwd = original_is_path_in_cwd
   end)
   it('does not add file if not filereadable', function()
     vim.fn.filereadable = function()

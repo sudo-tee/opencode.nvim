@@ -66,6 +66,7 @@ function M.is_context_enabled(context_key)
   end
 end
 
+---@return OpencodeDiagnostic[]|nil
 function M.get_diagnostics(buf)
   if not M.is_context_enabled('diagnostics') then
     return nil
@@ -146,11 +147,18 @@ function M.add_file(file)
     return
   end
 
+  if not util.is_path_in_cwd(file) and not util.is_temp_path(file, 'pasted_image') then
+    vim.notify('File not added to context. Must be inside current working directory.')
+    return
+  end
+
   file = vim.fn.fnamemodify(file, ':p')
 
   if not vim.tbl_contains(M.context.mentioned_files, file) then
     table.insert(M.context.mentioned_files, file)
   end
+
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.remove_file(file)
@@ -316,7 +324,21 @@ local function format_file_part(path, prompt)
   local pos = prompt and prompt:find(mention)
   pos = pos and pos - 1 or 0 -- convert to 0-based index
 
-  local file_part = { filename = rel_path, type = 'file', mime = 'text/plain', url = 'file://' .. path }
+  local ext = vim.fn.fnamemodify(path, ':e'):lower()
+  local mime_type = 'text/plain'
+  if ext == 'png' then
+    mime_type = 'image/png'
+  elseif ext == 'jpg' or ext == 'jpeg' then
+    mime_type = 'image/jpeg'
+  elseif ext == 'gif' then
+    mime_type = 'image/gif'
+  elseif ext == 'webp' then
+    mime_type = 'image/webp'
+  elseif ext == 'svg' then
+    mime_type = 'image/svg+xml'
+  end
+
+  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }
   if prompt then
     file_part.source = {
       path = path,
@@ -343,7 +365,7 @@ local function format_selection_part(selection)
   }
 end
 
----@param diagnostics vim.Diagnostic[]
+---@param diagnostics OpencodeDiagnostic[]
 local function format_diagnostics_part(diagnostics)
   local diag_list = {}
   for _, diag in ipairs(diagnostics) do

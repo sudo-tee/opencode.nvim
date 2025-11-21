@@ -379,7 +379,7 @@ function M._format_diagnostics_context(output, part)
     return
   end
   local start_line = output:get_line_count()
-  local diagnostics = json.content --[[@as vim.Diagnostic[] ]]
+  local diagnostics = json.content --[[@as OpencodeDiagnostic[] ]]
   if not diagnostics or type(diagnostics) ~= 'table' or #diagnostics == 0 then
     return
   end

@@ -7,6 +7,7 @@ local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 local config = require('opencode.config')
+local image_handler = require('opencode.image_handler')
 
 local M = {}
 M._abort_count = 0
@@ -364,6 +365,12 @@ function M.initialize_current_model()
   end
 
   return state.current_model
+end
+
+--- Handle clipboard image data by saving it to a file and adding it to context
+--- @return boolean success True if image was successfully handled
+function M.paste_image_from_clipboard()
+  return image_handler.paste_image_from_clipboard()
 end
 
 function M.setup()

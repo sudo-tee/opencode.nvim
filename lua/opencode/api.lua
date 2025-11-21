@@ -45,6 +45,10 @@ function M.close()
   ui.close_windows(state.windows)
 end
 
+function M.paste_image()
+  core.paste_image_from_clipboard()
+end
+
 function M.toggle(new_session)
   if state.windows == nil then
     local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
@@ -1207,6 +1211,10 @@ M.commands = {
     desc = 'Toggle tool output visibility in the output window',
     fn = M.toggle_tool_output,
   },
+  paste_image = {
+    desc = 'Paste image from clipboard and add to context',
+    fn = M.paste_image,
+  },
 }
 
 M.slash_commands_map = {
@@ -1270,6 +1278,7 @@ M.legacy_command_map = {
   OpencodePermissionAccept = 'permission accept',
   OpencodePermissionAcceptAll = 'permission accept_all',
   OpencodePermissionDeny = 'permission deny',
+  OpencodePasteImage = 'paste_image',
 }
 
 function M.route_command(opts)

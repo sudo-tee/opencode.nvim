@@ -89,7 +89,8 @@ M._execute_slash_command = function(command)
   end, slash_commands)[1]
 
   if command_cfg then
-    command_cfg.fn(vim.list_slice(parts, 2))
+    local args = #parts > 1 and vim.list_slice(parts, 2) or nil
+    command_cfg.fn(args)
   else
     vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
   end

@@ -366,8 +366,24 @@ function M.initialize_current_model()
   return state.current_model
 end
 
+local function on_job_count_change(_, new, old)
+  local done_thinking = new == 0 and old > 0
+  if config.hooks and config.hooks.on_done_thinking and done_thinking then
+    pcall(config.hooks.on_done_thinking)
+  end
+end
+
+local function on_current_permission_change(_, new, old)
+  local permission_requested = old == nil and new ~= nil
+  if config.hooks and config.hooks.on_permission_requested and permission_requested then
+    pcall(config.hooks.on_permission_requested)
+  end
+end
+
 function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
+  state.subscribe('user_message_count', on_job_count_change)
+  state.subscribe('current_permission', on_current_permission_change)
 
   vim.schedule(function()
     M.opencode_ok()

@@ -26,7 +26,15 @@ end
 --- @return Promise<T> promise A promise that resolves with the result or rejects with an error
 function M.call_api(url, method, body)
   local call_promise = Promise.new()
+
+  local function is_user_message()
+      return method == 'POST' and url:match("/message$") ~= nil
+  end
+
   state.job_count = state.job_count + 1
+  if is_user_message() then
+    state.user_message_count = state.user_message_count + 1
+  end
 
   local request_entry = { nil, call_promise }
   table.insert(M.requests, request_entry)
@@ -35,6 +43,9 @@ function M.call_api(url, method, body)
   local function remove_from_requests()
     for i, entry in ipairs(M.requests) do
       if entry == request_entry then
+        if is_user_message() then
+          state.user_message_count = state.user_message_count - 1
+        end
         table.remove(M.requests, i)
         break
       end

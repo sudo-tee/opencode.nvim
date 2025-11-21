@@ -12,11 +12,18 @@ local function is_valid_file(path)
   return vim.fn.getfsize(path) > 0
 end
 
---- Run shell command and return success
---- @param cmd string
+--- Run shell or powershell command and return success
+--- @param cmd string|table
+--- @param opts table?
 --- @return boolean
-local function run_shell_cmd(cmd)
-  return vim.system({ 'sh', '-c', cmd }):wait().code == 0
+local function run_shell_cmd(cmd, opts)
+  local sys_cmd
+  if type(cmd) == 'string' then
+    sys_cmd = { 'sh', '-c', cmd }
+  else
+    sys_cmd = cmd
+  end
+  return vim.system(sys_cmd, opts):wait().code == 0
 end
 
 --- Save base64 data to file
@@ -27,11 +34,10 @@ local function save_base64(data, path)
   if vim.fn.has('win32') == 1 then
     local script =
       string.format('[System.IO.File]::WriteAllBytes("%s", [System.Convert]::FromBase64String("%s"))', path, data)
-    return vim.system({ 'powershell.exe', '-command', '-' }, { stdin = script }):wait().code == 0
+    return run_shell_cmd({ 'powershell.exe', '-command', '-' }, { stdin = script })
   else
     local decode_arg = vim.uv.os_uname().sysname == 'Darwin' and '-D' or '-d'
-    return vim.system({ 'sh', '-c', string.format('base64 %s > "%s"', decode_arg, path) }, { stdin = data }):wait().code
-      == 0
+    return run_shell_cmd(string.format('base64 %s > "%s"', decode_arg, path), { stdin = data })
   end
 end
 
@@ -79,7 +85,7 @@ local function handle_windows_clipboard(path)
     ]],
     path
   )
-  return vim.system({ 'powershell.exe', '-command', '-' }, { stdin = script }):wait().code == 0
+  return run_shell_cmd({ 'powershell.exe', '-command', '-' }, { stdin = script })
 end
 
 local handlers = {

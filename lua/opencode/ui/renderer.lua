@@ -57,7 +57,7 @@ end
 ---Set up event subscriptions
 ---@param subscribe? boolean false to unsubscribe
 function M.setup_subscriptions(subscribe)
-  subscribe = subscribe or true
+  subscribe = subscribe == nil and true or subscribe
 
   if subscribe then
     state.subscribe('is_opencode_focused', M.on_focus_changed)
@@ -132,8 +132,6 @@ function M._render_full_session_data(session_data)
 
   local revert_index = nil
 
-  -- local event_manager = state.event_manager
-
   -- if we're loading a session and there's no currently selected model, set it
   -- from the messages
   local set_mode_from_messages = not state.current_model
@@ -143,11 +141,9 @@ function M._render_full_session_data(session_data)
       revert_index = i
     end
 
-    -- table.insert(event_manager.captured_events, { type = 'message.updated', properties = { info = msg.info } })
     M.on_message_updated({ info = msg.info }, revert_index)
 
     for _, part in ipairs(msg.parts or {}) do
-      -- table.insert(event_manager.captured_events, { type = 'message.part.updated', properties = { part = part } })
       M.on_part_updated({ part = part }, revert_index)
     end
   end

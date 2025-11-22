@@ -9,6 +9,7 @@ local ui = require('opencode.ui.ui')
 local icons = require('opencode.ui.icons')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
+local config = require('opencode.config')
 
 local M = {}
 
@@ -42,6 +43,10 @@ function M.close()
   end
 
   ui.close_windows(state.windows)
+end
+
+function M.paste_image()
+  core.paste_image_from_clipboard()
 end
 
 function M.toggle(new_session)
@@ -907,6 +912,11 @@ function M.permission_deny()
   M.respond_to_permission('reject')
 end
 
+function M.toggle_tool_output()
+  config.values.ui.output.tools.show_output = not config.ui.output.tools.show_output
+  ui.render_output()
+end
+
 M.commands = {
   open = {
     desc = 'Open opencode window (input/output)',
@@ -1196,6 +1206,15 @@ M.commands = {
     desc = 'Open timeline picker to navigate/undo/redo/fork to message',
     fn = M.timeline,
   },
+
+  toggle_tool_output = {
+    desc = 'Toggle tool output visibility in the output window',
+    fn = M.toggle_tool_output,
+  },
+  paste_image = {
+    desc = 'Paste image from clipboard and add to context',
+    fn = M.paste_image,
+  },
 }
 
 M.slash_commands_map = {
@@ -1259,6 +1278,7 @@ M.legacy_command_map = {
   OpencodePermissionAccept = 'permission accept',
   OpencodePermissionAcceptAll = 'permission accept_all',
   OpencodePermissionDeny = 'permission deny',
+  OpencodePasteImage = 'paste_image',
 }
 
 function M.route_command(opts)

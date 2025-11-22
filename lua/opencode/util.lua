@@ -382,4 +382,32 @@ function M.pcall_trace(fn, ...)
   end, ...)
 end
 
+function M.is_path_in_cwd(path)
+  local cwd = vim.fn.getcwd()
+  local abs_path = vim.fn.fnamemodify(path, ':p')
+  return abs_path:sub(1, #cwd) == cwd
+end
+
+--- Check if a given path is in the system temporary directory.
+--- Optionally match the filename against a pattern.
+--- @param path string File path to check
+--- @param pattern string|nil Optional Lua pattern to match the filename
+--- @return boolean is_temp
+function M.is_temp_path(path, pattern)
+  local temp_dir = vim.fn.tempname()
+  temp_dir = vim.fn.fnamemodify(temp_dir, ':h')
+
+  local abs_path = vim.fn.fnamemodify(path, ':p')
+  if abs_path:sub(1, #temp_dir) ~= temp_dir then
+    return false
+  end
+
+  if pattern then
+    local filename = vim.fn.fnamemodify(path, ':t')
+    return filename:match(pattern) ~= nil
+  end
+
+  return true
+end
+
 return M

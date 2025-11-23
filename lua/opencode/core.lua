@@ -147,16 +147,24 @@ function M.send_message(prompt, opts)
   params.parts = context.format_message(prompt, opts.context)
   M.before_run(opts)
 
-  state.user_message_count = state.user_message_count + 1
+  -- Capture the session ID to ensure we track the message count for the correct session
+  local session_id = state.active_session.id
+  local sent_message_count = vim.deepcopy(state.user_message_count)
+  sent_message_count[session_id] = (sent_message_count[session_id] or 0) + 1
+  state.user_message_count = sent_message_count
+
   state.api_client
-    :create_message(state.active_session.id, params)
+    :create_message(session_id, params)
     :and_then(function(response)
       if not response or not response.info or not response.parts then
         -- fall back to full render. incremental render is handled
         -- event manager
         ui.render_output()
       end
-      state.user_message_count = state.user_message_count - 1
+
+      local received_message_count = vim.deepcopy(state.user_message_count)
+      received_message_count[response.info.sessionID] = (received_message_count[response.info.sessionID] ~= nil) and (received_message_count[response.info.sessionID] - 1) or 0
+      state.user_message_count = received_message_count
 
       M.after_run(prompt)
     end)
@@ -369,17 +377,26 @@ function M.initialize_current_model()
   return state.current_model
 end
 
-local function on_user_message_count_change(_, new, old)
-  local done_thinking = new == 0 and old > 0
-  if config.hooks and config.hooks.on_done_thinking and done_thinking then
-    pcall(config.hooks.on_done_thinking, state.active_session)
+function M._on_user_message_count_change(_, new, old)
+  if config.hooks and config.hooks.on_done_thinking then
+      local all_sessions = session.get_all_workspace_sessions() or {}
+      local done_sessions = vim.tbl_filter(function(s)
+        local msg_count = new[s.id] or 0
+        local old_msg_count = (old and old[s.id]) or 0
+        return msg_count == 0 and old_msg_count > 0
+      end, all_sessions)
+
+      for _, done_session in ipairs(done_sessions) do
+        pcall(config.hooks.on_done_thinking, done_session)
+      end
   end
 end
 
-local function on_current_permission_change(_, new, old)
+function M._on_current_permission_change(_, new, old)
   local permission_requested = old == nil and new ~= nil
   if config.hooks and config.hooks.on_permission_requested and permission_requested then
-    pcall(config.hooks.on_permission_requested, state.active_session)
+    local local_session = session.get_by_id(state.active_session.id) or {}
+    pcall(config.hooks.on_permission_requested, local_session)
   end
 end
 
@@ -391,8 +408,8 @@ end
 
 function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
-  state.subscribe('user_message_count', on_user_message_count_change)
-  state.subscribe('current_permission', on_current_permission_change)
+  state.subscribe('user_message_count', M._on_user_message_count_change)
+  state.subscribe('current_permission', M._on_current_permission_change)
 
   vim.schedule(function()
     M.opencode_ok()

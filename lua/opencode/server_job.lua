@@ -26,6 +26,7 @@ end
 --- @return Promise<T> promise A promise that resolves with the result or rejects with an error
 function M.call_api(url, method, body)
   local call_promise = Promise.new()
+
   state.job_count = state.job_count + 1
 
   local request_entry = { nil, call_promise }

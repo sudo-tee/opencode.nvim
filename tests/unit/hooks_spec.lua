@@ -1,6 +1,7 @@
 local renderer = require('opencode.ui.renderer')
 local config = require('opencode.config')
 local state = require('opencode.state')
+local core = require('opencode.core')
 local helpers = require('tests.helpers')
 local ui = require('opencode.ui.ui')
 
@@ -10,6 +11,8 @@ describe('hooks', function()
     config.hooks = {
       on_file_edited = nil,
       on_session_loaded = nil,
+      on_done_thinking = nil,
+      on_permission_requested = nil,
     }
   end)
 
@@ -20,6 +23,8 @@ describe('hooks', function()
     config.hooks = {
       on_file_edited = nil,
       on_session_loaded = nil,
+      on_done_thinking = nil,
+      on_permission_requested = nil,
     }
   end)
 
@@ -104,6 +109,119 @@ describe('hooks', function()
 
       assert.has_no.errors(function()
         renderer._render_full_session_data(loaded_session)
+      end)
+    end)
+  end)
+
+  describe('on_done_thinking', function()
+    it('should call hook when thinking is done', function()
+      local called = false
+      local called_session = nil
+
+      config.hooks.on_done_thinking = function(session)
+        called = true
+        called_session = session
+      end
+
+      -- Mock session.get_all_workspace_sessions to return our test session
+      local session_module = require('opencode.session')
+      local original_get_all = session_module.get_all_workspace_sessions
+      session_module.get_all_workspace_sessions = function()
+        return { { id = 'test-session', title = 'Test' } }
+      end
+
+      state.subscribe('user_message_count', core._on_user_message_count_change)
+
+      -- Simulate job count change from 1 to 0 (done thinking) for a specific session
+      state.active_session = { id = 'test-session', title = 'Test' }
+      state.user_message_count = { ['test-session'] = 1 }
+      state.user_message_count = { ['test-session'] = 0 }
+
+      -- Wait for async notification
+      vim.wait(100, function() return called end)
+
+      -- Restore original function
+      session_module.get_all_workspace_sessions = original_get_all
+      state.unsubscribe('user_message_count', core._on_user_message_count_change)
+
+      assert.is_true(called)
+      assert.are.equal(called_session.id, 'test-session')
+    end)
+
+    it('should not error when hook is nil', function()
+      config.hooks.on_done_thinking = nil
+      state.active_session = { id = 'test-session', title = 'Test' }
+      state.user_message_count = { ['test-session'] = 1 }
+      assert.has_no.errors(function()
+        state.user_message_count = { ['test-session'] = 0 }
+      end)
+    end)
+
+    it('should not crash when hook throws error', function()
+      config.hooks.on_done_thinking = function()
+        error('test error')
+      end
+
+      state.active_session = { id = 'test-session', title = 'Test' }
+      state.user_message_count = { ['test-session'] = 1 }
+      assert.has_no.errors(function()
+        state.user_message_count = { ['test-session'] = 0 }
+      end)
+    end)
+  end)
+
+  describe('on_permission_requested', function()
+    it('should call hook when permission is requested', function()
+      local called = false
+      local called_session = nil
+
+      config.hooks.on_permission_requested = function(session)
+        called = true
+        called_session = session
+      end
+
+      -- Mock session.get_by_id to return our test session
+      local session_module = require('opencode.session')
+      local original_get_by_id = session_module.get_by_id
+      session_module.get_by_id = function(id)
+        return { id = id, title = 'Test' }
+      end
+
+      -- Set up the subscription manually
+      state.subscribe('current_permission', core._on_current_permission_change)
+
+      -- Simulate permission change from nil to a value
+      state.active_session = { id = 'test-session', title = 'Test' }
+      state.current_permission = nil
+      state.current_permission = { tool = 'test_tool', action = 'read' }
+
+      -- Wait for async notification
+      vim.wait(100, function() return called end)
+
+      -- Restore original function
+      session_module.get_by_id = original_get_by_id
+      state.unsubscribe('current_permission', core._on_current_permission_change)
+
+      assert.is_true(called)
+      assert.are.equal(called_session.id, 'test-session')
+    end)
+
+    it('should not error when hook is nil', function()
+      config.hooks.on_permission_requested = nil
+      state.current_permission = nil
+      assert.has_no.errors(function()
+        state.current_permission = { tool = 'test_tool', action = 'read' }
+      end)
+    end)
+
+    it('should not crash when hook throws error', function()
+      config.hooks.on_permission_requested = function()
+        error('test error')
+      end
+
+      state.current_permission = nil
+      assert.has_no.errors(function()
+        state.current_permission = { tool = 'test_tool', action = 'read' }
       end)
     end)
   end)

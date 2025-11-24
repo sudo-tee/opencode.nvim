@@ -259,6 +259,8 @@ require('opencode').setup({
   hooks = {
     on_file_edited = nil, -- Called after a file is edited by opencode.
     on_session_loaded = nil, -- Called after a session is loaded.
+    on_done_thinking = nil, -- Called when opencode finishes thinking (all jobs complete).
+    on_permission_requested = nil, -- Called when a permission request is issued.
   },
 })
 ```
@@ -594,12 +596,14 @@ The plugin defines several highlight groups that can be customized to match your
 
 The `prompt_guard` configuration option allows you to control when prompts can be sent to Opencode. This is useful for preventing accidental or unauthorized AI interactions in certain contexts.
 
-## 🪝Custom user hooks
+## 🪝 Custom user hooks
 
 You can define custom functions to be called at specific events in Opencode:
 
 - `on_file_edited`: Called after a file is edited by Opencode.
 - `on_session_loaded`: Called after a session is loaded.
+- `on_done_thinking`: Called when Opencode finishes thinking (all user jobs complete).
+- `on_permission_requested`: Called when a permission request is issued.
 
 ```lua
 require('opencode').setup({
@@ -611,6 +615,14 @@ require('opencode').setup({
     on_session_loaded = function(session_name)
       -- Custom logic after a session is loaded
       print("Session loaded: " .. session_name)
+    end,
+    on_done_thinking = function()
+      -- Custom logic when thinking is done
+      print("Done thinking!")
+    end,
+    on_permission_requested = function()
+      -- Custom logic when a permission is requested
+      print("Permission requested!")
     end,
   },
 })

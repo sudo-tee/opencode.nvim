@@ -466,7 +466,7 @@ function M.help()
     return
   end
 
-  local max_desc_length = vim.api.nvim_win_get_width(state.windows.output_win) - 22
+  local max_desc_length = vim.api.nvim_win_get_width(state.windows.output_win) - 30
 
   local sorted_commands = vim.tbl_keys(M.commands)
   table.sort(sorted_commands)

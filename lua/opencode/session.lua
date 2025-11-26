@@ -115,8 +115,6 @@ function M.get_last_workspace_session()
     return session.parentID == nil --- we don't want child sessions
   end, sessions)
 
-  -- read the first messages to ensure they have the right path
-
   return main_sessions[1]
 end
 

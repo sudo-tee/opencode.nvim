@@ -84,7 +84,7 @@ function Promise:and_then(callback)
       return
     end
 
-    if type(result) == 'table' and result.and_then then
+    if Promise.is_promise(result) then
       result
         :and_then(function(val)
           new_promise:resolve(val)
@@ -125,8 +125,7 @@ function Promise:catch(error_callback)
       return
     end
 
-    -- If error callback returns a Promise, chain it
-    if type(result) == 'table' and result.and_then then
+    if Promise.is_promise(result) then
       result
         :and_then(function(val)
           new_promise:resolve(val)
@@ -194,6 +193,9 @@ function Promise:is_rejected()
   return self._resolved and self._error ~= nil
 end
 
+---@generic T
+---@param obj T
+---@return_cast obj Promise<T>
 function Promise.is_promise(obj)
   return type(obj) == 'table' and type(obj.and_then) == 'function' and type(obj.catch) == 'function'
 end
@@ -203,7 +205,6 @@ end
 ---@return Promise<T>
 function Promise.wrap(obj)
   if Promise.is_promise(obj) then
-    ---@cast obj Promise<T>
     return obj
   else
     return Promise.new():resolve(obj)

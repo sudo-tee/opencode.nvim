@@ -163,7 +163,9 @@ function M.send_message(prompt, opts)
       end
 
       local received_message_count = vim.deepcopy(state.user_message_count)
-      received_message_count[response.info.sessionID] = (received_message_count[response.info.sessionID] ~= nil) and (received_message_count[response.info.sessionID] - 1) or 0
+      received_message_count[response.info.sessionID] = (received_message_count[response.info.sessionID] ~= nil)
+          and (received_message_count[response.info.sessionID] - 1)
+        or 0
       state.user_message_count = received_message_count
 
       M.after_run(prompt)
@@ -379,23 +381,25 @@ end
 
 function M._on_user_message_count_change(_, new, old)
   if config.hooks and config.hooks.on_done_thinking then
-      local all_sessions = session.get_all_workspace_sessions() or {}
-      local done_sessions = vim.tbl_filter(function(s)
-        local msg_count = new[s.id] or 0
-        local old_msg_count = (old and old[s.id]) or 0
-        return msg_count == 0 and old_msg_count > 0
-      end, all_sessions)
+    local all_sessions = session.get_all_workspace_sessions() or {}
+    local done_sessions = vim.tbl_filter(function(s)
+      local msg_count = new[s.id] or 0
+      local old_msg_count = (old and old[s.id]) or 0
+      return msg_count == 0 and old_msg_count > 0
+    end, all_sessions)
 
-      for _, done_session in ipairs(done_sessions) do
-        pcall(config.hooks.on_done_thinking, done_session)
-      end
+    for _, done_session in ipairs(done_sessions) do
+      pcall(config.hooks.on_done_thinking, done_session)
+    end
   end
 end
 
 function M._on_current_permission_change(_, new, old)
   local permission_requested = old == nil and new ~= nil
   if config.hooks and config.hooks.on_permission_requested and permission_requested then
-    local local_session = session.get_by_id(state.active_session.id) or {}
+    local local_session = (state.active_session and state.active_session.id)
+        and session.get_by_id(state.active_session.id)
+      or {}
     pcall(config.hooks.on_permission_requested, local_session)
   end
 end

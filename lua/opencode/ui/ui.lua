@@ -245,7 +245,7 @@ end
 
 function M.toggle_zoom()
   local windows = state.windows
-  if not windows or not state.windows.output_win or not state.windows.input_win then
+  if not windows or not windows.output_win or not windows.input_win then
     return
   end
 

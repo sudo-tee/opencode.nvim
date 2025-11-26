@@ -334,8 +334,6 @@ local function format_file_part(path, prompt)
     mime_type = 'image/gif'
   elseif ext == 'webp' then
     mime_type = 'image/webp'
-  elseif ext == 'svg' then
-    mime_type = 'image/svg+xml'
   end
 
   local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }

@@ -17,6 +17,7 @@ M.defaults = {
       ['<leader>og'] = { 'toggle', desc = 'Toggle Opencode window' },
       ['<leader>oi'] = { 'open_input', desc = 'Open input window' },
       ['<leader>oI'] = { 'open_input_new_session', desc = 'Open input (new session)' },
+      ['<leader>oh'] = { 'select_history', desc = 'Select from history' },
       ['<leader>oo'] = { 'open_output', desc = 'Open output window' },
       ['<leader>ot'] = { 'toggle_focus', desc = 'Toggle focus' },
       ['<leader>oT'] = { 'timeline', desc = 'Session timeline' },
@@ -84,6 +85,10 @@ M.defaults = {
     timeline_picker = {
       undo = { '<C-u>', mode = { 'i', 'n' } },
       fork = { '<C-f>', mode = { 'i', 'n' } },
+    },
+    history_picker = {
+      delete_entry = { '<C-d>', mode = { 'i', 'n' } },
+      clear_all = { '<C-X>', mode = { 'i', 'n' } },
     },
   },
   ui = {
@@ -185,7 +190,7 @@ M.defaults = {
   debug = {
     enabled = false,
     capture_streamed_events = false,
-    show_ids = false,
+    show_ids = true,
   },
   prompt_guard = nil,
   hooks = {

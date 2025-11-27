@@ -23,6 +23,7 @@ function M.create_window(windows)
   windows.input_win = vim.api.nvim_open_win(windows.input_buf, true, M._build_input_win_config())
 end
 
+---@return_cast windows { input_win: integer, input_buf: integer }
 function M.mounted(windows)
   windows = windows or state.windows
   if

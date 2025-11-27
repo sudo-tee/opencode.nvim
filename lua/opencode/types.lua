@@ -84,6 +84,7 @@
 ---@field permission OpencodeKeymapPermission
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
+---@field history_picker OpencodeHistoryPickerKeymap
 
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
@@ -93,6 +94,10 @@
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry
 ---@field fork OpencodeKeymapEntry
+
+---@class OpencodeHistoryPickerKeymap
+---@field delete_entry OpencodeKeymapEntry
+---@field clear_all OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean

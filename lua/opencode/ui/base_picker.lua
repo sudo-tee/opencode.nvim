@@ -459,8 +459,8 @@ function M.create_picker_item(text, time, debug_text, width)
   function item:to_formatted_text()
     return {
       { self.content },
-      self.time_text and { ' ' .. self.time_text, 'OpencodePickerTime' } or nil,
-      self.debug_text and { ' ' .. self.debug_text, 'OpencodeDebugText' } or nil,
+      self.time_text and { ' ' .. self.time_text, 'OpencodePickerTime' } or { '' },
+      self.debug_text and { ' ' .. self.debug_text, 'OpencodeDebugText' } or { '' },
     }
   end
 

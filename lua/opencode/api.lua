@@ -98,6 +98,10 @@ function M.select_child_session()
   core.select_session(state.active_session and state.active_session.id or nil)
 end
 
+function M.select_history()
+  require('opencode.ui.history_picker').pick()
+end
+
 function M.toggle_pane()
   if not state.windows then
     core.open({ new_session = false, focus = 'output' })
@@ -1174,6 +1178,11 @@ M.commands = {
     fn = M.help,
   },
 
+  history = {
+    desc = 'Select from prompt history',
+    fn = M.select_history,
+  },
+
   mcp = {
     desc = 'Show MCP server configuration',
     fn = M.mcp,
@@ -1224,6 +1233,7 @@ M.slash_commands_map = {
   ['/child-sessions'] = { fn = M.select_child_session, desc = 'Select child session' },
   ['/command-list'] = { fn = M.commands_list, desc = 'Show user-defined commands' },
   ['/compact'] = { fn = M.compact_session, desc = 'Compact current session' },
+  ['/history'] = { fn = M.select_history, desc = 'Select from history' },
   ['/mcp'] = { fn = M.mcp, desc = 'Show MCP server configuration' },
   ['/models'] = { fn = M.configure_provider, desc = 'Switch provider/model' },
   ['/new'] = { fn = M.open_input_new_session, desc = 'Create new session' },

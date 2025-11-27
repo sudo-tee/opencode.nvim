@@ -169,6 +169,10 @@ require('opencode').setup({
       undo = { '<C-u>', mode = { 'i', 'n' } }, -- Undo to selected message in timeline picker
       fork = { '<C-f>', mode = { 'i', 'n' } }, -- Fork from selected message in timeline picker
     },
+    history_picker = {
+      delete_entry = { '<C-d>', mode = { 'i', 'n' } }, -- Delete selected entry in the history picker
+      clear_all = { '<C-X>', mode = { 'i', 'n' } }, -- Clear all entries in the history picker
+    }
   },
   ui = {
     position = 'right', -- 'right' (default) or 'left'. Position of the UI split

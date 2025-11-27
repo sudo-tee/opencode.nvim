@@ -97,4 +97,63 @@ M.next = function()
   return M.read()[M.index]
 end
 
+---Delete specific entries from history by their indices
+---@param indices number[] Array of 1-based indices to delete
+M.delete = function(indices)
+  if not indices or #indices == 0 then
+    return false
+  end
+
+  local history = M.read()
+  if #history == 0 then
+    return false
+  end
+
+  -- Sort indices in descending order to avoid index shifting issues
+  local sorted_indices = {}
+  for _, idx in ipairs(indices) do
+    if idx > 0 and idx <= #history then
+      table.insert(sorted_indices, idx)
+    end
+  end
+  table.sort(sorted_indices, function(a, b)
+    return a > b
+  end)
+
+  for _, idx in ipairs(sorted_indices) do
+    table.remove(history, idx)
+  end
+
+  return M._write_history(history)
+end
+
+---Clear all history entries
+M.clear = function()
+  return M._write_history({})
+end
+
+---Internal function to write history array to file
+---@param history_array table Array of history entries to write
+---@return boolean success Whether the write operation succeeded
+M._write_history = function(history_array)
+  local file = io.open(get_history_file().filename, 'w')
+  if not file then
+    return false
+  end
+
+  for i = #history_array, 1, -1 do
+    local entry = history_array[i]
+    if entry and entry ~= '' then
+      local escaped_entry = entry:gsub('\n', '\\n')
+      file:write(escaped_entry .. '\n')
+    end
+  end
+
+  file:close()
+
+  cached_history = nil
+
+  return true
+end
+
 return M

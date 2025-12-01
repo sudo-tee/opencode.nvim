@@ -433,6 +433,81 @@ describe('opencode.api', function()
       config_file.get_user_commands = original_get_user_commands
     end)
 
+    describe('user command model/agent selection', function()
+      it('invokes run with correct model and agent', function()
+        local config_file = require('opencode.config_file')
+        local original_get_user_commands = config_file.get_user_commands
+
+        config_file.get_user_commands = function()
+          return {
+            ['test-no-model'] = { description = 'Run tests', template = 'Run tests with $ARGUMENTS' },
+            ['test-with-model'] = {
+              description = 'Run tests',
+              template = 'Run tests with $ARGUMENTS',
+              model = 'openai/gpt-4',
+              agent = 'tester',
+            },
+          }
+        end
+
+        local original_active_session = state.active_session
+        state.active_session = { id = 'test-session' }
+
+        local original_api_client = state.api_client
+        local send_command_calls = {}
+        state.api_client = {
+          send_command = function(self, session_id, command_data)
+            table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
+            return {
+              and_then = function()
+                return {}
+              end,
+            }
+          end,
+        }
+
+        stub(api, 'open_input')
+
+        local slash_commands = api.get_slash_commands()
+
+        local test_no_model_cmd = nil
+        local test_with_model_cmd = nil
+
+        for _, cmd in ipairs(slash_commands) do
+          if cmd.slash_cmd == '/test-no-model' then
+            test_no_model_cmd = cmd
+          elseif cmd.slash_cmd == '/test-with-model' then
+            test_with_model_cmd = cmd
+          end
+        end
+
+        assert.truthy(test_no_model_cmd, 'Should find /test-no-model command')
+        assert.truthy(test_with_model_cmd, 'Should find /test-with-model command')
+
+        test_no_model_cmd.fn()
+        assert.equal(1, #send_command_calls)
+        assert.equal('test-session', send_command_calls[1].session_id)
+        assert.equal('test-no-model', send_command_calls[1].command_data.command)
+        assert.equal('', send_command_calls[1].command_data.arguments)
+        assert.equal(nil, send_command_calls[1].command_data.model)
+        assert.equal(nil, send_command_calls[1].command_data.agent)
+
+        send_command_calls = {}
+
+        test_with_model_cmd.fn()
+        assert.equal(1, #send_command_calls)
+        assert.equal('test-session', send_command_calls[1].session_id)
+        assert.equal('test-with-model', send_command_calls[1].command_data.command)
+        assert.equal('', send_command_calls[1].command_data.arguments)
+        assert.equal('openai/gpt-4', send_command_calls[1].command_data.model)
+        assert.equal('tester', send_command_calls[1].command_data.agent)
+
+        config_file.get_user_commands = original_get_user_commands
+        state.active_session = original_active_session
+        state.api_client = original_api_client
+      end)
+    end)
+
     it('uses default description when none provided', function()
       local config_file = require('opencode.config_file')
       local original_get_user_commands = config_file.get_user_commands

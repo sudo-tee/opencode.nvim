@@ -566,6 +566,15 @@ end
 --- @param args? string[] Additional arguments to pass to the command.
 function M.run_user_command(name, args)
   M.open_input()
+  local user_commands = config_file.get_user_commands()
+  local command_cfg = user_commands and user_commands[name]
+  if not command_cfg then
+    vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
+    return
+  end
+
+  local model = command_cfg.model or state.current_model
+  local agent = command_cfg.agent or state.current_mode
 
   if not state.active_session then
     vim.notify('No active session', vim.log.levels.WARN)
@@ -575,6 +584,8 @@ function M.run_user_command(name, args)
     :send_command(state.active_session.id, {
       command = name,
       arguments = table.concat(args or {}, ' '),
+      model = model,
+      agent = agent,
     })
     :and_then(function()
       vim.schedule(function()

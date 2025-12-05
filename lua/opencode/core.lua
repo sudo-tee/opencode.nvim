@@ -147,31 +147,35 @@ function M.send_message(prompt, opts)
   params.parts = context.format_message(prompt, opts.context)
   M.before_run(opts)
 
-  -- Capture the session ID to ensure we track the message count for the correct session
   local session_id = state.active_session.id
-  local sent_message_count = vim.deepcopy(state.user_message_count)
-  sent_message_count[session_id] = (sent_message_count[session_id] or 0) + 1
-  state.user_message_count = sent_message_count
+
+  ---Helper to update state.user_message_count. Have to deepcopy since it's a table to make
+  ---sure notification events fire. Prevents negative values (in case of an untracked code path)
+  local function update_sent_message_count(num)
+    local sent_message_count = vim.deepcopy(state.user_message_count)
+    local new_value = (sent_message_count[session_id] or 0) + num
+    sent_message_count[session_id] = new_value >= 0 and new_value or 0
+    state.user_message_count = sent_message_count
+  end
+
+  update_sent_message_count(1)
 
   state.api_client
     :create_message(session_id, params)
     :and_then(function(response)
-      if not response or not response.info or not response.parts then
-        -- fall back to full render. incremental render is handled
-        -- event manager
-        ui.render_output()
-      end
+      update_sent_message_count(-1)
 
-      local received_message_count = vim.deepcopy(state.user_message_count)
-      received_message_count[response.info.sessionID] = (received_message_count[response.info.sessionID] ~= nil)
-          and (received_message_count[response.info.sessionID] - 1)
-        or 0
-      state.user_message_count = received_message_count
+      if not response or not response.info or not response.parts then
+        vim.notify('Invalid response from opencode: ' .. vim.inspect(response), vim.log.levels.ERROR)
+        M.cancel()
+        return
+      end
 
       M.after_run(prompt)
     end)
     :catch(function(err)
       vim.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      update_sent_message_count(-1)
       M.cancel()
     end)
 end

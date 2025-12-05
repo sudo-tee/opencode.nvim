@@ -271,6 +271,81 @@ describe('opencode.core', function()
       assert.equal(state.current_model, 'test/model')
       state.api_client.create_message = orig
     end)
+
+    it('increments and decrements user_message_count correctly', function()
+      state.windows = { mock = 'windows' }
+      state.active_session = { id = 'sess1' }
+      state.user_message_count = {}
+
+      -- Capture the count at different stages
+      local count_before = state.user_message_count['sess1'] or 0
+      local count_during = nil
+      local count_after = nil
+
+      local orig = state.api_client.create_message
+      state.api_client.create_message = function(_, sid, params)
+        -- Capture count while message is in flight
+        count_during = state.user_message_count['sess1']
+        return Promise.new():resolve({
+          id = 'm1',
+          info = { id = 'm1' },
+          parts = {},
+        })
+      end
+
+      core.send_message('hello world')
+
+      -- Wait for promise to resolve
+      vim.wait(50, function()
+        count_after = state.user_message_count['sess1'] or 0
+        return count_after == 0
+      end)
+
+      -- Verify: starts at 0, increments to 1, then back to 0
+      assert.equal(0, count_before)
+      assert.equal(1, count_during)
+      assert.equal(0, count_after)
+
+      state.api_client.create_message = orig
+    end)
+
+    it('decrements user_message_count on error', function()
+      state.windows = { mock = 'windows' }
+      state.active_session = { id = 'sess1' }
+      state.user_message_count = {}
+
+      -- Capture the count at different stages
+      local count_before = state.user_message_count['sess1'] or 0
+      local count_during = nil
+      local count_after = nil
+
+      local orig = state.api_client.create_message
+      state.api_client.create_message = function(_, sid, params)
+        -- Capture count while message is in flight
+        count_during = state.user_message_count['sess1']
+        return Promise.new():reject('Test error')
+      end
+
+      -- Stub cancel to prevent it from trying to abort the session
+      local orig_cancel = core.cancel
+      stub(core, 'cancel')
+
+      core.send_message('hello world')
+
+      -- Wait for promise to reject
+      vim.wait(50, function()
+        count_after = state.user_message_count['sess1'] or 0
+        return count_after == 0
+      end)
+
+      -- Verify: starts at 0, increments to 1, then back to 0 even on error
+      assert.equal(0, count_before)
+      assert.equal(1, count_during)
+      assert.equal(0, count_after)
+
+      state.api_client.create_message = orig
+      core.cancel = orig_cancel
+    end)
   end)
 
   describe('opencode_ok (version checks)', function()

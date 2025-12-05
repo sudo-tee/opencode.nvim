@@ -53,6 +53,10 @@ function M.open(opts)
 
   state.is_opening = true
 
+  if not require('opencode.ui.ui').is_opencode_focused() then
+    require('opencode.context').load()
+  end
+
   local are_windows_closed = state.windows == nil
   if are_windows_closed then
     -- Check if whether prompting will be allowed
@@ -69,10 +73,6 @@ function M.open(opts)
     state.opencode_server = server
 
     M.ensure_current_mode()
-
-    if not require('opencode.ui.ui').is_opencode_focused() then
-      require('opencode.context').load()
-    end
 
     if opts.new_session then
       state.active_session = nil

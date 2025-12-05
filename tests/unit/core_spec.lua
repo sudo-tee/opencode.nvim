@@ -182,6 +182,39 @@ describe('opencode.core', function()
       assert.truthy(state.active_session)
       assert.truthy(state.active_session.id)
     end)
+
+    it('resets is_opening flag when error occurs', function()
+      state.windows = nil
+      state.is_opening = false
+      
+      -- Simply cause an error by stubbing a function that will be called
+      local original_create_new_session = core.create_new_session
+      core.create_new_session = function()
+        error('Test error in create_new_session')
+      end
+
+      local notify_stub = stub(vim, 'notify')
+      local result_promise = core.open({ new_session = true, focus = 'input' })
+      
+      -- Wait for async operations to complete
+      local ok, err = pcall(function()
+        result_promise:wait()
+      end)
+
+      -- Should fail due to the error
+      assert.is_false(ok)
+      assert.truthy(err)
+      
+      -- is_opening should be reset to false even when error occurs
+      assert.is_false(state.is_opening)
+      
+      -- Should have notified about the error
+      assert.stub(notify_stub).was_called()
+      
+      -- Restore original function
+      core.create_new_session = original_create_new_session
+      notify_stub:revert()
+    end)
   end)
 
   describe('select_session', function()

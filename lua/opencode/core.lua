@@ -69,47 +69,64 @@ function M.open(opts)
     state.windows = ui.create_windows()
   end
 
-  server_job.ensure_server():and_then(function(server)
-    state.opencode_server = server
+  if opts.focus == 'input' then
+    ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
+  elseif opts.focus == 'output' then
+    ui.focus_output({ restore_position = are_windows_closed })
+  end
 
-    M.ensure_current_mode()
+  server_job
+    .ensure_server()
+    :and_then(function(server)
+      local ok, err = pcall(function()
+        state.opencode_server = server
 
-    if opts.new_session then
-      state.active_session = nil
-      state.last_sent_context = nil
+        M.ensure_current_mode()
 
-      state.current_model = nil
-      state.current_mode = nil
-      M.ensure_current_mode()
+        if opts.new_session then
+          state.active_session = nil
+          state.last_sent_context = nil
 
-      state.active_session = M.create_new_session()
-    else
-      if not state.active_session then
-        state.active_session = session.get_last_workspace_session()
-        if not state.active_session then
+          state.current_model = nil
+          state.current_mode = nil
+          M.ensure_current_mode()
+
           state.active_session = M.create_new_session()
+        else
+          if not state.active_session then
+            state.active_session = session.get_last_workspace_session()
+            if not state.active_session then
+              state.active_session = M.create_new_session()
+            end
+          else
+            if not state.display_route and are_windows_closed then
+              -- We're not displaying /help or something like that but we have an active session
+              -- and the windows were closed so we need to do a full refresh. This mostly happens
+              -- when opening the window after having closed it since we're not currently clearing
+              -- the session on api.close()
+              ui.render_output()
+            end
+          end
         end
-      else
-        if not state.display_route and are_windows_closed then
-          -- We're not displaying /help or something like that but we have an active session
-          -- and the windows were closed so we need to do a full refresh. This mostly happens
-          -- when opening the window after having closed it since we're not currently clearing
-          -- the session on api.close()
-          ui.render_output()
-        end
+
+        state.is_opencode_focused = true
+      end)
+
+      state.is_opening = false
+
+      if not ok then
+        promise:reject(err)
+        vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)
+        return
       end
-    end
-    promise:resolve()
-    state.is_opening = false
 
-    if opts.focus == 'input' then
-      ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
-    elseif opts.focus == 'output' then
-      ui.focus_output({ restore_position = are_windows_closed })
-    end
-
-    state.is_opencode_focused = true
-  end)
+      promise:resolve()
+    end)
+    :catch(function(err)
+      state.is_opening = false
+      promise:reject(err)
+      vim.notify('Error ensuring server: ' .. tostring(err), vim.log.levels.ERROR)
+    end)
   return promise
 end
 

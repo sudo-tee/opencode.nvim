@@ -78,7 +78,7 @@ end
 ---@param prompt string
 ---@param opts? SendMessageOpts
 function M.run(prompt, opts)
-  opts = vim.tbl_deep_extend('force', { new_session = false, focus = 'input' }, opts or {})
+  opts = vim.tbl_deep_extend('force', { new_session = false, focus = 'output' }, opts or {})
   return core.open(opts):and_then(function()
     return core.send_message(prompt, opts)
   end)
@@ -87,7 +87,7 @@ end
 ---@param prompt string
 ---@param opts? SendMessageOpts
 function M.run_new_session(prompt, opts)
-  opts = vim.tbl_deep_extend('force', { new_session = true, focus = 'input' }, opts or {})
+  opts = vim.tbl_deep_extend('force', { new_session = true, focus = 'output' }, opts or {})
   return core.open(opts):and_then(function()
     return core.send_message(prompt, opts)
   end)

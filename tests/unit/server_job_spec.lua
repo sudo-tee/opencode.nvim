@@ -98,9 +98,9 @@ describe('server_job', function()
       return fake
     end
 
-    local first = server_job.ensure_server()
+    local first = server_job.ensure_server():wait()
     assert.same(fake, first._value or first) -- ensure_server returns resolved promise value
-    local second = server_job.ensure_server()
+    local second = server_job.ensure_server():wait()
     assert.same(fake, second._value or second)
     assert.equal(1, spawn_count)
   end)

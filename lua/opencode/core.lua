@@ -48,20 +48,16 @@ end
 
 ---@param opts? OpenOpts
 function M.open(opts)
+  local promise = require('opencode.promise').new()
   opts = opts or { focus = 'input', new_session = false }
 
-  if not state.opencode_server or not state.opencode_server:is_running() then
-    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
-  end
-
-  M.ensure_current_mode()
-
-  local are_windows_closed = state.windows == nil
+  state.is_opening = true
 
   if not require('opencode.ui.ui').is_opencode_focused() then
     require('opencode.context').load()
   end
 
+  local are_windows_closed = state.windows == nil
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local mentioned_files = context.context.mentioned_files or {}
@@ -73,38 +69,65 @@ function M.open(opts)
     state.windows = ui.create_windows()
   end
 
-  if opts.new_session then
-    state.active_session = nil
-    state.last_sent_context = nil
-
-    state.current_model = nil
-    state.current_mode = nil
-    M.ensure_current_mode()
-
-    state.active_session = M.create_new_session()
-  else
-    if not state.active_session then
-      state.active_session = session.get_last_workspace_session()
-      if not state.active_session then
-        state.active_session = M.create_new_session()
-      end
-    else
-      if not state.display_route and are_windows_closed then
-        -- We're not displaying /help or something like that but we have an active session
-        -- and the windows were closed so we need to do a full refresh. This mostly happens
-        -- when opening the window after having closed it since we're not currently clearing
-        -- the session on api.close()
-        ui.render_output()
-      end
-    end
-  end
-
   if opts.focus == 'input' then
     ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
   elseif opts.focus == 'output' then
     ui.focus_output({ restore_position = are_windows_closed })
   end
-  state.is_opencode_focused = true
+
+  server_job
+    .ensure_server()
+    :and_then(function(server)
+      local ok, err = pcall(function()
+        state.opencode_server = server
+
+        M.ensure_current_mode()
+
+        if opts.new_session then
+          state.active_session = nil
+          state.last_sent_context = nil
+
+          state.current_model = nil
+          state.current_mode = nil
+          M.ensure_current_mode()
+
+          state.active_session = M.create_new_session()
+        else
+          if not state.active_session then
+            state.active_session = session.get_last_workspace_session()
+            if not state.active_session then
+              state.active_session = M.create_new_session()
+            end
+          else
+            if not state.display_route and are_windows_closed then
+              -- We're not displaying /help or something like that but we have an active session
+              -- and the windows were closed so we need to do a full refresh. This mostly happens
+              -- when opening the window after having closed it since we're not currently clearing
+              -- the session on api.close()
+              ui.render_output()
+            end
+          end
+        end
+
+        state.is_opencode_focused = true
+      end)
+
+      state.is_opening = false
+
+      if not ok then
+        promise:reject(err)
+        vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)
+        return
+      end
+
+      promise:resolve()
+    end)
+    :catch(function(err)
+      state.is_opening = false
+      promise:reject(err)
+      vim.notify('Error ensuring server: ' .. tostring(err), vim.log.levels.ERROR)
+    end)
+  return promise
 end
 
 --- Sends a message to the active session, creating one if necessary.

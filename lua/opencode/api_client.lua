@@ -30,7 +30,8 @@ function OpencodeApiClient:_ensure_base_url()
   local state = require('opencode.state')
 
   if not state.opencode_server then
-    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
+    -- this is last resort - try to start the server and could be blocking
+    state.opencode_server = server_job.ensure_server():wait() --[[@as OpencodeServer]]
     -- shouldn't normally happen but prevents error in replay tester
     if not state.opencode_server then
       return false

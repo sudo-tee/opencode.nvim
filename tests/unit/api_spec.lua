@@ -4,6 +4,7 @@ local ui = require('opencode.ui.ui')
 local state = require('opencode.state')
 local stub = require('luassert.stub')
 local assert = require('luassert')
+local Promise = require('opencode.promise')
 
 describe('opencode.api', function()
   local created_commands = {}
@@ -17,7 +18,10 @@ describe('opencode.api', function()
         opts = opts,
       })
     end)
-    stub(core, 'open')
+    stub(core, 'open').invokes(function()
+      return Promise.new():resolve('done')
+    end)
+
     stub(core, 'run')
     stub(core, 'cancel')
     stub(core, 'send_message')
@@ -118,13 +122,13 @@ describe('opencode.api', function()
 
       -- Test the exported functions
       assert.is_function(api.open_input, 'Should export open_input')
-      api.open_input()
+      api.open_input():wait()
       assert.stub(core.open).was_called()
       assert.stub(core.open).was_called_with({ new_session = false, focus = 'input', start_insert = true })
 
       -- Test run function
       assert.is_function(api.run, 'Should export run')
-      api.run('test prompt')
+      api.run('test prompt'):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('test prompt', {
         new_session = false,
@@ -133,7 +137,7 @@ describe('opencode.api', function()
 
       -- Test run_new_session function
       assert.is_function(api.run_new_session, 'Should export run_new_session')
-      api.run_new_session('test prompt new')
+      api.run_new_session('test prompt new'):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('test prompt new', {
         new_session = true,
@@ -144,7 +148,7 @@ describe('opencode.api', function()
 
   describe('run command argument parsing', function()
     it('parses agent prefix and passes to send_message', function()
-      api.commands.run.fn({ 'agent=plan', 'analyze', 'this', 'code' })
+      api.commands.run.fn({ 'agent=plan', 'analyze', 'this', 'code' }):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('analyze this code', {
         new_session = false,
@@ -154,7 +158,7 @@ describe('opencode.api', function()
     end)
 
     it('parses model prefix and passes to send_message', function()
-      api.commands.run.fn({ 'model=openai/gpt-4', 'test', 'prompt' })
+      api.commands.run.fn({ 'model=openai/gpt-4', 'test', 'prompt' }):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('test prompt', {
         new_session = false,
@@ -164,7 +168,7 @@ describe('opencode.api', function()
     end)
 
     it('parses context prefix and passes to send_message', function()
-      api.commands.run.fn({ 'context=current_file.enabled=false', 'test' })
+      api.commands.run.fn({ 'context=current_file.enabled=false', 'test' }):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('test', {
         new_session = false,
@@ -174,13 +178,15 @@ describe('opencode.api', function()
     end)
 
     it('parses multiple prefixes and passes all to send_message', function()
-      api.commands.run.fn({
-        'agent=plan',
-        'model=openai/gpt-4',
-        'context=current_file.enabled=false',
-        'analyze',
-        'code',
-      })
+      api.commands.run
+        .fn({
+          'agent=plan',
+          'model=openai/gpt-4',
+          'context=current_file.enabled=false',
+          'analyze',
+          'code',
+        })
+        :wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('analyze code', {
         new_session = false,
@@ -192,7 +198,7 @@ describe('opencode.api', function()
     end)
 
     it('works with run_new command', function()
-      api.commands.run_new.fn({ 'agent=plan', 'model=openai/gpt-4', 'new', 'session', 'prompt' })
+      api.commands.run_new.fn({ 'agent=plan', 'model=openai/gpt-4', 'new', 'session', 'prompt' }):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('new session prompt', {
         new_session = true,
@@ -210,7 +216,7 @@ describe('opencode.api', function()
     end)
 
     it('Lua API accepts opts directly without parsing', function()
-      api.run('test prompt', { agent = 'plan', model = 'openai/gpt-4' })
+      api.run('test prompt', { agent = 'plan', model = 'openai/gpt-4' }):wait()
       assert.stub(core.send_message).was_called()
       assert.stub(core.send_message).was_called_with('test prompt', {
         new_session = false,
@@ -434,6 +440,12 @@ describe('opencode.api', function()
     end)
 
     describe('user command model/agent selection', function()
+      before_each(function()
+        stub(api, 'open_input').invokes(function()
+          return Promise.new():resolve('done')
+        end)
+      end)
+
       it('invokes run with correct model and agent', function()
         local config_file = require('opencode.config_file')
         local original_get_user_commands = config_file.get_user_commands
@@ -466,8 +478,6 @@ describe('opencode.api', function()
           end,
         }
 
-        stub(api, 'open_input')
-
         local slash_commands = api.get_slash_commands()
 
         local test_no_model_cmd = nil
@@ -484,7 +494,7 @@ describe('opencode.api', function()
         assert.truthy(test_no_model_cmd, 'Should find /test-no-model command')
         assert.truthy(test_with_model_cmd, 'Should find /test-with-model command')
 
-        test_no_model_cmd.fn()
+        test_no_model_cmd.fn():wait()
         assert.equal(1, #send_command_calls)
         assert.equal('test-session', send_command_calls[1].session_id)
         assert.equal('test-no-model', send_command_calls[1].command_data.command)
@@ -494,7 +504,7 @@ describe('opencode.api', function()
 
         send_command_calls = {}
 
-        test_with_model_cmd.fn()
+        test_with_model_cmd.fn():wait()
         assert.equal(1, #send_command_calls)
         assert.equal('test-session', send_command_calls[1].session_id)
         assert.equal('test-with-model', send_command_calls[1].command_data.command)

@@ -65,10 +65,8 @@ function M.open(opts)
     state.windows = ui.create_windows()
   end
 
-  vim.schedule(function()
-    if not state.opencode_server or not state.opencode_server:is_running() then
-      state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
-    end
+  server_job.ensure_server():and_then(function(server)
+    state.opencode_server = server
 
     M.ensure_current_mode()
 

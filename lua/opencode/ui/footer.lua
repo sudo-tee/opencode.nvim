@@ -12,7 +12,7 @@ local function utf8_len(str)
 end
 
 local function get_mode_highlight()
-  local mode = (state.current_mode or ''):lower()
+  local mode = (state.current_mode or config.default_mode):lower()
   local highlights = {
     build = 'OpencodeAgentBuild',
     plan = 'OpencodeAgentPlan',
@@ -42,17 +42,15 @@ local function build_right_segments()
     table.insert(segments, { ' ' })
   end
 
-  if not state.is_running() and state.current_model then
+  if not state.is_running() and state.current_model and config.ui.display_model then
     table.insert(segments, { state.current_model, 'OpencodeHint' })
     table.insert(segments, { ' ' })
   end
 
-  if state.current_mode then
-    table.insert(segments, {
-      string.format(' %s ', state.current_mode:upper()),
-      get_mode_highlight(),
-    })
-  end
+  table.insert(segments, {
+    string.format(' %s ', (state.current_mode or config.default_mode):upper()),
+    get_mode_highlight(),
+  })
 
   return segments
 end

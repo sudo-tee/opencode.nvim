@@ -107,12 +107,9 @@ function M.select_history()
 end
 
 function M.toggle_pane()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-    return
-  end
-
-  ui.toggle_pane()
+  return core.open({ new_session = false, focus = 'output' }):and_then(function()
+    ui.toggle_pane()
+  end)
 end
 
 ---@param from_snapshot_id? string

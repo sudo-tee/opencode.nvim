@@ -22,6 +22,10 @@ function M.pick(sessions, callback)
         api
           .rename_session(selected)
           :and_then(function(updated_session)
+            if not updated_session then
+              promise:resolve(nil)
+              return
+            end
             local idx = util.find_index_of(opts.items, function(item)
               return item.id == updated_session.id
             end)

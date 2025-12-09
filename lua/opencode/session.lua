@@ -25,7 +25,7 @@ end
 ---Get the session storage path for the current workspace
 ---@return string
 M.get_workspace_session_path = Promise.async(function(project_id)
-  project_id = project_id or M.project_id() or ''
+  project_id = project_id or M.project_id():await() or ''
   local home = vim.uv.os_homedir()
   return home .. '/.local/share/opencode/storage/session/' .. project_id
 end)

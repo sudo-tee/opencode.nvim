@@ -1,4 +1,4 @@
-local Promise = require('lua.opencode.promise')
+local Promise = require('opencode.promise')
 local M = {}
 
 local completion_active = false

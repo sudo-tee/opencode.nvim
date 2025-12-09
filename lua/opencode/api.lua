@@ -334,6 +334,7 @@ function M.debug_session()
   debug_helper.debug_session()
 end
 
+---@type fun(): Promise<void>
 M.initialize = Promise.async(function()
   local id = require('opencode.id')
 
@@ -368,8 +369,8 @@ function M.agent_build()
   require('opencode.core').switch_to_mode('build')
 end
 
-function M.select_agent()
-  local modes = config_file.get_opencode_agents()
+M.select_agent = Promise.async(function()
+  local modes = config_file.get_opencode_agents():await()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
@@ -379,10 +380,10 @@ function M.select_agent()
 
     require('opencode.core').switch_to_mode(selection)
   end)
-end
+end)
 
-function M.switch_mode()
-  local modes = config_file.get_opencode_agents() --[[@as string[] ]]
+M.switch_mode = Promise.async(function()
+  local modes = config_file.get_opencode_agents():await() --[[@as string[] ]]
 
   local current_index = util.index_of(modes, state.current_mode)
 
@@ -394,7 +395,7 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   require('opencode.core').switch_to_mode(modes[next_index])
-end
+end)
 
 function M.with_header(lines, show_welcome)
   show_welcome = show_welcome or show_welcome
@@ -506,7 +507,7 @@ M.mcp = Promise.async(function()
 end)
 
 function M.commands_list()
-  local commands = config_file.get_user_commands():await()
+  local commands = config_file.get_user_commands():wait()
   if not commands then
     vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -566,7 +567,7 @@ M.run_user_command = Promise.async(function(name, args)
           require('opencode.history').write('/' .. name .. ' ' .. table.concat(args or {}, ' '))
         end)
       end)
-  end)
+  end) --[[@as Promise<void> ]]
 end)
 
 --- Compacts the current session by removing unnecessary data.
@@ -754,7 +755,7 @@ M.rename_session = Promise.async(function(current_session, new_title)
           vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
         end)
       end)
-      :and_then(function()
+      :and_then(Promise.async(function()
         current_session.title = title
         if state.active_session and state.active_session.id == current_session.id then
           local session_obj = session.get_by_id(current_session.id):await()
@@ -764,7 +765,7 @@ M.rename_session = Promise.async(function(current_session, new_title)
           end
         end
         promise:resolve(current_session)
-      end)
+      end))
   end
 
   if new_title and new_title ~= '' then
@@ -967,18 +968,20 @@ M.commands = {
     fn = function(args)
       local subcmd = args[1]
       if subcmd == 'new' then
-        local title = table.concat(vim.list_slice(args, 2), ' ')
-        if title and title ~= '' then
-          local new_session = core.create_new_session(title)
-          if not new_session then
-            vim.notify('Failed to create new session', vim.log.levels.ERROR)
-            return
+        Promise.spawn(function()
+          local title = table.concat(vim.list_slice(args, 2), ' ')
+          if title and title ~= '' then
+            local new_session = core.create_new_session(title):await()
+            if not new_session then
+              vim.notify('Failed to create new session', vim.log.levels.ERROR)
+              return
+            end
+            state.active_session = new_session
+            M.open_input()
+          else
+            M.open_input_new_session()
           end
-          state.active_session = new_session:await()
-          M.open_input()
-        else
-          M.open_input_new_session()
-        end
+        end)
       elseif subcmd == 'select' then
         M.select_session()
       elseif subcmd == 'child' then
@@ -1230,6 +1233,7 @@ M.slash_commands_map = {
   ['/timeline'] = { fn = M.timeline, desc = 'Open timeline picker' },
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
+  ['/rename'] = { fn = M.rename_session, desc = 'Rename current session' },
 }
 
 M.legacy_command_map = {

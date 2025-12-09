@@ -124,9 +124,9 @@ M.open = Promise.async(function(opts)
 
   if not ok then
     vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)
-    return Promise:new():reject(err)
+    return Promise.new():reject(err)
   end
-  return Promise:new():resolve('ok')
+  return Promise.new():resolve('ok')
 end)
 
 --- Sends a message to the active session, creating one if necessary.

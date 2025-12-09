@@ -1,15 +1,32 @@
 ---@generic T
+---@generic U
 ---@class Promise<T>
+---@field __index Promise<T>
 ---@field _resolved boolean
 ---@field _value T
 ---@field _error any
 ---@field _then_callbacks fun(value: T)[]
 ---@field _catch_callbacks fun(err: any)[]
 ---@field _coroutines thread[]
+---@field new fun(): Promise<T>
+---@field resolve fun(self: Promise<T>, value: T): Promise<T>
+---@field reject fun(self: Promise<T>, err: any): Promise<T>
+---@field and_then fun(self: Promise<T>, callback: fun(value: T): U | Promise<U> | nil): Promise<U>
+---@field catch fun(self: Promise<T>, error_callback: fun(err: any): any | Promise<any> | nil): Promise<T>
+---@field wait fun(self: Promise<T>, timeout?: integer, interval?: integer): T
+---@field peek fun(self: Promise<T>): T
+---@field is_resolved fun(self: Promise<T>): boolean
+---@field is_rejected fun(self: Promise<T>): boolean
+---@field await fun(self: Promise<T>): T
+---@field is_promise fun(obj: any): boolean
+---@field wrap fun(obj: T | Promise<T>): Promise<T>
+---@field spawn fun(fn: fun(): T|nil): Promise<T>
+---@field async fun(fn: fun(...): T?): fun(...): Promise<T>
 local Promise = {}
 Promise.__index = Promise
 
 ---Resume waiting coroutines with result
+---@generic T
 ---@param coroutines thread[]
 ---@param value T
 ---@param err any
@@ -37,7 +54,6 @@ function Promise.new()
   return self
 end
 
----@param self Promise<T>
 ---@param value T
 ---@return Promise<T>
 function Promise:resolve(value)
@@ -59,7 +75,6 @@ function Promise:resolve(value)
   return self
 end
 
----@param self Promise<T>
 ---@param err any
 ---@return Promise<T>
 function Promise:reject(err)
@@ -82,9 +97,8 @@ function Promise:reject(err)
 end
 
 ---@generic U
----@param self Promise<T>
----@param callback fun(value: T): U | Promise<U>
----@return Promise<U>
+---@param callback fun(value: T): U | Promise<U> | nil
+---@return Promise<U>?
 function Promise:and_then(callback)
   if not callback then
     error('callback is required')
@@ -127,8 +141,7 @@ function Promise:and_then(callback)
   return new_promise
 end
 
----@param self Promise<T>
----@param error_callback fun(err: any): any | Promise<any>
+---@param error_callback fun(err: any): any | Promise<any> | nil
 ---@return Promise<T>
 function Promise:catch(error_callback)
   local new_promise = Promise.new()
@@ -174,7 +187,6 @@ end
 --- This will block the main thread, so use with caution
 --- But is useful for synchronous code paths that need the result
 ---@generic T
----@param self Promise<T>
 ---@param timeout integer|nil Timeout in milliseconds (default: 5000)
 ---@param interval integer|nil Interval in milliseconds to check (default: 20)
 ---@return T
@@ -207,7 +219,6 @@ end
 -- Tries to get the value without waiting
 -- Useful for status checks where you don't want to block
 ---@generic T
----@param self Promise<T>
 ---@return T
 function Promise:peek()
   return self._value
@@ -225,7 +236,6 @@ end
 ---This function can only be called from within `coroutine.create` or `Promise.spawn` or `Promise.async`
 ---This will yield the coroutine until the promise resolves or rejects
 ---@generic T
----@param self Promise<T>
 ---@return T
 function Promise:await()
   -- If already resolved, return immediately
@@ -267,9 +277,10 @@ end
 
 ---@param obj T | Promise<T>
 ---@return Promise<T>
+---@return_cast T Promise<T>
 function Promise.wrap(obj)
   if Promise.is_promise(obj) then
-    return obj
+    return obj --[[@as Promise<T>]]
   else
     return Promise.new():resolve(obj)
   end

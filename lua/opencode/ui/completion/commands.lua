@@ -1,7 +1,7 @@
 local Promise = require('opencode.promise')
 local M = {}
 
-get_available_commands = Promise.async(function()
+local get_available_commands = Promise.async(function()
   local api = require('opencode.api')
   local commands = api.get_slash_commands():await()
 

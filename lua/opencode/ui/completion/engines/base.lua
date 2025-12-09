@@ -1,3 +1,5 @@
+local Promise = require('opencode.promise')
+
 ---@class CompletionEngine
 ---@field name string The name identifier of the completion engine
 ---@field _completion_sources table[]|nil Internal array of registered completion sources
@@ -53,7 +55,7 @@ end
 
 ---Parse trigger characters from text before cursor
 ---Identifies trigger characters and extracts the completion query text
----@param before_cursor string Text from line start to cursor position  
+---@param before_cursor string Text from line start to cursor position
 ---@return string|nil trigger_char The trigger character found (e.g., '@', '/')
 ---@return string|nil trigger_match The text after the trigger character
 function CompletionEngine:parse_trigger(before_cursor)
@@ -67,10 +69,10 @@ end
 ---Queries all completion sources and formats their responses into a unified structure
 ---@param context table Completion context containing input, cursor_pos, line, trigger_char
 ---@return table[] Array of wrapped completion items with metadata
-function CompletionEngine:get_completion_items(context)
+CompletionEngine.get_completion_items = Promsise.async(function(context)
   local items = {}
   for _, source in ipairs(self._completion_sources or {}) do
-    local source_items = source.complete(context)
+    local source_items = source.complete(context):await()
     for i, item in ipairs(source_items) do
       local source_priority = source.priority or 999
       local item_priority = item.priority or 999
@@ -84,7 +86,7 @@ function CompletionEngine:get_completion_items(context)
     end
   end
   return items
-end
+end)
 
 ---Setup the completion engine with completion sources
 ---Base implementation stores sources. Child classes should call this via super
@@ -106,7 +108,7 @@ end
 
 ---Handle completion item selection
 ---Called when a completion item is selected by the user
----Delegates to the completion module's on_complete handler  
+---Delegates to the completion module's on_complete handler
 ---@param original_item table The original completion item that was selected
 function CompletionEngine:on_complete(original_item)
   local completion = require('opencode.ui.completion')

@@ -230,10 +230,12 @@ describe('opencode.api', function()
   describe('/mcp command', function()
     it('displays MCP server configuration when available', function()
       local config_file = require('opencode.config_file')
+      local Promise = require('opencode.promise')
       local original_get_mcp_servers = config_file.get_mcp_servers
 
       config_file.get_mcp_servers = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           filesystem = {
             type = 'local',
             enabled = true,
@@ -244,13 +246,14 @@ describe('opencode.api', function()
             enabled = false,
             url = 'https://example.com/mcp',
           },
-        }
+        })
+        return p
       end
 
       stub(ui, 'render_lines')
       stub(api, 'open_input')
 
-      api.mcp()
+      api.mcp():wait()
 
       assert.stub(api.open_input).was_called()
       assert.stub(ui.render_lines).was_called()
@@ -269,15 +272,18 @@ describe('opencode.api', function()
 
     it('shows warning when no MCP configuration exists', function()
       local config_file = require('opencode.config_file')
+      local Promise = require('opencode.promise')
       local original_get_mcp_servers = config_file.get_mcp_servers
 
       config_file.get_mcp_servers = function()
-        return nil
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
       end
 
       local notify_stub = stub(vim, 'notify')
 
-      api.mcp()
+      api.mcp():wait()
 
       assert
         .stub(notify_stub)
@@ -294,11 +300,13 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['build'] = { description = 'Build the project' },
           ['test'] = { description = 'Run tests' },
           ['deploy'] = { description = 'Deploy to production' },
-        }
+        })
+        return p
       end
 
       stub(ui, 'render_lines')
@@ -329,7 +337,9 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return nil
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
       end
 
       local notify_stub = stub(vim, 'notify')
@@ -351,11 +361,13 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['build'] = { description = 'Build the project' },
           ['test'] = { description = 'Run tests' },
           ['deploy'] = { description = 'Deploy to production' },
-        }
+        })
+        return p
       end
 
       local completions = api.commands.command.completions()
@@ -372,7 +384,9 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return nil
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
       end
 
       local completions = api.commands.command.completions()
@@ -387,10 +401,12 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['build'] = { description = 'Build the project' },
           ['test'] = { description = 'Run tests' },
-        }
+        })
+        return p
       end
 
       local results = api.complete_command('b', 'Opencode command b', 18)
@@ -408,13 +424,15 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['build'] = { description = 'Build the project' },
           ['test'] = { description = 'Run tests', template = 'Run tests with $ARGUMENTS' },
-        }
+        })
+        return p
       end
 
-      local slash_commands = api.get_slash_commands()
+      local slash_commands = api.get_slash_commands():wait()
 
       local build_found = false
       local test_found = false
@@ -451,7 +469,8 @@ describe('opencode.api', function()
         local original_get_user_commands = config_file.get_user_commands
 
         config_file.get_user_commands = function()
-          return {
+          local p = Promise.new()
+          p:resolve({
             ['test-no-model'] = { description = 'Run tests', template = 'Run tests with $ARGUMENTS' },
             ['test-with-model'] = {
               description = 'Run tests',
@@ -459,7 +478,8 @@ describe('opencode.api', function()
               model = 'openai/gpt-4',
               agent = 'tester',
             },
-          }
+          })
+          return p
         end
 
         local original_active_session = state.active_session
@@ -478,7 +498,7 @@ describe('opencode.api', function()
           end,
         }
 
-        local slash_commands = api.get_slash_commands()
+        local slash_commands = api.get_slash_commands():wait()
 
         local test_no_model_cmd = nil
         local test_with_model_cmd = nil
@@ -523,12 +543,14 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['custom'] = {},
-        }
+        })
+        return p
       end
 
-      local slash_commands = api.get_slash_commands()
+      local slash_commands = api.get_slash_commands():wait()
 
       local custom_found = false
       for _, cmd in ipairs(slash_commands) do
@@ -548,12 +570,14 @@ describe('opencode.api', function()
       local original_get_user_commands = config_file.get_user_commands
 
       config_file.get_user_commands = function()
-        return {
+        local p = Promise.new()
+        p:resolve({
           ['build'] = { description = 'Build the project' },
-        }
+        })
+        return p
       end
 
-      local slash_commands = api.get_slash_commands()
+      local slash_commands = api.get_slash_commands():wait()
 
       local help_found = false
       local build_found = false
@@ -578,7 +602,7 @@ describe('opencode.api', function()
       local original_model = state.current_model
       state.current_model = 'testmodel'
 
-      local model = api.current_model()
+      local model = api.current_model():wait()
       assert.equal('testmodel', model)
 
       state.current_model = original_model
@@ -592,10 +616,12 @@ describe('opencode.api', function()
       local original_get_opencode_config = config_file.get_opencode_config
 
       config_file.get_opencode_config = function()
-        return { model = 'testmodel' }
+        local p = Promise.new()
+        p:resolve({ model = 'testmodel' })
+        return p
       end
 
-      local model = api.current_model()
+      local model = api.current_model():wait()
 
       assert.equal('testmodel', model)
 

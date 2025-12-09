@@ -63,7 +63,7 @@ local function update_winbar_highlights(win_id)
     table.insert(parts, 'Normal:OpencodeNormal')
   end
 
-  table.insert(parts, 'WinBar:OpencodeSessionDescription')
+  table.insert(parts, 'WinBar:OpencodeSessionDecription')
   table.insert(parts, 'WinBarNC:OpencodeSessionDescription')
 
   vim.api.nvim_set_option_value('winhighlight', table.concat(parts, ','), { win = win_id })
@@ -77,9 +77,8 @@ local function get_session_desc()
   local session_title = LABELS.NEW_SESSION_TITLE
 
   if state.active_session then
-    local session = require('opencode.session').get_by_id(state.active_session.id)
-    if session and session.title ~= '' then
-      session_title = session.title
+    if state.active_session and state.active_session ~= '' then
+      session_title = state.active_session.title
     end
   end
 

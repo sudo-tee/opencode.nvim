@@ -2,7 +2,7 @@ local M = {}
 
 function M._get_models()
   local config_file = require('opencode.config_file')
-  local response = config_file.get_opencode_providers()
+  local response = config_file.get_opencode_providers():wait()
 
   if not response then
     return {}

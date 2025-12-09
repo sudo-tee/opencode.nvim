@@ -127,7 +127,9 @@ describe('hooks', function()
       local session_module = require('opencode.session')
       local original_get_all = session_module.get_all_workspace_sessions
       session_module.get_all_workspace_sessions = function()
-        return { { id = 'test-session', title = 'Test' } }
+        local promise = require('opencode.promise').new()
+        promise:resolve({ { id = 'test-session', title = 'Test' } })
+        return promise
       end
 
       state.subscribe('user_message_count', core._on_user_message_count_change)
@@ -138,7 +140,9 @@ describe('hooks', function()
       state.user_message_count = { ['test-session'] = 0 }
 
       -- Wait for async notification
-      vim.wait(100, function() return called end)
+      vim.wait(100, function()
+        return called
+      end)
 
       -- Restore original function
       session_module.get_all_workspace_sessions = original_get_all
@@ -184,7 +188,9 @@ describe('hooks', function()
       local session_module = require('opencode.session')
       local original_get_by_id = session_module.get_by_id
       session_module.get_by_id = function(id)
-        return { id = id, title = 'Test' }
+        local promise = require('opencode.promise').new()
+        promise:resolve({ id = id, title = 'Test' })
+        return promise
       end
 
       -- Set up the subscription manually
@@ -196,7 +202,9 @@ describe('hooks', function()
       state.current_permission = { tool = 'test_tool', action = 'read' }
 
       -- Wait for async notification
-      vim.wait(100, function() return called end)
+      vim.wait(100, function()
+        return called
+      end)
 
       -- Restore original function
       session_module.get_by_id = original_get_by_id

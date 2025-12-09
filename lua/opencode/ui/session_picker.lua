@@ -3,13 +3,14 @@ local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local util = require('opencode.util')
 local api = require('opencode.api')
+local Promise = require('opencode.promise')
 
 ---Format session parts for session picker
 ---@param session Session object
 ---@return PickerItem
 function format_session_item(session, width)
   local debug_text = 'ID: ' .. (session.id or 'N/A')
-  return base_picker.create_picker_item(session.title, session.modified, debug_text, width)
+  return base_picker.create_picker_item(session.title, session.time.updated, debug_text, width)
 end
 
 function M.pick(sessions, callback)
@@ -45,7 +46,7 @@ function M.pick(sessions, callback)
       key = config.keymap.session_picker.delete_session,
       label = 'delete',
       multi_selection = true,
-      fn = function(selected, opts)
+      fn = Promise.async(function(selected, opts)
         local state = require('opencode.state')
 
         local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
@@ -53,7 +54,7 @@ function M.pick(sessions, callback)
         for _, session in ipairs(sessions_to_delete) do
           if state.active_session and state.active_session.id == session.id then
             vim.notify('deleting current session, creating new session')
-            state.active_session = require('opencode.core').create_new_session()
+            state.active_session = require('opencode.core').create_new_session():await()
           end
 
           state.api_client:delete_session(session.id):catch(function(err)
@@ -72,13 +73,13 @@ function M.pick(sessions, callback)
 
         vim.notify('Deleted ' .. #sessions_to_delete .. ' session(s)', vim.log.levels.INFO)
         return opts.items
-      end,
+      end),
       reload = true,
     },
     new = {
       key = config.keymap.session_picker.new_session,
       label = 'new',
-      fn = function(selected, opts)
+      fn = Promise.async(function(selected, opts)
         local parent_id
         for _, s in ipairs(opts.items or {}) do
           if s.parentID ~= nil then
@@ -87,14 +88,14 @@ function M.pick(sessions, callback)
           end
         end
         local state = require('opencode.state')
-        local created = state.api_client:create_session(parent_id and { parentID = parent_id } or false):wait()
+        local created = state.api_client:create_session(parent_id and { parentID = parent_id } or false):await()
         if created and created.id then
-          local new_session = require('opencode.session').get_by_id(created.id)
+          local new_session = require('opencode.session').get_by_id(created.id):await()
           table.insert(opts.items, 1, new_session)
           return opts.items
         end
         return nil
-      end,
+      end),
       reload = true,
     },
   }

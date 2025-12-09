@@ -27,8 +27,9 @@ function M.setup(completion_sources)
     return vim.bo.filetype == 'opencode'
   end
 
-  function source:complete(params, callback)
+  source.complete = Promise.async(function(self, params, callback)
     local line = params.context.cursor_line
+
     local col = params.context.cursor.col
     local before_cursor = line:sub(1, col - 1)
 
@@ -49,7 +50,7 @@ function M.setup(completion_sources)
 
     local items = {}
     for _, completion_source in ipairs(completion_sources) do
-      local source_items = completion_source.complete(context)
+      local source_items = completion_source.complete(context):await()
       for j, item in ipairs(source_items) do
         table.insert(items, {
           label = item.label,
@@ -76,7 +77,7 @@ function M.setup(completion_sources)
     end
 
     callback({ items = items, isIncomplete = true })
-  end
+  end)
 
   cmp.register_source('opencode_mentions', source.new())
 

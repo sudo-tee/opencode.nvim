@@ -1,10 +1,13 @@
 local snapshot = require('opencode.snapshot')
 local state = require('opencode.state')
+local Promise = require('opencode.promise')
+local config_file = require('opencode.config_file')
 
 -- Save originals to restore after tests
 local orig_notify = vim.notify
 local orig_system = vim.system
 local orig_getcwd = vim.fn.getcwd
+local orig_get_workspace_snapshot_path = config_file.get_workspace_snapshot_path
 
 describe('snapshot.restore', function()
   local system_calls = {}
@@ -33,6 +36,13 @@ describe('snapshot.restore', function()
       return '/mock/project/root'
     end
 
+    -- Mock config_file.get_workspace_snapshot_path to return a resolved promise
+    config_file.get_workspace_snapshot_path = function()
+      local p = Promise.new()
+      p:resolve('/mock/gitdir')
+      return p
+    end
+
     state.active_session = { snapshot_path = '/mock/gitdir' }
     vim.g._last_notify = nil
     vim.g._last_system = nil
@@ -42,6 +52,7 @@ describe('snapshot.restore', function()
     vim.notify = orig_notify
     vim.system = orig_system
     vim.fn.getcwd = orig_getcwd
+    config_file.get_workspace_snapshot_path = orig_get_workspace_snapshot_path
     state.active_session = nil
     vim.g._last_notify = nil
     vim.g._last_system = nil
@@ -67,6 +78,12 @@ describe('snapshot.restore', function()
 
   it('notifies error if no active session', function()
     state.active_session = nil
+    -- When there's no active session, the promise still resolves but snapshot_git will fail
+    config_file.get_workspace_snapshot_path = function()
+      local p = Promise.new()
+      p:resolve(nil)
+      return p
+    end
     snapshot.restore('abc123')
     assert.is_truthy(vim.g._last_notify)
     -- Should match either "No snapshot path" or "Failed to read-tree" depending on implementation

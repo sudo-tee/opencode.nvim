@@ -35,7 +35,7 @@ end
 local function build_right_segments()
   local segments = {}
 
-  if state.is_running() then
+  if state.is_running() and not state.is_opening then
     local cancel_keymap = config.get_key_for_function('input_window', 'stop') or '<C-c>'
     table.insert(segments, { string.format('%s ', cancel_keymap), 'OpencodeInputLegend' })
     table.insert(segments, { 'to cancel', 'OpencodeHint' })

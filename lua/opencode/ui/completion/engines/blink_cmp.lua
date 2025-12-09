@@ -1,3 +1,4 @@
+local Promise = require('opencode.promise')
 local M = {}
 
 local Source = {}
@@ -25,7 +26,7 @@ function Source:is_available()
   return vim.bo.filetype == 'opencode'
 end
 
-function Source:get_completions(ctx, callback)
+Source.get_completions = Promise.async(function(self, ctx, callback)
   local completion = require('opencode.ui.completion')
   local completion_sources = completion.get_sources()
 
@@ -50,7 +51,7 @@ function Source:get_completions(ctx, callback)
 
   local items = {}
   for _, completion_source in ipairs(completion_sources) do
-    local source_items = completion_source.complete(context)
+    local source_items = completion_source.complete(context):await()
     for i, item in ipairs(source_items) do
       table.insert(items, {
         label = item.label,
@@ -77,7 +78,7 @@ function Source:get_completions(ctx, callback)
   end
 
   callback({ is_incomplete_forward = true, is_incomplete_backward = true, items = items })
-end
+end)
 
 function Source:execute(ctx, item, callback, default_implementation)
   default_implementation()

@@ -1,5 +1,6 @@
 local config = require('opencode.config')
 local icons = require('opencode.ui.icons')
+local Promise = require('opencode.promise')
 local M = {}
 
 local last_successful_tool = nil
@@ -110,13 +111,12 @@ end
 local file_source = {
   name = 'files',
   priority = 5,
-  complete = function(context)
+  complete = Promise.async(function(context)
     local sort_util = require('opencode.ui.completion.sort')
     local file_config = config.ui.completion.file_sources
     local input = context.input or ''
 
-    local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('input_window', 'mention')
+    local expected_trigger = config.get_key_for_function('input_window', 'mention')
     if not file_config.enabled or context.trigger_char ~= expected_trigger then
       return {}
     end
@@ -137,7 +137,7 @@ local file_source = {
     end)
 
     return vim.list_extend(recent_files, items)
-  end,
+  end),
   on_complete = function(item)
     local state = require('opencode.state')
     local context = require('opencode.context')
@@ -150,10 +150,10 @@ local file_source = {
 
 ---Get the list of recent files
 ---@return CompletionItem[]
-function M.get_recent_files()
+M.get_recent_files = Promise.async(function()
   local api_client = require('opencode.state').api_client
 
-  local result = api_client:get_file_status():wait()
+  local result = api_client:get_file_status():await()
   local recent_files = {}
   if result then
     for _, file in ipairs(result) do
@@ -162,7 +162,7 @@ function M.get_recent_files()
     end
   end
   return recent_files
-end
+end)
 
 ---Get the file completion source
 ---@return CompletionSource

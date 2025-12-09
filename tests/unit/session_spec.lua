@@ -45,20 +45,20 @@ describe('opencode.session', function()
     original_api_client = state.api_client
     -- mock vim.fs and isdirectory
     config_file.get_opencode_project = function()
-      return { id = DEFAULT_WORKSPACE_ID }
+      local p = Promise.new()
+      p:resolve({ id = DEFAULT_WORKSPACE_ID })
+      return p
     end
 
     vim.fs.dir = function(path)
       -- Return a mock directory listing
-      local session_dir = session.get_workspace_session_path()
-      if path:find(DEFAULT_WORKSPACE_ID, 1, true) then
-        if path == session_dir then
-          return coroutine.wrap(function()
-            for _, file in ipairs(session_files) do
-              coroutine.yield(file, 'file')
-            end
-          end)
-        end
+      -- Check if this is the session directory
+      if path:find(DEFAULT_WORKSPACE_ID, 1, true) and path:match('/session/') then
+        return coroutine.wrap(function()
+          for _, file in ipairs(session_files) do
+            coroutine.yield(file, 'file')
+          end
+        end)
       end
       if mock_data.message_files and path:match('/message/new%-8$') then
         return coroutine.wrap(function()
@@ -85,12 +85,11 @@ describe('opencode.session', function()
 
     -- Mock the readfile function
     vim.fn.readfile = function(file)
-      local session_dir = session.get_workspace_session_path()
       local storage_path = session.get_storage_path()
 
-      -- Handle session info files
-      if vim.startswith(file, session_dir) then
-        local filename = file:sub(#session_dir + 2)
+      -- Handle session info files - check if file matches session directory pattern
+      if file:match('/session/') and file:match('%.json$') then
+        local filename = file:match('([^/]+)$')
         local session_name = filename:sub(1, -6) -- Remove '.json' extension
         if vim.tbl_contains(session_files, filename) then
           local data
@@ -104,7 +103,7 @@ describe('opencode.session', function()
       end
 
       -- Handle message files
-      if mock_data.messages and vim.startswith(file, storage_path .. '/message/new-8/') then
+      if mock_data.messages and file:match('/message/new%-8/') then
         local msg_name = vim.fn.fnamemodify(file, ':t:r')
         if mock_data.messages[msg_name] then
           return vim.split(mock_data.messages[msg_name], '\n')
@@ -215,7 +214,8 @@ describe('opencode.session', function()
       -- Using the default mock session list and workspace
 
       -- Call the function
-      local result = session.get_last_workspace_session()
+      local promise = session.get_last_workspace_session()
+      local result = promise:wait()
 
       -- Verify the result - should return "new-8" as it's the most recent
       assert.is_not_nil(result)
@@ -229,7 +229,9 @@ describe('opencode.session', function()
       mock_data.workspace = NON_EXISTENT_WORKSPACE
 
       config_file.get_opencode_project = function()
-        return { id = NON_EXISTENT_WORKSPACE }
+        local p = Promise.new()
+        p:resolve({ id = NON_EXISTENT_WORKSPACE })
+        return p
       end
 
       -- For this test, make it not a git project so filtering happens
@@ -238,7 +240,8 @@ describe('opencode.session', function()
       end
 
       -- Call the function
-      local result = session.get_last_workspace_session()
+      local promise = session.get_last_workspace_session()
+      local result = promise:wait()
 
       -- Should be nil since no sessions match
       assert.is_nil(result)
@@ -258,7 +261,8 @@ describe('opencode.session', function()
 
       -- Call the function inside pcall to catch the error
       local success, result = pcall(function()
-        return session.get_last_workspace_session()
+        local promise = session.get_last_workspace_session()
+        return promise:wait()
       end)
 
       -- Restore original function
@@ -279,7 +283,8 @@ describe('opencode.session', function()
       mock_data.session_list = {}
 
       -- Call the function
-      local result = session.get_last_workspace_session()
+      local promise = session.get_last_workspace_session()
+      local result = promise:wait()
 
       -- Should be nil with empty list
       assert.is_nil(result)
@@ -288,19 +293,47 @@ describe('opencode.session', function()
 
   describe('get_by_name', function()
     it('returns the session with matching ID', function()
+      -- Mock the get_session method
+      local original_get_session = state.api_client.get_session
+      state.api_client.get_session = function(self, id)
+        local p = Promise.new()
+        if id == 'new-8' then
+          local session_data = vim.trim(session_list_mock['new-8'])
+          local decoded = vim.json.decode(session_data)
+          p:resolve(decoded)
+        else
+          p:resolve(nil)
+        end
+        return p
+      end
+
       -- Call the function with an ID from the mock data
-      local result = session.get_by_id('new-8')
+      local promise = session.get_by_id('new-8')
+      local result = promise:wait()
 
       -- Verify the result
       assert.is_not_nil(result)
       if result then
         assert.equal('new-8', result.id)
       end
+      
+      -- Restore
+      if original_get_session then
+        state.api_client.get_session = original_get_session
+      end
     end)
 
     it('returns nil when no session matches the ID', function()
+      -- Mock the get_session method
+      state.api_client.get_session = function(self, id)
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
+      end
+
       -- Call the function with non-existent ID
-      local result = session.get_by_id('nonexistent')
+      local promise = session.get_by_id('nonexistent')
+      local result = promise:wait()
 
       -- Should be nil since no sessions match
       assert.is_nil(result)
@@ -328,6 +361,26 @@ describe('opencode.session', function()
         msg1 = '{"id": "msg1", "content": "test message"}',
       }
 
+      -- Update vim.fn.isdirectory to recognize this directory
+      vim.fn.isdirectory = function(path)
+        if path == dir or (mock_data.valid_dirs and vim.tbl_contains(mock_data.valid_dirs, path)) then
+          return 1
+        end
+        return 0
+      end
+
+      -- Update vim.fs.dir to return the mock data for this specific path
+      vim.fs.dir = function(path)
+        if path == dir then
+          return coroutine.wrap(function()
+            for _, file in ipairs(mock_data.message_files) do
+              coroutine.yield(file, 'file')
+            end
+          end)
+        end
+        return original_fs_dir(path)
+      end
+
       local result = util.read_json_dir(dir)
       assert.is_not_nil(result)
       if result then
@@ -345,6 +398,26 @@ describe('opencode.session', function()
         valid = '{"id": "valid"}',
         invalid = 'not json',
       }
+
+      -- Update vim.fn.isdirectory to recognize this directory
+      vim.fn.isdirectory = function(path)
+        if path == dir or (mock_data.valid_dirs and vim.tbl_contains(mock_data.valid_dirs, path)) then
+          return 1
+        end
+        return 0
+      end
+
+      -- Update vim.fs.dir to return the mock data for this specific path
+      vim.fs.dir = function(path)
+        if path == dir then
+          return coroutine.wrap(function()
+            for _, file in ipairs(mock_data.message_files) do
+              coroutine.yield(file, 'file')
+            end
+          end)
+        end
+        return original_fs_dir(path)
+      end
 
       local result = util.read_json_dir(dir)
       assert.is_not_nil(result)

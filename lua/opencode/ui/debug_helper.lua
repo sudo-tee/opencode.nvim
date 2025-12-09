@@ -49,6 +49,7 @@ end
 
 function M.debug_session()
   local session = require('opencode.session')
+
   local session_path = session.get_workspace_session_path()
   if not state.active_session then
     print('No active session')

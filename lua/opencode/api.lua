@@ -10,6 +10,7 @@ local icons = require('opencode.ui.icons')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 local config = require('opencode.config')
+local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -49,14 +50,14 @@ function M.paste_image()
   core.paste_image_from_clipboard()
 end
 
-function M.toggle(new_session)
+M.toggle = Promise.async(function(new_session)
+  local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
   if state.windows == nil then
-    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
-    core.open({ new_session = new_session == true, focus = focus, start_insert = false })
+    core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
     M.close()
   end
-end
+end)
 
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
@@ -115,7 +116,7 @@ end
 ---@param from_snapshot_id? string
 ---@param to_snapshot_id? string|number
 function M.diff_open(from_snapshot_id, to_snapshot_id)
-  core.open({ new_session = false, focus = 'output' }):and_then(function()
+  core.open_if_closed({ new_session = false, focus = 'output' }):and_then(function()
     git_review.review(from_snapshot_id)
   end)
 end
@@ -333,15 +334,15 @@ function M.debug_session()
   debug_helper.debug_session()
 end
 
-function M.initialize()
+M.initialize = Promise.async(function()
   local id = require('opencode.id')
 
-  local new_session = core.create_new_session('AGENTS.md Initialization')
+  local new_session = core.create_new_session('AGENTS.md Initialization'):await()
   if not new_session then
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
   end
-  if not core.initialize_current_model() or not state.current_model then
+  if not core.initialize_current_model():await() or not state.current_model then
     vim.notify('No model selected', vim.log.levels.ERROR)
     return
   end
@@ -357,7 +358,7 @@ function M.initialize()
     modelID = modelId,
     messageID = id.ascending('message'),
   })
-end
+end)
 
 function M.agent_plan()
   require('opencode.core').switch_to_mode('plan')
@@ -463,8 +464,8 @@ function M.help()
   ui.render_lines(msg)
 end
 
-function M.mcp()
-  local mcp = config_file.get_mcp_servers()
+M.mcp = Promise.async(function()
+  local mcp = config_file.get_mcp_servers():await()
   if not mcp then
     vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -502,10 +503,10 @@ function M.mcp()
 
   table.insert(msg, '')
   ui.render_lines(msg)
-end
+end)
 
 function M.commands_list()
-  local commands = config_file.get_user_commands()
+  local commands = config_file.get_user_commands():await()
   if not commands then
     vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -530,16 +531,16 @@ function M.commands_list()
   ui.render_lines(msg)
 end
 
-function M.current_model()
+M.current_model = Promise.async(function()
   return core.initialize_current_model()
-end
+end)
 
 --- Runs a user-defined command by name.
 --- @param name string The name of the user command to run.
 --- @param args? string[] Additional arguments to pass to the command.
-function M.run_user_command(name, args)
+M.run_user_command = Promise.async(function(name, args)
   return M.open_input():and_then(function()
-    local user_commands = config_file.get_user_commands()
+    local user_commands = config_file.get_user_commands():await()
     local command_cfg = user_commands and user_commands[name]
     if not command_cfg then
       vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
@@ -566,7 +567,7 @@ function M.run_user_command(name, args)
         end)
       end)
   end)
-end
+end)
 
 --- Compacts the current session by removing unnecessary data.
 --- @param current_session? Session The session to compact. Defaults to the active session.
@@ -737,9 +738,9 @@ end
 
 ---@param current_session? Session
 --- @param new_title? string
-function M.rename_session(current_session, new_title)
+M.rename_session = Promise.async(function(current_session, new_title)
   local promise = require('opencode.promise').new()
-  current_session = current_session or vim.deepcopy(state.active_session) --[[@as Session]]
+  current_session = current_session or (state.active_session and vim.deepcopy(state.active_session) or nil) --[[@as Session]]
   if not current_session then
     vim.notify('No active session to rename', vim.log.levels.WARN)
     promise:resolve(nil)
@@ -756,7 +757,7 @@ function M.rename_session(current_session, new_title)
       :and_then(function()
         current_session.title = title
         if state.active_session and state.active_session.id == current_session.id then
-          local session_obj = session.get_by_id(current_session.id)
+          local session_obj = session.get_by_id(current_session.id):await()
           if session_obj then
             session_obj.title = title
             state.active_session = vim.deepcopy(session_obj)
@@ -781,7 +782,7 @@ function M.rename_session(current_session, new_title)
     end)
   end)
   return promise
-end
+end)
 
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
@@ -906,6 +907,7 @@ function M.toggle_tool_output()
   ui.render_output()
 end
 
+---@type table<string, OpencodeUICommand>
 M.commands = {
   open = {
     desc = 'Open opencode window (input/output)',
@@ -972,7 +974,7 @@ M.commands = {
             vim.notify('Failed to create new session', vim.log.levels.ERROR)
             return
           end
-          state.active_session = new_session
+          state.active_session = new_session:await()
           M.open_input()
         else
           M.open_input_new_session()
@@ -1140,7 +1142,7 @@ M.commands = {
   command = {
     desc = 'Run user-defined command',
     completions = function()
-      local user_commands = config_file.get_user_commands()
+      local user_commands = config_file.get_user_commands():wait()
       if not user_commands then
         return {}
       end
@@ -1351,7 +1353,7 @@ function M.setup_legacy_commands()
   end
 end
 
-function M.get_slash_commands()
+M.get_slash_commands = Promise.async(function()
   local result = {}
   for slash_cmd, def in pairs(M.slash_commands_map) do
     table.insert(result, {
@@ -1361,7 +1363,7 @@ function M.get_slash_commands()
     })
   end
 
-  local user_commands = config_file.get_user_commands()
+  local user_commands = config_file.get_user_commands():await()
   if user_commands then
     for name, def in pairs(user_commands) do
       table.insert(result, {
@@ -1376,7 +1378,7 @@ function M.get_slash_commands()
   end
 
   return result
-end
+end)
 
 function M.setup()
   vim.api.nvim_create_user_command('Opencode', M.route_command, {

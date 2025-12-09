@@ -123,7 +123,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
       assert.are.same({}, items)
     end)
 
@@ -133,7 +134,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
       assert.is_true(#items >= 3) -- current_file, diagnostics, cursor_data
 
@@ -149,7 +151,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
       local selection_item = find_item_by_label(items, 'Selection (1)')
       assert.is_not_nil(selection_item)
@@ -166,13 +169,15 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
       mock_config.context.files = { enabled = true }
 
-      local items_with_files = source.complete(completion_context)
+      local promise2 = source.complete(completion_context)
+      local items_with_files = promise2:wait()
       local mentioned_files = vim.tbl_filter(function(item)
-        return item.data.type == 'mentioned_file'
+        return item.data and item.data.type == 'mentioned_file'
       end, items_with_files)
 
       assert.are.equal(2, #mentioned_files)
@@ -184,10 +189,11 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
       local subagent_items = vim.tbl_filter(function(item)
-        return item.data.type == 'subagent'
+        return item.data and item.data.type == 'subagent'
       end, items)
 
       assert.are.equal(2, #subagent_items)
@@ -203,7 +209,8 @@ describe('context completion', function()
         input = 'file',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
       for _, item in ipairs(items) do
         assert.is_true(item.label:lower():find('file', 1, true) ~= nil)
@@ -220,9 +227,10 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
 
-      assert.is_true(items[1].data.available)
+      assert.is_true(items and #items > 0 and items[1].data.available)
 
       local first_unavailable_idx = nil
       for i, item in ipairs(items) do
@@ -435,7 +443,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
       local diagnostics_item = find_item_by_label(items, 'Diagnostics')
 
       assert.is_not_nil(diagnostics_item)
@@ -459,7 +468,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = source.complete(completion_context)
+      local promise = source.complete(completion_context)
+      local items = promise:wait()
       local cursor_item = find_item_by_label(items, 'Cursor Data')
 
       assert.is_not_nil(cursor_item)
@@ -474,7 +484,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = context_completion.get_source().complete(completion_context)
+      local promise = context_completion.get_source().complete(completion_context)
+      local items = promise:wait()
       local selection_detail = find_item_by_pattern(items, 'Selection 1')
 
       assert.is_not_nil(selection_detail)
@@ -502,7 +513,8 @@ describe('context completion', function()
         input = '',
       }
 
-      local items = context_completion.get_source().complete(completion_context)
+      local promise = context_completion.get_source().complete(completion_context)
+      local items = promise:wait()
 
       assert.is_true(#items >= 3)
     end)

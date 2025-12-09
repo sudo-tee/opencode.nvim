@@ -1,3 +1,4 @@
+local Promise = require('opencode.promise')
 local M = {}
 
 function M.setup(completion_sources)
@@ -27,57 +28,59 @@ function M.setup(completion_sources)
     return vim.bo.filetype == 'opencode'
   end
 
-  source.complete = Promise.async(function(self, params, callback)
-    local line = params.context.cursor_line
+  function source:complete(params, callback)
+    Promise.spawn(function()
+      local line = params.context.cursor_line
 
-    local col = params.context.cursor.col
-    local before_cursor = line:sub(1, col - 1)
+      local col = params.context.cursor.col
+      local before_cursor = line:sub(1, col - 1)
 
-    local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
-    local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
+      local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
+      local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
 
-    if not trigger_match then
-      callback({ items = {}, isIncomplete = false })
-      return
-    end
-
-    local context = {
-      input = trigger_match,
-      cursor_pos = col,
-      line = line,
-      trigger_char = trigger_char,
-    }
-
-    local items = {}
-    for _, completion_source in ipairs(completion_sources) do
-      local source_items = completion_source.complete(context):await()
-      for j, item in ipairs(source_items) do
-        table.insert(items, {
-          label = item.label,
-          kind = 1,
-          cmp = {
-            kind_text = item.kind_icon,
-          },
-          kind_hl_group = item.kind_hl,
-          detail = item.detail,
-          documentation = item.documentation,
-          insertText = item.insert_text or '',
-          sortText = string.format(
-            '%02d_%02d_%02d_%s',
-            completion_source.priority or 999,
-            item.priority or 999,
-            j,
-            item.label
-          ),
-          data = {
-            original_item = item,
-          },
-        })
+      if not trigger_match then
+        callback({ items = {}, isIncomplete = false })
+        return
       end
-    end
 
-    callback({ items = items, isIncomplete = true })
-  end)
+      local context = {
+        input = trigger_match,
+        cursor_pos = col,
+        line = line,
+        trigger_char = trigger_char,
+      }
+
+      local items = {}
+      for _, completion_source in ipairs(completion_sources) do
+        local source_items = completion_source.complete(context):await()
+        for j, item in ipairs(source_items) do
+          table.insert(items, {
+            label = item.label,
+            kind = 1,
+            cmp = {
+              kind_text = item.kind_icon,
+            },
+            kind_hl_group = item.kind_hl,
+            detail = item.detail,
+            documentation = item.documentation,
+            insertText = item.insert_text or '',
+            sortText = string.format(
+              '%02d_%02d_%02d_%s',
+              completion_source.priority or 999,
+              item.priority or 999,
+              j,
+              item.label
+            ),
+            data = {
+              original_item = item,
+            },
+          })
+        end
+      end
+
+      callback({ items = items, isIncomplete = true })
+    end)
+  end
 
   cmp.register_source('opencode_mentions', source.new())
 

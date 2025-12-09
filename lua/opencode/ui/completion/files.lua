@@ -121,7 +121,7 @@ local file_source = {
       return {}
     end
 
-    local recent_files = #input < 1 and M.get_recent_files() or {}
+    local recent_files = #input < 1 and M.get_recent_files():await() or {}
     if #recent_files >= 5 then
       return recent_files
     end

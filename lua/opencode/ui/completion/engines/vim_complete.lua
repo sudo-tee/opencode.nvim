@@ -1,3 +1,4 @@
+local Promise = require('lua.opencode.promise')
 local M = {}
 
 local completion_active = false
@@ -58,59 +59,61 @@ function M.trigger(trigger_char)
 end
 
 function M._update()
-  if not completion_active then
-    return
-  end
+  Promise.spawn(function()
+    if not completion_active then
+      return
+    end
 
-  local line = vim.api.nvim_get_current_line()
-  local col = vim.api.nvim_win_get_cursor(0)[2]
-  local before_cursor = line:sub(1, col)
-  local trigger_char, trigger_match = M._get_trigger(before_cursor)
+    local line = vim.api.nvim_get_current_line()
+    local col = vim.api.nvim_win_get_cursor(0)[2]
+    local before_cursor = line:sub(1, col)
+    local trigger_char, trigger_match = M._get_trigger(before_cursor)
 
-  if not trigger_char then
-    completion_active = false
-    return
-  end
+    if not trigger_char then
+      completion_active = false
+      return
+    end
 
-  local context = {
-    input = trigger_match,
-    cursor_pos = col + 1,
-    line = line,
-    trigger_char = trigger_char,
-  }
+    local context = {
+      input = trigger_match,
+      cursor_pos = col + 1,
+      line = line,
+      trigger_char = trigger_char,
+    }
 
-  local items = {}
-  for _, source in ipairs(M._completion_sources or {}) do
-    local source_items = source.complete(context)
-    for i, item in ipairs(source_items) do
-      if vim.startswith(item.insert_text or '', trigger_char) then
-        item.insert_text = item.insert_text:sub(2)
+    local items = {}
+    for _, source in ipairs(M._completion_sources or {}) do
+      local source_items = source.complete(context):await()
+      for i, item in ipairs(source_items) do
+        if vim.startswith(item.insert_text or '', trigger_char) then
+          item.insert_text = item.insert_text:sub(2)
+        end
+        local source_priority = source.priority or 999
+        local item_priority = item.priority or 999
+        table.insert(items, {
+          word = #item.insert_text > 0 and item.insert_text or item.label,
+          abbr = (item.kind_icon or '') .. item.label,
+          menu = source.name,
+          kind = item.kind:sub(1, 1):upper(),
+          user_data = item,
+          _sort_text = string.format('%02d_%02d_%02d_%s', source_priority, item_priority, i, item.label),
+        })
       end
-      local source_priority = source.priority or 999
-      local item_priority = item.priority or 999
-      table.insert(items, {
-        word = #item.insert_text > 0 and item.insert_text or item.label,
-        abbr = (item.kind_icon or '') .. item.label,
-        menu = source.name,
-        kind = item.kind:sub(1, 1):upper(),
-        user_data = item,
-        _sort_text = string.format('%02d_%02d_%02d_%s', source_priority, item_priority, i, item.label),
-      })
     end
-  end
 
-  table.sort(items, function(a, b)
-    return a._sort_text < b._sort_text
+    table.sort(items, function(a, b)
+      return a._sort_text < b._sort_text
+    end)
+
+    if #items > 0 then
+      local start_col = before_cursor:find(vim.pesc(trigger_char) .. '[%w_%-%.]*$')
+      if start_col then
+        vim.fn.complete(start_col + 1, items)
+      end
+    else
+      completion_active = false
+    end
   end)
-
-  if #items > 0 then
-    local start_col = before_cursor:find(vim.pesc(trigger_char) .. '[%w_%-%.]*$')
-    if start_col then
-      vim.fn.complete(start_col + 1, items)
-    end
-  else
-    completion_active = false
-  end
 end
 
 M.on_complete = function()

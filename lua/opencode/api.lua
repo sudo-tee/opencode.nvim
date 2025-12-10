@@ -262,7 +262,7 @@ function M.prev_message()
   require('opencode.ui.navigation').goto_prev_message()
 end
 
-function M.submit_input_prompt()
+M.submit_input_prompt = Promise.async(function()
   if state.display_route then
     -- we're displaying /help or something similar, need to clear that and refresh
     -- the session data before sending the command
@@ -271,7 +271,7 @@ function M.submit_input_prompt()
   end
 
   input_window.handle_submit()
-end
+end)
 
 function M.mention_file()
   local picker = require('opencode.ui.file_picker')
@@ -506,8 +506,8 @@ M.mcp = Promise.async(function()
   ui.render_lines(msg)
 end)
 
-function M.commands_list()
-  local commands = config_file.get_user_commands():wait()
+M.commands_list = Promise.async(function()
+  local commands = config_file.get_user_commands():await()
   if not commands then
     vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -530,7 +530,7 @@ function M.commands_list()
 
   table.insert(msg, '')
   ui.render_lines(msg)
-end
+end)
 
 M.current_model = Promise.async(function()
   return core.initialize_current_model()

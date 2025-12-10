@@ -69,7 +69,7 @@ end
 ---Queries all completion sources and formats their responses into a unified structure
 ---@param context table Completion context containing input, cursor_pos, line, trigger_char
 ---@return table[] Array of wrapped completion items with metadata
-CompletionEngine.get_completion_items = Promsise.async(function(context)
+CompletionEngine.get_completion_items = Promise.async(function(self, context)
   local items = {}
   for _, source in ipairs(self._completion_sources or {}) do
     local source_items = source.complete(context):await()

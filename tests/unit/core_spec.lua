@@ -200,7 +200,7 @@ describe('opencode.core', function()
     it('resets is_opening flag when error occurs', function()
       state.windows = nil
       state.is_opening = false
-      
+
       -- Simply cause an error by stubbing a function that will be called
       local original_create_new_session = core.create_new_session
       core.create_new_session = function()
@@ -209,7 +209,7 @@ describe('opencode.core', function()
 
       local notify_stub = stub(vim, 'notify')
       local result_promise = core.open({ new_session = true, focus = 'input' })
-      
+
       -- Wait for async operations to complete
       local ok, err = pcall(function()
         result_promise:wait()
@@ -218,13 +218,13 @@ describe('opencode.core', function()
       -- Should fail due to the error
       assert.is_false(ok)
       assert.truthy(err)
-      
+
       -- is_opening should be reset to false even when error occurs
       assert.is_false(state.is_opening)
-      
+
       -- Should have notified about the error
       assert.stub(notify_stub).was_called()
-      
+
       -- Restore original function
       core.create_new_session = original_create_new_session
       notify_stub:revert()
@@ -405,7 +405,12 @@ describe('opencode.core', function()
     local saved_cli
 
     local function mock_vim_system(result)
-      return function(_cmd, _opts)
+      return function(_cmd, _opts, on_exit)
+        if on_exit then
+          result.code = 0
+          on_exit(result)
+        end
+
         return {
           wait = function()
             return result
@@ -430,7 +435,7 @@ describe('opencode.core', function()
       vim.fn.executable = function(_)
         return 0
       end
-      assert.is_false(core.opencode_ok())
+      assert.is_false(core.opencode_ok():await())
     end)
 
     it('returns false when version is below required', function()
@@ -440,7 +445,7 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.1' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
-      assert.is_false(core.opencode_ok())
+      assert.is_false(core.opencode_ok():await())
     end)
 
     it('returns true when version equals required', function()
@@ -450,7 +455,7 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.2' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
-      assert.is_true(core.opencode_ok())
+      assert.is_true(core.opencode_ok():await())
     end)
 
     it('returns true when version is above required', function()
@@ -460,7 +465,7 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.5.0' })
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
-      assert.is_true(core.opencode_ok())
+      assert.is_true(core.opencode_ok():await())
     end)
   end)
 
@@ -477,7 +482,7 @@ describe('opencode.core', function()
           },
         },
       })
-      
+
       stub(config_file, 'get_opencode_agents').returns(agents_promise)
       stub(config_file, 'get_opencode_config').returns(config_promise)
 
@@ -505,7 +510,7 @@ describe('opencode.core', function()
           plan = {},
         },
       })
-      
+
       stub(config_file, 'get_opencode_agents').returns(agents_promise)
       stub(config_file, 'get_opencode_config').returns(config_promise)
 
@@ -527,7 +532,7 @@ describe('opencode.core', function()
       local Promise = require('opencode.promise')
       local agents_promise = Promise.new()
       agents_promise:resolve({ 'plan', 'build' })
-      
+
       stub(config_file, 'get_opencode_agents').returns(agents_promise)
 
       local promise = core.switch_to_mode('nonexistent')

@@ -22,7 +22,7 @@
 ---@field wrap fun(obj: T | Promise<T>): Promise<T>
 ---@field spawn fun(fn: fun(): T|nil): Promise<T>
 ---@field async fun(fn: fun(...): T?): fun(...): Promise<T>
----@field system fun()
+---@field system fun(table, table): Promise<T>
 local Promise = {}
 Promise.__index = Promise
 

@@ -22,6 +22,7 @@
 ---@field wrap fun(obj: T | Promise<T>): Promise<T>
 ---@field spawn fun(fn: fun(): T|nil): Promise<T>
 ---@field async fun(fn: fun(...): T?): fun(...): Promise<T>
+---@field system fun()
 local Promise = {}
 Promise.__index = Promise
 
@@ -334,6 +335,25 @@ function Promise.async(fn)
       return fn(unpack(args))
     end)
   end
+end
+
+---Wrap vim.system in a promise
+---@generic T
+---@param cmd table vim.system cmd options
+---@param opts table|nil vim.system opts
+---@return Promise<T>
+function Promise.system(cmd, opts)
+  local p = Promise.new()
+
+  vim.system(cmd, opts or {}, function(result)
+    if result.code == 0 then
+      p:resolve(result)
+    else
+      p:reject(result)
+    end
+  end)
+
+  return p
 end
 
 return Promise

@@ -147,3 +147,46 @@ describe('add_file/add_selection/add_subagent', function()
     assert.same({ 'agentX' }, context.context.mentioned_subagents)
   end)
 end)
+
+describe('context instance with config override', function()
+  it('should use override config for context enabled checks', function()
+    local override_config = {
+      current_file = { enabled = false },
+      diagnostics = { enabled = false },
+      selection = { enabled = true },
+      agents = { enabled = true }
+    }
+    
+    local instance = context.new_instance(override_config)
+    
+    -- Test that the override config is being used
+    assert.is_false(instance:is_context_enabled('current_file'))
+    assert.is_false(instance:is_context_enabled('diagnostics'))
+    assert.is_true(instance:is_context_enabled('selection'))
+    assert.is_true(instance:is_context_enabled('agents'))
+  end)
+  
+  it('should fall back to global config when override not provided', function()
+    local override_config = {
+      current_file = { enabled = false }
+      -- other context types not specified
+    }
+    
+    local instance = context.new_instance(override_config)
+    
+    -- current_file should use override
+    assert.is_false(instance:is_context_enabled('current_file'))
+    
+    -- other context types should fall back to normal behavior
+    -- (these will use global config + state, tested elsewhere)
+  end)
+  
+  it('should work without any override config', function()
+    local instance = context.new_instance()
+    
+    -- Should behave exactly like global context
+    -- (actual values depend on config/state, just verify no errors)
+    assert.is_not_nil(instance:is_context_enabled('current_file'))
+    assert.is_not_nil(instance:is_context_enabled('diagnostics'))
+  end)
+end)

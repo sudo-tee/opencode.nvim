@@ -3,23 +3,20 @@
 local util = require('opencode.util')
 local config = require('opencode.config')
 local state = require('opencode.state')
-local func = require('vim.func')
 
 local M = {}
 
 ---@class ContextInstance
----@field context OpencodeContext
----@field last_context OpencodeContext|nil
----@field context_config OpencodeContextConfig|nil Optional context config override
+---@field private _context OpencodeContext
+---@field private _last_context OpencodeContext|nil
 local ContextInstance = {}
 ContextInstance.__index = ContextInstance
 
 --- Creates a new Context instance
----@param context_config? OpencodeContextConfig Optional context config to override global config
 ---@return ContextInstance
-function ContextInstance:new(context_config)
-  self = setmetatable({}, ContextInstance)
-  self.context = {
+function ContextInstance:new()
+  local obj = setmetatable({}, self)
+  obj._context = {
     -- current file
     current_file = nil,
     cursor_data = nil,
@@ -30,18 +27,55 @@ function ContextInstance:new(context_config)
     linter_errors = {},
     mentioned_subagents = {},
   }
-  self.last_context = nil
-  self.context_config = context_config
-  return self
+  obj._last_context = nil
+  return obj
 end
 
+--- Get the internal context data (read-only)
+---@return OpencodeContext
+function ContextInstance:get_context()
+  return vim.deepcopy(self._context)
+end
+
+---@type OpencodeContext
+M.context = {
+  -- current file
+  current_file = nil,
+  cursor_data = nil,
+
+  -- attachments
+  mentioned_files = nil,
+  selections = {},
+  linter_errors = {},
+  mentioned_subagents = {},
+}
+
+-- Default instance for backward compatibility
+---@type ContextInstance
+M._default_instance = ContextInstance:new()
+
 function ContextInstance:unload_attachments()
-  self.context.mentioned_files = nil
-  self.context.selections = nil
-  self.context.linter_errors = nil
+  self._context.mentioned_files = nil
+  self._context.selections = nil
+  self._context.linter_errors = nil
+end
+
+function M.unload_attachments()
+  M._default_instance:unload_attachments()
+  -- Also update the global context for backward compatibility
+  M.context.mentioned_files = nil
+  M.context.selections = nil
+  M.context.linter_errors = nil
 end
 
 function ContextInstance:get_current_buf()
+  local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
+  if util.is_buf_a_file(curr_buf) then
+    return curr_buf, state.last_code_win_before_opencode or vim.api.nvim_get_current_win()
+  end
+end
+
+function M.get_current_buf()
   local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
   if util.is_buf_a_file(curr_buf) then
     return curr_buf, state.last_code_win_before_opencode or vim.api.nvim_get_current_win()
@@ -55,31 +89,60 @@ function ContextInstance:load()
     local current_file = self:get_current_file(buf)
     local cursor_data = self:get_current_cursor_data(buf, win)
 
-    self.context.current_file = current_file
-    self.context.cursor_data = cursor_data
-    self.context.linter_errors = self:get_diagnostics(buf)
+    self._context.current_file = current_file
+    self._context.cursor_data = cursor_data
+    self._context.linter_errors = self:get_diagnostics(buf)
   end
 
   local current_selection = self:get_current_selection()
   if current_selection then
-    local selection = self:new_selection(self.context.current_file, current_selection.text, current_selection.lines)
+    local selection = self:new_selection(self._context.current_file, current_selection.text, current_selection.lines)
     self:add_selection(selection)
   end
+  -- Note: We don't update state.context_updated_at for instance methods
+end
+
+function M.load()
+  local buf, win = M.get_current_buf()
+
+  if buf then
+    local current_file = M.get_current_file(buf)
+    local cursor_data = M.get_current_cursor_data(buf, win)
+
+    M.context.current_file = current_file
+    M.context.cursor_data = cursor_data
+    M.context.linter_errors = M.get_diagnostics(buf)
+  end
+
+  local current_selection = M.get_current_selection()
+  if current_selection then
+    local selection = M.new_selection(M.context.current_file, current_selection.text, current_selection.lines)
+    M.add_selection(selection)
+  end
+  state.context_updated_at = vim.uv.now()
+  
+  -- Update default instance to keep it in sync
+  M._default_instance._context = vim.deepcopy(M.context)
 end
 
 -- Checks if a context feature is enabled in config or state
 ---@param context_key string
 ---@return boolean
 function ContextInstance:is_context_enabled(context_key)
-  -- If instance has a context config, use it as the override
-  if self.context_config then
-    local override_enabled = vim.tbl_get(self.context_config, context_key, 'enabled')
-    if override_enabled ~= nil then
-      return override_enabled
-    end
-  end
+  local is_enabled = vim.tbl_get(config --[[@as table]], 'context', context_key, 'enabled')
+  local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
 
-  -- Fall back to the existing logic (state then global config)
+  if is_state_enabled ~= nil then
+    return is_state_enabled
+  else
+    return is_enabled
+  end
+end
+
+-- Checks if a context feature is enabled in config or state
+---@param context_key string
+---@return boolean
+function M.is_context_enabled(context_key)
   local is_enabled = vim.tbl_get(config --[[@as table]], 'context', context_key, 'enabled')
   local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
 
@@ -102,8 +165,56 @@ function ContextInstance:get_diagnostics(buf)
   end
 
   local global_conf = vim.tbl_get(config --[[@as table]], 'context', 'diagnostics') or {}
-  local override_conf = self.context_config and vim.tbl_get(self.context_config, 'diagnostics') or {}
-  local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf, override_conf) or {}
+  local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf) or {}
+
+  local severity_levels = {}
+  if diagnostic_conf.error then
+    table.insert(severity_levels, vim.diagnostic.severity.ERROR)
+  end
+  if diagnostic_conf.warning then
+    table.insert(severity_levels, vim.diagnostic.severity.WARN)
+  end
+  if diagnostic_conf.info then
+    table.insert(severity_levels, vim.diagnostic.severity.INFO)
+  end
+
+  local diagnostics = vim.diagnostic.get(buf, { severity = severity_levels })
+  if #diagnostics == 0 then
+    return {}
+  end
+
+  -- Convert vim.Diagnostic[] to OpencodeDiagnostic[]
+  local opencode_diagnostics = {}
+  for _, diag in ipairs(diagnostics) do
+    table.insert(opencode_diagnostics, {
+      message = diag.message,
+      severity = diag.severity,
+      lnum = diag.lnum,
+      col = diag.col,
+      end_lnum = diag.end_lnum,
+      end_col = diag.end_col,
+      source = diag.source,
+      code = diag.code,
+      user_data = diag.user_data,
+    })
+  end
+
+  return opencode_diagnostics
+end
+
+---@return OpencodeDiagnostic[]|nil
+function M.get_diagnostics(buf)
+  if not M.is_context_enabled('diagnostics') then
+    return nil
+  end
+
+  local current_conf = vim.tbl_get(state, 'current_context_config', 'diagnostics') or {}
+  if current_conf.enabled == false then
+    return {}
+  end
+
+  local global_conf = vim.tbl_get(config --[[@as table]], 'context', 'diagnostics') or {}
+  local diagnostic_conf = vim.tbl_deep_extend('force', global_conf, current_conf) or {}
 
   local severity_levels = {}
   if diagnostic_conf.error then
@@ -148,34 +259,72 @@ function ContextInstance:new_selection(file, content, lines)
   }
 end
 
+function M.new_selection(file, content, lines)
+  return {
+    file = file,
+    content = util.indent_code_block(content),
+    lines = lines,
+  }
+end
+
 function ContextInstance:add_selection(selection)
-  if not self.context.selections then
-    self.context.selections = {}
+  if not self._context.selections then
+    self._context.selections = {}
   end
 
-  table.insert(self.context.selections, selection)
+  table.insert(self._context.selections, selection)
+  -- Note: We don't update state.context_updated_at for instance methods
+end
+
+function M.add_selection(selection)
+  if not M.context.selections then
+    M.context.selections = {}
+  end
+
+  table.insert(M.context.selections, selection)
+
+  state.context_updated_at = vim.uv.now()
 end
 
 function ContextInstance:remove_selection(selection)
-  if not self.context.selections then
+  if not self._context.selections then
     return
   end
 
-  for i, sel in ipairs(self.context.selections) do
+  for i, sel in ipairs(self._context.selections) do
     if sel.file.path == selection.file.path and sel.lines == selection.lines then
-      table.remove(self.context.selections, i)
+      table.remove(self._context.selections, i)
       break
     end
   end
+  -- Note: We don't update state.context_updated_at for instance methods
+end
+
+function M.remove_selection(selection)
+  if not M.context.selections then
+    return
+  end
+
+  for i, sel in ipairs(M.context.selections) do
+    if sel.file.path == selection.file.path and sel.lines == selection.lines then
+      table.remove(M.context.selections, i)
+      break
+    end
+  end
+  state.context_updated_at = vim.uv.now()
 end
 
 function ContextInstance:clear_selections()
-  self.context.selections = nil
+  self._context.selections = nil
 end
 
-function ContextInstance:add_file(file)
-  if not self.context.mentioned_files then
-    self.context.mentioned_files = {}
+function M.clear_selections()
+  M.context.selections = nil
+end
+
+function M.add_file(file)
+  if not M.context.mentioned_files then
+    M.context.mentioned_files = {}
   end
 
   local is_file = vim.fn.filereadable(file) == 1
@@ -192,69 +341,105 @@ function ContextInstance:add_file(file)
 
   file = vim.fn.fnamemodify(file, ':p')
 
-  if not vim.tbl_contains(self.context.mentioned_files, file) then
-    table.insert(self.context.mentioned_files, file)
+  if not vim.tbl_contains(M.context.mentioned_files, file) then
+    table.insert(M.context.mentioned_files, file)
   end
+
+  state.context_updated_at = vim.uv.now()
 end
 
-function ContextInstance:remove_file(file)
+function M.remove_file(file)
   file = vim.fn.fnamemodify(file, ':p')
-  if not self.context.mentioned_files then
+  if not M.context.mentioned_files then
     return
   end
 
-  for i, f in ipairs(self.context.mentioned_files) do
+  for i, f in ipairs(M.context.mentioned_files) do
     if f == file then
-      table.remove(self.context.mentioned_files, i)
+      table.remove(M.context.mentioned_files, i)
       break
     end
   end
+  state.context_updated_at = vim.uv.now()
 end
 
-function ContextInstance:clear_files()
-  self.context.mentioned_files = nil
+function M.clear_files()
+  M.context.mentioned_files = nil
 end
 
-function ContextInstance:get_mentioned_files()
-  return self.context.mentioned_files or {}
-end
-
-function ContextInstance:add_subagent(subagent)
-  if not self.context.mentioned_subagents then
-    self.context.mentioned_subagents = {}
+function M.add_subagent(subagent)
+  if not M.context.mentioned_subagents then
+    M.context.mentioned_subagents = {}
   end
 
-  if not vim.tbl_contains(self.context.mentioned_subagents, subagent) then
-    table.insert(self.context.mentioned_subagents, subagent)
+  if not vim.tbl_contains(M.context.mentioned_subagents, subagent) then
+    table.insert(M.context.mentioned_subagents, subagent)
   end
+  state.context_updated_at = vim.uv.now()
 end
 
-function ContextInstance:remove_subagent(subagent)
-  if not self.context.mentioned_subagents then
+function M.remove_subagent(subagent)
+  if not M.context.mentioned_subagents then
     return
   end
 
-  for i, a in ipairs(self.context.mentioned_subagents) do
+  for i, a in ipairs(M.context.mentioned_subagents) do
     if a == subagent then
-      table.remove(self.context.mentioned_subagents, i)
+      table.remove(M.context.mentioned_subagents, i)
       break
     end
   end
+  state.context_updated_at = vim.uv.now()
 end
 
-function ContextInstance:clear_subagents()
-  self.context.mentioned_subagents = nil
+function M.clear_subagents()
+  M.context.mentioned_subagents = nil
 end
 
-function ContextInstance:get_mentioned_subagents()
-  if not self:is_context_enabled('agents') then
-    return nil
+---@param opts? OpencodeContextConfig
+---@return OpencodeContext
+function M.delta_context(opts)
+  opts = opts or config.context
+  if opts.enabled == false then
+    return {
+      current_file = nil,
+      mentioned_files = nil,
+      selections = nil,
+      linter_errors = nil,
+      cursor_data = nil,
+      mentioned_subagents = nil,
+    }
   end
-  return self.context.mentioned_subagents or {}
+
+  local context = vim.deepcopy(M.context)
+  local last_context = state.last_sent_context
+  if not last_context then
+    return context
+  end
+
+  -- no need to send file context again
+  if
+    context.current_file
+    and last_context.current_file
+    and context.current_file.name == last_context.current_file.name
+  then
+    context.current_file = nil
+  end
+
+  -- no need to send subagents again
+  if
+    context.mentioned_subagents
+    and last_context.mentioned_subagents
+    and vim.deep_equal(context.mentioned_subagents, last_context.mentioned_subagents)
+  then
+    context.mentioned_subagents = nil
+  end
+
+  return context
 end
 
-function ContextInstance:get_current_file(buf)
-  if not self:is_context_enabled('current_file') then
+function M.get_current_file(buf)
+  if not M.is_context_enabled('current_file') then
     return nil
   end
   local file = vim.api.nvim_buf_get_name(buf)
@@ -268,8 +453,8 @@ function ContextInstance:get_current_file(buf)
   }
 end
 
-function ContextInstance:get_current_cursor_data(buf, win)
-  if not self:is_context_enabled('cursor_data') then
+function M.get_current_cursor_data(buf, win)
+  if not M.is_context_enabled('cursor_data') then
     return nil
   end
 
@@ -279,8 +464,8 @@ function ContextInstance:get_current_cursor_data(buf, win)
   return { line = cursor_pos[2], column = cursor_pos[3], line_content = cursor_content }
 end
 
-function ContextInstance:get_current_selection()
-  if not self:is_context_enabled('selection') then
+function M.get_current_selection()
+  if not M.is_context_enabled('selection') then
     return nil
   end
 
@@ -318,183 +503,6 @@ function ContextInstance:get_current_selection()
     text = text and text:match('[^%s]') and text or nil,
     lines = start_line .. ', ' .. end_line,
   }
-end
-
-function ContextInstance:get_selections()
-  if not self:is_context_enabled('selection') then
-    return {}
-  end
-  return self.context.selections or {}
-end
-
----@param opts? OpencodeContextConfig
----@return OpencodeContext
-function ContextInstance:delta_context(opts)
-  opts = opts or config.context
-  if opts.enabled == false then
-    return {
-      current_file = nil,
-      mentioned_files = nil,
-      selections = nil,
-      linter_errors = nil,
-      cursor_data = nil,
-      mentioned_subagents = nil,
-    }
-  end
-
-  local context = vim.deepcopy(self.context)
-  local last_context = self.last_context
-  if not last_context then
-    return context
-  end
-
-  -- no need to send file context again
-  if
-    context.current_file
-    and last_context.current_file
-    and context.current_file.name == last_context.current_file.name
-  then
-    context.current_file = nil
-  end
-
-  -- no need to send subagents again
-  if
-    context.mentioned_subagents
-    and last_context.mentioned_subagents
-    and vim.deep_equal(context.mentioned_subagents, last_context.mentioned_subagents)
-  then
-    context.mentioned_subagents = nil
-  end
-
-  return context
-end
-
---- Set the last context (used for delta calculations)
----@param last_context OpencodeContext
-function ContextInstance:set_last_context(last_context)
-  self.last_context = last_context
-end
-
--- Global context instance
----@type ContextInstance
-local global_context = ContextInstance:new()
-
--- Exposed API
----@type OpencodeContext
-M.context = global_context.context
-
---- Creates a new independent context instance
----@param context_config? OpencodeContextConfig Optional context config to override global config
----@return ContextInstance
-function M.new_instance(context_config)
-  return ContextInstance:new(context_config)
-end
-
-function M.unload_attachments()
-  global_context:unload_attachments()
-end
-
-function M.get_current_buf()
-  return global_context:get_current_buf()
-end
-
-function M.load()
-  global_context:load()
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.is_context_enabled(context_key)
-  return global_context:is_context_enabled(context_key)
-end
-
-function M.get_diagnostics(buf)
-  return global_context:get_diagnostics(buf)
-end
-
-function M.new_selection(file, content, lines)
-  return global_context:new_selection(file, content, lines)
-end
-
-function M.add_selection(selection)
-  global_context:add_selection(selection)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.remove_selection(selection)
-  global_context:remove_selection(selection)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.clear_selections()
-  global_context:clear_selections()
-end
-
-function M.add_file(file)
-  global_context:add_file(file)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.remove_file(file)
-  global_context:remove_file(file)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.clear_files()
-  global_context:clear_files()
-end
-
-function M.add_subagent(subagent)
-  global_context:add_subagent(subagent)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.remove_subagent(subagent)
-  global_context:remove_subagent(subagent)
-  state.context_updated_at = vim.uv.now()
-end
-
-function M.clear_subagents()
-  global_context:clear_subagents()
-end
-
-function M.delta_context(opts)
-  local context = global_context:delta_context(opts)
-  local last_context = state.last_sent_context
-  if not last_context then
-    return context
-  end
-
-  -- no need to send file context again
-  if
-    context.current_file
-    and last_context.current_file
-    and context.current_file.name == last_context.current_file.name
-  then
-    context.current_file = nil
-  end
-
-  -- no need to send subagents again
-  if
-    context.mentioned_subagents
-    and last_context.mentioned_subagents
-    and vim.deep_equal(context.mentioned_subagents, last_context.mentioned_subagents)
-  then
-    context.mentioned_subagents = nil
-  end
-
-  return context
-end
-
-function M.get_current_file(buf)
-  return global_context:get_current_file(buf)
-end
-
-function M.get_current_cursor_data(buf, win)
-  return global_context:get_current_cursor_data(buf, win)
-end
-
-function M.get_current_selection()
-  return global_context:get_current_selection()
 end
 
 local function format_file_part(path, prompt)
@@ -630,42 +638,43 @@ end
 --- Used for ephemeral sessions like quick chat that don't track context state
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil
----@param context_instance ContextInstance Optional context instance to use instead of global
 ---@return OpencodeMessagePart[]
-function M.format_message_stateless(prompt, opts, context_instance)
+function M.format_message_stateless(prompt, opts)
   opts = opts or config.context
   if opts.enabled == false then
     return { { type = 'text', text = prompt } }
   end
+
+  -- Use full context instead of delta for ephemeral sessions
+  local context = vim.deepcopy(M.context)
+
   local parts = { { type = 'text', text = prompt } }
 
-  for _, path in ipairs(context_instance:get_mentioned_files() or {}) do
-    table.insert(parts, format_file_part(path, prompt))
+  for _, path in ipairs(context.mentioned_files or {}) do
+    -- don't resend current file if it's also mentioned
+    if not context.current_file or path ~= context.current_file.path then
+      table.insert(parts, format_file_part(path, prompt))
+    end
   end
 
-  for _, sel in ipairs(context_instance:get_selections() or {}) do
-    vim.print('⭕ ❱ context.lua:639 ❱ ƒ(_) ❱ sel =', sel)
+  for _, sel in ipairs(context.selections or {}) do
     table.insert(parts, format_selection_part(sel))
   end
 
-  for _, agent in ipairs(context_instance:get_mentioned_subagents() or {}) do
+  for _, agent in ipairs(context.mentioned_subagents or {}) do
     table.insert(parts, format_subagents_part(agent, prompt))
   end
 
-  local current_file = context_instance:get_current_file(context_instance:get_current_buf() or 0)
-  if current_file then
-    table.insert(parts, format_file_part(current_file.path))
+  if context.current_file then
+    table.insert(parts, format_file_part(context.current_file.path))
   end
 
-  local diagnostics = context_instance:get_diagnostics(context_instance:get_current_buf() or 0)
-  if diagnostics and #diagnostics > 0 then
-    table.insert(parts, format_diagnostics_part(diagnostics))
+  if context.linter_errors and #context.linter_errors > 0 then
+    table.insert(parts, format_diagnostics_part(context.linter_errors))
   end
 
-  local cursor_data =
-    context_instance:get_current_cursor_data(context_instance:get_current_buf() or 0, vim.api.nvim_get_current_win())
-  if cursor_data then
-    table.insert(parts, format_cursor_data_part(cursor_data))
+  if context.cursor_data then
+    table.insert(parts, format_cursor_data_part(context.cursor_data))
   end
 
   return parts
@@ -750,7 +759,7 @@ function M.extract_legacy_tag(tag, text)
 end
 
 function M.setup()
-  state.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function()
+  state.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function(a)
     M.load()
   end)
 

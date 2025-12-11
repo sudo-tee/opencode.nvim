@@ -22,74 +22,82 @@ describe('config_file.setup', function()
   end)
 
   it('lazily loads config when accessed', function()
-    local get_config_called, get_project_called = false, false
-    local cfg = { agent = { ['a1'] = { mode = 'primary' } } }
-    state.api_client = {
-      get_config = function()
-        get_config_called = true
-        return Promise.new():resolve(cfg)
-      end,
-      get_current_project = function()
-        get_project_called = true
-        return Promise.new():resolve({ id = 'p1', name = 'P', path = '/tmp' })
-      end,
-    }
+    Promise.spawn(function()
+      local get_config_called, get_project_called = false, false
+      local cfg = { agent = { ['a1'] = { mode = 'primary' } } }
+      state.api_client = {
+        get_config = function()
+          get_config_called = true
+          return Promise.new():resolve(cfg)
+        end,
+        get_current_project = function()
+          get_project_called = true
+          return Promise.new():resolve({ id = 'p1', name = 'P', path = '/tmp' })
+        end,
+      }
 
-    -- Promises should not be set up during setup (lazy loading)
-    assert.falsy(config_file.config_promise)
-    assert.falsy(config_file.project_promise)
+      -- Promises should not be set up during setup (lazy loading)
+      assert.falsy(config_file.config_promise)
+      assert.falsy(config_file.project_promise)
 
-    -- Accessing config should trigger lazy loading
-    local resolved_cfg = config_file.get_opencode_config()
-    assert.same(cfg, resolved_cfg)
-    assert.True(get_config_called)
+      -- Accessing config should trigger lazy loading
+      local resolved_cfg = config_file.get_opencode_config():await()
+      assert.same(cfg, resolved_cfg)
+      assert.True(get_config_called)
 
-    -- Project should be loaded when accessed
-    local project = config_file.get_opencode_project()
-    assert.True(get_project_called)
+      -- Project should be loaded when accessed
+      local project = config_file.get_opencode_project():await()
+      assert.True(get_project_called)
+    end):wait()
   end)
 
   it('get_opencode_agents returns primary + defaults', function()
-    state.api_client = {
-      get_config = function()
-        return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' } } })
-      end,
-      get_current_project = function()
-        return Promise.new():resolve({ id = 'p1' })
-      end,
-    }
-    local agents = config_file.get_opencode_agents()
-    assert.True(vim.tbl_contains(agents, 'custom'))
-    assert.True(vim.tbl_contains(agents, 'build'))
-    assert.True(vim.tbl_contains(agents, 'plan'))
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' } } })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_opencode_agents():await()
+      assert.True(vim.tbl_contains(agents, 'custom'))
+      assert.True(vim.tbl_contains(agents, 'build'))
+      assert.True(vim.tbl_contains(agents, 'plan'))
+    end):wait()
   end)
 
   it('get_opencode_agents respects disabled defaults', function()
-    state.api_client = {
-      get_config = function()
-        return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' }, ['build'] = { disable = true }, ['plan'] = { disable = false } } })
-      end,
-      get_current_project = function()
-        return Promise.new():resolve({ id = 'p1' })
-      end,
-    }
-    local agents = config_file.get_opencode_agents()
-    assert.True(vim.tbl_contains(agents, 'custom'))
-    assert.False(vim.tbl_contains(agents, 'build'))
-    assert.True(vim.tbl_contains(agents, 'plan'))
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' }, ['build'] = { disable = true }, ['plan'] = { disable = false } } })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_opencode_agents():await()
+      assert.True(vim.tbl_contains(agents, 'custom'))
+      assert.False(vim.tbl_contains(agents, 'build'))
+      assert.True(vim.tbl_contains(agents, 'plan'))
+    end):wait()
   end)
 
   it('get_opencode_project returns project', function()
-    local project = { id = 'p1', name = 'X' }
-    state.api_client = {
-      get_config = function()
-        return Promise.new():resolve({ agent = {} })
-      end,
-      get_current_project = function()
-        return Promise.new():resolve(project)
-      end,
-    }
-    local proj = config_file.get_opencode_project()
-    assert.same(project, proj)
+    Promise.spawn(function()
+      local project = { id = 'p1', name = 'X' }
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({ agent = {} })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve(project)
+        end,
+      }
+      local proj = config_file.get_opencode_project():await()
+      assert.same(project, proj)
+    end):wait()
   end)
 end)

@@ -131,12 +131,14 @@ function M.stream_api(url, method, body, on_chunk)
   return curl.request(opts) --[[@as table]]
 end
 
+--- Ensure the opencode server is running, starting it if necessary.
+--- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
 function M.ensure_server()
+  local promise = Promise.new()
   if state.opencode_server and state.opencode_server:is_running() then
-    return state.opencode_server
+    return promise:resolve(state.opencode_server)
   end
 
-  local promise = Promise.new()
   state.opencode_server = opencode_server.new()
 
   state.opencode_server:spawn({
@@ -151,7 +153,7 @@ function M.ensure_server()
     end,
   })
 
-  return promise:wait()
+  return promise
 end
 
 return M

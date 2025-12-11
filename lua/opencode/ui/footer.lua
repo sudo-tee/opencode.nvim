@@ -12,7 +12,7 @@ local function utf8_len(str)
 end
 
 local function get_mode_highlight()
-  local mode = (state.current_mode or ''):lower()
+  local mode = (state.current_mode or config.default_mode):lower()
   local highlights = {
     build = 'OpencodeAgentBuild',
     plan = 'OpencodeAgentPlan',
@@ -35,24 +35,22 @@ end
 local function build_right_segments()
   local segments = {}
 
-  if state.is_running() then
+  if state.is_running() and not state.is_opening then
     local cancel_keymap = config.get_key_for_function('input_window', 'stop') or '<C-c>'
     table.insert(segments, { string.format('%s ', cancel_keymap), 'OpencodeInputLegend' })
     table.insert(segments, { 'to cancel', 'OpencodeHint' })
     table.insert(segments, { ' ' })
   end
 
-  if not state.is_running() and state.current_model then
+  if not state.is_running() and state.current_model and config.ui.display_model then
     table.insert(segments, { state.current_model, 'OpencodeHint' })
     table.insert(segments, { ' ' })
   end
 
-  if state.current_mode then
-    table.insert(segments, {
-      string.format(' %s ', state.current_mode:upper()),
-      get_mode_highlight(),
-    })
-  end
+  table.insert(segments, {
+    string.format(' %s ', (state.current_mode or config.default_mode):upper()),
+    get_mode_highlight(),
+  })
 
   return segments
 end

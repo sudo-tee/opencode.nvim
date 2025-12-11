@@ -1,22 +1,47 @@
 ---@generic T
+---@generic U
 ---@class Promise<T>
----@field and_then fun(self: Promise<T>, callback: fun(value: T): any): Promise<any>
----@field resolve fun(self: self, value: any): self
----@field reject fun(self: self, err: any): self
----@field catch fun(self: Promise<T>, callback: fun(err: any): any): Promise<T>
----@field wait fun(self: self, timeout?: integer, interval?: integer): any
----@field is_resolved fun(self: self): boolean
----@field is_rejected fun(self: self): boolean
+---@field __index Promise<T>
 ---@field _resolved boolean
----@field _value any
+---@field _value T
 ---@field _error any
----@field _then_callbacks fun(value: any)[]
+---@field _then_callbacks fun(value: T)[]
 ---@field _catch_callbacks fun(err: any)[]
+---@field _coroutines thread[]
+---@field new fun(): Promise<T>
+---@field resolve fun(self: Promise<T>, value: T): Promise<T>
+---@field reject fun(self: Promise<T>, err: any): Promise<T>
+---@field and_then fun(self: Promise<T>, callback: fun(value: T): U | Promise<U> | nil): Promise<U>
+---@field catch fun(self: Promise<T>, error_callback: fun(err: any): any | Promise<any> | nil): Promise<T>
+---@field wait fun(self: Promise<T>, timeout?: integer, interval?: integer): T
+---@field peek fun(self: Promise<T>): T
+---@field is_resolved fun(self: Promise<T>): boolean
+---@field is_rejected fun(self: Promise<T>): boolean
+---@field await fun(self: Promise<T>): T
+---@field is_promise fun(obj: any): boolean
+---@field wrap fun(obj: T | Promise<T>): Promise<T>
+---@field spawn fun(fn: fun(): T|nil): Promise<T>
+---@field async fun(fn: fun(...): T?): fun(...): Promise<T>
+---@field system fun(table, table): Promise<T>
 local Promise = {}
 Promise.__index = Promise
 
----Create a waitable promise that can be resolved or rejected later
+---Resume waiting coroutines with result
 ---@generic T
+---@param coroutines thread[]
+---@param value T
+---@param err any
+local function resume_coroutines(coroutines, value, err)
+  for _, co in ipairs(coroutines) do
+    vim.schedule(function()
+      if coroutine.status(co) == 'suspended' then
+        coroutine.resume(co, value, err)
+      end
+    end)
+  end
+end
+
+---Create a waitable promise that can be resolved or rejected later
 ---@return Promise<T>
 function Promise.new()
   local self = setmetatable({
@@ -25,11 +50,11 @@ function Promise.new()
     _error = nil,
     _then_callbacks = {},
     _catch_callbacks = {},
+    _coroutines = {},
   }, Promise)
   return self
 end
 
----@generic T
 ---@param value T
 ---@return Promise<T>
 function Promise:resolve(value)
@@ -45,12 +70,14 @@ function Promise:resolve(value)
   for _, callback in ipairs(self._then_callbacks) do
     schedule_then(callback, value)
   end
+
+  resume_coroutines(self._coroutines, value, nil)
+
   return self
 end
 
----@generic T
 ---@param err any
----@return self
+---@return Promise<T>
 function Promise:reject(err)
   if self._resolved then
     return self
@@ -64,12 +91,15 @@ function Promise:reject(err)
   for _, callback in ipairs(self._catch_callbacks) do
     schedule_catch(callback, err)
   end
+
+  resume_coroutines(self._coroutines, nil, err)
+
   return self
 end
 
----@generic T, U
----@param callback fun(value: T): U | Promise<U>
----@return Promise<U>
+---@generic U
+---@param callback fun(value: T): U | Promise<U> | nil
+---@return Promise<U>?
 function Promise:and_then(callback)
   if not callback then
     error('callback is required')
@@ -112,8 +142,7 @@ function Promise:and_then(callback)
   return new_promise
 end
 
----@generic T
----@param error_callback fun(err: any): any | Promise<any>
+---@param error_callback fun(err: any): any | Promise<any> | nil
 ---@return Promise<T>
 function Promise:catch(error_callback)
   local new_promise = Promise.new()
@@ -155,6 +184,9 @@ function Promise:catch(error_callback)
   return new_promise
 end
 
+--- Synchronously wait for the promise to resolve or reject
+--- This will block the main thread, so use with caution
+--- But is useful for synchronous code paths that need the result
 ---@generic T
 ---@param timeout integer|nil Timeout in milliseconds (default: 5000)
 ---@param interval integer|nil Interval in milliseconds to check (default: 20)
@@ -185,6 +217,14 @@ function Promise:wait(timeout, interval)
   return self._value
 end
 
+-- Tries to get the value without waiting
+-- Useful for status checks where you don't want to block
+---@generic T
+---@return T
+function Promise:peek()
+  return self._value
+end
+
 function Promise:is_resolved()
   return self._resolved
 end
@@ -193,22 +233,127 @@ function Promise:is_rejected()
   return self._resolved and self._error ~= nil
 end
 
+---Await the promise from within a coroutine
+---This function can only be called from within `coroutine.create` or `Promise.spawn` or `Promise.async`
+---This will yield the coroutine until the promise resolves or rejects
 ---@generic T
----@param obj T
+---@return T
+function Promise:await()
+  -- If already resolved, return immediately
+  local value
+  if self._resolved then
+    if self._error then
+      error(self._error)
+    end
+    value = self._value
+    ---@cast value T
+    return value
+  end
+
+  -- Get the current coroutine
+  local co = coroutine.running()
+  if not co then
+    error('await() can only be called from within a coroutine')
+  end
+
+  table.insert(self._coroutines, co)
+
+  -- Yield and wait for resume
+  ---@diagnostic disable-next-line: await-in-sync
+  local value, err = coroutine.yield()
+
+  if err then
+    error(err)
+  end
+
+  ---@cast value T
+  return value
+end
+
+---@param obj any
 ---@return_cast obj Promise<T>
 function Promise.is_promise(obj)
   return type(obj) == 'table' and type(obj.and_then) == 'function' and type(obj.catch) == 'function'
 end
 
----@generic T
 ---@param obj T | Promise<T>
 ---@return Promise<T>
+---@return_cast T Promise<T>
 function Promise.wrap(obj)
   if Promise.is_promise(obj) then
-    return obj
+    return obj --[[@as Promise<T>]]
   else
     return Promise.new():resolve(obj)
   end
+end
+
+---Run an async function in a coroutine
+---The function can use promise:await() to wait for promises
+---@generic T
+---@param fn fun(): T
+---@return Promise<T>
+---@return_cast T Promise<T>
+function Promise.spawn(fn)
+  local promise = Promise.new()
+
+  local co = coroutine.create(function()
+    local ok, result = pcall(fn)
+    if not ok then
+      promise:reject(result)
+    else
+      if Promise.is_promise(result) then
+        result
+          :and_then(function(val)
+            promise:resolve(val)
+          end)
+          :catch(function(err)
+            promise:reject(err)
+          end)
+      else
+        promise:resolve(result)
+      end
+    end
+  end)
+
+  local ok, err = coroutine.resume(co)
+  if not ok then
+    promise:reject(err)
+  end
+
+  return promise
+end
+
+---Wrap a function to run asynchronously
+---Takes a function and returns a wrapped version that returns a Promise
+---@generic T
+---@param fn fun(...): T
+---@return fun(...): Promise<T>
+function Promise.async(fn)
+  return function(...)
+    local args = { ... }
+    return Promise.spawn(function()
+      return fn(unpack(args))
+    end)
+  end
+end
+
+---Wrap vim.system in a promise
+---@generic T
+---@param cmd table vim.system cmd options
+---@param opts table|nil vim.system opts
+---@return Promise<T>
+function Promise.system(cmd, opts)
+  local p = Promise.new()
+
+  vim.system(cmd, opts or {}, function(result)
+    if result.code == 0 then
+      p:resolve(result)
+    else
+      p:reject(result)
+    end
+  end)
+
+  return p
 end
 
 return Promise

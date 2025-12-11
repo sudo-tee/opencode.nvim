@@ -1,15 +1,17 @@
 -- This file is a port of the snapshot management logic from the original OpenCode
---- @see https://github.com/sst/opencode/blob/dev/packages/opencode/src/snapshot/index.ts
+---@see https://github.com/sst/opencode/blob/dev/packages/opencode/src/snapshot/index.ts
 
 local M = {}
 local state = require('opencode.state')
 local util = require('opencode.util')
+local config_file = require('opencode.config_file')
+local session = require('opencode.session')
 
 ---@param cmd_args string[]
 ---@param opts? vim.SystemOpts
 ---@return string|nil, string|nil
 local function snapshot_git(cmd_args, opts)
-  local snapshot_dir = state.active_session and state.active_session.snapshot_path
+  local snapshot_dir = config_file.get_workspace_snapshot_path():wait()
   if not snapshot_dir then
     vim.notify('No snapshot path for the active session.')
     return nil, nil
@@ -42,7 +44,7 @@ function M.track()
     return nil
   end
 
-  local snapshot_dir = state.active_session.snapshot_path
+  local snapshot_dir = config_file.get_workspace_snapshot_path():wait()
   if not snapshot_dir then
     vim.notify('No snapshot path for the active session.')
     return nil
@@ -72,6 +74,7 @@ function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
     return nil
   end
 
+  local cache_path = session.get_cache_path(state.active_session.id)
   local patch_result = M.patch(snapshot_id)
   local snapshot = {
     id = snapshot_id,
@@ -81,7 +84,7 @@ function M.save_restore_point(snapshot_id, from_snapshot_id, deleted_files)
     created_at = os.time(),
   }
 
-  local path = state.active_session.cache_path .. 'snapshots/'
+  local path = cache_path .. 'snapshots/'
   if vim.fn.isdirectory(path) == 0 then
     vim.fn.mkdir(path, 'p')
   end
@@ -103,13 +106,14 @@ function M.get_restore_points()
     state.restore_points = {}
     return {}
   end
-  if not state.active_session.cache_path then
+  local cache_path = session.get_cache_path(state.active_session.id)
+  if not cache_path then
     return {}
   end
   if state.restore_points and #state.restore_points > 0 then
     return state.restore_points
   end
-  local restore_points = util.read_json_dir(state.active_session.cache_path .. 'snapshots/') or {}
+  local restore_points = util.read_json_dir(cache_path .. 'snapshots/') or {}
   table.sort(restore_points, function(a, b)
     return a.created_at > b.created_at
   end)

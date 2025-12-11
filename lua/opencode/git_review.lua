@@ -4,6 +4,7 @@ local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
 local utils = require('opencode.util')
 local session = require('opencode.session')
+local config_file = require('opencode.config_file')
 
 local M = {}
 
@@ -11,12 +12,11 @@ local M = {}
 ---@param opts? vim.SystemOpts
 ---@return string|nil, string|nil
 local function snapshot_git(cmd_args, opts)
-  local snapshot_dir = state.active_session and state.active_session.snapshot_path
-  if not snapshot_dir then
+  if not M.__snapshot_path then
     vim.notify('No snapshot path for the active session.')
     return nil, nil
   end
-  local args = { 'git', '-C', snapshot_dir }
+  local args = { 'git', '-C', M.__snapshot_path }
   vim.list_extend(args, cmd_args)
   local result = vim.system(args, opts or {}):wait()
   if result and result.code == 0 then
@@ -26,6 +26,7 @@ local function snapshot_git(cmd_args, opts)
   end
 end
 
+M.__snapshot_path = nil
 M.__changed_files = nil
 M.__current_file_index = nil
 M.__diff_tab = nil
@@ -62,7 +63,7 @@ local git = {
 ---@param fn T
 ---@param silent any
 ---@return T
-local function require_git_project(fn, silent)
+local require_git_project = function(fn, silent)
   return function(...)
     if not git.is_project() then
       if not silent then
@@ -76,7 +77,11 @@ local function require_git_project(fn, silent)
       end
       return
     end
-    if not state.active_session.snapshot_path or vim.fn.isdirectory(state.active_session.snapshot_path) == 0 then
+    if not M.__snapshot_path then
+      M.__snapshot_path = config_file.get_workspace_snapshot_path():wait()
+    end
+
+    if not M.__snapshot_path or vim.fn.isdirectory(M.__snapshot_path) == 0 then
       if not silent then
         vim.notify('Error: No snapshot path for the active session.')
       end

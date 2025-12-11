@@ -1,17 +1,18 @@
+local Promise = require('opencode.promise')
 local M = {
   config_promise = nil,
   project_promise = nil,
   providers_promise = nil,
 }
 
----@return OpencodeConfigFile|nil
-function M.get_opencode_config()
+---@type fun(): Promise<OpencodeConfigFile|nil>
+M.get_opencode_config = Promise.async(function()
   if not M.config_promise then
     local state = require('opencode.state')
     M.config_promise = state.api_client:get_config()
   end
   local ok, result = pcall(function()
-    return M.config_promise:wait()
+    return M.config_promise:await()
   end)
 
   if not ok then
@@ -19,17 +20,17 @@ function M.get_opencode_config()
     return nil
   end
 
-  return result --[[@as OpencodeConfigFile|nil]]
-end
+  return result
+end)
 
----@return OpencodeProject|nil
-function M.get_opencode_project()
+---@type fun(): Promise<OpencodeProject|nil>
+M.get_opencode_project = Promise.async(function()
   if not M.project_promise then
     local state = require('opencode.state')
     M.project_promise = state.api_client:get_current_project()
   end
   local ok, result = pcall(function()
-    return M.project_promise:wait()
+    return M.project_promise:await()
   end)
   if not ok then
     vim.notify('Error fetching Opencode project: ' .. vim.inspect(result), vim.log.levels.ERROR)
@@ -37,28 +38,34 @@ function M.get_opencode_project()
   end
 
   return result --[[@as OpencodeProject|nil]]
-end
+end)
 
----@return OpencodeProvidersResponse|nil
+---Get the snapshot storage path for the current workspace
+---@type fun(): Promise<string>
+M.get_workspace_snapshot_path = Promise.async(function()
+  local project = M.get_opencode_project():await() --[[@as OpencodeProject|nil]]
+  if not project then
+    return ''
+  end
+  local home = vim.uv.os_homedir()
+  return home .. '/.local/share/opencode/snapshot/' .. project.id
+end)
+
+---@return Promise<OpencodeProvidersResponse|nil>
 function M.get_opencode_providers()
   if not M.providers_promise then
     local state = require('opencode.state')
     M.providers_promise = state.api_client:list_providers()
   end
-  local ok, result = pcall(function()
-    return M.providers_promise:wait()
-  end)
-  if not ok then
-    vim.notify('Error fetching Opencode providers: ' .. vim.inspect(result), vim.log.levels.ERROR)
+  return M.providers_promise:catch(function(err)
+    vim.notify('Error fetching Opencode providers: ' .. vim.inspect(err), vim.log.levels.ERROR)
     return nil
-  end
-
-  return result --[[@as OpencodeProvidersResponse|nil]]
+  end)
 end
 
-function M.get_model_info(provider, model)
-  local config_file = require('opencode.config_file')
-  local providers_response = config_file.get_opencode_providers()
+M.get_model_info = function(provider, model)
+  local providers_response = M.get_opencode_providers():peek()
+
   local providers = providers_response and providers_response.providers or {}
 
   local filtered_providers = vim.tbl_filter(function(p)
@@ -72,8 +79,9 @@ function M.get_model_info(provider, model)
   return filtered_providers[1] and filtered_providers[1].models and filtered_providers[1].models[model] or nil
 end
 
-function M.get_opencode_agents()
-  local cfg = M.get_opencode_config() --[[@as OpencodeConfigFile]]
+---@type fun(): Promise<string[]>
+M.get_opencode_agents = Promise.async(function()
+  local cfg = M.get_opencode_config():await()
   if not cfg then
     return {}
   end
@@ -96,10 +104,11 @@ function M.get_opencode_agents()
     end
   end
   return agents
-end
+end)
 
-function M.get_subagents()
-  local cfg = M.get_opencode_config()
+---@type fun(): Promise<string[]>
+M.get_subagents = Promise.async(function()
+  local cfg = M.get_opencode_config():await()
   if not cfg then
     return {}
   end
@@ -113,17 +122,19 @@ function M.get_subagents()
   table.insert(subagents, 1, 'general')
 
   return subagents
-end
+end)
 
-function M.get_user_commands()
-  local cfg = M.get_opencode_config() --[[@as OpencodeConfigFile]]
+---@type fun(): Promise<table<string, table>|nil>
+M.get_user_commands = Promise.async(function()
+  local cfg = M.get_opencode_config():await()
   return cfg and cfg.command or nil
-end
+end)
 
-function M.get_mcp_servers()
-  local cfg = M.get_opencode_config() --[[@as OpencodeConfigFile]]
+---@type fun(): Promise<table<string, table>|nil>
+M.get_mcp_servers = Promise.async(function()
+  local cfg = M.get_opencode_config():await()
   return cfg and cfg.mcp or nil
-end
+end)
 
 ---Does this opencode user command take arguments?
 ---@param command OpencodeCommand

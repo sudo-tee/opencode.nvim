@@ -1,3 +1,4 @@
+local Promise = require('opencode.promise')
 local M = {}
 
 local Source = {}
@@ -26,57 +27,59 @@ function Source:is_available()
 end
 
 function Source:get_completions(ctx, callback)
-  local completion = require('opencode.ui.completion')
-  local completion_sources = completion.get_sources()
+  Promise.spawn(function()
+    local completion = require('opencode.ui.completion')
+    local completion_sources = completion.get_sources()
 
-  local line = ctx.line
-  local col = ctx.cursor[2] + 1
-  local before_cursor = line:sub(1, col - 1)
+    local line = ctx.line
+    local col = ctx.cursor[2] + 1
+    local before_cursor = line:sub(1, col - 1)
 
-  local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
-  local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
+    local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
+    local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
 
-  if not trigger_match then
-    callback({ is_incomplete_forward = false, items = {} })
-    return
-  end
-
-  local context = {
-    input = trigger_match,
-    cursor_pos = col,
-    line = line,
-    trigger_char = trigger_char,
-  }
-
-  local items = {}
-  for _, completion_source in ipairs(completion_sources) do
-    local source_items = completion_source.complete(context)
-    for i, item in ipairs(source_items) do
-      table.insert(items, {
-        label = item.label,
-        kind = item.kind,
-        kind_icon = item.kind_icon,
-        kind_hl = item.kind_hl,
-        detail = item.detail,
-        documentation = item.documentation,
-        insertText = item.insert_text or item.label,
-        sortText = string.format(
-          '%02d_%02d_%02d_%s',
-          completion_source.priority or 999,
-          item.priority or 999,
-          i,
-          item.label
-        ),
-        score_offset = -(completion_source.priority or 999) * 1000 + (item.priority or 999),
-
-        data = {
-          original_item = item,
-        },
-      })
+    if not trigger_match then
+      callback({ is_incomplete_forward = false, items = {} })
+      return
     end
-  end
 
-  callback({ is_incomplete_forward = true, is_incomplete_backward = true, items = items })
+    local context = {
+      input = trigger_match,
+      cursor_pos = col,
+      line = line,
+      trigger_char = trigger_char,
+    }
+
+    local items = {}
+    for _, completion_source in ipairs(completion_sources) do
+      local source_items = completion_source.complete(context):await()
+      for i, item in ipairs(source_items) do
+        table.insert(items, {
+          label = item.label,
+          kind = item.kind,
+          kind_icon = item.kind_icon,
+          kind_hl = item.kind_hl,
+          detail = item.detail,
+          documentation = item.documentation,
+          insertText = item.insert_text or item.label,
+          sortText = string.format(
+            '%02d_%02d_%02d_%s',
+            completion_source.priority or 999,
+            item.priority or 999,
+            i,
+            item.label
+          ),
+          score_offset = -(completion_source.priority or 999) * 1000 + (item.priority or 999),
+
+          data = {
+            original_item = item,
+          },
+        })
+      end
+    end
+
+    callback({ is_incomplete_forward = true, is_incomplete_backward = true, items = items })
+  end)
 end
 
 function Source:execute(ctx, item, callback, default_implementation)

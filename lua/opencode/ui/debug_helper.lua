@@ -7,6 +7,7 @@
 local M = {}
 
 local state = require('opencode.state')
+local Promise = require('opencode.promise')
 
 function M.open_json_file(data)
   local tmpfile = vim.fn.tempname() .. '.json'
@@ -47,9 +48,10 @@ function M.debug_message()
   vim.notify('No message found in previous lines', vim.log.levels.WARN)
 end
 
-function M.debug_session()
+M.debug_session = Promise.async(function()
   local session = require('opencode.session')
-  local session_path = session.get_workspace_session_path()
+
+  local session_path = session.get_workspace_session_path():await()
   if not state.active_session then
     print('No active session')
     return
@@ -58,7 +60,7 @@ function M.debug_session()
     vim.api.nvim_set_current_win(state.last_code_win_before_opencode --[[@as integer]])
   end
   vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
-end
+end)
 
 function M.save_captured_events(filename)
   if not state.event_manager then

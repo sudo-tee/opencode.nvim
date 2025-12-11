@@ -1,15 +1,16 @@
 local icons = require('opencode.ui.icons')
+local Promise = require('opencode.promise')
+
 local M = {}
 
 ---@type CompletionSource
 local subagent_source = {
   name = 'subagents',
   priority = 1,
-  complete = function(context)
-    local subagents = require('opencode.config_file').get_subagents()
+  complete = Promise.async(function(context)
+    local subagents = require('opencode.config_file').get_subagents():await()
     local config = require('opencode.config')
-    local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('input_window', 'mention')
+    local expected_trigger = config.get_key_for_function('input_window', 'mention')
     if context.trigger_char ~= expected_trigger then
       return {}
     end
@@ -42,7 +43,7 @@ local subagent_source = {
     sort_util.sort_by_relevance(items, context.input)
 
     return items
-  end,
+  end),
   on_complete = function(item)
     local state = require('opencode.state')
     local context = require('opencode.context')

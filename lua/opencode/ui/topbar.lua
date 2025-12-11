@@ -70,13 +70,14 @@ local function update_winbar_highlights(win_id)
 end
 
 local function get_session_desc()
+  if state.is_opening then
+    return 'Loading...'
+  end
+
   local session_title = LABELS.NEW_SESSION_TITLE
 
-  if state.active_session then
-    local session = require('opencode.session').get_by_id(state.active_session.id)
-    if session and session.title ~= '' then
-      session_title = session.title
-    end
+  if state.active_session and state.active_session.title ~= '' then
+    session_title = state.active_session.title
   end
 
   if not session_title or type(session_title) ~= 'string' then
@@ -117,6 +118,7 @@ function M.setup()
   state.subscribe('is_opencode_focused', on_change)
   state.subscribe('tokens_count', on_change)
   state.subscribe('cost', on_change)
+  state.subscribe('is_opening', on_change)
   M.render()
 end
 

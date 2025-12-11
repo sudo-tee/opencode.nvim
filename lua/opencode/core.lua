@@ -8,13 +8,16 @@ local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 local config = require('opencode.config')
 local image_handler = require('opencode.image_handler')
+local Promise = require('opencode.promise')
 
 local M = {}
 M._abort_count = 0
 
 ---@param parent_id string?
-function M.select_session(parent_id)
-  local all_sessions = session.get_all_workspace_sessions() or {}
+M.select_session = Promise.async(function(parent_id)
+  local all_sessions = session.get_all_workspace_sessions():await() or {}
+  ---@cast all_sessions Session[]
+
   local filtered_sessions = vim.tbl_filter(function(s)
     return s.title ~= '' and s ~= nil and s.parentID == parent_id
   end, all_sessions)
@@ -28,14 +31,14 @@ function M.select_session(parent_id)
     end
     M.switch_session(selected_session.id)
   end)
-end
+end)
 
-function M.switch_session(session_id)
-  local selected_session = session.get_by_id(session_id)
+M.switch_session = Promise.async(function(session_id)
+  local selected_session = session.get_by_id(session_id):await()
 
   state.current_model = nil
   state.current_mode = nil
-  M.ensure_current_mode()
+  M.ensure_current_mode():await()
 
   state.active_session = selected_session
   if state.windows then
@@ -44,24 +47,26 @@ function M.switch_session(session_id)
   else
     M.open()
   end
-end
+end)
 
 ---@param opts? OpenOpts
-function M.open(opts)
+M.open_if_closed = Promise.async(function(opts)
+  if not state.windows then
+    M.open(opts):await()
+  end
+end)
+
+---@param opts? OpenOpts
+M.open = Promise.async(function(opts)
   opts = opts or { focus = 'input', new_session = false }
 
-  if not state.opencode_server or not state.opencode_server:is_running() then
-    state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
-  end
-
-  M.ensure_current_mode()
-
-  local are_windows_closed = state.windows == nil
+  state.is_opening = true
 
   if not require('opencode.ui.ui').is_opencode_focused() then
     require('opencode.context').load()
   end
 
+  local are_windows_closed = state.windows == nil
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local mentioned_files = context.context.mentioned_files or {}
@@ -73,44 +78,61 @@ function M.open(opts)
     state.windows = ui.create_windows()
   end
 
-  if opts.new_session then
-    state.active_session = nil
-    state.last_sent_context = nil
-
-    state.current_model = nil
-    state.current_mode = nil
-    M.ensure_current_mode()
-
-    state.active_session = M.create_new_session()
-  else
-    if not state.active_session then
-      state.active_session = session.get_last_workspace_session()
-      if not state.active_session then
-        state.active_session = M.create_new_session()
-      end
-    else
-      if not state.display_route and are_windows_closed then
-        -- We're not displaying /help or something like that but we have an active session
-        -- and the windows were closed so we need to do a full refresh. This mostly happens
-        -- when opening the window after having closed it since we're not currently clearing
-        -- the session on api.close()
-        ui.render_output()
-      end
-    end
-  end
-
   if opts.focus == 'input' then
     ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
   elseif opts.focus == 'output' then
     ui.focus_output({ restore_position = are_windows_closed })
   end
-  state.is_opencode_focused = true
-end
+
+  local server = server_job.ensure_server():await()
+  state.opencode_server = server
+
+  local ok, err = pcall(function()
+    state.opencode_server = server
+
+    if opts.new_session then
+      state.active_session = nil
+      state.last_sent_context = nil
+
+      state.current_model = nil
+      state.current_mode = nil
+      M.ensure_current_mode():await()
+
+      state.active_session = M.create_new_session():await()
+    else
+      M.ensure_current_mode():await()
+      if not state.active_session then
+        state.active_session = session.get_last_workspace_session():await()
+        if not state.active_session then
+          state.active_session = M.create_new_session():await()
+        end
+      else
+        if not state.display_route and are_windows_closed then
+          -- We're not displaying /help or something like that but we have an active session
+          -- and the windows were closed so we need to do a full refresh. This mostly happens
+          -- when opening the window after having closed it since we're not currently clearing
+          -- the session on api.close()
+          ui.render_output()
+        end
+      end
+    end
+
+    state.is_opencode_focused = true
+  end)
+
+  state.is_opening = false
+
+  if not ok then
+    vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)
+    return Promise.new():reject(err)
+  end
+  return Promise.new():resolve('ok')
+end)
 
 --- Sends a message to the active session, creating one if necessary.
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
-function M.send_message(prompt, opts)
+M.send_message = Promise.async(function(prompt, opts)
   if not state.active_session or not state.active_session.id then
     return false
   end
@@ -128,7 +150,7 @@ function M.send_message(prompt, opts)
   opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
   state.current_context_config = opts.context
   context.load()
-  opts.model = opts.model or M.initialize_current_model()
+  opts.model = opts.model or M.initialize_current_model():await()
   opts.agent = opts.agent or state.current_mode or config.default_mode
 
   local params = {}
@@ -178,23 +200,23 @@ function M.send_message(prompt, opts)
       update_sent_message_count(-1)
       M.cancel()
     end)
-end
+end)
 
 ---@param title? string
 ---@return Session?
-function M.create_new_session(title)
+M.create_new_session = Promise.async(function(title)
   local session_response = state.api_client
     :create_session(title and { title = title } or false)
     :catch(function(err)
       vim.notify('Error creating new session: ' .. vim.inspect(err), vim.log.levels.ERROR)
     end)
-    :wait()
+    :await()
 
   if session_response and session_response.id then
-    local new_session = session.get_by_id(session_response.id)
+    local new_session = session.get_by_id(session_response.id):await()
     return new_session
   end
-end
+end)
 
 ---@param prompt string
 function M.after_run(prompt)
@@ -233,7 +255,7 @@ function M.configure_provider()
   end)
 end
 
-function M.cancel()
+M.cancel = Promise.async(function()
   if state.windows and state.active_session then
     if state.is_running() then
       M._abort_count = M._abort_count + 1
@@ -256,7 +278,7 @@ function M.cancel()
         M._abort_count = 0
         -- close existing server
         if state.opencode_server then
-          state.opencode_server:shutdown():wait()
+          state.opencode_server:shutdown():await()
         end
 
         -- start a new one
@@ -264,7 +286,7 @@ function M.cancel()
 
         -- NOTE: start a new server here to make sure we're subscribed
         -- to server events before a user sends a message
-        state.opencode_server = server_job.ensure_server() --[[@as OpencodeServer]]
+        state.opencode_server = server_job.ensure_server():await() --[[@as OpencodeServer]]
       end
     end
     require('opencode.ui.footer').clear()
@@ -272,9 +294,9 @@ function M.cancel()
     require('opencode.history').index = nil
     ui.focus_input()
   end
-end
+end)
 
-function M.opencode_ok()
+M.opencode_ok = Promise.async(function()
   if vim.fn.executable('opencode') == 0 then
     vim.notify(
       'opencode command not found - please install and configure opencode before using this plugin',
@@ -284,7 +306,7 @@ function M.opencode_ok()
   end
 
   if not state.opencode_cli_version or state.opencode_cli_version == '' then
-    local result = vim.system({ 'opencode', '--version' }):wait()
+    local result = Promise.system({ 'opencode', '--version' }):await()
     local out = (result and result.stdout or ''):gsub('%s+$', '')
     state.opencode_cli_version = out:match('(%d+%%.%d+%%.%d+)') or out
   end
@@ -306,7 +328,7 @@ function M.opencode_ok()
   end
 
   return true
-end
+end)
 
 local function on_opencode_server()
   state.current_permission = nil
@@ -315,14 +337,14 @@ end
 --- Switches the current mode to the specified agent.
 --- @param mode string|nil The agent/mode to switch to
 --- @return boolean success Returns true if the mode was switched successfully, false otherwise
-function M.switch_to_mode(mode)
+M.switch_to_mode = Promise.async(function(mode)
   if not mode or mode == '' then
     vim.notify('Mode cannot be empty', vim.log.levels.ERROR)
     return false
   end
 
   local config_file = require('opencode.config_file')
-  local available_agents = config_file.get_opencode_agents()
+  local available_agents = config_file.get_opencode_agents():await()
 
   if not vim.tbl_contains(available_agents, mode) then
     vim.notify(
@@ -333,21 +355,22 @@ function M.switch_to_mode(mode)
   end
 
   state.current_mode = mode
-  local opencode_config = config_file.get_opencode_config()
+  local opencode_config = config_file.get_opencode_config():await() --[[@as OpencodeConfigFile]]
+
   local agent_config = opencode_config and opencode_config.agent or {}
   local mode_config = agent_config[mode] or {}
   if mode_config.model and mode_config.model ~= '' then
     state.current_model = mode_config.model
   end
   return true
-end
+end)
 
 --- Ensure the current_mode is set using the config.default_mode or falling back to the first available agent.
 --- @return boolean success Returns true if current_mode is set
-function M.ensure_current_mode()
+M.ensure_current_mode = Promise.async(function()
   if state.current_mode == nil then
     local config_file = require('opencode.config_file')
-    local available_agents = config_file.get_opencode_agents()
+    local available_agents = config_file.get_opencode_agents():await()
 
     if not available_agents or #available_agents == 0 then
       vim.notify('No available agents found', vim.log.levels.ERROR)
@@ -365,48 +388,48 @@ function M.ensure_current_mode()
     end
   end
   return true
-end
+end)
 
 ---Initialize current model if it's not already set.
 ---@return string|nil The current model (or the default model, if configured)
-function M.initialize_current_model()
+M.initialize_current_model = Promise.async(function()
   if state.current_model then
     return state.current_model
   end
 
-  local config_file = require('opencode.config_file').get_opencode_config()
+  local cfg = require('opencode.config_file').get_opencode_config():await()
 
-  if config_file and config_file.model and config_file.model ~= '' then
-    state.current_model = config_file.model
+  if cfg and cfg.model and cfg.model ~= '' then
+    state.current_model = cfg.model
   end
 
   return state.current_model
-end
+end)
 
-function M._on_user_message_count_change(_, new, old)
+M._on_user_message_count_change = Promise.async(function(_, new, old)
   if config.hooks and config.hooks.on_done_thinking then
-    local all_sessions = session.get_all_workspace_sessions() or {}
+    local all_sessions = session.get_all_workspace_sessions():await()
     local done_sessions = vim.tbl_filter(function(s)
       local msg_count = new[s.id] or 0
       local old_msg_count = (old and old[s.id]) or 0
       return msg_count == 0 and old_msg_count > 0
-    end, all_sessions)
+    end, all_sessions or {})
 
     for _, done_session in ipairs(done_sessions) do
       pcall(config.hooks.on_done_thinking, done_session)
     end
   end
-end
+end)
 
-function M._on_current_permission_change(_, new, old)
+M._on_current_permission_change = Promise.async(function(_, new, old)
   local permission_requested = old == nil and new ~= nil
   if config.hooks and config.hooks.on_permission_requested and permission_requested then
     local local_session = (state.active_session and state.active_session.id)
-        and session.get_by_id(state.active_session.id)
+        and session.get_by_id(state.active_session.id):await()
       or {}
     pcall(config.hooks.on_permission_requested, local_session)
   end
-end
+end)
 
 --- Handle clipboard image data by saving it to a file and adding it to context
 --- @return boolean success True if image was successfully handled

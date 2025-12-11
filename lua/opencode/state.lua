@@ -8,6 +8,7 @@
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
+---@field is_opening boolean
 ---@field input_content table
 ---@field is_opencode_focused boolean
 ---@field last_focused_opencode_window string|nil
@@ -52,6 +53,7 @@ local M = {}
 local _state = {
   -- ui
   windows = nil, ---@type OpencodeWindowState|nil
+  is_opening = false,
   input_content = {},
   is_opencode_focused = false,
   last_focused_opencode_window = nil,

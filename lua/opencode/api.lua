@@ -10,6 +10,7 @@ local icons = require('opencode.ui.icons')
 local git_review = require('opencode.git_review')
 local history = require('opencode.history')
 local config = require('opencode.config')
+local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -22,15 +23,15 @@ function M.toggle_zoom()
 end
 
 function M.open_input()
-  core.open({ new_session = false, focus = 'input', start_insert = true })
+  return core.open({ new_session = false, focus = 'input', start_insert = true })
 end
 
 function M.open_input_new_session()
-  core.open({ new_session = true, focus = 'input', start_insert = true })
+  return core.open({ new_session = true, focus = 'input', start_insert = true })
 end
 
 function M.open_output()
-  core.open({ new_session = false, focus = 'output' })
+  return core.open({ new_session = false, focus = 'output' })
 end
 
 function M.close()
@@ -49,14 +50,14 @@ function M.paste_image()
   core.paste_image_from_clipboard()
 end
 
-function M.toggle(new_session)
+M.toggle = Promise.async(function(new_session)
+  local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
   if state.windows == nil then
-    local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
-    core.open({ new_session = new_session == true, focus = focus, start_insert = false })
+    core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
     M.close()
   end
-end
+end)
 
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
@@ -79,14 +80,18 @@ end
 ---@param opts? SendMessageOpts
 function M.run(prompt, opts)
   opts = vim.tbl_deep_extend('force', { new_session = false, focus = 'output' }, opts or {})
-  core.send_message(prompt, opts)
+  return core.open(opts):and_then(function()
+    return core.send_message(prompt, opts)
+  end)
 end
 
 ---@param prompt string
 ---@param opts? SendMessageOpts
 function M.run_new_session(prompt, opts)
   opts = vim.tbl_deep_extend('force', { new_session = true, focus = 'output' }, opts or {})
-  core.send_message(prompt, opts)
+  return core.open(opts):and_then(function()
+    return core.send_message(prompt, opts)
+  end)
 end
 
 ---@param parent_id? string
@@ -103,123 +108,100 @@ function M.select_history()
 end
 
 function M.toggle_pane()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-    return
-  end
-
-  ui.toggle_pane()
+  return core.open({ new_session = false, focus = 'output' }):and_then(function()
+    ui.toggle_pane()
+  end)
 end
 
 ---@param from_snapshot_id? string
 ---@param to_snapshot_id? string|number
 function M.diff_open(from_snapshot_id, to_snapshot_id)
-  if not state.messages or not state.active_session then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.review(from_snapshot_id)
+  core.open_if_closed({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.review(from_snapshot_id)
+  end)
 end
 
 function M.diff_next()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.next_diff()
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.next_diff()
+  end)
 end
 
 function M.diff_prev()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.prev_diff()
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.prev_diff()
+  end)
 end
 
 function M.diff_close()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.close_diff()
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.close_diff()
+  end)
 end
 
 ---@param from_snapshot_id? string
 function M.diff_revert_all(from_snapshot_id)
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.revert_all(from_snapshot_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.revert_all(from_snapshot_id)
+  end)
 end
 
 ---@param from_snapshot_id? string
 ---@param to_snapshot_id? string
 function M.diff_revert_selected_file(from_snapshot_id, to_snapshot_id)
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.revert_selected_file(from_snapshot_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.revert_selected_file(from_snapshot_id)
+  end)
 end
 
 ---@param restore_point_id? string
 function M.diff_restore_snapshot_file(restore_point_id)
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.restore_snapshot_file(restore_point_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.restore_snapshot_file(restore_point_id)
+  end)
 end
 
 ---@param restore_point_id? string
 function M.diff_restore_snapshot_all(restore_point_id)
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.restore_snapshot_all(restore_point_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.restore_snapshot_all(restore_point_id)
+  end)
 end
 
 function M.diff_revert_all_last_prompt()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  local snapshots = session.get_message_snapshot_ids(state.current_message)
-  local snapshot_id = snapshots and snapshots[1]
-  if not snapshot_id then
-    vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
-    return
-  end
-  git_review.revert_all(snapshot_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    local snapshots = session.get_message_snapshot_ids(state.current_message)
+    local snapshot_id = snapshots and snapshots[1]
+    if not snapshot_id then
+      vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
+      return
+    end
+    git_review.revert_all(snapshot_id)
+  end)
 end
 
 function M.diff_revert_this(snapshot_id)
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  git_review.revert_current(snapshot_id)
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.revert_current(snapshot_id)
+  end)
 end
 
 function M.diff_revert_this_last_prompt()
-  if not state.windows then
-    core.open({ new_session = false, focus = 'output' })
-  end
-
-  local snapshots = session.get_message_snapshot_ids(state.current_message)
-  local snapshot_id = snapshots and snapshots[1]
-  if not snapshot_id then
-    vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
-    return
-  end
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    local snapshots = session.get_message_snapshot_ids(state.current_message)
+    local snapshot_id = snapshots and snapshots[1]
+    if not snapshot_id then
+      vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
+      return
+    end
+    git_review.revert_current(snapshot_id)
+  end)
 end
 
 function M.set_review_breakpoint()
-  vim.notify('Setting review breakpoint is not implemented yet', vim.log.levels.WARN)
-  git_review.create_snapshot()
+  core.open({ new_session = false, focus = 'output' }):and_then(function()
+    git_review.create_snapshot()
+  end)
 end
 
 function M.prev_history()
@@ -245,7 +227,6 @@ function M.next_history()
 end
 
 function M.prev_prompt_history()
-  local config = require('opencode.config')
   local key = config.get_key_for_function('input_window', 'prev_prompt_history')
   if key ~= '<up>' then
     return M.prev_history()
@@ -260,7 +241,6 @@ function M.prev_prompt_history()
 end
 
 function M.next_prompt_history()
-  local config = require('opencode.config')
   local key = config.get_key_for_function('input_window', 'next_prompt_history')
   if key ~= '<down>' then
     return M.next_history()
@@ -282,7 +262,7 @@ function M.prev_message()
   require('opencode.ui.navigation').goto_prev_message()
 end
 
-function M.submit_input_prompt()
+M.submit_input_prompt = Promise.async(function()
   if state.display_route then
     -- we're displaying /help or something similar, need to clear that and refresh
     -- the session data before sending the command
@@ -291,7 +271,7 @@ function M.submit_input_prompt()
   end
 
   input_window.handle_submit()
-end
+end)
 
 function M.mention_file()
   local picker = require('opencode.ui.file_picker')
@@ -305,7 +285,6 @@ function M.mention_file()
 end
 
 function M.mention()
-  local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'mention')
 
   ui.focus_input({ restore_position = false, start_insert = true })
@@ -313,14 +292,12 @@ function M.mention()
 end
 
 function M.context_items()
-  local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'context_items')
   ui.focus_input({ restore_position = true, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
 end
 
 function M.slash_commands()
-  local config = require('opencode.config')
   local char = config.get_key_for_function('input_window', 'slash_commands')
   ui.focus_input({ restore_position = false, start_insert = true })
   require('opencode.ui.completion').trigger_completion(char)()
@@ -331,7 +308,6 @@ function M.focus_input()
 end
 
 function M.debug_output()
-  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return
@@ -341,7 +317,6 @@ function M.debug_output()
 end
 
 function M.debug_message()
-  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return
@@ -351,7 +326,6 @@ function M.debug_message()
 end
 
 function M.debug_session()
-  local config = require('opencode.config')
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
     return
@@ -360,15 +334,16 @@ function M.debug_session()
   debug_helper.debug_session()
 end
 
-function M.initialize()
+---@type fun(): Promise<void>
+M.initialize = Promise.async(function()
   local id = require('opencode.id')
 
-  local new_session = core.create_new_session('AGENTS.md Initialization')
+  local new_session = core.create_new_session('AGENTS.md Initialization'):await()
   if not new_session then
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
   end
-  if not core.initialize_current_model() or not state.current_model then
+  if not core.initialize_current_model():await() or not state.current_model then
     vim.notify('No model selected', vim.log.levels.ERROR)
     return
   end
@@ -384,7 +359,7 @@ function M.initialize()
     modelID = modelId,
     messageID = id.ascending('message'),
   })
-end
+end)
 
 function M.agent_plan()
   require('opencode.core').switch_to_mode('plan')
@@ -394,8 +369,8 @@ function M.agent_build()
   require('opencode.core').switch_to_mode('build')
 end
 
-function M.select_agent()
-  local modes = config_file.get_opencode_agents()
+M.select_agent = Promise.async(function()
+  local modes = config_file.get_opencode_agents():await()
   vim.ui.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
@@ -405,10 +380,10 @@ function M.select_agent()
 
     require('opencode.core').switch_to_mode(selection)
   end)
-end
+end)
 
-function M.switch_mode()
-  local modes = config_file.get_opencode_agents() --[[@as string[] ]]
+M.switch_mode = Promise.async(function()
+  local modes = config_file.get_opencode_agents():await() --[[@as string[] ]]
 
   local current_index = util.index_of(modes, state.current_mode)
 
@@ -420,7 +395,7 @@ function M.switch_mode()
   local next_index = (current_index % #modes) + 1
 
   require('opencode.core').switch_to_mode(modes[next_index])
-end
+end)
 
 function M.with_header(lines, show_welcome)
   show_welcome = show_welcome or show_welcome
@@ -490,8 +465,8 @@ function M.help()
   ui.render_lines(msg)
 end
 
-function M.mcp()
-  local mcp = config_file.get_mcp_servers()
+M.mcp = Promise.async(function()
+  local mcp = config_file.get_mcp_servers():await()
   if not mcp then
     vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -529,10 +504,10 @@ function M.mcp()
 
   table.insert(msg, '')
   ui.render_lines(msg)
-end
+end)
 
-function M.commands_list()
-  local commands = config_file.get_user_commands()
+M.commands_list = Promise.async(function()
+  local commands = config_file.get_user_commands():await()
   if not commands then
     vim.notify('No user commands found. Please check your opencode config file.', vim.log.levels.WARN)
     return
@@ -555,44 +530,45 @@ function M.commands_list()
 
   table.insert(msg, '')
   ui.render_lines(msg)
-end
+end)
 
-function M.current_model()
+M.current_model = Promise.async(function()
   return core.initialize_current_model()
-end
+end)
 
 --- Runs a user-defined command by name.
 --- @param name string The name of the user command to run.
 --- @param args? string[] Additional arguments to pass to the command.
-function M.run_user_command(name, args)
-  M.open_input()
-  local user_commands = config_file.get_user_commands()
-  local command_cfg = user_commands and user_commands[name]
-  if not command_cfg then
-    vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
-    return
-  end
+M.run_user_command = Promise.async(function(name, args)
+  return M.open_input():and_then(function()
+    local user_commands = config_file.get_user_commands():await()
+    local command_cfg = user_commands and user_commands[name]
+    if not command_cfg then
+      vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
+      return
+    end
 
-  local model = command_cfg.model or state.current_model
-  local agent = command_cfg.agent or state.current_mode
+    local model = command_cfg.model or state.current_model
+    local agent = command_cfg.agent or state.current_mode
 
-  if not state.active_session then
-    vim.notify('No active session', vim.log.levels.WARN)
-    return
-  end
-  state.api_client
-    :send_command(state.active_session.id, {
-      command = name,
-      arguments = table.concat(args or {}, ' '),
-      model = model,
-      agent = agent,
-    })
-    :and_then(function()
-      vim.schedule(function()
-        require('opencode.history').write('/' .. name .. ' ' .. table.concat(args or {}, ' '))
+    if not state.active_session then
+      vim.notify('No active session', vim.log.levels.WARN)
+      return
+    end
+    state.api_client
+      :send_command(state.active_session.id, {
+        command = name,
+        arguments = table.concat(args or {}, ' '),
+        model = model,
+        agent = agent,
+      })
+      :and_then(function()
+        vim.schedule(function()
+          require('opencode.history').write('/' .. name .. ' ' .. table.concat(args or {}, ' '))
+        end)
       end)
-    end)
-end
+  end) --[[@as Promise<void> ]]
+end)
 
 --- Compacts the current session by removing unnecessary data.
 --- @param current_session? Session The session to compact. Defaults to the active session.
@@ -763,9 +739,9 @@ end
 
 ---@param current_session? Session
 --- @param new_title? string
-function M.rename_session(current_session, new_title)
+M.rename_session = Promise.async(function(current_session, new_title)
   local promise = require('opencode.promise').new()
-  current_session = current_session or vim.deepcopy(state.active_session) --[[@as Session]]
+  current_session = current_session or (state.active_session and vim.deepcopy(state.active_session) or nil) --[[@as Session]]
   if not current_session then
     vim.notify('No active session to rename', vim.log.levels.WARN)
     promise:resolve(nil)
@@ -779,17 +755,17 @@ function M.rename_session(current_session, new_title)
           vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
         end)
       end)
-      :and_then(function()
+      :and_then(Promise.async(function()
         current_session.title = title
         if state.active_session and state.active_session.id == current_session.id then
-          local session_obj = session.get_by_id(current_session.id)
+          local session_obj = session.get_by_id(current_session.id):await()
           if session_obj then
             session_obj.title = title
             state.active_session = vim.deepcopy(session_obj)
           end
         end
         promise:resolve(current_session)
-      end)
+      end))
   end
 
   if new_title and new_title ~= '' then
@@ -807,7 +783,7 @@ function M.rename_session(current_session, new_title)
     end)
   end)
   return promise
-end
+end)
 
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
@@ -932,6 +908,7 @@ function M.toggle_tool_output()
   ui.render_output()
 end
 
+---@type table<string, OpencodeUICommand>
 M.commands = {
   open = {
     desc = 'Open opencode window (input/output)',
@@ -991,18 +968,20 @@ M.commands = {
     fn = function(args)
       local subcmd = args[1]
       if subcmd == 'new' then
-        local title = table.concat(vim.list_slice(args, 2), ' ')
-        if title and title ~= '' then
-          local new_session = core.create_new_session(title)
-          if not new_session then
-            vim.notify('Failed to create new session', vim.log.levels.ERROR)
-            return
+        Promise.spawn(function()
+          local title = table.concat(vim.list_slice(args, 2), ' ')
+          if title and title ~= '' then
+            local new_session = core.create_new_session(title):await()
+            if not new_session then
+              vim.notify('Failed to create new session', vim.log.levels.ERROR)
+              return
+            end
+            state.active_session = new_session
+            M.open_input()
+          else
+            M.open_input_new_session()
           end
-          state.active_session = new_session
-          M.open_input()
-        else
-          M.open_input_new_session()
-        end
+        end)
       elseif subcmd == 'select' then
         M.select_session()
       elseif subcmd == 'child' then
@@ -1147,7 +1126,7 @@ M.commands = {
         vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.run(prompt, opts)
+      return M.run(prompt, opts)
     end,
   },
 
@@ -1159,14 +1138,14 @@ M.commands = {
         vim.notify('Prompt required', vim.log.levels.ERROR)
         return
       end
-      M.run_new_session(prompt, opts)
+      return M.run_new_session(prompt, opts)
     end,
   },
 
   command = {
     desc = 'Run user-defined command',
     completions = function()
-      local user_commands = config_file.get_user_commands()
+      local user_commands = config_file.get_user_commands():wait()
       if not user_commands then
         return {}
       end
@@ -1254,6 +1233,7 @@ M.slash_commands_map = {
   ['/timeline'] = { fn = M.timeline, desc = 'Open timeline picker' },
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
+  ['/rename'] = { fn = M.rename_session, desc = 'Rename current session' },
 }
 
 M.legacy_command_map = {
@@ -1359,7 +1339,6 @@ function M.complete_command(arg_lead, cmd_line, cursor_pos)
 end
 
 function M.setup_legacy_commands()
-  local config = require('opencode.config')
   if not config.legacy_commands then
     return
   end
@@ -1378,7 +1357,7 @@ function M.setup_legacy_commands()
   end
 end
 
-function M.get_slash_commands()
+M.get_slash_commands = Promise.async(function()
   local result = {}
   for slash_cmd, def in pairs(M.slash_commands_map) do
     table.insert(result, {
@@ -1388,14 +1367,14 @@ function M.get_slash_commands()
     })
   end
 
-  local user_commands = config_file.get_user_commands()
+  local user_commands = config_file.get_user_commands():await()
   if user_commands then
     for name, def in pairs(user_commands) do
       table.insert(result, {
         slash_cmd = '/' .. name,
         desc = def.description or 'User command',
         fn = function(...)
-          M.run_user_command(name, ...)
+          return M.run_user_command(name, ...)
         end,
         args = config_file.command_takes_arguments(def),
       })
@@ -1403,7 +1382,7 @@ function M.get_slash_commands()
   end
 
   return result
-end
+end)
 
 function M.setup()
   vim.api.nvim_create_user_command('Opencode', M.route_command, {

@@ -2,6 +2,7 @@ local config = require('opencode.config')
 local context = require('opencode.context')
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
+local Promise = require('opencode.promise')
 
 local M = {}
 local kind_priority = {
@@ -229,7 +230,7 @@ end
 local context_source = {
   name = 'context',
   priority = 1,
-  complete = function(completion_context)
+  complete = Promise.async(function(completion_context)
     local input = completion_context.input or ''
 
     local expected_trigger = config.get_key_for_function('input_window', 'context_items')
@@ -255,7 +256,7 @@ local context_source = {
     end
 
     return items
-  end,
+  end),
   on_complete = function(item)
     local input_win = require('opencode.ui.input_window')
     if not item or not item.data then

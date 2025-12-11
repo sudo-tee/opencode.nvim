@@ -40,6 +40,12 @@
 ---@field model string
 ---@field template string
 
+---@class OpencodeUICommand
+---@field desc string
+---@field completions? string[]|function
+---@field sub_completions? string[]
+---@field fn function
+
 ---@class SessionRevertInfo
 ---@field messageID string
 ---@field partID? string
@@ -52,14 +58,9 @@
 ---@class Session
 ---@field workspace string
 ---@field title string
----@field modified number
+---@field time { created: number, updated: number }
 ---@field id string
 ---@field parentID string|nil
----@field path string
----@field messages_path string
----@field parts_path string
----@field snapshot_path string
----@field cache_path string
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 
@@ -343,7 +344,7 @@
 ---@class CompletionSource
 ---@field name string Name of the completion source
 ---@field priority number Priority for ordering sources
----@field complete fun(context: CompletionContext): CompletionItem[] Function to generate completion items
+---@field complete fun(context: CompletionContext): Promise<CompletionItem[]> Function to generate completion items
 ---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
 
 ---@class OpencodeContext

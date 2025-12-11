@@ -1,8 +1,9 @@
+local Promise = require('opencode.promise')
 local M = {}
 
-local function get_available_commands()
+local get_available_commands = Promise.async(function()
   local api = require('opencode.api')
-  local commands = api.get_slash_commands()
+  local commands = api.get_slash_commands():await()
 
   local results = {}
   for key, cmd_info in ipairs(commands) do
@@ -17,27 +18,27 @@ local function get_available_commands()
   end
 
   return results
-end
+end)
 
 ---@type CompletionSource
 local command_source = {
   name = 'commands',
   priority = 1,
-  complete = function(context)
+  complete = Promise.async(function(context)
     local icons = require('opencode.ui.icons')
     if not context.line:match('^' .. vim.pesc(context.trigger_char) .. '[^%s/]*$') then
       return {}
     end
 
-    local config_mod = require('opencode.config')
-    local expected_trigger = config_mod.get_key_for_function('input_window', 'slash_commands')
+    local config = require('opencode.config')
+    local expected_trigger = config.get_key_for_function('input_window', 'slash_commands')
     if context.trigger_char ~= expected_trigger then
       return {}
     end
 
     local items = {}
     local input_lower = context.input:lower()
-    local commands = get_available_commands()
+    local commands = get_available_commands():await()
 
     for _, command in ipairs(commands) do
       local name_lower = command.name:lower()
@@ -67,7 +68,7 @@ local command_source = {
     sort_util.sort_by_relevance(items, context.input)
 
     return items
-  end,
+  end),
   on_complete = function(item)
     if item.kind == 'command' then
       if item.data.fn then

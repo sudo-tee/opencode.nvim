@@ -3,6 +3,7 @@ local util = require('opencode.util')
 local session = require('opencode.session')
 local config_file = require('opencode.config_file')
 local state = require('opencode.state')
+local quick_chat = require('opencode.quick_chat')
 
 local input_window = require('opencode.ui.input_window')
 local ui = require('opencode.ui.ui')
@@ -105,6 +106,15 @@ end
 
 function M.select_history()
   require('opencode.ui.history_picker').pick()
+end
+
+function M.quick_chat(message, range)
+  local options = {}
+  if type(message) == 'table' then
+    message = table.concat(message, ' ')
+  end
+
+  return quick_chat.quick_chat(message, options, range)
 end
 
 function M.toggle_pane()
@@ -970,6 +980,14 @@ M.commands = {
     fn = M.toggle_zoom,
   },
 
+  quick_chat = {
+    desc = 'Quick chat with current context',
+    fn = M.quick_chat,
+    range = true, -- Enable range support for visual selections
+    nargs = '+', -- Allow multiple arguments
+    complete = false, -- No completion for custom messages
+  },
+
   swap = {
     desc = 'Swap pane position left/right',
     fn = M.swap_position,
@@ -1309,6 +1327,14 @@ M.legacy_command_map = {
 
 function M.route_command(opts)
   local args = vim.split(opts.args or '', '%s+', { trimempty = true })
+  local range = nil
+
+  if opts.range and opts.range > 0 then
+    range = {
+      start = opts.line1,
+      stop = opts.line2,
+    }
+  end
 
   if #args == 0 then
     M.toggle()
@@ -1319,7 +1345,7 @@ function M.route_command(opts)
   local subcmd_def = M.commands[subcommand]
 
   if subcmd_def and subcmd_def.fn then
-    subcmd_def.fn(vim.list_slice(args, 2))
+    subcmd_def.fn(vim.list_slice(args, 2), range)
   else
     vim.notify('Unknown subcommand: ' .. subcommand, vim.log.levels.ERROR)
   end
@@ -1413,6 +1439,7 @@ function M.setup()
   vim.api.nvim_create_user_command('Opencode', M.route_command, {
     desc = 'Opencode.nvim main command with nested subcommands',
     nargs = '*',
+    range = true, -- Enable range support
     complete = M.complete_command,
   })
 

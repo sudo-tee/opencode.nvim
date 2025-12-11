@@ -290,6 +290,7 @@
 ---@field info MessageInfo Metadata about the message
 ---@field parts OpencodeMessagePart[] Parts that make up the message
 ---@field references CodeReference[]|nil Parsed file references from text parts (cached)
+---@field system string|nil System message content
 
 ---@class MessageInfo
 ---@field id string Unique message identifier

@@ -13,6 +13,7 @@
 ---@field reject fun(self: Promise<T>, err: any): Promise<T>
 ---@field and_then fun(self: Promise<T>, callback: fun(value: T): U | Promise<U> | nil): Promise<U>
 ---@field catch fun(self: Promise<T>, error_callback: fun(err: any): any | Promise<any> | nil): Promise<T>
+---@field finally fun(self: Promise<T>, callback: fun(): nil): Promise<T>
 ---@field wait fun(self: Promise<T>, timeout?: integer, interval?: integer): T
 ---@field peek fun(self: Promise<T>): T
 ---@field is_resolved fun(self: Promise<T>): boolean
@@ -179,6 +180,49 @@ function Promise:catch(error_callback)
   else
     table.insert(self._catch_callbacks, handle_error)
     table.insert(self._then_callbacks, handle_success)
+  end
+
+  return new_promise
+end
+
+---Execute a callback regardless of whether the promise resolves or rejects
+---The callback is called without any arguments and its return value is ignored
+---@param callback fun(): nil
+---@return Promise<T>
+function Promise:finally(callback)
+  local new_promise = Promise.new()
+
+  local handle_finally = function()
+    local ok, _ = pcall(callback)
+    -- Ignore callback errors and result, finally doesn't change the promise chain
+    if not ok then
+      -- Log error but don't propagate it
+      vim.notify("Error in finally callback", vim.log.levels.WARN)
+    end
+  end
+
+  local handle_success = function(value)
+    handle_finally()
+    new_promise:resolve(value)
+  end
+
+  local handle_error = function(err)
+    handle_finally()
+    new_promise:reject(err)
+  end
+
+  if self._resolved and not self._error then
+    -- Promise already resolved successfully
+    local schedule_finally = vim.schedule_wrap(handle_success)
+    schedule_finally(self._value)
+  elseif self._resolved and self._error then
+    -- Promise already rejected
+    local schedule_finally = vim.schedule_wrap(handle_error)
+    schedule_finally(self._error)
+  else
+    -- Promise still pending, add callbacks
+    table.insert(self._then_callbacks, handle_success)
+    table.insert(self._catch_callbacks, handle_error)
   end
 
   return new_promise

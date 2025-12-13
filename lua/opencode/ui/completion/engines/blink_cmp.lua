@@ -14,7 +14,6 @@ function Source:get_trigger_characters()
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
   local context_key = config.get_key_for_function('input_window', 'context_items')
-  local triggers = {}
   return {
     slash_key or '',
     mention_key or '',

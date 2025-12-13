@@ -14,7 +14,6 @@ function Source:get_trigger_characters()
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
   local context_key = config.get_key_for_function('input_window', 'context_items')
-  local triggers = {}
   return {
     slash_key or '',
     mention_key or '',
@@ -22,7 +21,7 @@ function Source:get_trigger_characters()
   }
 end
 
-function Source:is_available()
+function Source:enabled()
   return vim.bo.filetype == 'opencode'
 end
 
@@ -44,7 +43,7 @@ function Source:get_completions(ctx, callback)
     end
 
     local context = {
-      input = trigger_match,
+      input = trigger_match, -- Pass input for search-based sources (e.g., files)
       cursor_pos = col,
       line = line,
       trigger_char = trigger_char,
@@ -54,6 +53,7 @@ function Source:get_completions(ctx, callback)
     for _, completion_source in ipairs(completion_sources) do
       local source_items = completion_source.complete(context):await()
       for i, item in ipairs(source_items) do
+        local insert_text = item.insert_text or item.label
         table.insert(items, {
           label = item.label,
           kind = item.kind,
@@ -61,7 +61,9 @@ function Source:get_completions(ctx, callback)
           kind_hl = item.kind_hl,
           detail = item.detail,
           documentation = item.documentation,
-          insertText = item.insert_text or item.label,
+          -- Use filterText for fuzzy matching against the typed text after trigger char
+          filterText = item.filter_text or item.label,
+          insertText = insert_text,
           sortText = string.format(
             '%02d_%02d_%02d_%s',
             completion_source.priority or 999,
@@ -101,6 +103,7 @@ function M.setup(completion_sources)
 
   blink.add_source_provider('opencode_mentions', {
     module = 'opencode.ui.completion.engines.blink_cmp',
+    async = true,
   })
 
   return true

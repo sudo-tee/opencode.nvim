@@ -1,13 +1,10 @@
--- Quick chat functionality for opencode.nvim
--- Provides ephemeral chat sessions with context-specific prompts
-
 local context = require('opencode.context')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local core = require('opencode.core')
 local util = require('opencode.util')
-local Promise = require('opencode.promise')
 local session = require('opencode.session')
+local Promise = require('opencode.promise')
 local Timer = require('opencode.ui.timer')
 
 local M = {}
@@ -116,6 +113,8 @@ local function create_context_config(has_range)
       warning = false,
     },
     agents = { enabled = false },
+    buffer = { enabled = true },
+    git_diff = { enabled = false },
   }
 end
 
@@ -147,16 +146,10 @@ local function extract_response_text(message)
   return vim.trim(response_text)
 end
 
---- Applies line replacements to a buffer using JSON format
----@param buf integer Buffer handle
----@param response_text string JSON-formatted response containing replacements
----@return boolean success Whether the replacements were applied successfully
-local function apply_line_replacements(buf, response_text)
-  if not vim.api.nvim_buf_is_valid(buf) then
-    vim.notify('Buffer is not valid for applying changes', vim.log.levels.ERROR)
-    return false
-  end
-
+--- Extracts and parses JSON replacement data from response text
+---@param response_text string Response text that may contain JSON in code blocks
+---@return table|nil replacement_data Parsed replacement data or nil if invalid
+local function parse_replacement_json(response_text)
   -- Try to extract JSON from response text (handle cases where JSON is in code blocks)
   local json_text = response_text
   -- Look for JSON in code blocks
@@ -168,12 +161,55 @@ local function apply_line_replacements(buf, response_text)
   -- Try to parse JSON format
   local ok, replacement_data = pcall(vim.json.decode, json_text)
   if not ok then
-    vim.notify('Failed to parse replacement data as JSON: ' .. tostring(replacement_data), vim.log.levels.ERROR)
-    return false
+    return nil
   end
 
   if not replacement_data.replacements or type(replacement_data.replacements) ~= 'table' then
-    vim.notify('Invalid replacement format - missing replacements array', vim.log.levels.ERROR)
+    return nil
+  end
+
+  if #replacement_data.replacements == 0 then
+    return nil
+  end
+
+  return replacement_data
+end
+
+--- Converts object format like {"1": "line1", "2": "line2"} to array
+---@param obj_lines table Object with string keys representing line numbers
+---@return string[] lines_array Array of lines in correct order
+local function convert_object_to_lines_array(obj_lines)
+  local lines_array = {}
+  local numeric_keys = {}
+
+  -- Collect all numeric string keys
+  for key, _ in pairs(obj_lines) do
+    local num_key = tonumber(key)
+    if num_key and num_key > 0 and math.floor(num_key) == num_key then
+      table.insert(numeric_keys, num_key)
+    end
+  end
+
+  -- Sort keys to ensure correct order
+  table.sort(numeric_keys)
+
+  for _, num_key in ipairs(numeric_keys) do
+    local line_content = obj_lines[tostring(num_key)]
+    if line_content then
+      table.insert(lines_array, line_content)
+    end
+  end
+
+  return lines_array
+end
+
+--- Applies line replacements to a buffer using parsed replacement data
+---@param buf integer Buffer handle
+---@param replacement_data table Parsed replacement data
+---@return boolean success Whether the replacements were applied successfully
+local function apply_line_replacements(buf, replacement_data)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    vim.notify('Buffer is not valid for applying changes', vim.log.levels.ERROR)
     return false
   end
 
@@ -189,82 +225,52 @@ local function apply_line_replacements(buf, response_text)
     local end_line = replacement.end_line or start_line
     local new_lines = replacement.lines or replacement.content
 
+    -- Convert string to array
     if type(new_lines) == 'string' then
-      new_lines = vim.split(new_lines, '\n', { plain = true })
+      new_lines = vim.split(new_lines, '\n')
+    elseif type(new_lines) == 'table' then
+      -- Check if it's object format like {"1": "line1", "2": "line2"}
+      local first_key = next(new_lines)
+      if first_key and type(first_key) == 'string' and tonumber(first_key) then
+        new_lines = convert_object_to_lines_array(new_lines)
+      end
     end
 
-    if start_line and start_line >= 1 and start_line <= buf_line_count then
-      local start_idx = start_line - 1 -- Convert to 0-indexed
-      local end_idx = math.min(end_line, buf_line_count)
+    -- Apply replacement if valid
+    if start_line and start_line >= 1 and start_line <= buf_line_count and new_lines and #new_lines > 0 then
+      local start_idx = math.floor(math.max(0, start_line - 1))
+      local end_idx = math.floor(math.min(end_line, buf_line_count))
 
-      local success, err = pcall(vim.api.nvim_buf_set_lines, buf, start_idx, end_idx, false, new_lines)
-      if not success then
-        vim.notify('Failed to apply replacement: ' .. tostring(err), vim.log.levels.ERROR)
-        return false
-      end
-
+      pcall(vim.api.nvim_buf_set_lines, buf, start_idx, end_idx, false, new_lines)
       total_replacements = total_replacements + 1
-    else
-      vim.notify(
-        string.format('Could not apply replacement - start_line %d is out of bounds', start_line),
-        vim.log.levels.WARN
-      )
     end
   end
 
   return total_replacements > 0
 end
 
---- Checks if response text is in JSON replacement format
----@param response_text string Response text to check
----@return boolean is_json True if text contains JSON replacement format
-local function is_json_replacement_format(response_text)
-  -- Check for JSON in code blocks first
-  local json_match = response_text:match('```json\n(.-)\n```') or response_text:match('```\n(.-)\n```')
-  local json_text = json_match or response_text
+--- Processes response from ephemeral session
+---@param session_info table Session tracking info
+---@param messages OpencodeMessage[] Session messages
+---@return boolean success Whether the response was processed successfully
+local function process_response(session_info, messages)
+  local response_message = messages[#messages]
+  if #messages < 2 and (not response_message or response_message.info.role ~= 'assistant') then
+    return false
+  end
+  ---@cast response_message OpencodeMessage
 
-  -- Try to parse as JSON
-  local ok, data = pcall(vim.json.decode, json_text)
-  if not ok then
+  local response_text = extract_response_text(response_message) or ''
+  if response_text == '' then
     return false
   end
 
-  -- Check if it has the expected replacements structure
-  return type(data) == 'table' and type(data.replacements) == 'table' and #data.replacements > 0
-end
-
---- Processes response from ephemeral session
----@param session_obj Session The session object
----@param session_info table Session tracking info
----@param messages OpencodeMessage[] Session messages
-local function process_response(session_obj, session_info, messages)
-  if #messages < 2 then
-    cleanup_session(session_info, session_obj.id, 'Quick chat completed but no messages found')
-    return
+  local replacement_data = parse_replacement_json(response_text)
+  if not replacement_data then
+    return false
   end
 
-  local response_message = messages[#messages]
-  if not response_message or response_message.info.role ~= 'assistant' then
-    cleanup_session(session_info, session_obj.id, 'Quick chat completed but no assistant response found')
-    return
-  end
-
-  local response_text = extract_response_text(response_message) or ''
-
-  if response_text ~= '' then
-    -- Try JSON format first (preferred)
-    if is_json_replacement_format(response_text) then
-      local success = apply_line_replacements(session_info.buf, response_text)
-      if success then
-        cleanup_session(session_info, session_obj.id)
-      else
-        cleanup_session(session_info, session_obj.id, 'Failed to apply code edits')
-      end
-      return
-    end
-  end
-
-  cleanup_session(session_info, session_obj.id, 'Quick chat completed but no recognized response format found')
+  return apply_line_replacements(session_info.buf, replacement_data)
 end
 
 --- Hook function called when a session is done thinking (no more pending messages)
@@ -275,11 +281,21 @@ local on_done = Promise.async(function(session_obj)
   end
 
   local session_info = active_sessions[session_obj.id]
-  if session_info then
-    local messages = session.get_messages(session_obj):await() --[[@as OpencodeMessage[] ]]
-    if messages then
-      process_response(session_obj, session_info, messages)
-    end
+  if not session_info then
+    return
+  end
+
+  local messages = session.get_messages(session_obj):await() --[[@as OpencodeMessage[] ]]
+  if not messages then
+    cleanup_session(session_info, session_obj.id, 'Failed to update file with quick chat response')
+    return
+  end
+
+  local success = process_response(session_info, messages)
+  if success then
+    cleanup_session(session_info, session_obj.id) -- Success cleanup (no error message)
+  else
+    cleanup_session(session_info, session_obj.id, 'Failed to update file with quick chat response') -- Error cleanup
   end
 
   -- Always delete ephemeral session
@@ -288,167 +304,171 @@ local on_done = Promise.async(function(session_obj)
   -- end)
 end)
 
---- Helper function to save file if modified
----@param buf integer Buffer handle
----@return boolean success True if file was saved successfully or didn't need saving
-local function ensure_file_saved(buf)
-  if not vim.api.nvim_get_option_value('modified', { buf = buf }) then
-    return true
+--- Validates quick chat prerequisites
+---@param message string|nil The message to validate
+---@return boolean valid
+---@return string|nil error_message
+local function validate_quick_chat_prerequisites(message)
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+
+  if not buf or not win then
+    return false, 'Quick chat requires an active file buffer'
   end
 
-  local filename = vim.api.nvim_buf_get_name(buf)
-  if not filename or filename == '' then
-    vim.notify('Cannot save unnamed buffer. Please save the file first.', vim.log.levels.WARN)
-    return false
-  end
-
-  if vim.fn.filewritable(filename) ~= 1 and vim.fn.filewritable(vim.fn.fnamemodify(filename, ':h')) ~= 2 then
-    vim.notify('File is not writable: ' .. filename, vim.log.levels.ERROR)
-    return false
-  end
-
-  local ok, err = pcall(function()
-    vim.api.nvim_buf_call(buf, function()
-      vim.cmd('write')
-    end)
-  end)
-
-  if not ok then
-    vim.notify('Failed to save file: ' .. tostring(err), vim.log.levels.ERROR)
-    return false
+  if message and message == '' then
+    return false, 'Quick chat message cannot be empty'
   end
 
   return true
 end
 
---- Unified quick chat function
----@param message string Optional custom message to use instead of default prompts
----@param options {include_context?: boolean, model?: string, agent?: string}|nil Optional configuration for context and behavior
----@param range table|nil Optional range information { start = number, stop = number }
----@return Promise
-function M.quick_chat(message, options, range)
-  options = options or {}
-
-  local buf, win = context.get_current_buf()
-  if not buf or not win then
-    vim.notify('Quick chat requires an active file buffer', vim.log.levels.ERROR)
-    return Promise.new():resolve(nil)
-  end
-
-  if message and message == '' then
-    vim.notify('Quick chat message cannot be empty', vim.log.levels.ERROR)
-    return Promise.new():resolve(nil)
-  end
-
-  -- if not ensure_file_saved(buf) then
-  --   vim.notify('Quick chat cancelled - file must be saved first', vim.log.levels.ERROR)
-  --   return Promise.new():resolve(nil)
-  -- end
-
-  local cursor_pos = vim.api.nvim_win_get_cursor(win)
-  local row, col = cursor_pos[1] - 1, cursor_pos[2] -- Convert to 0-indexed
-  local spinner = CursorSpinner.new(buf, row, col)
-
-  local context_config = create_context_config(range ~= nil)
+--- Sets up context and range for quick chat
+---@param buf integer Buffer handle
+---@param context_config OpencodeContextConfig Context configuration
+---@param range table|nil Range information
+---@return table context_instance
+local function setup_quick_chat_context(buf, context_config, range)
   local context_instance = context.new_instance(context_config)
 
   if range and range.start and range.stop then
-    local range_lines = vim.api.nvim_buf_get_lines(buf, range.start - 1, range.stop, false)
+    local start_line = math.floor(math.max(0, range.start - 1))
+    local end_line = math.floor(range.stop + 1)
+    local range_lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, false)
     local range_text = table.concat(range_lines, '\n')
     local current_file = context_instance:get_current_file(buf)
     local selection = context_instance:new_selection(current_file, range_text, range.start .. ', ' .. range.stop)
     context_instance:add_selection(selection)
   end
 
-  local title = create_session_title(buf)
+  return context_instance
+end
 
-  return core.create_new_session(title):and_then(function(quick_chat_session)
-    if not quick_chat_session then
-      spinner:stop()
-      return Promise.new():reject('Failed to create ephemeral session')
-    end
-
-    --TODO only for debug
-    state.active_session = quick_chat_session
-
-    active_sessions[quick_chat_session.id] = {
-      buf = buf,
-      row = row,
-      col = col,
-      spinner = spinner,
-      timestamp = vim.uv.now(),
+--- Creates message parameters for quick chat
+---@param message string The user message
+---@param context_instance table Context instance
+---@param options table Options including model and agent
+---@return table params Message parameters
+local function create_message_params(message, context_instance, options)
+  local quick_chat_config = config.values.quick_chat or {}
+  local instructions = quick_chat_config.instructions
+    or {
+      'You are an expert code assistant helping with code and text editing tasks.',
+      'You are operating in a temporary quick chat session with limited context.',
+      "Your task is to modify the provided code according to the user's request. Follow these instructions precisely:",
+      'CRITICAL: At the end of your job You MUST add a message with a valid JSON format for line replacements. Use this exact structure:',
+      '',
+      '```json',
+      '{',
+      '  "replacements": [',
+      '    {',
+      '      "start_line": 10,',
+      '      "end_line": 11,',
+      '      "lines": ["new content line 1", "new content line 2"]',
+      '    }',
+      '  ]',
+      '}',
+      '```',
+      '',
+      'Maintain the *SAME INDENTATION* in the returned code as in the source code',
+      'NEVER add any explanations, apologies, or additional text outside the JSON structure.',
+      'ALWAYS split multiple line replacements into separate entries in the "replacements" array.',
+      'IMPORTANT: Use 1-indexed line numbers. Each replacement replaces lines start_line through end_line (inclusive).',
+      'The "lines" array contains the new content. If replacing a single line, end_line can equal start_line.',
+      'Ensure the returned code is complete and can be directly used as a replacement for the original code.',
+      'Remember that Your response SHOULD CONTAIN ONLY THE MODIFIED CODE to be used as DIRECT REPLACEMENT to the original file.',
     }
 
-    local allowed, err_msg =
-      util.check_prompt_allowed(config.values.prompt_guard, context_instance:get_mentioned_files())
+  local parts = context.format_message_quick_chat(message, context_instance):await()
+  local params = { parts = parts, system = table.concat(instructions, '\n'), synthetic = true }
 
-    if not allowed then
-      spinner:stop()
-      active_sessions[quick_chat_session.id] = nil
-      return Promise.new():reject(err_msg or 'Prompt denied by prompt_guard')
+  -- Set model if specified
+  local current_model = core.initialize_current_model():await()
+  local target_model = options.model or quick_chat_config.default_model or current_model
+  if target_model then
+    local provider, model = target_model:match('^(.-)/(.+)$')
+    if provider and model then
+      params.model = { providerID = provider, modelID = model }
     end
+  end
 
-    local instructions = config.quick_chat and config.quick_chat.instructions
-      or {
-        'You are an expert code assistant helping with code and text editing tasks.',
-        'You are operating in a temporary quick chat session with limited context.',
-        'CRITICAL: You MUST respond ONLY in valid JSON format for line replacements. Use this exact structure:',
-        '',
-        '```json',
-        '{',
-        '  "replacements": [',
-        '    {',
-        '      "start_line": 10,',
-        '      "end_line": 12,',
-        '      "lines": ["new content line 1", "new content line 2"]',
-        '    }',
-        '  ]',
-        '}',
-        '```',
-        '',
-        'ALWAYS split multiple line replacements into separate entries in the "replacements" array.',
-        'NEVER add any explanations, apologies, or additional text outside the JSON structure.',
-        'IMPORTANT: Use 1-indexed line numbers. Each replacement replaces lines start_line through end_line (inclusive).',
-        'The "lines" array contains the new content. If replacing a single line, end_line can equal start_line.',
-        'Only provide changes that are directly relevant to the current context, cursor position, or selection.',
-        'The provided context is in JSON format - use the plain text content to determine what changes to make.',
-      }
+  -- Set agent if specified
+  local target_mode = options.agent
+    or quick_chat_config.default_agent
+    or state.current_mode
+    or config.values.default_mode
+  if target_mode then
+    params.agent = target_mode
+  end
 
-    local parts = context.format_message_stateless(message, context_instance)
-    local params = { parts = parts, system = table.concat(instructions, '\n\n') }
-    local quick_chat_config = config.values.quick_chat or {}
-
-    return core
-      .initialize_current_model()
-      :and_then(function(current_model)
-        local target_model = options.model or quick_chat_config.default_model or current_model
-        if target_model then
-          local provider, model = target_model:match('^(.-)/(.+)$')
-          if provider and model then
-            params.model = { providerID = provider, modelID = model }
-          end
-        end
-
-        local target_mode = options.agent
-          or quick_chat_config.default_agent
-          or state.current_mode
-          or config.values.default_mode
-        if target_mode then
-          params.agent = target_mode
-        end
-
-        return state.api_client:create_message(quick_chat_session.id, params)
-      end)
-      :and_then(function()
-        on_done(quick_chat_session)
-      end)
-      :catch(function(err)
-        spinner:stop()
-        active_sessions[quick_chat_session.id] = nil
-        vim.notify('Error in quick chat: ' .. vim.inspect(err), vim.log.levels.ERROR)
-      end)
-  end)
+  return params
 end
+
+--- Unified quick chat function
+---@param message string Optional custom message to use instead of default prompts
+---@param options {context_config?:OpencodeContextConfig, model?: string, agent?: string}|nil Optional configuration for context and behavior
+---@param range table|nil Optional range information { start = number, stop = number }
+---@return Promise
+M.quick_chat = Promise.async(function(message, options, range)
+  options = options or {}
+
+  -- Validate prerequisites
+  local valid, error_msg = validate_quick_chat_prerequisites(message)
+  if not valid then
+    vim.notify(error_msg or 'Unknown error', vim.log.levels.ERROR)
+    return Promise.new():resolve(nil)
+  end
+
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+  local cursor_pos = vim.api.nvim_win_get_cursor(win)
+  local row, col = cursor_pos[1] - 1, cursor_pos[2] -- Convert to 0-indexed
+  local spinner = CursorSpinner.new(buf, row, col)
+
+  -- Setup context
+  local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
+  local context_instance = setup_quick_chat_context(buf, context_config, range)
+
+  -- Check prompt guard
+  local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, context_instance:get_mentioned_files())
+  if not allowed then
+    spinner:stop()
+    return Promise.new():reject(err_msg or 'Prompt denied by prompt_guard')
+  end
+
+  -- Create session
+  local title = create_session_title(buf)
+  local quick_chat_session = core.create_new_session(title):await()
+  if not quick_chat_session then
+    spinner:stop()
+    return Promise.new():reject('Failed to create ephemeral session')
+  end
+
+  --TODO only for debug
+  state.active_session = quick_chat_session
+
+  active_sessions[quick_chat_session.id] = {
+    buf = buf,
+    row = row,
+    col = col,
+    spinner = spinner,
+    timestamp = vim.uv.now(),
+  }
+
+  -- Create and send message
+  local params = create_message_params(message, context_instance, options)
+
+  local success, err = pcall(function()
+    state.api_client:create_message(quick_chat_session.id, params):await()
+    on_done(quick_chat_session):await()
+  end)
+
+  if not success then
+    spinner:stop()
+    active_sessions[quick_chat_session.id] = nil
+    vim.notify('Error in quick chat: ' .. vim.inspect(err), vim.log.levels.ERROR)
+  end
+end)
 
 --- Setup function to initialize quick chat functionality
 function M.setup()

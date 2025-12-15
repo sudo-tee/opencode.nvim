@@ -22,7 +22,7 @@ M.defaults = {
       ['<leader>ot'] = { 'toggle_focus', desc = 'Toggle focus' },
       ['<leader>oT'] = { 'timeline', desc = 'Session timeline' },
       ['<leader>oq'] = { 'close', desc = 'Close Opencode window' },
-      ['<leader>oQ'] = { 'quick_chat', desc = 'Quick chat with current context' },
+      ['<leader>oQ'] = { 'quick_chat', desc = 'Quick chat with current context', mode = { 'n', 'x' } },
       ['<leader>os'] = { 'select_session', desc = 'Select session' },
       ['<leader>oR'] = { 'rename_session', desc = 'Rename session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },
@@ -216,7 +216,6 @@ M.defaults = {
   quick_chat = {
     default_model = nil, -- Use current model if nil
     default_agent = nil, -- Use current mode if nil
-    include_context_by_default = true,
     default_prompt = nil, -- Use built-in prompt if nil
   },
 }

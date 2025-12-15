@@ -109,12 +109,35 @@ function M.select_history()
 end
 
 function M.quick_chat(message, range)
-  local options = {}
+  if not range then
+    if vim.fn.mode():match('[vV\022]') then
+      local visual_range = util.get_visual_range()
+      if visual_range then
+        range = {
+          start_line = visual_range.start_line,
+          end_line = visual_range.end_line,
+        }
+      end
+    end
+  end
+
   if type(message) == 'table' then
     message = table.concat(message, ' ')
   end
 
-  return quick_chat.quick_chat(message, options, range)
+  -- If no message, prompt for input (range is captured above)
+  if not message or #message == 0 then
+    vim.ui.input({ prompt = 'Quick Chat Message: ' }, function(input)
+      local prompt, ctx = util.parse_quick_context_args(input)
+      if input and input ~= '' then
+        quick_chat.quick_chat(prompt, { context_config = ctx }, range)
+      end
+    end)
+    return
+  end
+
+  local prompt, ctx = util.parse_quick_context_args(message)
+  quick_chat.quick_chat(prompt, { context_config = ctx }, range)
 end
 
 function M.toggle_pane()
@@ -981,7 +1004,7 @@ M.commands = {
   },
 
   quick_chat = {
-    desc = 'Quick chat with current context',
+    desc = 'Quick chat with current buffer or visual selection',
     fn = M.quick_chat,
     range = true, -- Enable range support for visual selections
     nargs = '+', -- Allow multiple arguments

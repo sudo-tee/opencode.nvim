@@ -388,7 +388,7 @@ ContextInstance.get_git_diff = Promise.async(function(self)
     return nil
   end
 
-  Promise.system({ 'git', 'diff', '--cached' })
+  return Promise.system({ 'git', 'diff', '--cached' })
 end)
 
 ---@param opts? OpencodeContextConfig
@@ -779,6 +779,7 @@ M.format_message_quick_chat = Promise.async(function(prompt, context_instance)
   end
 
   local diff_text = context_instance:get_git_diff():await()
+  vim.print('⭕ ❱ context.lua:781 ❱ ƒ(diff_text) ❱ diff_text =', diff_text)
   if diff_text and diff_text ~= '' then
     table.insert(parts, format_git_diff_part(diff_text))
   end

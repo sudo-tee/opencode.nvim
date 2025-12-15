@@ -9,7 +9,15 @@ local Timer = require('opencode.ui.timer')
 
 local M = {}
 
-local active_sessions = {}
+---@class OpencodeQuickChatRunningSession
+---@field buf integer Buffer handle
+---@field row integer Row position for spinner
+---@field col integer Column position for spinner
+---@field spinner CursorSpinner Spinner instance
+---@field timestamp integer Timestamp when session started
+
+---@type table<string, OpencodeQuickChatRunningSession>
+local running_sessions = {}
 
 --- Simple cursor spinner using the same animation logic as loading_animation.lua
 local CursorSpinner = {}
@@ -126,7 +134,7 @@ local function cleanup_session(session_info, session_id, message)
   if session_info and session_info.spinner then
     session_info.spinner:stop()
   end
-  active_sessions[session_id] = nil
+  running_sessions[session_id] = nil
   if message then
     vim.notify(message, vim.log.levels.WARN)
   end
@@ -150,15 +158,12 @@ end
 ---@param response_text string Response text that may contain JSON in code blocks
 ---@return table|nil replacement_data Parsed replacement data or nil if invalid
 local function parse_replacement_json(response_text)
-  -- Try to extract JSON from response text (handle cases where JSON is in code blocks)
   local json_text = response_text
-  -- Look for JSON in code blocks
   local json_match = response_text:match('```json\n(.-)\n```') or response_text:match('```\n(.-)\n```')
   if json_match then
     json_text = json_match
   end
 
-  -- Try to parse JSON format
   local ok, replacement_data = pcall(vim.json.decode, json_text)
   if not ok then
     return nil
@@ -176,6 +181,7 @@ local function parse_replacement_json(response_text)
 end
 
 --- Converts object format like {"1": "line1", "2": "line2"} to array
+--- Some LLMs may return line replacements in this format instead of an array
 ---@param obj_lines table Object with string keys representing line numbers
 ---@return string[] lines_array Array of lines in correct order
 local function convert_object_to_lines_array(obj_lines)
@@ -236,7 +242,6 @@ local function apply_line_replacements(buf, replacement_data)
       end
     end
 
-    -- Apply replacement if valid
     if start_line and start_line >= 1 and start_line <= buf_line_count and new_lines and #new_lines > 0 then
       local start_idx = math.floor(math.max(0, start_line - 1))
       local end_idx = math.floor(math.min(end_line, buf_line_count))
@@ -274,28 +279,28 @@ local function process_response(session_info, messages)
 end
 
 --- Hook function called when a session is done thinking (no more pending messages)
----@param session_obj Session The session object
-local on_done = Promise.async(function(session_obj)
-  if not (session_obj.title and vim.startswith(session_obj.title, '[QuickChat]')) then
+---@param active_session Session The session object
+local on_done = Promise.async(function(active_session)
+  if not (active_session.title and vim.startswith(active_session.title, '[QuickChat]')) then
     return
   end
 
-  local session_info = active_sessions[session_obj.id]
-  if not session_info then
+  local running_session = running_sessions[active_session.id]
+  if not running_session then
     return
   end
 
-  local messages = session.get_messages(session_obj):await() --[[@as OpencodeMessage[] ]]
+  local messages = session.get_messages(active_session):await() --[[@as OpencodeMessage[] ]]
   if not messages then
-    cleanup_session(session_info, session_obj.id, 'Failed to update file with quick chat response')
+    cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
     return
   end
 
-  local success = process_response(session_info, messages)
+  local success = process_response(running_session, messages)
   if success then
-    cleanup_session(session_info, session_obj.id) -- Success cleanup (no error message)
+    cleanup_session(running_session, active_session.id)
   else
-    cleanup_session(session_info, session_obj.id, 'Failed to update file with quick chat response') -- Error cleanup
+    cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
   end
 
   --@TODO: enable session deletion after testing
@@ -305,7 +310,6 @@ local on_done = Promise.async(function(session_obj)
   -- end)
 end)
 
---- Validates quick chat prerequisites
 ---@param message string|nil The message to validate
 ---@return boolean valid
 ---@return string|nil error_message
@@ -329,7 +333,7 @@ end
 ---@param context_config OpencodeContextConfig Context configuration
 ---@param range table|nil Range information
 ---@return table context_instance
-local function setup_quick_chat_context(buf, context_config, range)
+local function init_context(buf, context_config, range)
   local context_instance = context.new_instance(context_config)
 
   if range and range.start and range.stop then
@@ -383,7 +387,6 @@ local create_message = Promise.async(function(message, context_instance, options
   local parts = context.format_message_quick_chat(message, context_instance):await()
   local params = { parts = parts, system = table.concat(instructions, '\n'), synthetic = true }
 
-  -- Set model if specified
   local current_model = core.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
   if target_model then
@@ -413,7 +416,6 @@ end)
 M.quick_chat = Promise.async(function(message, options, range)
   options = options or {}
 
-  -- Validate prerequisites
   local valid, error_msg = validate_quick_chat_prerequisites(message)
   if not valid then
     vim.notify(error_msg or 'Unknown error', vim.log.levels.ERROR)
@@ -426,17 +428,15 @@ M.quick_chat = Promise.async(function(message, options, range)
   local row, col = cursor_pos[1] - 1, cursor_pos[2] -- Convert to 0-indexed
   local spinner = CursorSpinner.new(buf, row, col)
 
-  -- Setup context
   local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
-  local context_instance = setup_quick_chat_context(buf, context_config, range)
-  -- Check prompt guard
+  local context_instance = init_context(buf, context_config, range)
+
   local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, context_instance:get_mentioned_files())
   if not allowed then
     spinner:stop()
     return Promise.new():reject(err_msg or 'Prompt denied by prompt_guard')
   end
 
-  -- Create session
   local title = create_session_title(buf)
   local quick_chat_session = core.create_new_session(title):await()
   if not quick_chat_session then
@@ -447,7 +447,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   --TODO only for debug
   state.active_session = quick_chat_session
 
-  active_sessions[quick_chat_session.id] = {
+  running_sessions[quick_chat_session.id] = {
     buf = buf,
     row = row,
     col = col,
@@ -455,7 +455,6 @@ M.quick_chat = Promise.async(function(message, options, range)
     timestamp = vim.uv.now(),
   }
 
-  -- Create and send message
   local params = create_message(message, context_instance, options):await()
   spinner:stop()
 
@@ -466,7 +465,7 @@ M.quick_chat = Promise.async(function(message, options, range)
 
   if not success then
     spinner:stop()
-    active_sessions[quick_chat_session.id] = nil
+    running_sessions[quick_chat_session.id] = nil
     vim.notify('Error in quick chat: ' .. vim.inspect(err), vim.log.levels.ERROR)
   end
 end)
@@ -479,12 +478,12 @@ function M.setup()
     group = augroup,
     callback = function(ev)
       local buf = ev.buf
-      for session_id, session_info in pairs(active_sessions) do
+      for session_id, session_info in pairs(running_sessions) do
         if session_info.buf == buf then
           if session_info.spinner then
             session_info.spinner:stop()
           end
-          active_sessions[session_id] = nil
+          running_sessions[session_id] = nil
         end
       end
     end,
@@ -493,12 +492,12 @@ function M.setup()
   vim.api.nvim_create_autocmd('VimLeavePre', {
     group = augroup,
     callback = function()
-      for _session_id, session_info in pairs(active_sessions) do
+      for _session_id, session_info in pairs(running_sessions) do
         if session_info.spinner then
           session_info.spinner:stop()
         end
       end
-      active_sessions = {}
+      running_sessions = {}
     end,
   })
 end

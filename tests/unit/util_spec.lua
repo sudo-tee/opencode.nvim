@@ -264,3 +264,101 @@ describe('util.format_time', function()
     end)
   end)
 end)
+
+describe('util.parse_quick_context_args', function()
+  local function parse_and_verify(input, expected_prompt, context_checks)
+    local prompt, config = util.parse_quick_context_args(input)
+    assert.is_true(config.enabled)
+    assert.equals(expected_prompt, prompt)
+
+    if context_checks then
+      for context_type, checks in pairs(context_checks) do
+        if context_type == 'diagnostics' then
+          assert.is_true(config.diagnostics.enabled)
+          if checks.only_closest ~= nil then
+            assert.equals(checks.only_closest, config.diagnostics.only_closest)
+          end
+          for _, diag_type in ipairs({ 'warning', 'error', 'info' }) do
+            if checks[diag_type] ~= nil then
+              assert.equals(checks[diag_type], config.diagnostics[diag_type])
+            end
+          end
+        else
+          assert.is_true(config[context_type].enabled)
+        end
+      end
+    end
+  end
+
+  -- Test cases with expected results
+  local test_cases = {
+    -- Basic cases
+    { '', '', nil },
+    { nil, '', nil },
+
+    -- Single context types
+    { '#buffer', '', { buffer = {} } },
+    { 'add something #buffer', 'add something', { buffer = {} } },
+    { 'generate a conventional commit #git_diff', 'generate a conventional commit', { git_diff = {} } },
+    { 'explain this code #current_file', 'explain this code', { current_file = {} } },
+    { 'explain this code #file', 'explain this code', { current_file = {} } }, -- alias test
+    { 'refactor this #selection', 'refactor this', { selection = {} } },
+    { 'complete this line #cursor_data', 'complete this line', { cursor_data = {} } },
+    { 'complete this line #cursor', 'complete this line', { cursor_data = {} } }, -- alias test
+    { 'help with this task #agents', 'help with this task', { agents = {} } },
+
+    -- Diagnostic types
+    { 'fix these issues #warnings', 'fix these issues', { diagnostics = { warning = true, only_closest = true } } },
+    { 'debug this #errors', 'debug this', { diagnostics = { error = true, only_closest = true } } },
+    { 'review #info', 'review', { diagnostics = { info = true, only_closest = true } } },
+
+    -- Multiple contexts
+    {
+      'generate a conventional commit #buffer #git_diff #warnings #errors',
+      'generate a conventional commit',
+      { buffer = {}, git_diff = {}, diagnostics = { warning = true, error = true } },
+    },
+
+    -- Edge cases
+    {
+      'generate #buffer a conventional #git_diff commit',
+      'generate a conventional commit',
+      { buffer = {}, git_diff = {} },
+    },
+    {
+      'Generate Code #BUFFER #Git_Diff #WaRnInGs',
+      'Generate Code',
+      { buffer = {}, git_diff = {}, diagnostics = { warning = true } },
+    },
+    {
+      'create function #buffer #invalid #git_diff #unknown',
+      'create function #invalid #unknown',
+      { buffer = {}, git_diff = {} },
+    },
+    {
+      '  generate   code   #buffer   #git_diff  #warnings  ',
+      'generate code',
+      { buffer = {}, git_diff = {}, diagnostics = { warning = true } },
+    },
+    {
+      'check code quality #warnings #errors #info',
+      'check code quality',
+      { diagnostics = { warning = true, error = true, info = true } },
+    },
+    {
+      'help me with this task #buffer #errors',
+      'help me with this task',
+      { buffer = {}, diagnostics = { error = true } },
+    },
+    { '#buffer #git_diff #warnings', '', { buffer = {}, git_diff = {}, diagnostics = { warning = true } } },
+  }
+
+  for _, case in ipairs(test_cases) do
+    local input, expected_prompt, context_checks = case[1], case[2], case[3]
+    local test_name = input and input ~= '' and ('parses "' .. input .. '"') or 'handles empty/nil input'
+
+    it(test_name, function()
+      parse_and_verify(input, expected_prompt, context_checks)
+    end)
+  end
+end)

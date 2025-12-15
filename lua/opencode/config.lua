@@ -171,13 +171,14 @@ M.defaults = {
     enabled = true,
     cursor_data = {
       enabled = false,
-      context_lines = 10, -- Number of lines before and after cursor to include in context
+      context_lines = 5, -- Number of lines before and after cursor to include in context
     },
     diagnostics = {
       enabled = true,
       info = false,
       warning = true,
       error = true,
+      only_closest = false, -- If true, only diagnostics for cursor/selection
     },
     current_file = {
       enabled = true,
@@ -192,6 +193,12 @@ M.defaults = {
     },
     agents = {
       enabled = true,
+    },
+    buffer = {
+      enabled = false, -- Only used for inline editing, disabled by default
+    },
+    git_diff = {
+      enabled = false,
     },
   },
   debug = {

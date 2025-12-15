@@ -3,7 +3,7 @@
 local util = require('opencode.util')
 local config = require('opencode.config')
 local state = require('opencode.state')
-local func = require('vim.func')
+local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -41,10 +41,12 @@ function ContextInstance:unload_attachments()
   self.context.linter_errors = nil
 end
 
+---@return integer|nil, integer|nil
 function ContextInstance:get_current_buf()
   local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
   if util.is_buf_a_file(curr_buf) then
-    return curr_buf, state.last_code_win_before_opencode or vim.api.nvim_get_current_win()
+    local win = vim.fn.win_findbuf(curr_buf --[[@as integer]])[1]
+    return curr_buf, state.last_code_win_before_opencode or win or vim.api.nvim_get_current_win()
   end
 end
 
@@ -64,6 +66,20 @@ function ContextInstance:load()
   if current_selection then
     local selection = self:new_selection(self.context.current_file, current_selection.text, current_selection.lines)
     self:add_selection(selection)
+  end
+end
+
+function ContextInstance:is_enabled()
+  if self.context_config and self.context_config.enabled ~= nil then
+    return self.context_config.enabled
+  end
+
+  local is_enabled = vim.tbl_get(config --[[@as table]], 'context', 'enabled')
+  local is_state_enabled = vim.tbl_get(state, 'current_context_config', 'enabled')
+  if is_state_enabled ~= nil then
+    return is_state_enabled
+  else
+    return is_enabled
   end
 end
 
@@ -116,12 +132,42 @@ function ContextInstance:get_diagnostics(buf)
     table.insert(severity_levels, vim.diagnostic.severity.INFO)
   end
 
-  local diagnostics = vim.diagnostic.get(buf, { severity = severity_levels })
+  local diagnostics = {}
+  if diagnostic_conf.only_closest then
+    local selections = self:get_selections()
+    if #selections > 0 then
+      local selection = selections[#selections]
+      if selection and selection.lines then
+        local range_parts = vim.split(selection.lines, ',')
+        local start_line = (tonumber(range_parts[1]) or 1) - 1
+        local end_line = (tonumber(range_parts[2]) or 1) - 1
+        for lnum = start_line, end_line do
+          local line_diagnostics = vim.diagnostic.get(buf, {
+            lnum = lnum,
+            severity = severity_levels,
+          })
+          for _, diag in ipairs(line_diagnostics) do
+            table.insert(diagnostics, diag)
+          end
+        end
+      end
+    else
+      local win = vim.fn.win_findbuf(buf)[1]
+      local cursor_pos = vim.fn.getcurpos(win)
+      local line_diagnostics = vim.diagnostic.get(buf, {
+        lnum = cursor_pos[2] - 1,
+        severity = severity_levels,
+      })
+      diagnostics = line_diagnostics
+    end
+  else
+    diagnostics = vim.diagnostic.get(buf, { severity = severity_levels })
+  end
+
   if #diagnostics == 0 then
     return {}
   end
 
-  -- Convert vim.Diagnostic[] to OpencodeDiagnostic[]
   local opencode_diagnostics = {}
   for _, diag in ipairs(diagnostics) do
     table.insert(opencode_diagnostics, {
@@ -273,10 +319,20 @@ function ContextInstance:get_current_cursor_data(buf, win)
     return nil
   end
 
+  local num_lines = config.context.cursor_data.context_lines --[[@as integer]]
+    or 0
   local cursor_pos = vim.fn.getcurpos(win)
   local start_line = (cursor_pos[2] - 1) --[[@as integer]]
   local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, start_line, cursor_pos[2], false)[1] or '')
-  return { line = cursor_pos[2], column = cursor_pos[3], line_content = cursor_content }
+  local lines_before = vim.api.nvim_buf_get_lines(buf, math.max(0, start_line - num_lines), start_line, false)
+  local lines_after = vim.api.nvim_buf_get_lines(buf, cursor_pos[2], cursor_pos[2] + num_lines, false)
+  return {
+    line = cursor_pos[2],
+    column = cursor_pos[3],
+    line_content = cursor_content,
+    lines_before = lines_before,
+    lines_after = lines_after,
+  }
 end
 
 function ContextInstance:get_current_selection()
@@ -326,6 +382,14 @@ function ContextInstance:get_selections()
   end
   return self.context.selections or {}
 end
+
+ContextInstance.get_git_diff = Promise.async(function(self)
+  if not self:is_context_enabled('git_diff') then
+    return nil
+  end
+
+  Promise.system({ 'git', 'diff', '--cached' })
+end)
 
 ---@param opts? OpencodeContextConfig
 ---@return OpencodeContext
@@ -532,10 +596,13 @@ local function format_selection_part(selection)
 
   return {
     type = 'text',
+    metadata = {
+      context_type = 'selection',
+    },
     text = vim.json.encode({
       context_type = 'selection',
       file = selection.file,
-      content = string.format('`````%s\n%s\n`````', lang, selection.content),
+      content = string.format('`````%s\n%s\n`````', lang, selection.content), --@TODO remove code fence and only use it when displaying
       lines = selection.lines,
     }),
     synthetic = true,
@@ -543,17 +610,23 @@ local function format_selection_part(selection)
 end
 
 ---@param diagnostics OpencodeDiagnostic[]
-local function format_diagnostics_part(diagnostics)
+---@param range? { start_line: integer, end_line: integer }|nil
+local function format_diagnostics_part(diagnostics, range)
   local diag_list = {}
   for _, diag in ipairs(diagnostics) do
-    local short_msg = diag.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
-    table.insert(
-      diag_list,
-      { msg = short_msg, severity = diag.severity, pos = 'l' .. diag.lnum + 1 .. ':c' .. diag.col + 1 }
-    )
+    if not range or (diag.lnum >= range.start_line and diag.lnum <= range.end_line) then
+      local short_msg = diag.message:gsub('%s+', ' '):gsub('^%s', ''):gsub('%s$', '')
+      table.insert(
+        diag_list,
+        { msg = short_msg, severity = diag.severity, pos = 'l' .. diag.lnum + 1 .. ':c' .. diag.col + 1 }
+      )
+    end
   end
   return {
     type = 'text',
+    meradata = {
+      context_type = 'diagnostics',
+    },
     text = vim.json.encode({ context_type = 'diagnostics', content = diag_list }),
     synthetic = true,
   }
@@ -564,11 +637,17 @@ local function format_cursor_data_part(cursor_data)
   local lang = util.get_markdown_filetype(vim.api.nvim_buf_get_name(buf)) or ''
   return {
     type = 'text',
+    metadata = {
+      context_type = 'cursor-data',
+      lang = lang,
+    },
     text = vim.json.encode({
       context_type = 'cursor-data',
       line = cursor_data.line,
       column = cursor_data.column,
-      line_content = string.format('`````%s\n%s\n`````', lang, cursor_data.line_content),
+      line_content = string.format('`````%s\n%s\n`````', lang, cursor_data.line_content), --@TODO remove code fence and only use it when displaying
+      lines_before = cursor_data.lines_before,
+      lines_after = cursor_data.lines_after,
     }),
     synthetic = true,
   }
@@ -583,6 +662,32 @@ local function format_subagents_part(agent, prompt)
     type = 'agent',
     name = agent,
     source = { value = mention, start = pos, ['end'] = pos + #mention },
+  }
+end
+
+local function format_buffer_part(buf)
+  local file = vim.api.nvim_buf_get_name(buf)
+  local rel_path = vim.fn.fnamemodify(file, ':~:.')
+  return {
+    type = 'text',
+    text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n'),
+    metadata = {
+      context_type = 'file-content',
+      filename = rel_path,
+      mime = 'text/plain',
+    },
+    synthetic = true,
+  }
+end
+
+local function format_git_diff_part(diff_text)
+  return {
+    type = 'text',
+    metadata = {
+      context_type = 'git-diff',
+    },
+    text = diff_text,
+    synthetic = true,
   }
 end
 
@@ -629,22 +734,20 @@ end
 --- Formats a prompt and context into message without state tracking (bypasses delta)
 --- Used for ephemeral sessions like quick chat that don't track context state
 ---@param prompt string
----@param opts? OpencodeContextConfig|nil
 ---@param context_instance ContextInstance Optional context instance to use instead of global
 ---@return OpencodeMessagePart[]
-function M.format_message_stateless(prompt, opts, context_instance)
-  opts = opts or config.context
-  if opts.enabled == false then
-    return { { type = 'text', text = prompt } }
-  end
+M.format_message_quick_chat = Promise.async(function(prompt, context_instance)
   local parts = { { type = 'text', text = prompt } }
+
+  if context_instance:is_enabled() == false then
+    return parts
+  end
 
   for _, path in ipairs(context_instance:get_mentioned_files() or {}) do
     table.insert(parts, format_file_part(path, prompt))
   end
 
   for _, sel in ipairs(context_instance:get_selections() or {}) do
-    vim.print('⭕ ❱ context.lua:639 ❱ ƒ(_) ❱ sel =', sel)
     table.insert(parts, format_selection_part(sel))
   end
 
@@ -662,14 +765,26 @@ function M.format_message_stateless(prompt, opts, context_instance)
     table.insert(parts, format_diagnostics_part(diagnostics))
   end
 
-  local cursor_data =
-    context_instance:get_current_cursor_data(context_instance:get_current_buf() or 0, vim.api.nvim_get_current_win())
+  local current_buf, current_win = context_instance:get_current_buf()
+  local cursor_data = context_instance:get_current_cursor_data(current_buf or 0, current_win or 0)
   if cursor_data then
     table.insert(parts, format_cursor_data_part(cursor_data))
   end
 
+  if context_instance:is_context_enabled('buffer') then
+    local buf = context_instance:get_current_buf()
+    if buf then
+      table.insert(parts, format_buffer_part(buf))
+    end
+  end
+
+  local diff_text = context_instance:get_git_diff():await()
+  if diff_text and diff_text ~= '' then
+    table.insert(parts, format_git_diff_part(diff_text))
+  end
+
   return parts
-end
+end)
 
 ---@param text string
 ---@param context_type string|nil

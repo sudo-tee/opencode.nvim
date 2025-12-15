@@ -147,11 +147,13 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
----@field cursor_data { enabled: boolean }
----@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
+---@field cursor_data { enabled: boolean, context_lines?: number }
+---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean, only_closest: boolean}
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
 ---@field agents { enabled: boolean }
+---@field buffer { enabled: boolean }
+---@field git_diff { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
@@ -370,6 +372,8 @@
 ---@field line number
 ---@field column number
 ---@field line_content string
+---@field lines_before string[]
+---@field lines_after string[]
 
 ---@class OpencodeContextFile
 ---@field path string

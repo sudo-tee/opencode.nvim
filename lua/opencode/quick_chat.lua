@@ -298,6 +298,7 @@ local on_done = Promise.async(function(session_obj)
     cleanup_session(session_info, session_obj.id, 'Failed to update file with quick chat response') -- Error cleanup
   end
 
+  --@TODO: enable session deletion after testing
   -- Always delete ephemeral session
   -- state.api_client:delete_session(session_obj.id):catch(function(err)
   --   vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
@@ -349,8 +350,8 @@ end
 ---@param context_instance table Context instance
 ---@param options table Options including model and agent
 ---@return table params Message parameters
-local function create_message_params(message, context_instance, options)
-  local quick_chat_config = config.values.quick_chat or {}
+local create_message = Promise.async(function(message, context_instance, options)
+  local quick_chat_config = config.quick_chat or {}
   local instructions = quick_chat_config.instructions
     or {
       'You are an expert code assistant helping with code and text editing tasks.',
@@ -402,7 +403,7 @@ local function create_message_params(message, context_instance, options)
   end
 
   return params
-end
+end)
 
 --- Unified quick chat function
 ---@param message string Optional custom message to use instead of default prompts
@@ -428,7 +429,6 @@ M.quick_chat = Promise.async(function(message, options, range)
   -- Setup context
   local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
   local context_instance = setup_quick_chat_context(buf, context_config, range)
-
   -- Check prompt guard
   local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, context_instance:get_mentioned_files())
   if not allowed then
@@ -456,7 +456,8 @@ M.quick_chat = Promise.async(function(message, options, range)
   }
 
   -- Create and send message
-  local params = create_message_params(message, context_instance, options)
+  local params = create_message(message, context_instance, options):await()
+  spinner:stop()
 
   local success, err = pcall(function()
     state.api_client:create_message(quick_chat_session.id, params):await()

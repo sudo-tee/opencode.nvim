@@ -114,8 +114,8 @@ function M.quick_chat(message, range)
       local visual_range = util.get_visual_range()
       if visual_range then
         range = {
-          start_line = visual_range.start_line,
-          end_line = visual_range.end_line,
+          start = visual_range.start_line,
+          stop = visual_range.end_line,
         }
       end
     end

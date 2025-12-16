@@ -108,7 +108,25 @@ local x = 2
     assert.matches('Missing end marker', warnings[1])
   end)
 
-  it('warns on empty SEARCH section', function()
+  it('parses empty SEARCH section as insert operation', function()
+    -- Empty search means "insert at cursor position"
+    local input = [[
+<<<<<<< SEARCH
+
+=======
+local x = 2
+>>>>>>> REPLACE
+]]
+    local replacements, warnings = search_replace.parse_blocks(input)
+
+    assert.equals(1, #replacements)
+    assert.equals(0, #warnings)
+    assert.equals('', replacements[1].search)
+    assert.equals('local x = 2', replacements[1].replace)
+    assert.is_true(replacements[1].is_insert)
+  end)
+
+  it('parses whitespace-only SEARCH section as insert operation', function()
     -- Note: Empty search with content on same line as separator
     -- The parser requires \n======= so whitespace-only search still needs proper structure
     local input = [[
@@ -120,9 +138,10 @@ local x = 2
 ]]
     local replacements, warnings = search_replace.parse_blocks(input)
 
-    assert.equals(0, #replacements)
-    assert.equals(1, #warnings)
-    assert.matches('Empty SEARCH section', warnings[1])
+    assert.equals(1, #replacements)
+    assert.equals(0, #warnings)
+    assert.equals('', replacements[1].search)
+    assert.is_true(replacements[1].is_insert)
   end)
 
   it('handles empty REPLACE section (deletion)', function()
@@ -274,6 +293,88 @@ describe('search_replace.apply', function()
 
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     assert.are.same({ 'local x = 1' }, lines)
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
+  it('inserts at cursor row when is_insert is true', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', 'line 3' })
+
+    local replacements = {
+      { search = '', replace = 'inserted text', block_number = 1, is_insert = true },
+    }
+
+    -- Insert before row 1 (0-indexed), so inserts before "line 2"
+    local success, errors, count = search_replace.apply(buf, replacements, 1)
+
+    assert.is_true(success)
+    assert.equals(0, #errors)
+    assert.equals(1, count)
+
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    assert.are.same({ 'line 1', 'inserted text', 'line 2', 'line 3' }, lines)
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
+  it('inserts at empty line cursor position', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', '', 'line 3' })
+
+    local replacements = {
+      { search = '', replace = 'new content', block_number = 1, is_insert = true },
+    }
+
+    -- Insert before row 1 (0-indexed), the empty line
+    local success, errors, count = search_replace.apply(buf, replacements, 1)
+
+    assert.is_true(success)
+    assert.equals(0, #errors)
+    assert.equals(1, count)
+
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    assert.are.same({ 'line 1', 'new content', '', 'line 3' }, lines)
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
+  it('inserts multiline content at cursor row', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', '', 'line 3' })
+
+    local replacements = {
+      { search = '', replace = 'first\nsecond\nthird', block_number = 1, is_insert = true },
+    }
+
+    -- Insert before row 1 (0-indexed)
+    local success, errors, count = search_replace.apply(buf, replacements, 1)
+
+    assert.is_true(success)
+    assert.equals(0, #errors)
+    assert.equals(1, count)
+
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    assert.are.same({ 'line 1', 'first', 'second', 'third', '', 'line 3' }, lines)
+
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
+  it('returns error for insert without cursor_row', function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1' })
+
+    local replacements = {
+      { search = '', replace = 'inserted text', block_number = 1, is_insert = true },
+    }
+
+    -- No cursor_row provided
+    local success, errors, count = search_replace.apply(buf, replacements)
+
+    assert.is_false(success)
+    assert.equals(1, #errors)
+    assert.matches('Insert operation requires cursor position', errors[1])
+    assert.equals(0, count)
 
     vim.api.nvim_buf_delete(buf, { force = true })
   end)

@@ -197,7 +197,7 @@ function Promise:finally(callback)
     -- Ignore callback errors and result, finally doesn't change the promise chain
     if not ok then
       -- Log error but don't propagate it
-      vim.notify("Error in finally callback", vim.log.levels.WARN)
+      vim.notify('Error in finally callback', vim.log.levels.WARN)
     end
   end
 
@@ -374,9 +374,11 @@ end
 ---@return fun(...): Promise<T>
 function Promise.async(fn)
   return function(...)
+    -- Capture both args and count to handle nil values correctly
+    local n = select('#', ...)
     local args = { ... }
     return Promise.spawn(function()
-      return fn(unpack(args))
+      return fn(unpack(args, 1, n))
     end)
   end
 end

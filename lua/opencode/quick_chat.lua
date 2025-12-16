@@ -105,27 +105,6 @@ local function create_session_title(buf)
   return string.format('[QuickChat] %s:%d (%s)', relative_path, line_num, timestamp)
 end
 
---- Creates context configuration for quick chat
----@param has_range boolean Whether a range is specified
----@return OpencodeContextConfig context_opts
-local function create_context_config(has_range)
-  return {
-    enabled = true,
-    current_file = { enabled = false },
-    cursor_data = { enabled = not has_range },
-    selection = { enabled = has_range },
-    diagnostics = {
-      enabled = false,
-      error = false,
-      info = false,
-      warning = false,
-    },
-    agents = { enabled = false },
-    buffer = { enabled = true },
-    git_diff = { enabled = false },
-  }
-end
-
 --- Helper to clean up session info and spinner
 ---@param session_info table Session tracking info
 ---@param session_id string Session ID
@@ -154,104 +133,297 @@ local function extract_response_text(message)
   return vim.trim(response_text)
 end
 
---- Extracts and parses JSON replacement data from response text
----@param response_text string Response text that may contain JSON in code blocks
----@return table|nil replacement_data Parsed replacement data or nil if invalid
-local function parse_replacement_json(response_text)
-  local json_text = response_text
-  local json_match = response_text:match('```json\n(.-)\n```') or response_text:match('```\n(.-)\n```')
-  if json_match then
-    json_text = json_match
-  end
+--- Parses SEARCH/REPLACE blocks from response text
+--- Format:
+--- <<<<<<< SEARCH
+--- original code
+--- =======
+--- replacement code
+--- >>>>>>> REPLACE
+---@param response_text string Response text containing SEARCH/REPLACE blocks
+---@return table[] replacements Array of {search=string, replace=string}
+local function parse_search_replace_blocks(response_text)
+  local replacements = {}
 
-  local ok, replacement_data = pcall(vim.json.decode, json_text)
-  if not ok then
-    return nil
-  end
+  -- Normalize line endings
+  local text = response_text:gsub('\r\n', '\n')
 
-  if not replacement_data.replacements or type(replacement_data.replacements) ~= 'table' then
-    return nil
-  end
-
-  if #replacement_data.replacements == 0 then
-    return nil
-  end
-
-  return replacement_data
-end
-
---- Converts object format like {"1": "line1", "2": "line2"} to array
---- Some LLMs may return line replacements in this format instead of an array
----@param obj_lines table Object with string keys representing line numbers
----@return string[] lines_array Array of lines in correct order
-local function convert_object_to_lines_array(obj_lines)
-  local lines_array = {}
-  local numeric_keys = {}
-
-  -- Collect all numeric string keys
-  for key, _ in pairs(obj_lines) do
-    local num_key = tonumber(key)
-    if num_key and num_key > 0 and math.floor(num_key) == num_key then
-      table.insert(numeric_keys, num_key)
+  -- Pattern to match SEARCH/REPLACE blocks
+  -- Captures content between markers, handling various whitespace
+  local pos = 1
+  while pos <= #text do
+    -- Find the start marker
+    local search_start = text:find('<<<<<<<%s*SEARCH%s*\n', pos)
+    if not search_start then
+      break
     end
-  end
 
-  -- Sort keys to ensure correct order
-  table.sort(numeric_keys)
+    local should_continue = false
 
-  for _, num_key in ipairs(numeric_keys) do
-    local line_content = obj_lines[tostring(num_key)]
-    if line_content then
-      table.insert(lines_array, line_content)
+    -- Find the separator
+    local content_start_pos = text:find('\n', search_start)
+    if not content_start_pos then
+      pos = search_start + 1
+      should_continue = true
     end
-  end
 
-  return lines_array
-end
+    if not should_continue then
+      local content_start = content_start_pos + 1
+      local separator = text:find('\n=======%s*\n', content_start)
+      if not separator then
+        -- Try without leading newline (in case of edge formatting)
+        separator = text:find('=======%s*\n', content_start)
+        if not separator then
+          pos = search_start + 1
+          should_continue = true
+        end
+      end
 
---- Applies line replacements to a buffer using parsed replacement data
----@param buf integer Buffer handle
----@param replacement_data table Parsed replacement data
----@return boolean success Whether the replacements were applied successfully
-local function apply_line_replacements(buf, replacement_data)
-  if not vim.api.nvim_buf_is_valid(buf) then
-    vim.notify('Buffer is not valid for applying changes', vim.log.levels.ERROR)
-    return false
-  end
+      if not should_continue then
+        -- Find the end marker
+        local replace_start = text:find('\n', separator + 1)
+        if replace_start then
+          replace_start = replace_start + 1
+        else
+          pos = search_start + 1
+          should_continue = true
+        end
 
-  local buf_line_count = vim.api.nvim_buf_line_count(buf)
+        if not should_continue then
+          local end_marker = text:find('\n?>>>>>>>%s*REPLACE', replace_start)
+          if not end_marker then
+            pos = search_start + 1
+            should_continue = true
+          end
 
-  table.sort(replacement_data.replacements, function(a, b)
-    return (a.start_line or a.line) > (b.start_line or b.line)
-  end)
+          if not should_continue then
+            -- Extract the search and replace content
+            local search_content = text:sub(content_start, separator - 1)
+            local replace_content = text:sub(replace_start, end_marker - 1)
 
-  local total_replacements = 0
-  for _, replacement in ipairs(replacement_data.replacements) do
-    local start_line = replacement.start_line or replacement.line
-    local end_line = replacement.end_line or start_line
-    local new_lines = replacement.lines or replacement.content
+            -- Handle trailing newline in replace content
+            if replace_content:sub(-1) == '\n' then
+              replace_content = replace_content:sub(1, -2)
+            end
 
-    -- Convert string to array
-    if type(new_lines) == 'string' then
-      new_lines = vim.split(new_lines, '\n')
-    elseif type(new_lines) == 'table' then
-      -- Check if it's object format like {"1": "line1", "2": "line2"}
-      local first_key = next(new_lines)
-      if first_key and type(first_key) == 'string' and tonumber(first_key) then
-        new_lines = convert_object_to_lines_array(new_lines)
+            table.insert(replacements, {
+              search = search_content,
+              replace = replace_content,
+            })
+
+            -- Move past this block
+            pos = end_marker + 1
+          end
+        end
       end
     end
+  end
 
-    if start_line and start_line >= 1 and start_line <= buf_line_count and new_lines and #new_lines > 0 then
-      local start_idx = math.floor(math.max(0, start_line - 1))
-      local end_idx = math.floor(math.min(end_line, buf_line_count))
+  return replacements
+end
 
-      pcall(vim.api.nvim_buf_set_lines, buf, start_idx, end_idx, false, new_lines)
-      total_replacements = total_replacements + 1
+--- Normalizes indentation by detecting and removing common leading whitespace
+---@param text string The text to normalize
+---@return string normalized The text with common indentation removed
+---@return string indent The common indentation that was removed
+local function normalize_indentation(text)
+  local lines = vim.split(text, '\n', { plain = true })
+  local min_indent = math.huge
+  local indent_char = nil
+
+  -- Find minimum indentation (ignoring empty lines)
+  for _, line in ipairs(lines) do
+    if line:match('%S') then -- non-empty line
+      local leading = line:match('^([ \t]*)')
+      if #leading < min_indent then
+        min_indent = #leading
+        indent_char = leading
+      end
     end
   end
 
-  return total_replacements > 0
+  if min_indent == math.huge or min_indent == 0 then
+    return text, ''
+  end
+
+  -- Remove common indentation
+  local normalized_lines = {}
+  for _, line in ipairs(lines) do
+    if line:match('%S') then
+      table.insert(normalized_lines, line:sub(min_indent + 1))
+    else
+      table.insert(normalized_lines, line)
+    end
+  end
+
+  return table.concat(normalized_lines, '\n'), (indent_char or ''):sub(1, min_indent)
+end
+
+--- Tries to find search text in content with flexible whitespace matching
+---@param content string The buffer content
+---@param search string The search text
+---@return number|nil start_pos Start position if found
+---@return number|nil end_pos End position if found
+local function find_with_flexible_whitespace(content, search)
+  -- First try exact match
+  local start_pos, end_pos = content:find(search, 1, true)
+  if start_pos then
+    return start_pos, end_pos
+  end
+
+  -- Normalize the search text (remove its indentation)
+  local normalized_search, _ = normalize_indentation(search)
+
+  -- Try to find each line of the normalized search in sequence
+  local search_lines = vim.split(normalized_search, '\n', { plain = true })
+  if #search_lines == 0 then
+    return nil, nil
+  end
+
+  -- Find the first non-empty search line
+  local first_search_line = nil
+  for _, line in ipairs(search_lines) do
+    if line:match('%S') then
+      first_search_line = line
+      break
+    end
+  end
+
+  if not first_search_line then
+    return nil, nil
+  end
+
+  -- Escape special pattern characters for the search
+  local escaped_first = vim.pesc(first_search_line)
+
+  -- Search for the first line with any leading whitespace
+  local pattern = '[ \t]*' .. escaped_first
+  local match_start = content:find(pattern)
+
+  if not match_start then
+    return nil, nil
+  end
+
+  -- Find the actual start (beginning of the line)
+  local line_start = match_start
+  while line_start > 1 and content:sub(line_start - 1, line_start - 1) ~= '\n' do
+    line_start = line_start - 1
+  end
+
+  -- Now verify all subsequent lines match
+  local content_lines = vim.split(content:sub(line_start), '\n', { plain = true })
+  local search_idx = 1
+  local matched_content = {}
+
+  for _, content_line in ipairs(content_lines) do
+    if search_idx > #search_lines then
+      break
+    end
+
+    local search_line = search_lines[search_idx]
+
+    -- Normalize both lines for comparison (trim leading/trailing whitespace for matching)
+    local content_trimmed = (content_line and content_line:match('^%s*(.-)%s*$')) or ''
+    local search_trimmed = (search_line and search_line:match('^%s*(.-)%s*$')) or ''
+
+    if content_trimmed == search_trimmed then
+      table.insert(matched_content, content_line)
+      search_idx = search_idx + 1
+    elseif search_trimmed == '' then
+      -- Empty search line matches empty content line
+      if content_trimmed == '' then
+        table.insert(matched_content, content_line)
+        search_idx = search_idx + 1
+      else
+        break
+      end
+    else
+      break
+    end
+  end
+
+  -- Check if we matched all search lines
+  if search_idx > #search_lines then
+    local matched_text = table.concat(matched_content, '\n')
+    local actual_end = line_start + #matched_text - 1
+    return line_start, actual_end
+  end
+
+  return nil, nil
+end
+
+--- Applies SEARCH/REPLACE blocks to buffer content
+---@param buf integer Buffer handle
+---@param replacements table[] Array of {search=string, replace=string}
+---@return boolean success Whether any replacements were applied
+---@return string[] errors List of error messages for failed replacements
+local function apply_search_replace(buf, replacements)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return false, { 'Buffer is not valid' }
+  end
+
+  -- Get full buffer content
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local content = table.concat(lines, '\n')
+
+  local applied_count = 0
+  local errors = {}
+
+  for i, replacement in ipairs(replacements) do
+    local search = replacement.search
+    local replace = replacement.replace
+
+    -- Find the search text in content (with flexible whitespace matching)
+    local start_pos, end_pos = find_with_flexible_whitespace(content, search)
+
+    if start_pos and end_pos then
+      -- Detect the indentation of the matched content
+      local line_start = start_pos
+      while line_start > 1 and content:sub(line_start - 1, line_start - 1) ~= '\n' do
+        line_start = line_start - 1
+      end
+      local existing_indent = content:sub(line_start, start_pos - 1)
+
+      -- Apply the same indentation to replacement if it doesn't have it
+      local replace_lines = vim.split(replace, '\n', { plain = true })
+      local indented_replace_lines = {}
+
+      for j, line in ipairs(replace_lines) do
+        if line:match('%S') then
+          -- Check if line already has indentation
+          local line_indent = line:match('^([ \t]*)')
+          if #line_indent == 0 and #existing_indent > 0 then
+            table.insert(indented_replace_lines, existing_indent .. line)
+          else
+            table.insert(indented_replace_lines, line)
+          end
+        else
+          table.insert(indented_replace_lines, line)
+        end
+      end
+
+      local indented_replace = table.concat(indented_replace_lines, '\n')
+
+      -- Replace the content
+      content = content:sub(1, start_pos - 1) .. indented_replace .. content:sub(end_pos + 1)
+      applied_count = applied_count + 1
+    else
+      -- Try to provide helpful error message
+      local search_preview = search:sub(1, 50):gsub('\n', '\\n')
+      if #search > 50 then
+        search_preview = search_preview .. '...'
+      end
+      table.insert(errors, string.format('Block %d: SEARCH not found: "%s"', i, search_preview))
+    end
+  end
+
+  if applied_count > 0 then
+    -- Write back to buffer
+    local new_lines = vim.split(content, '\n', { plain = true })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines)
+  end
+
+  return applied_count > 0, errors
 end
 
 --- Processes response from ephemeral session
@@ -270,12 +442,21 @@ local function process_response(session_info, messages)
     return false
   end
 
-  local replacement_data = parse_replacement_json(response_text)
-  if not replacement_data then
+  local replacements = parse_search_replace_blocks(response_text)
+  if #replacements == 0 then
     return false
   end
 
-  return apply_line_replacements(session_info.buf, replacement_data)
+  local success, errors = apply_search_replace(session_info.buf, replacements)
+
+  -- Log errors for debugging but don't fail completely if some replacements worked
+  if #errors > 0 then
+    for _, err in ipairs(errors) do
+      vim.notify('Quick chat: ' .. err, vim.log.levels.WARN)
+    end
+  end
+
+  return success
 end
 
 --- Hook function called when a session is done thinking (no more pending messages)
@@ -328,64 +509,109 @@ local function validate_quick_chat_prerequisites(message)
   return true
 end
 
---- Sets up context and range for quick chat
----@param buf integer Buffer handle
----@param context_config OpencodeContextConfig Context configuration
----@param range table|nil Range information
----@return table context_instance
-local function init_context(buf, context_config, range)
-  local context_instance = context.new_instance(context_config)
-
-  if range and range.start and range.stop then
-    local start_line = math.floor(math.max(0, range.start - 1))
-    local end_line = math.floor(range.stop + 1)
-    local range_lines = vim.api.nvim_buf_get_lines(buf, start_line, end_line, false)
-    local range_text = table.concat(range_lines, '\n')
-    local current_file = context_instance:get_current_file(buf)
-    local selection = context_instance:new_selection(current_file, range_text, range.start .. ', ' .. range.stop)
-    context_instance:add_selection(selection)
-  end
-
-  return context_instance
+--- Creates context configuration for quick chat
+---@param has_range boolean Whether a range is specified
+---@return OpencodeContextConfig context_opts
+local function create_context_config(has_range)
+  return {
+    enabled = true,
+    current_file = { enabled = false },
+    cursor_data = { enabled = not has_range },
+    selection = { enabled = has_range },
+    diagnostics = {
+      enabled = true,
+      error = true,
+      warning = true,
+      info = false,
+      only_closest = has_range,
+    },
+    agents = { enabled = false },
+    buffer = { enabled = true },
+    git_diff = { enabled = false },
+  }
 end
 
 --- Creates message parameters for quick chat
 ---@param message string The user message
----@param context_instance table Context instance
+---@param buf integer Buffer handle
+---@param range table|nil Range information
+---@param context_instance ContextInstance Context instance
 ---@param options table Options including model and agent
 ---@return table params Message parameters
-local create_message = Promise.async(function(message, context_instance, options)
-  local quick_chat_config = config.quick_chat or {}
-  local instructions = quick_chat_config.instructions
-    or {
-      'You are an expert code assistant helping with code and text editing tasks.',
-      'You are operating in a temporary quick chat session with limited context.',
-      "Your task is to modify the provided code according to the user's request. Follow these instructions precisely:",
-      'CRITICAL: At the end of your job You MUST add a message with a valid JSON format for line replacements. Use this exact structure:',
-      '',
-      '```json',
-      '{',
-      '  "replacements": [',
-      '    {',
-      '      "start_line": 10,',
-      '      "end_line": 11,',
-      '      "lines": ["new content line 1", "new content line 2"]',
-      '    }',
-      '  ]',
-      '}',
-      '```',
-      '',
-      'Maintain the *SAME INDENTATION* in the returned code as in the source code',
-      'NEVER add any explanations, apologies, or additional text outside the JSON structure.',
-      'ALWAYS split multiple line replacements into separate entries in the "replacements" array.',
-      'IMPORTANT: Use 1-indexed line numbers. Each replacement replaces lines start_line through end_line (inclusive).',
-      'The "lines" array contains the new content. If replacing a single line, end_line can equal start_line.',
-      'Ensure the returned code is complete and can be directly used as a replacement for the original code.',
-      'Remember that Your response SHOULD CONTAIN ONLY THE MODIFIED CODE to be used as DIRECT REPLACEMENT to the original file.',
-    }
+local create_message = Promise.async(function(message, buf, range, context_instance, options)
+  local quick_chat_config = config.values.quick_chat or {}
+  -- stylua: ignore
+  local instructions = quick_chat_config.instructions or {
+    'You are a code editing assistant. Modify the provided code according to the user instruction.',
+    'Your ONLY output format is SEARCH/REPLACE blocks. Do NOT explain, comment, or add any other text.',
+    '',
+    'FORMAT:',
+    '<<<<<<< SEARCH',
+    'exact lines to find (copy from the provided code)',
+    '=======',
+    'modified lines',
+    '>>>>>>> REPLACE',
+    '',
+    'RULES:',
+    '1. ONLY output SEARCH/REPLACE blocks - absolutely no explanations or markdown',
+    '2. Copy the SEARCH content EXACTLY from the provided code between the ``` markers',
+    '3. Include 1-3 surrounding lines in SEARCH for unique matching',
+    '4. REPLACE contains the modified version of SEARCH content',
+    '5. Multiple changes = multiple SEARCH/REPLACE blocks',
+    '6. Delete lines by omitting them from REPLACE',
+    '7. Add lines by including them in REPLACE',
+    '8. If DIAGNOSTICS are provided, use them to understand what needs fixing',
+    '9. If a SELECTION is provided, only modify code within that selection',
+    '10. If CURSOR_DATA is provided, focus modifications near that cursor position',
+    '11. GIT_DIFF context is for reference only - never use git diff hunks as SEARCH content',
+    '',
+    'EXAMPLE - Change return value:',
+    '<<<<<<< SEARCH',
+    'function getValue()',
+    '  return 42',
+    'end',
+    '=======',
+    'function getValue()',
+    '  return 100',
+    'end',
+    '>>>>>>> REPLACE',
+    '',
+    'EXAMPLE - Add a line:',
+    '<<<<<<< SEARCH',
+    'local x = 1',
+    'local y = 2',
+    '=======',
+    'local x = 1',
+    'local z = 1.5',
+    'local y = 2',
+    '>>>>>>> REPLACE',
+    '',
+    'EXAMPLE - Delete a line:',
+    '<<<<<<< SEARCH',
+    '-- old comment',
+    'local unused = true',
+    'local needed = false',
+    '=======',
+    'local needed = false',
+    '>>>>>>> REPLACE',
+    '',
+    'Remember: Output ONLY SEARCH/REPLACE blocks. The SEARCH text must match the code exactly.',
+  }
 
-  local parts = context.format_message_quick_chat(message, context_instance):await()
-  local params = { parts = parts, system = table.concat(instructions, '\n'), synthetic = true }
+  local format_opts = { buf = buf }
+  if range then
+    format_opts.range = { start = range.start, stop = range.stop }
+  end
+
+  local result = context.format_message_plain_text(message, context_instance, format_opts):await()
+
+  -- Prepend instructions to the message text (in addition to system param)
+  -- This ensures the LLM sees the instructions even if system prompt isn't honored
+  local instructions_text = table.concat(instructions, '\n')
+  local full_text = instructions_text .. '\n\n---\n\n' .. result.text
+  local parts = { { type = 'text', text = full_text } }
+
+  local params = { parts = parts, system = instructions_text }
 
   local current_model = core.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
@@ -428,10 +654,14 @@ M.quick_chat = Promise.async(function(message, options, range)
   local row, col = cursor_pos[1] - 1, cursor_pos[2] -- Convert to 0-indexed
   local spinner = CursorSpinner.new(buf, row, col)
 
+  -- Create context instance for diagnostics and other context
   local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
-  local context_instance = init_context(buf, context_config, range)
+  local context_instance = context.new_instance(context_config)
 
-  local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, context_instance:get_mentioned_files())
+  -- Check prompt guard with the current file
+  local file_name = vim.api.nvim_buf_get_name(buf)
+  local mentioned_files = file_name ~= '' and { file_name } or {}
+  local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, mentioned_files)
   if not allowed then
     spinner:stop()
     return Promise.new():reject(err_msg or 'Prompt denied by prompt_guard')
@@ -455,8 +685,8 @@ M.quick_chat = Promise.async(function(message, options, range)
     timestamp = vim.uv.now(),
   }
 
-  local params = create_message(message, context_instance, options):await()
-  spinner:stop()
+  local params = create_message(message, buf, range, context_instance, options):await()
+  vim.print('⭕ ❱ quick_chat.lua:685 ❱ ƒ(params) ❱ params =', params)
 
   local success, err = pcall(function()
     state.api_client:create_message(quick_chat_session.id, params):await()

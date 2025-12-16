@@ -199,13 +199,11 @@ local function generate_search_replace_instructions(context_instance)
     '# OUTPUT FORMAT',
     'You MUST output ONLY in SEARCH/REPLACE blocks. No explanations, no markdown, no additional text.',
     '',
-    '```',
     '<<<<<<< SEARCH',
     '[exact lines from the original code]',
     '=======',
     '[modified version of those lines]',
     '>>>>>>> REPLACE',
-    '```',
     '',
     '# CRITICAL RULES',
     '1. **Exact matching**: Copy SEARCH content EXACTLY character-for-character from the provided code',
@@ -246,7 +244,6 @@ local function generate_search_replace_instructions(context_instance)
     '# EXAMPLES',
     '',
     '**Modify a return value:**',
-    '```',
     '<<<<<<< SEARCH',
     'function calculate()',
     '  local result = x + y',
@@ -258,10 +255,8 @@ local function generate_search_replace_instructions(context_instance)
     '  return result * 3  -- Changed multiplier',
     'end',
     '>>>>>>> REPLACE',
-    '```',
     '',
     '**Insert a new line:**',
-    '```',
     '<<<<<<< SEARCH',
     'local config = {',
     '  timeout = 5000,',
@@ -272,10 +267,8 @@ local function generate_search_replace_instructions(context_instance)
     '  retry_count = 3,',
     '}',
     '>>>>>>> REPLACE',
-    '```',
     '',
     '**Remove a line:**',
-    '```',
     '<<<<<<< SEARCH',
     'local debug_mode = true',
     'local verbose = true',
@@ -284,16 +277,13 @@ local function generate_search_replace_instructions(context_instance)
     'local debug_mode = true',
     'local silent = false',
     '>>>>>>> REPLACE',
-    '```',
     '',
     '**Insert new code at cursor (empty SEARCH):**',
     'When the cursor is on an empty line or you need to insert without replacing, use an empty SEARCH section:',
-    '```',
     '<<<<<<< SEARCH',
     '=======',
     'local new_variable = "inserted at cursor"',
     '>>>>>>> REPLACE',
-    '```',
     '',
     '# FINAL REMINDER',
     'Output ONLY the SEARCH/REPLACE blocks. The SEARCH section must match the original code exactly.',
@@ -332,13 +322,10 @@ local create_message = Promise.async(function(message, buf, range, context_insta
 
   local result = context.format_message_plain_text(message, context_instance, format_opts):await()
 
-  -- Convert instructions to text
-  local instructions_text = type(instructions) == 'table' and table.concat(instructions, '\n') or tostring(instructions)
-
-  -- Create a clear separator between instructions and user request
-  local full_text = instructions_text .. '\n\n' .. string.rep('=', 80) .. '\n\n' .. '# USER REQUEST\n\n' .. result.text
-
-  local parts = { { type = 'text', text = full_text } }
+  local parts = {
+    { type = 'text', text = instructions_text },
+    { type = 'text', text = '\n\n' .. string.rep('=', 80) .. '\n\n' .. '# USER REQUEST\n\n' .. result.text },
+  }
 
   -- Use instructions as system prompt for models that support it
   local params = { parts = parts, system = instructions_text }

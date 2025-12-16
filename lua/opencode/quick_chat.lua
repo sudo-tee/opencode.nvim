@@ -91,7 +91,7 @@ local function process_response(session_info, messages)
     return false
   end
 
-  local success, errors, applied_count = search_replace.apply(session_info.buf, replacements)
+  local success, errors, applied_count = search_replace.apply(session_info.buf, replacements, session_info.row)
 
   -- Provide detailed feedback
   if applied_count > 0 then
@@ -286,8 +286,18 @@ local function generate_search_replace_instructions(context_instance)
     '>>>>>>> REPLACE',
     '```',
     '',
+    '**Insert new code at cursor (empty SEARCH):**',
+    'When the cursor is on an empty line or you need to insert without replacing, use an empty SEARCH section:',
+    '```',
+    '<<<<<<< SEARCH',
+    '=======',
+    'local new_variable = "inserted at cursor"',
+    '>>>>>>> REPLACE',
+    '```',
+    '',
     '# FINAL REMINDER',
     'Output ONLY the SEARCH/REPLACE blocks. The SEARCH section must match the original code exactly.',
+    'Use an empty SEARCH section to insert new code at the cursor position.',
   }
 
   for _, line in ipairs(examples) do

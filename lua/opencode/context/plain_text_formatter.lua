@@ -140,13 +140,11 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
     end
   end
 
-  -- Add selections
   for _, sel in ipairs(context_instance:get_selections() or {}) do
     table.insert(text_parts, '')
     table.insert(text_parts, M.format_selection(sel))
   end
 
-  -- Add diagnostics
   local diagnostics = context_instance:get_diagnostics(buf)
   if diagnostics and #diagnostics > 0 then
     local diag_range = nil
@@ -160,7 +158,6 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
     end
   end
 
-  -- Add cursor data
   if context_instance:is_context_enabled('cursor_data') then
     local current_buf, current_win = context_instance:get_current_buf()
     local cursor_data = context_instance:get_current_cursor_data(current_buf or buf, current_win or 0)
@@ -170,7 +167,6 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
     end
   end
 
-  -- Add git diff
   if context_instance:is_context_enabled('git_diff') then
     local diff_text = context_instance:get_git_diff():await()
     if diff_text and diff_text ~= '' then
@@ -179,13 +175,11 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
     end
   end
 
-  -- Add instruction
   table.insert(text_parts, '')
-  table.insert(text_parts, 'INSTRUCTION: ' .. prompt)
+  table.insert(text_parts, 'USER PROMPT: ' .. prompt)
 
   local full_text = table.concat(text_parts, '\n')
 
-  -- Return both the plain text and a parts array for the API
   return {
     text = full_text,
     parts = { { type = 'text', text = full_text } },

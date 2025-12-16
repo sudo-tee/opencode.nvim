@@ -307,7 +307,6 @@ end
 local create_message = Promise.async(function(message, buf, range, context_instance, options)
   local quick_chat_config = config.quick_chat or {}
 
-  -- Generate instructions (allow user override)
   local instructions
   if quick_chat_config.instructions then
     instructions = quick_chat_config.instructions
@@ -323,12 +322,11 @@ local create_message = Promise.async(function(message, buf, range, context_insta
   local result = context.format_message_plain_text(message, context_instance, format_opts):await()
 
   local parts = {
-    { type = 'text', text = instructions_text },
-    { type = 'text', text = '\n\n' .. string.rep('=', 80) .. '\n\n' .. '# USER REQUEST\n\n' .. result.text },
+    { type = 'text', text = table.concat(instructions, '\n') },
+    { type = 'text', text = result.text },
   }
 
-  -- Use instructions as system prompt for models that support it
-  local params = { parts = parts, system = instructions_text }
+  local params = { parts = parts }
 
   local current_model = core.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
@@ -339,13 +337,9 @@ local create_message = Promise.async(function(message, buf, range, context_insta
     end
   end
 
-  -- Set agent if specified
-  local target_mode = options.agent
-    or quick_chat_config.default_agent
-    or state.current_mode
-    or config.values.default_mode
-  if target_mode then
-    params.agent = target_mode
+  local target_agent = options.agent or quick_chat_config.default_agent or state.current_mode or config.default_mode
+  if target_agent then
+    params.agent = target_agent
   end
 
   return params

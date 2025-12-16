@@ -375,6 +375,27 @@ function ContextInstance:get_current_selection()
   }
 end
 
+ContextInstance.has = Promise.async(function(self, context_type)
+  if context_type == 'file' then
+    return self:get_mentioned_files() and #self:get_mentioned_files() > 0
+  elseif context_type == 'selection' then
+    return self:get_selections() and #self:get_selections() > 0
+  elseif context_type == 'subagent' then
+    return self:get_mentioned_subagents() and #self:get_mentioned_subagents() > 0
+  elseif context_type == 'diagnostics' then
+    return self.context.linter_errors and #self.context.linter_errors > 0
+  elseif context_type == 'git_diff' then
+    local git_diff = Promise.await(self:get_git_diff())
+    return git_diff ~= nil
+  elseif context_type == 'current_file' then
+    return self.context.current_file ~= nil
+  elseif context_type == 'cursor_data' then
+    return self.context.cursor_data ~= nil
+  end
+
+  return false
+end)
+
 function ContextInstance:get_selections()
   if not self:is_context_enabled('selection') then
     return {}

@@ -175,6 +175,11 @@
 ---@field setup fun(opts?: OpencodeConfig): nil
 ---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
 
+---@class OpencodeQuickChatConfig
+---@field default_model? string -- Use current model if nil
+---@field default_agent? string -- Use current mode if nil
+---@field instructions? string[] -- Custom instructions for quick chat
+
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
 ---@field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
@@ -188,6 +193,7 @@
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
 ---@field hooks OpencodeHooks
 ---@field legacy_commands boolean
+---@field quick_chat OpencodeQuickChatConfig
 
 ---@class MessagePartState
 ---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput Input data for the tool

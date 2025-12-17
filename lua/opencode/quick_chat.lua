@@ -40,6 +40,13 @@ local function cleanup_session(session_info, session_id, message)
   if session_info and session_info.spinner then
     session_info.spinner:stop()
   end
+
+  if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
+    state.api_client:delete_session(session_id):catch(function(err)
+      vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
+    end)
+  end
+
   running_sessions[session_id] = nil
   if message then
     vim.notify(message, vim.log.levels.WARN)
@@ -139,14 +146,6 @@ local on_done = Promise.async(function(active_session)
   else
     cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
   end
-
-  if config.debug.quick_chat and config.debug.quick_chat.keep_session then
-    return
-  end
-
-  state.api_client:delete_session(active_session.id):catch(function(err)
-    vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
-  end)
 end)
 
 ---@param message string|nil The message to validate

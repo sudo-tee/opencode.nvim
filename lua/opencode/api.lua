@@ -125,9 +125,8 @@ function M.quick_chat(message, range)
     message = table.concat(message, ' ')
   end
 
-  -- If no message, prompt for input (range is captured above)
   if not message or #message == 0 then
-    vim.ui.input({ prompt = 'Quick Chat Message: ' }, function(input)
+    vim.ui.input({ prompt = 'Quick Chat Message: ', win = { relative = 'cursor' } }, function(input)
       local prompt, ctx = util.parse_quick_context_args(input)
       if input and input ~= '' then
         quick_chat.quick_chat(prompt, { context_config = ctx }, range)

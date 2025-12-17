@@ -195,7 +195,7 @@ M.defaults = {
       enabled = true,
     },
     buffer = {
-      enabled = false, -- Only used for inline editing, disabled by default
+      enabled = false, -- Disable entire buffer context by default, only used in quick chat
     },
     git_diff = {
       enabled = false,
@@ -205,6 +205,10 @@ M.defaults = {
     enabled = false,
     capture_streamed_events = false,
     show_ids = true,
+    quick_chat = {
+      keep_session = false,
+      set_active_session = false,
+    },
   },
   prompt_guard = nil,
   hooks = {
@@ -214,8 +218,8 @@ M.defaults = {
     on_permission_requested = nil,
   },
   quick_chat = {
-    default_model = nil, -- Use current model if nil
-    default_agent = nil, -- Use current mode if nil
+    default_model = nil,
+    default_agent = 'plan', -- plan ensure no file modifications by default
     default_prompt = nil, -- Use built-in prompt if nil
   },
 }

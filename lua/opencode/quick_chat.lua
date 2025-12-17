@@ -268,6 +268,7 @@ end
 ---@return string[] instructions Array of instruction lines
 local generate_search_replace_instructions = Promise.async(function(context_instance)
   local base_instructions = {
+    "You are an expert programming assistant. Modify the user's code according to their instructions using the SEARCH/REPLACE format described below.",
     'Output ONLY SEARCH/REPLACE blocks, no explanations:',
     '<<<<<<< SEARCH',
     '[exact original code]',
@@ -276,6 +277,23 @@ local generate_search_replace_instructions = Promise.async(function(context_inst
     '>>>>>>> REPLACE',
     '',
     'Rules: Copy SEARCH content exactly. Include 1-3 context lines for unique matching. Use empty SEARCH to insert at cursor. Output multiple blocks only if needed for more complex operations.',
+    'Example 1 - Fix function:',
+    '<<<<<<< SEARCH',
+    'function hello() {',
+    '  console.log("hello")',
+    '}',
+    '=======',
+    'function hello() {',
+    '  console.log("hello");',
+    '}',
+    '>>>>>>> REPLACE',
+    '',
+    'Example 2 - Insert at cursor:',
+    '<<<<<<< SEARCH',
+    '',
+    '=======',
+    'local new_variable = "value"',
+    '>>>>>>> REPLACE',
   }
 
   local context_guidance = {}
@@ -297,6 +315,13 @@ local generate_search_replace_instructions = Promise.async(function(context_inst
   if #context_guidance > 0 then
     table.insert(base_instructions, 'Context: ' .. table.concat(context_guidance, ', ') .. '.')
   end
+
+  table.insert(base_instructions, '')
+  table.insert(
+    base_instructions,
+    '*CRITICAL*: Only answer in SEARCH/REPLACE format,NEVER add explanations!, NEVER ask questions!, NEVER add extra text!, NEVER run tools.'
+  )
+  table.insert(base_instructions, '')
 
   return base_instructions
 end)
@@ -330,7 +355,7 @@ local create_message = Promise.async(function(message, buf, range, context_insta
     { type = 'text', text = result.text },
   }
 
-  local params = { parts = parts }
+  local params = { parts = parts, system = table.concat(instructions, '\n') }
 
   local current_model = core.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model

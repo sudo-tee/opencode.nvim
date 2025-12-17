@@ -4,6 +4,12 @@
   <img src="https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg" alt="Opencode logo" width="30%" />
 </div>
 
+## Quick buffer chat
+
+<div align="center">
+  <img src="https://i.imgur.com/5JNlFZn.png">
+</div>
+
 > neovim frontend for opencode - a terminal-based AI coding agent
 
 <div align="center">
@@ -692,12 +698,20 @@ This is optimized for narrow code edits or insertion. When the request is comple
 
 Press `<leader>o/` in normal mode to open a quick chat input window.
 
+<div align="center">
+  <img src="https://i.imgur.com/5JNlFZn.png">
+</div>
+<div align="center">
+  <img src="https://i.imgur.com/ScRgqfC.png">
+</div>
+
 ### Example chat prompts
 
 - Transform to a lua array
 - Add lua annotations
 - Write a conventional commit message for my changes #diff
 - Fix this warnings #warn
+- complete this function
 
 ## 🔧 Setting up Opencode
 

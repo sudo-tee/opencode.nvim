@@ -159,6 +159,7 @@
 ---@field enabled boolean
 ---@field capture_streamed_events boolean
 ---@field show_ids boolean
+---@field quick_chat {keep_session: boolean, set_active_session: boolean}
 
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil

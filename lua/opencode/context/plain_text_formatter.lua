@@ -105,6 +105,26 @@ function M.format_buffer(buf, lang)
   return string.format('FILE: %s\n\n```%s\n%s\n```', rel_path, lang, content)
 end
 
+---@param buf integer
+---@param lang string
+---@param rel_path string
+---@param range {start: integer, stop: integer}
+---@return string
+function M.format_range(buf, lang, rel_path, range)
+  local start_line = math.max(1, range.start)
+  local end_line = range.stop
+  local range_lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
+  local range_text = table.concat(range_lines, '\n')
+
+  local parts = {
+    string.format('Selected range from %s (lines %d-%d):', rel_path, start_line, end_line),
+    '```' .. lang,
+    range_text,
+    '```',
+  }
+  return table.concat(parts, '\n')
+end
+
 --- Formats context as plain text for LLM consumption (used by quick chat)
 --- Unlike format_message_quick_chat, this outputs human-readable text instead of JSON
 ---@param prompt string The user's instruction/prompt
@@ -113,7 +133,9 @@ end
 ---@return table result { text: string, parts: OpencodeMessagePart[] }
 M.format_message = Promise.async(function(prompt, context_instance, opts)
   opts = opts or {}
-  local buf = opts.buf or context_instance:get_current_buf() or vim.api.nvim_get_current_buf()
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+
   local range = opts.range
 
   local file_name = vim.api.nvim_buf_get_name(buf)
@@ -122,22 +144,15 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
 
   local text_parts = {}
 
-  -- Add file/buffer content
-  if context_instance:is_context_enabled('buffer') then
+  if context_instance:is_context_enabled('selection') then
     if range and range.start and range.stop then
-      local start_line = math.max(1, range.start)
-      local end_line = range.stop
-      local range_lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
-      local range_text = table.concat(range_lines, '\n')
-
-      table.insert(text_parts, string.format('FILE: %s (lines %d-%d)', rel_path, start_line, end_line))
       table.insert(text_parts, '')
-      table.insert(text_parts, '```' .. lang)
-      table.insert(text_parts, range_text)
-      table.insert(text_parts, '```')
-    else
-      table.insert(text_parts, M.format_buffer(buf, lang))
+      table.insert(text_parts, M.format_range(buf, lang, rel_path, range))
     end
+  end
+
+  if context_instance:is_context_enabled('buffer') then
+    table.insert(text_parts, M.format_buffer(buf, lang))
   end
 
   for _, sel in ipairs(context_instance:get_selections() or {}) do
@@ -159,8 +174,7 @@ M.format_message = Promise.async(function(prompt, context_instance, opts)
   end
 
   if context_instance:is_context_enabled('cursor_data') then
-    local current_buf, current_win = context_instance:get_current_buf()
-    local cursor_data = context_instance:get_current_cursor_data(current_buf or buf, current_win or 0)
+    local cursor_data = context_instance:get_current_cursor_data(buf, win)
     if cursor_data then
       table.insert(text_parts, '')
       table.insert(text_parts, M.format_cursor_data(cursor_data, lang))

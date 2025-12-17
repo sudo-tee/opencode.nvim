@@ -106,7 +106,6 @@ local function process_response(session_info, messages)
     end
   end
 
-  -- Log errors but don't fail completely if some replacements worked
   if #errors > 0 then
     for _, err in ipairs(errors) do
       vim.notify('Quick chat: ' .. err, vim.log.levels.WARN)
@@ -141,11 +140,13 @@ local on_done = Promise.async(function(active_session)
     cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
   end
 
-  --@TODO: enable session deletion after testing
-  -- Always delete ephemeral session
-  -- state.api_client:delete_session(session_obj.id):catch(function(err)
-  --   vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
-  -- end)
+  if config.debug.quick_chat and config.debug.quick_chat.keep_session then
+    return
+  end
+
+  state.api_client:delete_session(active_session.id):catch(function(err)
+    vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
+  end)
 end)
 
 ---@param message string|nil The message to validate
@@ -167,135 +168,66 @@ local function validate_quick_chat_prerequisites(message)
 end
 
 --- Creates context configuration for quick chat
+--- Optimized for minimal token usage while providing essential context
 ---@param has_range boolean Whether a range is specified
 ---@return OpencodeContextConfig context_opts
 local function create_context_config(has_range)
   return {
     enabled = true,
-    current_file = { enabled = false },
-    cursor_data = { enabled = not has_range },
-    selection = { enabled = has_range },
+    current_file = { enabled = false }, -- Disable full file content
+    cursor_data = { enabled = not has_range, context_lines = 10 }, -- Only cursor position when no selection
+    selection = { enabled = has_range }, -- Only selected text when range provided
     diagnostics = {
       enabled = true,
       error = true,
       warning = true,
       info = false,
-      only_closest = has_range,
+      only_closest = true, -- Only closest diagnostics, not all file diagnostics
     },
-    agents = { enabled = false },
-    buffer = { enabled = true },
-    git_diff = { enabled = false },
+    agents = { enabled = false }, -- No agent context needed
+    buffer = { enabled = false }, -- Disable full buffer content for token efficiency
+    git_diff = { enabled = false }, -- No git context needed
   }
 end
 
 --- Generates instructions for the LLM to follow the SEARCH/REPLACE format
+--- This is inspired from Aider Chat approach
 ---@param context_instance ContextInstance Context instance
 ---@return string[] instructions Array of instruction lines
-local function generate_search_replace_instructions(context_instance)
+local generate_search_replace_instructions = Promise.async(function(context_instance)
   local base_instructions = {
-    '# ROLE',
-    'You are a precise code editing assistant. Your task is to modify code based on user instructions.',
-    '',
-    '# OUTPUT FORMAT',
-    'You MUST output ONLY in SEARCH/REPLACE blocks. No explanations, no markdown, no additional text.',
-    '',
+    'Output ONLY SEARCH/REPLACE blocks, no explanations:',
     '<<<<<<< SEARCH',
-    '[exact lines from the original code]',
+    '[exact original code]',
     '=======',
-    '[modified version of those lines]',
+    '[modified code]',
     '>>>>>>> REPLACE',
     '',
-    '# CRITICAL RULES',
-    '1. **Exact matching**: Copy SEARCH content EXACTLY character-for-character from the provided code',
-    '2. **Context lines**: Include 1-3 unchanged surrounding lines in SEARCH for unique identification',
-    '3. **Indentation**: Preserve the exact indentation from the original code',
-    '4. **Multiple changes**: Use separate SEARCH/REPLACE blocks for each distinct change',
-    '5. **No explanations**: Output ONLY the SEARCH/REPLACE blocks, nothing else',
-    '',
+    'Rules: Copy SEARCH content exactly. Include 1-3 context lines for unique matching. Use empty SEARCH to insert at cursor. Output multiple blocks only if needed for more complex operations.',
   }
 
-  -- Add context-specific guidance
   local context_guidance = {}
 
-  if context_instance:has('diagnostics') then
-    table.insert(context_guidance, '**DIAGNOSTICS context**: Use error/warning information to guide your fixes')
+  if context_instance:has('diagnostics'):await() then
+    table.insert(context_guidance, 'Fix errors/warnings (if asked)')
   end
 
-  if context_instance:has('selection') then
-    table.insert(context_guidance, '**SELECTION context**: Only modify code within the selected range')
+  if context_instance:has('selection'):await() then
+    table.insert(context_guidance, 'Modify only selected range')
   elseif context_instance:has('cursor_data') then
-    table.insert(context_guidance, '**CURSOR context**: Focus modifications near the cursor position')
+    table.insert(context_guidance, 'Modify only near cursor')
   end
 
-  if context_instance:has('git_diff') then
-    table.insert(context_guidance, '**GIT_DIFF context**: For reference only - never copy git diff syntax into SEARCH')
+  if context_instance:has('git_diff'):await() then
+    table.insert(context_guidance, "ONLY Reference git diff (don't copy syntax)")
   end
 
   if #context_guidance > 0 then
-    table.insert(base_instructions, '# CONTEXT USAGE')
-    for _, guidance in ipairs(context_guidance) do
-      table.insert(base_instructions, '- ' .. guidance)
-    end
-    table.insert(base_instructions, '')
-  end
-
-  -- Add practical examples
-  local examples = {
-    '# EXAMPLES',
-    '',
-    '**Modify a return value:**',
-    '<<<<<<< SEARCH',
-    'function calculate()',
-    '  local result = x + y',
-    '  return result * 2',
-    'end',
-    '=======',
-    'function calculate()',
-    '  local result = x + y',
-    '  return result * 3  -- Changed multiplier',
-    'end',
-    '>>>>>>> REPLACE',
-    '',
-    '**Insert a new line:**',
-    '<<<<<<< SEARCH',
-    'local config = {',
-    '  timeout = 5000,',
-    '}',
-    '=======',
-    'local config = {',
-    '  timeout = 5000,',
-    '  retry_count = 3,',
-    '}',
-    '>>>>>>> REPLACE',
-    '',
-    '**Remove a line:**',
-    '<<<<<<< SEARCH',
-    'local debug_mode = true',
-    'local verbose = true',
-    'local silent = false',
-    '=======',
-    'local debug_mode = true',
-    'local silent = false',
-    '>>>>>>> REPLACE',
-    '',
-    '**Insert new code at cursor (empty SEARCH):**',
-    'When the cursor is on an empty line or you need to insert without replacing, use an empty SEARCH section:',
-    '<<<<<<< SEARCH',
-    '=======',
-    'local new_variable = "inserted at cursor"',
-    '>>>>>>> REPLACE',
-    '',
-    '# FINAL REMINDER',
-    'Output ONLY the SEARCH/REPLACE blocks. The SEARCH section must match the original code exactly.',
-    'Use an empty SEARCH section to insert new code at the cursor position.',
-  }
-
-  for _, line in ipairs(examples) do
-    table.insert(base_instructions, line)
+    table.insert(base_instructions, 'Context: ' .. table.concat(context_guidance, ', ') .. '.')
   end
 
   return base_instructions
-end
+end)
 
 --- Creates message parameters for quick chat
 ---@param message string The user message
@@ -311,7 +243,7 @@ local create_message = Promise.async(function(message, buf, range, context_insta
   if quick_chat_config.instructions then
     instructions = quick_chat_config.instructions
   else
-    instructions = generate_search_replace_instructions(context_instance)
+    instructions = generate_search_replace_instructions(context_instance):await()
   end
 
   local format_opts = { buf = buf }
@@ -365,14 +297,9 @@ M.quick_chat = Promise.async(function(message, options, range)
   local row, col = cursor_pos[1] - 1, cursor_pos[2] -- Convert to 0-indexed
   local spinner = CursorSpinner.new(buf, row, col)
 
-  -- Create context instance for diagnostics and other context
-  local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
-  local context_instance = context.new_instance(context_config)
-
-  -- Check prompt guard with the current file
   local file_name = vim.api.nvim_buf_get_name(buf)
   local mentioned_files = file_name ~= '' and { file_name } or {}
-  local allowed, err_msg = util.check_prompt_allowed(config.values.prompt_guard, mentioned_files)
+  local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
   if not allowed then
     spinner:stop()
     return Promise.new():reject(err_msg or 'Prompt denied by prompt_guard')
@@ -385,8 +312,9 @@ M.quick_chat = Promise.async(function(message, options, range)
     return Promise.new():reject('Failed to create ephemeral session')
   end
 
-  --TODO only for debug
-  state.active_session = quick_chat_session
+  if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
+    state.active_session = quick_chat_session
+  end
 
   running_sessions[quick_chat_session.id] = {
     buf = buf,
@@ -396,6 +324,8 @@ M.quick_chat = Promise.async(function(message, options, range)
     timestamp = vim.uv.now(),
   }
 
+  local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
+  local context_instance = context.new_instance(context_config)
   local params = create_message(message, buf, range, context_instance, options):await()
 
   local success, err = pcall(function()

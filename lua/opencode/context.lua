@@ -5,9 +5,7 @@
 local util = require('opencode.util')
 local config = require('opencode.config')
 local state = require('opencode.state')
-local Promise = require('opencode.promise')
 
--- Import extracted modules
 local ContextInstance = require('opencode.context.base')
 local json_formatter = require('opencode.context.json_formatter')
 local plain_text_formatter = require('opencode.context.plain_text_formatter')
@@ -136,13 +134,6 @@ function M.get_current_selection()
   return global_context:get_current_selection()
 end
 
---- Formats context as plain text for LLM consumption
---- Outputs human-readable text instead of JSON message parts
---- Alias: format_message_quick_chat
----@param prompt string The user's instruction/prompt
----@param context_instance ContextInstance Context instance to use
----@param opts? { range?: { start: integer, stop: integer }, buf?: integer }
----@return table result { text: string, parts: OpencodeMessagePart[] }
 M.format_message_plain_text = plain_text_formatter.format_message
 
 --- Formats a prompt and context into message with parts for the opencode API
@@ -185,12 +176,6 @@ function M.format_message(prompt, opts)
   return parts
 end
 
---- Formats a prompt and context into plain text message for quick chat
---- Alias for format_message_plain_text - used for ephemeral sessions
----@param prompt string
----@param context_instance ContextInstance Context instance to use
----@param opts? { range?: { start: integer, stop: integer }, buf?: integer }
----@return table result { text: string, parts: OpencodeMessagePart[] }
 M.format_message_quick_chat = plain_text_formatter.format_message
 
 ---@param text string

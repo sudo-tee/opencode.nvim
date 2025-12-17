@@ -86,6 +86,7 @@
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
 ---@field history_picker OpencodeHistoryPickerKeymap
+---@field quick_chat OpencodeQuickChatKeymap
 
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
@@ -99,6 +100,9 @@
 ---@class OpencodeHistoryPickerKeymap
 ---@field delete_entry OpencodeKeymapEntry
 ---@field clear_all OpencodeKeymapEntry
+
+---@class OpencodeQuickChatKeymap
+---@field cancel OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean

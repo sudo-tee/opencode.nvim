@@ -20,7 +20,11 @@ local M = {}
 ---@type table<string, OpencodeQuickChatRunningSession>
 local running_sessions = {}
 
---- Creates an ephemeral session title
+--- Global keymaps that are active during quick chat sessions
+---@type table<string, boolean>
+local active_global_keymaps = {}
+
+--- Creates an quicklchat session title
 ---@param buf integer Buffer handle
 ---@return string title The session title
 local function create_session_title(buf)
@@ -30,6 +34,69 @@ local function create_session_title(buf)
   local timestamp = os.date('%H:%M:%S')
 
   return string.format('[QuickChat] %s:%d (%s)', relative_path, line_num, timestamp)
+end
+
+--- Removes global keymaps for quick chat
+local function teardown_global_keymaps()
+  if not next(active_global_keymaps) then
+    return
+  end
+
+  for key, _ in pairs(active_global_keymaps) do
+    pcall(vim.keymap.del, { 'n', 'i' }, key)
+  end
+
+  active_global_keymaps = {}
+end
+
+--- Cancels all running quick chat sessions
+local function cancel_all_quick_chat_sessions()
+  for session_id, session_info in pairs(running_sessions) do
+    if state.api_client then
+      local ok, result = pcall(function()
+        return state.api_client:abort_session(session_id):wait()
+      end)
+
+      if not ok then
+        vim.notify('Quick chat abort error: ' .. vim.inspect(result), vim.log.levels.WARN)
+      end
+    end
+
+    if session_info and session_info.spinner then
+      session_info.spinner:stop()
+    end
+
+    if config.values.debug.quick_chat and not config.values.debug.quick_chat.keep_session then
+      state.api_client:delete_session(session_id):catch(function(err)
+        vim.notify('Error deleting quicklchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
+      end)
+    end
+
+    running_sessions[session_id] = nil
+  end
+
+  -- Teardown keymaps once at the end
+  teardown_global_keymaps()
+  vim.notify('Quick chat cancelled by user', vim.log.levels.WARN)
+end
+
+--- Sets up global keymaps for quick chat
+local function setup_global_keymaps()
+  if next(active_global_keymaps) then
+    return
+  end
+
+  local quick_chat_keymap = config.keymap.quick_chat or {}
+  if quick_chat_keymap.cancel then
+    vim.keymap.set(quick_chat_keymap.cancel.mode or { 'n', 'i' }, quick_chat_keymap.cancel[1], function()
+      cancel_all_quick_chat_sessions()
+    end, {
+      desc = quick_chat_keymap.cancel.desc or 'Cancel quick chat session',
+      silent = true,
+    })
+
+    active_global_keymaps[quick_chat_keymap.cancel[1]] = true
+  end
 end
 
 --- Helper to clean up session info and spinner
@@ -43,11 +110,17 @@ local function cleanup_session(session_info, session_id, message)
 
   if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
     state.api_client:delete_session(session_id):catch(function(err)
-      vim.notify('Error deleting ephemeral session: ' .. vim.inspect(err), vim.log.levels.WARN)
+      vim.notify('Error deleting quicklchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
     end)
   end
 
   running_sessions[session_id] = nil
+
+  -- Check if there are no more running sessions and teardown global keymaps
+  if not next(running_sessions) then
+    teardown_global_keymaps()
+  end
+
   if message then
     vim.notify(message, vim.log.levels.WARN)
   end
@@ -67,7 +140,7 @@ local function extract_response_text(message)
   return vim.trim(response_text)
 end
 
---- Processes response from ephemeral session
+--- Processes response from quicklchat session
 ---@param session_info table Session tracking info
 ---@param messages OpencodeMessage[] Session messages
 ---@return boolean success Whether the response was processed successfully
@@ -308,7 +381,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   local quick_chat_session = core.create_new_session(title):await()
   if not quick_chat_session then
     spinner:stop()
-    return Promise.new():reject('Failed to create ephemeral session')
+    return Promise.new():reject('Failed to create quicklchat session')
   end
 
   if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
@@ -322,6 +395,9 @@ M.quick_chat = Promise.async(function(message, options, range)
     spinner = spinner,
     timestamp = vim.uv.now(),
   }
+
+  -- Set up global keymaps for quick chat
+  setup_global_keymaps()
 
   local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
   local context_instance = context.new_instance(context_config)
@@ -371,6 +447,7 @@ function M.setup()
         end
       end
       running_sessions = {}
+      teardown_global_keymaps()
     end,
   })
 end

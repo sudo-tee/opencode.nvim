@@ -24,7 +24,7 @@ local running_sessions = {}
 ---@type table<string, boolean>
 local active_global_keymaps = {}
 
---- Creates an quicklchat session title
+--- Creates an quickchat session title
 ---@param buf integer Buffer handle
 ---@return string title The session title
 local function create_session_title(buf)
@@ -68,7 +68,7 @@ local function cancel_all_quick_chat_sessions()
 
     if config.values.debug.quick_chat and not config.values.debug.quick_chat.keep_session then
       state.api_client:delete_session(session_id):catch(function(err)
-        vim.notify('Error deleting quicklchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
+        vim.notify('Error deleting quickchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
       end)
     end
 
@@ -110,7 +110,7 @@ local function cleanup_session(session_info, session_id, message)
 
   if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
     state.api_client:delete_session(session_id):catch(function(err)
-      vim.notify('Error deleting quicklchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
+      vim.notify('Error deleting quickchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
     end)
   end
 
@@ -140,7 +140,7 @@ local function extract_response_text(message)
   return vim.trim(response_text)
 end
 
---- Processes response from quicklchat session
+--- Processes response from quickchat session
 ---@param session_info table Session tracking info
 ---@param messages OpencodeMessage[] Session messages
 ---@return boolean success Whether the response was processed successfully
@@ -406,7 +406,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   local quick_chat_session = core.create_new_session(title):await()
   if not quick_chat_session then
     spinner:stop()
-    return Promise.new():reject('Failed to create quicklchat session')
+    return Promise.new():reject('Failed to create quickchat session')
   end
 
   if config.debug.quick_chat and config.debug.quick_chat.set_active_session then

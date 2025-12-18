@@ -223,7 +223,7 @@ M.defaults = {
   quick_chat = {
     default_model = nil,
     default_agent = 'plan', -- plan ensure no file modifications by default
-    default_prompt = nil, -- Use built-in prompt if nil
+    instructions = nil, -- Use instructions prompt by default
   },
 }
 

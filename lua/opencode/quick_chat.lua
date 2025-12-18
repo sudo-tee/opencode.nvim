@@ -336,12 +336,7 @@ end)
 local create_message = Promise.async(function(message, buf, range, context_instance, options)
   local quick_chat_config = config.quick_chat or {}
 
-  local instructions
-  if quick_chat_config.instructions then
-    instructions = quick_chat_config.instructions
-  else
-    instructions = generate_search_replace_instructions(context_instance):await()
-  end
+  local instructions = quick_chat_config.instructions or generate_search_replace_instructions(context_instance):await()
 
   local format_opts = { buf = buf }
   if range then

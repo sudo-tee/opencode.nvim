@@ -710,7 +710,7 @@ Press `<leader>o/` in normal mode to open a quick chat input window.
 - Transform to a lua array
 - Add lua annotations
 - Write a conventional commit message for my changes #diff
-- Fix this warnings #warn
+- Fix these warnings #warn
 - complete this function
 
 ## 🔧 Setting up Opencode

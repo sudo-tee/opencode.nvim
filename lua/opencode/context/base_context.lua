@@ -158,7 +158,7 @@ function M.get_current_cursor_data(buf, win, context_config)
     or 0
   local cursor_pos = vim.fn.getcurpos(win)
   local start_line = (cursor_pos[2] - 1) --[[@as integer]]
-  local cursor_content = vim.trim(vim.api.nvim_buf_get_lines(buf, start_line, cursor_pos[2], false)[1] or '')
+  local cursor_content = vim.api.nvim_buf_get_lines(buf, start_line, cursor_pos[2], false)[1] or ''
   local lines_before = vim.api.nvim_buf_get_lines(buf, math.max(0, start_line - num_lines), start_line, false)
   local lines_after = vim.api.nvim_buf_get_lines(buf, cursor_pos[2], cursor_pos[2] + num_lines, false)
   return {

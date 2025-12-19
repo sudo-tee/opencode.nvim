@@ -42,6 +42,32 @@ function M.setup_autocmds(windows)
       require('opencode.state').is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
     end,
   })
+
+  if require('opencode.config').ui.position == 'current' then
+    vim.api.nvim_create_autocmd('BufEnter', {
+      group = group,
+      callback = function()
+        local current_win = vim.api.nvim_get_current_win()
+        local current_buf = vim.api.nvim_get_current_buf()
+
+        if current_win ~= windows.output_win and current_win ~= windows.input_win then
+          return
+        end
+
+        local is_opencode_buf = (
+          current_buf == windows.output_buf
+          or current_buf == windows.input_buf
+          or (windows.footer_buf and current_buf == windows.footer_buf)
+        )
+
+        if not is_opencode_buf then
+          vim.schedule(function()
+            require('opencode.ui.ui').close_windows(windows)
+          end)
+        end
+      end,
+    })
+  end
 end
 
 function M.setup_resize_handler(windows)

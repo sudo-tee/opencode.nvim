@@ -107,7 +107,9 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
   -- vim.b[windows.input_buf].completion = false
-  vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
+  if config.ui.position ~= 'current' then
+    vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
+  end
   vim.api.nvim_set_option_value('winfixheight', true, { win = windows.input_win })
   vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.input_win })
 
@@ -124,10 +126,16 @@ function M.update_dimensions(windows)
     return
   end
 
-  local total_width = vim.api.nvim_get_option_value('columns', {})
   local total_height = vim.api.nvim_get_option_value('lines', {})
-  local width = math.floor(total_width * config.ui.window_width)
   local height = math.floor(total_height * config.ui.input_height)
+
+  if config.ui.position == 'current' then
+    pcall(vim.api.nvim_win_set_height, windows.input_win, height)
+    return
+  end
+
+  local total_width = vim.api.nvim_get_option_value('columns', {})
+  local width = math.floor(total_width * config.ui.window_width)
 
   vim.api.nvim_win_set_config(windows.input_win, { width = width, height = height })
 end

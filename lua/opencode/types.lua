@@ -114,7 +114,7 @@
 ---@field frames string[]
 
 ---@class OpencodeUIConfig
----@field position 'right'|'left' # Position of the UI (default: 'right')
+---@field position 'right'|'left'|'current' # Position of the UI (default: 'right')
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field zoom_width number

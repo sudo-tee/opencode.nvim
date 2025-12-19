@@ -26,7 +26,14 @@ function M.close_windows(windows)
 
   ---@cast windows { input_win: integer, output_win: integer, input_buf: integer, output_buf: integer }
   pcall(vim.api.nvim_win_close, windows.input_win, true)
-  pcall(vim.api.nvim_win_close, windows.output_win, true)
+  if config.ui.position == 'current' then
+    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
+    if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
+      pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
+    end
+  else
+    pcall(vim.api.nvim_win_close, windows.output_win, true)
+  end
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   footer.close()
@@ -67,7 +74,12 @@ function M.create_split_windows(input_buf, output_buf)
   end
   local ui_conf = config.ui
 
-  local main_win = open_split(ui_conf.position, 'vertical')
+  local main_win
+  if ui_conf.position == 'current' then
+    main_win = vim.api.nvim_get_current_win()
+  else
+    main_win = open_split(ui_conf.position, 'vertical')
+  end
   vim.api.nvim_set_current_win(main_win)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')

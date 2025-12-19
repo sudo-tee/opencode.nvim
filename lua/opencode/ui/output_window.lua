@@ -66,7 +66,9 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
-  vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
+  if config.ui.position ~= 'current' then
+    vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
+  end
   vim.api.nvim_set_option_value('winfixheight', true, { win = windows.output_win })
   vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.output_win })
   vim.api.nvim_set_option_value('signcolumn', 'yes', { scope = 'local', win = windows.output_win })
@@ -78,6 +80,9 @@ function M.setup(windows)
 end
 
 function M.update_dimensions(windows)
+  if config.ui.position == 'current' then
+    return
+  end
   local total_width = vim.api.nvim_get_option_value('columns', {})
   local width = math.floor(total_width * config.ui.window_width)
 

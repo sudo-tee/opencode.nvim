@@ -78,6 +78,9 @@ function M.setup(windows)
 end
 
 function M.update_dimensions(windows)
+  if config.ui.position == 'current' then
+    return
+  end
   local total_width = vim.api.nvim_get_option_value('columns', {})
   local width = math.floor(total_width * config.ui.window_width)
 

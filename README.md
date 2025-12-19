@@ -175,7 +175,7 @@ require('opencode').setup({
     }
   },
   ui = {
-    position = 'right', -- 'right' (default) or 'left'. Position of the UI split
+    position = 'right', -- 'right' (default), 'left' or 'current'. Position of the UI split. 'current' uses the current window for the output.
     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window
     window_width = 0.40, -- Width as percentage of editor width
     zoom_width = 0.8, -- Zoom width as percentage of editor width

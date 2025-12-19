@@ -231,14 +231,14 @@ end)
 ---@param file table
 ---@param content string
 ---@param lines string
+---@param raw_indent? boolean
 ---@return table
-function M.new_selection(file, content, lines)
+function M.new_selection(file, content, lines, raw_indent)
   return {
     file = file,
-    content = util.indent_code_block(content),
+    content = raw_indent and content or util.indent_code_block(content),
     lines = lines,
   }
 end
 
 return M
-

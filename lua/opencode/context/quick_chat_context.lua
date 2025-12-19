@@ -1,6 +1,3 @@
--- QuickChatContext for quick chat interface
--- Outputs plain text formatted context for simple LLM consumption
-
 local base_context = require('opencode.context.base_context')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
@@ -144,7 +141,8 @@ M.format_message = Promise.async(function(prompt, opts)
             extension = vim.fn.fnamemodify(file, ':e'),
           },
           table.concat(vim.api.nvim_buf_get_lines(buf, range.start - 1, range.stop, false), '\n'),
-          string.format('%d-%d', range.start, range.stop)
+          string.format('%d-%d', range.start, range.stop),
+          true
         )
         table.insert(selections, selection)
       end

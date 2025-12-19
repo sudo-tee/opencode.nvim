@@ -24,7 +24,7 @@ local running_sessions = {}
 ---@type table<string, boolean>
 local active_global_keymaps = {}
 
---- Creates an quickchat session title
+--- Creates a quick chat session title
 ---@param buf integer Buffer handle
 ---@return string title The session title
 local function create_session_title(buf)

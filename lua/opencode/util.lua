@@ -1,5 +1,4 @@
 local Path = require('plenary.path')
-local v = require('jit.v')
 local M = {}
 
 function M.uid()

@@ -286,7 +286,6 @@ require('opencode').setup({
   },
   debug = {
     enabled = false, -- Enable debug messages in the output window
-    enabled = false,
     capture_streamed_events = false,
     show_ids = true,
     quick_chat = {

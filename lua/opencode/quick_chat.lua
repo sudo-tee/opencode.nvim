@@ -264,19 +264,30 @@ end
 
 --- Generates instructions for the LLM to follow the SEARCH/REPLACE format
 --- This is inspired from Aider Chat approach
----@param context_instance ContextInstance Context instance
+---@param context_config OpencodeContextConfig Context configuration
 ---@return string[] instructions Array of instruction lines
-local generate_search_replace_instructions = Promise.async(function(context_instance)
+local generate_search_replace_instructions = Promise.async(function(context_config)
   local base_instructions = {
-    "You are an expert programming assistant. Modify the user's code according to their instructions using the SEARCH/REPLACE format described below.",
-    'Output ONLY SEARCH/REPLACE blocks, no explanations:',
+    'You are a patch generation engine.',
+    'TASK:',
+    'Generate search/replace blocks to implement the requested change.',
+    '',
+    'OUTPUT FORMAT (MANDATORY):',
     '<<<<<<< SEARCH',
     '[exact original code]',
     '=======',
     '[modified code]',
     '>>>>>>> REPLACE',
     '',
-    'Rules: Copy SEARCH content exactly. Include 1-3 context lines for unique matching. Use empty SEARCH to insert at cursor. Output multiple blocks only if needed for more complex operations.',
+    'RULES:',
+    '- Output ONLY RAW patch blocks',
+    '- Marker lines must match EXACTLY',
+    '- Include 1-3 lines of context for unique matching',
+    '- Only REPLACE may differ',
+    '- Preserve whitespace',
+    '- NEVER add explanations or extra text',
+    '',
+    'EXAMPLES (use ONLY as reference):',
     'Example 1 - Fix function:',
     '<<<<<<< SEARCH',
     'function hello() {',
@@ -294,33 +305,30 @@ local generate_search_replace_instructions = Promise.async(function(context_inst
     '=======',
     'local new_variable = "value"',
     '>>>>>>> REPLACE',
+    '',
   }
 
   local context_guidance = {}
 
-  if context_instance:has('diagnostics'):await() then
-    table.insert(context_guidance, 'Fix errors/warnings (if asked)')
+  -- Check context configuration to determine guidance
+  if context_config.diagnostics and context_config.diagnostics.enabled then
+    table.insert(context_guidance, 'Fix [DIAGNOSTICS] only (if asked)')
   end
 
-  if context_instance:has('selection'):await() then
-    table.insert(context_guidance, 'Modify only selected range')
-  elseif context_instance:has('cursor_data') then
-    table.insert(context_guidance, 'Modify only near cursor')
+  if context_config.selection then
+    table.insert(context_guidance, 'Modify only [SELECTED RANGE]')
+  elseif context_config.cursor_data and context_config.cursor_data.enabled then
+    table.insert(context_guidance, 'Modify only [CURSOR POSITION]')
   end
 
-  if context_instance:has('git_diff'):await() then
-    table.insert(context_guidance, "ONLY Reference git diff (don't copy syntax)")
+  if context_config.git_diff and context_config.git_diff.enabled then
+    table.insert(context_guidance, "Use [GIT DIFF] only as reference (don't copy syntax)")
   end
 
   if #context_guidance > 0 then
-    table.insert(base_instructions, 'Context: ' .. table.concat(context_guidance, ', ') .. '.')
+    table.insert(base_instructions, 'CONTEXT GUIDANCE: ' .. table.concat(context_guidance, ', ') .. '.')
   end
 
-  table.insert(base_instructions, '')
-  table.insert(
-    base_instructions,
-    '*CRITICAL*: Only answer in SEARCH/REPLACE format,NEVER add explanations!, NEVER ask questions!, NEVER add extra text!, NEVER run tools.'
-  )
   table.insert(base_instructions, '')
 
   return base_instructions
@@ -330,27 +338,26 @@ end)
 ---@param message string The user message
 ---@param buf integer Buffer handle
 ---@param range table|nil Range information
----@param context_instance ContextInstance Context instance
+---@param context_config OpencodeContextConfig Context configuration
 ---@param options table Options including model and agent
 ---@return table params Message parameters
-local create_message = Promise.async(function(message, buf, range, context_instance, options)
+local create_message = Promise.async(function(message, buf, range, context_config, options)
   local quick_chat_config = config.quick_chat or {}
 
-  local instructions = quick_chat_config.instructions or generate_search_replace_instructions(context_instance):await()
-
-  local format_opts = { buf = buf }
+  local format_opts = { context_config = context_config }
   if range then
     format_opts.range = { start = range.start, stop = range.stop }
   end
 
-  local result = context.format_message_plain_text(message, context_instance, format_opts):await()
+  local result = context.format_quick_chat_message(message, context_config, format_opts):await()
+  local instructions = quick_chat_config.instructions or generate_search_replace_instructions(context_config):await()
 
   local parts = {
     { type = 'text', text = table.concat(instructions, '\n') },
     { type = 'text', text = result.text },
   }
 
-  local params = { parts = parts, system = table.concat(instructions, '\n') }
+  local params = { parts = parts }
 
   local current_model = core.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
@@ -420,8 +427,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   setup_global_keymaps()
 
   local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
-  local context_instance = context.new_instance(context_config)
-  local params = create_message(message, buf, range, context_instance, options):await()
+  local params = create_message(message, buf, range, context_config, options):await()
 
   local success, err = pcall(function()
     state.api_client:create_message(quick_chat_session.id, params):await()

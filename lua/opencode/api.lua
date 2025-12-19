@@ -127,8 +127,8 @@ function M.quick_chat(message, range)
 
   if not message or #message == 0 then
     vim.ui.input({ prompt = 'Quick Chat Message: ', win = { relative = 'cursor' } }, function(input)
-      local prompt, ctx = util.parse_quick_context_args(input)
       if input and input ~= '' then
+        local prompt, ctx = util.parse_quick_context_args(input)
         quick_chat.quick_chat(prompt, { context_config = ctx }, range)
       end
     end)
@@ -1051,7 +1051,7 @@ M.commands = {
         local title = table.concat(vim.list_slice(args, 2), ' ')
         M.rename_session(state.active_session, title)
       else
-        local valid_subcmds = table.concat(M.commands.session.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.session.completions or {}, ', ')
         vim.notify('Invalid session subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1081,7 +1081,7 @@ M.commands = {
       elseif subcmd == 'close' then
         M.diff_close()
       else
-        local valid_subcmds = table.concat(M.commands.diff.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.diff.completions or {}, ', ')
         vim.notify('Invalid diff subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1160,7 +1160,7 @@ M.commands = {
       elseif subcmd == 'select' then
         M.select_agent()
       else
-        local valid_subcmds = table.concat(M.commands.agent.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.agent.completions or {}, ', ')
         vim.notify('Invalid agent subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1248,7 +1248,7 @@ M.commands = {
       elseif subcmd == 'deny' then
         M.permission_deny()
       else
-        local valid_subcmds = table.concat(M.commands.permission.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.permission.completions or {}, ', ')
         vim.notify('Invalid permission subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,

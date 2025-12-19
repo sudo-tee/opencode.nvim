@@ -378,4 +378,246 @@ describe('search_replace.apply', function()
 
     vim.api.nvim_buf_delete(buf, { force = true })
   end)
+
+  describe('flexible space matching', function()
+    it('matches with different whitespace when exact match fails', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'function  test()',
+        '  local   x    =   1',
+        'end'
+      })
+
+      -- Search with different whitespace pattern
+      local replacements = {
+        { search = 'local x = 1', replace = 'local x = 2', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('  local x = 2', lines[2])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('matches across multiple whitespace variations', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'if    condition   then',
+        '  print("hello")',
+        'end'
+      })
+
+      -- Search text with single spaces
+      local replacements = {
+        { search = 'if condition then', replace = 'if new_condition then', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors) 
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('if new_condition then', lines[1])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('matches with tabs and spaces mixed', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        '\tlocal\t\tx\t =\t\t1'
+      })
+
+      -- Search with regular spaces
+      local replacements = {
+        { search = 'local x = 1', replace = 'local x = 2', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('\tlocal x = 2', lines[1])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('prefers exact match over flexible match', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'local x = 1',        -- exact match
+        'local  x   =   1',   -- flexible match candidate
+      })
+
+      local replacements = {
+        { search = 'local x = 1', replace = 'local x = 99', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('local x = 99', lines[1])        -- exact match replaced
+      assert.equals('local  x   =   1', lines[2])    -- flexible match untouched
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('matches with newlines and extra whitespace', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'function   test()',
+        '    return    42',
+        'end'
+      })
+
+      -- Search for multiline with different whitespace
+      local replacements = {
+        { search = 'function test()\n  return 42\nend', replace = 'function test()\n  return 100\nend', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('function test()', lines[1])
+      assert.equals('  return 100', lines[2])
+      assert.equals('end', lines[3])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('handles word boundary matching for complex patterns', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'const   result   =   calculate(   a,   b   )'
+      })
+
+      -- Search with minimal spaces between words
+      local replacements = {
+        { search = 'const result = calculate( a, b )', replace = 'const result = compute(a, b)', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('const result = compute(a, b)', lines[1])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('fails gracefully when no flexible match is possible', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'function test() { return 42; }'
+      })
+
+      -- Search for completely different content
+      local replacements = {
+        { search = 'class MyClass extends Base', replace = 'class NewClass extends Base', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_false(success)
+      assert.equals(1, #errors)
+      assert.equals(0, count)
+      assert.matches('No match %(exact or flexible%)', errors[1])
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('function test() { return 42; }', lines[1]) -- unchanged
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('handles special regex characters in search text', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'const   pattern   =   /^test.*$/g'
+      })
+
+      -- Search with regex special characters and different whitespace
+      local replacements = {
+        { search = 'const pattern = /^test.*$/g', replace = 'const pattern = /^new.*$/g', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('const pattern = /^new.*$/g', lines[1])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('handles empty normalized search gracefully', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'some content' })
+
+      -- Search with only whitespace (should be treated as insert)
+      local replacements = {
+        { search = '   \t\n  ', replace = 'new content', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_false(success)
+      assert.equals(1, #errors)
+      assert.equals(0, count)
+      assert.matches('No match %(exact or flexible%)', errors[1])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('works with indented code blocks', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        '  if    (condition)    {',
+        '      console.log("test");',
+        '  }'
+      })
+
+      -- Search with normalized whitespace
+      local replacements = {
+        { search = 'if (condition) {\n    console.log("test");\n}', replace = 'if (condition) {\n    console.log("modified");\n}', block_number = 1 },
+      }
+
+      local success, errors, count = search_replace.apply(buf, replacements)
+
+      assert.is_true(success)
+      assert.equals(0, #errors)
+      assert.equals(1, count)
+
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert.equals('  if (condition) {', lines[1])
+      assert.equals('    console.log("modified");', lines[2])
+      assert.equals('}', lines[3])
+
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+  end)
 end)

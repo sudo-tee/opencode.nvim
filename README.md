@@ -1,16 +1,26 @@
 # 🤖 opencode.nvim
 
+> neovim frontend for opencode - a terminal-based AI coding agent
+
+## Main Features
+
+### Chat Panel
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg" alt="Opencode logo" width="30%" />
 </div>
 
-## Quick buffer chat
+### Quick buffer chat (<leader>o/) EXPERIMENTAL:
+
+This is an experimental feature that allows you to chat with the AI using the current buffer context. In visual mode, it captures the selected text as context, while in normal mode, it uses the current line. The AI will respond with quick edits to the files that are applied by the plugin.
+
+Don't hesitate to give it a try and provide feedback!
+
+Refer to the [Quick Chat](#-quick-chat) section for more details.
 
 <div align="center">
   <img src="https://i.imgur.com/5JNlFZn.png">
 </div>
-
-> neovim frontend for opencode - a terminal-based AI coding agent
 
 <div align="center">
 
@@ -19,11 +29,6 @@
 ![Last Commit](https://img.shields.io/github/last-commit/sudo-tee/opencode.nvim?style=for-the-badge)
 
 </div>
-
-## 🙏 Acknowledgements
-
-This plugin is a fork of the original [goose.nvim](https://github.com/azorng/goose.nvim) plugin by [azorng](https://github.com/azorng/)
-For git history purposes the original code is copied instead of just forked.
 
 ## ✨ Description
 
@@ -44,6 +49,8 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 - [Agents](#-agents)
 - [User Commands](#user-commands)
 - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
+- [Prompt Guard](#-prompt-guard)
+- [Quick Chat](#-quick-chat)
 - [Setting up opencode](#-setting-up-opencode)
 
 ## ⚠️Caution
@@ -636,6 +643,21 @@ The plugin defines several highlight groups that can be customized to match your
 
 The `prompt_guard` configuration option allows you to control when prompts can be sent to Opencode. This is useful for preventing accidental or unauthorized AI interactions in certain contexts.
 
+### Configuration
+
+Set `prompt_guard` to a function that returns a boolean:
+
+```lua
+require('opencode').setup({
+  prompt_guard = function()
+    -- Your custom logic here
+    -- Return true to allow, false to deny
+    return true
+  end,
+})
+
+```
+
 ## 🪝 Custom user hooks
 
 You can define custom functions to be called at specific events in Opencode:
@@ -668,20 +690,6 @@ require('opencode').setup({
 })
 ```
 
-### Configuration
-
-Set `prompt_guard` to a function that returns a boolean:
-
-```lua
-require('opencode').setup({
-  prompt_guard = function()
-    -- Your custom logic here
-    -- Return true to allow, false to deny
-    return true
-  end,
-})
-```
-
 ### Behavior
 
 - **Before sending prompts**: The guard is checked before any prompt is sent to the AI. If denied, an ERROR notification is shown and the prompt is not sent.
@@ -693,6 +701,8 @@ require('opencode').setup({
 
 Quick chat allows you to start a temporary opencode session with context from the current line or selection.
 This is optimized for narrow code edits or insertion. When the request is complex it will and require more context, it is recommended to use the full opencode UI.
+
+Due to the narrow context the resulting may be less accurate and edits may sometime fails. For best results, try to keep the request focused and simple.
 
 ### Starting a quick chat
 
@@ -728,3 +738,8 @@ If you're new to opencode:
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file
+
+## 🙏 Acknowledgements
+
+This plugin is a fork of the original [goose.nvim](https://github.com/azorng/goose.nvim) plugin by [azorng](https://github.com/azorng/)
+For git history purposes the original code is copied instead of just forked.

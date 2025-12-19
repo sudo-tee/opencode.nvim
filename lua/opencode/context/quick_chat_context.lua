@@ -105,6 +105,13 @@ local function format_buffer(buf, lang)
   return string.format('[FILE]: %s\n\n```%s\n%s\n```', rel_path, lang, content)
 end
 
+---@return integer|nil, integer|nil
+function M.get_current_buf()
+  local buf = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+  return buf, win
+end
+
 --- Formats context as plain text for LLM consumption (used by quick chat)
 --- Unlike ChatContext, this outputs human-readable text instead of structured JSON
 ---@param prompt string The user's instruction/prompt
@@ -113,7 +120,7 @@ end
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
   local context_config = opts.context_config
-  local buf, win = base_context.get_current_buf()
+  local buf, win = M.get_current_buf()
 
   if not buf or not win then
     return {

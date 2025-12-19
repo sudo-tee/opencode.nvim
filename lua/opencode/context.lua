@@ -1,182 +1,151 @@
--- Gathers editor context
--- This module acts as a facade for backward compatibility,
--- delegating to the extracted modules in context/
-
 local util = require('opencode.util')
 local config = require('opencode.config')
 local state = require('opencode.state')
+local Promise = require('opencode.promise')
 
-local ContextInstance = require('opencode.context.base')
-local json_formatter = require('opencode.context.json_formatter')
-local plain_text_formatter = require('opencode.context.plain_text_formatter')
+local ChatContext = require('opencode.context.chat_context')
+local QuickChatContext = require('opencode.context.quick_chat_context')
+local BaseContext = require('opencode.context.base_context')
 
 local M = {}
 
--- Global context instance
----@type ContextInstance
-local global_context = ContextInstance:new()
+M.ChatContext = ChatContext
+M.QuickChatContext = QuickChatContext
 
--- Exposed API
----@type OpencodeContext
-M.context = global_context.context
-
---- Creates a new independent context instance
----@param context_config? OpencodeContextConfig Optional context config to override global config
----@return ContextInstance
-function M.new_instance(context_config)
-  return ContextInstance:new(context_config)
+--- Formats context for main chat interface (new simplified API)
+---@param prompt string The user's instruction/prompt
+---@param context_config? OpencodeContextConfig Optional context config
+---@param opts? { range?: { start: integer, stop: integer } }
+---@return table result { parts: OpencodeMessagePart[] }
+M.format_chat_message = function(prompt, context_config, opts)
+  opts = opts or {}
+  opts.context_config = context_config
+  return ChatContext.format_message(prompt, opts)
 end
 
-function M.unload_attachments()
-  global_context:unload_attachments()
+--- Formats context for quick chat interface (new simplified API)
+---@param prompt string The user's instruction/prompt
+---@param context_config? OpencodeContextConfig Optional context config
+---@param opts? { range?: { start: integer, stop: integer } }
+---@return table result { text: string, parts: OpencodeMessagePart[] }
+M.format_quick_chat_message = function(prompt, context_config, opts)
+  opts = opts or {}
+  opts.context_config = context_config
+  return QuickChatContext.format_message(prompt, opts)
 end
 
 function M.get_current_buf()
-  return global_context:get_current_buf()
+  return BaseContext.get_current_buf()
 end
 
-function M.load()
-  global_context:load()
-  state.context_updated_at = vim.uv.now()
+function M.is_context_enabled(context_key, context_config)
+  return BaseContext.is_context_enabled(context_key, context_config)
 end
 
-function M.is_context_enabled(context_key)
-  return global_context:is_context_enabled(context_key)
+function M.get_diagnostics(buf, context_config, range)
+  return BaseContext.get_diagnostics(buf, context_config, range)
 end
 
-function M.get_diagnostics(buf)
-  return global_context:get_diagnostics(buf)
+function M.get_current_file(buf, context_config)
+  return BaseContext.get_current_file(buf, context_config)
+end
+
+function M.get_current_cursor_data(buf, win, context_config)
+  return BaseContext.get_current_cursor_data(buf, win, context_config)
+end
+
+function M.get_current_selection(context_config)
+  return BaseContext.get_current_selection(context_config)
 end
 
 function M.new_selection(file, content, lines)
-  return global_context:new_selection(file, content, lines)
+  return BaseContext.new_selection(file, content, lines)
 end
 
+-- Delegate global state management to ChatContext
 function M.add_selection(selection)
-  global_context:add_selection(selection)
+  ChatContext.add_selection(selection)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.remove_selection(selection)
-  global_context:remove_selection(selection)
+  ChatContext.remove_selection(selection)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.clear_selections()
-  global_context:clear_selections()
+  ChatContext.clear_selections()
 end
 
 function M.add_file(file)
-  global_context:add_file(file)
+  ChatContext.context.mentioned_files = ChatContext.context.mentioned_files or {}
+
+  local is_file = vim.fn.filereadable(file) == 1
+  local is_dir = vim.fn.isdirectory(file) == 1
+  if not is_file and not is_dir then
+    vim.notify('File not added to context. Could not read.')
+    return
+  end
+
+  if not util.is_path_in_cwd(file) and not util.is_temp_path(file, 'pasted_image') then
+    vim.notify('File not added to context. Must be inside current working directory.')
+    return
+  end
+
+  file = vim.fn.fnamemodify(file, ':p')
+  ChatContext.add_file(file)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.remove_file(file)
-  global_context:remove_file(file)
+  file = vim.fn.fnamemodify(file, ':p')
+  ChatContext.remove_file(file)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.clear_files()
-  global_context:clear_files()
+  ChatContext.clear_files()
 end
 
 function M.add_subagent(subagent)
-  global_context:add_subagent(subagent)
+  ChatContext.add_subagent(subagent)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.remove_subagent(subagent)
-  global_context:remove_subagent(subagent)
+  ChatContext.remove_subagent(subagent)
   state.context_updated_at = vim.uv.now()
 end
 
 function M.clear_subagents()
-  global_context:clear_subagents()
+  ChatContext.clear_subagents()
 end
 
+function M.unload_attachments()
+  ChatContext.clear_files()
+  ChatContext.clear_selections()
+end
+
+function M.load()
+  -- Delegate to ChatContext which manages the global state
+  ChatContext.load()
+  state.context_updated_at = vim.uv.now()
+end
+
+-- Context creation with delta logic (delegates to ChatContext)
 function M.delta_context(opts)
-  local context = global_context:delta_context(opts)
-  local last_context = state.last_sent_context
-  if not last_context then
-    return context
-  end
-
-  -- no need to send file context again
-  if
-    context.current_file
-    and last_context.current_file
-    and context.current_file.name == last_context.current_file.name
-  then
-    context.current_file = nil
-  end
-
-  -- no need to send subagents again
-  if
-    context.mentioned_subagents
-    and last_context.mentioned_subagents
-    and vim.deep_equal(context.mentioned_subagents, last_context.mentioned_subagents)
-  then
-    context.mentioned_subagents = nil
-  end
-
-  return context
+  return ChatContext.delta_context(opts)
 end
 
-function M.get_current_file(buf)
-  return global_context:get_current_file(buf)
-end
+M.context = ChatContext.context
 
-function M.get_current_cursor_data(buf, win)
-  return global_context:get_current_cursor_data(buf, win)
-end
-
-function M.get_current_selection()
-  return global_context:get_current_selection()
-end
-
-M.format_message_plain_text = plain_text_formatter.format_message
-
---- Formats a prompt and context into message with parts for the opencode API
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil
 ---@return OpencodeMessagePart[]
-function M.format_message(prompt, opts)
-  opts = opts or config.context
-  local context = M.delta_context(opts)
-
-  local parts = { { type = 'text', text = prompt } }
-
-  for _, path in ipairs(context.mentioned_files or {}) do
-    -- don't resend current file if it's also mentioned
-    if not context.current_file or path ~= context.current_file.path then
-      table.insert(parts, json_formatter.format_file_part(path, prompt))
-    end
-  end
-
-  for _, sel in ipairs(context.selections or {}) do
-    table.insert(parts, json_formatter.format_selection_part(sel))
-  end
-
-  for _, agent in ipairs(context.mentioned_subagents or {}) do
-    table.insert(parts, json_formatter.format_subagents_part(agent, prompt))
-  end
-
-  if context.current_file then
-    table.insert(parts, json_formatter.format_file_part(context.current_file.path))
-  end
-
-  if context.linter_errors and #context.linter_errors > 0 then
-    table.insert(parts, json_formatter.format_diagnostics_part(context.linter_errors))
-  end
-
-  if context.cursor_data then
-    table.insert(parts, json_formatter.format_cursor_data_part(context.cursor_data, M.get_current_buf))
-  end
-
-  return parts
-end
-
-M.format_message_quick_chat = plain_text_formatter.format_message
+M.format_message = Promise.async(function(prompt, opts)
+  local result = ChatContext.format_message(prompt, { context_config = opts }):await()
+  return result.parts
+end)
 
 ---@param text string
 ---@param context_type string|nil

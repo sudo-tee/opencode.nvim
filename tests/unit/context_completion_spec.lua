@@ -314,19 +314,12 @@ describe('context completion', function()
 
     it('should remove mentioned file when selected', function()
       local remove_file_called = false
-      local remove_mention_called = false
 
       local context_module = require('opencode.context')
-      local input_win_module = require('opencode.ui.input_window')
 
       context_module.remove_file = function(name)
         remove_file_called = true
-        assert.are.equal('test.lua', name)
-      end
-
-      input_win_module.remove_mention = function(name)
-        remove_mention_called = true
-        assert.are.equal('test.lua', name)
+        assert.are.equal('/test/file.lua', name)
       end
 
       local item = {
@@ -335,13 +328,15 @@ describe('context completion', function()
           type = 'mentioned_file',
           name = 'test.lua',
           available = true,
+          additional_data = {
+            file_path = '/test/file.lua',
+          },
         },
       }
 
       source.on_complete(item)
 
       assert.is_true(remove_file_called)
-      assert.is_true(remove_mention_called)
     end)
 
     it('should remove subagent when selected', function()

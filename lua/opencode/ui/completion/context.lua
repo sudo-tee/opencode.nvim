@@ -114,7 +114,7 @@ local function add_mentioned_files_items(ctx)
           true,
           'Select to remove file ' .. filename,
           icons.get('file'),
-          nil,
+          { file_path = file },
           kind_priority.mentioned_file
         )
       )
@@ -277,8 +277,8 @@ local context_source = {
     state.current_context_config = context_cfg
 
     if type == 'mentioned_file' then
-      context.remove_file(item.data.name)
-      input_win.remove_mention(item.data.name)
+      local file_path = item.data.additional_data and item.data.additional_data.file_path or item.data.name
+      context.remove_file(file_path)
     elseif type == 'subagent' then
       local subagent_name = item.data.name:gsub(' %(agent%)$', '')
       context.remove_subagent(subagent_name)

@@ -93,7 +93,6 @@ M.open = Promise.async(function(opts)
     if opts.new_session then
       state.active_session = nil
       state.last_sent_context = nil
-      context.unload_attachments()
 
       state.current_model = nil
       state.current_mode = nil

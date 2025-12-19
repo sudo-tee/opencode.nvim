@@ -174,7 +174,7 @@ M.defaults = {
     enabled = true,
     cursor_data = {
       enabled = false,
-      context_lines = 10, -- Number of lines before and after cursor to include in context
+      context_lines = 5, -- Number of lines before and after cursor to include in context
     },
     diagnostics = {
       enabled = true,

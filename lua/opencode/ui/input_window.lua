@@ -66,6 +66,11 @@ function M.handle_submit()
     return
   end
 
+  if input_content:match('^!') then
+    M._execute_shell_command(input_content:sub(2))
+    return
+  end
+
   local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
   if input_content:match('^' .. key) then
     M._execute_slash_command(input_content)
@@ -73,6 +78,76 @@ function M.handle_submit()
   end
 
   require('opencode.core').send_message(input_content)
+end
+
+M._execute_shell_command = function(command)
+  local cmd = command:match('^%s*(.-)%s*$')
+  if cmd == '' then
+    return
+  end
+
+  local shell = vim.o.shell
+  local shell_cmd = { shell, '-c', cmd }
+
+  vim.system(shell_cmd, { text = true }, function(result)
+    vim.schedule(function()
+      if result.code ~= 0 then
+        vim.notify('Command failed with exit code ' .. result.code, vim.log.levels.ERROR)
+      end
+
+      local output = result.stdout or ''
+      if result.stderr and result.stderr ~= '' then
+        output = output .. '\n' .. result.stderr
+      end
+
+      M._prompt_add_to_context(cmd, output, result.code)
+    end)
+  end)
+end
+
+M._prompt_add_to_context = function(cmd, output, exit_code)
+  local output_window = require('opencode.ui.output_window')
+  if not output_window.mounted() then
+    return
+  end
+
+  local formatted_output = string.format('$ %s\n%s', cmd, output)
+  local lines = vim.split(formatted_output, '\n')
+
+  output_window.set_lines(lines)
+
+  vim.ui.select({ 'Yes', 'No' }, {
+    prompt = 'Add command + output to context?',
+  }, function(choice)
+    if choice == 'Yes' then
+      local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
+      M._append_to_input(message)
+    end
+    output_window.clear()
+    require('opencode.ui.input_window').focus_input()
+  end)
+end
+
+M._append_to_input = function(text)
+  if not M.mounted() then
+    return
+  end
+
+  local current_lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
+  local new_lines = vim.split(text, '\n')
+
+  if #current_lines == 1 and current_lines[1] == '' then
+    vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, new_lines)
+  else
+    vim.api.nvim_buf_set_lines(state.windows.input_buf, -1, -1, false, { '', '---', '' })
+    vim.api.nvim_buf_set_lines(state.windows.input_buf, -1, -1, false, new_lines)
+  end
+
+  M.refresh_placeholder(state.windows)
+  require('opencode.ui.mention').highlight_all_mentions(state.windows.input_buf)
+
+  local line_count = vim.api.nvim_buf_line_count(state.windows.input_buf)
+  vim.api.nvim_win_set_cursor(state.windows.input_win, { line_count, 0 })
 end
 
 M._execute_slash_command = function(command)
@@ -160,6 +235,8 @@ function M.refresh_placeholder(windows, input_lines)
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = {
         { 'Type your prompt here... ', 'OpencodeHint' },
+        { '!', 'OpencodeInputLegend' },
+        { ' shell ', 'OpencodeHint' },
         { slash_key or '/', 'OpencodeInputLegend' },
         { ' commands ', 'OpencodeHint' },
         { mention_key or '@', 'OpencodeInputLegend' },

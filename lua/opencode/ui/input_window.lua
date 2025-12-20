@@ -122,8 +122,8 @@ M._prompt_add_to_context = function(cmd, output, exit_code)
     if choice == 'Yes' then
       local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
       M._append_to_input(message)
-      output_window.clear()
     end
+    output_window.clear()
     require('opencode.ui.input_window').focus_input()
   end)
 end

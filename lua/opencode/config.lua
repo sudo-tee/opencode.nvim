@@ -49,6 +49,7 @@ M.defaults = {
       ['[['] = { 'prev_message' },
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
       ['i'] = { 'focus_input' },
+      ['gr'] = { 'references', desc = 'Browse code references' },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },

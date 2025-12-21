@@ -17,6 +17,7 @@ local Promise = require('opencode.promise')
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
+---@field preview? "file"|"none"|false Preview mode: "file" for file preview, "none" or false to disable
 
 ---@class TelescopeEntry
 ---@field value any
@@ -341,15 +342,23 @@ end
 local function snacks_picker_ui(opts)
   local Snacks = require('snacks')
 
+  -- Determine if preview is enabled
+  local has_preview = opts.preview == 'file'
+
+  -- Choose layout preset based on preview
+  local layout_preset = has_preview and 'default' or 'select'
+
   local snack_opts = {
     title = opts.title,
     layout = {
-      preset = 'select',
+      preset = layout_preset,
       config = function(layout)
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
-        layout.layout.width = width
-        layout.layout.max_width = width
-        layout.layout.min_width = width
+        if not has_preview then
+          layout.layout.width = width
+          layout.layout.max_width = width
+          layout.layout.min_width = width
+        end
         return layout
       end,
     },
@@ -377,6 +386,11 @@ local function snacks_picker_ui(opts)
       end,
     },
   }
+
+  -- Add file preview if enabled
+  if has_preview then
+    snack_opts.preview = 'file'
+  end
 
   snack_opts.win = snack_opts.win or {}
   snack_opts.win.input = snack_opts.win.input or { keys = {} }

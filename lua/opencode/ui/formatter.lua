@@ -426,8 +426,63 @@ end
 ---@param output Output Output object to write to
 ---@param text string
 function M._format_assistant_message(output, text)
-  -- output:add_empty_line()
-  output:add_lines(vim.split(text, '\n'))
+  local reference_picker = require('opencode.ui.reference_picker')
+  local references = reference_picker.get_references_for_text(text)
+
+  -- If no references, just add the text as-is
+  if #references == 0 then
+    output:add_lines(vim.split(text, '\n'))
+    return
+  end
+
+  -- Sort references by match_start position (ascending)
+  table.sort(references, function(a, b)
+    return a.match_start < b.match_start
+  end)
+
+  -- Build a new text with icons inserted before each reference
+  local result = ''
+  local last_pos = 1
+  local ref_icon = icons.get('reference')
+
+  for _, ref in ipairs(references) do
+    -- Add text before this reference
+    result = result .. text:sub(last_pos, ref.match_start - 1)
+    -- Add the icon and the reference
+    result = result .. ref_icon .. text:sub(ref.match_start, ref.match_end)
+    last_pos = ref.match_end + 1
+  end
+
+  -- Add any remaining text after the last reference
+  if last_pos <= #text then
+    result = result .. text:sub(last_pos)
+  end
+
+  local lines = vim.split(result, '\n')
+  local start_line = output:get_line_count()
+  output:add_lines(lines)
+
+  -- Add highlighting for reference icons
+  -- We need to find the icon positions in the rendered lines and add extmarks
+  for i, line in ipairs(lines) do
+    local line_num = start_line + i - 1
+    local search_start = 1
+    while true do
+      local icon_start, icon_end = line:find(ref_icon, search_start, true)
+      if not icon_start then
+        break
+      end
+      -- Add extmark for the reference icon
+      output:add_extmark(line_num, {
+        virt_text = { { ref_icon, 'OpencodeReference' } },
+        virt_text_pos = 'overlay',
+        end_col = icon_end,
+        hl_group = 'OpencodeReference',
+        priority = 100,
+      } --[[@as OutputExtmark]])
+      search_start = icon_end + 1
+    end
+  end
 end
 
 ---@param output Output Output object to write to

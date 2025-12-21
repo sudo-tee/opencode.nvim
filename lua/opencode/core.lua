@@ -167,6 +167,11 @@ M.send_message = Promise.async(function(prompt, opts)
     state.current_mode = opts.agent
   end
 
+  -- Add system prompt if configured
+  if config.system_prompt and config.system_prompt ~= '' then
+    params.system = config.system_prompt
+  end
+
   params.parts = context.format_message(prompt, opts.context)
   M.before_run(opts)
 

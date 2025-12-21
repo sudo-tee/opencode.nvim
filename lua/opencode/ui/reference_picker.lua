@@ -100,60 +100,10 @@ local function file_exists(file_path)
   return vim.fn.filereadable(path) == 1
 end
 
----Extract surrounding context for display
----@param text string Full text
----@param match_start number Start position of match
----@param match_end number End position of match
----@param max_len number Maximum context length
----@return string
-local function extract_context(text, match_start, match_end, max_len)
-  max_len = max_len or 60
-  local half = math.floor(max_len / 2)
-
-  -- Find line boundaries for better context
-  local line_start = match_start
-  local line_end = match_end
-
-  -- Go back to find start of line or limit
-  while line_start > 1 and text:sub(line_start - 1, line_start - 1) ~= '\n' and (match_start - line_start) < half do
-    line_start = line_start - 1
-  end
-
-  -- Go forward to find end of line or limit
-  while line_end < #text and text:sub(line_end + 1, line_end + 1) ~= '\n' and (line_end - match_end) < half do
-    line_end = line_end + 1
-  end
-
-  local context = text:sub(line_start, line_end)
-
-  -- Clean up: remove extra whitespace
-  context = context:gsub('%s+', ' ')
-  context = vim.trim(context)
-
-  -- Truncate if still too long
-  if #context > max_len then
-    -- Try to center around the match
-    local match_in_context = match_start - line_start + 1
-    local ctx_start = math.max(1, match_in_context - half)
-    local ctx_end = math.min(#context, match_in_context + half)
-    context = context:sub(ctx_start, ctx_end)
-
-    if ctx_start > 1 then
-      context = '...' .. context
-    end
-    if ctx_end < #context then
-      context = context .. '...'
-    end
-  end
-
-  return context
-end
-
 ---@class CodeReference
 ---@field file_path string Relative or absolute file path
 ---@field line number|nil Line number (1-indexed)
 ---@field column number|nil Column number (optional)
----@field context string Surrounding text for display
 ---@field message_id string ID of the message containing this reference
 ---@field match_start number Start position in original text
 ---@field match_end number End position in original text
@@ -166,59 +116,114 @@ end
 ---@return CodeReference[]
 function M.parse_references(text, message_id)
   local references = {}
-  local seen = {} -- For deduplication: file_path:line
+  local covered_ranges = {} -- Track which character ranges we've already matched
 
-  -- Pattern: path/to/file.ext:line or path/to/file.ext:line:column
-  -- Must have a valid file extension before the colon
-  -- The path can contain: alphanumeric, underscore, dot, slash, hyphen
-  local pattern = '([%w_./%-]+%.([%w]+)):(%d+):?(%d*)'
+  -- Helper to check if a range overlaps with any covered range
+  local function is_covered(start_pos, end_pos)
+    for _, range in ipairs(covered_ranges) do
+      -- Check if ranges overlap
+      if not (end_pos < range[1] or start_pos > range[2]) then
+        return true
+      end
+    end
+    return false
+  end
 
+  -- Helper to add a reference
+  local function add_reference(path, ext, match_start, match_end, line, column)
+    if not is_valid_extension(ext) then
+      return false
+    end
+    if not file_exists(path) then
+      return false
+    end
+    if is_covered(match_start, match_end) then
+      return false
+    end
+
+    -- Mark this range as covered
+    table.insert(covered_ranges, { match_start, match_end })
+
+    -- Create absolute path for Snacks preview
+    local abs_path = path
+    if not vim.startswith(path, '/') then
+      abs_path = vim.fn.getcwd() .. '/' .. path
+    end
+
+    table.insert(references, {
+      file_path = path,
+      line = line,
+      column = column,
+      message_id = message_id,
+      match_start = match_start,
+      match_end = match_end,
+      file = abs_path,
+      pos = line and { line, (column or 1) - 1 } or nil,
+    })
+    return true
+  end
+
+  -- First pass: find file:// URI references (preferred format)
+  -- Matches: file://path/to/file.ext or file://path/to/file.ext:line or file://path/to/file.ext:line:column
+  local pattern_file_uri = 'file://([%w_./%-]+%.([%w]+)):?(%d*):?(%d*)'
   local search_start = 1
   while search_start <= #text do
-    local match_start, match_end, path, ext, line_str, col_str = text:find(pattern, search_start)
-
+    local match_start, match_end, path, ext, line_str, col_str = text:find(pattern_file_uri, search_start)
     if not match_start then
       break
     end
 
-    -- Validate extension
-    if is_valid_extension(ext) and not is_url_context(text, match_start) then
-      -- Check if file exists
-      if file_exists(path) then
-        local line = tonumber(line_str)
-        local column = col_str ~= '' and tonumber(col_str) or nil
-
-        -- Deduplication key
-        local dedup_key = path .. ':' .. (line or 0)
-        if not seen[dedup_key] then
-          seen[dedup_key] = true
-
-          local context = extract_context(text, match_start, match_end --[[@as number]], 60)
-
-          -- Create absolute path for Snacks preview
-          local abs_path = path
-          if not vim.startswith(path, '/') then
-            abs_path = vim.fn.getcwd() .. '/' .. path
-          end
-
-          table.insert(references, {
-            file_path = path,
-            line = line,
-            column = column,
-            context = context,
-            message_id = message_id,
-            match_start = match_start,
-            match_end = match_end,
-            -- Fields for Snacks picker file preview
-            file = abs_path,
-            pos = line and { line, (column or 1) - 1 } or nil,
-          })
-        end
-      end
-    end
-
+    local line = line_str ~= '' and tonumber(line_str) or nil
+    local column = col_str ~= '' and tonumber(col_str) or nil
+    add_reference(path, ext, match_start, match_end, line, column)
     search_start = match_end + 1
   end
+
+  -- Second pass: find path:line[:column] references (legacy format, more specific)
+  local pattern_with_line = '([%w_./%-]+%.([%w]+)):(%d+):?(%d*)'
+  search_start = 1
+  while search_start <= #text do
+    local match_start, match_end, path, ext, line_str, col_str = text:find(pattern_with_line, search_start)
+    if not match_start then
+      break
+    end
+
+    -- Skip if this looks like a URL (http://, https://, file://, etc.)
+    if is_url_context(text, match_start) then
+      search_start = match_end + 1
+    else
+      local line = tonumber(line_str)
+      local column = col_str ~= '' and tonumber(col_str) or nil
+      add_reference(path, ext, match_start, match_end, line, column)
+      search_start = match_end + 1
+    end
+  end
+
+  -- Third pass: find path-only references (must contain a slash to be a path)
+  local pattern_no_line = '([%w_%-]+/[%w_./%-]+%.([%w]+))'
+  search_start = 1
+  while search_start <= #text do
+    local match_start, match_end, path, ext = text:find(pattern_no_line, search_start)
+    if not match_start then
+      break
+    end
+
+    -- Skip if preceded by file:// or other URL scheme
+    if is_url_context(text, match_start) then
+      search_start = match_end + 1
+    -- Only add if not followed by a colon and digit (which would be caught by second pattern)
+    elseif text:sub(match_end + 1, match_end + 1) ~= ':' then
+      add_reference(path, ext, match_start, match_end, nil, nil)
+      search_start = match_end + 1
+    else
+      search_start = match_end + 1
+    end
+  end
+
+  -- Sort by match position for consistent ordering
+  table.sort(references, function(a, b)
+    return a.match_start < b.match_start
+  end)
 
   return references
 end

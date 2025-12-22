@@ -403,7 +403,7 @@
 ---@field callID string|nil Call identifier (used for tools)
 ---@field hash string|nil Hash identifier for patch parts
 ---@field files string[]|nil List of file paths for patch parts
----@field time { start: number, end: number }|nil Timestamps for the part
+---@field time { start: number, end?: number }|nil Timestamps for the part
 
 ---@class OpencodeModelModalities
 ---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities

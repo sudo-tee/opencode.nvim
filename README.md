@@ -392,7 +392,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Navigate to next prompt in history                        | `<down>`                              | -                                           | `require('opencode.api').next_history()`                               |
 | Toggle input/output panes                                 | `<tab>`                               | -                                           | -                                                                      |
 | Swap Opencode pane left/right                             | `<leader>ox`                          | `:Opencode swap position`                   | `require('opencode.api').swap_position()`                              |
-| Toggle tools output (diffs, cmd output, etc.)             | `<leader>ott`                         | `:Opencode toggle_tools_output`             | `require('opencode.api').toggle_tools_output()`                        |
+| Toggle tools output (diffs, cmd output, etc.)             | `<leader>ott`                         | `:Opencode toggle_tool_output`              | `require('opencode.api').toggle_tool_output()`                         |
 | Toggle reasoning output (thinking steps)                  | `<leader>otr`                         | `:Opencode toggle_reasoning_output`         | `require('opencode.api').toggle_reasoning_output()`                    |
 
 ---

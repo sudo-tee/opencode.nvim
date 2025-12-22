@@ -308,9 +308,8 @@ end
 -- This function creates a context snapshot with delta logic against the last sent context
 function M.delta_context(opts)
   local config = require('opencode.config')
-  local state = require('opencode.state')
 
-  opts = opts or config.context
+  opts = opts or state.current_context_config or config.context
   if opts.enabled == false then
     return {
       current_file = nil,

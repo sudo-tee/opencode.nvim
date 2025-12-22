@@ -209,9 +209,13 @@ local function fzf_ui(opts)
         ['--multi'] = has_multi_action and true or nil,
       },
       _headers = { 'actions' },
+      -- Enable builtin previewer for file preview support
+      previewer = opts.preview == 'file' and 'builtin' or nil,
       fn_fzf_index = function(line)
+        -- Strip the appended file:line:col info before matching
+        local display_part = line:match('^([^\t]+)') or line
         for i, item in ipairs(opts.items) do
-          if opts.format_fn(item):to_string() == line then
+          if opts.format_fn(item):to_string() == display_part then
             return i
           end
         end
@@ -223,7 +227,31 @@ local function fzf_ui(opts)
   local function create_finder()
     return function(fzf_cb)
       for _, item in ipairs(opts.items) do
-        fzf_cb(opts.format_fn(item):to_string())
+        local line_str = opts.format_fn(item):to_string()
+        
+        -- For file preview support, append file:line:col format
+        -- fzf-lua's builtin previewer automatically parses this format
+        if opts.preview == 'file' and type(item) == 'table' then
+          local file_path = item.file or item.file_path or item.path or item.filename
+          local line = item.line or item.lnum
+          local col = item.column or item.col
+          
+          if file_path then
+            -- fzf-lua parses "path:line:col:" format for preview positioning
+            local pos_info = file_path
+            if line then
+              pos_info = pos_info .. ':' .. tostring(line)
+              if col then
+                pos_info = pos_info .. ':' .. tostring(col)
+              end
+              pos_info = pos_info .. ':'
+            end
+            -- Append position info after tab separator (fzf-lua standard)
+            line_str = line_str .. '\t' .. pos_info
+          end
+        end
+        
+        fzf_cb(line_str)
       end
       fzf_cb()
     end

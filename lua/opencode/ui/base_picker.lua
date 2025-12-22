@@ -103,6 +103,10 @@ local function telescope_ui(opts)
       entry.path = item.file or item.file_path or item.path or item.filename
       entry.lnum = item.line or item.lnum
       entry.col = item.column or item.col
+      -- Support line ranges for preview highlighting
+      if item.end_pos and type(item.end_pos) == 'table' and item.end_pos[1] then
+        entry.lnend = item.end_pos[1]
+      end
     elseif type(item) == 'string' then
       entry.path = item
     end

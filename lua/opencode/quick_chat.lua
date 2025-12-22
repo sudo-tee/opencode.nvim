@@ -66,7 +66,7 @@ local function cancel_all_quick_chat_sessions()
       session_info.spinner:stop()
     end
 
-    if config.values.debug.quick_chat and not config.values.debug.quick_chat.keep_session then
+    if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
       state.api_client:delete_session(session_id):catch(function(err)
         vim.notify('Error deleting quickchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
       end)

@@ -56,7 +56,7 @@ function CursorSpinner:create_float()
 end
 
 function CursorSpinner:get_cancel_key()
-  local quick_chat_keymap = config.values.keymap.quick_chat or {}
+  local quick_chat_keymap = config.keymap.quick_chat or {}
   return quick_chat_keymap.cancel and quick_chat_keymap.cancel[1] or ''
 end
 

@@ -305,7 +305,7 @@ require('opencode').setup({
   quick_chat = {
     default_model = nil,   -- works better with a fast model like gpt-4.1
     default_agent = 'plan', -- plan ensure no file modifications by default
-    default_prompt = nil, -- Use built-in prompt if nil
+    instructions = nil, -- Use built-in instructions if nil
   },
 })
 ```

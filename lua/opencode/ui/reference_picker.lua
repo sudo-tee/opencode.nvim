@@ -184,7 +184,17 @@ end
 ---@return PickerItem
 local function format_reference_item(ref, width)
   local icon = icons.get('file')
-  local location = ref.line and (ref.file_path .. ':' .. ref.line) or ref.file_path
+  local location = ref.file_path
+
+  if ref.line then
+    location = location .. ':' .. ref.line
+    if ref.end_pos and ref.end_pos[1] then
+      location = location .. '-' .. ref.end_pos[1]
+    elseif ref.column then
+      location = location .. ':' .. ref.column
+    end
+  end
+
   local display_text = icon .. ' ' .. location
 
   return base_picker.create_picker_item(display_text, nil, nil, width)

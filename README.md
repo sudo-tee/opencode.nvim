@@ -127,6 +127,8 @@ require('opencode').setup({
       ['<leader>opa'] = { 'permission_accept' }, -- Accept permission request once
       ['<leader>opA'] = { 'permission_accept_all' }, -- Accept all (for current tool)
       ['<leader>opd'] = { 'permission_deny' }, -- Deny permission request once
+      ['<leader>ott'] = { 'toggle_tool_output' }, -- Toggle tools output (diffs, cmd output, etc.)
+      ['<leader>otr'] = { 'toggle_reasoning_output' }, -- Toggle reasoning output (thinking steps)
     },
     input_window = {
       ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
@@ -191,6 +193,7 @@ require('opencode').setup({
     output = {
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
+        show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
       },
       rendering = {
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
@@ -389,7 +392,8 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Navigate to next prompt in history                        | `<down>`                              | -                                           | `require('opencode.api').next_history()`                               |
 | Toggle input/output panes                                 | `<tab>`                               | -                                           | -                                                                      |
 | Swap Opencode pane left/right                             | `<leader>ox`                          | `:Opencode swap position`                   | `require('opencode.api').swap_position()`                              |
-| Toggle tools output (diffs, cmd output, etc.)             | -                                     | `:Opencode toggle_tools_output`             | `require('opencode.api').toggle_tools_output()`                        |
+| Toggle tools output (diffs, cmd output, etc.)             | `<leader>ott`                         | `:Opencode toggle_tool_output`              | `require('opencode.api').toggle_tool_output()`                         |
+| Toggle reasoning output (thinking steps)                  | `<leader>otr`                         | `:Opencode toggle_reasoning_output`         | `require('opencode.api').toggle_reasoning_output()`                    |
 
 ---
 

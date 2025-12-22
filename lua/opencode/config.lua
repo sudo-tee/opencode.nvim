@@ -68,6 +68,7 @@ M.defaults = {
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },
       ['<M-m>'] = { 'switch_mode', mode = { 'n', 'i' } },
+      ['gr'] = { 'references', desc = 'Browse code references' },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },

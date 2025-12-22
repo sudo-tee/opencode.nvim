@@ -243,15 +243,11 @@ function M.collect_references()
     local msg = state.messages[i]
 
     -- Only process assistant messages
-    if msg.info and msg.info.role == 'assistant' and msg.parts then
-      for _, part in ipairs(msg.parts) do
-        -- Only process text parts (not tool calls)
-        if part.type == 'text' and part.text then
-          local refs = M.parse_references(part.text, msg.info.id)
-          for _, ref in ipairs(refs) do
-            table.insert(all_references, ref)
-          end
-        end
+    if msg.info and msg.info.role == 'assistant' then
+      -- Use cached references if available, otherwise parse on-demand
+      local refs = msg.references or M._parse_message_references(msg)
+      for _, ref in ipairs(refs) do
+        table.insert(all_references, ref)
       end
     end
   end
@@ -270,11 +266,57 @@ function M.collect_references()
   return deduplicated
 end
 
----Get references for a specific text (used by formatter for visual indicators)
----@param text string
+---Parse references from a single message's text parts
+---@param msg OpencodeMessage
 ---@return CodeReference[]
-function M.get_references_for_text(text)
-  return M.parse_references(text, '')
+function M._parse_message_references(msg)
+  local refs = {}
+  if not msg.parts then
+    return refs
+  end
+
+  local message_id = msg.info and msg.info.id or ''
+  for _, part in ipairs(msg.parts) do
+    if part.type == 'text' and part.text then
+      local part_refs = M.parse_references(part.text, message_id)
+      for _, ref in ipairs(part_refs) do
+        table.insert(refs, ref)
+      end
+    end
+  end
+  return refs
+end
+
+---Parse and cache references for all assistant messages in the current session
+function M._parse_session_messages()
+  if not state.messages then
+    return
+  end
+
+  for _, msg in ipairs(state.messages) do
+    -- Only parse assistant messages that don't already have references cached
+    if msg.info and msg.info.role == 'assistant' and not msg.references then
+      msg.references = M._parse_message_references(msg)
+    end
+  end
+end
+
+---Setup reference picker event subscriptions
+---Should be called once during plugin initialization
+function M.setup()
+  -- Subscribe to session.idle to parse references when AI is done responding
+  if state.event_manager then
+    state.event_manager:subscribe('session.idle', function()
+      M._parse_session_messages()
+    end)
+  end
+
+  -- Subscribe to messages changes to handle session loads
+  state.subscribe('messages', function()
+    -- Parse any messages that don't have cached references
+    -- This handles loading previous sessions
+    M._parse_session_messages()
+  end)
 end
 
 ---Format a reference for display in the picker

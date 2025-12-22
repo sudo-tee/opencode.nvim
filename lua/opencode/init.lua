@@ -10,7 +10,6 @@ function M.setup(opts)
 
   require('opencode.ui.highlight').setup()
   require('opencode.core').setup()
-  require('opencode.quick_chat').setup()
   require('opencode.api').setup()
   require('opencode.keymap').setup(config.keymap)
   require('opencode.ui.completion').setup()

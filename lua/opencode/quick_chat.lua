@@ -5,7 +5,6 @@ local core = require('opencode.core')
 local util = require('opencode.util')
 local session = require('opencode.session')
 local Promise = require('opencode.promise')
-local search_replace = require('opencode.quick_chat.search_replace')
 local CursorSpinner = require('opencode.quick_chat.spinner')
 
 local M = {}
@@ -16,6 +15,7 @@ local M = {}
 ---@field col integer Column position for spinner
 ---@field spinner CursorSpinner Spinner instance
 ---@field timestamp integer Timestamp when session started
+---@field range table|nil Range information
 
 ---@type table<string, OpencodeQuickChatRunningSession>
 local running_sessions = {}
@@ -130,6 +130,10 @@ end
 ---@param message OpencodeMessage Message object
 ---@return string response_text
 local function extract_response_text(message)
+  if not message then
+    return ''
+  end
+
   local response_text = ''
   for _, part in ipairs(message.parts or {}) do
     if part.type == 'text' and part.text then
@@ -137,14 +141,45 @@ local function extract_response_text(message)
     end
   end
 
+  -- Remove code blocks and inline code
+  response_text = response_text:gsub('```[^`]*```', '')
+  response_text = response_text:gsub('`[^`]*`', '')
+
   return vim.trim(response_text)
+end
+
+--- Applies raw code response to buffer (simple replacement)
+---@param buf integer Buffer handle
+---@param response_text string The raw code response
+---@param row integer Row position (0-indexed)
+---@param range table|nil Range information { start = number, stop = number }
+---@return boolean success Whether the replacement was successful
+local function apply_raw_code_response(buf, response_text, row, range)
+  if response_text == '' then
+    return false
+  end
+
+  local lines = vim.split(response_text, '\n')
+
+  if range then
+    -- Replace the selected range
+    local start_line = range.start - 1 -- Convert to 0-indexed
+    local end_line = range.stop - 1 -- Convert to 0-indexed
+    vim.api.nvim_buf_set_lines(buf, start_line, end_line + 1, false, lines)
+  else
+    -- Replace current line
+    vim.api.nvim_buf_set_lines(buf, row, row + 1, false, lines)
+  end
+
+  return true
 end
 
 --- Processes response from quickchat session
 ---@param session_info table Session tracking info
 ---@param messages OpencodeMessage[] Session messages
+---@param range table|nil Range information
 ---@return boolean success Whether the response was processed successfully
-local function process_response(session_info, messages)
+local function process_response(session_info, messages, range)
   local response_message = messages[#messages]
   if #messages < 2 and (not response_message or response_message.info.role ~= 'assistant') then
     return false
@@ -157,39 +192,12 @@ local function process_response(session_info, messages)
     return false
   end
 
-  local replacements, parse_warnings = search_replace.parse_blocks(response_text)
-
-  -- Show parse warnings
-  if #parse_warnings > 0 then
-    for _, warning in ipairs(parse_warnings) do
-      vim.notify('Quick chat: ' .. warning, vim.log.levels.WARN)
-    end
-  end
-
-  if #replacements == 0 then
-    vim.notify('Quick chat: No valid SEARCH/REPLACE blocks found in response', vim.log.levels.WARN)
-    return false
-  end
-
-  local success, errors, applied_count = search_replace.apply(session_info.buf, replacements, session_info.row)
-
-  -- Provide detailed feedback
-  if applied_count > 0 then
-    local total_blocks = #replacements
-    if applied_count == total_blocks then
-      vim.notify(
-        string.format('Quick chat: Applied %d change%s', applied_count, applied_count > 1 and 's' or ''),
-        vim.log.levels.INFO
-      )
-    else
-      vim.notify(string.format('Quick chat: Applied %d/%d changes', applied_count, total_blocks), vim.log.levels.INFO)
-    end
-  end
-
-  if #errors > 0 then
-    for _, err in ipairs(errors) do
-      vim.notify('Quick chat: ' .. err, vim.log.levels.WARN)
-    end
+  local success = apply_raw_code_response(session_info.buf, response_text, session_info.row, range)
+  if success then
+    local target = range and 'selection' or 'current line'
+    vim.notify(string.format('Quick chat: Replaced %s with generated code', target), vim.log.levels.INFO)
+  else
+    vim.notify('Quick chat: Failed to apply raw code response', vim.log.levels.WARN)
   end
 
   return success
@@ -213,7 +221,7 @@ local on_done = Promise.async(function(active_session)
     return
   end
 
-  local success = process_response(running_session, messages)
+  local success = process_response(running_session, messages, running_session.range)
   if success then
     cleanup_session(running_session, active_session.id)
   else
@@ -262,77 +270,28 @@ local function create_context_config(has_range)
   }
 end
 
---- Generates instructions for the LLM to follow the SEARCH/REPLACE format
---- This is inspired from Aider Chat approach
+--- Generates instructions for raw code generation mode
 ---@param context_config OpencodeContextConfig Context configuration
 ---@return string[] instructions Array of instruction lines
-local generate_search_replace_instructions = Promise.async(function(context_config)
-  local base_instructions = {
-    'You are a patch generation engine.',
-    'TASK:',
-    'Generate search/replace blocks to implement the requested change.',
-    '',
-    'OUTPUT FORMAT (MANDATORY):',
-    '<<<<<<< SEARCH',
-    '[exact original code]',
-    '=======',
-    '[modified code]',
-    '>>>>>>> REPLACE',
-    '',
-    'RULES:',
-    '- Output ONLY RAW patch blocks',
-    '- Marker lines must match EXACTLY',
-    '- Include 1-3 lines of context for unique matching',
-    '- Only REPLACE may differ',
-    '- Preserve whitespace',
-    '- NEVER add explanations or extra text',
-    '',
-    'EXAMPLES (use ONLY as reference):',
-    'Example 1 - Fix function:',
-    '<<<<<<< SEARCH',
-    'function hello() {',
-    '  console.log("hello")',
-    '}',
-    '=======',
-    'function hello() {',
-    '  console.log("hello");',
-    '}',
-    '>>>>>>> REPLACE',
-    '',
-    'Example 2 - Insert at cursor:',
-    '<<<<<<< SEARCH',
-    '',
-    '=======',
-    'local new_variable = "value"',
-    '>>>>>>> REPLACE',
-    '',
-  }
+local function generate_raw_code_instructions(context_config)
+  local context_info = ''
 
-  local context_guidance = {}
-
-  -- Check context configuration to determine guidance
-  if context_config.diagnostics and context_config.diagnostics.enabled then
-    table.insert(context_guidance, 'Fix [DIAGNOSTICS] only (if asked)')
-  end
-
-  if context_config.selection then
-    table.insert(context_guidance, 'Modify only [SELECTED RANGE]')
+  if context_config.selection and context_config.selection.enabled then
+    context_info = 'You have been provided with a code selection [SELECTED CODE]. '
   elseif context_config.cursor_data and context_config.cursor_data.enabled then
-    table.insert(context_guidance, 'Modify only [CURSOR POSITION]')
+    context_info = 'You have been provided with cursor context. [CURSOR POSITION]'
   end
 
-  if context_config.git_diff and context_config.git_diff.enabled then
-    table.insert(context_guidance, "Use [GIT DIFF] only as reference (don't copy syntax)")
-  end
+  local buf = vim.api.nvim_get_current_buf()
+  local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
 
-  if #context_guidance > 0 then
-    table.insert(base_instructions, 'CONTEXT GUIDANCE: ' .. table.concat(context_guidance, ', ') .. '.')
-  end
-
-  table.insert(base_instructions, '')
-
-  return base_instructions
-end)
+  return {
+    'I want you to act as a senior ' .. filetype .. ' developer. ' .. context_info,
+    'I will ask you specific questions and I want you to return raw code only ',
+    '(no codeblocks, no explanations). ',
+    "If you can't respond with code, respond with nothing.",
+  }
+end
 
 --- Creates message parameters for quick chat
 ---@param message string The user message
@@ -350,7 +309,8 @@ local create_message = Promise.async(function(message, buf, range, context_confi
   end
 
   local result = context.format_quick_chat_message(message, context_config, format_opts):await()
-  local instructions = quick_chat_config.instructions or generate_search_replace_instructions(context_config):await()
+
+  local instructions = quick_chat_config.instructions or generate_raw_code_instructions(context_config)
 
   local parts = {
     { type = 'text', text = table.concat(instructions, '\n') },
@@ -421,6 +381,7 @@ M.quick_chat = Promise.async(function(message, options, range)
     col = col,
     spinner = spinner,
     timestamp = vim.uv.now(),
+    range = range,
   }
 
   -- Set up global keymaps for quick chat

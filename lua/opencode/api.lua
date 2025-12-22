@@ -60,6 +60,8 @@ M.toggle = Promise.async(function(new_session)
   end
 end)
 
+---@param new_session boolean?
+---@return nil
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
     local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'

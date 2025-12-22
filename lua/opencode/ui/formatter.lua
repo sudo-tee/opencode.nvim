@@ -48,7 +48,7 @@ function M._format_reasoning(output, part)
   if end_line - start_line > 1 then
     M._add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1, 'OpencodeReasoningText')
   else
-    M.output:add_extmark(start_line - 1, {
+    output:add_extmark(start_line - 1, {
       line_hl_group = 'OpencodeReasoningText',
     } --[[@as OutputExtmark]])
   end

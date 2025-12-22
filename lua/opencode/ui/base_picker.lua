@@ -126,7 +126,7 @@ local function telescope_ui(opts)
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
-    previewer = opts.preview == 'file' and conf.file_previewer({}) or nil,
+    previewer = opts.preview == 'file' and require('telescope.previewers').vim_buffer_vimgrep.new({}) or nil,
     layout_config = opts.width and {
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,

@@ -14,6 +14,46 @@ M.separator = {
   '',
 }
 
+---@param output Output
+---@param part OpencodeMessagePart
+function M._format_reasoning(output, part)
+  local text = vim.trim(part.text or '')
+  if text == '' then
+    return
+  end
+
+  local start_line = output:get_line_count() + 1
+
+  local title = 'Reasoning'
+  local time = part.time
+  if time and type(time) == 'table' and time.start then
+    local start_text = util.format_time(time.start) or ''
+    local end_text = (time['end'] and util.format_time(time['end'])) or nil
+    if end_text and end_text ~= '' then
+      title = string.format('%s (%s - %s)', title, start_text, end_text)
+    elseif start_text ~= '' then
+      title = string.format('%s (%s)', title, start_text)
+    end
+  end
+
+  M._format_action(output, icons.get('reasoning') .. ' ' .. title, '')
+
+  if config.ui.output.tools.show_reasoning_output then
+    output:add_empty_line()
+    output:add_lines(vim.split(text, '\n'))
+    output:add_empty_line()
+  end
+
+  local end_line = output:get_line_count()
+  if end_line - start_line > 1 then
+    M._add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1, 'OpencodeReasoningText')
+  else
+    output:add_extmark(start_line - 1, {
+      line_hl_group = 'OpencodeReasoningText',
+    } --[[@as OutputExtmark]])
+  end
+end
+
 function M._handle_permission_request(output, part)
   if part.state and part.state.status == 'error' and part.state.error then
     if part.state.error:match('rejected permission') then
@@ -462,14 +502,15 @@ function M._format_assistant_message(output, text)
 end
 
 ---@param output Output Output object to write to
----@param type string Tool type (e.g., 'run', 'read', 'edit', etc.)
+---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)
-function M._format_action(output, type, value)
-  if not type or not value then
+function M._format_action(output, tool_type, value)
+  if not tool_type or not value then
     return
   end
+  local line = string.format('**%s** %s', tool_type, value and #value > 0 and ('`' .. value .. '`') or '')
 
-  output:add_line('**' .. type .. '** `' .. value .. '`')
+  output:add_line(line)
 end
 
 ---@param output Output Output object to write to
@@ -744,16 +785,24 @@ end
 ---@param output Output Output object to write to
 ---@param start_line number
 ---@param end_line number
----@param hl_group string
+---@param hl_group string Highlight group for the border character
 ---@param win_col number
-function M._add_vertical_border(output, start_line, end_line, hl_group, win_col)
+---@param text_hl_group? string Optional highlight group for the background/foreground of text lines
+function M._add_vertical_border(output, start_line, end_line, hl_group, win_col, text_hl_group)
   for line = start_line, end_line do
-    output:add_extmark(line - 1, {
+    local extmark_opts = {
       virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
       virt_text_pos = 'overlay',
       virt_text_win_col = win_col,
       virt_text_repeat_linebreak = true,
-    } --[[@as OutputExtmark]])
+    }
+
+    -- Add line highlight if text_hl_group is provided
+    if text_hl_group then
+      extmark_opts.line_hl_group = text_hl_group
+    end
+
+    output:add_extmark(line - 1, extmark_opts --[[@as OutputExtmark]])
   end
 end
 
@@ -792,6 +841,9 @@ function M.format_part(part, message, is_last_part)
   elseif role == 'assistant' then
     if part.type == 'text' and part.text then
       M._format_assistant_message(output, vim.trim(part.text))
+      content_added = true
+    elseif part.type == 'reasoning' and part.text then
+      M._format_reasoning(output, part)
       content_added = true
     elseif part.type == 'tool' then
       M._format_tool(output, part)

@@ -41,6 +41,8 @@ M.defaults = {
       ['<leader>oPa'] = { 'permission_accept', desc = 'Accept permission' },
       ['<leader>oPA'] = { 'permission_accept_all', desc = 'Accept all permissions' },
       ['<leader>oPd'] = { 'permission_deny', desc = 'Deny permission' },
+      ['<leader>otr'] = { 'toggle_reasoning_output', desc = 'Toggle reasoning output' },
+      ['<leader>ott'] = { 'toggle_tool_output', desc = 'Toggle tool output' },
     },
     output_window = {
       ['<esc>'] = { 'close' },
@@ -120,6 +122,7 @@ M.defaults = {
       },
       tools = {
         show_output = true,
+        show_reasoning_output = true,
       },
       always_scroll_to_bottom = false,
     },

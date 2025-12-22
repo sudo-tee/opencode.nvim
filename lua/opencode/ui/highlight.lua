@@ -35,6 +35,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodePickerTime', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeDebugText', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeReference', { fg = '#1976D2', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeReasoningText', { link = 'Comment', default = true })
   else
     vim.api.nvim_set_hl(0, 'OpencodeBorder', { fg = '#616161', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeBackground', { link = 'Normal', default = true })
@@ -66,6 +67,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodePickerTime', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeDebugText', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeReference', { fg = '#7AA2F7', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeReasoningText', { link = 'Comment', default = true })
   end
 end
 

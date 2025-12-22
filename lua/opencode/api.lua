@@ -908,7 +908,16 @@ function M.permission_deny()
 end
 
 function M.toggle_tool_output()
+  local action_text = config.ui.output.tools.show_output and 'Hiding' or 'Showing'
+  vim.notify(action_text .. ' tool output display', vim.log.levels.INFO)
   config.values.ui.output.tools.show_output = not config.ui.output.tools.show_output
+  ui.render_output()
+end
+
+function M.toggle_reasoning_output()
+  local action_text = config.ui.output.tools.show_reasoning_output and 'Hiding' or 'Showing'
+  vim.notify(action_text .. ' reasoning output display', vim.log.levels.INFO)
+  config.values.ui.output.tools.show_reasoning_output = not config.ui.output.tools.show_reasoning_output
   ui.render_output()
 end
 
@@ -1214,6 +1223,11 @@ M.commands = {
     desc = 'Toggle tool output visibility in the output window',
     fn = M.toggle_tool_output,
   },
+
+  toggle_reasoning_output = {
+    desc = 'Toggle reasoning output visibility in the output window',
+    fn = M.toggle_reasoning_output,
+  },
   paste_image = {
     desc = 'Paste image from clipboard and add to context',
     fn = M.paste_image,
@@ -1243,6 +1257,8 @@ M.slash_commands_map = {
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
   ['/rename'] = { fn = M.rename_session, desc = 'Rename current session' },
+  ['/thinking'] = { fn = M.toggle_reasoning_output, desc = 'Toggle reasoning output' },
+  ['/reasoning'] = { fn = M.toggle_reasoning_output, desc = 'Toggle reasoning output' },
 }
 
 M.legacy_command_map = {

@@ -129,6 +129,10 @@
 ---@field output OpencodeUIOutputConfig
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
+---@field highlights? OpencodeHighlightConfig
+
+---@class OpencodeHighlightConfig
+---@field vertical_borders? { tool?: { fg?: string, bg?: string }, user?: { fg?: string, bg?: string }, assistant?: { fg?: string, bg?: string } }
 
 ---@class OpencodeUIOutputRenderingConfig
 ---@field markdown_debounce_ms number
@@ -137,7 +141,7 @@
 ---@field event_collapsing boolean
 
 ---@class OpencodeUIOutputConfig
----@field tools { show_output: boolean }
+---@field tools { show_output: boolean, show_reasoning_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field always_scroll_to_bottom boolean
 
@@ -383,7 +387,7 @@
 ---@field value string|nil
 
 ---@class OpencodeMessagePart
----@field type 'text'|'file'|'agent'|'tool'|'step-start'|'patch'|string
+---@field type 'text'|'file'|'agent'|'tool'|'step-start'|'patch'|'reasoning'|string
 ---@field id string|nil Unique identifier for tool use parts
 ---@field text string|nil
 ---@field tool string|nil Name of the tool being used
@@ -400,6 +404,7 @@
 ---@field callID string|nil Call identifier (used for tools)
 ---@field hash string|nil Hash identifier for patch parts
 ---@field files string[]|nil List of file paths for patch parts
+---@field time { start: number, end?: number }|nil Timestamps for the part
 
 ---@class OpencodeModelModalities
 ---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities

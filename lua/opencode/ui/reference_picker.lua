@@ -27,6 +27,7 @@ end
 ---@field match_end number End position in original text
 ---@field file string Absolute file path (for Snacks picker preview)
 ---@field pos number[]|nil Position as {line, col} for Snacks picker preview
+---@field end_pos number[]|nil End position as {line, col} for Snacks picker range highlighting
 
 ---Parse file:// URI references from text
 ---@param text string The text to parse
@@ -35,13 +36,13 @@ end
 function M.parse_references(text, message_id)
   local references = {}
 
-  -- Match file:// URIs with optional line and column numbers
-  -- Formats: file://path/to/file or file://path/to/file:line or file://path/to/file:line:column
-  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)'
+  -- Match file:// URIs with optional line and column numbers or line ranges
+  -- Formats: file://path/to/file or file://path/to/file:line or file://path/to/file:line:column or file://path/to/file:line-endline
+  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)-?(%d*)'
   local search_start = 1
 
   while search_start <= #text do
-    local match_start, match_end, path, line_str, col_str = text:find(pattern, search_start)
+    local match_start, match_end, path, line_str, col_or_end_str, end_line_str = text:find(pattern, search_start)
     if not match_start then
       break
     end
@@ -49,7 +50,17 @@ function M.parse_references(text, message_id)
     -- Only add if file exists
     if file_exists(path) then
       local line = line_str ~= '' and tonumber(line_str) or nil
-      local column = col_str ~= '' and tonumber(col_str) or nil
+      local column = nil
+      local end_line = nil
+
+      -- Determine if we have a range or a column
+      if end_line_str ~= '' then
+        -- Range format: file://path:start-end
+        end_line = tonumber(end_line_str)
+      elseif col_or_end_str ~= '' then
+        -- Column format: file://path:line:col
+        column = tonumber(col_or_end_str)
+      end
 
       -- Create absolute path for Snacks preview
       local abs_path = path
@@ -66,6 +77,7 @@ function M.parse_references(text, message_id)
         match_end = match_end,
         file = abs_path,
         pos = line and { line, (column or 1) - 1 } or nil,
+        end_pos = end_line and { end_line, 0 } or nil,
       })
     end
 

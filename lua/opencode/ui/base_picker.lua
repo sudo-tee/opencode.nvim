@@ -90,7 +90,7 @@ local function telescope_ui(opts)
   ---@param item any
   ---@return TelescopeEntry
   local function make_entry(item)
-    return {
+    local entry = {
       value = item,
       display = function(entry)
         local formatted = opts.format_fn(entry.value):to_formatted_text()
@@ -98,6 +98,16 @@ local function telescope_ui(opts)
       end,
       ordinal = opts.format_fn(item):to_string(),
     }
+
+    if type(item) == 'table' then
+      entry.path = item.file or item.file_path or item.path or item.filename
+      entry.lnum = item.line or item.lnum
+      entry.col = item.column or item.col
+    elseif type(item) == 'string' then
+      entry.path = item
+    end
+
+    return entry
   end
 
   local function refresh_picker()
@@ -112,6 +122,7 @@ local function telescope_ui(opts)
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
+    previewer = opts.preview == 'file' and conf.file_previewer({}) or nil,
     layout_config = opts.width and {
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,

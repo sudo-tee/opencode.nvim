@@ -1,0 +1,150 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_reason_user1",
+        "role": "user",
+        "sessionID": "ses_reason_1",
+        "time": {
+          "created": 1766000000000
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_reason_user1_text",
+        "messageID": "msg_reason_user1",
+        "sessionID": "ses_reason_1",
+        "text": "Explain your plan, then provide the final title.",
+        "type": "text"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_reason_asst1",
+        "role": "assistant",
+        "sessionID": "ses_reason_1",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "providerID": "github-copilot",
+        "path": {
+          "cwd": "/workspace",
+          "root": "/workspace"
+        },
+        "time": {
+          "created": 1766000000500
+        },
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_reason_asst1_reasoning",
+        "messageID": "msg_reason_asst1",
+        "sessionID": "ses_reason_1",
+        "type": "reasoning",
+        "text": "The user is asking me to explain my plan and then provide a final title. I need to think through what they're asking for. It seems like they want me to demonstrate reasoning capabilities - showing my thought process before giving an answer. Let me break this down into steps.",
+        "time": {
+          "start": 1766000000600
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_reason_asst1_reasoning",
+        "messageID": "msg_reason_asst1",
+        "sessionID": "ses_reason_1",
+        "type": "reasoning",
+        "text": "The user is asking me to explain my plan and then provide a final title. I need to think through what they're asking for. It seems like they want me to demonstrate reasoning capabilities - showing my thought process before giving an answer. Let me break this down into steps.\n\n1. First, I should understand what kind of title they want - is this for a project, document, or something else?\n2. Since they didn't specify the context, I should provide a general approach\n3. I'll demonstrate my reasoning process transparently\n4. Then I'll give them a concrete example title\n\nGiven that this appears to be related to the OpenCode project (based on the file structure I can see), I should provide a title that reflects the nature of this AI coding assistant tool.",
+        "time": {
+          "start": 1766000000600,
+          "end": 1766000001200
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_reason_asst1_text",
+        "messageID": "msg_reason_asst1",
+        "sessionID": "ses_reason_1",
+        "type": "text",
+        "text": "Based on my reasoning above, here's my plan:\n\n1. Acknowledge the request for demonstrating reasoning\n2. Show transparency in my thought process\n3. Provide context-appropriate suggestions\n\nFor the title, considering this is the OpenCode Neovim plugin - an AI-powered coding assistant - a good title would be:\n\n**\"OpenCode.nvim: AI-Powered Coding Assistant for Neovim\"**\n\nThis title clearly identifies what the tool is (OpenCode), the platform it works with (Neovim), and its primary function (AI-powered coding assistance)."
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "id": "prt_reason_asst1_finish",
+        "messageID": "msg_reason_asst1",
+        "sessionID": "ses_reason_1",
+        "type": "step-finish",
+        "cost": 0,
+        "tokens": {
+          "input": 0,
+          "output": 95,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_reason_asst1",
+        "role": "assistant",
+        "sessionID": "ses_reason_1",
+        "mode": "build",
+        "modelID": "claude-sonnet-4",
+        "providerID": "github-copilot",
+        "path": {
+          "cwd": "/workspace",
+          "root": "/workspace"
+        },
+        "time": {
+          "created": 1766000000500,
+          "completed": 1766000001300
+        },
+        "tokens": {
+          "input": 0,
+          "output": 95,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    },
+    "type": "message.updated"
+  }
+]

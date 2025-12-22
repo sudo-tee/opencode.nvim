@@ -200,8 +200,7 @@ M.defaults = {
     on_done_thinking = nil,
     on_permission_requested = nil,
   },
-  -- Additional system prompt appended to every message
-  -- Used to customize assistant behavior (e.g., file reference formatting)
+  -- Additional system prompt, used to customize assistant behavior (e.g., file reference formatting)
   system_prompt = 'When referencing files in your responses, always use the file:// URI scheme (e.g., file://path/to/file.lua or file://path/to/file.lua:42 for a specific line). This helps with navigation and tooling integration.',
 }
 

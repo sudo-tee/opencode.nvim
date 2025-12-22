@@ -1,92 +1,10 @@
--- Code reference picker for navigating to file:line references in LLM responses
+-- Code reference picker for navigating to file:// URI references in LLM responses
 local state = require('opencode.state')
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local icons = require('opencode.ui.icons')
 
 local M = {}
-
--- File extensions to recognize as valid code files
-local VALID_EXTENSIONS = {
-  'lua',
-  'py',
-  'js',
-  'ts',
-  'tsx',
-  'jsx',
-  'go',
-  'rs',
-  'c',
-  'cpp',
-  'h',
-  'hpp',
-  'java',
-  'rb',
-  'php',
-  'swift',
-  'kt',
-  'scala',
-  'sh',
-  'bash',
-  'zsh',
-  'json',
-  'yaml',
-  'yml',
-  'toml',
-  'xml',
-  'html',
-  'css',
-  'scss',
-  'md',
-  'txt',
-  'vim',
-  'el',
-  'ex',
-  'exs',
-  'erl',
-  'hs',
-  'ml',
-  'fs',
-  'clj',
-  'r',
-  'sql',
-  'graphql',
-  'proto',
-  'tf',
-  'nix',
-  'zig',
-  'v',
-  'svelte',
-  'vue',
-}
-
--- Build a lookup set for faster extension checking
-local EXTENSION_SET = {}
-for _, ext in ipairs(VALID_EXTENSIONS) do
-  EXTENSION_SET[ext] = true
-end
-
----Check if a file extension is valid
----@param ext string
----@return boolean
-local function is_valid_extension(ext)
-  return EXTENSION_SET[ext:lower()] == true
-end
-
----Check if the path looks like a URL (to avoid false positives)
----@param text string
----@param match_start number
----@return boolean
-local function is_url_context(text, match_start)
-  -- Check if preceded by :// (like http://, file://, etc.)
-  if match_start > 3 then
-    local prefix = text:sub(match_start - 3, match_start - 1)
-    if prefix:match('://$') then
-      return true
-    end
-  end
-  return false
-end
 
 ---Check if a file exists
 ---@param file_path string
@@ -110,120 +28,49 @@ end
 ---@field file string Absolute file path (for Snacks picker preview)
 ---@field pos number[]|nil Position as {line, col} for Snacks picker preview
 
----Parse references from text
+---Parse file:// URI references from text
 ---@param text string The text to parse
 ---@param message_id string The message ID for tracking
 ---@return CodeReference[]
 function M.parse_references(text, message_id)
   local references = {}
-  local covered_ranges = {} -- Track which character ranges we've already matched
 
-  -- Helper to check if a range overlaps with any covered range
-  local function is_covered(start_pos, end_pos)
-    for _, range in ipairs(covered_ranges) do
-      -- Check if ranges overlap
-      if not (end_pos < range[1] or start_pos > range[2]) then
-        return true
-      end
-    end
-    return false
-  end
-
-  -- Helper to add a reference
-  local function add_reference(path, ext, match_start, match_end, line, column)
-    if not is_valid_extension(ext) then
-      return false
-    end
-    if not file_exists(path) then
-      return false
-    end
-    if is_covered(match_start, match_end) then
-      return false
-    end
-
-    -- Mark this range as covered
-    table.insert(covered_ranges, { match_start, match_end })
-
-    -- Create absolute path for Snacks preview
-    local abs_path = path
-    if not vim.startswith(path, '/') then
-      abs_path = vim.fn.getcwd() .. '/' .. path
-    end
-
-    table.insert(references, {
-      file_path = path,
-      line = line,
-      column = column,
-      message_id = message_id,
-      match_start = match_start,
-      match_end = match_end,
-      file = abs_path,
-      pos = line and { line, (column or 1) - 1 } or nil,
-    })
-    return true
-  end
-
-  -- First pass: find file:// URI references (preferred format)
-  -- Matches: file://path/to/file.ext or file://path/to/file.ext:line or file://path/to/file.ext:line:column
-  local pattern_file_uri = 'file://([%w_./%-]+%.([%w]+)):?(%d*):?(%d*)'
+  -- Match file:// URIs with optional line and column numbers
+  -- Formats: file://path/to/file or file://path/to/file:line or file://path/to/file:line:column
+  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)'
   local search_start = 1
+
   while search_start <= #text do
-    local match_start, match_end, path, ext, line_str, col_str = text:find(pattern_file_uri, search_start)
+    local match_start, match_end, path, line_str, col_str = text:find(pattern, search_start)
     if not match_start then
       break
     end
 
-    local line = line_str ~= '' and tonumber(line_str) or nil
-    local column = col_str ~= '' and tonumber(col_str) or nil
-    add_reference(path, ext, match_start, match_end, line, column)
+    -- Only add if file exists
+    if file_exists(path) then
+      local line = line_str ~= '' and tonumber(line_str) or nil
+      local column = col_str ~= '' and tonumber(col_str) or nil
+
+      -- Create absolute path for Snacks preview
+      local abs_path = path
+      if not vim.startswith(path, '/') then
+        abs_path = vim.fn.getcwd() .. '/' .. path
+      end
+
+      table.insert(references, {
+        file_path = path,
+        line = line,
+        column = column,
+        message_id = message_id,
+        match_start = match_start,
+        match_end = match_end,
+        file = abs_path,
+        pos = line and { line, (column or 1) - 1 } or nil,
+      })
+    end
+
     search_start = match_end + 1
   end
-
-  -- Second pass: find path:line[:column] references (legacy format, more specific)
-  local pattern_with_line = '([%w_./%-]+%.([%w]+)):(%d+):?(%d*)'
-  search_start = 1
-  while search_start <= #text do
-    local match_start, match_end, path, ext, line_str, col_str = text:find(pattern_with_line, search_start)
-    if not match_start then
-      break
-    end
-
-    -- Skip if this looks like a URL (http://, https://, file://, etc.)
-    if is_url_context(text, match_start) then
-      search_start = match_end + 1
-    else
-      local line = tonumber(line_str)
-      local column = col_str ~= '' and tonumber(col_str) or nil
-      add_reference(path, ext, match_start, match_end, line, column)
-      search_start = match_end + 1
-    end
-  end
-
-  -- Third pass: find path-only references (must contain a slash to be a path)
-  local pattern_no_line = '([%w_%-]+/[%w_./%-]+%.([%w]+))'
-  search_start = 1
-  while search_start <= #text do
-    local match_start, match_end, path, ext = text:find(pattern_no_line, search_start)
-    if not match_start then
-      break
-    end
-
-    -- Skip if preceded by file:// or other URL scheme
-    if is_url_context(text, match_start) then
-      search_start = match_end + 1
-    -- Only add if not followed by a colon and digit (which would be caught by second pattern)
-    elseif text:sub(match_end + 1, match_end + 1) ~= ':' then
-      add_reference(path, ext, match_start, match_end, nil, nil)
-      search_start = match_end + 1
-    else
-      search_start = match_end + 1
-    end
-  end
-
-  -- Sort by match position for consistent ordering
-  table.sort(references, function(a, b)
-    return a.match_start < b.match_start
-  end)
 
   return references
 end

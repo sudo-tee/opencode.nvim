@@ -167,10 +167,8 @@ M.send_message = Promise.async(function(prompt, opts)
     state.current_mode = opts.agent
   end
 
-  -- Add system prompt if configured
-  if config.system_prompt and config.system_prompt ~= '' then
-    params.system = config.system_prompt
-  end
+  params.system =
+    'When referencing files in your responses, always use the file:// URI scheme (e.g., file://path/to/file.lua, file://path/to/file.lua:42 for a specific line, or file://path/to/file.lua:42-50 for a range). This helps with navigation and tooling integration.'
 
   params.parts = context.format_message(prompt, opts.context)
   M.before_run(opts)

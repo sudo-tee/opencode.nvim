@@ -126,7 +126,9 @@ function M.quick_chat(message, range)
   end
 
   if not message or #message == 0 then
-    vim.ui.input({ prompt = 'Quick Chat Message: ', win = { relative = 'cursor' } }, function(input)
+    local scope = range and ('[selection: ' .. range.start .. '-' .. range.stop .. ']')
+      or '[line: ' .. tostring(vim.api.nvim_win_get_cursor(0)[1]) .. ']'
+    vim.ui.input({ prompt = 'Quick Chat Message: ' .. scope, win = { relative = 'cursor' } }, function(input)
       if input and input ~= '' then
         local prompt, ctx = util.parse_quick_context_args(input)
         quick_chat.quick_chat(prompt, { context_config = ctx }, range)

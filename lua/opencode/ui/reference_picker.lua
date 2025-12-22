@@ -283,12 +283,10 @@ end
 ---@return PickerItem
 local function format_reference_item(ref, width)
   local icon = icons.get('file')
-  local location = ref.file_path .. ':' .. (ref.line or '?')
+  local location = ref.line and (ref.file_path .. ':' .. ref.line) or ref.file_path
   local display_text = icon .. ' ' .. location
 
-  -- Create picker item with context as secondary info
-  -- We'll use the debug_text field to show the context
-  return base_picker.create_picker_item(display_text, nil, ref.context, width)
+  return base_picker.create_picker_item(display_text, nil, nil, width)
 end
 
 ---Open the reference picker

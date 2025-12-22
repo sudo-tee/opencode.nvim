@@ -213,7 +213,9 @@ local function fzf_ui(opts)
       previewer = opts.preview == 'file' and 'builtin' or nil,
       fn_fzf_index = function(line)
         -- Strip the appended file:line:col info before matching
-        local display_part = line:match('^([^\t]+)') or line
+        -- fzf-lua uses nbsp (U+2002 EN SPACE) as separator
+        local nbsp = '\xe2\x80\x82'
+        local display_part = line:match('^([^' .. nbsp .. ']+)') or line
         for i, item in ipairs(opts.items) do
           if opts.format_fn(item):to_string() == display_part then
             return i
@@ -232,7 +234,7 @@ local function fzf_ui(opts)
         -- For file preview support, append file:line:col format
         -- fzf-lua's builtin previewer automatically parses this format
         if opts.preview == 'file' and type(item) == 'table' then
-          local file_path = item.file or item.file_path or item.path or item.filename
+          local file_path = item.file_path or item.path or item.filename or item.file
           local line = item.line or item.lnum
           local col = item.column or item.col
           
@@ -246,8 +248,10 @@ local function fzf_ui(opts)
               end
               pos_info = pos_info .. ':'
             end
-            -- Append position info after tab separator (fzf-lua standard)
-            line_str = line_str .. '\t' .. pos_info
+            -- Append position info after nbsp separator (fzf-lua standard)
+            -- nbsp is U+2002 EN SPACE, not regular tab
+            local nbsp = '\xe2\x80\x82'
+            line_str = line_str .. nbsp .. pos_info
           end
         end
         

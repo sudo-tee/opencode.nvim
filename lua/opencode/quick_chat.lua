@@ -241,7 +241,7 @@ local function validate_quick_chat_prerequisites(message)
     return false, 'Quick chat requires an active file buffer'
   end
 
-  if message and message == '' then
+  if not message or message == '' then
     return false, 'Quick chat message cannot be empty'
   end
 

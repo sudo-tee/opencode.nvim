@@ -141,11 +141,12 @@ local function extract_response_text(message)
     end
   end
 
-  -- Remove code blocks and inline code
-  response_text = response_text:gsub('```[^`]*```', '')
-  response_text = response_text:gsub('`[^`]*`', '')
+  -- Remove code fences
+  response_text = response_text:gsub('```[^\n]*\n?', '') -- Remove opening code fence
+  response_text = response_text:gsub('\n?```', '') -- Remove closing code fence
+  response_text = response_text:gsub('`([^`\n]*)`', '%1') -- Remove inline code backticks but keep content
 
-  return vim.trim(response_text)
+  return response_text
 end
 
 --- Applies raw code response to buffer (simple replacement)
@@ -163,8 +164,8 @@ local function apply_raw_code_response(buf, response_text, row, range)
 
   if range then
     -- Replace the selected range
-    local start_line = range.start - 1 -- Convert to 0-indexed
-    local end_line = range.stop - 1 -- Convert to 0-indexed
+    local start_line = math.floor(range.start) - 1 -- Convert to 0-indexed integer
+    local end_line = math.floor(range.stop) - 1 -- Convert to 0-indexed integer
     vim.api.nvim_buf_set_lines(buf, start_line, end_line + 1, false, lines)
   else
     -- Replace current line
@@ -277,18 +278,20 @@ local function generate_raw_code_instructions(context_config)
   local context_info = ''
 
   if context_config.selection and context_config.selection.enabled then
-    context_info = 'You have been provided with a code selection [SELECTED CODE]. '
+    context_info = 'Output ONLY the code to replace the [SELECTED CODE]. '
   elseif context_config.cursor_data and context_config.cursor_data.enabled then
-    context_info = 'You have been provided with cursor context. [CURSOR POSITION]'
+    context_info = ' Output ONLY the code to insert/append at the [CURRENT LINE]. '
   end
 
   local buf = vim.api.nvim_get_current_buf()
-  local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
+  local filetype = vim.bo[buf].filetype
 
   return {
     'I want you to act as a senior ' .. filetype .. ' developer. ' .. context_info,
-    'I will ask you specific questions and I want you to return raw code only ',
-    '(no codeblocks, no explanations). ',
+    'I will ask you specific questions.',
+    'I want you to ALWAYS return valid raw code ONLY ',
+    'CRITICAL: NEVER add (codeblocks, explanations or any additional text). ',
+    'Respect the current indentation and formatting of the existing code. ',
     "If you can't respond with code, respond with nothing.",
   }
 end

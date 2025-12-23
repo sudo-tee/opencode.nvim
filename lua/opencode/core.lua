@@ -182,7 +182,7 @@ Examples:
 This matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.
 ]]
 
-  params.parts = context.format_message(prompt, opts.context)
+  params.parts = context.format_message(prompt, opts.context):await()
   M.before_run(opts)
 
   local session_id = state.active_session.id

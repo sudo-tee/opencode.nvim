@@ -12,6 +12,11 @@ local M = {}
 M.ChatContext = ChatContext
 M.QuickChatContext = QuickChatContext
 
+-- Provide access to the context state
+function M.get_context()
+  return ChatContext.context
+end
+
 --- Formats context for main chat interface (new simplified API)
 ---@param prompt string The user's instruction/prompt
 ---@param context_config? OpencodeContextConfig Optional context config
@@ -78,8 +83,6 @@ function M.clear_selections()
 end
 
 function M.add_file(file)
-  ChatContext.context.mentioned_files = ChatContext.context.mentioned_files or {}
-
   local is_file = vim.fn.filereadable(file) == 1
   local is_dir = vim.fn.isdirectory(file) == 1
   if not is_file and not is_dir then
@@ -136,8 +139,6 @@ end
 function M.delta_context(opts)
   return ChatContext.delta_context(opts)
 end
-
-M.context = ChatContext.context
 
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil

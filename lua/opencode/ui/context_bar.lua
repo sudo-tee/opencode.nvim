@@ -46,15 +46,20 @@ local function format_cursor_data(ctx)
 end
 
 local function create_winbar_segments()
-  local ctx = context.delta_context()
+  local ctx = context.get_context()
   local segments = {}
 
   local current_file = get_current_file_info(ctx)
   if context.is_context_enabled('current_file') and current_file then
+    local highlight = 'OpencodeContextCurrentFile'
+    if ctx.current_file and ctx.current_file.sent_at then
+      highlight = 'OpencodeContextCurrentFileNotUpdated'
+    end
+
     table.insert(segments, {
       icon = icons.get('attached_file'),
       text = current_file.name,
-      highlight = 'OpencodeContextCurrentFile',
+      highlight = highlight,
     })
   end
 

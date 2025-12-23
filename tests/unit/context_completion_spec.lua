@@ -41,35 +41,41 @@ describe('context completion', function()
     }
 
     mock_context = {
-      is_context_enabled = function(context_type)
-        return mock_config.context[context_type] and mock_config.context[context_type].enabled or false
+      is_context_enabled = function()
+        return true
       end,
       delta_context = function()
+        return {}
+      end,
+      add_file = function() end,
+      add_subagent = function() end,
+      add_selection = function() end,
+      remove_file = function() end,
+      remove_subagent = function() end,
+      remove_selection = function() end,
+      get_context = function()
         return {
-          current_file = { path = '/test/file.lua', name = 'file.lua', extension = 'lua' },
-          mentioned_files = { '/test/other.lua', '/test/helper.js' },
-          selections = {
-            {
-              file = { name = 'test.lua', extension = 'lua' },
+          current_file = { extension = 'lua', name = 'test.lua', path = '/test/test.lua' },
+          selections = { 
+            { 
               content = 'local x = 1',
-              lines = '1-1',
-            },
+              file = { extension = 'lua', name = 'test.lua' },
+              lines = '1-1'
+            } 
           },
-          mentioned_subagents = { 'review', 'test' },
+          mentioned_files = { '/path/to/file1.lua', '/path/to/file2.lua' },
+          mentioned_subagents = { 'review', 'analyze' },
           linter_errors = {
-            { severity = _G.vim.diagnostic.severity.ERROR },
-            { severity = _G.vim.diagnostic.severity.WARN },
+            { severity = 1, msg = 'Test error message', pos = '1:10' },
+            { severity = 2, msg = 'Test warning message', pos = '2:15' }
           },
           cursor_data = {
             line = 42,
             column = 10,
-            line_content = 'local test = "hello"',
-          },
+            line_content = 'local test = "hello"'
+          }
         }
       end,
-      remove_file = function() end,
-      remove_subagent = function() end,
-      remove_selection = function() end,
       context = {
         current_file = { extension = 'lua' },
       },

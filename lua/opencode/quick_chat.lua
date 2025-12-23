@@ -289,7 +289,7 @@ local function generate_raw_code_instructions(context_config)
   return {
     'I want you to act as a senior ' .. filetype .. ' developer. ' .. context_info,
     'I will ask you specific questions.',
-    'I want you to ALWAYS return valid raw code ONLY ',
+    'I want you to ALWAYS return valid RAW code ONLY ',
     'CRITICAL: NEVER add (codeblocks, explanations or any additional text). ',
     'Respect the current indentation and formatting of the existing code. ',
     "If you can't respond with code, respond with nothing.",

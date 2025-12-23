@@ -17,6 +17,7 @@ local Promise = require('opencode.promise')
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
+---@field preview? "file"|"none"|false Preview mode: "file" for file preview, "none" or false to disable
 
 ---@class TelescopeEntry
 ---@field value any
@@ -89,7 +90,7 @@ local function telescope_ui(opts)
   ---@param item any
   ---@return TelescopeEntry
   local function make_entry(item)
-    return {
+    local entry = {
       value = item,
       display = function(entry)
         local formatted = opts.format_fn(entry.value):to_formatted_text()
@@ -97,6 +98,20 @@ local function telescope_ui(opts)
       end,
       ordinal = opts.format_fn(item):to_string(),
     }
+
+    if type(item) == 'table' then
+      entry.path = item.file or item.file_path or item.path or item.filename
+      entry.lnum = item.line or item.lnum
+      entry.col = item.column or item.col
+      -- Support line ranges for preview highlighting
+      if item.end_pos and type(item.end_pos) == 'table' and item.end_pos[1] then
+        entry.lnend = item.end_pos[1]
+      end
+    elseif type(item) == 'string' then
+      entry.path = item
+    end
+
+    return entry
   end
 
   local function refresh_picker()
@@ -111,6 +126,7 @@ local function telescope_ui(opts)
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
+    previewer = opts.preview == 'file' and require('telescope.previewers').vim_buffer_vimgrep.new({}) or nil,
     layout_config = opts.width and {
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,
@@ -193,9 +209,15 @@ local function fzf_ui(opts)
         ['--multi'] = has_multi_action and true or nil,
       },
       _headers = { 'actions' },
+      -- Enable builtin previewer for file preview support
+      previewer = opts.preview == 'file' and 'builtin' or nil,
       fn_fzf_index = function(line)
+        -- Strip the appended file:line:col info before matching
+        -- fzf-lua uses nbsp (U+2002 EN SPACE) as separator
+        local nbsp = '\xe2\x80\x82'
+        local display_part = line:match('^([^' .. nbsp .. ']+)') or line
         for i, item in ipairs(opts.items) do
-          if opts.format_fn(item):to_string() == line then
+          if opts.format_fn(item):to_string() == display_part then
             return i
           end
         end
@@ -207,7 +229,33 @@ local function fzf_ui(opts)
   local function create_finder()
     return function(fzf_cb)
       for _, item in ipairs(opts.items) do
-        fzf_cb(opts.format_fn(item):to_string())
+        local line_str = opts.format_fn(item):to_string()
+        
+        -- For file preview support, append file:line:col format
+        -- fzf-lua's builtin previewer automatically parses this format
+        if opts.preview == 'file' and type(item) == 'table' then
+          local file_path = item.file_path or item.path or item.filename or item.file
+          local line = item.line or item.lnum
+          local col = item.column or item.col
+          
+          if file_path then
+            -- fzf-lua parses "path:line:col:" format for preview positioning
+            local pos_info = file_path
+            if line then
+              pos_info = pos_info .. ':' .. tostring(line)
+              if col then
+                pos_info = pos_info .. ':' .. tostring(col)
+              end
+              pos_info = pos_info .. ':'
+            end
+            -- Append position info after nbsp separator (fzf-lua standard)
+            -- nbsp is U+2002 EN SPACE, not regular tab
+            local nbsp = '\xe2\x80\x82'
+            line_str = line_str .. nbsp .. pos_info
+          end
+        end
+        
+        fzf_cb(line_str)
       end
       fzf_cb()
     end
@@ -341,15 +389,23 @@ end
 local function snacks_picker_ui(opts)
   local Snacks = require('snacks')
 
+  -- Determine if preview is enabled
+  local has_preview = opts.preview == 'file'
+
+  -- Choose layout preset based on preview
+  local layout_preset = has_preview and 'default' or 'select'
+
   local snack_opts = {
     title = opts.title,
     layout = {
-      preset = 'select',
+      preset = layout_preset,
       config = function(layout)
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
-        layout.layout.width = width
-        layout.layout.max_width = width
-        layout.layout.min_width = width
+        if not has_preview then
+          layout.layout.width = width
+          layout.layout.max_width = width
+          layout.layout.min_width = width
+        end
         return layout
       end,
     },
@@ -377,6 +433,11 @@ local function snacks_picker_ui(opts)
       end,
     },
   }
+
+  -- Add file preview if enabled
+  if has_preview then
+    snack_opts.preview = 'file'
+  end
 
   snack_opts.win = snack_opts.win or {}
   snack_opts.win.input = snack_opts.win.input or { keys = {} }

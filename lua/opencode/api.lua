@@ -307,6 +307,10 @@ function M.focus_input()
   ui.focus_input({ restore_position = true, start_insert = true })
 end
 
+function M.references()
+  require('opencode.ui.reference_picker').pick()
+end
+
 function M.debug_output()
   if not config.debug.enabled then
     vim.notify('Debugging is not enabled in the config', vim.log.levels.WARN)
@@ -1228,6 +1232,10 @@ M.commands = {
     desc = 'Paste image from clipboard and add to context',
     fn = M.paste_image,
   },
+  references = {
+    desc = 'Browse code references from conversation',
+    fn = M.references,
+  },
 }
 
 M.slash_commands_map = {
@@ -1245,6 +1253,7 @@ M.slash_commands_map = {
   ['/sessions'] = { fn = M.select_session, desc = 'Select session' },
   ['/share'] = { fn = M.share, desc = 'Share current session' },
   ['/timeline'] = { fn = M.timeline, desc = 'Open timeline picker' },
+  ['/references'] = { fn = M.references, desc = 'Browse code references from conversation' },
   ['/undo'] = { fn = M.undo, desc = 'Undo last action' },
   ['/unshare'] = { fn = M.unshare, desc = 'Unshare current session' },
   ['/rename'] = { fn = M.rename_session, desc = 'Rename current session' },

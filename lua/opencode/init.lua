@@ -16,6 +16,7 @@ function M.setup(opts)
   require('opencode.event_manager').setup()
   require('opencode.context').setup()
   require('opencode.ui.context_bar').setup()
+  require('opencode.ui.reference_picker').setup()
 end
 
 return M

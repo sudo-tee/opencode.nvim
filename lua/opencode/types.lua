@@ -289,6 +289,7 @@
 ---@class OpencodeMessage
 ---@field info MessageInfo Metadata about the message
 ---@field parts OpencodeMessagePart[] Parts that make up the message
+---@field references CodeReference[]|nil Parsed file references from text parts (cached)
 
 ---@class MessageInfo
 ---@field id string Unique message identifier
@@ -488,3 +489,13 @@
 ---@field messages number Number of messages reverted
 ---@field tool_calls number Number of tool calls reverted
 ---@field files table<string, {additions: number, deletions: number}> Summary of file changes reverted
+
+---@class CodeReference
+---@field file_path string Relative or absolute file path
+---@field line number|nil Line number (1-indexed)
+---@field column number|nil Column number (optional)
+---@field message_id string ID of the message containing this reference
+---@field match_start number Start position of match in original text
+---@field match_end number End position of match in original text
+---@field file string Absolute file path (for Snacks picker preview)
+---@field pos number[]|nil Position as {line, col} for Snacks picker preview

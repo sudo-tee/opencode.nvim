@@ -466,8 +466,39 @@ end
 ---@param output Output Output object to write to
 ---@param text string
 function M._format_assistant_message(output, text)
-  -- output:add_empty_line()
-  output:add_lines(vim.split(text, '\n'))
+  local reference_picker = require('opencode.ui.reference_picker')
+  local references = reference_picker.parse_references(text, '')
+
+  -- If no references, just add the text as-is
+  if #references == 0 then
+    output:add_lines(vim.split(text, '\n'))
+    return
+  end
+
+  -- Sort references by match_start position (ascending)
+  table.sort(references, function(a, b)
+    return a.match_start < b.match_start
+  end)
+
+  -- Build a new text with icons inserted before each reference
+  local result = ''
+  local last_pos = 1
+  local ref_icon = icons.get('reference')
+
+  for _, ref in ipairs(references) do
+    -- Add text before this reference
+    result = result .. text:sub(last_pos, ref.match_start - 1)
+    -- Add the icon and the reference
+    result = result .. ref_icon .. text:sub(ref.match_start, ref.match_end)
+    last_pos = ref.match_end + 1
+  end
+
+  -- Add any remaining text after the last reference
+  if last_pos <= #text then
+    result = result .. text:sub(last_pos)
+  end
+
+  output:add_lines(vim.split(result, '\n'))
 end
 
 ---@param output Output Output object to write to

@@ -25,6 +25,7 @@ local presets = {
     folder = ' ',
     attached_file = '󰌷 ',
     agent = '󰚩 ',
+    reference = ' ',
     reasoning = '󰧑 ',
     -- statuses
     status_on = ' ',
@@ -61,6 +62,7 @@ local presets = {
     folder = '[@]',
     attached_file = '@',
     agent = '@',
+    reference = '@',
     -- statuses
     status_on = 'ON',
     status_off = 'OFF',

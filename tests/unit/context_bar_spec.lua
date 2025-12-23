@@ -6,6 +6,7 @@ local assert = require('luassert')
 
 describe('opencode.ui.context_bar', function()
   local original_delta_context
+  local original_get_context
   local original_is_context_enabled
   local original_get_icon
   local original_subscribe
@@ -32,6 +33,7 @@ describe('opencode.ui.context_bar', function()
 
   before_each(function()
     original_delta_context = context.delta_context
+    original_get_context = context.get_context
     original_is_context_enabled = context.is_context_enabled
     original_get_icon = icons.get
     original_subscribe = state.subscribe
@@ -52,6 +54,10 @@ describe('opencode.ui.context_bar', function()
     }
 
     context.delta_context = function()
+      return mock_context
+    end
+
+    context.get_context = function()
       return mock_context
     end
 
@@ -96,6 +102,7 @@ describe('opencode.ui.context_bar', function()
 
   after_each(function()
     context.delta_context = original_delta_context
+    context.get_context = original_get_context
     context.is_context_enabled = original_is_context_enabled
     icons.get = original_get_icon
     state.subscribe = original_subscribe
@@ -133,6 +140,25 @@ describe('opencode.ui.context_bar', function()
 
       assert.is_string(winbar_capture.value)
       assert.is_not_nil(winbar_capture.value:find(icons.get('attached_file') .. 'test%.lua'))
+    end)
+
+    it('renders current file with dimmed highlight when already sent', function()
+      mock_context.current_file = {
+        name = 'test.lua',
+        path = '/tmp/test.lua',
+        sent_at = 1234567890000, -- File has been sent
+      }
+
+      local mock_input_win = 2002
+      local winbar_capture = create_mock_window(mock_input_win)
+
+      state.windows = { input_win = mock_input_win }
+      context_bar.render()
+
+      assert.is_string(winbar_capture.value)
+      assert.is_not_nil(winbar_capture.value:find(icons.get('attached_file') .. 'test%.lua'))
+      -- Check that Comment highlight is used for already-sent files
+      assert.is_not_nil(winbar_capture.value:find('%%#OpencodeContextCurrentFileNotUpdated#'))
     end)
 
     it('renders winbar with multiple context elements', function()

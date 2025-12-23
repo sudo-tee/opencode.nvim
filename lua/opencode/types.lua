@@ -390,6 +390,7 @@
 ---@field path string
 ---@field name string
 ---@field extension string
+---@field sent_at? number
 
 ---@class OpencodeMessagePartSourceText
 ---@field start number

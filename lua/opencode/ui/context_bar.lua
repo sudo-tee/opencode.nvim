@@ -3,6 +3,7 @@ local M = {}
 local context = require('opencode.context')
 local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
+local config = require('opencode.config')
 local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
 
 local function get_current_file_info(ctx)
@@ -111,18 +112,18 @@ local function create_winbar_segments()
       counts[type_name] = (counts[type_name] or 0) + 1
     end
 
+    local filter_icon = config.context.diagnostics.only_closest and icons.get('filter') or ''
     for _, type_name in pairs(severity_types) do
       local count = counts[type_name]
       if count and count > 0 then
         table.insert(segments, {
           icon = icons.get(type_name),
-          text = '(' .. count .. ')',
+          text = '(' .. count .. filter_icon .. ')',
           highlight = 'OpencodeContext' .. type_name:gsub('^%l', string.upper),
         })
       end
     end
   end
-
   return segments
 end
 

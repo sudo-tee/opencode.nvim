@@ -283,6 +283,54 @@ function M.get_mentioned_subagents()
   return M.context.mentioned_subagents or {}
 end
 
+-- Chat-context-aware get_diagnostics that considers stored selections
+---@param buf integer
+---@param context_config? OpencodeContextConfig
+---@param range? { start_line: integer, end_line: integer }
+---@return OpencodeDiagnostic[]|nil
+function M.get_diagnostics(buf, context_config, range)
+  -- Use explicit range if provided
+  if range then
+    return base_context.get_diagnostics(buf, context_config, range)
+  end
+
+  if M.context.selections and #M.context.selections > 0 then
+    local selection_ranges = {}
+
+    for _, sel in ipairs(M.context.selections) do
+      if sel.lines then
+        -- Handle both formats: "1, 5" and "1-5"
+        local start_line, end_line = sel.lines:match('(%d+)[,%-]%s*(%d+)')
+        if not start_line then
+          -- Single line case like "5, 5" or just "5"
+          start_line = sel.lines:match('(%d+)')
+          end_line = start_line
+        end
+
+        if start_line then
+          local start_num = tonumber(start_line)
+          local end_num = tonumber(end_line)
+
+          if start_num and end_num then
+            -- Convert to 0-based
+            local selection_range = {
+              start_line = start_num - 1,
+              end_line = end_num - 1,
+            }
+            table.insert(selection_ranges, selection_range)
+          end
+        end
+      end
+    end
+
+    if #selection_ranges > 0 then
+      return base_context.get_diagnostics(buf, context_config, selection_ranges)
+    end
+  end
+
+  return base_context.get_diagnostics(buf, context_config, nil)
+end
+
 ---@param current_file table|nil
 ---@return boolean, boolean -- should_update, is_different_file
 function M.should_update_current_file(current_file)
@@ -299,6 +347,7 @@ function M.should_update_current_file(current_file)
     return true, true
   end
 
+  -- Same file, check modification time
   local file_path = current_file.path
   if not file_path or vim.fn.filereadable(file_path) ~= 1 then
     return false, false
@@ -341,7 +390,7 @@ function M.load()
   end
 
   M.context.cursor_data = cursor_data
-  M.context.linter_errors = base_context.get_diagnostics(buf, nil, nil)
+  M.context.linter_errors = M.get_diagnostics(buf, nil, nil)
 
   -- Handle current selection
   local current_selection = base_context.get_current_selection()
@@ -483,7 +532,7 @@ M.format_message = Promise.async(function(prompt, opts)
   if range then
     diag_range = { start_line = math.floor(range.start) - 1, end_line = math.floor(range.stop) - 1 }
   end
-  local diagnostics = base_context.get_diagnostics(buf, context_config, diag_range)
+  local diagnostics = M.get_diagnostics(buf, context_config, diag_range)
   if diagnostics and #diagnostics > 0 then
     table.insert(parts, format_diagnostics_part(diagnostics, diag_range))
   end

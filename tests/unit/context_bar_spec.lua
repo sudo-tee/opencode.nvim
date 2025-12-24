@@ -2,6 +2,7 @@ local context_bar = require('opencode.ui.context_bar')
 local context = require('opencode.context')
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
+local config = require('opencode.config')
 local assert = require('luassert')
 
 describe('opencode.ui.context_bar', function()
@@ -181,7 +182,9 @@ describe('opencode.ui.context_bar', function()
       assert.is_not_nil(winbar_capture.value:find('L:10')) -- Cursor data
     end)
 
-    it('renders winbar with diagnostics', function()
+    it('renders winbar with all diagnostics', function()
+      local original_only_closest = config.context.diagnostics.only_closest
+      config.context.diagnostics.only_closest = false
       mock_context.linter_errors = {
         { severity = 1 }, -- ERROR
         { severity = 1 }, -- ERROR
@@ -199,6 +202,30 @@ describe('opencode.ui.context_bar', function()
       assert.is_not_nil(winbar_capture.value:find(icons.get('error') .. '%(2%)')) -- 2 errors
       assert.is_not_nil(winbar_capture.value:find(icons.get('warning') .. '%(1%)')) -- Warning icon
       assert.is_not_nil(winbar_capture.value:find(icons.get('info') .. '%(1%)')) -- Info icon
+      config.context.diagnostics.only_closest = original_only_closest
+    end)
+
+    it('renders winbar with filtered diagnostics', function()
+      local original_only_closest = config.context.diagnostics.only_closest
+      config.context.diagnostics.only_closest = true
+      mock_context.linter_errors = {
+        { severity = 1 }, -- ERROR
+        { severity = 1 }, -- ERROR
+        { severity = 2 }, -- WARN
+        { severity = 3 }, -- INFO
+      }
+
+      local mock_input_win = 2004
+      local winbar_capture = create_mock_window(mock_input_win)
+
+      state.windows = { input_win = mock_input_win }
+      context_bar.render()
+
+      assert.is_string(winbar_capture.value)
+      assert.is_not_nil(winbar_capture.value:find(icons.get('error') .. '%(2' .. icons.get('filter') .. '%)')) -- 2 errors
+      assert.is_not_nil(winbar_capture.value:find(icons.get('warning') .. '%(1' .. icons.get('filter') .. '%)')) -- Warning icon
+      assert.is_not_nil(winbar_capture.value:find(icons.get('info') .. '%(1' .. icons.get('filter') .. '%)')) -- Info icon
+      config.context.diagnostics.only_closest = original_only_closest
     end)
 
     it('respects context enabled settings', function()

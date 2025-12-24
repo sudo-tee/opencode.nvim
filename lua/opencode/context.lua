@@ -227,8 +227,12 @@ function M.extract_legacy_tag(tag, text)
 end
 
 function M.setup()
-  state.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function()
+  local debounced_load = util.debounce(function()
     M.load()
+  end, 200)
+
+  state.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function()
+    debounced_load()
   end)
 
   local augroup = vim.api.nvim_create_augroup('OpenCodeContext', { clear = true })
@@ -239,7 +243,7 @@ function M.setup()
       local buf = args.buf
       local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
       if buf == curr_buf and util.is_buf_a_file(buf) then
-        M.load()
+        debounced_load()
       end
     end,
   })
@@ -251,7 +255,7 @@ function M.setup()
       local buf = args.buf
       local curr_buf = state.current_code_buf or vim.api.nvim_get_current_buf()
       if buf == curr_buf and util.is_buf_a_file(buf) and M.is_context_enabled('diagnostics') then
-        M.load()
+        debounced_load()
       end
     end,
   })

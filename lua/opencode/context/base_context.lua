@@ -1,6 +1,3 @@
--- Base context utilities
--- Static methods for gathering context data from the editor
-
 local util = require('opencode.util')
 local config = require('opencode.config')
 local state = require('opencode.state')
@@ -41,7 +38,7 @@ end
 
 ---@param buf integer
 ---@param context_config? OpencodeContextConfig
----@param range? { start_line: integer, end_line: integer }
+---@param range? { start_line: integer, end_line: integer } | { start_line: integer, end_line: integer }[]
 ---@return OpencodeDiagnostic[]|nil
 function M.get_diagnostics(buf, context_config, range)
   if not M.is_context_enabled('diagnostics', context_config) then
@@ -69,16 +66,27 @@ function M.get_diagnostics(buf, context_config, range)
   end
 
   local diagnostics = {}
+
+  local ranges = nil
+  if range then
+    if range[1] and type(range[1]) == 'table' then
+      ranges = range
+    else
+      ranges = { range }
+    end
+  end
+
   if diagnostic_conf.only_closest then
-    if range then
-      -- Get diagnostics for the specified range
-      for line_num = range.start_line, range.end_line do
-        local line_diagnostics = vim.diagnostic.get(buf, {
-          lnum = line_num,
-          severity = severity_levels,
-        })
-        for _, diag in ipairs(line_diagnostics) do
-          table.insert(diagnostics, diag)
+    if ranges then
+      for _, r in ipairs(ranges) do
+        for line_num = r.start_line, r.end_line do
+          local line_diagnostics = vim.diagnostic.get(buf, {
+            lnum = line_num,
+            severity = severity_levels,
+          })
+          for _, diag in ipairs(line_diagnostics) do
+            table.insert(diagnostics, diag)
+          end
         end
       end
     else
@@ -92,17 +100,7 @@ function M.get_diagnostics(buf, context_config, range)
       diagnostics = line_diagnostics
     end
   else
-    -- Get all diagnostics, optionally filtered by range
     diagnostics = vim.diagnostic.get(buf, { severity = severity_levels })
-    if range then
-      local filtered_diagnostics = {}
-      for _, diag in ipairs(diagnostics) do
-        if diag.lnum >= range.start_line and diag.lnum <= range.end_line then
-          table.insert(filtered_diagnostics, diag)
-        end
-      end
-      diagnostics = filtered_diagnostics
-    end
   end
 
   if #diagnostics == 0 then
@@ -124,7 +122,7 @@ function M.get_diagnostics(buf, context_config, range)
     })
   end
 
-  return opencode_diagnostics
+  return opencode_diagnostics, ranges
 end
 
 ---@param buf integer

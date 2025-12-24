@@ -366,6 +366,10 @@ end
 -- Load function that populates the global context state
 -- This is the core loading logic that was originally in the main context module
 function M.load()
+  if not state.active_session then
+    return
+  end
+
   local buf, win = base_context.get_current_buf()
 
   if not buf or not win then

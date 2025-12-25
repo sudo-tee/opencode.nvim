@@ -232,4 +232,12 @@ function M.clear()
   M.viewport_at_bottom = true
 end
 
+function M.should_auto_scroll()
+  if config.ui.output.always_scroll_to_bottom then
+    return true
+  end
+
+  return config.ui.output.auto_scroll ~= false
+end
+
 return M

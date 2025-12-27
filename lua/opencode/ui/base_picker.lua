@@ -230,14 +230,14 @@ local function fzf_ui(opts)
     return function(fzf_cb)
       for _, item in ipairs(opts.items) do
         local line_str = opts.format_fn(item):to_string()
-        
+
         -- For file preview support, append file:line:col format
         -- fzf-lua's builtin previewer automatically parses this format
         if opts.preview == 'file' and type(item) == 'table' then
           local file_path = item.file_path or item.path or item.filename or item.file
           local line = item.line or item.lnum
           local col = item.column or item.col
-          
+
           if file_path then
             -- fzf-lua parses "path:line:col:" format for preview positioning
             local pos_info = file_path
@@ -254,7 +254,7 @@ local function fzf_ui(opts)
             line_str = line_str .. nbsp .. pos_info
           end
         end
-        
+
         fzf_cb(line_str)
       end
       fzf_cb()
@@ -392,13 +392,10 @@ local function snacks_picker_ui(opts)
   -- Determine if preview is enabled
   local has_preview = opts.preview == 'file'
 
-  -- Choose layout preset based on preview
-  local layout_preset = has_preview and 'default' or 'select'
-
+  ---@type snacks.picker.Config
   local snack_opts = {
-    title = opts.title,
+    title = type(opts.title) == 'function' and opts.title() or opts.title,
     layout = {
-      preset = layout_preset,
       config = function(layout)
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
         if not has_preview then
@@ -406,7 +403,6 @@ local function snacks_picker_ui(opts)
           layout.layout.max_width = width
           layout.layout.min_width = width
         end
-        return layout
       end,
     },
     finder = function()

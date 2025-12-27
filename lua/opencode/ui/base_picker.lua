@@ -392,9 +392,12 @@ local function snacks_picker_ui(opts)
   -- Determine if preview is enabled
   local has_preview = opts.preview == 'file'
 
+  local title = type(opts.title) == 'function' and opts.title() or opts.title
+  ---@cast title string
+
   ---@type snacks.picker.Config
   local snack_opts = {
-    title = type(opts.title) == 'function' and opts.title() or opts.title,
+    title = title,
     layout = {
       config = function(layout)
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI

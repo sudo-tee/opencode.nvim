@@ -2,6 +2,11 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local M = {}
 
+-- Track hidden state
+M._hidden = false
+-- Flag to prevent WinClosed autocmd from closing all windows during toggle
+M._toggling = false
+
 function M.create_buf()
   local input_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('filetype', 'opencode', { buf = input_buf })
@@ -48,10 +53,12 @@ function M.close()
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
 end
 
+---Handle submit action from input window
+---@return boolean true if a message was sent to the AI, false otherwise
 function M.handle_submit()
   local windows = state.windows
   if not windows or not M.mounted(windows) then
-    return
+    return false
   end
   ---@cast windows { input_buf: integer }
 
@@ -63,21 +70,22 @@ function M.handle_submit()
   })
 
   if input_content == '' then
-    return
+    return false
   end
 
   if input_content:match('^!') then
     M._execute_shell_command(input_content:sub(2))
-    return
+    return false
   end
 
   local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
   if input_content:match('^' .. key) then
     M._execute_slash_command(input_content)
-    return
+    return false
   end
 
   require('opencode.core').send_message(input_content)
+  return true
 end
 
 M._execute_shell_command = function(command)
@@ -267,6 +275,12 @@ function M.recover_input(windows)
 end
 
 function M.focus_input()
+  -- Show input window if it's hidden
+  if M._hidden then
+    M._show()
+    return
+  end
+
   if not M.mounted() then
     return
   end
@@ -363,6 +377,87 @@ function M.setup_autocmds(windows, group)
   state.subscribe('current_permission', function()
     require('opencode.keymap').toggle_permission_keymap(windows.input_buf)
   end)
+end
+
+---Toggle the input window visibility (hide/show)
+---When hidden, the input window is closed entirely
+---When shown, the input window is recreated
+function M.toggle()
+  local windows = state.windows
+  if not windows then
+    return
+  end
+
+  if M._hidden then
+    -- Show: recreate the input window
+    M._show()
+  else
+    -- Hide: close the input window
+    M._hide()
+  end
+end
+
+---Hide the input window by closing it
+function M._hide()
+  local windows = state.windows
+  if not M.mounted(windows) then
+    return
+  end
+
+  M._hidden = true
+  M._toggling = true
+
+  -- Close the input window (but keep the buffer)
+  pcall(vim.api.nvim_win_close, windows.input_win, false)
+  windows.input_win = nil
+
+  -- Reset toggling flag after the WinClosed event has been processed
+  vim.schedule(function()
+    M._toggling = false
+  end)
+
+  -- Focus output window
+  require('opencode.ui.output_window').focus_output(true)
+end
+
+---Show the input window by recreating it
+function M._show()
+  local windows = state.windows
+  if not windows or not windows.input_buf or not windows.output_win then
+    return
+  end
+
+  -- Don't recreate if already visible
+  if windows.input_win and vim.api.nvim_win_is_valid(windows.input_win) then
+    M._hidden = false
+    return
+  end
+
+  -- Create a new split for the input window
+  local output_win = windows.output_win
+  vim.api.nvim_set_current_win(output_win)
+
+  local input_position = config.ui.input_position or 'bottom'
+  vim.cmd((input_position == 'top' and 'aboveleft' or 'belowright') .. ' split')
+  local input_win = vim.api.nvim_get_current_win()
+
+  -- Set the buffer
+  vim.api.nvim_win_set_buf(input_win, windows.input_buf)
+  windows.input_win = input_win
+
+  -- Re-apply window settings
+  M.setup(windows)
+
+  M._hidden = false
+
+  -- Focus the input window
+  M.focus_input()
+end
+
+---Check if the input window is currently hidden
+---@return boolean
+function M.is_hidden()
+  return M._hidden
 end
 
 return M

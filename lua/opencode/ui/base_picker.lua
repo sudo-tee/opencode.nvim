@@ -436,6 +436,10 @@ local function snacks_picker_ui(opts)
   -- Add file preview if enabled
   if has_preview then
     snack_opts.preview = 'file'
+  else
+    snack_opts.preview = function()
+      return false
+    end
   end
 
   snack_opts.win = snack_opts.win or {}

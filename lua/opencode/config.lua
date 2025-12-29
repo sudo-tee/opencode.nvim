@@ -248,11 +248,11 @@ end
 function M.setup(opts)
   opts = opts or {}
 
+  M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
+
   if opts.default_global_keymaps == false then
     M.values.keymap.editor = {}
   end
-
-  M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
 
   update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)
 end

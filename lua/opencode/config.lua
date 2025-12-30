@@ -124,6 +124,7 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
       },
+      auto_scroll = false,
       always_scroll_to_bottom = false,
     },
     input = {

@@ -44,27 +44,26 @@ local function format_diagnostics(diagnostics)
     return 'No diagnostics available.'
   end
 
-  local counts = {}
+  local by_severity = { Error = {}, Warning = {}, Info = {}, Hint = {} }
   for _, diag in ipairs(diagnostics) do
-    counts[diag.severity] = (counts[diag.severity] or 0) + 1
-  end
-  local parts = {}
-  if counts[vim.diagnostic.severity.ERROR] then
-    table.insert(parts, string.format('%d Error%s', counts[1], counts[1] > 1 and 's' or ''))
-  end
-  if counts[vim.diagnostic.severity.WARN] then
-    table.insert(parts, string.format('%d Warning%s', counts[2], counts[2] > 1 and 's' or ''))
-  end
-  if counts[vim.diagnostic.severity.INFO] then
-    table.insert(parts, string.format('%d Info%s', counts[3], counts[3] > 1 and 's' or ''))
+    local severity = diag.severity
+    local key = severity == 1 and 'Error' or severity == 2 and 'Warning' or severity == 3 and 'Info' or 'Hint'
+    table.insert(by_severity[key], diag)
   end
 
-  return table.concat(parts, ', ')
+  local summary = {}
+  for key, items in pairs(by_severity) do
+    if #items > 0 then
+      table.insert(summary, string.format('%d %s%s', #items, key, #items > 1 and 's' or ''))
+    end
+  end
+  return table.concat(summary, ', ')
 end
 
 local function format_selection(selection)
-  local lang = selection.file and selection.file.extension or ''
-  return string.format('```%s\n%s\n```', lang, selection.content)
+  local lang = (selection.file and selection.file.extension) or ''
+  local content = selection.content or ''
+  return string.format('```%s\n%s\n```', lang, content)
 end
 
 ---@param cursor_data? OpencodeContextCursorData
@@ -77,14 +76,15 @@ local function format_cursor_data(cursor_data)
     return 'No cursor data available.'
   end
 
-  local filetype = context.context.current_file and context.context.current_file.extension
-  local parts = {
-    'Line: ' .. (cursor_data.line or 'N/A'),
-    (cursor_data.column or ''),
-    string.format('```%s \n%s\n```', filetype, cursor_data.line_content or 'N/A'),
-  }
-
-  return table.concat(parts, '\n')
+  local filetype = context.get_context().current_file and context.get_context().current_file.extension or ''
+  local content = cursor_data.line_content or ''
+  return string.format(
+    'Line: %s\nColumn: %s\n```%s\n%s\n```',
+    tostring(cursor_data.line or 'N/A'),
+    tostring(cursor_data.column or 'N/A'),
+    filetype,
+    content
+  )
 end
 
 ---@param ctx OpencodeContext
@@ -238,7 +238,7 @@ local context_source = {
       return {}
     end
 
-    local ctx = context.delta_context()
+    local ctx = context.get_context()
 
     local items = {
       add_current_file_item(ctx),

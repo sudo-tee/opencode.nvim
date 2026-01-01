@@ -404,6 +404,9 @@ function M._hide()
     return
   end
 
+  local output_window = require('opencode.ui.output_window')
+  local was_at_bottom = output_window.viewport_at_bottom
+
   M._hidden = true
   M._toggling = true
 
@@ -417,7 +420,13 @@ function M._hide()
   end)
 
   -- Focus output window
-  require('opencode.ui.output_window').focus_output(true)
+  output_window.focus_output(true)
+
+  if was_at_bottom then
+    vim.schedule(function()
+      require('opencode.ui.renderer').scroll_to_bottom()
+    end)
+  end
 end
 
 ---Show the input window by recreating it
@@ -432,6 +441,9 @@ function M._show()
     M._hidden = false
     return
   end
+
+  local output_window = require('opencode.ui.output_window')
+  local was_at_bottom = output_window.viewport_at_bottom
 
   -- Create a new split for the input window
   local output_win = windows.output_win
@@ -452,6 +464,12 @@ function M._show()
 
   -- Focus the input window
   M.focus_input()
+
+  if was_at_bottom then
+    vim.schedule(function()
+      require('opencode.ui.renderer').scroll_to_bottom()
+    end)
+  end
 end
 
 ---Check if the input window is currently hidden

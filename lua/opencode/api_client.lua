@@ -58,18 +58,20 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
   end
   local url = self.base_url .. endpoint
 
-  if query then
-    local params = {}
+  query = query or {}
+  if query.directory == nil then
+    query.directory = vim.fn.getcwd()
+  end
 
-    for k, v in pairs(query) do
-      if v ~= nil then
-        table.insert(params, k .. '=' .. tostring(v))
-      end
+  local params = {}
+  for k, v in pairs(query) do
+    if v ~= nil then
+      table.insert(params, k .. '=' .. vim.uri_encode(tostring(v)))
     end
+  end
 
-    if #params > 0 then
-      url = url .. '?' .. table.concat(params, '&')
-    end
+  if #params > 0 then
+    url = url .. '?' .. table.concat(params, '&')
   end
 
   return server_job.call_api(url, method, body)
@@ -394,13 +396,11 @@ end
 --- Subscribe to events (streaming)
 --- @param directory string|nil Directory path
 --- @param on_event fun(event: table) Event callback
---- @return table The streaming job handle
+--- @return table streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
   self:_ensure_base_url()
-  local url = self.base_url .. '/event'
-  if directory then
-    url = url .. '?directory=' .. directory
-  end
+  directory = directory or vim.fn.getcwd()
+  local url = self.base_url .. '/event?directory=' .. vim.uri_encode(directory)
 
   return server_job.stream_api(url, 'GET', nil, function(chunk)
     -- strip data: prefix if present

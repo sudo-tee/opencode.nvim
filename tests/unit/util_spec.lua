@@ -148,7 +148,14 @@ describe('util.format_time', function()
 
     it('formats last week with same month date', function()
       local result = util.format_time(last_week)
-      assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
+      local last_week_year = tonumber(os.date('%Y', last_week))
+      if last_week_year == today.year then
+        -- Same year: no year in output
+        assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
+      else
+        -- Different year (e.g., early January looking back to December): year included
+        assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
+      end
     end)
 
     it('formats future date with full date', function()
@@ -170,15 +177,16 @@ describe('util.format_time', function()
     end)
 
     it('handles large millisecond timestamps correctly', function()
-      local ms_timestamp = 1762350000000 -- ~November 2025 in milliseconds
+      local ms_timestamp = 1762350000000
       local result = util.format_time(ms_timestamp)
 
       assert.is_not_nil(result)
       assert.is_string(result)
 
       local is_time_only = result:match('^%d%d?:%d%d [AP]M$')
-      local is_full_date = result:match('^%d%d? %a%a%a %d%d?:%d%d [AP]M$')
-      assert.is_true(is_time_only ~= nil or is_full_date ~= nil)
+      local is_date_same_year = result:match('^%d%d? %a%a%a %d%d?:%d%d [AP]M$')
+      local is_date_diff_year = result:match('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$')
+      assert.is_true(is_time_only ~= nil or is_date_same_year ~= nil or is_date_diff_year ~= nil)
     end)
 
     it('does not convert regular second timestamps', function()

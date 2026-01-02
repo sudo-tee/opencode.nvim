@@ -37,9 +37,9 @@ while [[ $# -gt 0 ]]; do
         shift 2
         ;;
     -t | --type)
-       TEST_TYPE="$2"
-       shift 2
-       ;;
+        TEST_TYPE="$2"
+        shift 2
+        ;;
     -h | --help)
         print_usage
         exit 0
@@ -125,7 +125,7 @@ fi
 # Handle specific test file
 if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" != "unit" ] && [ "$TEST_TYPE" != "replay" ]; then
     # Assume it's a specific test file path
-	if [ -f "$TEST_TYPE" ]; then
+    if [ -f "$TEST_TYPE" ]; then
         specific_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./$TEST_TYPE', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
         clean_output "$specific_output"
         if output_contains_failed_tests "$specific_output"; then
@@ -139,7 +139,7 @@ if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" 
         # Use specific test output for failure analysis
         unit_output="$specific_output"
         unit_status=$specific_status
-     else
+    else
         echo -e "${RED}Error: Test file '$TEST_TYPE' not found${NC}"
         exit 1
     fi
@@ -158,7 +158,7 @@ if [ $minimal_status -ne 0 ] || [ $unit_status -ne 0 ] || [ $replay_status -ne 0
     echo "$all_output" | grep -B 0 -A 6 "\[31mFail.*||" >"$failures_file"
     failure_count=$(grep -c "\[31mFail.*||" "$failures_file")
 
-     echo -e "${RED}Found $failure_count failing test(s):${NC}\n"
+    echo -e "${RED}Found $failure_count failing test(s):${NC}\n"
 
     # Process the output line by line
     test_name=""

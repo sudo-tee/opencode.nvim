@@ -139,6 +139,12 @@ function M.ensure_server()
     return promise:resolve(state.opencode_server)
   end
 
+  local existing_url = opencode_server.try_existing_server()
+  if existing_url then
+    state.opencode_server = opencode_server.from_existing(existing_url)
+    return promise:resolve(state.opencode_server)
+  end
+
   state.opencode_server = opencode_server.new()
 
   state.opencode_server:spawn({

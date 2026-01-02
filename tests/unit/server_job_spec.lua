@@ -7,15 +7,18 @@ describe('server_job', function()
   local original_curl_request
   local opencode_server = require('opencode.opencode_server')
   local original_new
+  local original_try_existing_server
 
   before_each(function()
     original_curl_request = curl.request
     original_new = opencode_server.new
+    original_try_existing_server = opencode_server.try_existing_server
   end)
 
   after_each(function()
     curl.request = original_curl_request
     opencode_server.new = original_new
+    opencode_server.try_existing_server = original_try_existing_server
   end)
 
   it('exposes expected public functions', function()
@@ -96,6 +99,9 @@ describe('server_job', function()
     }
     opencode_server.new = function()
       return fake
+    end
+    opencode_server.try_existing_server = function()
+      return nil
     end
 
     local first = server_job.ensure_server():wait()

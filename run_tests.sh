@@ -57,6 +57,11 @@ clean_output() {
     echo "$1" | grep -v "\[31mErrors : "
 }
 
+# Check if output contains failed tests (red "Fail" text from mini.test)
+output_contains_failed_tests() {
+    echo "$1" | grep -q "\[31mFail.*||"
+}
+
 # Build filter option for plenary
 FILTER_OPTION=""
 if [ -n "$FILTER" ]; then
@@ -81,13 +86,12 @@ replay_output=""
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "minimal" ]; then
     # Run minimal tests
     minimal_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/minimal', {minimal_init = './tests/minimal/init.lua', sequential = true$FILTER_OPTION})" 2>&1)
-    minimal_status=$?
     clean_output "$minimal_output"
-
-    if [ $minimal_status -eq 0 ]; then
-        echo -e "${GREEN}✓ Minimal tests passed${NC}"
-    else
+    if output_contains_failed_tests "$minimal_output"; then
+        minimal_status=1
         echo -e "${RED}✗ Minimal tests failed${NC}"
+	else
+        echo -e "${GREEN}✓ Minimal tests passed${NC}"
     fi
     echo "------------------------------------------------"
 fi
@@ -95,13 +99,12 @@ fi
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "unit" ]; then
     # Run unit tests
     unit_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
-    unit_status=$?
     clean_output "$unit_output"
-
-    if [ $unit_status -eq 0 ]; then
-        echo -e "${GREEN}✓ Unit tests passed${NC}"
-    else
+    if output_contains_failed_tests "$unit_output"; then
+        unit_status=1
         echo -e "${RED}✗ Unit tests failed${NC}"
+    else
+        echo -e "${GREEN}✓ Unit tests passed${NC}"
     fi
     echo "------------------------------------------------"
 fi
@@ -109,13 +112,12 @@ fi
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "replay" ]; then
     # Run replay tests
     replay_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
-    replay_status=$?
     clean_output "$replay_output"
-
-    if [ $replay_status -eq 0 ]; then
-        echo -e "${GREEN}✓ Replay tests passed${NC}"
-    else
+    if output_contains_failed_tests "$replay_output"; then
+        replay_status=1
         echo -e "${RED}✗ Replay tests failed${NC}"
+    else
+        echo -e "${GREEN}✓ Replay tests passed${NC}"
     fi
     echo "------------------------------------------------"
 fi
@@ -125,13 +127,12 @@ if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" 
     # Assume it's a specific test file path
     if [ -f "$TEST_TYPE" ]; then
         specific_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./$TEST_TYPE', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
-        specific_status=$?
         clean_output "$specific_output"
-
-        if [ $specific_status -eq 0 ]; then
-            echo -e "${GREEN}✓ Specific test passed${NC}"
-        else
+        if output_contains_failed_tests "$specific_output"; then
+            specific_status=1
             echo -e "${RED}✗ Specific test failed${NC}"
+        else
+            echo -e "${GREEN}✓ Specific test passed${NC}"
         fi
         echo "------------------------------------------------"
 

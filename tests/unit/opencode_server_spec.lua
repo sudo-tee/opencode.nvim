@@ -8,7 +8,10 @@ local function get_lock_file_path()
 end
 
 --- Helper to write a lock file directly for testing
-local function write_test_lock_file(url, owner, clients)
+--- @param url string
+--- @param clients number[]
+--- @param server_pid number|nil
+local function write_test_lock_file(url, clients, server_pid)
   local lock_path = get_lock_file_path()
   local f = io.open(lock_path, 'w')
   if f then
@@ -18,7 +21,10 @@ local function write_test_lock_file(url, owner, clients)
       end, clients),
       ','
     )
-    f:write(string.format('url=%s\nowner=%d\nclients=%s\n', url, owner, clients_str))
+    f:write(string.format('url=%s\nclients=%s\n', url, clients_str))
+    if server_pid then
+      f:write(string.format('server_pid=%d\n', server_pid))
+    end
     f:close()
   end
 end
@@ -36,9 +42,8 @@ local function read_test_lock_file()
     return nil
   end
   local url = content:match('url=([^\n]+)')
-  local owner_str = content:match('owner=([^\n]+)')
   local clients_str = content:match('clients=([^\n]*)')
-  local owner = tonumber(owner_str) or 0
+  local server_pid_str = content:match('server_pid=([^\n]+)')
   local clients = {}
   if clients_str and clients_str ~= '' then
     for pid_str in clients_str:gmatch('([^,]+)') do
@@ -48,7 +53,8 @@ local function read_test_lock_file()
       end
     end
   end
-  return { url = url, owner = owner, clients = clients }
+  local server_pid = tonumber(server_pid_str)
+  return { url = url, clients = clients, server_pid = server_pid }
 end
 
 local function remove_test_lock_file()
@@ -231,7 +237,7 @@ describe('opencode.opencode_server', function()
     end)
 
     it('try_existing_server returns nil when lock file has no alive clients', function()
-      write_test_lock_file('http://localhost:8888', 99999, { 99999 })
+      write_test_lock_file('http://localhost:8888', { 99999 }, 99999)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -248,7 +254,7 @@ describe('opencode.opencode_server', function()
 
     it('from_existing creates server with url and registers as client', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:9999', 12345, { 12345 })
+      write_test_lock_file('http://localhost:9999', { 12345 }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -263,11 +269,11 @@ describe('opencode.opencode_server', function()
 
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
-      assert.equals(12345, lock_data.owner)
       assert.is_true(vim.tbl_contains(lock_data.clients, current_pid))
+      assert.equals(54321, lock_data.server_pid)
     end)
 
-    it('spawn registers as owner in lock file', function()
+    it('spawn creates lock file with server_pid', function()
       local current_pid = vim.fn.getpid()
 
       vim.system = function(cmd, opts)
@@ -298,13 +304,13 @@ describe('opencode.opencode_server', function()
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
       assert.equals('http://127.0.0.1:5555', lock_data.url)
-      assert.equals(current_pid, lock_data.owner)
       assert.is_true(vim.tbl_contains(lock_data.clients, current_pid))
+      assert.equals(current_pid, lock_data.server_pid)
     end)
 
     it('shutdown removes client from lock file', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:7777', current_pid, { current_pid, 99998 })
+      write_test_lock_file('http://localhost:7777', { current_pid, 99998 }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -322,12 +328,12 @@ describe('opencode.opencode_server', function()
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
       assert.is_false(vim.tbl_contains(lock_data.clients, current_pid))
-      assert.equals(99998, lock_data.owner)
+      assert.is_true(vim.tbl_contains(lock_data.clients, 99998))
     end)
 
     it('shutdown removes lock file when last client exits', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:6666', current_pid, { current_pid })
+      write_test_lock_file('http://localhost:6666', { current_pid }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -346,11 +352,11 @@ describe('opencode.opencode_server', function()
       assert.is_nil(lock_data)
     end)
 
-    it('ownership transfers to next client when owner exits', function()
+    it('shutdown keeps remaining clients when one client exits', function()
       local current_pid = vim.fn.getpid()
       local other_pid_1 = 88881
       local other_pid_2 = 88882
-      write_test_lock_file('http://localhost:4444', current_pid, { current_pid, other_pid_1, other_pid_2 })
+      write_test_lock_file('http://localhost:4444', { current_pid, other_pid_1, other_pid_2 }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -367,19 +373,19 @@ describe('opencode.opencode_server', function()
 
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
-      assert.equals(other_pid_1, lock_data.owner)
       assert.equals(2, #lock_data.clients)
       assert.is_false(vim.tbl_contains(lock_data.clients, current_pid))
       assert.is_true(vim.tbl_contains(lock_data.clients, other_pid_1))
       assert.is_true(vim.tbl_contains(lock_data.clients, other_pid_2))
+      assert.equals(54321, lock_data.server_pid)
     end)
 
-    it('cleanup_dead_pids removes dead processes and promotes new owner', function()
+    it('cleanup_dead_pids removes dead processes from clients list', function()
       local current_pid = vim.fn.getpid()
       local dead_pid = 99997
       local alive_pid = 99996
 
-      write_test_lock_file('http://localhost:3333', dead_pid, { dead_pid, alive_pid, current_pid })
+      write_test_lock_file('http://localhost:3333', { dead_pid, alive_pid, current_pid }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -395,7 +401,9 @@ describe('opencode.opencode_server', function()
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
       assert.is_false(vim.tbl_contains(lock_data.clients, dead_pid))
-      assert.equals(alive_pid, lock_data.owner)
+      assert.is_true(vim.tbl_contains(lock_data.clients, alive_pid))
+      assert.is_true(vim.tbl_contains(lock_data.clients, current_pid))
+      assert.equals(54321, lock_data.server_pid)
     end)
 
     it('flock file is created and removed during operations', function()

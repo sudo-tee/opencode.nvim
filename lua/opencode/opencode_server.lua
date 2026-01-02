@@ -89,8 +89,8 @@ end
 
 --- @class LockFileData
 --- @field url string
---- @field owner number
 --- @field clients number[]
+--- @field server_pid number|nil
 --- @return LockFileData|nil
 local function read_lock_file()
   local lock_path = get_lock_file_path()
@@ -107,14 +107,14 @@ local function read_lock_file()
   end
 
   local url = content:match('url=([^\n]+)')
-  local owner_str = content:match('owner=([^\n]+)')
   local clients_str = content:match('clients=([^\n]*)')
+  local server_pid_str = content:match('server_pid=([^\n]+)')
 
   if not url then
     return nil
   end
 
-  local owner = tonumber(owner_str) or 0
+  local server_pid = tonumber(server_pid_str)
   local clients = {}
 
   if clients_str and clients_str ~= '' then
@@ -126,7 +126,7 @@ local function read_lock_file()
     end
   end
 
-  return { url = url, owner = owner, clients = clients }
+  return { url = url, clients = clients, server_pid = server_pid }
 end
 
 --- @param data LockFileData
@@ -144,7 +144,10 @@ local function write_lock_file(data)
     ','
   )
 
-  f:write(string.format('url=%s\nowner=%d\nclients=%s\n', data.url, data.owner, clients_str))
+  f:write(string.format('url=%s\nclients=%s\n', data.url, clients_str))
+  if data.server_pid then
+    f:write(string.format('server_pid=%d\n', data.server_pid))
+  end
   f:close()
 end
 
@@ -162,20 +165,17 @@ local function cleanup_dead_pids(data)
 
   data.clients = alive_clients
 
-  if not is_pid_alive(data.owner) and #alive_clients > 0 then
-    data.owner = alive_clients[1]
-  end
-
   return data
 end
 
 --- @param url string
-local function register_as_owner(url)
+--- @param server_pid number
+local function create_lock_file(url, server_pid)
   with_file_lock(function()
     write_lock_file({
       url = url,
-      owner = current_pid,
       clients = { current_pid },
+      server_pid = server_pid,
     })
   end)
 end
@@ -201,12 +201,12 @@ local function register_client()
   return result or false
 end
 
---- @return boolean should_kill_server
+--- @return number|nil server_pid_to_kill
 local function unregister_client()
   local result = with_file_lock(function()
     local data = read_lock_file()
     if not data then
-      return false
+      return nil
     end
 
     data = cleanup_dead_pids(data)
@@ -216,18 +216,15 @@ local function unregister_client()
     end, data.clients)
 
     if #data.clients == 0 then
+      local server_pid = data.server_pid
       remove_lock_file()
-      return true
-    end
-
-    if data.owner == current_pid then
-      data.owner = data.clients[1]
+      return server_pid
     end
 
     write_lock_file(data)
-    return false
+    return nil
   end)
-  return result or false
+  return result
 end
 
 --- @return OpencodeServer
@@ -327,12 +324,16 @@ end
 
 --- @return Promise<boolean>
 function OpencodeServer:shutdown()
-  local should_kill = unregister_client()
+  local server_pid_to_kill = unregister_client()
 
-  if should_kill and self.job and self.job.pid then
-    pcall(function()
-      self.job:kill('sigterm')
-    end)
+  if server_pid_to_kill then
+    if self.job and self.job.pid then
+      pcall(function()
+        self.job:kill('sigterm')
+      end)
+    else
+      pcall(vim.uv.kill, server_pid_to_kill, 'sigterm')
+    end
   end
 
   self.job = nil
@@ -369,7 +370,7 @@ function OpencodeServer:spawn(opts)
         local url = data:match('opencode server listening on ([^%s]+)')
         if url then
           self.url = url
-          register_as_owner(url)
+          create_lock_file(url, self.job.pid)
           self.spawn_promise:resolve(self --[[@as any]])
           safe_call(opts.on_ready, self.job, url)
         end

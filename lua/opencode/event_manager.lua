@@ -52,6 +52,7 @@ local util = require('opencode.util')
 --- @field type string
 --- @field pattern string|string[]
 --- @field sessionID string
+--- @field tool? {messageID: string, callID: string}
 --- @field messageID string
 --- @field callID? string
 --- @field title string

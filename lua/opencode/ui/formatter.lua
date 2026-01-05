@@ -690,7 +690,11 @@ function M._format_tool(output, part)
         and state.current_permission.tool.messageID == part.messageID
       )
       ---@TODO this is for backward compatibility, remove later
-      or (state.current_permission.messageID == part.messageID and state.current_permission.callID == part.callID)
+      or (
+        not state.current_permission.tool
+        and state.current_permission.messageID == part.messageID
+        and state.current_permission.callID == part.callID
+      )
     )
   then
     M._handle_permission_request(output, part)

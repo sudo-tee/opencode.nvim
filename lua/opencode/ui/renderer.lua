@@ -80,6 +80,7 @@ function M.setup_subscriptions(subscribe)
     { 'message.part.updated', M.on_part_updated },
     { 'message.part.removed', M.on_part_removed },
     { 'permission.updated', M.on_permission_updated },
+    { 'permission.asked', M.on_permission_updated },
     { 'permission.replied', M.on_permission_replied },
     { 'file.edited', M.on_file_edited },
     { 'custom.restore_point.created', M.on_restore_points },
@@ -768,7 +769,13 @@ end
 ---Re-renders part that requires permission
 ---@param permission OpencodePermission Event properties
 function M.on_permission_updated(permission)
-  if not permission or not permission.messageID or not permission.callID then
+  local tool = permission.tool
+
+  ---@TODO this is for backward compatibility, remove later
+  local callID = tool and tool.callID or permission.callID
+  local messageID = tool and tool.messageID or permission.messageID
+
+  if not permission or not messageID or not callID then
     return
   end
 
@@ -782,9 +789,10 @@ function M.on_permission_updated(permission)
 
   state.current_permission = permission
 
-  local part_id = M._find_part_by_call_id(permission.callID, permission.messageID)
+  local part_id = M._find_part_by_call_id(callID, messageID)
   if part_id then
     M._rerender_part(part_id)
+    M.scroll_to_bottom()
   end
 end
 
@@ -799,8 +807,13 @@ function M.on_permission_replied(properties)
   local old_permission = state.current_permission
   state.current_permission = nil
 
-  if old_permission and old_permission.callID then
-    local part_id = M._find_part_by_call_id(old_permission.callID, old_permission.messageID)
+  ---@TODO this is for backward compatibility, remove later
+  local tool = old_permission and old_permission.tool
+  local callID = tool and tool.callID or (old_permission and old_permission.callID)
+  local messageID = tool and tool.messageID or (old_permission and old_permission.messageID)
+
+  if old_permission and messageID and callID then
+    local part_id = M._find_part_by_call_id(callID, messageID)
     if part_id then
       M._rerender_part(part_id)
     end

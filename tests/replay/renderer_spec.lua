@@ -163,6 +163,7 @@ describe('renderer functional tests', function()
   -- because they involve permission prompts
   local skip_full_session = {
     'permission-prompt',
+    'permission-ask-new',
     'shifting-and-multiple-perms',
     'message-removal',
   }

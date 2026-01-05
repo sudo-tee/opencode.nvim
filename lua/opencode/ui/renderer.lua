@@ -231,12 +231,7 @@ function M.scroll_to_bottom()
 
   trigger_on_data_rendered()
 
-  if not output_window.should_auto_scroll() then
-    return
-  end
-
   -- Determine if we should scroll to bottom
-
   local should_scroll = false
 
   -- Always scroll on initial render

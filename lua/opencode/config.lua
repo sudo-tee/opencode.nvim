@@ -133,7 +133,7 @@ M.defaults = {
         wrap = false,
       },
       -- Auto-hide input window when prompt is submitted or focus switches to output window
-      auto_hide = true,
+      auto_hide = false,
     },
     completion = {
       file_sources = {

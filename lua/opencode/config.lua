@@ -124,7 +124,6 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
       },
-      auto_scroll = false,
       always_scroll_to_bottom = false,
     },
     input = {
@@ -252,7 +251,7 @@ function M.setup(opts)
   M.values = vim.tbl_deep_extend('force', M.values, opts --[[@as OpencodeConfig]])
 
   if opts.default_global_keymaps == false then
-    M.values.keymap.editor = {}
+    M.values.keymap.editor = opts.keymap and opts.keymap.editor or {}
   end
 
   update_keymap_prefix(M.values.keymap_prefix, M.defaults.keymap_prefix)

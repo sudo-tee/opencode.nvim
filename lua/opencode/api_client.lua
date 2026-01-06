@@ -434,6 +434,37 @@ function OpencodeApiClient:list_tools(provider, model, directory)
   })
 end
 
+--- Check if a server at the given URL is healthy
+--- This is a static method that doesn't require an established connection
+--- @param base_url string The server URL to check
+--- @param timeout_ms? number Timeout in milliseconds (default: 2000)
+--- @return Promise<boolean> promise that resolves to true if healthy, rejects otherwise
+function OpencodeApiClient.check_health(base_url, timeout_ms)
+  local Promise = require('opencode.promise')
+  local curl = require('opencode.curl')
+
+  local health_promise = Promise.new()
+  local url = base_url:gsub('/$', '') .. '/global/health'
+
+  curl.request({
+    url = url,
+    method = 'GET',
+    timeout = timeout_ms or 2000,
+    callback = function(response)
+      if response and response.status >= 200 and response.status < 300 then
+        health_promise:resolve(true)
+      else
+        health_promise:reject('unhealthy')
+      end
+    end,
+    on_error = function(err)
+      health_promise:reject(err or 'health check failed')
+    end,
+  })
+
+  return health_promise
+end
+
 --- Create a factory function for the module
 --- @param base_url? string The base URL of the opencode server
 --- @return OpencodeApiClient
@@ -464,4 +495,5 @@ end
 return {
   new = OpencodeApiClient.new,
   create = create_client,
+  check_health = OpencodeApiClient.check_health,
 }

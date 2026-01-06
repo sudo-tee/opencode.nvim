@@ -272,27 +272,8 @@ function OpencodeServer.try_existing_server()
     return nil
   end
 
-  local curl = require('opencode.curl')
-  local result_received = false
-  local is_healthy = false
-
-  curl.request({
-    url = server_url .. '/global/health',
-    method = 'GET',
-    timeout = 2000,
-    callback = function(response)
-      result_received = true
-      is_healthy = response and response.status >= 200 and response.status < 300
-    end,
-    on_error = function()
-      result_received = true
-      is_healthy = false
-    end,
-  })
-
-  vim.wait(3000, function()
-    return result_received
-  end, 50)
+  local api_client = require('opencode.api_client')
+  local is_healthy = api_client.check_health(server_url, 2000):wait(3000)
 
   if is_healthy then
     return server_url

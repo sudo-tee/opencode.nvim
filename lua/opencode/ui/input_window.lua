@@ -400,10 +400,8 @@ function M.toggle()
   end
 
   if M._hidden then
-    -- Show: recreate the input window
     M._show()
   else
-    -- Hide: close the input window
     M._hide()
   end
 end
@@ -421,16 +419,13 @@ function M._hide()
   M._hidden = true
   M._toggling = true
 
-  -- Close the input window (but keep the buffer)
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil
 
-  -- Reset toggling flag after the WinClosed event has been processed
   vim.schedule(function()
     M._toggling = false
   end)
 
-  -- Focus output window
   output_window.focus_output(true)
 
   if was_at_bottom then
@@ -456,7 +451,6 @@ function M._show()
   local output_window = require('opencode.ui.output_window')
   local was_at_bottom = output_window.viewport_at_bottom
 
-  -- Create a new split for the input window
   local output_win = windows.output_win
   vim.api.nvim_set_current_win(output_win)
 
@@ -464,7 +458,6 @@ function M._show()
   vim.cmd((input_position == 'top' and 'aboveleft' or 'belowright') .. ' split')
   local input_win = vim.api.nvim_get_current_win()
 
-  -- Set the buffer
   vim.api.nvim_win_set_buf(input_win, windows.input_buf)
   windows.input_win = input_win
 

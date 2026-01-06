@@ -292,7 +292,7 @@ function OpencodeServer.from_existing(url)
   server.url = url
   server.is_owner = false
   register_client()
-  server.spawn_promise:resolve(server --[[@as any]])
+  server.spawn_promise:resolve(server --[[@as OpencodeServer]])
   return server
 end
 
@@ -352,7 +352,7 @@ function OpencodeServer:spawn(opts)
         if url then
           self.url = url
           create_lock_file(url, self.job.pid)
-          self.spawn_promise:resolve(self --[[@as any]])
+          self.spawn_promise:resolve(self --[[@as OpencodeServer]])
           safe_call(opts.on_ready, self.job, url)
         end
       end

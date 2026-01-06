@@ -58,22 +58,52 @@ function M.is_at_bottom(win)
   return botline >= line_count - 1
 end
 
-function M.setup(windows)
-  vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.output_win })
-  vim.api.nvim_set_option_value('wrap', true, { win = windows.output_win })
-  vim.api.nvim_set_option_value('number', false, { win = windows.output_win })
-  vim.api.nvim_set_option_value('relativenumber', false, { win = windows.output_win })
-  vim.api.nvim_set_option_value('modifiable', false, { buf = windows.output_buf })
-  vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.output_buf })
-  vim.api.nvim_set_option_value('swapfile', false, { buf = windows.output_buf })
-  if config.ui.position ~= 'current' then
-    vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.output_win })
+---Helper to set window option and save original value for position='current'
+---@param opt_name string The option name
+---@param value any The value to set
+---@param win integer The window ID
+local function set_win_option(opt_name, value, win)
+  -- Save original value if using position = 'current'
+  if config.ui.position == 'current' then
+    if not state.saved_window_options then
+      state.saved_window_options = {}
+    end
+    -- Only save if not already saved (in case this function is called multiple times)
+    if state.saved_window_options[opt_name] == nil then
+      local ok, original = pcall(vim.api.nvim_get_option_value, opt_name, { win = win })
+      if ok then
+        state.saved_window_options[opt_name] = original
+      end
+    end
   end
-  vim.api.nvim_set_option_value('winfixheight', true, { win = windows.output_win })
-  vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.output_win })
-  vim.api.nvim_set_option_value('signcolumn', 'yes', { scope = 'local', win = windows.output_win })
-  vim.api.nvim_set_option_value('list', false, { scope = 'local', win = windows.output_win })
-  vim.api.nvim_set_option_value('statuscolumn', '', { win = windows.output_win })
+  
+  vim.api.nvim_set_option_value(opt_name, value, { win = win })
+end
+
+---Helper to set buffer option (no saving needed)
+---@param opt_name string The option name
+---@param value any The value to set
+---@param buf integer The buffer ID
+local function set_buf_option(opt_name, value, buf)
+  vim.api.nvim_set_option_value(opt_name, value, { buf = buf })
+end
+
+function M.setup(windows)
+  set_win_option('winhighlight', config.ui.window_highlight, windows.output_win)
+  set_win_option('wrap', true, windows.output_win)
+  set_win_option('number', false, windows.output_win)
+  set_win_option('relativenumber', false, windows.output_win)
+  set_buf_option('modifiable', false, windows.output_buf)
+  set_buf_option('buftype', 'nofile', windows.output_buf)
+  set_buf_option('swapfile', false, windows.output_buf)
+  if config.ui.position ~= 'current' then
+    set_win_option('winfixbuf', true, windows.output_win)
+  end
+  set_win_option('winfixheight', true, windows.output_win)
+  set_win_option('winfixwidth', true, windows.output_win)
+  set_win_option('signcolumn', 'yes', windows.output_win)
+  set_win_option('list', false, windows.output_win)
+  set_win_option('statuscolumn', '', windows.output_win)
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)

@@ -91,7 +91,7 @@ local function create_file_item(file, suffix, priority)
   local file_config = config.ui.completion.file_sources
   local max_display_len = file_config.max_display_length or 50
   if #display_label > max_display_len then
-    display_label = '...' .. display_label:sub(-(max_display_len - 3))
+    display_label = '...' .. display_label:sub(-(math.floor(max_display_len) - 3))
   end
   local kind = vim.endswith(file, '/') and 'folder' or 'file'
   return {

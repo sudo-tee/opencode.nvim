@@ -1,7 +1,3 @@
--- tests/unit/keymap_spec.lua
--- Tests for the keymap module
-
-local keymap = require('opencode.keymap')
 local assert = require('luassert')
 
 describe('opencode.keymap', function()
@@ -14,6 +10,10 @@ describe('opencode.keymap', function()
   -- Mock vim.keymap.set and vim.cmd for testing
   local original_keymap_set
   local original_vim_cmd
+
+  -- Mock the API module to break circular dependency
+  local mock_api
+  local keymap
 
   before_each(function()
     set_keymaps = {}
@@ -34,12 +34,55 @@ describe('opencode.keymap', function()
     vim.cmd = function(command)
       table.insert(cmd_calls, command)
     end
+
+    -- Mock the API module before requiring keymap
+    mock_api = {
+      open_input = function() end,
+      toggle = function() end,
+      submit_input_prompt = function() end,
+      permission_accept = function() end,
+      permission_accept_all = function() end,
+      permission_deny = function() end,
+      commands = {
+        open_input = { desc = 'Open input window' },
+        toggle = { desc = 'Toggle opencode windows' },
+        submit_input_prompt = { desc = 'Submit input prompt' },
+      },
+    }
+    package.loaded['opencode.api'] = mock_api
+
+    -- Mock the state module
+    local mock_state = {
+      current_permission = nil,
+    }
+    package.loaded['opencode.state'] = mock_state
+
+    -- Mock the config module
+    local mock_config = {
+      keymap = {
+        permission = {
+          accept = 'a',
+          accept_all = 'A',
+          deny = 'd',
+        },
+      },
+    }
+    package.loaded['opencode.config'] = mock_config
+
+    -- Now require the keymap module
+    keymap = require('opencode.keymap')
   end)
 
   after_each(function()
     -- Restore original functions
     vim.keymap.set = original_keymap_set
     vim.cmd = original_vim_cmd
+
+    -- Clean up package loading
+    package.loaded['opencode.keymap'] = nil
+    package.loaded['opencode.api'] = nil
+    package.loaded['opencode.state'] = nil
+    package.loaded['opencode.config'] = nil
   end)
 
   describe('normalize_keymap', function()

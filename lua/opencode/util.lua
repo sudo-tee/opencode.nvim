@@ -134,7 +134,12 @@ function M.is_git_project()
   if _is_git_project ~= nil then
     return _is_git_project
   end
-  local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
+  local cwd = vim.fn.getcwd()
+  if not cwd then
+    _is_git_project = false
+    return _is_git_project
+  end
+  local git_dir = Path:new(cwd):joinpath('.git')
   _is_git_project = git_dir:exists()
   return _is_git_project
 end
@@ -263,14 +268,16 @@ function M.parse_dot_args(args_str)
         t[parts[i]] = t[parts[i]] or {}
         t = t[parts[i]]
       end
+      -- Convert string values to appropriate types
+      local parsed_value = value
       if value == 'true' then
-        value = true
+        parsed_value = true
       elseif value == 'false' then
-        value = false
+        parsed_value = false
       elseif tonumber(value) then
-        value = tonumber(value)
+        parsed_value = tonumber(value)
       end
-      t[parts[#parts]] = value
+      t[parts[#parts]] = parsed_value
     end
   end
   return result
@@ -344,6 +351,7 @@ end
 --- Parse run command arguments with optional agent, model, and context prefixes.
 --- Returns opts table and remaining prompt string.
 --- Format: [agent=<name>] [model=<model>] [context=<key=value,...>] <prompt>
+--- Also supports quick context syntax like "#buffer #git_diff" in the prompt
 --- @param args string[]
 --- @return table opts, string prompt
 function M.parse_run_args(args)
@@ -371,6 +379,13 @@ function M.parse_run_args(args)
 
   local prompt_tokens = vim.list_slice(args, prompt_start_idx)
   local prompt = table.concat(prompt_tokens, ' ')
+
+  if prompt:find('#') then
+    local cleaned_prompt, quick_context = M.parse_quick_context_args(prompt)
+    prompt = cleaned_prompt
+
+    opts.context = vim.tbl_deep_extend('force', opts.context or {}, quick_context) --[[@as OpencodeContextConfig]]
+  end
 
   return opts, prompt
 end
@@ -408,6 +423,107 @@ function M.is_temp_path(path, pattern)
   end
 
   return true
+end
+
+--- Parse quick context arguments and extract prompt.
+--- Transforms quick context items like "generate a conventional commit #git_diff #buffer"
+--- into a partial ContextConfig object with only enabled fields and returns the remaining text as prompt.
+--- @param prompt string Context arguments string (e.g., "generate a conventional commit #buffer #git_diff")
+--- @return string prompt, OpencodeContextConfig config
+function M.parse_quick_context_args(prompt)
+  ---@type OpencodeContextConfig
+  local config = { enabled = true }
+
+  if not prompt or prompt == '' then
+    return '', config
+  end
+
+  local function extract(items)
+    local found = false
+    for _, item in ipairs(items) do
+      local pattern = '#' .. item
+      local start_pos = prompt:lower():find(pattern:lower(), 1, true)
+      if start_pos then
+        found = true
+        local end_pos = start_pos + #pattern - 1
+        prompt = prompt:sub(1, start_pos - 1) .. prompt:sub(end_pos + 1)
+      end
+    end
+    return found
+  end
+
+  local cursor_enabled = extract({ 'cursor_data', 'cursor' })
+  if cursor_enabled then
+    config.cursor_data = { enabled = true, context_lines = 5 }
+  end
+
+  local info_enabled = extract({ 'info' })
+  local warning_enabled = extract({ 'warnings', 'warning', 'warn' })
+  local error_enabled = extract({ 'errors' })
+
+  if info_enabled or warning_enabled or error_enabled then
+    config.diagnostics = { enabled = true, only_closest = true }
+    if info_enabled then
+      config.diagnostics.info = true
+    end
+    if warning_enabled then
+      config.diagnostics.warning = true
+    end
+    if error_enabled then
+      config.diagnostics.error = true
+    end
+  end
+
+  local current_file_enabled = extract({ 'current_file', 'file' })
+  if current_file_enabled then
+    config.current_file = { enabled = true }
+  end
+
+  local selection_enabled = extract({ 'selection' })
+  if selection_enabled then
+    config.selection = { enabled = true }
+  end
+
+  local agents_enabled = extract({ 'agents' })
+  if agents_enabled then
+    config.agents = { enabled = true }
+  end
+
+  local buffer_enabled = extract({ 'buffer' })
+  if buffer_enabled then
+    config.buffer = { enabled = true }
+  end
+
+  local git_diff_enabled = extract({ 'git_diff', 'diff' })
+  if git_diff_enabled then
+    config.git_diff = { enabled = true }
+  end
+
+  return vim.trim(prompt:gsub('%s+', ' ')), config
+end
+
+function M.get_visual_range()
+  if not vim.fn.mode():match('[vV\022]') then
+    return nil
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', true)
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local start_pos = vim.fn.getpos("'<")
+  local end_pos = vim.fn.getpos("'>")
+
+  local start_line = start_pos[2]
+  local start_col = start_pos[3]
+  local end_line = end_pos[2]
+  local end_col = end_pos[3]
+
+  return {
+    bufnr = bufnr,
+    start_line = start_line,
+    start_col = start_col,
+    end_line = end_line,
+    end_col = end_col,
+  }
 end
 
 return M

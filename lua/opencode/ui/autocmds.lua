@@ -13,6 +13,11 @@ function M.setup_autocmds(windows)
     group = group,
     pattern = table.concat(wins, ','),
     callback = function(opts)
+      -- Don't close everything if we're just toggling the input window
+      if input_window._toggling then
+        return
+      end
+
       local closed_win = tonumber(opts.match)
       if vim.tbl_contains(wins, closed_win) then
         vim.schedule(function()

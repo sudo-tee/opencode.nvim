@@ -49,9 +49,10 @@ M.defaults = {
       ['<C-c>'] = { 'cancel' },
       [']]'] = { 'next_message' },
       ['[['] = { 'prev_message' },
-      ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
+      ['<tab>'] = { 'toggle_pane', mode = { 'n' } },
       ['i'] = { 'focus_input' },
       ['gr'] = { 'references', desc = 'Browse code references' },
+      ['<M-i>'] = { 'toggle_input', mode = { 'n' }, desc = 'Toggle input window' },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },
@@ -66,10 +67,11 @@ M.defaults = {
       ['/'] = { 'slash_commands', mode = 'i' },
       ['#'] = { 'context_items', mode = 'i' },
       ['<M-v>'] = { 'paste_image', mode = 'i' },
-      ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } },
+      ['<tab>'] = { 'toggle_pane', mode = { 'n' } },
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } },
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } },
       ['<M-m>'] = { 'switch_mode', mode = { 'n', 'i' } },
+      ['<M-i>'] = { 'toggle_input', mode = { 'n', 'i' }, desc = 'Toggle input window' },
       ['gr'] = { 'references', desc = 'Browse code references' },
       ['<leader>oS'] = { 'select_child_session' },
       ['<leader>oD'] = { 'debug_message' },
@@ -130,6 +132,8 @@ M.defaults = {
       text = {
         wrap = false,
       },
+      -- Auto-hide input window when prompt is submitted or focus switches to output window
+      auto_hide = true,
     },
     completion = {
       file_sources = {

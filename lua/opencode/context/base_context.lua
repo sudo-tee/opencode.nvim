@@ -212,7 +212,7 @@ function M.get_current_selection(context_config)
 end
 
 ---@param context_config? OpencodeContextConfig
----@return Promise<string|nil>
+---@return string|nil
 M.get_git_diff = Promise.async(function(context_config)
   if not M.is_context_enabled('git_diff', context_config) then
     return nil

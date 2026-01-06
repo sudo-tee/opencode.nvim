@@ -43,6 +43,7 @@ M.defaults = {
       ['<leader>oPd'] = { 'permission_deny', desc = 'Deny permission' },
       ['<leader>otr'] = { 'toggle_reasoning_output', desc = 'Toggle reasoning output' },
       ['<leader>ott'] = { 'toggle_tool_output', desc = 'Toggle tool output' },
+      ['<leader>o/'] = { 'quick_chat', desc = 'Quick chat with current context', mode = { 'n', 'x' } },
     },
     output_window = {
       ['<esc>'] = { 'close' },
@@ -93,6 +94,9 @@ M.defaults = {
     history_picker = {
       delete_entry = { '<C-d>', mode = { 'i', 'n' } },
       clear_all = { '<C-X>', mode = { 'i', 'n' } },
+    },
+    quick_chat = {
+      cancel = { '<C-c>', mode = { 'i', 'n' } },
     },
   },
   ui = {
@@ -170,12 +174,14 @@ M.defaults = {
     enabled = true,
     cursor_data = {
       enabled = false,
+      context_lines = 5, -- Number of lines before and after cursor to include in context
     },
     diagnostics = {
       enabled = true,
       info = false,
       warning = true,
       error = true,
+      only_closest = false, -- If true, only diagnostics for cursor/selection
     },
     current_file = {
       enabled = true,
@@ -191,11 +197,21 @@ M.defaults = {
     agents = {
       enabled = true,
     },
+    buffer = {
+      enabled = false, -- Disable entire buffer context by default, only used in quick chat
+    },
+    git_diff = {
+      enabled = false,
+    },
   },
   debug = {
     enabled = false,
     capture_streamed_events = false,
     show_ids = true,
+    quick_chat = {
+      keep_session = false,
+      set_active_session = false,
+    },
   },
   prompt_guard = nil,
   hooks = {
@@ -204,21 +220,14 @@ M.defaults = {
     on_done_thinking = nil,
     on_permission_requested = nil,
   },
+  quick_chat = {
+    default_model = nil,
+    default_agent = nil,
+    instructions = nil, -- Use instructions prompt by default
+  },
 }
 
 M.values = vim.deepcopy(M.defaults)
-
----Get function names from keymap config, used when normalizing legacy config
----@param keymap_config table
-local function get_function_names(keymap_config)
-  local names = {}
-  for _, config in pairs(keymap_config) do
-    if type(config) == 'table' and config[1] then
-      table.insert(names, config[1])
-    end
-  end
-  return names
-end
 
 local function update_keymap_prefix(prefix, default_prefix)
   if prefix == default_prefix or not prefix then

@@ -33,7 +33,7 @@ end
 
 ---Get trigger characters from config
 ---@return string[]
-function CompletionEngine:get_trigger_characters()
+function CompletionEngine.get_trigger_characters()
   local config = require('opencode.config')
   local mention_key = config.get_key_for_function('input_window', 'mention')
   local slash_key = config.get_key_for_function('input_window', 'slash_commands')
@@ -49,7 +49,7 @@ end
 ---Default implementation checks if current buffer filetype is 'opencode'
 ---Child classes can override this to add engine-specific availability checks
 ---@return boolean true if the engine can be used in the current context
-function CompletionEngine:is_available()
+function CompletionEngine.is_available()
   return vim.bo.filetype == 'opencode'
 end
 

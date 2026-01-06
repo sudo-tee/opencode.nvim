@@ -69,7 +69,7 @@ M.open = Promise.async(function(opts)
   local are_windows_closed = state.windows == nil
   if are_windows_closed then
     -- Check if whether prompting will be allowed
-    local mentioned_files = context.context.mentioned_files or {}
+    local mentioned_files = context.get_context().mentioned_files or {}
     local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
     if not allowed then
       vim.notify(err_msg or 'Prompts will be denied by prompt_guard', vim.log.levels.WARN)
@@ -138,7 +138,7 @@ M.send_message = Promise.async(function(prompt, opts)
     return false
   end
 
-  local mentioned_files = context.context.mentioned_files or {}
+  local mentioned_files = context.get_context().mentioned_files or {}
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 
   if not allowed then
@@ -182,7 +182,7 @@ Examples:
 This matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.
 ]]
 
-  params.parts = context.format_message(prompt, opts.context)
+  params.parts = context.format_message(prompt, opts.context):await()
   M.before_run(opts)
 
   local session_id = state.active_session.id
@@ -237,7 +237,8 @@ end)
 ---@param prompt string
 function M.after_run(prompt)
   context.unload_attachments()
-  state.last_sent_context = vim.deepcopy(context.context)
+  state.last_sent_context = vim.deepcopy(context.get_context())
+  context.delta_context()
   require('opencode.history').write(prompt)
   M._abort_count = 0
 end

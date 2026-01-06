@@ -50,33 +50,47 @@ end)
 
 describe('format_message', function()
   local original_delta_context
+  local original_get_context
+  local mock_context
+
   before_each(function()
-    context.context.current_file = nil
-    context.context.mentioned_files = nil
-    context.context.mentioned_subagents = nil
-    context.context.selections = nil
-    context.context.linter_errors = nil
-    context.context.cursor_data = nil
+    mock_context = {
+      current_file = nil,
+      mentioned_files = nil,
+      mentioned_subagents = nil,
+      selections = nil,
+      linter_errors = nil,
+      cursor_data = nil,
+    }
+    
     original_delta_context = context.delta_context
+    original_get_context = context.get_context
+    
+    context.get_context = function()
+      return mock_context
+    end
+    
     context.delta_context = function()
-      return context.context
+      return context.get_context()
     end
   end)
 
   after_each(function()
     context.delta_context = original_delta_context
+    context.get_context = original_get_context
   end)
 
   it('returns a parts array with prompt as first part', function()
-    local parts = context.format_message('hello world')
+    local parts = context.format_message('hello world'):wait()
     assert.is_table(parts)
     assert.equal('hello world', parts[1].text)
     assert.equal('text', parts[1].type)
   end)
   it('includes mentioned_files and subagents', function()
-    context.context.mentioned_files = { '/tmp/foo.lua' }
-    context.context.mentioned_subagents = { 'agent1' }
-    local parts = context.format_message('prompt @foo.lua @agent1')
+    local ChatContext = require('opencode.context.chat_context')
+    ChatContext.context.mentioned_files = { '/tmp/foo.lua' }
+    ChatContext.context.mentioned_subagents = { 'agent1' }
+    local parts = context.format_message('prompt @foo.lua @agent1'):wait()
     assert.is_true(#parts > 2)
     local found_file, found_agent = false, false
     for _, p in ipairs(parts) do
@@ -93,16 +107,38 @@ describe('format_message', function()
 end)
 
 describe('delta_context', function()
+  local mock_context
+  local original_get_context
+
+  before_each(function()
+    mock_context = {
+      current_file = nil,
+      mentioned_files = nil,
+      mentioned_subagents = nil,
+      selections = nil,
+      linter_errors = nil,
+      cursor_data = nil,
+    }
+    
+    original_get_context = context.get_context
+    context.get_context = function()
+      return mock_context
+    end
+  end)
+
+  after_each(function()
+    context.get_context = original_get_context
+  end)
   it('removes current_file if unchanged', function()
     local file = { name = 'foo.lua', path = '/tmp/foo.lua', extension = 'lua' }
-    context.context.current_file = vim.deepcopy(file)
-    state.last_sent_context = { current_file = context.context.current_file }
+    mock_context.current_file = vim.deepcopy(file)
+    state.last_sent_context = { current_file = mock_context.current_file }
     local result = context.delta_context()
     assert.is_nil(result.current_file)
   end)
   it('removes mentioned_subagents if unchanged', function()
     local subagents = { 'a' }
-    context.context.mentioned_subagents = vim.deepcopy(subagents)
+    mock_context.mentioned_subagents = vim.deepcopy(subagents)
     state.last_sent_context = { mentioned_subagents = vim.deepcopy(subagents) }
     local result = context.delta_context()
     assert.is_nil(result.mentioned_subagents)
@@ -110,11 +146,26 @@ describe('delta_context', function()
 end)
 
 describe('add_file/add_selection/add_subagent', function()
+  local ChatContext = require('opencode.context.chat_context')
+  local original_context
+
   before_each(function()
-    context.context.mentioned_files = nil
-    context.context.selections = nil
+    -- Store original context
+    original_context = vim.deepcopy(ChatContext.context)
+    
+    -- Reset to clean state
+    ChatContext.context.mentioned_files = {}
+    ChatContext.context.selections = {}
+    ChatContext.context.mentioned_subagents = {}
+    
     context.delta_context()
-    context.context.mentioned_subagents = nil
+  end)
+
+  after_each(function()
+    -- Restore original context
+    for k, v in pairs(original_context) do
+      ChatContext.context[k] = v
+    end
   end)
   it('adds a file if filereadable', function()
     vim.fn.filereadable = function()
@@ -127,7 +178,7 @@ describe('add_file/add_selection/add_subagent', function()
     end
 
     context.add_file('/tmp/foo.lua')
-    assert.same({ '/tmp/foo.lua' }, context.context.mentioned_files)
+    assert.same({ '/tmp/foo.lua' }, context.get_context().mentioned_files)
 
     util.is_path_in_cwd = original_is_path_in_cwd
   end)
@@ -136,14 +187,322 @@ describe('add_file/add_selection/add_subagent', function()
       return 0
     end
     context.add_file('/tmp/bar.lua')
-    assert.same({}, context.context.mentioned_files)
+    assert.same({}, context.get_context().mentioned_files)
   end)
   it('adds a selection', function()
     context.add_selection({ foo = 'bar' })
-    assert.same({ { foo = 'bar' } }, context.context.selections)
+    assert.same({ { foo = 'bar' } }, context.get_context().selections)
   end)
   it('adds a subagent', function()
     context.add_subagent('agentX')
-    assert.same({ 'agentX' }, context.context.mentioned_subagents)
+    assert.same({ 'agentX' }, context.get_context().mentioned_subagents)
+  end)
+end)
+
+describe('context static API with config override', function()
+  it('should use override config for context enabled checks', function()
+    local override_config = {
+      current_file = { enabled = false },
+      diagnostics = { enabled = false },
+      selection = { enabled = true },
+      agents = { enabled = true },
+    }
+
+    -- Test using static API with config parameter
+    assert.is_false(context.is_context_enabled('current_file', override_config))
+    assert.is_false(context.is_context_enabled('diagnostics', override_config))
+    assert.is_true(context.is_context_enabled('selection', override_config))
+    assert.is_true(context.is_context_enabled('agents', override_config))
+  end)
+
+  it('should fall back to global config when override not provided', function()
+    local override_config = {
+      current_file = { enabled = false },
+      -- other context types not specified
+    }
+
+    -- Test using static API with partial config
+    assert.is_false(context.is_context_enabled('current_file', override_config))
+
+    -- other context types should fall back to normal behavior
+    -- (these will use global config + state, tested elsewhere)
+  end)
+
+  it('should work without any override config', function()
+    -- Should behave exactly like global context using static API
+    assert.is_not_nil(context.is_context_enabled('current_file'))
+    assert.is_not_nil(context.is_context_enabled('diagnostics'))
+  end)
+end)
+
+describe('get_diagnostics with chat context selections', function()
+  local ChatContext
+  
+  before_each(function()
+    ChatContext = require('opencode.context.chat_context')
+    -- Reset chat context
+    ChatContext.context = {
+      mentioned_files = {},
+      selections = {},
+      mentioned_subagents = {},
+      current_file = nil,
+      cursor_data = nil,
+      linter_errors = nil,
+    }
+  end)
+
+  it('should use chat context selection range when no explicit range provided', function()
+    -- Add a mock selection to chat context
+    local mock_selection = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("hello")',
+      lines = '5, 8'  -- Lines 5 to 8 (1-based)
+    }
+    ChatContext.add_selection(mock_selection)
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      return {}
+    end
+
+    -- Call get_diagnostics without an explicit range
+    ChatContext.get_diagnostics(1, nil, nil)
+
+    -- Verify that a list of ranges was passed to base_context
+    assert.is_not_nil(captured_range)
+    assert.equal('table', type(captured_range))
+    assert.equal(1, #captured_range)  -- Should have one range in the list
+    assert.equal(4, captured_range[1].start_line)  -- 5 - 1 (0-based)
+    assert.equal(7, captured_range[1].end_line)    -- 8 - 1 (0-based)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should prioritize explicit range over chat context selections', function()
+    -- Add a mock selection to chat context
+    local mock_selection = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("hello")',
+      lines = '5, 8'
+    }
+    ChatContext.add_selection(mock_selection)
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      return {}
+    end
+
+    -- Call get_diagnostics with an explicit range
+    local explicit_range = { start_line = 10, end_line = 15 }
+    ChatContext.get_diagnostics(1, nil, explicit_range)
+
+    -- Verify that the explicit range was used, not the selection range
+    assert.is_not_nil(captured_range)
+    assert.equal(10, captured_range.start_line)
+    assert.equal(15, captured_range.end_line)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should handle dash-separated line format in selections', function()
+    -- Add a mock selection with dash format (used by range-based selections)
+    local mock_selection = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("hello")',
+      lines = '3-7'  -- Lines 3 to 7 with dash separator
+    }
+    ChatContext.add_selection(mock_selection)
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      return {}
+    end
+
+    -- Call get_diagnostics without an explicit range
+    ChatContext.get_diagnostics(1, nil, nil)
+
+    -- Verify that a list of ranges was passed and parsed correctly from dash format
+    assert.is_not_nil(captured_range)
+    assert.equal('table', type(captured_range))
+    assert.equal(1, #captured_range)  -- Should have one range in the list
+    assert.equal(2, captured_range[1].start_line)  -- 3 - 1 (0-based)
+    assert.equal(6, captured_range[1].end_line)    -- 7 - 1 (0-based)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should fallback to cursor behavior when no selections exist', function()
+    -- Ensure no selections in chat context
+    ChatContext.clear_selections()
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      return {}
+    end
+
+    -- Call get_diagnostics without an explicit range
+    ChatContext.get_diagnostics(1, nil, nil)
+
+    -- Verify that no range was passed (should fallback to cursor behavior)
+    assert.is_nil(captured_range)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should collect diagnostics from all selection ranges individually', function()
+    -- Add multiple selections to chat context
+    local selection1 = {
+      file = { path = '/tmp/test1.lua', name = 'test1.lua', extension = 'lua' },
+      content = 'print("first")',
+      lines = '3, 5'
+    }
+    local selection2 = {
+      file = { path = '/tmp/test2.lua', name = 'test2.lua', extension = 'lua' },
+      content = 'print("second")',
+      lines = '10, 12'
+    }
+    local selection3 = {
+      file = { path = '/tmp/test3.lua', name = 'test3.lua', extension = 'lua' },
+      content = 'print("third")',
+      lines = '7, 8'
+    }
+    ChatContext.add_selection(selection1)
+    ChatContext.add_selection(selection2)
+    ChatContext.add_selection(selection3)
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      -- Return mock diagnostics for all ranges
+      if range and type(range) == 'table' and range[1] then
+        local result = {}
+        for i, r in ipairs(range) do
+          table.insert(result, {
+            lnum = r.start_line,
+            col = 0,
+            message = 'Mock diagnostic for range ' .. r.start_line .. '-' .. r.end_line,
+            severity = 1
+          })
+        end
+        return result
+      end
+      return {}
+    end
+
+    -- Call get_diagnostics without an explicit range
+    local result = ChatContext.get_diagnostics(1, nil, nil)
+
+    -- Verify that a single range list was passed containing all selections
+    assert.is_not_nil(captured_range)
+    assert.equal('table', type(captured_range))
+    assert.equal(3, #captured_range)  -- Should have three ranges in the list
+    
+    -- Check each range matches the selections
+    assert.equal(2, captured_range[1].start_line)   -- 3 - 1 (0-based)
+    assert.equal(4, captured_range[1].end_line)     -- 5 - 1 (0-based)
+    
+    assert.equal(9, captured_range[2].start_line)   -- 10 - 1 (0-based)
+    assert.equal(11, captured_range[2].end_line)    -- 12 - 1 (0-based)
+    
+    assert.equal(6, captured_range[3].start_line)   -- 7 - 1 (0-based)
+    assert.equal(7, captured_range[3].end_line)     -- 8 - 1 (0-based)
+    
+    -- Verify that all diagnostics from all ranges are combined in the result
+    assert.equal(3, #result)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should handle mixed line formats in multiple selection ranges', function()
+    -- Add selections with different line formats
+    local selection1 = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("first")',
+      lines = '15-17'  -- Dash format
+    }
+    local selection2 = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("second")',
+      lines = '2, 4'   -- Comma format
+    }
+    local selection3 = {
+      file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
+      content = 'print("third")',
+      lines = '20'     -- Single line
+    }
+    
+    ChatContext.add_selection(selection1)
+    ChatContext.add_selection(selection2)
+    ChatContext.add_selection(selection3)
+
+    -- Mock the BaseContext.get_diagnostics to capture the range parameter
+    local BaseContext = require('opencode.context.base_context')
+    local captured_range = nil
+    local original_get_diagnostics = BaseContext.get_diagnostics
+    BaseContext.get_diagnostics = function(buf, context_config, range)
+      captured_range = range
+      -- Return mock diagnostics for all ranges
+      if range and type(range) == 'table' and range[1] then
+        local result = {}
+        for i, r in ipairs(range) do
+          table.insert(result, {
+            lnum = r.start_line,
+            col = 0,
+            message = 'Mock diagnostic',
+            severity = 1
+          })
+        end
+        return result
+      end
+      return {}
+    end
+
+    -- Call get_diagnostics without an explicit range
+    local result = ChatContext.get_diagnostics(1, nil, nil)
+
+    -- Verify that a single range list was passed containing all selections
+    assert.is_not_nil(captured_range)
+    assert.equal('table', type(captured_range))
+    assert.equal(3, #captured_range)  -- Should have three ranges in the list
+    
+    -- Check ranges for different line formats
+    assert.equal(14, captured_range[1].start_line)  -- 15 - 1 (0-based)
+    assert.equal(16, captured_range[1].end_line)    -- 17 - 1 (0-based)
+    
+    assert.equal(1, captured_range[2].start_line)   -- 2 - 1 (0-based)
+    assert.equal(3, captured_range[2].end_line)     -- 4 - 1 (0-based)
+    
+    assert.equal(19, captured_range[3].start_line)  -- 20 - 1 (0-based, single line)
+    assert.equal(19, captured_range[3].end_line)    -- 20 - 1 (0-based, single line)
+    
+    -- Verify that all diagnostics from all ranges are combined in the result
+    assert.equal(3, #result)
+
+    -- Restore original function
+    BaseContext.get_diagnostics = original_get_diagnostics
   end)
 end)

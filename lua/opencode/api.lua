@@ -3,6 +3,7 @@ local util = require('opencode.util')
 local session = require('opencode.session')
 local config_file = require('opencode.config_file')
 local state = require('opencode.state')
+local quick_chat = require('opencode.quick_chat')
 
 local input_window = require('opencode.ui.input_window')
 local ui = require('opencode.ui.ui')
@@ -59,6 +60,8 @@ M.toggle = Promise.async(function(new_session)
   end
 end)
 
+---@param new_session boolean?
+---@return nil
 function M.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
     local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
@@ -105,6 +108,39 @@ end
 
 function M.select_history()
   require('opencode.ui.history_picker').pick()
+end
+
+function M.quick_chat(message, range)
+  if not range then
+    if vim.fn.mode():match('[vV\022]') then
+      local visual_range = util.get_visual_range()
+      if visual_range then
+        range = {
+          start = visual_range.start_line,
+          stop = visual_range.end_line,
+        }
+      end
+    end
+  end
+
+  if type(message) == 'table' then
+    message = table.concat(message, ' ')
+  end
+
+  if not message or #message == 0 then
+    local scope = range and ('[selection: ' .. range.start .. '-' .. range.stop .. ']')
+      or '[line: ' .. tostring(vim.api.nvim_win_get_cursor(0)[1]) .. ']'
+    vim.ui.input({ prompt = 'Quick Chat Message: ' .. scope, win = { relative = 'cursor' } }, function(input)
+      if input and input ~= '' then
+        local prompt, ctx = util.parse_quick_context_args(input)
+        quick_chat.quick_chat(prompt, { context_config = ctx }, range)
+      end
+    end)
+    return
+  end
+
+  local prompt, ctx = util.parse_quick_context_args(message)
+  quick_chat.quick_chat(prompt, { context_config = ctx }, range)
 end
 
 function M.toggle_pane()
@@ -970,6 +1006,14 @@ M.commands = {
     fn = M.toggle_zoom,
   },
 
+  quick_chat = {
+    desc = 'Quick chat with current buffer or visual selection',
+    fn = M.quick_chat,
+    range = true, -- Enable range support for visual selections
+    nargs = '+', -- Allow multiple arguments
+    complete = false, -- No completion for custom messages
+  },
+
   swap = {
     desc = 'Swap pane position left/right',
     fn = M.swap_position,
@@ -1011,7 +1055,7 @@ M.commands = {
         local title = table.concat(vim.list_slice(args, 2), ' ')
         M.rename_session(state.active_session, title)
       else
-        local valid_subcmds = table.concat(M.commands.session.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.session.completions or {}, ', ')
         vim.notify('Invalid session subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1041,7 +1085,7 @@ M.commands = {
       elseif subcmd == 'close' then
         M.diff_close()
       else
-        local valid_subcmds = table.concat(M.commands.diff.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.diff.completions or {}, ', ')
         vim.notify('Invalid diff subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1120,7 +1164,7 @@ M.commands = {
       elseif subcmd == 'select' then
         M.select_agent()
       else
-        local valid_subcmds = table.concat(M.commands.agent.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.agent.completions or {}, ', ')
         vim.notify('Invalid agent subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1208,7 +1252,7 @@ M.commands = {
       elseif subcmd == 'deny' then
         M.permission_deny()
       else
-        local valid_subcmds = table.concat(M.commands.permission.completions, ', ')
+        local valid_subcmds = table.concat(M.commands.permission.completions or {}, ', ')
         vim.notify('Invalid permission subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)
       end
     end,
@@ -1309,6 +1353,14 @@ M.legacy_command_map = {
 
 function M.route_command(opts)
   local args = vim.split(opts.args or '', '%s+', { trimempty = true })
+  local range = nil
+
+  if opts.range and opts.range > 0 then
+    range = {
+      start = opts.line1,
+      stop = opts.line2,
+    }
+  end
 
   if #args == 0 then
     M.toggle()
@@ -1319,7 +1371,7 @@ function M.route_command(opts)
   local subcmd_def = M.commands[subcommand]
 
   if subcmd_def and subcmd_def.fn then
-    subcmd_def.fn(vim.list_slice(args, 2))
+    subcmd_def.fn(vim.list_slice(args, 2), range)
   else
     vim.notify('Unknown subcommand: ' .. subcommand, vim.log.levels.ERROR)
   end
@@ -1413,6 +1465,7 @@ function M.setup()
   vim.api.nvim_create_user_command('Opencode', M.route_command, {
     desc = 'Opencode.nvim main command with nested subcommands',
     nargs = '*',
+    range = true, -- Enable range support
     complete = M.complete_command,
   })
 

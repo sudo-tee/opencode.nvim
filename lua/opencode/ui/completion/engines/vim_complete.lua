@@ -1,24 +1,59 @@
 local Promise = require('opencode.promise')
-local M = {}
+local CompletionEngine = require('opencode.ui.completion.engines.base')
+
+---@class VimCompleteEngine : CompletionEngine
+local VimCompleteEngine = setmetatable({}, { __index = CompletionEngine })
+VimCompleteEngine.__index = VimCompleteEngine
 
 local completion_active = false
 
-function M.setup(completion_sources)
+---Create a new vim completion engine
+---@return VimCompleteEngine
+function VimCompleteEngine.new()
+  local self = CompletionEngine.new('vim_complete')
+  return setmetatable(self, VimCompleteEngine)
+end
+
+---Setup vim completion engine
+---@param completion_sources table[]
+---@return boolean
+function VimCompleteEngine:setup(completion_sources)
+  -- Call parent setup
+  CompletionEngine.setup(self, completion_sources)
+
   vim.api.nvim_create_autocmd('FileType', {
     pattern = 'opencode',
     callback = function(args)
       local buf = args.buf
-      vim.api.nvim_create_autocmd('TextChangedI', { buffer = buf, callback = M._update })
-      vim.api.nvim_create_autocmd('CompleteDone', { buffer = buf, callback = M.on_complete })
+      vim.api.nvim_create_autocmd('TextChangedI', { buffer = buf, callback = function() self:_update() end })
+      vim.api.nvim_create_autocmd('CompleteDone', { buffer = buf, callback = function() self:_on_complete_done() end })
     end,
   })
-
-  M._completion_sources = completion_sources
 
   return true
 end
 
-function M._fake_feed_key(trigger_char)
+---Trigger completion manually for vim
+---@param trigger_char string
+function VimCompleteEngine:trigger(trigger_char)
+  self:_fake_feed_key(trigger_char)
+
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+  local before_cursor = line:sub(1, col)
+  local _, trigger_match = self:parse_trigger(before_cursor)
+
+  if not trigger_match then
+    return
+  end
+
+  completion_active = true
+  self:_update()
+end
+
+---Insert trigger character at cursor position
+---@param trigger_char string
+function VimCompleteEngine:_fake_feed_key(trigger_char)
   local cursor_pos = vim.api.nvim_win_get_cursor(0)
   local row = cursor_pos[1] - 1
   local col = cursor_pos[2]
@@ -27,38 +62,8 @@ function M._fake_feed_key(trigger_char)
   vim.api.nvim_win_set_cursor(0, { row + 1, col + 1 })
 end
 
-function M._get_trigger(before_cursor)
-  local config = require('opencode.config')
-  local mention_key = config.get_key_for_function('input_window', 'mention')
-  local slash_key = config.get_key_for_function('input_window', 'slash_commands')
-  local context_key = config.get_key_for_function('input_window', 'context_items')
-  local triggers = {
-    slash_key or '',
-    mention_key or '',
-    context_key or '',
-  }
-  local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
-  local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
-  return trigger_char, trigger_match
-end
-
-function M.trigger(trigger_char)
-  M._fake_feed_key(trigger_char)
-
-  local line = vim.api.nvim_get_current_line()
-  local col = vim.api.nvim_win_get_cursor(0)[2]
-  local before_cursor = line:sub(1, col)
-  local _, trigger_match = M._get_trigger(before_cursor)
-
-  if not trigger_match then
-    return
-  end
-
-  completion_active = true
-  M._update()
-end
-
-function M._update()
+---Update completion items based on current cursor position
+function VimCompleteEngine:_update()
   Promise.spawn(function()
     if not completion_active then
       return
@@ -67,7 +72,7 @@ function M._update()
     local line = vim.api.nvim_get_current_line()
     local col = vim.api.nvim_win_get_cursor(0)[2]
     local before_cursor = line:sub(1, col)
-    local trigger_char, trigger_match = M._get_trigger(before_cursor)
+    local trigger_char, trigger_match = self:parse_trigger(before_cursor)
 
     if not trigger_char then
       completion_active = false
@@ -81,24 +86,32 @@ function M._update()
       trigger_char = trigger_char,
     }
 
+    local wrapped_items = self:get_completion_items(context):await()
     local items = {}
-    for _, source in ipairs(M._completion_sources or {}) do
-      local source_items = source.complete(context):await()
-      for i, item in ipairs(source_items) do
-        if vim.startswith(item.insert_text or '', trigger_char) then
-          item.insert_text = item.insert_text:sub(2)
-        end
-        local source_priority = source.priority or 999
-        local item_priority = item.priority or 999
-        table.insert(items, {
-          word = #item.insert_text > 0 and item.insert_text or item.label,
-          abbr = (item.kind_icon or '') .. item.label,
-          menu = source.name,
-          kind = item.kind:sub(1, 1):upper(),
-          user_data = item,
-          _sort_text = string.format('%02d_%02d_%02d_%s', source_priority, item_priority, i, item.label),
-        })
+    
+    for _, wrapped_item in ipairs(wrapped_items) do
+      local item = wrapped_item.original_item
+      local insert_text = item.insert_text or ''
+      
+      -- Remove trigger character if it's part of the insert text
+      if vim.startswith(insert_text, trigger_char) then
+        insert_text = insert_text:sub(2)
       end
+      
+      table.insert(items, {
+        word = #insert_text > 0 and insert_text or item.label,
+        abbr = (item.kind_icon or '') .. item.label,
+        menu = wrapped_item.source_name,
+        kind = item.kind:sub(1, 1):upper(),
+        user_data = item,
+        _sort_text = string.format(
+          '%02d_%02d_%02d_%s', 
+          wrapped_item.source_priority, 
+          wrapped_item.item_priority, 
+          wrapped_item.index, 
+          item.label
+        ),
+      })
     end
 
     table.sort(items, function(a, b)
@@ -116,13 +129,13 @@ function M._update()
   end)
 end
 
-M.on_complete = function()
+---Handle completion selection
+function VimCompleteEngine:_on_complete_done()
   local completed_item = vim.v.completed_item
   if completed_item and completed_item.word and completed_item.user_data then
     completion_active = false
-    local completion = require('opencode.ui.completion')
-    completion.on_complete(completed_item.user_data)
+    self:on_complete(completed_item.user_data)
   end
 end
 
-return M
+return VimCompleteEngine

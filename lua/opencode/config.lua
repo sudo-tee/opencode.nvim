@@ -135,6 +135,9 @@ M.defaults = {
         wrap = false,
       },
     },
+    picker = {
+      snacks_layout = nil,
+    },
     completion = {
       file_sources = {
         enabled = true,

@@ -10,7 +10,7 @@
   <img src="https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg" alt="Opencode logo" width="30%" />
 </div>
 
-### Quick buffer chat (<leader>o/) EXPERIMENTAL:
+### Quick buffer chat (<leader>o/) EXPERIMENTAL
 
 This is an experimental feature that allows you to chat with the AI using the current buffer context. In visual mode, it captures the selected text as context, while in normal mode, it uses the current line. The AI will respond with quick edits to the files that are applied by the plugin.
 
@@ -219,6 +219,9 @@ require('opencode').setup({
         wrap = false, -- Wraps text inside input window
       },
     },
+    picker = {
+      snacks_layout = nil -- `layout` opts to pass to Snacks.picker.pick({ layout = ... })
+    },
     completion = {
       file_sources = {
         enabled = true,
@@ -371,6 +374,61 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 - status_on, status_off
 - border, bullet
 
+### Picker Layout
+
+You can customize the layout of the picker used for history, session, references, and timeline
+
+#### Snacks Picker Layout
+
+There's 3 main ways on how to change the snacks picker layout
+
+1. Don't specify the new options -> it'll just default to the user's snack picker layout preset from their snacks config
+2. Specify the new options for opencode, e.g.
+
+   ```lua
+   require("opencode").setup({
+     ui = {
+       picker = {
+        ---@module "snacks"
+        ---@type snacks.picker.layout.Config | nil
+         snacks_layout = {
+           layout = { border = "none", box = "vertical", ... }
+         },
+       },
+     },
+   })
+   ```
+
+3. Specify a [builtin layout preset](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md#%EF%B8%8F-layouts) for snacks picker OR a custom layout defined in your snacks config's `opts.picker.layouts`
+
+   ```lua
+   -- opencode.lua
+   require("opencode").setup({
+     ui = {
+       picker = {
+        ---@module "snacks"
+        ---@type snacks.picker.layout.Config | nil
+         snacks_layout = {
+           preset = "custom_layout" -- or builtin snacks, like "select", "default", etc
+         },
+       },
+     },
+   })
+   ```
+
+   ```lua
+   -- snacks.lua
+   {
+     "folke/snacks.nvim",
+     opts = {
+       picker = {
+         layouts = {
+           custom_layout  = {
+             layout = { border = "none", box = "vertical", ... }
+             -- ...
+   }
+   ```
+
 ## 🧰 Usage
 
 ### Available Actions
@@ -458,7 +516,7 @@ Run a prompt in a new session using the Plan agent and disabling current file co
 :Opencode run "Fix the bug in the current file" model=github-copilot/claude-sonned-4
 ```
 
-##👮 Permissions
+## 👮 Permissions
 
 Opencode can issue permission requests for potentially destructive operations (file edits, reverting files, running shell commands, or enabling persistent tool access). Permission requests appear inline in the output and must be responded to before the agent performs the action. Visit [Opencode Permissions Documentation](https://opencode.ai/docs/permissions/) for more details.
 

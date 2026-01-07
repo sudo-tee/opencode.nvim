@@ -1025,9 +1025,9 @@ M.commands = {
   quick_chat = {
     desc = 'Quick chat with current buffer or visual selection',
     fn = M.quick_chat,
-    range = true,
-    nargs = '+',
-    complete = false,
+    range = true, -- Enable range support for visual selections
+    nargs = '+', -- Allow multiple arguments
+    complete = false, -- No completion for custom messages
   },
 
   swap = {

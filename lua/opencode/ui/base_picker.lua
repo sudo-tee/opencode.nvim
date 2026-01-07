@@ -396,15 +396,13 @@ local function snacks_picker_ui(opts)
   local title = type(opts.title) == 'function' and opts.title() or opts.title
   ---@cast title string
 
-  local layout_opts = opts.layout_opts and opts.layout_opts.snacks_layout or {}
+  local layout_opts = opts.layout_opts and opts.layout_opts.snacks_layout or nil
 
   ---@type snacks.picker.Config
   local snack_opts = {
     title = title,
-    layout = {
-      preset = layout_opts.preset,
+    layout = layout_opts or {
       config = function(layout)
-        vim.tbl_deep_extend('force', layout.layout, layout_opts.layout or {})
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
         if not has_preview then
           layout.layout.width = width

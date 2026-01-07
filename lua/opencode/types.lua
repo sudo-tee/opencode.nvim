@@ -134,6 +134,7 @@
 ---@field input { text: { wrap: boolean } }
 ---@field completion OpencodeCompletionConfig
 ---@field highlights? OpencodeHighlightConfig
+---@field picker OpencodeUIPickerConfig
 
 ---@class OpencodeHighlightConfig
 ---@field vertical_borders? { tool?: { fg?: string, bg?: string }, user?: { fg?: string, bg?: string }, assistant?: { fg?: string, bg?: string } }
@@ -148,6 +149,10 @@
 ---@field tools { show_output: boolean, show_reasoning_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field always_scroll_to_bottom boolean
+
+---@class OpencodeUIPickerConfig
+---@field snacks_layout? snacks.picker.layout.Config
+--- TODO: add more picker-specific presets
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
@@ -506,13 +511,3 @@
 ---@field messages number Number of messages reverted
 ---@field tool_calls number Number of tool calls reverted
 ---@field files table<string, {additions: number, deletions: number}> Summary of file changes reverted
-
----@class CodeReference
----@field file_path string Relative or absolute file path
----@field line number|nil Line number (1-indexed)
----@field column number|nil Column number (optional)
----@field message_id string ID of the message containing this reference
----@field match_start number Start position of match in original text
----@field match_end number End position of match in original text
----@field file string Absolute file path (for Snacks picker preview)
----@field pos number[]|nil Position as {line, col} for Snacks picker preview

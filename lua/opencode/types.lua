@@ -86,6 +86,7 @@
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
 ---@field history_picker OpencodeHistoryPickerKeymap
+---@field quick_chat OpencodeQuickChatKeymap
 
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
@@ -99,6 +100,9 @@
 ---@class OpencodeHistoryPickerKeymap
 ---@field delete_entry OpencodeKeymapEntry
 ---@field clear_all OpencodeKeymapEntry
+
+---@class OpencodeQuickChatKeymap
+---@field cancel OpencodeKeymapEntry
 
 ---@class OpencodeCompletionFileSourcesConfig
 ---@field enabled boolean
@@ -147,16 +151,19 @@
 
 ---@class OpencodeContextConfig
 ---@field enabled boolean
----@field cursor_data { enabled: boolean }
----@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean }
+---@field cursor_data { enabled: boolean, context_lines?: number }
+---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean, only_closest: boolean}
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
 ---@field agents { enabled: boolean }
+---@field buffer { enabled: boolean }
+---@field git_diff { enabled: boolean }
 
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 ---@field capture_streamed_events boolean
 ---@field show_ids boolean
+---@field quick_chat {keep_session: boolean, set_active_session: boolean}
 
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
@@ -173,6 +180,11 @@
 ---@field setup fun(opts?: OpencodeConfig): nil
 ---@field get_key_for_function fun(scope: 'editor'|'input_window'|'output_window', function_name: string): string|nil
 
+---@class OpencodeQuickChatConfig
+---@field default_model? string -- Use current model if nil
+---@field default_agent? string -- Use current mode if nil
+---@field instructions? string[] -- Custom instructions for quick chat
+
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
 ---@field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
@@ -186,6 +198,7 @@
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
 ---@field hooks OpencodeHooks
 ---@field legacy_commands boolean
+---@field quick_chat OpencodeQuickChatConfig
 
 ---@class MessagePartState
 ---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput Input data for the tool
@@ -290,6 +303,7 @@
 ---@field info MessageInfo Metadata about the message
 ---@field parts OpencodeMessagePart[] Parts that make up the message
 ---@field references CodeReference[]|nil Parsed file references from text parts (cached)
+---@field system string|nil System message content
 
 ---@class MessageInfo
 ---@field id string Unique message identifier
@@ -369,11 +383,14 @@
 ---@field line number
 ---@field column number
 ---@field line_content string
+---@field lines_before string[]
+---@field lines_after string[]
 
 ---@class OpencodeContextFile
 ---@field path string
 ---@field name string
 ---@field extension string
+---@field sent_at? number
 
 ---@class OpencodeMessagePartSourceText
 ---@field start number

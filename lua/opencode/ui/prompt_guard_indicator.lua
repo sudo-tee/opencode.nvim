@@ -9,7 +9,7 @@ local context = require('opencode.context')
 ---@return boolean allowed
 ---@return string|nil error_message
 function M.get_status()
-  local mentioned_files = context.context.mentioned_files or {}
+  local mentioned_files = context.get_context().mentioned_files or {}
   return util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 end
 

@@ -7,6 +7,14 @@ local function get_lock_file_path()
   return vim.fs.joinpath(tmpdir --[[@as string]], 'opencode-server.lock')
 end
 
+--- Ensure the cache directory exists (needed for CI environments)
+local function ensure_cache_dir()
+  local cache_dir = vim.fn.stdpath('cache')
+  if cache_dir and vim.fn.isdirectory(cache_dir) == 0 then
+    vim.fn.mkdir(cache_dir, 'p')
+  end
+end
+
 --- Helper to write a lock file directly for testing
 --- @param url string
 --- @param clients number[]
@@ -69,6 +77,7 @@ describe('opencode.opencode_server', function()
   before_each(function()
     original_system = vim.system
     original_uv_kill = vim.uv.kill
+    ensure_cache_dir()
     remove_test_lock_file()
   end)
   after_each(function()

@@ -78,6 +78,11 @@ end
 --- @param data LockFileData
 local function write_lock_file(data)
   local lock_path = get_lock_file_path()
+  -- Ensure cache directory exists
+  local cache_dir = vim.fn.stdpath('cache')
+  if cache_dir and vim.fn.isdirectory(cache_dir) == 0 then
+    vim.fn.mkdir(cache_dir, 'p')
+  end
   local f = io.open(lock_path, 'w')
   if not f then
     return

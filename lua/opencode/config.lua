@@ -197,6 +197,9 @@ M.defaults = {
     capture_streamed_events = false,
     show_ids = true,
   },
+  server = {
+    port = 41096, -- Default high port for opencode server
+  },
   prompt_guard = nil,
   hooks = {
     on_file_edited = nil,

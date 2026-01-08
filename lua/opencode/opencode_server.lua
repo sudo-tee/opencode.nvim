@@ -15,66 +15,12 @@ OpencodeServer.__index = OpencodeServer
 
 local current_pid = vim.fn.getpid()
 
-local FLOCK_TIMEOUT_MS = 5000
-local FLOCK_RETRY_INTERVAL_MS = 50
+local DEFAULT_PORT = 41096
 
 --- @return string
 local function get_lock_file_path()
   local tmpdir = vim.fn.stdpath('cache')
   return vim.fs.joinpath(tmpdir --[[@as string]], 'opencode-server.lock')
-end
-
---- @return string
-local function get_flock_path()
-  return get_lock_file_path() .. '.flock'
-end
-
---- @return boolean acquired
-local function acquire_file_lock()
-  local flock_path = get_flock_path()
-  local start_time = vim.uv.now()
-
-  while (vim.uv.now() - start_time) < FLOCK_TIMEOUT_MS do
-    local fd = vim.uv.fs_open(flock_path, 'wx', 384)
-    if fd then
-      vim.uv.fs_write(fd, tostring(current_pid))
-      vim.uv.fs_close(fd)
-      return true
-    end
-
-    local stat = vim.uv.fs_stat(flock_path)
-    if stat then
-      local age_ms = (vim.uv.now() - stat.mtime.sec * 1000)
-      if age_ms > FLOCK_TIMEOUT_MS then
-        os.remove(flock_path)
-      end
-    end
-
-    vim.wait(FLOCK_RETRY_INTERVAL_MS, function()
-      return false
-    end)
-  end
-
-  return false
-end
-
-local function release_file_lock()
-  local flock_path = get_flock_path()
-  os.remove(flock_path)
-end
-
---- @param fn function
---- @return any
-local function with_file_lock(fn)
-  if not acquire_file_lock() then
-    return nil
-  end
-  local ok, result = pcall(fn)
-  release_file_lock()
-  if not ok then
-    error(result)
-  end
-  return result
 end
 
 --- @param pid number
@@ -171,60 +117,52 @@ end
 --- @param url string
 --- @param server_pid number
 local function create_lock_file(url, server_pid)
-  with_file_lock(function()
-    write_lock_file({
-      url = url,
-      clients = { current_pid },
-      server_pid = server_pid,
-    })
-  end)
+  write_lock_file({
+    url = url,
+    clients = { current_pid },
+    server_pid = server_pid,
+  })
 end
 
 --- @return boolean success
 local function register_client()
-  local result = with_file_lock(function()
-    local data = read_lock_file()
-    if not data then
-      return false
-    end
+  local data = read_lock_file()
+  if not data then
+    return false
+  end
 
-    data = cleanup_dead_pids(data)
+  data = cleanup_dead_pids(data)
 
-    local already_registered = vim.tbl_contains(data.clients, current_pid)
-    if not already_registered then
-      table.insert(data.clients, current_pid)
-    end
+  local already_registered = vim.tbl_contains(data.clients, current_pid)
+  if not already_registered then
+    table.insert(data.clients, current_pid)
+  end
 
-    write_lock_file(data)
-    return true
-  end)
-  return result or false
+  write_lock_file(data)
+  return true
 end
 
 --- @return number|nil server_pid_to_kill
 local function unregister_client()
-  local result = with_file_lock(function()
-    local data = read_lock_file()
-    if not data then
-      return nil
-    end
-
-    data = cleanup_dead_pids(data)
-
-    data.clients = vim.tbl_filter(function(pid)
-      return pid ~= current_pid
-    end, data.clients)
-
-    if #data.clients == 0 then
-      local server_pid = data.server_pid
-      remove_lock_file()
-      return server_pid
-    end
-
-    write_lock_file(data)
+  local data = read_lock_file()
+  if not data then
     return nil
-  end)
-  return result
+  end
+
+  data = cleanup_dead_pids(data)
+
+  data.clients = vim.tbl_filter(function(pid)
+    return pid ~= current_pid
+  end, data.clients)
+
+  if #data.clients == 0 then
+    local server_pid = data.server_pid
+    remove_lock_file()
+    return server_pid
+  end
+
+  write_lock_file(data)
+  return nil
 end
 
 --- @return OpencodeServer
@@ -234,7 +172,8 @@ function OpencodeServer.new()
     callback = function()
       local state = require('opencode.state')
       if state.opencode_server then
-        state.opencode_server:shutdown()
+        -- Block and wait for shutdown to complete (max 5 seconds)
+        state.opencode_server:shutdown():wait(5000)
       end
     end,
   })
@@ -251,26 +190,20 @@ end
 
 --- @return string|nil url Returns the server URL if an existing server is available
 function OpencodeServer.try_existing_server()
-  local server_url = with_file_lock(function()
-    local data = read_lock_file()
-    if not data then
-      return nil
-    end
-
-    data = cleanup_dead_pids(data)
-
-    if #data.clients == 0 then
-      remove_lock_file()
-      return nil
-    end
-
-    write_lock_file(data)
-    return data.url
-  end)
-
-  if not server_url then
+  local data = read_lock_file()
+  if not data then
     return nil
   end
+
+  data = cleanup_dead_pids(data)
+
+  if #data.clients == 0 then
+    remove_lock_file()
+    return nil
+  end
+
+  write_lock_file(data)
+  local server_url = data.url
 
   local api_client = require('opencode.api_client')
   local is_healthy = api_client.check_health(server_url, 2000):wait(3000)
@@ -279,9 +212,7 @@ function OpencodeServer.try_existing_server()
     return server_url
   end
 
-  with_file_lock(function()
-    remove_lock_file()
-  end)
+  remove_lock_file()
   return nil
 end
 
@@ -308,12 +239,32 @@ function OpencodeServer:shutdown()
   local server_pid_to_kill = unregister_client()
 
   if server_pid_to_kill then
-    if self.job and self.job.pid then
-      pcall(function()
-        self.job:kill('sigterm')
-      end)
+    -- Cross-platform process termination
+    if vim.fn.has('win32') == 1 then
+      -- Windows: use taskkill
+      vim.fn.system({ 'taskkill', '/F', '/PID', tostring(server_pid_to_kill) })
     else
-      pcall(vim.uv.kill, server_pid_to_kill, 'sigterm')
+      -- Unix: send SIGTERM first
+      if self.job and self.job.pid then
+        pcall(function()
+          self.job:kill('sigterm')
+        end)
+      else
+        pcall(vim.uv.kill, server_pid_to_kill, 'sigterm')
+      end
+
+      -- Wait for process to exit (max 3 seconds)
+      local start = os.time()
+      while is_pid_alive(server_pid_to_kill) and (os.time() - start) < 3 do
+        vim.wait(100, function()
+          return false
+        end)
+      end
+
+      -- Force kill if still running
+      if is_pid_alive(server_pid_to_kill) then
+        pcall(vim.uv.kill, server_pid_to_kill, 'sigkill')
+      end
     end
   end
 
@@ -326,6 +277,7 @@ end
 
 --- @class OpencodeServerSpawnOpts
 --- @field cwd? string
+--- @field port? number
 --- @field on_ready fun(job: any, url: string)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(exit_opts: vim.SystemCompleted )
@@ -334,12 +286,15 @@ end
 --- @return Promise<OpencodeServer>
 function OpencodeServer:spawn(opts)
   opts = opts or {}
+  local port = opts.port or DEFAULT_PORT
 
   self.is_owner = true
 
   self.job = vim.system({
     'opencode',
     'serve',
+    '--port',
+    tostring(port),
   }, {
     cwd = opts.cwd,
     stdout = function(err, data)

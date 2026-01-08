@@ -2,9 +2,12 @@ local state = require('opencode.state')
 local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
+local config = require('opencode.config')
 
 local M = {}
 M.requests = {}
+
+local DEFAULT_PORT = 41096
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -134,25 +137,58 @@ end
 --- Ensure the opencode server is running, starting it if necessary.
 --- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
 function M.ensure_server()
+  local port = config.server and config.server.port or DEFAULT_PORT
+  local server_url = 'http://127.0.0.1:' .. port
+
   local promise = Promise.new()
+
+  -- Fast path: check in-memory server instance
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
   end
 
-  local existing_url = opencode_server.try_existing_server()
-  if existing_url then
-    state.opencode_server = opencode_server.from_existing(existing_url)
+  -- Step 1: Health check to see if server already exists
+  local api_client = require('opencode.api_client')
+  local ok, is_healthy = pcall(function()
+    return api_client.check_health(server_url, 2000):wait(2500)
+  end)
+
+  if ok and is_healthy then
+    state.opencode_server = opencode_server.from_existing(server_url)
     return promise:resolve(state.opencode_server)
   end
 
+  -- Step 2: Try to start the server (port binding is atomic mutex)
   state.opencode_server = opencode_server.new()
 
   state.opencode_server:spawn({
+    port = port,
     on_ready = function(_, base_url)
       promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
-      promise:reject(err)
+      -- Retry health check (another instance may have just started successfully)
+      vim.defer_fn(function()
+        local retry_ok, retry_healthy = pcall(function()
+          return api_client.check_health(server_url, 2000):wait(2500)
+        end)
+        if retry_ok and retry_healthy then
+          state.opencode_server = opencode_server.from_existing(server_url)
+          promise:resolve(state.opencode_server)
+        else
+          -- Check if port is occupied by another application
+          local err_msg = tostring(err)
+          if err_msg:match('address already in use') or err_msg:match('EADDRINUSE') then
+            promise:reject(string.format(
+              "Port %d is occupied by another application. "
+                .. "Configure a different port via require('opencode').setup({ server = { port = XXXX } })",
+              port
+            ))
+          else
+            promise:reject(err)
+          end
+        end
+      end, 500)
     end,
     on_exit = function(exit_opts)
       promise:reject('Server exited')

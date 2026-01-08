@@ -2,23 +2,28 @@ local server_job = require('opencode.server_job')
 
 local curl = require('opencode.curl')
 local assert = require('luassert')
+local api_client = require('opencode.api_client')
+local Promise = require('opencode.promise')
 
 describe('server_job', function()
   local original_curl_request
   local opencode_server = require('opencode.opencode_server')
   local original_new
   local original_try_existing_server
+  local original_check_health
 
   before_each(function()
     original_curl_request = curl.request
     original_new = opencode_server.new
     original_try_existing_server = opencode_server.try_existing_server
+    original_check_health = api_client.check_health
   end)
 
   after_each(function()
     curl.request = original_curl_request
     opencode_server.new = original_new
     opencode_server.try_existing_server = original_try_existing_server
+    api_client.check_health = original_check_health
   end)
 
   it('exposes expected public functions', function()
@@ -85,7 +90,7 @@ describe('server_job', function()
   it('ensure_server spawns a new opencode server only once', function()
     local spawn_count = 0
     local fake = {
-      url = 'http://127.0.0.1:4000',
+      url = 'http://127.0.0.1:41096',
       is_running = function()
         return spawn_count > 0
       end,
@@ -102,6 +107,10 @@ describe('server_job', function()
     end
     opencode_server.try_existing_server = function()
       return nil
+    end
+    -- Mock health check to return false (no existing server)
+    api_client.check_health = function()
+      return Promise.new():reject('no server')
     end
 
     local first = server_job.ensure_server():wait()

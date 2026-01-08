@@ -331,6 +331,21 @@ Each keymap entry is a table consising of:
 - An optional mode: `{ 'toggle', mode = { 'n', 'i' } }`
 - An optional desc: `{'toggle', desc = 'Toggle Opencode' }`
 
+#### Disabling Specific Keymaps
+
+You can disable specific default keymaps by setting them to `false` in your configuration:
+
+```lua
+require('opencode').setup({
+  keymap = {
+    input_window = {
+      ['<cr>'] = false, -- Disable Enter key for submitting prompts
+      -- Other keymaps not specified will keep their default bindings
+    }
+  }
+})
+```
+
 ### UI icons (disable emojis or customize)
 
 By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `text` preset or override icons individually.

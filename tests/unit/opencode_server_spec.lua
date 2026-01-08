@@ -254,7 +254,8 @@ describe('opencode.opencode_server', function()
 
     it('from_existing creates server with url and registers as client', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:9999', { 12345 }, 54321)
+      -- Use current_pid as the existing client so it's always "alive"
+      write_test_lock_file('http://localhost:9999', { current_pid }, 54321)
 
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
@@ -275,6 +276,12 @@ describe('opencode.opencode_server', function()
 
     it('spawn creates lock file with server_pid', function()
       local current_pid = vim.fn.getpid()
+
+      vim.uv.kill = function(pid, sig)
+        if sig == 0 then
+          return 0
+        end
+      end
 
       vim.system = function(cmd, opts)
         vim.schedule(function()
@@ -310,8 +317,10 @@ describe('opencode.opencode_server', function()
 
     it('shutdown removes client from lock file', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:7777', { current_pid, 99998 }, 54321)
+      local other_pid = current_pid + 1000000 -- Use a fake but distinct PID
+      write_test_lock_file('http://localhost:7777', { current_pid, other_pid }, 54321)
 
+      -- Mock to make all PIDs appear alive
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
           return 0
@@ -328,7 +337,7 @@ describe('opencode.opencode_server', function()
       local lock_data = read_test_lock_file()
       assert.is_not_nil(lock_data)
       assert.is_false(vim.tbl_contains(lock_data.clients, current_pid))
-      assert.is_true(vim.tbl_contains(lock_data.clients, 99998))
+      assert.is_true(vim.tbl_contains(lock_data.clients, other_pid))
     end)
 
     it('shutdown removes lock file when last client exits', function()
@@ -354,10 +363,11 @@ describe('opencode.opencode_server', function()
 
     it('shutdown keeps remaining clients when one client exits', function()
       local current_pid = vim.fn.getpid()
-      local other_pid_1 = 88881
-      local other_pid_2 = 88882
+      local other_pid_1 = current_pid + 1000000 -- Use fake but distinct PIDs
+      local other_pid_2 = current_pid + 2000000
       write_test_lock_file('http://localhost:4444', { current_pid, other_pid_1, other_pid_2 }, 54321)
 
+      -- Mock to make all PIDs appear alive
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
           return 0
@@ -382,11 +392,12 @@ describe('opencode.opencode_server', function()
 
     it('cleanup_dead_pids removes dead processes from clients list', function()
       local current_pid = vim.fn.getpid()
-      local dead_pid = 99997
-      local alive_pid = 99996
+      local dead_pid = current_pid + 1000000 -- Use fake but distinct PIDs
+      local alive_pid = current_pid + 2000000
 
       write_test_lock_file('http://localhost:3333', { dead_pid, alive_pid, current_pid }, 54321)
 
+      -- Mock to make dead_pid appear dead, others alive
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
           if pid == dead_pid then

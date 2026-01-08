@@ -139,6 +139,9 @@ M.defaults = {
       -- Auto-hide input window when prompt is submitted or focus switches to output window
       auto_hide = false,
     },
+    picker = {
+      snacks_layout = nil,
+    },
     completion = {
       file_sources = {
         enabled = true,

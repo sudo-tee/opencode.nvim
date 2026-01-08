@@ -112,6 +112,7 @@ function M.pick(sessions, callback)
     callback = callback,
     title = 'Select A Session',
     width = config.ui.picker_width or 100,
+    layout_opts = config.ui.picker,
   })
 end
 

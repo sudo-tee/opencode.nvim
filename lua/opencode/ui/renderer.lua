@@ -215,13 +215,18 @@ end
 
 ---Auto-scroll to bottom if user was already at bottom
 ---Respects cursor position if user has scrolled up
-function M.scroll_to_bottom()
+---@param force? boolean If true, scroll regardless of current position
+function M.scroll_to_bottom(force)
   if not state.windows or not state.windows.output_buf or not state.windows.output_win then
     return
   end
 
+  if not vim.api.nvim_win_is_valid(state.windows.output_win) then
+    return
+  end
+
   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
-  if not ok then
+  if not ok or line_count == 0 then
     return
   end
 
@@ -233,18 +238,24 @@ function M.scroll_to_bottom()
   trigger_on_data_rendered()
 
   -- Determine if we should scroll to bottom
-  local should_scroll = false
+  local should_scroll = force == true
 
-  -- Always scroll on initial render
-  if prev_line_count == 0 then
-    should_scroll = true
-  -- Scroll if user is at bottom (respects manual scroll position)
-  elseif output_window.viewport_at_bottom then
-    should_scroll = true
+  if not should_scroll then
+    -- Always scroll on initial render
+    if prev_line_count == 0 then
+      should_scroll = true
+    -- Scroll if user is at bottom (respects manual scroll position)
+    elseif output_window.viewport_at_bottom then
+      should_scroll = true
+    end
   end
 
   if should_scroll then
     vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })
+    -- Use zb to position the cursor line at the bottom of the visible window
+    vim.api.nvim_win_call(state.windows.output_win, function()
+      vim.cmd('normal! zb')
+    end)
     output_window.viewport_at_bottom = true
   else
     -- User has scrolled up, don't scroll

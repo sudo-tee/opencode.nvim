@@ -23,6 +23,10 @@ function M.toggle_zoom()
   require('opencode.ui.ui').toggle_zoom()
 end
 
+function M.toggle_input()
+  input_window.toggle()
+end
+
 function M.open_input()
   return core.open({ new_session = false, focus = 'input', start_insert = true })
 end
@@ -52,7 +56,11 @@ function M.paste_image()
 end
 
 M.toggle = Promise.async(function(new_session)
-  local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
+  -- When auto_hide input is enabled, always focus input; otherwise use last focused
+  local focus = 'input' ---@cast focus 'input' | 'output'
+  if not config.ui.input.auto_hide then
+    focus = state.last_focused_opencode_window or 'input'
+  end
   if state.windows == nil then
     core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
@@ -144,9 +152,7 @@ function M.quick_chat(message, range)
 end
 
 function M.toggle_pane()
-  return core.open({ new_session = false, focus = 'output' }):and_then(function()
-    ui.toggle_pane()
-  end)
+  ui.toggle_pane()
 end
 
 ---@param from_snapshot_id? string
@@ -306,7 +312,12 @@ M.submit_input_prompt = Promise.async(function()
     ui.render_output(true)
   end
 
-  input_window.handle_submit()
+  local message_sent = input_window.handle_submit()
+
+  -- Only hide input window if a message was actually sent (not slash commands, shell commands, etc.)
+  if message_sent and config.ui.input.auto_hide and not input_window.is_hidden() then
+    input_window._hide()
+  end
 end)
 
 function M.mention_file()
@@ -1004,6 +1015,11 @@ M.commands = {
   toggle_zoom = {
     desc = 'Toggle window zoom',
     fn = M.toggle_zoom,
+  },
+
+  toggle_input = {
+    desc = 'Toggle input window visibility',
+    fn = M.toggle_input,
   },
 
   quick_chat = {

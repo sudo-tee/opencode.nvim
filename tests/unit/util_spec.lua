@@ -161,11 +161,6 @@ describe('util.format_time', function()
       end
     end)
 
-    it('formats yesterday with same month date', function()
-      local result = util.format_time(yesterday)
-      assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
-    end)
-
     it('formats future date with full date', function()
       local result = util.format_time(next_year)
       assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)

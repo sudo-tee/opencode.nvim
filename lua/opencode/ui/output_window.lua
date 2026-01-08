@@ -194,9 +194,11 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      vim.cmd('stopinsert')
+      local input_window = require('opencode.ui.input_window')
       state.last_focused_opencode_window = 'output'
-      require('opencode.ui.input_window').refresh_placeholder(state.windows)
+      input_window.refresh_placeholder(state.windows)
+
+      vim.cmd('stopinsert')
     end,
   })
 
@@ -204,9 +206,11 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      vim.cmd('stopinsert')
+      local input_window = require('opencode.ui.input_window')
       state.last_focused_opencode_window = 'output'
-      require('opencode.ui.input_window').refresh_placeholder(state.windows)
+      input_window.refresh_placeholder(state.windows)
+
+      vim.cmd('stopinsert')
     end,
   })
 

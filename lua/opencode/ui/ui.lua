@@ -124,7 +124,16 @@ end
 function M.focus_input(opts)
   opts = opts or {}
   local windows = state.windows
-  if not windows or not windows.input_win then
+  if not windows then
+    return
+  end
+
+  if input_window.is_hidden() then
+    input_window._show()
+    return
+  end
+
+  if not windows.input_win then
     return
   end
 

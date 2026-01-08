@@ -402,6 +402,8 @@ local function snacks_picker_ui(opts)
   local snack_opts = {
     title = title,
     layout = layout_opts or {
+      preview = has_preview and 'main' or false,
+      preset = 'select',
       config = function(layout)
         local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
         if not has_preview then

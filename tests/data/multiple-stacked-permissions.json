@@ -1,0 +1,276 @@
+[
+  {
+    "type": "server.connected",
+    "properties": {}
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_main_session_12345",
+        "directory": "/Users/test/project",
+        "time": {
+          "updated": 1760247777241,
+          "created": 1760247777241
+        },
+        "version": "0.15.0",
+        "title": "Testing Multiple Stacked Permissions",
+        "projectID": "test-project-id-12345"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_user_request_001",
+        "sessionID": "ses_main_session_12345",
+        "time": {
+          "created": 1760247829393
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_user_text_001",
+        "text": "Please help me set up a new Node.js project with authentication and file management",
+        "sessionID": "ses_main_session_12345",
+        "type": "text",
+        "messageID": "msg_user_request_001"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_assistant_response_001",
+        "sessionID": "ses_main_session_12345",
+        "time": {
+          "created": 1760247830000
+        },
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_file_write_package_json",
+      "title": "Create new file: /Users/test/project/package.json",
+      "time": {
+        "created": 1760247832245
+      },
+      "callID": "toolu_001_package_json",
+      "metadata": {
+        "exists": false,
+        "content": "{\n  \"name\": \"my-project\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\n    \"express\": \"^4.18.0\"\n  }\n}",
+        "filePath": "/Users/test/project/package.json"
+      },
+      "sessionID": "ses_main_session_12345",
+      "type": "write",
+      "messageID": "msg_assistant_response_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_command_npm_install",
+      "title": "Run command: npm install",
+      "time": {
+        "created": 1760247832500
+      },
+      "callID": "toolu_002_npm_install",
+      "metadata": {
+        "command": "npm install",
+        "workingDirectory": "/Users/test/project",
+        "environment": {
+          "NODE_ENV": "development"
+        }
+      },
+      "sessionID": "ses_main_session_12345",
+      "type": "command",
+      "messageID": "msg_assistant_response_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_file_read_sensitive_config",
+      "title": "Read file: /Users/test/project/.env.example",
+      "time": {
+        "created": 1760247832750
+      },
+      "callID": "toolu_003_read_env",
+      "metadata": {
+        "exists": true,
+        "filePath": "/Users/test/project/.env.example",
+        "fileSize": 256,
+        "lastModified": "2024-01-15T10:30:00Z"
+      },
+      "sessionID": "ses_main_session_12345",
+      "type": "read",
+      "messageID": "msg_assistant_response_001"
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_child_session_auth",
+        "parentID": "ses_main_session_12345",
+        "directory": "/Users/test/project",
+        "time": {
+          "updated": 1760247833000,
+          "created": 1760247833000
+        },
+        "version": "0.15.0",
+        "title": "Authentication Setup (Child Session)",
+        "projectID": "test-project-id-12345"
+      }
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_network_auth_service",
+      "title": "Make network request to authentication service",
+      "time": {
+        "created": 1760247833250
+      },
+      "callID": "toolu_004_auth_service",
+      "metadata": {
+        "url": "https://api.auth-service.com/validate",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ***"
+        }
+      },
+      "sessionID": "ses_child_session_auth",
+      "type": "network",
+      "messageID": "msg_auth_setup_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_file_write_auth_middleware",
+      "title": "Create new file: /Users/test/project/middleware/auth.js",
+      "time": {
+        "created": 1760247833500
+      },
+      "callID": "toolu_005_auth_middleware",
+      "metadata": {
+        "exists": false,
+        "content": "const jwt = require('jsonwebtoken');\n\nmodule.exports = (req, res, next) => {\n  // Authentication logic here\n  next();\n};",
+        "filePath": "/Users/test/project/middleware/auth.js"
+      },
+      "sessionID": "ses_child_session_auth",
+      "type": "write",
+      "messageID": "msg_auth_setup_001"
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_child_session_files",
+        "parentID": "ses_main_session_12345",
+        "directory": "/Users/test/project",
+        "time": {
+          "updated": 1760247834000,
+          "created": 1760247834000
+        },
+        "version": "0.15.0",
+        "title": "File Management Setup (Child Session)",
+        "projectID": "test-project-id-12345"
+      }
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_file_modify_existing_config",
+      "title": "Modify existing file: /Users/test/project/config/database.js",
+      "time": {
+        "created": 1760247834250
+      },
+      "callID": "toolu_006_db_config",
+      "metadata": {
+        "exists": true,
+        "filePath": "/Users/test/project/config/database.js",
+        "oldContent": "module.exports = {\n  host: 'localhost'\n};",
+        "newContent": "module.exports = {\n  host: process.env.DB_HOST || 'localhost',\n  port: process.env.DB_PORT || 5432\n};"
+      },
+      "sessionID": "ses_child_session_files",
+      "type": "write",
+      "messageID": "msg_file_setup_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_command_create_directories",
+      "title": "Run command: mkdir -p uploads/images uploads/documents",
+      "time": {
+        "created": 1760247834500
+      },
+      "callID": "toolu_007_mkdir",
+      "metadata": {
+        "command": "mkdir -p uploads/images uploads/documents",
+        "workingDirectory": "/Users/test/project",
+        "description": "Create upload directories for file management"
+      },
+      "sessionID": "ses_child_session_files",
+      "type": "command",
+      "messageID": "msg_file_setup_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_file_write_large_template",
+      "title": "Create new file: /Users/test/project/templates/email-template.html",
+      "time": {
+        "created": 1760247834750
+      },
+      "callID": "toolu_008_email_template",
+      "metadata": {
+        "exists": false,
+        "content": "<!DOCTYPE html>\n<html>\n<head>\n  <title>Welcome Email</title>\n  <style>\n    body { font-family: Arial, sans-serif; }\n    .header { background: #007bff; color: white; padding: 20px; }\n    .content { padding: 20px; }\n    .footer { background: #f8f9fa; padding: 10px; text-align: center; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>Welcome to Our Service!</h1>\n  </div>\n  <div class=\"content\">\n    <p>Hello {{username}},</p>\n    <p>Thank you for joining our platform. We're excited to have you on board!</p>\n    <p>Your account has been successfully created with the email: {{email}}</p>\n    <p>Next steps:</p>\n    <ul>\n      <li>Complete your profile setup</li>\n      <li>Verify your email address</li>\n      <li>Explore our features</li>\n    </ul>\n  </div>\n  <div class=\"footer\">\n    <p>&copy; 2024 Our Service. All rights reserved.</p>\n  </div>\n</body>\n</html>",
+        "filePath": "/Users/test/project/templates/email-template.html"
+      },
+      "sessionID": "ses_main_session_12345",
+      "type": "write",
+      "messageID": "msg_assistant_response_001"
+    }
+  },
+  {
+    "type": "permission.updated",
+    "properties": {
+      "id": "per_network_external_api",
+      "title": "Make network request to external API",
+      "time": {
+        "created": 1760247835000
+      },
+      "callID": "toolu_009_external_api",
+      "metadata": {
+        "url": "https://api.github.com/user/repos",
+        "method": "GET",
+        "headers": {
+          "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "My-Project/1.0"
+        },
+        "purpose": "Fetch user repositories for project templates"
+      },
+      "sessionID": "ses_main_session_12345",
+      "type": "network",
+      "messageID": "msg_assistant_response_001"
+    }
+  }
+]

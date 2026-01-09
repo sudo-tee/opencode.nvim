@@ -194,12 +194,11 @@ describe('hooks', function()
       end
 
       -- Set up the subscription manually
-      state.subscribe('current_permission', core._on_current_permission_change)
+      state.subscribe('pending_permissions', core._on_current_permission_change)
 
       -- Simulate permission change from nil to a value
       state.active_session = { id = 'test-session', title = 'Test' }
-      state.current_permission = nil
-      state.current_permission = { tool = 'test_tool', action = 'read' }
+      state.pending_permissions = { { tool = 'test_tool', action = 'read' } }
 
       -- Wait for async notification
       vim.wait(100, function()
@@ -208,7 +207,7 @@ describe('hooks', function()
 
       -- Restore original function
       session_module.get_by_id = original_get_by_id
-      state.unsubscribe('current_permission', core._on_current_permission_change)
+      state.unsubscribe('pending_permissions', core._on_current_permission_change)
 
       assert.is_true(called)
       assert.are.equal(called_session.id, 'test-session')
@@ -216,9 +215,9 @@ describe('hooks', function()
 
     it('should not error when hook is nil', function()
       config.hooks.on_permission_requested = nil
-      state.current_permission = nil
+      state.pending_permissions = {}
       assert.has_no.errors(function()
-        state.current_permission = { tool = 'test_tool', action = 'read' }
+        state.current_permission = { { tool = 'test_tool', action = 'read' } }
       end)
     end)
 
@@ -227,9 +226,9 @@ describe('hooks', function()
         error('test error')
       end
 
-      state.current_permission = nil
+      state.pending_permissions = {}
       assert.has_no.errors(function()
-        state.current_permission = { tool = 'test_tool', action = 'read' }
+        state.current_permission = { { tool = 'test_tool', action = 'read' } }
       end)
     end)
   end)

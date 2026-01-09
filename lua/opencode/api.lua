@@ -927,15 +927,21 @@ function M.redo()
 end
 
 ---@param answer? 'once'|'always'|'reject'
-function M.respond_to_permission(answer)
+---@param permission? OpencodePermission
+function M.respond_to_permission(answer, permission_id)
   answer = answer or 'once'
-  if not state.current_permission then
+
+  -- Try to get current permission from permission window first, fallback to state
+  local permission_window = require('opencode.ui.permission_window')
+  local current_permission = permission_window.get_current_permission()
+
+  if not current_permission then
     vim.notify('No permission request to accept', vim.log.levels.WARN)
     return
   end
 
   state.api_client
-    :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
+    :respond_to_permission(current_permission.sessionID, current_permission.id, { response = answer })
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -943,16 +949,19 @@ function M.respond_to_permission(answer)
     end)
 end
 
-function M.permission_accept()
-  M.respond_to_permission('once')
+---@param permission? OpencodePermission
+function M.permission_accept(permission)
+  M.respond_to_permission('once', permission)
 end
 
-function M.permission_accept_all()
-  M.respond_to_permission('always')
+---@param permission? OpencodePermission
+function M.permission_accept_all(permission)
+  M.respond_to_permission('always', permission)
 end
 
-function M.permission_deny()
-  M.respond_to_permission('reject')
+---@param permission? OpencodePermission
+function M.permission_deny(permission)
+  M.respond_to_permission('reject', permission)
 end
 
 function M.toggle_tool_output()

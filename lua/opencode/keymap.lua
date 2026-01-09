@@ -61,7 +61,11 @@ function M.toggle_permission_keymap(buf)
     return
   end
 
-  if state.current_permission then
+  -- Check for permissions from permission window first, fallback to state
+  local permission_window = require('opencode.ui.permission_window')
+  local has_permissions = permission_window.get_permission_count() > 0
+
+  if has_permissions then
     for action, key in pairs(permission_config) do
       local api_func = api['permission_' .. action]
       if key and api_func then

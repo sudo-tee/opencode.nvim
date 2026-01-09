@@ -385,10 +385,6 @@ function M.setup_autocmds(windows, group)
       require('opencode.ui.context_bar').render()
     end,
   })
-
-  state.subscribe('current_permission', function()
-    require('opencode.keymap').toggle_permission_keymap(windows.input_buf)
-  end)
 end
 
 ---Toggle the input window visibility (hide/show)

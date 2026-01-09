@@ -6,6 +6,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
+local permission_window = require('opencode.ui.permission_window')
 
 local M = {}
 
@@ -52,43 +53,6 @@ function M._format_reasoning(output, part)
       line_hl_group = 'OpencodeReasoningText',
     } --[[@as OutputExtmark]])
   end
-end
-
-function M._handle_permission_request(output, part)
-  if part.state and part.state.status == 'error' and part.state.error then
-    if part.state.error:match('rejected permission') then
-      state.current_permission = nil
-    else
-      vim.notify('Unknown part state error: ' .. part.state.error)
-    end
-    return
-  end
-
-  M._format_permission_request(output)
-end
-
-function M._format_permission_request(output)
-  local keys
-
-  if require('opencode.ui.ui').is_opencode_focused() then
-    keys = {
-      config.keymap.permission.accept,
-      config.keymap.permission.accept_all,
-      config.keymap.permission.deny,
-    }
-  else
-    keys = {
-      config.get_key_for_function('editor', 'permission_accept'),
-      config.get_key_for_function('editor', 'permission_accept_all'),
-      config.get_key_for_function('editor', 'permission_deny'),
-    }
-  end
-
-  output:add_empty_line()
-  output:add_line('> [!WARNING] Permission required to run this tool.')
-  output:add_line('>')
-  output:add_line(('> Accept `%s`    Always `%s`    Deny `%s`'):format(unpack(keys)))
-  output:add_empty_line()
 end
 
 ---Calculate statistics for reverted messages and tool calls
@@ -646,10 +610,6 @@ function M._format_tool(output, part)
   local metadata = part.state.metadata or {}
   local tool_output = part.state.output or ''
 
-  if state.current_permission and state.current_permission.messageID == part.messageID then
-    metadata = state.current_permission.metadata or metadata
-  end
-
   if tool == 'bash' then
     M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
@@ -679,25 +639,6 @@ function M._format_tool(output, part)
     ---I'm not sure about the type with state.input.error
     ---@diagnostic disable-next-line: undefined-field
     M._format_callout(output, 'ERROR', part.state.input.error)
-  end
-
-  if
-    state.current_permission
-    and (
-      (
-        state.current_permission.tool
-        and state.current_permission.tool.callID == part.callID
-        and state.current_permission.tool.messageID == part.messageID
-      )
-      ---@TODO this is for backward compatibility, remove later
-      or (
-        not state.current_permission.tool
-        and state.current_permission.messageID == part.messageID
-        and state.current_permission.callID == part.callID
-      )
-    )
-  then
-    M._handle_permission_request(output, part)
   end
 
   local end_line = output:get_line_count()
@@ -891,6 +832,12 @@ function M.format_part(part, message, is_last_part)
       content_added = true
     elseif part.type == 'patch' and part.hash then
       M._format_patch(output, part)
+      content_added = true
+    end
+  elseif role == 'system' then
+    if part.type == 'permissions-display' then
+      local text = table.concat(permission_window.get_display_lines(), '\n')
+      output:add_lines(vim.split(vim.trim(text), '\n'))
       content_added = true
     end
   end

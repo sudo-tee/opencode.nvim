@@ -7,6 +7,26 @@ local M = {}
 M._permission_queue = {}
 M._selected_index = 1
 
+---Get focus-aware permission keys
+---@return table|nil keys table with accept, accept_all, deny keys
+local function get_permission_keys()
+  local is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
+
+  if is_opencode_focused then
+    return {
+      accept = config.keymap.permission.accept,
+      accept_all = config.keymap.permission.accept_all,
+      deny = config.keymap.permission.deny,
+    }
+  else
+    return {
+      accept = config.get_key_for_function('editor', 'permission_accept'),
+      accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
+      deny = config.get_key_for_function('editor', 'permission_deny'),
+    }
+  end
+end
+
 ---Add permission to queue
 ---@param permission OpencodePermission
 function M.add_permission(permission)
@@ -36,6 +56,9 @@ function M.remove_permission(permission_id)
       end
       return
     end
+  end
+  if #M._permission_queue == 0 then
+    M.clear_keymaps()
   end
 end
 
@@ -71,21 +94,9 @@ function M.get_display_lines()
 
   local lines = {}
 
-  -- Get focus-aware keys
-  local keys
-  if require('opencode.ui.ui').is_opencode_focused() then
-    keys = {
-      accept = config.keymap.permission.accept,
-      accept_all = config.keymap.permission.accept_all,
-      deny = config.keymap.permission.deny,
-    }
-  else
-    keys = {
-      accept = config.get_key_for_function('editor', 'permission_accept'),
-      accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
-      deny = config.get_key_for_function('editor', 'permission_deny'),
-    }
-  end
+  local keys = get_permission_keys()
+
+  M.setup_keymaps()
 
   for i, permission in ipairs(M._permission_queue) do
     table.insert(lines, '')
@@ -98,17 +109,20 @@ function M.get_display_lines()
 
     if keys then
       local actions = {}
-      for action, key in pairs(keys) do
+      local action_order = { 'accept', 'deny', 'accept_all' }
+
+      for _, action in ipairs(action_order) do
+        local key = keys[action]
         if key then
-          local action_label = action == 'accept' and 'accept'
+          local action_label = action == 'accept' and 'Accept'
             or action == 'accept_all' and 'Always'
-            or action == 'deny' and 'deny'
+            or action == 'deny' and 'Deny'
             or action
 
           if #M._permission_queue > 1 then
-            table.insert(actions, string.format('`%s%d` %s', key, i, action_label))
+            table.insert(actions, string.format('%s `%s%d`', action_label, key, i))
           else
-            table.insert(actions, string.format('`%s` %s', key, action_label))
+            table.insert(actions, string.format('%s `%s`', action_label, key))
           end
         end
       end
@@ -127,62 +141,127 @@ function M.get_display_lines()
   return lines
 end
 
----Setup keymaps for the output buffer when permissions are shown
----@param buf integer Output buffer ID
-function M.setup_keymaps(buf)
-  if not buf or #M._permission_queue == 0 then
+function M.clear_keymaps()
+  if #M._permission_queue == 0 then
     return
   end
 
-  local api = require('opencode.api')
+  local buffers = { state.windows and state.windows.input_buf, state.windows and state.windows.output_buf }
+  local opencode_keys = {
+    accept = config.keymap.permission.accept,
+    accept_all = config.keymap.permission.accept_all,
+    deny = config.keymap.permission.deny,
+  }
 
-  -- Get focus-aware keys
-  local keys
-  local is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
+  local editor_keys = {
+    accept = config.get_key_for_function('editor', 'permission_accept'),
+    accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
+    deny = config.get_key_for_function('editor', 'permission_deny'),
+  }
 
-  if is_opencode_focused then
-    keys = {
-      accept = config.keymap.permission.accept,
-      accept_all = config.keymap.permission.accept_all,
-      deny = config.keymap.permission.deny,
-    }
-  else
-    keys = {
-      accept = config.get_key_for_function('editor', 'permission_accept'),
-      accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
-      deny = config.get_key_for_function('editor', 'permission_deny'),
-    }
+  local action_order = { 'accept', 'deny', 'accept_all' }
+
+  for i, permission in ipairs(M._permission_queue) do
+    for _, action in ipairs(action_order) do
+      -- Clear OpenCode-focused keys (buffer-specific)
+      local opencode_key = opencode_keys[action]
+      if opencode_key then
+        local function safe_del(keymap, opts)
+          pcall(vim.keymap.del, 'n', keymap, opts)
+        end
+
+        for _, buf in ipairs(buffers) do
+          if buf then
+            if #M._permission_queue > 1 then
+              safe_del(opencode_key .. tostring(i), { buffer = buf })
+            else
+              safe_del(opencode_key, { buffer = buf })
+            end
+          end
+        end
+      end
+
+      local editor_key = editor_keys[action]
+      if editor_key then
+        local function safe_del_global(keymap)
+          pcall(vim.keymap.del, 'n', keymap)
+        end
+
+        if #M._permission_queue > 1 then
+          safe_del_global(editor_key .. tostring(i))
+        else
+          safe_del_global(editor_key)
+        end
+      end
+    end
+  end
+end
+
+---Setup keymaps for all permission actions
+function M.setup_keymaps()
+  M.clear_keymaps()
+  if #M._permission_queue == 0 then
+    return
   end
 
-  if keys then
-    -- For each permission, create keymaps with letter+number format (for multiple) or just letter (for single)
-    for i, permission in ipairs(M._permission_queue) do
-      for action, key in pairs(keys) do
-        local api_func = api['permission_' .. action]
-        if key and api_func then
-          -- Create keymap for this specific permission
-          local function execute_action()
-            M._selected_index = i
-            api_func()
-            M.remove_permission(permission.id)
-          end
+  local buffers = { state.windows and state.windows.input_buf, state.windows and state.windows.output_buf }
+  local api = require('opencode.api')
 
-          -- For multiple permissions, use key+index format; for single permission, use just key
+  local opencode_keys = {
+    accept = config.keymap.permission.accept,
+    accept_all = config.keymap.permission.accept_all,
+    deny = config.keymap.permission.deny,
+  }
+
+  local editor_keys = {
+    accept = config.get_key_for_function('editor', 'permission_accept'),
+    accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
+    deny = config.get_key_for_function('editor', 'permission_deny'),
+  }
+
+  local action_order = { 'accept', 'deny', 'accept_all' }
+
+  for i, permission in ipairs(M._permission_queue) do
+    for _, action in ipairs(action_order) do
+      local api_func = api['permission_' .. action]
+      if api_func then
+        local function execute_action()
+          M._selected_index = i
+          api_func()
+          M.remove_permission(permission.id)
+        end
+
+        local opencode_key = opencode_keys[action]
+        if opencode_key then
           local keymap_opts = {
             silent = true,
             desc = string.format('Permission %s: %s', #M._permission_queue > 1 and i or '', action),
           }
 
-          -- Only add buffer restriction for OpenCode-focused keys, not editor keys
-          if is_opencode_focused then
-            keymap_opts.buffer = buf
+          for _, buf in ipairs(buffers) do
+            if buf then
+              local buffer_opts = vim.tbl_extend('force', keymap_opts, { buffer = buf })
+
+              if #M._permission_queue > 1 then
+                vim.keymap.set('n', opencode_key .. tostring(i), execute_action, buffer_opts)
+              else
+                vim.keymap.set('n', opencode_key, execute_action, buffer_opts)
+              end
+            end
           end
+        end
+
+        local editor_key = editor_keys[action]
+        if editor_key then
+          local global_opts = {
+            silent = true,
+            desc = string.format('Permission %s: %s (global)', #M._permission_queue > 1 and i or '', action),
+          }
 
           if #M._permission_queue > 1 then
-            local keymap = key .. tostring(i)
-            vim.keymap.set('n', keymap, execute_action, keymap_opts)
+            vim.keymap.set('n', editor_key .. tostring(i), execute_action, global_opts)
           else
-            vim.keymap.set('n', key, execute_action, keymap_opts)
+            vim.keymap.set('n', editor_key, execute_action, global_opts)
           end
         end
       end

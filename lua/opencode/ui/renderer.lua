@@ -213,18 +213,6 @@ function M.render_output(output_data)
 
   local lines = output_data.lines or {}
 
-  -- Append permission display if we have permissions
-  local permission_lines = permission_window.get_display_lines()
-  if #permission_lines > 0 then
-    vim.list_extend(lines, permission_lines)
-
-    -- Setup permission keymaps
-    local buf = state.windows and state.windows.output_buf
-    if buf then
-      permission_window.setup_keymaps(buf)
-    end
-  end
-
   output_window.set_lines(lines)
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
@@ -869,17 +857,21 @@ end
 
 ---Event handler for permission.replied events
 ---Re-renders part after permission is resolved and removes from window
----@param properties {sessionID: string, permissionID: string, response: string}|{} Event properties
+---@param properties {sessionID: string, permissionID?: string,requestID?: string, response: string}|{} Event properties
 function M.on_permission_replied(properties)
   if not properties then
     return
   end
 
-  local permission_id = properties.permissionID
+  local permission_id = properties.permissionID or properties.requestID
 
   if permission_id then
     permission_window.remove_permission(permission_id)
     state.pending_permissions = vim.deepcopy(permission_window.get_all_permissions())
+    if #state.pending_permissions == 0 then
+      M._remove_part_from_buffer('permission-display-part')
+      M._remove_message_from_buffer('permission-display-message')
+    end
     M._rerender_part('permission-display-part')
   end
 end

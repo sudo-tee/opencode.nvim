@@ -928,12 +928,11 @@ end
 
 ---@param answer? 'once'|'always'|'reject'
 ---@param permission? OpencodePermission
-function M.respond_to_permission(answer, permission_id)
+function M.respond_to_permission(answer, permission)
   answer = answer or 'once'
 
-  -- Try to get current permission from permission window first, fallback to state
   local permission_window = require('opencode.ui.permission_window')
-  local current_permission = permission_window.get_current_permission()
+  local current_permission = permission or permission_window.get_current_permission()
 
   if not current_permission then
     vim.notify('No permission request to accept', vim.log.levels.WARN)
@@ -1271,12 +1270,24 @@ M.commands = {
     completions = { 'accept', 'accept_all', 'deny' },
     fn = function(args)
       local subcmd = args[1]
+      local index = tonumber(args[2])
+      local permission = nil
+      if index then
+        local permission_window = require('opencode.ui.permission_window')
+        local permissions = permission_window.get_all_permissions()
+        if not permissions or not permissions[index] then
+          vim.notify('Invalid permission index: ' .. tostring(index), vim.log.levels.ERROR)
+          return
+        end
+        permission = permissions[index]
+      end
+
       if subcmd == 'accept' then
-        M.permission_accept()
+        M.permission_accept(permission)
       elseif subcmd == 'accept_all' then
-        M.permission_accept_all()
+        M.permission_accept_all(permission)
       elseif subcmd == 'deny' then
-        M.permission_deny()
+        M.permission_deny(permission)
       else
         local valid_subcmds = table.concat(M.commands.permission.completions or {}, ', ')
         vim.notify('Invalid permission subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)

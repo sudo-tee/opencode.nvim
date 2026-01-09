@@ -58,15 +58,7 @@ describe('opencode.keymap', function()
     package.loaded['opencode.state'] = mock_state
 
     -- Mock the config module
-    local mock_config = {
-      keymap = {
-        permission = {
-          accept = 'a',
-          accept_all = 'A',
-          deny = 'd',
-        },
-      },
-    }
+    local mock_config = {}
     package.loaded['opencode.config'] = mock_config
 
     -- Now require the keymap module

@@ -161,37 +161,26 @@ function M.clear_keymaps()
 
   local action_order = { 'accept', 'deny', 'accept_all' }
 
+  local function safe_del(keymap, opts)
+    pcall(vim.keymap.del, 'n', keymap, opts)
+  end
+
   for i, permission in ipairs(M._permission_queue) do
     for _, action in ipairs(action_order) do
-      -- Clear OpenCode-focused keys (buffer-specific)
       local opencode_key = opencode_keys[action]
       if opencode_key then
-        local function safe_del(keymap, opts)
-          pcall(vim.keymap.del, 'n', keymap, opts)
-        end
-
         for _, buf in ipairs(buffers) do
           if buf then
-            if #M._permission_queue > 1 then
-              safe_del(opencode_key .. tostring(i), { buffer = buf })
-            else
-              safe_del(opencode_key, { buffer = buf })
-            end
+            safe_del(opencode_key .. tostring(i), { buffer = buf })
+            safe_del(opencode_key, { buffer = buf })
           end
         end
       end
 
       local editor_key = editor_keys[action]
       if editor_key then
-        local function safe_del_global(keymap)
-          pcall(vim.keymap.del, 'n', keymap)
-        end
-
-        if #M._permission_queue > 1 then
-          safe_del_global(editor_key .. tostring(i))
-        else
-          safe_del_global(editor_key)
-        end
+        safe_del(editor_key .. tostring(i))
+        safe_del(editor_key)
       end
     end
   end
@@ -200,6 +189,7 @@ end
 ---Setup keymaps for all permission actions
 function M.setup_keymaps()
   M.clear_keymaps()
+
   if #M._permission_queue == 0 then
     return
   end
@@ -227,7 +217,7 @@ function M.setup_keymaps()
       if api_func then
         local function execute_action()
           M._selected_index = i
-          api_func()
+          api_func(permission)
           M.remove_permission(permission.id)
         end
 

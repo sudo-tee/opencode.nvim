@@ -218,7 +218,7 @@ M.get_git_diff = Promise.async(function(context_config)
     return nil
   end
 
-  return Promise.system({ 'git', 'diff', '--cached' }):and_then(function(output)
+  return Promise.system({ 'git', 'diff', '--cached', '--minimal' }):and_then(function(output)
     if output == '' then
       return nil
     end

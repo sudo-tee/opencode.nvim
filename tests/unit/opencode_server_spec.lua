@@ -351,10 +351,20 @@ describe('opencode.opencode_server', function()
 
     it('shutdown removes lock file when last client exits', function()
       local current_pid = vim.fn.getpid()
-      write_test_lock_file('http://localhost:6666', { current_pid }, 54321)
+      local server_pid = 54321
+      write_test_lock_file('http://localhost:6666', { current_pid }, server_pid)
 
+      -- Track whether the process has been killed
+      local process_killed = false
       vim.uv.kill = function(pid, sig)
         if sig == 0 then
+          -- Check if process is alive
+          if pid == server_pid and process_killed then
+            return nil, 'ESRCH' -- Process not found (dead)
+          end
+          return 0 -- Process is alive
+        elseif sig == 'sigterm' or sig == 'sigkill' then
+          process_killed = true
           return 0
         end
       end

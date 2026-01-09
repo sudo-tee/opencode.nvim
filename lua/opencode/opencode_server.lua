@@ -147,11 +147,15 @@ local function register_client()
   return true
 end
 
---- @return number|nil server_pid_to_kill
+--- @class UnregisterResult
+--- @field server_pid number|nil
+--- @field is_last_client boolean
+
+--- @return UnregisterResult
 local function unregister_client()
   local data = read_lock_file()
   if not data then
-    return nil
+    return { server_pid = nil, is_last_client = false }
   end
 
   data = cleanup_dead_pids(data)
@@ -160,14 +164,88 @@ local function unregister_client()
     return pid ~= current_pid
   end, data.clients)
 
+  -- Always write updated lock file (even with empty clients)
+  -- This allows new clients to register before we finish shutdown
+  write_lock_file(data)
+
   if #data.clients == 0 then
-    local server_pid = data.server_pid
-    remove_lock_file()
-    return server_pid
+    return { server_pid = data.server_pid, is_last_client = true }
   end
 
-  write_lock_file(data)
+  return { server_pid = nil, is_last_client = false }
+end
+
+--- Check if we're still the last client (no new clients registered)
+--- @return boolean
+local function is_still_last_client()
+  local data = read_lock_file()
+  if not data then
+    return true -- Lock file gone, we can proceed
+  end
+  data = cleanup_dead_pids(data)
+  return #data.clients == 0
+end
+
+--- Find the PID of a process listening on the given port
+--- @param port number|string
+--- @return number|nil
+local function find_pid_by_port(port)
+  if vim.fn.has('win32') == 1 then
+    -- Windows: use netstat
+    local handle = io.popen('netstat -ano | findstr :' .. port .. ' | findstr LISTENING 2>nul')
+    if handle then
+      local output = handle:read('*a')
+      handle:close()
+      return tonumber(output:match('%s(%d+)%s*$'))
+    end
+  else
+    -- Unix: use lsof
+    local handle = io.popen('lsof -ti :' .. port .. ' 2>/dev/null')
+    if handle then
+      local output = handle:read('*a')
+      handle:close()
+      return tonumber(output:match('(%d+)'))
+    end
+  end
   return nil
+end
+
+--- Kill a process by PID with graceful shutdown
+--- @param pid number
+--- @param job any|nil Optional vim.system job handle
+--- @return boolean success
+local function kill_process(pid, job)
+  if not pid or pid <= 0 then
+    return false
+  end
+
+  if vim.fn.has('win32') == 1 then
+    vim.fn.system({ 'taskkill', '/F', '/PID', tostring(pid) })
+  else
+    -- Unix: send SIGTERM first
+    if job and job.pid then
+      pcall(function()
+        job:kill('sigterm')
+      end)
+    else
+      pcall(vim.uv.kill, pid, 'sigterm')
+    end
+
+    -- Wait for process to exit (max 3 seconds)
+    local start = os.time()
+    while is_pid_alive(pid) and (os.time() - start) < 3 do
+      vim.wait(100, function()
+        return false
+      end)
+    end
+
+    -- Force kill if still running
+    if is_pid_alive(pid) then
+      pcall(vim.uv.kill, pid, 'sigkill')
+    end
+  end
+
+  return not is_pid_alive(pid)
 end
 
 --- @return OpencodeServer
@@ -227,7 +305,21 @@ function OpencodeServer.from_existing(url)
   local server = OpencodeServer.new()
   server.url = url
   server.is_owner = false
-  register_client()
+
+  -- Try to register with existing lock file
+  local registered = register_client()
+  if not registered then
+    -- No lock file exists - we need to find the server PID
+    local port = url:match(':(%d+)/?$')
+    local server_pid = port and find_pid_by_port(port) or nil
+
+    write_lock_file({
+      url = url,
+      clients = { current_pid },
+      server_pid = server_pid,
+    })
+  end
+
   server.spawn_promise:resolve(server --[[@as OpencodeServer]])
   return server
 end
@@ -241,35 +333,38 @@ end
 
 --- @return Promise<boolean>
 function OpencodeServer:shutdown()
-  local server_pid_to_kill = unregister_client()
+  local result = unregister_client()
 
-  if server_pid_to_kill then
-    -- Cross-platform process termination
-    if vim.fn.has('win32') == 1 then
-      -- Windows: use taskkill
-      vim.fn.system({ 'taskkill', '/F', '/PID', tostring(server_pid_to_kill) })
+  if result.is_last_client then
+    -- Double-check: a new client may have registered while we were processing
+    if not is_still_last_client() then
+      -- New client registered, don't kill the server
+      self.job = nil
+      self.url = nil
+      self.handle = nil
+      self.shutdown_promise:resolve(true --[[@as boolean]])
+      return self.shutdown_promise
+    end
+
+    -- Find the server PID to kill
+    local server_pid_to_kill = result.server_pid
+    if not server_pid_to_kill and self.url then
+      -- Try to find by port if server_pid not recorded
+      local port = self.url:match(':(%d+)/?$')
+      if port then
+        server_pid_to_kill = find_pid_by_port(port)
+      end
+    end
+
+    if server_pid_to_kill then
+      local killed = kill_process(server_pid_to_kill, self.job)
+      if killed then
+        remove_lock_file()
+      end
+      -- If kill failed, leave lock file so next client can try again
     else
-      -- Unix: send SIGTERM first
-      if self.job and self.job.pid then
-        pcall(function()
-          self.job:kill('sigterm')
-        end)
-      else
-        pcall(vim.uv.kill, server_pid_to_kill, 'sigterm')
-      end
-
-      -- Wait for process to exit (max 3 seconds)
-      local start = os.time()
-      while is_pid_alive(server_pid_to_kill) and (os.time() - start) < 3 do
-        vim.wait(100, function()
-          return false
-        end)
-      end
-
-      -- Force kill if still running
-      if is_pid_alive(server_pid_to_kill) then
-        pcall(vim.uv.kill, server_pid_to_kill, 'sigkill')
-      end
+      -- No PID found, just remove lock file
+      remove_lock_file()
     end
   end
 

@@ -9,6 +9,7 @@ local util = require('opencode.util')
 local config = require('opencode.config')
 local image_handler = require('opencode.image_handler')
 local Promise = require('opencode.promise')
+local permission_window = require('opencode.ui.permission_window')
 
 local M = {}
 M._abort_count = 0
@@ -277,9 +278,11 @@ M.cancel = Promise.async(function()
     if state.is_running() then
       M._abort_count = M._abort_count + 1
 
-      -- if there's a current permission, reject it
-      if state.current_permission then
-        require('opencode.api').permission_deny()
+      local permissions = state.pending_permissions or {}
+      if #permissions and state.api_client then
+        for _, permission in ipairs(permissions) do
+          require('opencode.api').permission_deny(permission)
+        end
       end
 
       local ok, result = pcall(function()
@@ -348,7 +351,7 @@ M.opencode_ok = Promise.async(function()
 end)
 
 local function on_opencode_server()
-  state.current_permission = nil
+  permission_window.clear_all()
 end
 
 --- Switches the current mode to the specified agent.
@@ -457,7 +460,7 @@ end
 function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
   state.subscribe('user_message_count', M._on_user_message_count_change)
-  state.subscribe('current_permission', M._on_current_permission_change)
+  state.subscribe('pending_permissions', M._on_current_permission_change)
 
   vim.schedule(function()
     M.opencode_ok()

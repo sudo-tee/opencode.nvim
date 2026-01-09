@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
+local permission_window = require('opencode.ui.permission_window')
 local Promise = require('opencode.promise')
 local RenderState = require('opencode.ui.render_state')
 
@@ -46,10 +47,17 @@ function M.reset()
   state.last_user_message = nil
   state.tokens_count = 0
 
-  if state.current_permission and state.api_client then
-    require('opencode.api').respond_to_permission('reject')
+  local permissions = state.pending_permissions or {}
+  if #permissions and state.api_client then
+    for _, permission in ipairs(permissions) do
+      require('opencode.api').permission_deny(permission)
+    end
   end
-  state.current_permission = nil
+  permission_window.clear_all()
+  state.pending_permissions = {}
+
+  -- Clear permission window
+  permission_window.clear_all()
 
   trigger_on_data_rendered()
 end
@@ -163,6 +171,31 @@ function M._render_full_session_data(session_data)
   end
 end
 
+---Append permissions display as a fake part at the end
+function M._append_permissions_display()
+  local fake_message = {
+    info = {
+      id = 'permission-display-message',
+      sessionID = state.active_session and state.active_session.id or '',
+      role = 'system',
+    },
+    parts = {},
+  }
+  M.on_message_updated(fake_message)
+
+  local fake_part = {
+    id = 'permission-display-part',
+    messageID = 'permission-display-message',
+    sessionID = state.active_session and state.active_session.id or '',
+    type = 'permissions-display',
+  }
+
+  local permission_lines = permission_window.get_display_lines()
+  if #permission_lines > 0 then
+    M.on_part_updated({ part = fake_part })
+  end
+end
+
 ---Render lines as the entire output buffer
 ---@param lines any
 function M.render_lines(lines)
@@ -178,7 +211,21 @@ function M.render_output(output_data)
     return
   end
 
-  output_window.set_lines(output_data.lines)
+  local lines = output_data.lines or {}
+
+  -- Append permission display if we have permissions
+  local permission_lines = permission_window.get_display_lines()
+  if #permission_lines > 0 then
+    vim.list_extend(lines, permission_lines)
+
+    -- Setup permission keymaps
+    local buf = state.windows and state.windows.output_buf
+    if buf then
+      permission_window.setup_keymaps(buf)
+    end
+  end
+
+  output_window.set_lines(lines)
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
   M.scroll_to_bottom()
@@ -777,7 +824,7 @@ function M.on_session_error(properties)
 end
 
 ---Event handler for permission.updated events
----Re-renders part that requires permission
+---Re-renders part that requires permission and adds to permission window
 ---@param permission OpencodePermission Event properties
 function M.on_permission_updated(permission)
   local tool = permission.tool
@@ -790,44 +837,50 @@ function M.on_permission_updated(permission)
     return
   end
 
-  if state.current_permission and state.current_permission.id ~= permission.id then
-    -- we got a permission request while we had an existing one?
-    vim.notify('Two pending permissions? existing: ' .. state.current_permission.id .. ' new: ' .. permission.id)
-
-    -- This will rerender the part with the old permission
-    M.on_permission_replied({})
+  -- Add permission to pending queue
+  if not state.pending_permissions then
+    state.pending_permissions = {}
   end
 
-  state.current_permission = permission
-
-  local part_id = M._find_part_by_call_id(callID, messageID)
-  if part_id then
-    M._rerender_part(part_id)
-    M.scroll_to_bottom()
+  -- Check if permission already exists in queue
+  local existing_index = nil
+  for i, existing in ipairs(state.pending_permissions) do
+    if existing.id == permission.id then
+      existing_index = i
+      break
+    end
   end
+
+  local permissions = vim.deepcopy(state.pending_permissions)
+  if existing_index then
+    permissions[existing_index] = permission
+  else
+    table.insert(permissions, permission)
+  end
+  state.pending_permissions = permissions
+
+  permission_window.add_permission(permission)
+
+  M._append_permissions_display()
+
+  M._rerender_part('permission-display-part')
+  M.scroll_to_bottom()
 end
 
 ---Event handler for permission.replied events
----Re-renders part after permission is resolved
+---Re-renders part after permission is resolved and removes from window
 ---@param properties {sessionID: string, permissionID: string, response: string}|{} Event properties
 function M.on_permission_replied(properties)
   if not properties then
     return
   end
 
-  local old_permission = state.current_permission
-  state.current_permission = nil
+  local permission_id = properties.permissionID
 
-  ---@TODO this is for backward compatibility, remove later
-  local tool = old_permission and old_permission.tool
-  local callID = tool and tool.callID or (old_permission and old_permission.callID)
-  local messageID = tool and tool.messageID or (old_permission and old_permission.messageID)
-
-  if old_permission and messageID and callID then
-    local part_id = M._find_part_by_call_id(callID, messageID)
-    if part_id then
-      M._rerender_part(part_id)
-    end
+  if permission_id then
+    permission_window.remove_permission(permission_id)
+    state.pending_permissions = vim.deepcopy(permission_window.get_all_permissions())
+    M._rerender_part('permission-display-part')
   end
 end
 
@@ -965,15 +1018,15 @@ end
 ---Event handler for focus changes
 ---Re-renders part associated with current permission for displaying global shortcuts or buffer-local ones
 function M.on_focus_changed()
-  if not state.current_permission or not state.current_permission.callID then
+  -- Check permission window first, fallback to state
+  local current_permission = permission_window.get_all_permissions()[1]
+
+  if not current_permission then
     return
   end
 
-  local part_id = M._find_part_by_call_id(state.current_permission.callID, state.current_permission.messageID)
-  if part_id then
-    M._rerender_part(part_id)
-    trigger_on_data_rendered()
-  end
+  M._rerender_part('permission-display-part')
+  trigger_on_data_rendered()
 end
 
 function M.on_session_changed(_, new, _)

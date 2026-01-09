@@ -214,10 +214,6 @@ function M.setup_autocmds(windows, group)
     end,
   })
 
-  state.subscribe('current_permission', function()
-    require('opencode.keymap').toggle_permission_keymap(windows.output_buf)
-  end)
-
   -- Track scroll position when window is scrolled
   vim.api.nvim_create_autocmd('WinScrolled', {
     group = group,
@@ -234,6 +230,18 @@ function M.clear()
   -- extmarks behind
   M.clear_extmarks(0, -1, true)
   M.viewport_at_bottom = true
+end
+
+---Get the output buffer
+---@return integer|nil Buffer ID
+function M.get_buf()
+  return state.windows and state.windows.output_buf
+end
+
+---Trigger a re-render by calling the renderer
+function M.render()
+  local renderer = require('opencode.ui.renderer')
+  renderer._render_all_messages()
 end
 
 return M

@@ -223,6 +223,7 @@ function M.pick()
     title = 'Code References (' .. #references .. ')',
     width = config.ui.picker_width or 100,
     preview = 'file',
+    layout_opts = config.ui.picker,
   })
 end
 

@@ -56,9 +56,6 @@ function M.reset()
   permission_window.clear_all()
   state.pending_permissions = {}
 
-  -- Clear permission window
-  permission_window.clear_all()
-
   trigger_on_data_rendered()
 end
 

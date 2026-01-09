@@ -65,7 +65,7 @@ local util = require('opencode.util')
 
 --- @class EventPermissionReplied
 --- @field type "permission.replied"
---- @field properties {sessionID: string, permissionID: string, response: string}
+--- @field properties {sessionID: string, permissionID?: string,requestID?:string,:Whether response: string}
 
 --- @class EventFileEdited
 --- @field type "file.edited"

@@ -442,7 +442,7 @@ M._on_user_message_count_change = Promise.async(function(_, new, old)
 end)
 
 M._on_current_permission_change = Promise.async(function(_, new, old)
-  local permission_requested = old == nil and new ~= nil
+  local permission_requested = #old < #new
   if config.hooks and config.hooks.on_permission_requested and permission_requested then
     local local_session = (state.active_session and state.active_session.id)
         and session.get_by_id(state.active_session.id):await()

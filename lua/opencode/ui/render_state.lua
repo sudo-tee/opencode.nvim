@@ -179,11 +179,13 @@ end
 ---@param line_start integer? Line where part starts
 ---@param line_end integer? Line where part ends
 function RenderState:set_part(part, line_start, line_end)
-  if not part or not part.id or not part.messageID then
+  if not part or not part.id then
     return
   end
+  
+  -- Allow special parts (like permissions) without messageID
   local part_id = part.id
-  local message_id = part.messageID
+  local message_id = part.messageID or 'special'
 
   if not self._parts[part_id] then
     self._parts[part_id] = {

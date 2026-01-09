@@ -45,39 +45,4 @@ function M.setup_window_keymaps(keymap_config, buf_id)
   process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id })
 end
 
----Add permission keymaps if permissions are being requested,
----otherwise remove them
----@param buf any
-function M.toggle_permission_keymap(buf)
-  if not vim.api.nvim_buf_is_valid(buf) then
-    return
-  end
-  local state = require('opencode.state')
-  local config = require('opencode.config')
-  local api = require('opencode.api')
-
-  local permission_config = config.keymap.permission
-  if not permission_config then
-    return
-  end
-
-  if state.current_permission then
-    for action, key in pairs(permission_config) do
-      local api_func = api['permission_' .. action]
-      if key and api_func then
-        vim.keymap.set({ 'n', 'i' }, key, api_func, { buffer = buf, silent = true })
-      end
-    end
-    return
-  end
-
-  -- not requesting permissions, clear keymaps
-  for _, key in pairs(permission_config) do
-    if key then
-      pcall(vim.api.nvim_buf_del_keymap, buf, 'n', key)
-      pcall(vim.api.nvim_buf_del_keymap, buf, 'i', key)
-    end
-  end
-end
-
 return M

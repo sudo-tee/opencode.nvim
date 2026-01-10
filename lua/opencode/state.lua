@@ -16,6 +16,7 @@
 ---@field last_output_window_position integer[]|nil
 ---@field last_code_win_before_opencode integer|nil
 ---@field current_code_buf number|nil
+---@field saved_window_options table|nil
 ---@field display_route any|nil
 ---@field current_mode string
 ---@field last_output number
@@ -61,6 +62,7 @@ local _state = {
   last_output_window_position = nil,
   last_code_win_before_opencode = nil,
   current_code_buf = nil,
+  saved_window_options = nil,
   display_route = nil,
   current_mode = nil,
   last_output = 0,

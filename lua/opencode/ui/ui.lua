@@ -215,10 +215,11 @@ end
 function M.select_session(sessions, cb)
   local session_picker = require('opencode.ui.session_picker')
   local util = require('opencode.util')
+  local picker = require('opencode.ui.picker')
 
   local success = session_picker.pick(sessions, cb)
   if not success then
-    vim.ui.select(sessions, {
+    picker.select(sessions, {
       prompt = '',
       format_item = function(session)
         local parts = {}

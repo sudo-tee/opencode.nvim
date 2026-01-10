@@ -124,7 +124,8 @@ M._prompt_add_to_context = function(cmd, output, exit_code)
 
   output_window.set_lines(lines)
 
-  vim.ui.select({ 'Yes', 'No' }, {
+  local picker = require('opencode.ui.picker')
+  picker.select({ 'Yes', 'No' }, {
     prompt = 'Add command + output to context?',
   }, function(choice)
     if choice == 'Yes' then

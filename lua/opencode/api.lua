@@ -422,7 +422,8 @@ end
 
 M.select_agent = Promise.async(function()
   local modes = config_file.get_opencode_agents():await()
-  vim.ui.select(modes, {
+  local picker = require('opencode.ui.picker')
+  picker.select(modes, {
     prompt = 'Select mode:',
   }, function(selection)
     if not selection then

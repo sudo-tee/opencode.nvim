@@ -82,6 +82,7 @@ function M.setup_subscriptions(subscribe)
     { 'permission.updated', M.on_permission_updated },
     { 'permission.asked', M.on_permission_updated },
     { 'permission.replied', M.on_permission_replied },
+    { 'question.asked', M.on_question_asked },
     { 'file.edited', M.on_file_edited },
     { 'custom.restore_point.created', M.on_restore_points },
     { 'custom.emit_events.finished', M.on_emit_events_finished },
@@ -829,6 +830,25 @@ function M.on_permission_replied(properties)
       M._rerender_part(part_id)
     end
   end
+end
+
+---Event handler for question.asked events
+---Shows the question picker UI for the user to answer
+---@param properties OpencodeQuestionRequest Event properties
+function M.on_question_asked(properties)
+  if not properties or not properties.id or not properties.questions then
+    return
+  end
+
+  -- Only show for current session
+  if not state.active_session or properties.sessionID ~= state.active_session.id then
+    return
+  end
+
+  vim.schedule(function()
+    local question_picker = require('opencode.ui.question_picker')
+    question_picker.show(properties)
+  end)
 end
 
 function M.on_file_edited(properties)

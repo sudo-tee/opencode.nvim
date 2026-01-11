@@ -27,6 +27,7 @@ local presets = {
     agent = '󰚩 ',
     reference = ' ',
     reasoning = '󰧑 ',
+    question = ' ',
     -- statuses
     status_on = ' ',
     status_off = ' ',
@@ -64,6 +65,7 @@ local presets = {
     attached_file = '@',
     agent = '@',
     reference = '@',
+    question = '?',
     -- statuses
     status_on = 'ON',
     status_off = 'OFF',

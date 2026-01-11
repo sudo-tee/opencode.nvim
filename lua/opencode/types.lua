@@ -280,6 +280,24 @@
 ---@field prompt string The subtask prompt
 ---@field description string Description of the subtask
 
+-- Question types
+
+---@class OpencodeQuestionOption
+---@field label string Display text
+---@field description string Explanation of choice
+
+---@class OpencodeQuestionInfo
+---@field question string Complete question
+---@field header string Very short label (max 12 chars)
+---@field options OpencodeQuestionOption[] Available choices
+---@field multiple? boolean Allow selecting multiple choices
+
+---@class OpencodeQuestionRequest
+---@field id string Question request ID
+---@field sessionID string Session ID
+---@field questions OpencodeQuestionInfo[] Questions to ask
+---@field tool? { messageID: string, callID: string }
+
 ---@class MessageTokenCount
 ---@field reasoning number
 ---@field input number

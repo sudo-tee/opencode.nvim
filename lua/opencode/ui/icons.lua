@@ -27,7 +27,7 @@ local presets = {
     agent = '󰚩 ',
     reference = ' ',
     reasoning = '󰧑 ',
-    question = ' ',
+    question = '',
     -- statuses
     status_on = ' ',
     status_off = ' ',

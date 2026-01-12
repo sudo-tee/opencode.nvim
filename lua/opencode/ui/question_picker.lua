@@ -118,7 +118,7 @@ function M._show_question(request, index, collected_answers)
   vim.notify(question_icon .. ' ' .. q.question, vim.log.levels.INFO, { title = 'OpenCode Question' })
 
   -- Use base_picker
-  local success = base_picker.pick({
+  base_picker.pick({
     items = items,
     format_fn = format_option,
     title = title,
@@ -150,52 +150,6 @@ function M._show_question(request, index, collected_answers)
       -- Multi-select is handled by the confirm_multi action
     end,
   })
-
-  -- Fallback to vim.ui.select if no picker available
-  if not success then
-    M._fallback_picker(request, index, collected_answers, q, items)
-  end
-end
-
---- Fallback to vim.ui.select when no picker is available
---- @param request OpencodeQuestionRequest
---- @param index number
---- @param collected_answers string[][]
---- @param q OpencodeQuestionInfo
---- @param items table[]
-function M._fallback_picker(request, index, collected_answers, q, items)
-  local question_icon = icons.get('question') or '?'
-  local progress = #request.questions > 1 and string.format(' (%d/%d)', index, #request.questions) or ''
-  local prompt = q.header .. progress .. ': '
-
-  vim.ui.select(items, {
-    prompt = prompt,
-    format_item = function(item)
-      if item.description and item.description ~= '' then
-        return item.label .. ' - ' .. item.description
-      end
-      return item.label
-    end,
-  }, function(choice)
-    if not choice then
-      M._send_reject(request.id)
-      return
-    end
-
-    if choice.is_other then
-      vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
-        if input and input ~= '' then
-          table.insert(collected_answers, { input })
-          M._show_question(request, index + 1, collected_answers)
-        else
-          M._send_reject(request.id)
-        end
-      end)
-    else
-      table.insert(collected_answers, { choice.label })
-      M._show_question(request, index + 1, collected_answers)
-    end
-  end)
 end
 
 --- Send reply to the question

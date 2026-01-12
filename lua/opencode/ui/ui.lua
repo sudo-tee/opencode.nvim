@@ -31,6 +31,13 @@ function M.close_windows(windows)
     if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
       pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
     end
+    -- Restore original window options
+    if state.saved_window_options and vim.api.nvim_win_is_valid(windows.output_win) then
+      for opt, value in pairs(state.saved_window_options) do
+        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+      end
+      state.saved_window_options = nil
+    end
   else
     pcall(vim.api.nvim_win_close, windows.output_win, true)
   end

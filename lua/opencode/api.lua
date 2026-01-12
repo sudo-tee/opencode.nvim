@@ -927,15 +927,20 @@ function M.redo()
 end
 
 ---@param answer? 'once'|'always'|'reject'
-function M.respond_to_permission(answer)
+---@param permission? OpencodePermission
+function M.respond_to_permission(answer, permission)
   answer = answer or 'once'
-  if not state.current_permission then
+
+  local permission_window = require('opencode.ui.permission_window')
+  local current_permission = permission or permission_window.get_current_permission()
+
+  if not current_permission then
     vim.notify('No permission request to accept', vim.log.levels.WARN)
     return
   end
 
   state.api_client
-    :respond_to_permission(state.current_permission.sessionID, state.current_permission.id, { response = answer })
+    :respond_to_permission(current_permission.sessionID, current_permission.id, { response = answer })
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -943,16 +948,19 @@ function M.respond_to_permission(answer)
     end)
 end
 
-function M.permission_accept()
-  M.respond_to_permission('once')
+---@param permission? OpencodePermission
+function M.permission_accept(permission)
+  M.respond_to_permission('once', permission)
 end
 
-function M.permission_accept_all()
-  M.respond_to_permission('always')
+---@param permission? OpencodePermission
+function M.permission_accept_all(permission)
+  M.respond_to_permission('always', permission)
 end
 
-function M.permission_deny()
-  M.respond_to_permission('reject')
+---@param permission? OpencodePermission
+function M.permission_deny(permission)
+  M.respond_to_permission('reject', permission)
 end
 
 function M.toggle_tool_output()
@@ -1262,12 +1270,24 @@ M.commands = {
     completions = { 'accept', 'accept_all', 'deny' },
     fn = function(args)
       local subcmd = args[1]
+      local index = tonumber(args[2])
+      local permission = nil
+      if index then
+        local permission_window = require('opencode.ui.permission_window')
+        local permissions = permission_window.get_all_permissions()
+        if not permissions or not permissions[index] then
+          vim.notify('Invalid permission index: ' .. tostring(index), vim.log.levels.ERROR)
+          return
+        end
+        permission = permissions[index]
+      end
+
       if subcmd == 'accept' then
-        M.permission_accept()
+        M.permission_accept(permission)
       elseif subcmd == 'accept_all' then
-        M.permission_accept_all()
+        M.permission_accept_all(permission)
       elseif subcmd == 'deny' then
-        M.permission_deny()
+        M.permission_deny(permission)
       else
         local valid_subcmds = table.concat(M.commands.permission.completions or {}, ', ')
         vim.notify('Invalid permission subcommand. Use: ' .. valid_subcmds, vim.log.levels.ERROR)

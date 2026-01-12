@@ -415,9 +415,8 @@ You can configure a custom action in Snacks pickers to send selected files direc
             end
             picker:close()
 
-            -- Open opencode and add files as context
             require("opencode.core").open({
-              new_session = false, -- set to true to start a new session
+              new_session = false,
               focus = "input",
               start_insert = true,
             })

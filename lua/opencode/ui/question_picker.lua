@@ -6,7 +6,6 @@ local config = require('opencode.config')
 
 local M = {}
 
--- Track current question being displayed
 M.current_question = nil
 
 --- Format a question option for the picker
@@ -30,7 +29,6 @@ function M.show(question)
 
   M.current_question = question
 
-  -- Process questions sequentially
   M._show_question(question, 1, {})
 end
 
@@ -56,7 +54,6 @@ function M._show_question(request, index, collected_answers)
     })
   end
 
-  -- Add "Other" option for custom input
   table.insert(items, {
     label = 'Other',
     description = 'Provide custom response',
@@ -67,7 +64,6 @@ function M._show_question(request, index, collected_answers)
   local progress = #questions > 1 and string.format(' (%d/%d)', index, #questions) or ''
   local title = q.question .. progress
 
-  -- Define actions
   local actions = {}
 
   if q.multiple then

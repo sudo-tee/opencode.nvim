@@ -456,7 +456,6 @@ local function snacks_picker_ui(opts)
 
       snack_opts.actions[action_name] = function(_picker, item)
         if item then
-          -- Collect selected items before closing (for multi-selection)
           local items_to_process
           if action.multi_selection then
             local selected_items = _picker:selected({ fallback = true })
@@ -465,7 +464,6 @@ local function snacks_picker_ui(opts)
             items_to_process = item
           end
 
-          -- Close picker unless this is a reload action
           if not action.reload then
             _picker:close()
           end

@@ -840,7 +840,6 @@ function M.on_question_asked(properties)
     return
   end
 
-  -- Only show for current session
   if not state.active_session or properties.sessionID ~= state.active_session.id then
     return
   end

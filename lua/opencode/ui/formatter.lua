@@ -712,20 +712,50 @@ end
 ---@param tool_output string
 function M._format_task_tool(output, input, metadata, tool_output)
   local start_line = output:get_line_count() + 1
-  M._format_action(output, icons.get('task') .. ' task', input and input.description)
+
+  -- Show agent type if available
+  local description = input and input.description or ''
+  local agent_type = input and input.subagent_type
+  if agent_type then
+    description = string.format('%s (@%s)', description, agent_type)
+  end
+
+  M._format_action(output, icons.get('task') .. ' task', description)
 
   if config.ui.output.tools.show_output then
-    if tool_output and tool_output ~= '' then
+    -- Show task summary from metadata
+    -- The summary contains items with structure: {id, tool, state: {status, title}}
+    if metadata and metadata.summary and type(metadata.summary) == 'table' and #metadata.summary > 0 then
       output:add_empty_line()
-      output:add_lines(vim.split(tool_output, '\n'))
+
+      local status_icons = {
+        completed = icons.get('status_on') or '+',
+        running = icons.get('run') or '>',
+        pending = icons.get('status_off') or '-',
+        error = icons.get('error') or 'x',
+      }
+
+      for _, item in ipairs(metadata.summary) do
+        if item.tool then
+          local status = item.state and item.state.status or 'pending'
+          local title = item.state and item.state.title or item.tool
+          local icon = status_icons[status] or status_icons.pending
+
+          output:add_line(string.format('  %s %s', icon, title))
+        end
+      end
+
       output:add_empty_line()
     end
 
-    if metadata.summary and type(metadata.summary) == 'table' then
-      for _, sub_part in ipairs(metadata.summary) do
-        if sub_part.type == 'tool' and sub_part.tool then
-          M._format_tool(output, sub_part)
-        end
+    -- Show tool output text (usually the final summary from the subagent)
+    if tool_output and tool_output ~= '' then
+      -- Strip task_metadata tags from output for cleaner display
+      local clean_output = tool_output:gsub('<task_metadata>.-</task_metadata>', ''):gsub('%s+$', '')
+      if clean_output ~= '' then
+        output:add_empty_line()
+        output:add_lines(vim.split(clean_output, '\n'))
+        output:add_empty_line()
       end
     end
   end

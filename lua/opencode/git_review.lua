@@ -5,6 +5,7 @@ local diff_tab = require('opencode.ui.diff_tab')
 local utils = require('opencode.util')
 local session = require('opencode.session')
 local config_file = require('opencode.config_file')
+local picker = require('opencode.ui.picker')
 
 local M = {}
 
@@ -156,7 +157,7 @@ M.review = require_git_project(function(ref)
     M.__current_file_index = 1
     diff_tab.open_diff_tab(files[1].left, files[1].right, files[1].file_type)
   else
-    vim.ui.select(
+    picker.select(
       vim.tbl_map(function(f)
         return vim.fn.fnamemodify(f.left, ':.')
       end, files),
@@ -267,7 +268,7 @@ M.revert_selected_file = require_git_project(function(ref)
     return
   end
 
-  vim.ui.select(
+  picker.select(
     vim.tbl_map(function(f)
       return vim.fn.fnamemodify(f.left, ':.')
     end, files),
@@ -336,7 +337,7 @@ M.restore_snapshot_file = require_git_project(function(restore_point_id)
     end
     local files = get_changed_files(restore_point.id)
 
-    vim.ui.select(
+    picker.select(
       vim.tbl_map(function(f)
         return vim.fn.fnamemodify(f.left, ':.')
       end, files),
@@ -363,7 +364,7 @@ function M.with_restore_point(restore_point_id, fn)
   if #restore_points == 1 then
     return fn(restore_points[1])
   end
-  vim.ui.select(restore_points, {
+  picker.select(restore_points, {
     prompt = 'Select a restore point to restore:',
     format_item = function(item)
       return (require('opencode.ui.icons').get('file') .. '[+%d,-%d] %s - %s (from: %s)'):format(

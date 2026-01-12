@@ -219,7 +219,8 @@
 ---@field message string|nil Optional status or error message
 
 ---@class TaskToolMetadata: ToolMetadataBase
----@field summary OpencodeMessagePart[]
+---@field summary TaskToolSummaryItem[]
+---@field sessionId string|nil Child session ID
 
 ---@class WebFetchToolMetadata: ToolMetadataBase
 ---@field http_status number|nil HTTP response status code
@@ -279,6 +280,12 @@
 ---@class TaskToolInput
 ---@field prompt string The subtask prompt
 ---@field description string Description of the subtask
+---@field subagent_type string The type of specialized agent to use
+
+---@class TaskToolSummaryItem
+---@field id string Tool call ID
+---@field tool string Tool name
+---@field state { status: string, title?: string }
 
 -- Question types
 

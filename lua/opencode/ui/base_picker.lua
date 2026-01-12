@@ -456,15 +456,21 @@ local function snacks_picker_ui(opts)
 
       snack_opts.actions[action_name] = function(_picker, item)
         if item then
-          vim.schedule(function()
-            local items_to_process
-            if action.multi_selection then
-              local selected_items = _picker:selected({ fallback = true })
-              items_to_process = #selected_items > 1 and selected_items or item
-            else
-              items_to_process = item
-            end
+          -- Collect selected items before closing (for multi-selection)
+          local items_to_process
+          if action.multi_selection then
+            local selected_items = _picker:selected({ fallback = true })
+            items_to_process = #selected_items > 1 and selected_items or item
+          else
+            items_to_process = item
+          end
 
+          -- Close picker unless this is a reload action
+          if not action.reload then
+            _picker:close()
+          end
+
+          vim.schedule(function()
             local new_items = action.fn(items_to_process, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then

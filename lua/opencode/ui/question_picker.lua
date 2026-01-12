@@ -1,11 +1,25 @@
 -- Question picker UI for handling question tool requests
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
+local base_picker = require('opencode.ui.base_picker')
+local config = require('opencode.config')
 
 local M = {}
 
 -- Track current question being displayed
 M.current_question = nil
+
+--- Format a question option for the picker
+---@param item table Question option item
+---@param width? number Optional width
+---@return PickerItem
+local function format_option(item, width)
+  local text = item.label
+  if item.description and item.description ~= '' then
+    text = text .. ' - ' .. item.description
+  end
+  return base_picker.create_picker_item(text, nil, nil, width)
+end
 
 --- Show a question picker for the user to answer
 --- @param question OpencodeQuestionRequest
@@ -49,29 +63,111 @@ function M._show_question(request, index, collected_answers)
     is_other = true,
   })
 
-  -- Show the full question as a notification so user can see it without truncation
+  -- Build title with question
   local question_icon = icons.get('question') or '?'
   local progress = #questions > 1 and string.format(' (%d/%d)', index, #questions) or ''
-  vim.notify(question_icon .. ' ' .. q.question, vim.log.levels.INFO, { title = 'OpenCode Question' })
+  local title = question_icon .. ' ' .. q.header .. progress
 
-  -- Use the short header as the prompt (won't get cut off)
-  local prompt = q.header .. progress .. ': '
+  -- Define actions
+  local actions = {}
 
   if q.multiple then
-    M._show_multiselect(request, index, collected_answers, q, items, prompt)
-  else
-    M._show_single_select(request, index, collected_answers, q, items, prompt)
+    -- For multi-select, add a confirm action that collects all selections
+    actions.confirm_multi = {
+      key = { '<CR>', mode = { 'i', 'n' } },
+      label = 'confirm',
+      multi_selection = true,
+      fn = function(selected, opts)
+        -- Handle the selection
+        local selections = type(selected) == 'table' and selected.label == nil and selected or { selected }
+
+        -- Check for "Other" option
+        local has_other = false
+        local answers = {}
+        for _, item in ipairs(selections) do
+          if item.is_other then
+            has_other = true
+          else
+            table.insert(answers, item.label)
+          end
+        end
+
+        if has_other and #answers == 0 then
+          -- Only "Other" selected, prompt for input
+          vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
+            if input and input ~= '' then
+              table.insert(collected_answers, { input })
+              M._show_question(request, index + 1, collected_answers)
+            else
+              M._send_reject(request.id)
+            end
+          end)
+        elseif #answers > 0 then
+          table.insert(collected_answers, answers)
+          M._show_question(request, index + 1, collected_answers)
+        else
+          vim.notify('Please select at least one option', vim.log.levels.WARN)
+        end
+
+        return nil -- Don't reload
+      end,
+    }
+  end
+
+  -- Show full question as notification for context
+  vim.notify(question_icon .. ' ' .. q.question, vim.log.levels.INFO, { title = 'OpenCode Question' })
+
+  -- Use base_picker
+  local success = base_picker.pick({
+    items = items,
+    format_fn = format_option,
+    title = title,
+    actions = actions,
+    width = config.ui.picker_width or 80,
+    callback = function(selected)
+      if not selected then
+        -- User cancelled
+        M._send_reject(request.id)
+        return
+      end
+
+      -- For single-select (no multi action defined), handle here
+      if not q.multiple then
+        if selected.is_other then
+          vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
+            if input and input ~= '' then
+              table.insert(collected_answers, { input })
+              M._show_question(request, index + 1, collected_answers)
+            else
+              M._send_reject(request.id)
+            end
+          end)
+        else
+          table.insert(collected_answers, { selected.label })
+          M._show_question(request, index + 1, collected_answers)
+        end
+      end
+      -- Multi-select is handled by the confirm_multi action
+    end,
+  })
+
+  -- Fallback to vim.ui.select if no picker available
+  if not success then
+    M._fallback_picker(request, index, collected_answers, q, items)
   end
 end
 
---- Show single-select picker
+--- Fallback to vim.ui.select when no picker is available
 --- @param request OpencodeQuestionRequest
 --- @param index number
 --- @param collected_answers string[][]
 --- @param q OpencodeQuestionInfo
 --- @param items table[]
---- @param prompt string
-function M._show_single_select(request, index, collected_answers, q, items, prompt)
+function M._fallback_picker(request, index, collected_answers, q, items)
+  local question_icon = icons.get('question') or '?'
+  local progress = #request.questions > 1 and string.format(' (%d/%d)', index, #request.questions) or ''
+  local prompt = q.header .. progress .. ': '
+
   vim.ui.select(items, {
     prompt = prompt,
     format_item = function(item)
@@ -82,13 +178,11 @@ function M._show_single_select(request, index, collected_answers, q, items, prom
     end,
   }, function(choice)
     if not choice then
-      -- User cancelled - reject the question
       M._send_reject(request.id)
       return
     end
 
     if choice.is_other then
-      -- Get custom input
       vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
         if input and input ~= '' then
           table.insert(collected_answers, { input })
@@ -98,103 +192,10 @@ function M._show_single_select(request, index, collected_answers, q, items, prom
         end
       end)
     else
-      -- Reply with selected option
       table.insert(collected_answers, { choice.label })
       M._show_question(request, index + 1, collected_answers)
     end
   end)
-end
-
---- Show multi-select picker using checkboxes
---- @param request OpencodeQuestionRequest
---- @param index number
---- @param collected_answers string[][]
---- @param q OpencodeQuestionInfo
---- @param items table[]
---- @param prompt string
-function M._show_multiselect(request, index, collected_answers, q, items, prompt)
-  -- For multiselect, we use a simple approach: show items with instructions
-  -- User can select multiple by choosing "Done" when finished
-  local selected = {}
-
-  local function show_picker()
-    local display_items = {}
-
-    for _, item in ipairs(items) do
-      if not item.is_other then
-        local prefix = selected[item.label] and '[x] ' or '[ ] '
-        table.insert(display_items, {
-          label = item.label,
-          description = item.description,
-          display = prefix .. item.label,
-          is_other = false,
-        })
-      end
-    end
-
-    -- Add done and other options
-    table.insert(display_items, {
-      label = '-- Done --',
-      description = 'Confirm selection',
-      display = '-- Done --',
-      is_done = true,
-    })
-    table.insert(display_items, {
-      label = 'Other',
-      description = 'Provide custom response',
-      display = 'Other',
-      is_other = true,
-    })
-
-    vim.ui.select(display_items, {
-      prompt = prompt .. '(multi): ',
-      format_item = function(item)
-        if item.description and item.description ~= '' and not item.is_done then
-          return item.display .. ' - ' .. item.description
-        end
-        return item.display
-      end,
-    }, function(choice)
-      if not choice then
-        M._send_reject(request.id)
-        return
-      end
-
-      if choice.is_done then
-        -- Collect selected items
-        local answers = {}
-        for label, _ in pairs(selected) do
-          table.insert(answers, label)
-        end
-        if #answers == 0 then
-          vim.notify('Please select at least one option', vim.log.levels.WARN)
-          show_picker()
-          return
-        end
-        table.insert(collected_answers, answers)
-        M._show_question(request, index + 1, collected_answers)
-      elseif choice.is_other then
-        vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
-          if input and input ~= '' then
-            table.insert(collected_answers, { input })
-            M._show_question(request, index + 1, collected_answers)
-          else
-            show_picker()
-          end
-        end)
-      else
-        -- Toggle selection
-        if selected[choice.label] then
-          selected[choice.label] = nil
-        else
-          selected[choice.label] = true
-        end
-        show_picker()
-      end
-    end)
-  end
-
-  show_picker()
 end
 
 --- Send reply to the question

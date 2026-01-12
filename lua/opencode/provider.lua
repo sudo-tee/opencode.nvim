@@ -24,7 +24,8 @@ end
 function M.select(cb)
   local models = M._get_models()
 
-  vim.ui.select(models, {
+  local picker = require('opencode.ui.picker')
+  picker.select(models, {
     prompt = 'Select model:',
     format_item = function(item)
       return item.display

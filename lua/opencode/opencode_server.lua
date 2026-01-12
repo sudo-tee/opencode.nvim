@@ -11,19 +11,29 @@ local Promise = require('opencode.promise')
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
---- Create a new ServerJob instance
---- @return OpencodeServer
-function OpencodeServer.new()
-  --- before quitting vim ensure we close opencode server
+local vim_leave_setup = false
+local function ensure_vim_leave_autocmd()
+  if vim_leave_setup then
+    return
+  end
+  vim_leave_setup = true
+
   vim.api.nvim_create_autocmd('VimLeavePre', {
     group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
     callback = function()
       local state = require('opencode.state')
       if state.opencode_server then
-        state.opencode_server:shutdown()
+        state.opencode_server:shutdown():wait(2000)
       end
     end,
   })
+end
+
+--- Create a new ServerJob instance
+--- @return OpencodeServer
+function OpencodeServer.new()
+  ensure_vim_leave_autocmd()
+
   return setmetatable({
     job = nil,
     url = nil,
@@ -40,11 +50,16 @@ end
 --- Clean up this server job
 --- @return Promise<boolean>
 function OpencodeServer:shutdown()
+  if self.shutdown_promise:is_resolved() then
+    return self.shutdown_promise
+  end
+
   if self.job and self.job.pid then
     pcall(function()
       self.job:kill('sigterm')
     end)
   end
+
   self.job = nil
   self.url = nil
   self.handle = nil

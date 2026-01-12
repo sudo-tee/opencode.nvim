@@ -95,6 +95,18 @@ local util = require('opencode.util')
 --- @class RestorePointCreatedEvent
 --- @field restore_point RestorePoint
 
+--- @class EventQuestionAsked
+--- @field type "question.asked"
+--- @field properties OpencodeQuestionRequest
+
+--- @class EventQuestionReplied
+--- @field type "question.replied"
+--- @field properties { sessionID: string, requestID: string, answers: string[][] }
+
+--- @class EventQuestionRejected
+--- @field type "question.rejected"
+--- @field properties { sessionID: string, requestID: string }
+
 --- @alias OpencodeEventName
 --- | "installation.updated"
 --- | "lsp.client.diagnostics"
@@ -109,6 +121,9 @@ local util = require('opencode.util')
 --- | "session.error"
 --- | "permission.updated"
 --- | "permission.replied"
+--- | "question.asked"
+--- | "question.replied"
+--- | "question.rejected"
 --- | "file.edited"
 --- | "file.watcher.updated"
 --- | "server.connected"

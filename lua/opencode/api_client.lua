@@ -391,6 +391,32 @@ function OpencodeApiClient:list_agents(directory)
   return self:_call('/agent', 'GET', nil, { directory = directory })
 end
 
+-- Question endpoints
+
+--- List pending questions
+--- @param directory string|nil Directory path
+--- @return Promise<OpencodeQuestionRequest[]>
+function OpencodeApiClient:list_questions(directory)
+  return self:_call('/question', 'GET', nil, { directory = directory })
+end
+
+--- Reply to a question
+--- @param requestID string Question request ID (required)
+--- @param answers string[][] Array of answers (each answer is array of selected labels)
+--- @param directory string|nil Directory path
+--- @return Promise<boolean>
+function OpencodeApiClient:reply_question(requestID, answers, directory)
+  return self:_call('/question/' .. requestID .. '/reply', 'POST', { answers = answers }, { directory = directory })
+end
+
+--- Reject a question
+--- @param requestID string Question request ID (required)
+--- @param directory string|nil Directory path
+--- @return Promise<boolean>
+function OpencodeApiClient:reject_question(requestID, directory)
+  return self:_call('/question/' .. requestID .. '/reject', 'POST', nil, { directory = directory })
+end
+
 --- Subscribe to events (streaming)
 --- @param directory string|nil Directory path
 --- @param on_event fun(event: table) Event callback

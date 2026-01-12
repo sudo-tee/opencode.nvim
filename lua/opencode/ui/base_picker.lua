@@ -123,6 +123,8 @@ local function telescope_ui(opts)
       )
   end
 
+  local selection_made = false
+
   current_picker = pickers.new({}, {
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
@@ -133,12 +135,23 @@ local function telescope_ui(opts)
       } or nil,
     attach_mappings = function(prompt_bufnr, map)
       actions.select_default:replace(function()
+        selection_made = true
         local selection = action_state.get_selected_entry()
         actions.close(prompt_bufnr)
         if selection and opts.callback then
           opts.callback(selection.value)
         end
       end)
+
+      actions.close:enhance({
+        post = function()
+          if not selection_made and opts.callback then
+            vim.schedule(function()
+              opts.callback(nil)
+            end)
+          end
+        end,
+      })
 
       for _, action in pairs(opts.actions) do
         if action.key and action.key[1] then
@@ -272,11 +285,19 @@ local function fzf_ui(opts)
   local actions_config = {
     ['default'] = function(selected, fzf_opts)
       if not selected or #selected == 0 then
+        if opts.callback then
+          opts.callback(nil)
+        end
         return
       end
       local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
       if idx and opts.items[idx] and opts.callback then
         opts.callback(opts.items[idx])
+      end
+    end,
+    ['esc'] = function()
+      if opts.callback then
+        opts.callback(nil)
       end
     end,
   }
@@ -363,6 +384,8 @@ local function mini_pick_ui(opts)
     end
   end
 
+  local selection_made = false
+
   mini_pick.start({
     window = opts.width
         and {
@@ -376,9 +399,17 @@ local function mini_pick_ui(opts)
       name = opts.title,
       choose = function(selected)
         if selected and selected.item and opts.callback then
+          selection_made = true
           opts.callback(selected.item)
         end
         return false
+      end,
+      on_done = function()
+        if not selection_made and opts.callback then
+          vim.schedule(function()
+            opts.callback(nil)
+          end)
+        end
       end,
     },
     mappings = mappings,
@@ -390,13 +421,14 @@ end
 local function snacks_picker_ui(opts)
   local Snacks = require('snacks')
 
-  -- Determine if preview is enabled
   local has_preview = opts.preview == 'file'
 
   local title = type(opts.title) == 'function' and opts.title() or opts.title
   ---@cast title string
 
   local layout_opts = opts.layout_opts and opts.layout_opts.snacks_layout or nil
+
+  local selection_made = false
 
   ---@type snacks.picker.Config
   local snack_opts = {
@@ -417,7 +449,6 @@ local function snacks_picker_ui(opts)
       return opts.items
     end,
     transform = function(item, ctx)
-      -- Snacks requires item.text to be set to do matching
       if not item.text then
         local picker_item = opts.format_fn(item)
         item.text = picker_item:to_string()
@@ -426,8 +457,16 @@ local function snacks_picker_ui(opts)
     format = function(item)
       return opts.format_fn(item):to_formatted_text()
     end,
+    on_close = function()
+      if not selection_made and opts.callback then
+        vim.schedule(function()
+          opts.callback(nil)
+        end)
+      end
+    end,
     actions = {
       confirm = function(_picker, item)
+        selection_made = true
         _picker:close()
         if item and opts.callback then
           vim.schedule(function()
@@ -456,15 +495,20 @@ local function snacks_picker_ui(opts)
 
       snack_opts.actions[action_name] = function(_picker, item)
         if item then
-          vim.schedule(function()
-            local items_to_process
-            if action.multi_selection then
-              local selected_items = _picker:selected({ fallback = true })
-              items_to_process = #selected_items > 1 and selected_items or item
-            else
-              items_to_process = item
-            end
+          local items_to_process
+          if action.multi_selection then
+            local selected_items = _picker:selected({ fallback = true })
+            items_to_process = #selected_items > 1 and selected_items or item
+          else
+            items_to_process = item
+          end
 
+          if not action.reload then
+            selection_made = true
+            _picker:close()
+          end
+
+          vim.schedule(function()
             local new_items = action.fn(items_to_process, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then

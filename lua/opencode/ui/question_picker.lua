@@ -63,17 +63,16 @@ function M._show_question(request, index, collected_answers)
     is_other = true,
   })
 
-  -- Build title with question
-  local question_icon = icons.get('question') or '?'
+  -- Build title with full question text (no icon)
   local progress = #questions > 1 and string.format(' (%d/%d)', index, #questions) or ''
-  local title = question_icon .. ' ' .. q.header .. progress
+  local title = q.question .. progress
 
   -- Define actions
   local actions = {}
 
   if q.multiple then
-    -- For multi-select, add a confirm action that collects all selections
-    actions.confirm_multi = {
+    -- For multi-select, override the default confirm action to collect all selections
+    actions.confirm = {
       key = { '<CR>', mode = { 'i', 'n' } },
       label = 'confirm',
       multi_selection = true,
@@ -115,6 +114,7 @@ function M._show_question(request, index, collected_answers)
   end
 
   -- Show full question as notification for context
+  local question_icon = icons.get('question') or '?'
   vim.notify(question_icon .. ' ' .. q.question, vim.log.levels.INFO, { title = 'OpenCode Question' })
 
   -- Use base_picker

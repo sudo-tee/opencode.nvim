@@ -393,6 +393,59 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 
 You can customize the layout of the picker used for history, session, references, and timeline
 
+#### Snacks Picker Integration with Opencode
+
+You can configure a custom action in Snacks pickers to send selected files directly to opencode as context. This works with any file-based picker (files, git_files, buffers, git_status, etc.).
+
+```lua
+-- In your snacks.nvim configuration
+{
+  "folke/snacks.nvim",
+  opts = {
+    picker = {
+      actions = {
+        opencode_send = function(picker)
+          local selected = picker:selected({ fallback = true })
+          if selected and #selected > 0 then
+            local files = {}
+            for _, item in ipairs(selected) do
+              if item.file then
+                table.insert(files, item.file)
+              end
+            end
+            picker:close()
+
+            require("opencode.core").open({
+              new_session = false,
+              focus = "input",
+              start_insert = true,
+            })
+
+            local context = require("opencode.context")
+            for _, file in ipairs(files) do
+              context.add_file(file)
+            end
+          end
+        end,
+      },
+      win = {
+        input = {
+          keys = {
+            -- Use <localleader>o or any preferred key to send files to opencode
+            ["<localleader>o"] = { "opencode_send", mode = { "n", "i" } },
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+This allows you to:
+1. Open any Snacks file picker (`:Snacks picker files`, `:Snacks picker git_files`, etc.)
+2. Select one or more files using multi-select
+3. Press `<localleader>o` to send those files to opencode as context
+
 #### Snacks Picker Layout
 
 There's 3 main ways on how to change the snacks picker layout

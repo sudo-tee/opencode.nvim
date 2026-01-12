@@ -26,7 +26,7 @@
 - **Types:** Use Lua annotations (`---@class`, `---@field`, etc.) for public APIs/config.
 - **Naming:** Modules: `snake_case.lua`; functions/vars: `snake_case`; classes: `CamelCase`.
 - **Error Handling:** Use `vim.notify` for user-facing errors. Return early on error.
-- **Comments:** Only when necessary for clarity. Prefer self-explanatory code.
+- **Comments:** Avoid obvious comments that merely restate what the code does. Only add comments when necessary to explain *why* something is done, not *what* is being done. Prefer self-explanatory code.
 - **Functions:** Prefer local functions. Use `M.func` for module exports.
 - **Config:** Centralize in `config.lua`. Use deep merge for user overrides.
 - **Tests:** Place in `tests/minimal/`, `tests/unit/`, or `tests/replay/`. Manual/visual tests in `tests/manual/`.

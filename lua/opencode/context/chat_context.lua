@@ -366,7 +366,7 @@ end
 -- Load function that populates the global context state
 -- This is the core loading logic that was originally in the main context module
 function M.load()
-  if not state.active_session then
+  if not state.active_session and not state.is_opening then
     return
   end
 

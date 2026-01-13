@@ -8,6 +8,7 @@ local M = {}
 M.defaults = {
   preferred_picker = nil,
   preferred_completion = nil,
+  preferred_model = nil,
   default_global_keymaps = true,
   default_mode = 'build',
   legacy_commands = true,

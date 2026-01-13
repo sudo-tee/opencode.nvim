@@ -1,11 +1,36 @@
 local Promise = require('opencode.promise')
-local M = {}
+local CompletionEngine = require('opencode.ui.completion.engines.base')
 
-function M.setup(completion_sources)
+---@class NvimCmpEngine : CompletionEngine
+local NvimCmpEngine = setmetatable({}, { __index = CompletionEngine })
+NvimCmpEngine.__index = NvimCmpEngine
+
+---Create a new nvim-cmp completion engine
+---@return NvimCmpEngine
+function NvimCmpEngine.new()
+  local self = CompletionEngine.new('nvim_cmp')
+  return setmetatable(self, NvimCmpEngine)
+end
+
+---Check if nvim-cmp is available
+---@return boolean
+function NvimCmpEngine:is_available()
+  local ok = pcall(require, 'cmp')
+  return ok and CompletionEngine.is_available()
+end
+
+---Setup nvim-cmp completion engine
+---@param completion_sources table[]
+---@return boolean
+function NvimCmpEngine:setup(completion_sources)
   local ok, cmp = pcall(require, 'cmp')
   if not ok then
     return false
   end
+
+  CompletionEngine.setup(self, completion_sources)
+
+  local engine = self
   local source = {}
 
   function source.new()
@@ -13,30 +38,20 @@ function M.setup(completion_sources)
   end
 
   function source:get_trigger_characters()
-    local config = require('opencode.config')
-    local mention_key = config.get_key_for_function('input_window', 'mention')
-    local slash_key = config.get_key_for_function('input_window', 'slash_commands')
-    local context_key = config.get_key_for_function('input_window', 'context_items')
-    return {
-      slash_key or '',
-      mention_key or '',
-      context_key or '',
-    }
+    return engine:get_trigger_characters()
   end
 
   function source:is_available()
-    return vim.bo.filetype == 'opencode'
+    return engine:is_available()
   end
 
   function source:complete(params, callback)
     Promise.spawn(function()
       local line = params.context.cursor_line
-
       local col = params.context.cursor.col
       local before_cursor = line:sub(1, col - 1)
 
-      local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
-      local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
+      local trigger_char, trigger_match = engine:parse_trigger(before_cursor)
 
       if not trigger_match then
         callback({ items = {}, isIncomplete = false })
@@ -50,32 +65,32 @@ function M.setup(completion_sources)
         trigger_char = trigger_char,
       }
 
+      local wrapped_items = engine:get_completion_items(context):await()
       local items = {}
-      for _, completion_source in ipairs(completion_sources) do
-        local source_items = completion_source.complete(context):await()
-        for j, item in ipairs(source_items) do
-          table.insert(items, {
-            label = item.label,
-            kind = 1,
-            cmp = {
-              kind_text = item.kind_icon,
-            },
-            kind_hl_group = item.kind_hl,
-            detail = item.detail,
-            documentation = item.documentation,
-            insertText = item.insert_text or '',
-            sortText = string.format(
-              '%02d_%02d_%02d_%s',
-              completion_source.priority or 999,
-              item.priority or 999,
-              j,
-              item.label
-            ),
-            data = {
-              original_item = item,
-            },
-          })
-        end
+
+      for _, wrapped_item in ipairs(wrapped_items) do
+        local item = wrapped_item.original_item
+        table.insert(items, {
+          label = item.label,
+          kind = 1,
+          cmp = {
+            kind_text = item.kind_icon,
+          },
+          kind_hl_group = item.kind_hl,
+          detail = item.detail,
+          documentation = item.documentation,
+          insertText = item.insert_text or '',
+          sortText = string.format(
+            '%02d_%02d_%02d_%s',
+            wrapped_item.source_priority,
+            wrapped_item.item_priority,
+            wrapped_item.index,
+            item.label
+          ),
+          data = {
+            original_item = item,
+          },
+        })
       end
 
       callback({ items = items, isIncomplete = true })
@@ -102,8 +117,7 @@ function M.setup(completion_sources)
     if entry and entry.source.name == 'opencode_mentions' then
       local item_data = entry:get_completion_item().data
       if item_data and item_data.original_item then
-        local completion = require('opencode.ui.completion')
-        completion.on_complete(item_data.original_item)
+        engine:on_complete(item_data.original_item)
       end
     end
   end)
@@ -111,4 +125,15 @@ function M.setup(completion_sources)
   return true
 end
 
-return M
+---Trigger completion manually for nvim-cmp
+---@param trigger_char string
+function NvimCmpEngine:trigger(trigger_char)
+  vim.api.nvim_feedkeys(trigger_char, 'in', true)
+  local cmp = require('cmp')
+  if cmp.visible() then
+    cmp.close()
+  end
+  cmp.complete()
+end
+
+return NvimCmpEngine

@@ -61,7 +61,7 @@ end
 function CompletionEngine:parse_trigger(before_cursor)
   local triggers = self:get_trigger_characters()
   local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
-  local trigger_char, trigger_match = before_cursor:match('.*([' .. trigger_chars .. '])([%w_%-%.]*)')
+  local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
   return trigger_char, trigger_match
 end
 

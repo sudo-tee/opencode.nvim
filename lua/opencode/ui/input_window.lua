@@ -141,6 +141,7 @@ M._append_to_input = function(text)
   if not M.mounted() then
     return
   end
+  ---@cast state.windows -nil
 
   local current_lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
   local new_lines = vim.split(text, '\n')
@@ -190,7 +191,7 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('relativenumber', false, { win = windows.input_win })
   vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
   vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
-  -- vim.b[windows.input_buf].completion = false
+
   if config.ui.position ~= 'current' then
     vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
   end

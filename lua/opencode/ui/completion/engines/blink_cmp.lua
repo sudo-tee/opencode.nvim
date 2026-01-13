@@ -1,6 +1,88 @@
 local Promise = require('opencode.promise')
-local M = {}
+local state = require('opencode.state')
+local CompletionEngine = require('opencode.ui.completion.engines.base')
 
+---@class BlinkCmpEngine : CompletionEngine
+local BlinkCmpEngine = setmetatable({}, { __index = CompletionEngine })
+BlinkCmpEngine.__index = BlinkCmpEngine
+
+---Create a new blink-cmp completion engine
+---@return BlinkCmpEngine
+function BlinkCmpEngine.new()
+  local self = CompletionEngine.new('blink_cmp')
+  return setmetatable(self, BlinkCmpEngine)
+end
+
+---Check if blink-cmp is available
+---@return boolean
+function BlinkCmpEngine:is_available()
+  local ok = pcall(require, 'blink.cmp')
+  return ok and CompletionEngine.is_available()
+end
+
+---Setup blink-cmp completion engine
+---@param completion_sources table[]
+---@return boolean
+function BlinkCmpEngine:setup(completion_sources)
+  local ok, blink = pcall(require, 'blink.cmp')
+  if not ok then
+    return false
+  end
+
+  CompletionEngine.setup(self, completion_sources)
+
+  blink.add_source_provider('opencode_mentions', {
+    module = 'opencode.ui.completion.engines.blink_cmp',
+    async = true,
+  })
+
+  -- Hide blink-cmp menu on certain trigger characters when opened via other completion sources
+  vim.api.nvim_create_autocmd('User', {
+    group = vim.api.nvim_create_augroup('OpencodeBlinkCmp', { clear = true }),
+    pattern = 'BlinkCmpMenuOpen',
+    callback = function()
+      local current_buf = vim.api.nvim_get_current_buf()
+      local input_buf = vim.tbl_get(state, 'windows', 'input_buf')
+      if not state.windows or current_buf ~= input_buf then
+        return
+      end
+
+      local blink = require('blink.cmp')
+      local ctx = blink.get_context()
+
+      local triggers = CompletionEngine.get_trigger_characters()
+      if ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character) then
+        blink.hide()
+      end
+    end,
+  })
+  return true
+end
+
+---Trigger completion manually for blink-cmp
+---@param trigger_char string
+function BlinkCmpEngine:trigger(trigger_char)
+  local blink = require('blink.cmp')
+
+  vim.api.nvim_feedkeys(trigger_char, 'in', true)
+  if blink.is_visible() then
+    blink.hide()
+  end
+
+  blink.show({
+    providers = { 'opencode_mentions' },
+    trigger_character = trigger_char,
+  })
+end
+
+function BlinkCmpEngine:hide()
+  local blink = require('blink.cmp')
+  if blink.is_visible() then
+    blink.hide()
+  end
+end
+
+-- Source implementation for blink-cmp provider (when this module is loaded by blink.cmp)
 local Source = {}
 Source.__index = Source
 
@@ -10,19 +92,11 @@ function Source.new()
 end
 
 function Source:get_trigger_characters()
-  local config = require('opencode.config')
-  local mention_key = config.get_key_for_function('input_window', 'mention')
-  local slash_key = config.get_key_for_function('input_window', 'slash_commands')
-  local context_key = config.get_key_for_function('input_window', 'context_items')
-  return {
-    slash_key or '',
-    mention_key or '',
-    context_key or '',
-  }
+  return CompletionEngine.get_trigger_characters()
 end
 
 function Source:enabled()
-  return vim.bo.filetype == 'opencode'
+  return CompletionEngine.is_available()
 end
 
 function Source:get_completions(ctx, callback)
@@ -34,24 +108,24 @@ function Source:get_completions(ctx, callback)
     local col = ctx.cursor[2] + 1
     local before_cursor = line:sub(1, col - 1)
 
-    local trigger_chars = table.concat(vim.tbl_map(vim.pesc, self:get_trigger_characters()), '')
-    local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
+    local trigger_char, trigger_match = CompletionEngine.parse_trigger(self, before_cursor)
 
     if not trigger_match then
       callback({ is_incomplete_forward = false, items = {} })
       return
     end
 
+    ---@type CompletionContext
     local context = {
-      input = trigger_match, -- Pass input for search-based sources (e.g., files)
+      input = trigger_match,
       cursor_pos = col,
       line = line,
-      trigger_char = trigger_char,
+      trigger_char = trigger_char or '',
     }
 
     local items = {}
-    for _, completion_source in ipairs(completion_sources) do
-      local source_items = completion_source.complete(context):await()
+    for _, source in ipairs(completion_sources) do
+      local source_items = source.complete(context):await()
       for i, item in ipairs(source_items) do
         local insert_text = item.insert_text or item.label
         table.insert(items, {
@@ -61,18 +135,10 @@ function Source:get_completions(ctx, callback)
           kind_hl = item.kind_hl,
           detail = item.detail,
           documentation = item.documentation,
-          -- Use filterText for fuzzy matching against the typed text after trigger char
           filterText = item.filter_text or item.label,
           insertText = insert_text,
-          sortText = string.format(
-            '%02d_%02d_%02d_%s',
-            completion_source.priority or 999,
-            item.priority or 999,
-            i,
-            item.label
-          ),
-          score_offset = -(completion_source.priority or 999) * 1000 + (item.priority or 999),
-
+          sortText = string.format('%02d_%02d_%02d_%s', source.priority or 999, item.priority or 999, i, item.label),
+          score_offset = -(source.priority or 999) * 1000 + (item.priority or 999),
           data = {
             original_item = item,
           },
@@ -88,27 +154,21 @@ function Source:execute(ctx, item, callback, default_implementation)
   default_implementation()
 
   if item.data and item.data.original_item then
-    local completion = require('opencode.ui.completion')
-    completion.on_complete(item.data.original_item)
+    CompletionEngine.on_complete(self, item.data.original_item)
   end
 
   callback()
 end
 
-function M.setup(completion_sources)
-  local ok, blink = pcall(require, 'blink.cmp')
-  if not ok then
-    return false
-  end
+-- Export module with dual interface:
+-- - For our engine system: use BlinkCmpEngine methods
+-- - For blink.cmp provider system: override 'new' to return Source instance
+local M = BlinkCmpEngine
 
-  blink.add_source_provider('opencode_mentions', {
-    module = 'opencode.ui.completion.engines.blink_cmp',
-    async = true,
-  })
+-- Save the engine constructor before overriding
+M.create = BlinkCmpEngine.new
 
-  return true
-end
-
+-- Override 'new' for blink.cmp compatibility (when blink loads this as a source)
 M.new = Source.new
 
 return M

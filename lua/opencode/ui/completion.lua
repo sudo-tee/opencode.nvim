@@ -1,6 +1,48 @@
 local M = {}
 
 local completion_sources = {}
+M._current_engine = nil
+
+-- Engine configuration mapping
+local ENGINE_CONFIG = {
+  ['nvim-cmp'] = {
+    module = 'opencode.ui.completion.engines.nvim_cmp',
+    constructor = 'new',
+  },
+  ['blink'] = {
+    module = 'opencode.ui.completion.engines.blink_cmp',
+    constructor = 'create', -- Special case for blink
+  },
+  ['vim_complete'] = {
+    module = 'opencode.ui.completion.engines.vim_complete',
+    constructor = 'new',
+  },
+}
+
+---Load and create an engine instance
+---@param engine_name string
+---@return table|nil engine
+local function load_engine(engine_name)
+  local config = ENGINE_CONFIG[engine_name]
+  if not config then
+    vim.notify('Unknown completion engine: ' .. tostring(engine_name), vim.log.levels.WARN)
+    return nil
+  end
+
+  local ok, EngineClass = pcall(require, config.module)
+  if not ok then
+    vim.notify('Failed to load ' .. engine_name .. ' engine: ' .. tostring(EngineClass), vim.log.levels.ERROR)
+    return nil
+  end
+
+  local constructor = EngineClass[config.constructor]
+  if not constructor then
+    vim.notify('Engine ' .. engine_name .. ' missing ' .. config.constructor .. ' method', vim.log.levels.ERROR)
+    return nil
+  end
+
+  return constructor()
+end
 
 function M.setup()
   local files_source = require('opencode.ui.completion.files')
@@ -17,23 +59,22 @@ function M.setup()
     return (a.priority or 0) > (b.priority or 0)
   end)
 
+  local engine_name = M.get_completion_engine()
+  local engine = load_engine(engine_name)
   local setup_success = false
 
-  local engine = M.get_completion_engine()
-
-  if engine == 'nvim-cmp' then
-    require('opencode.ui.completion.engines.nvim_cmp').setup(completion_sources)
-    setup_success = true
-  elseif engine == 'blink' then
-    require('opencode.ui.completion.engines.blink_cmp').setup(completion_sources)
-    setup_success = true
-  elseif engine == 'vim_complete' then
-    require('opencode.ui.completion.engines.vim_complete').setup(completion_sources)
-    setup_success = true
+  if engine and engine.setup then
+    setup_success = engine:setup(completion_sources)
   end
 
-  if not setup_success then
-    vim.notify('Opencode: No completion engine available', vim.log.levels.WARN)
+  if setup_success then
+    M._current_engine = engine
+  else
+    M._current_engine = nil
+    vim.notify(
+      'Opencode: No completion engine available (engine: ' .. tostring(engine_name) .. ')',
+      vim.log.levels.WARN
+    )
   end
 end
 
@@ -83,16 +124,15 @@ end
 
 function M.trigger_completion(trigger_char)
   return function()
-    local engine = M.get_completion_engine()
-
-    if engine == 'vim_complete' then
-      require('opencode.ui.completion.engines.vim_complete').trigger(trigger_char)
-    elseif engine == 'blink' then
-      vim.api.nvim_feedkeys(trigger_char, 'in', true)
-      require('blink.cmp').show({ providers = { 'opencode_mentions' } })
-    else
-      vim.api.nvim_feedkeys(trigger_char, 'in', true)
+    if M._current_engine and M._current_engine.trigger then
+      M._current_engine:trigger(trigger_char)
     end
+  end
+end
+
+function M.hide_completion()
+  if M._current_engine and M._current_engine.hide then
+    M._current_engine:hide()
   end
 end
 

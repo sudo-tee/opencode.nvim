@@ -20,7 +20,7 @@ local function build_curl_args(opts)
 
   if opts.body then
     table.insert(args, '-d')
-    table.insert(args, opts.body)
+    table.insert(args, '@-') -- Read from stdin
   end
 
   if opts.proxy and opts.proxy ~= '' then
@@ -45,7 +45,7 @@ local function parse_response(output)
   -- Find status line and headers
   for i, line in ipairs(lines) do
     if line:match('^HTTP/') then
-      status = tonumber(line:match('HTTP/[%d%.]+%s+(%d+)')) or 200
+      status = math.floor(tonumber(line:match('HTTP/[%d%.]+%s+(%d+)')) or 200)
     elseif line:match('^[%w%-]+:') then
       local key, value = line:match('^([%w%-]+):%s*(.*)$')
       if key and value then
@@ -79,7 +79,7 @@ function M.request(opts)
   if opts.stream then
     local buffer = ''
 
-    local job = vim.system(args, {
+    local job_opts = {
       stdout = function(err, chunk)
         if err then
           if opts.on_error then
@@ -108,7 +108,13 @@ function M.request(opts)
           opts.on_error({ message = err })
         end
       end,
-    }, opts.on_exit and function(result)
+    }
+
+    if opts.body then
+      job_opts.stdin = opts.body
+    end
+
+    local job = vim.system(args, job_opts, opts.on_exit and function(result)
       -- Flush any remaining buffer content
       if buffer and buffer ~= '' then
         opts.stream(nil, buffer)
@@ -132,9 +138,15 @@ function M.request(opts)
   else
     table.insert(args, 2, '-i')
 
-    vim.system(args, {
+    local job_opts = {
       text = true,
-    }, function(result)
+    }
+
+    if opts.body then
+      job_opts.stdin = opts.body
+    end
+
+    vim.system(args, job_opts, function(result)
       if result.code ~= 0 then
         if opts.on_error then
           opts.on_error({ message = result.stderr or 'curl failed' })

@@ -42,6 +42,8 @@ local presets = {
     filter = '/',
     selection = '󰫙 ',
     command = ' ',
+    preferred = ' ',
+    last_used = '󰃰 ',
   },
   text = {
     -- headers
@@ -80,6 +82,8 @@ local presets = {
     filter = '/*',
     selection = "'<'> ",
     command = '::',
+    preferred = '* ',
+    last_used = '~ ',
   },
 }
 

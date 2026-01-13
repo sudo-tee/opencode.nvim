@@ -98,6 +98,9 @@ M.defaults = {
       delete_entry = { '<C-d>', mode = { 'i', 'n' } },
       clear_all = { '<C-X>', mode = { 'i', 'n' } },
     },
+    model_picker = {
+      toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
+    },
     quick_chat = {
       cancel = { '<C-c>', mode = { 'i', 'n' } },
     },

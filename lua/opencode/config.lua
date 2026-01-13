@@ -12,6 +12,7 @@ M.defaults = {
   default_mode = 'build',
   legacy_commands = true,
   keymap_prefix = '<leader>o',
+  opencode_executable = 'opencode',
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle', desc = 'Toggle Opencode window' },

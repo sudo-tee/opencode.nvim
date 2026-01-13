@@ -189,7 +189,7 @@ require('opencode').setup({
     history_picker = {
       delete_entry = { '<C-d>', mode = { 'i', 'n' } }, -- Delete selected entry in the history picker
       clear_all = { '<C-X>', mode = { 'i', 'n' } }, -- Clear all entries in the history picker
-    }
+    },
     model_picker = {
       toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
     },

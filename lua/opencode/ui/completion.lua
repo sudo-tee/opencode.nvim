@@ -1,7 +1,7 @@
 local M = {}
 
 local completion_sources = {}
-local _current_engine = nil
+M._current_engine = nil
 
 -- Engine configuration mapping
 local ENGINE_CONFIG = {

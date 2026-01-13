@@ -154,9 +154,7 @@ function Source:execute(ctx, item, callback, default_implementation)
   default_implementation()
 
   if item.data and item.data.original_item then
-    local CompletionEngine = require('opencode.ui.completion.engines.base')
-    local engine = CompletionEngine.new('blink_cmp')
-    engine:on_complete(item.data.original_item)
+    CompletionEngine.on_complete(self, item.data.original_item)
   end
 
   callback()

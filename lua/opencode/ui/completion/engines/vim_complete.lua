@@ -21,12 +21,24 @@ function VimCompleteEngine:setup(completion_sources)
   -- Call parent setup
   CompletionEngine.setup(self, completion_sources)
 
+  local group = vim.api.nvim_create_augroup('OpencodeVimComplete', { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
+    group = group,
     pattern = 'opencode',
     callback = function(args)
       local buf = args.buf
-      vim.api.nvim_create_autocmd('TextChangedI', { buffer = buf, callback = function() self:_update() end })
-      vim.api.nvim_create_autocmd('CompleteDone', { buffer = buf, callback = function() self:_on_complete_done() end })
+      vim.api.nvim_create_autocmd('TextChangedI', {
+        buffer = buf,
+        callback = function()
+          self:_update()
+        end,
+      })
+      vim.api.nvim_create_autocmd('CompleteDone', {
+        buffer = buf,
+        callback = function()
+          self:_on_complete_done()
+        end,
+      })
     end,
   })
 
@@ -88,16 +100,16 @@ function VimCompleteEngine:_update()
 
     local wrapped_items = self:get_completion_items(context):await()
     local items = {}
-    
+
     for _, wrapped_item in ipairs(wrapped_items) do
       local item = wrapped_item.original_item
       local insert_text = item.insert_text or ''
-      
+
       -- Remove trigger character if it's part of the insert text
       if vim.startswith(insert_text, trigger_char) then
         insert_text = insert_text:sub(2)
       end
-      
+
       table.insert(items, {
         word = #insert_text > 0 and insert_text or item.label,
         abbr = (item.kind_icon or '') .. item.label,
@@ -105,10 +117,10 @@ function VimCompleteEngine:_update()
         kind = item.kind:sub(1, 1):upper(),
         user_data = item,
         _sort_text = string.format(
-          '%02d_%02d_%02d_%s', 
-          wrapped_item.source_priority, 
-          wrapped_item.item_priority, 
-          wrapped_item.index, 
+          '%02d_%02d_%02d_%s',
+          wrapped_item.source_priority,
+          wrapped_item.item_priority,
+          wrapped_item.index,
           item.label
         ),
       })
@@ -139,3 +151,4 @@ function VimCompleteEngine:_on_complete_done()
 end
 
 return VimCompleteEngine
+

@@ -26,6 +26,11 @@ function M.is_context_enabled(context_key, context_config)
     end
   end
 
+  local is_globally_enabled = vim.tbl_get(config --[[@as table]], 'context', 'enabled')
+  if is_globally_enabled == false then
+    return false
+  end
+
   local is_enabled = vim.tbl_get(config --[[@as table]], 'context', context_key, 'enabled')
   local is_state_enabled = vim.tbl_get(state, 'current_context_config', context_key, 'enabled')
 

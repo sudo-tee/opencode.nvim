@@ -130,7 +130,6 @@ function M.unload_attachments()
 end
 
 function M.load()
-  -- Delegate to ChatContext which manages the global state
   ChatContext.load()
   state.context_updated_at = vim.uv.now()
 end

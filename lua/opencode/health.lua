@@ -1,6 +1,7 @@
 local M = {}
 
 local health = vim.health or require('health')
+local config = require('opencode.config')
 local util = require('opencode.util')
 
 local function command_exists(cmd)
@@ -8,11 +9,11 @@ local function command_exists(cmd)
 end
 
 local function get_opencode_version()
-  if not command_exists('opencode') then
+  if not command_exists(config.opencode_executable) then
     return nil, 'opencode command not found'
   end
 
-  local result = vim.system({ 'opencode', '--version' }):wait()
+  local result = vim.system({ config.opencode_executable, '--version' }):wait()
   if result.code ~= 0 then
     return nil, 'Failed to get opencode version: ' .. (result.stderr or 'unknown error')
   end
@@ -28,7 +29,7 @@ local function check_opencode_cli()
   local state = require('opencode.state')
   local required_version = state.required_version
 
-  if not command_exists('opencode') then
+  if not command_exists(config.opencode_executable) then
     health.error('opencode command not found', {
       'Install opencode CLI from: https://docs.opencode.com/installation',
       'Ensure opencode is in your PATH',

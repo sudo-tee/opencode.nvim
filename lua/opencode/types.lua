@@ -196,6 +196,7 @@
 ---@field default_global_keymaps boolean
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field keymap_prefix string
+---@field opencode_executable 'opencode' | string -- Command run for calling opencode
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig

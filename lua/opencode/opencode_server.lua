@@ -1,6 +1,7 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
 local Promise = require('opencode.promise')
+local config = require('opencode.config')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -80,7 +81,7 @@ function OpencodeServer:spawn(opts)
   opts = opts or {}
 
   self.job = vim.system({
-    'opencode',
+    config.opencode_executable,
     'serve',
   }, {
     cwd = opts.cwd,

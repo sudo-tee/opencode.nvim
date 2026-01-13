@@ -317,7 +317,7 @@ M.cancel = Promise.async(function()
 end)
 
 M.opencode_ok = Promise.async(function()
-  if vim.fn.executable('opencode') == 0 then
+  if vim.fn.executable(config.opencode_executable) == 0 then
     vim.notify(
       'opencode command not found - please install and configure opencode before using this plugin',
       vim.log.levels.ERROR
@@ -326,7 +326,7 @@ M.opencode_ok = Promise.async(function()
   end
 
   if not state.opencode_cli_version or state.opencode_cli_version == '' then
-    local result = Promise.system({ 'opencode', '--version' }):await()
+    local result = Promise.system({ config.opencode_executable, '--version' }):await()
     local out = (result and result.stdout or ''):gsub('%s+$', '')
     state.opencode_cli_version = out:match('(%d+%%.%d+%%.%d+)') or out
   end

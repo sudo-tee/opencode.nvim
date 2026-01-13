@@ -92,12 +92,10 @@ function Source.new()
 end
 
 function Source:get_trigger_characters()
-  local CompletionEngine = require('opencode.ui.completion.engines.base')
   return CompletionEngine.get_trigger_characters()
 end
 
 function Source:enabled()
-  local CompletionEngine = require('opencode.ui.completion.engines.base')
   return CompletionEngine.is_available()
 end
 
@@ -110,21 +108,19 @@ function Source:get_completions(ctx, callback)
     local col = ctx.cursor[2] + 1
     local before_cursor = line:sub(1, col - 1)
 
-    local CompletionEngine = require('opencode.ui.completion.engines.base')
-    local triggers = CompletionEngine.get_trigger_characters()
-    local trigger_chars = table.concat(vim.tbl_map(vim.pesc, triggers), '')
-    local trigger_char, trigger_match = before_cursor:match('([' .. trigger_chars .. '])([%w_/%-%.]*)$')
+    local trigger_char, trigger_match = CompletionEngine.parse_trigger(self, before_cursor)
 
     if not trigger_match then
       callback({ is_incomplete_forward = false, items = {} })
       return
     end
 
+    ---@type CompletionContext
     local context = {
       input = trigger_match,
       cursor_pos = col,
       line = line,
-      trigger_char = trigger_char,
+      trigger_char = trigger_char or '',
     }
 
     local items = {}

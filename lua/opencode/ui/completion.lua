@@ -67,9 +67,10 @@ function M.setup()
     setup_success = engine:setup(completion_sources)
   end
 
-  M._current_engine = engine
-
-  if not setup_success then
+  if setup_success then
+    M._current_engine = engine
+  else
+    M._current_engine = nil
     vim.notify(
       'Opencode: No completion engine available (engine: ' .. tostring(engine_name) .. ')',
       vim.log.levels.WARN

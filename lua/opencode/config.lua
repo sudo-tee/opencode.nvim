@@ -8,7 +8,6 @@ local M = {}
 M.defaults = {
   preferred_picker = nil,
   preferred_completion = nil,
-  preferred_model = nil,
   default_global_keymaps = true,
   default_mode = 'build',
   legacy_commands = true,
@@ -98,6 +97,9 @@ M.defaults = {
     history_picker = {
       delete_entry = { '<C-d>', mode = { 'i', 'n' } },
       clear_all = { '<C-X>', mode = { 'i', 'n' } },
+    },
+    model_picker = {
+      toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
     },
     quick_chat = {
       cancel = { '<C-c>', mode = { 'i', 'n' } },

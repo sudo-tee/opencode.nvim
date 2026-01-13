@@ -2,24 +2,8 @@
 
 > neovim frontend for opencode - a terminal-based AI coding agent
 
-## Main Features
-
-### Chat Panel
-
 <div align="center">
   <img src="https://raw.githubusercontent.com/sst/opencode/dev/packages/web/src/assets/logo-ornate-dark.svg" alt="Opencode logo" width="30%" />
-</div>
-
-### Quick buffer chat (<leader>o/) EXPERIMENTAL
-
-This is an experimental feature that allows you to chat with the AI using the current buffer context. In visual mode, it captures the selected text as context, while in normal mode, it uses the current line. The AI will respond with quick edits to the files that are applied by the plugin.
-
-Don't hesitate to give it a try and provide feedback!
-
-Refer to the [Quick Chat](#-quick-chat) section for more details.
-
-<div align="center">
-  <img src="https://i.imgur.com/5JNlFZn.png">
 </div>
 
 <div align="center">
@@ -34,8 +18,24 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 
 This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.
 
+## Main Features
+
 <div align="center">
   <img src="https://github.com/user-attachments/assets/197d69ba-6db9-4989-97ff-557c89000cf5">
+</div>
+
+### Chat Panel
+
+### Quick buffer chat (<leader>o/) EXPERIMENTAL
+
+This is an experimental feature that allows you to chat with the AI using the current buffer context. In visual mode, it captures the selected text as context, while in normal mode, it uses the current line. The AI will respond with quick edits to the files that are applied by the plugin.
+
+Don't hesitate to give it a try and provide feedback!
+
+Refer to the [Quick Chat](#-quick-chat) section for more details.
+
+<div align="center">
+  <img src="https://i.imgur.com/5JNlFZn.png">
 </div>
 
 ## 📑 Table of Contents
@@ -109,7 +109,6 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 require('opencode').setup({
   preferred_picker = nil, -- 'telescope', 'fzf', 'mini.pick', 'snacks', 'select', if nil, it will use the best available picker. Note mini.pick does not support multiple selections
   preferred_completion = nil, -- 'blink', 'nvim-cmp','vim_complete' if nil, it will use the best available completion
-  preferred_model = nil, -- 'provider/model' (e.g., 'github-copilot/claude-sonnet-4') to highlight and sort to top of provider list
   default_global_keymaps = true, -- If false, disables all default global keymaps
   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
@@ -191,6 +190,9 @@ require('opencode').setup({
       delete_entry = { '<C-d>', mode = { 'i', 'n' } }, -- Delete selected entry in the history picker
       clear_all = { '<C-X>', mode = { 'i', 'n' } }, -- Clear all entries in the history picker
     }
+    model_picker = {
+      toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
+    },
   },
   ui = {
     position = 'right', -- 'right' (default), 'left' or 'current'. Position of the UI split. 'current' uses the current window for the output.
@@ -348,6 +350,28 @@ require('opencode').setup({
 })
 ```
 
+### Model Sorting and Favorites
+
+The provider/model picker supports intelligent sorting based on your favorites and usage history:
+
+#### Sorting Priority
+
+When you open the model picker (`<leader>op`), models are sorted in the following order:
+
+1. **Favorite models** - shown with a ⭐ icon and sorted by the order they were favorited
+2. **Recently accessed models** - sorted by most recent usage
+3. **Other models** - sorted alphabetically
+
+#### Managing Favorites
+
+In the model picker, press **`<C-f>`** to toggle the currently selected model as a favorite. Favorite models will:
+
+- Display with a ⭐ star icon prefix
+- Always appear at the top of the list
+- Persist across Neovim sessions
+
+No configuration is needed - the plugin respects and updates the OpenCode CLI format automatically.
+
 ### UI icons (disable emojis or customize)
 
 By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `text` preset or override icons individually.
@@ -444,6 +468,7 @@ You can configure a custom action in Snacks pickers to send selected files direc
 ```
 
 This allows you to:
+
 1. Open any Snacks file picker (`:Snacks picker files`, `:Snacks picker git_files`, etc.)
 2. Select one or more files using multi-select
 3. Press `<localleader>o` to send those files to opencode as context

@@ -20,11 +20,13 @@ This plugin provides a bridge between neovim and the [opencode](https://github.c
 
 ## Main Features
 
+### Chat Panel
+
+The chat panel is a dedicated window inside Neovim that lets you hold a persistent conversation with the opencode AI agent. It displays your previous messages and responses, and automatically uses your current workspace and editor state as context so you can iterate on code without leaving Neovim. You can type prompts, review answers, and navigate back to your code buffer while keeping the ongoing chat session open.
+
 <div align="center">
   <img src="https://github.com/user-attachments/assets/197d69ba-6db9-4989-97ff-557c89000cf5">
 </div>
-
-### Chat Panel
 
 ### Quick buffer chat (<leader>o/) EXPERIMENTAL
 

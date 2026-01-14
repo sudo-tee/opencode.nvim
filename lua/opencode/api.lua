@@ -518,44 +518,8 @@ function M.help()
 end
 
 M.mcp = Promise.async(function()
-  local mcp = config_file.get_mcp_servers():await()
-  if not mcp then
-    vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
-    return
-  end
-
-  state.display_route = '/mcp'
-  M.open_input()
-
-  local msg = M.with_header({
-    '### Available MCP servers',
-    '',
-    '| Name   | Type | cmd/url |',
-    '|--------|------|---------|',
-  })
-
-  for name, def in pairs(mcp) do
-    local cmd_or_url
-    if def.type == 'local' then
-      cmd_or_url = def.command and table.concat(def.command, ' ')
-    elseif def.type == 'remote' then
-      cmd_or_url = def.url
-    end
-
-    table.insert(
-      msg,
-      string.format(
-        '| %s %-10s | %s | %s |',
-        (def.enabled and icons.get('status_on') or icons.get('status_off')),
-        name,
-        def.type,
-        cmd_or_url
-      )
-    )
-  end
-
-  table.insert(msg, '')
-  ui.render_lines(msg)
+  local mcp_picker = require('opencode.ui.mcp_picker')
+  mcp_picker.pick()
 end)
 
 M.commands_list = Promise.async(function()

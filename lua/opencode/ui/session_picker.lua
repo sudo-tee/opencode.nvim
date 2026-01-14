@@ -11,7 +11,7 @@ local Promise = require('opencode.promise')
 function format_session_item(session, width)
   local debug_text = 'ID: ' .. (session.id or 'N/A')
   local updated_time = (session.time and session.time.updated) or 'N/A'
-  return base_picker.create_picker_item(session.title, updated_time, debug_text, width)
+  return base_picker.create_time_picker_item(session.title, updated_time, debug_text, width)
 end
 
 function M.pick(sessions, callback)

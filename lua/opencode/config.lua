@@ -101,6 +101,9 @@ M.defaults = {
     model_picker = {
       toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
     },
+    mcp_picker = {
+      toggle_connection = { '<C-t>', mode = { 'i', 'n' } },
+    },
     quick_chat = {
       cancel = { '<C-c>', mode = { 'i', 'n' } },
     },

@@ -17,7 +17,7 @@ local function format_option(item, width)
   if item.description and item.description ~= '' then
     text = text .. ' - ' .. item.description
   end
-  return base_picker.create_picker_item(text, nil, nil, width)
+  return base_picker.create_time_picker_item(text, nil, nil, width)
 end
 
 --- Show a question picker for the user to answer

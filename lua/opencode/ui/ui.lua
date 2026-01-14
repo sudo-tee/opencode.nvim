@@ -137,7 +137,6 @@ function M.focus_input(opts)
 
   if input_window.is_hidden() then
     input_window._show()
-    return
   end
 
   if not windows.input_win then

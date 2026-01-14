@@ -11,7 +11,7 @@ function format_message_item(msg, width)
 
   local debug_text = 'ID: ' .. (msg.info.id or 'N/A')
 
-  return base_picker.create_picker_item(vim.trim(preview), msg.info.time.created, debug_text, width)
+  return base_picker.create_time_picker_item(vim.trim(preview), msg.info.time.created, debug_text, width)
 end
 
 function M.pick(messages, callback)

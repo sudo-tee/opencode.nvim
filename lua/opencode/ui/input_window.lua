@@ -183,6 +183,10 @@ M._execute_slash_command = function(command)
 end
 
 function M.setup(windows)
+  -- Ensure completion engines relying on `opencode` filetype stay enabled even
+  -- after the input window is hidden/shown (some user autocmds can clobber it).
+  vim.api.nvim_set_option_value('filetype', 'opencode', { buf = windows.input_buf })
+
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.input_win })
   vim.api.nvim_set_option_value('wrap', config.ui.input.text.wrap, { win = windows.input_win })
   vim.api.nvim_set_option_value('signcolumn', 'yes', { win = windows.input_win })

@@ -349,7 +349,14 @@ function M.is_empty()
   return #lines == 0 or (#lines == 1 and lines[1] == '')
 end
 
+local keymaps_set_for_buf = {}
+
 function M.setup_keymaps(windows)
+  if keymaps_set_for_buf[windows.input_buf] then
+    return
+  end
+  keymaps_set_for_buf[windows.input_buf] = true
+
   local keymap = require('opencode.keymap')
   keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf, true)
 end

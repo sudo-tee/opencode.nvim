@@ -106,6 +106,13 @@ function CompletionEngine:trigger(trigger_char)
   -- Default implementation does nothing
 end
 
+---Check if completion menu is currently visible
+---Child classes should override this with engine-specific implementation
+---@return boolean
+function CompletionEngine:is_visible()
+  return false
+end
+
 ---Handle completion item selection
 ---Called when a completion item is selected by the user
 ---Delegates to the completion module's on_complete handler

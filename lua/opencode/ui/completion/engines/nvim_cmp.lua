@@ -125,6 +125,13 @@ function NvimCmpEngine:setup(completion_sources)
   return true
 end
 
+---Check if nvim-cmp completion menu is visible
+---@return boolean
+function NvimCmpEngine:is_visible()
+  local ok, cmp = pcall(require, 'cmp')
+  return ok and cmp.visible()
+end
+
 ---Trigger completion manually for nvim-cmp
 ---@param trigger_char string
 function NvimCmpEngine:trigger(trigger_char)

@@ -1,10 +1,24 @@
 local M = {}
 
--- Helper function to process keymap entries
+local function is_blink_visible()
+  local ok, blink = pcall(require, 'blink.cmp')
+  return ok and blink.is_visible()
+end
+
+local function wrap_with_blink_check(key_binding, callback)
+  return function()
+    if is_blink_visible() then
+      return vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key_binding, true, false, true), 'n', false)
+    end
+    return callback()
+  end
+end
+
 ---@param keymap_config table The keymap configuration table
 ---@param default_modes table Default modes for these keymaps
 ---@param base_opts table Base options to use for all keymaps
-local function process_keymap_entry(keymap_config, default_modes, base_opts)
+---@param defer_to_blink boolean? Whether to defer to blink.cmp when visible
+local function process_keymap_entry(keymap_config, default_modes, base_opts, defer_to_blink)
   local api = require('opencode.api')
   local cmds = api.commands
 
@@ -19,6 +33,9 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts)
       opts.desc = config_entry.desc or cmds[func_name] and cmds[func_name].desc
 
       if callback then
+        if defer_to_blink then
+          callback = wrap_with_blink_check(key_binding, callback)
+        end
         vim.keymap.set(modes, key_binding, callback, opts)
       else
         vim.notify(string.format('No action found for keymap: %s -> %s', key_binding, func_name), vim.log.levels.WARN)
@@ -34,15 +51,15 @@ function M.setup(keymap)
   process_keymap_entry(keymap.editor or {}, { 'n', 'v' }, { silent = false })
 end
 
--- Setup window-specific keymaps (shared helper for input/output windows)
 ---@param keymap_config table Window keymap configuration
 ---@param buf_id integer Buffer ID to set keymaps for
-function M.setup_window_keymaps(keymap_config, buf_id)
+---@param defer_to_blink boolean? Whether to defer to blink.cmp when visible (default: false)
+function M.setup_window_keymaps(keymap_config, buf_id, defer_to_blink)
   if not vim.api.nvim_buf_is_valid(buf_id) then
     return
   end
 
-  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id })
+  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id }, defer_to_blink)
 end
 
 return M

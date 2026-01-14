@@ -351,7 +351,7 @@ end
 
 function M.setup_keymaps(windows)
   local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
+  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf, true)
 end
 
 function M.setup_autocmds(windows, group)

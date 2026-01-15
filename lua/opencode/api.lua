@@ -518,44 +518,8 @@ function M.help()
 end
 
 M.mcp = Promise.async(function()
-  local mcp = config_file.get_mcp_servers():await()
-  if not mcp then
-    vim.notify('No MCP configuration found. Please check your opencode config file.', vim.log.levels.WARN)
-    return
-  end
-
-  state.display_route = '/mcp'
-  M.open_input()
-
-  local msg = M.with_header({
-    '### Available MCP servers',
-    '',
-    '| Name   | Type | cmd/url |',
-    '|--------|------|---------|',
-  })
-
-  for name, def in pairs(mcp) do
-    local cmd_or_url
-    if def.type == 'local' then
-      cmd_or_url = def.command and table.concat(def.command, ' ')
-    elseif def.type == 'remote' then
-      cmd_or_url = def.url
-    end
-
-    table.insert(
-      msg,
-      string.format(
-        '| %s %-10s | %s | %s |',
-        (def.enabled and icons.get('status_on') or icons.get('status_off')),
-        name,
-        def.type,
-        cmd_or_url
-      )
-    )
-  end
-
-  table.insert(msg, '')
-  ui.render_lines(msg)
+  local mcp_picker = require('opencode.ui.mcp_picker')
+  mcp_picker.pick()
 end)
 
 M.commands_list = Promise.async(function()
@@ -977,6 +941,39 @@ function M.toggle_reasoning_output()
   ui.render_output()
 end
 
+---@type fun(): Promise<void>
+M.review = Promise.async(function(args)
+  local id = require('opencode.id')
+
+  local new_session = core.create_new_session('Code review checklist for diffs and PRs'):await()
+  if not new_session then
+    vim.notify('Failed to create new session', vim.log.levels.ERROR)
+    return
+  end
+  if not core.initialize_current_model():await() or not state.current_model then
+    vim.notify('No model selected', vim.log.levels.ERROR)
+    return
+  end
+  local providerId, modelId = state.current_model:match('^(.-)/(.+)$')
+  if not providerId or not modelId then
+    vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
+    return
+  end
+  state.active_session = new_session
+  M.open_input():await()
+  state.api_client
+    :send_command(state.active_session.id, {
+      command = 'review',
+      arguments = table.concat(args or {}, ' '),
+      model = state.current_model,
+    })
+    :and_then(function()
+      vim.schedule(function()
+        require('opencode.history').write('/review ' .. table.concat(args or {}, ' '))
+      end)
+    end)
+end)
+
 ---@type table<string, OpencodeUICommand>
 M.commands = {
   open = {
@@ -1042,6 +1039,14 @@ M.commands = {
   swap = {
     desc = 'Swap pane position left/right',
     fn = M.swap_position,
+  },
+
+  review = {
+    desc = 'Review changes [commit|branch|pr], defaults to uncommitted changes',
+    fn = function(args)
+      M.review(args)
+    end,
+    nargs = '+',
   },
 
   session = {
@@ -1340,6 +1345,11 @@ M.slash_commands_map = {
   ['/rename'] = { fn = M.rename_session, desc = 'Rename current session' },
   ['/thinking'] = { fn = M.toggle_reasoning_output, desc = 'Toggle reasoning output' },
   ['/reasoning'] = { fn = M.toggle_reasoning_output, desc = 'Toggle reasoning output' },
+  ['/review'] = {
+    fn = M.review,
+    desc = 'Review changes [commit|branch|pr], defaults to uncommitted changes',
+    args = true,
+  },
 }
 
 M.legacy_command_map = {
@@ -1478,6 +1488,7 @@ M.get_slash_commands = Promise.async(function()
       slash_cmd = slash_cmd,
       desc = def.desc,
       fn = def.fn,
+      args = def.args or false,
     })
   end
 

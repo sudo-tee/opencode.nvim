@@ -11,7 +11,7 @@ local history = require('opencode.history')
 local function format_history_item(item, width)
   local entry = item.content or item.text or ''
 
-  return base_picker.create_picker_item(entry:gsub('\n', '↵'), nil, 'ID: ' .. item.id, width)
+  return base_picker.create_time_picker_item(entry:gsub('\n', '↵'), nil, 'ID: ' .. item.id, width)
 end
 
 function M.pick(callback)

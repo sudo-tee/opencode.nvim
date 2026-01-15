@@ -43,10 +43,12 @@ local Promise = require('opencode.promise')
 ---@class MiniPickSelected
 ---@field current MiniPickItem?
 
+---@class PickerItemPart
+---@field text string The text content
+---@field highlight? string Optional highlight group
+
 ---@class PickerItem
----@field content string Main content text
----@field time_text? string Optional time text
----@field debug_text? string Optional debug text
+---@field parts PickerItemPart[] Array of text parts with optional highlights
 ---@field to_string fun(self: PickerItem): string
 ---@field to_formatted_text fun(self: PickerItem): table
 
@@ -80,10 +82,18 @@ local function telescope_ui(opts)
   local action_state = require('telescope.actions.state')
   local action_utils = require('telescope.actions.utils')
   local entry_display = require('telescope.pickers.entry_display')
-  local displayer = entry_display.create({
-    separator = ' ',
-    items = { {}, {}, config.debug.show_ids and {} or nil },
-  })
+
+  -- Create displayer dynamically based on number of parts
+  local function create_displayer(picker_item)
+    local items = {}
+    for _ in ipairs(picker_item.parts) do
+      table.insert(items, {})
+    end
+    return entry_display.create({
+      separator = ' ',
+      items = items,
+    })
+  end
 
   local current_picker
 
@@ -91,13 +101,16 @@ local function telescope_ui(opts)
   ---@param item any
   ---@return TelescopeEntry
   local function make_entry(item)
+    local picker_item = opts.format_fn(item)
+    local displayer = create_displayer(picker_item)
+
     local entry = {
       value = item,
       display = function(entry)
         local formatted = opts.format_fn(entry.value):to_formatted_text()
         return displayer(formatted)
       end,
-      ordinal = opts.format_fn(item):to_string(),
+      ordinal = picker_item:to_string(),
     }
 
     if type(item) == 'table' then
@@ -549,35 +562,70 @@ function M.align(text, width, opts)
 end
 
 ---Creates a generic picker item that can format itself for different pickers
----@param text string Array of text parts to join
----@param time? number Optional time text to highlight
+---@param parts PickerItemPart[] Array of text parts with optional highlights
+---@return PickerItem
+function M.create_picker_item(parts)
+  local item = {
+    parts = parts,
+  }
+
+  function item:to_string()
+    local texts = {}
+    for _, part in ipairs(self.parts) do
+      table.insert(texts, part.text)
+    end
+    return table.concat(texts, ' ')
+  end
+
+  function item:to_formatted_text()
+    local formatted = {}
+    for _, part in ipairs(self.parts) do
+      if part.highlight then
+        table.insert(formatted, { ' ' .. part.text, part.highlight })
+      else
+        table.insert(formatted, { part.text })
+      end
+    end
+    return formatted
+  end
+
+  return item
+end
+
+---Helper function to create a simple picker item with content, time, and debug text
+---This is a convenience wrapper around create_picker_item for common use cases
+---@param text string Main content text
+---@param time? number Optional time to format
 ---@param debug_text? string Optional debug text to append
 ---@param width? number Optional width override
 ---@return PickerItem
-function M.create_picker_item(text, time, debug_text, width)
+function M.create_time_picker_item(text, time, debug_text, width)
   local time_width = time and #util.format_time(time) + 1 or 0
   local debug_width = config.debug.show_ids and debug_text and #debug_text + 1 or 0
   local item_width = width or vim.api.nvim_win_get_width(0)
   local text_width = item_width - (debug_width + time_width)
-  local item = {
-    content = M.align(text, text_width --[[@as integer]], { truncate = true }),
-    time_text = time and M.align(util.format_time(time), time_width, { align = 'right' }),
-    debug_text = config.debug.show_ids and debug_text or nil,
+
+  local parts = {
+    {
+      text = M.align(text, text_width --[[@as integer]], { truncate = true }),
+    },
   }
 
-  function item:to_string()
-    return table.concat({ self.content, self.time_text or '', self.debug_text or '' }, ' ')
+  if time then
+    table.insert(parts, {
+      text = M.align(util.format_time(time), time_width, { align = 'right' }),
+      highlight = 'OpencodePickerTime',
+    })
   end
 
-  function item:to_formatted_text()
-    return {
-      { self.content },
-      self.time_text and { ' ' .. self.time_text, 'OpencodePickerTime' } or { '' },
-      self.debug_text and { ' ' .. self.debug_text, 'OpencodeDebugText' } or { '' },
-    }
+  if config.debug.show_ids and debug_text then
+    table.insert(parts, {
+      text = debug_text,
+      highlight = 'OpencodeDebugText',
+    })
   end
 
-  return item
+  return M.create_picker_item(parts)
 end
 
 ---Generic picker that abstracts common logic for different picker UIs

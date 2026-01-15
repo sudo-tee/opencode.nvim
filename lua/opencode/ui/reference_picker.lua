@@ -197,7 +197,7 @@ local function format_reference_item(ref, width)
 
   local display_text = icon .. ' ' .. location
 
-  return base_picker.create_picker_item(display_text, nil, nil, width)
+  return base_picker.create_time_picker_item(display_text, nil, nil, width)
 end
 
 ---Open the reference picker

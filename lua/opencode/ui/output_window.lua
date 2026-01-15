@@ -76,7 +76,7 @@ local function set_win_option(opt_name, value, win)
       end
     end
   end
-  
+
   vim.api.nvim_set_option_value(opt_name, value, { win = win })
 end
 
@@ -91,6 +91,7 @@ end
 function M.setup(windows)
   set_win_option('winhighlight', config.ui.window_highlight, windows.output_win)
   set_win_option('wrap', true, windows.output_win)
+  set_win_option('linebreak', true, windows.output_win)
   set_win_option('number', false, windows.output_win)
   set_win_option('relativenumber', false, windows.output_win)
   set_buf_option('modifiable', false, windows.output_buf)

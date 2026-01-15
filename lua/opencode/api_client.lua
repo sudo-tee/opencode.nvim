@@ -460,6 +460,37 @@ function OpencodeApiClient:list_tools(provider, model, directory)
   })
 end
 
+-- MCP endpoints
+
+--- List all MCP servers
+--- @param directory string|nil Directory path
+--- @return Promise<table<string, table>>
+function OpencodeApiClient:list_mcp_servers(directory)
+  return self:_call('/mcp', 'GET', nil, { directory = directory })
+end
+
+--- Connect an MCP server
+--- @param name string MCP server name (required)
+--- @param directory string|nil Directory path
+--- @return Promise<boolean>
+function OpencodeApiClient:connect_mcp(name, directory)
+  if not name or name == '' then
+    return require('opencode.promise').new():reject('MCP server name is required')
+  end
+  return self:_call('/mcp/' .. name .. '/connect', 'POST', nil, { directory = directory })
+end
+
+--- Disconnect an MCP server
+--- @param name string MCP server name (required)
+--- @param directory string|nil Directory path
+--- @return Promise<boolean>
+function OpencodeApiClient:disconnect_mcp(name, directory)
+  if not name or name == '' then
+    return require('opencode.promise').new():reject('MCP server name is required')
+  end
+  return self:_call('/mcp/' .. name .. '/disconnect', 'POST', nil, { directory = directory })
+end
+
 --- Create a factory function for the module
 --- @param base_url? string The base URL of the opencode server
 --- @return OpencodeApiClient

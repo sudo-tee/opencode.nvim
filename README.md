@@ -195,6 +195,9 @@ require('opencode').setup({
     model_picker = {
       toggle_favorite = { '<C-f>', mode = { 'i', 'n' } },
     },
+    mcp_picker = {
+      toggle_connection = { '<C-t>', mode = { 'i', 'n' } }, -- Toggle MCP server connection in the MCP picker
+    },
   },
   ui = {
     position = 'right', -- 'right' (default), 'left' or 'current'. Position of the UI split. 'current' uses the current window for the output.

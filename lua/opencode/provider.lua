@@ -217,21 +217,22 @@ function M.select(cb)
       local model_width = item_width - provider_icon_width
 
       local picker_item = {
-        content = base_picker.align(item.model_name, model_width, { truncate = true }),
-        time_text = base_picker.align(item.provider_name, max_provider_width, { align = 'left' })
-          .. (icon_width > 0 and base_picker.align(icon, icon_width, { align = 'right' }) or ''),
-        debug_text = nil,
+        parts = {
+          base_picker.align(item.model_name, model_width, { truncate = true }),
+          base_picker.align(item.provider_name, max_provider_width, { align = 'left' })
+            .. (icon_width > 0 and base_picker.align(icon, icon_width, { align = 'right' }) or ''),
+        },
       }
 
       function picker_item:to_string()
-        return table.concat({ self.content, self.time_text or '', self.debug_text or '' }, ' ')
+        return table.concat({ self.parts[1], self.parts[2] or '', self.parts[3] or '' }, ' ')
       end
 
       function picker_item:to_formatted_text()
         return {
-          { self.content },
-          self.time_text and { ' ' .. self.time_text, 'OpencodeHint' } or { '' },
-          self.debug_text and { ' ' .. self.debug_text, 'OpencodeHint' } or { '' },
+          { self.parts[1] },
+          self.parts[2] and { ' ' .. self.parts[2], 'OpencodeHint' } or { '' },
+          self.parts[3] and { ' ' .. self.parts[3], 'OpencodeHint' } or { '' },
         }
       end
 

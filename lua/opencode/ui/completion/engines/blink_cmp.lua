@@ -59,6 +59,13 @@ function BlinkCmpEngine:setup(completion_sources)
   return true
 end
 
+---Check if blink-cmp completion menu is visible
+---@return boolean
+function BlinkCmpEngine:is_visible()
+  local ok, blink = pcall(require, 'blink.cmp')
+  return ok and blink.is_visible()
+end
+
 ---Trigger completion manually for blink-cmp
 ---@param trigger_char string
 function BlinkCmpEngine:trigger(trigger_char)

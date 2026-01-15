@@ -183,11 +183,13 @@ M._execute_slash_command = function(command)
 end
 
 function M.setup(windows)
+
   if config.ui.input.text.wrap then
     vim.api.nvim_set_option_value('wrap', true, { win = windows.input_win })
     vim.api.nvim_set_option_value('linebreak', true, { win = windows.input_win })
   end
 
+  vim.api.nvim_set_option_value('filetype', 'opencode', { buf = windows.input_buf })
   vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.input_win })
   vim.api.nvim_set_option_value('signcolumn', 'yes', { win = windows.input_win })
   vim.api.nvim_set_option_value('cursorline', false, { win = windows.input_win })
@@ -353,9 +355,16 @@ function M.is_empty()
   return #lines == 0 or (#lines == 1 and lines[1] == '')
 end
 
+local keymaps_set_for_buf = {}
+
 function M.setup_keymaps(windows)
+  if keymaps_set_for_buf[windows.input_buf] then
+    return
+  end
+  keymaps_set_for_buf[windows.input_buf] = true
+
   local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
+  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf, true)
 end
 
 function M.setup_autocmds(windows, group)

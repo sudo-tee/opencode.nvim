@@ -46,11 +46,19 @@ function CompletionEngine.get_trigger_characters()
 end
 
 ---Check if the completion engine is available for use
----Default implementation checks if current buffer filetype is 'opencode'
+---Default implementation checks if current buffer is the opencode input buffer
+---or has filetype 'opencode'.
 ---Child classes can override this to add engine-specific availability checks
 ---@return boolean true if the engine can be used in the current context
 function CompletionEngine.is_available()
-  return vim.bo.filetype == 'opencode'
+  local current_buf = vim.api.nvim_get_current_buf()
+  if vim.bo[current_buf].filetype == 'opencode' then
+    return true
+  end
+
+  local ok, state = pcall(require, 'opencode.state')
+  local input_buf = ok and state.windows and state.windows.input_buf
+  return input_buf ~= nil and input_buf == current_buf
 end
 
 ---Parse trigger characters from text before cursor
@@ -104,6 +112,13 @@ end
 ---@param trigger_char string The character that triggered completion
 function CompletionEngine:trigger(trigger_char)
   -- Default implementation does nothing
+end
+
+---Check if completion menu is currently visible
+---Child classes should override this with engine-specific implementation
+---@return boolean
+function CompletionEngine:is_visible()
+  return false
 end
 
 ---Handle completion item selection

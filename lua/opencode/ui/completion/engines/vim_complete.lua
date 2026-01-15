@@ -45,6 +45,12 @@ function VimCompleteEngine:setup(completion_sources)
   return true
 end
 
+---Check if vim completion menu is visible
+---@return boolean
+function VimCompleteEngine:is_visible()
+  return vim.fn.pumvisible() == 1
+end
+
 ---Trigger completion manually for vim
 ---@param trigger_char string
 function VimCompleteEngine:trigger(trigger_char)

@@ -136,4 +136,11 @@ function M.hide_completion()
   end
 end
 
+function M.is_visible()
+  if M._current_engine and M._current_engine.is_visible then
+    return M._current_engine:is_visible()
+  end
+  return false
+end
+
 return M

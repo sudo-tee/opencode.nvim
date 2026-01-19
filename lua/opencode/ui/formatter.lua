@@ -37,7 +37,7 @@ function M._format_reasoning(output, part)
     end
   end
 
-  M._format_action(output, icons.get('reasoning') .. ' ' .. title, '')
+  M.format_action(output, icons.get('reasoning') .. ' ' .. title, '')
 
   if config.ui.output.tools.show_reasoning_output then
     output:add_empty_line()
@@ -47,7 +47,7 @@ function M._format_reasoning(output, part)
 
   local end_line = output:get_line_count()
   if end_line - start_line > 1 then
-    M._add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1, 'OpencodeReasoningText')
+    M.add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1, 'OpencodeReasoningText')
   else
     output:add_extmark(start_line - 1, {
       line_hl_group = 'OpencodeReasoningText',
@@ -179,7 +179,7 @@ function M._format_patch(output, part)
   end
 
   local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
-  M._format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
+  M.format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
 
   -- Anchor all snapshot-level actions to the snapshot header line
   add_action(output, '[R]evert file', 'diff_revert_selected_file', { part.hash }, 'R')
@@ -339,7 +339,7 @@ function M._format_user_prompt(output, text, message)
     mention.highlight_mentions_in_output(output, text, mentions, start_line)
   end
 
-  M._add_vertical_border(output, start_line, end_line + end_line_extmark_offset, 'OpencodeMessageRoleUser', -3)
+  M.add_vertical_border(output, start_line, end_line + end_line_extmark_offset, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param output Output Output object to write to
@@ -355,7 +355,7 @@ function M._format_selection_context(output, part)
 
   local end_line = output:get_line_count()
 
-  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+  M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param output Output Output object to write to
@@ -372,7 +372,7 @@ function M._format_cursor_data_context(output, part)
 
   local end_line = output:get_line_count()
 
-  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+  M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---@param output Output Output object to write to
@@ -410,7 +410,7 @@ function M._format_diagnostics_context(output, part)
   output:add_empty_line()
   local end_line = output:get_line_count()
 
-  M._add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+  M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
 ---Format and display the file path in the context
@@ -468,7 +468,7 @@ end
 ---@param output Output Output object to write to
 ---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)
-function M._format_action(output, tool_type, value)
+function M.format_action(output, tool_type, value)
   if not tool_type or not value then
     return
   end
@@ -481,7 +481,7 @@ end
 ---@param input BashToolInput data for the tool
 ---@param metadata BashToolMetadata Metadata for the tool use
 function M._format_bash_tool(output, input, metadata)
-  M._format_action(output, icons.get('run') .. ' run', input and input.description)
+  M.format_action(output, icons.get('run') .. ' run', input and input.description)
 
   if not config.ui.output.tools.show_output then
     return
@@ -503,14 +503,14 @@ function M._format_file_tool(output, tool_type, input, metadata)
   local file_type = input and util.get_markdown_filetype(input.filePath) or ''
   local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 
-  M._format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name)
+  M.format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name)
 
   if not config.ui.output.tools.show_output then
     return
   end
 
   if tool_type == 'edit' and metadata.diff then
-    M._format_diff(output, metadata.diff, file_type)
+    M.format_diff(output, metadata.diff, file_type)
   elseif tool_type == 'write' and input and input.content then
     M._format_code(output, vim.split(input.content, '\n'), file_type)
   end
@@ -520,7 +520,7 @@ end
 ---@param title string
 ---@param input TodoToolInput
 function M._format_todo_tool(output, title, input)
-  M._format_action(output, icons.get('plan') .. ' plan', (title or ''))
+  M.format_action(output, icons.get('plan') .. ' plan', (title or ''))
   if not config.ui.output.tools.show_output then
     return
   end
@@ -537,7 +537,7 @@ end
 ---@param input GlobToolInput data for the tool
 ---@param metadata GlobToolMetadata Metadata for the tool use
 function M._format_glob_tool(output, input, metadata)
-  M._format_action(output, icons.get('search') .. ' glob', input and input.pattern)
+  M.format_action(output, icons.get('search') .. ' glob', input and input.pattern)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -553,7 +553,7 @@ function M._format_grep_tool(output, input, metadata)
 
   local grep_str = string.format('%s` `%s', (input.path or input.include) or '', input.pattern or '')
 
-  M._format_action(output, icons.get('search') .. ' grep', grep_str)
+  M.format_action(output, icons.get('search') .. ' grep', grep_str)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -566,7 +566,7 @@ end
 ---@param output Output Output object to write to
 ---@param input WebFetchToolInput data for the tool
 function M._format_webfetch_tool(output, input)
-  M._format_action(output, icons.get('web') .. ' fetch', input and input.url)
+  M.format_action(output, icons.get('web') .. ' fetch', input and input.url)
 end
 
 ---@param output Output Output object to write to
@@ -574,7 +574,7 @@ end
 ---@param metadata ListToolMetadata
 ---@param tool_output string
 function M._format_list_tool(output, input, metadata, tool_output)
-  M._format_action(output, icons.get('list') .. ' list', input and input.path or '')
+  M.format_action(output, icons.get('list') .. ' list', input and input.path or '')
   if not config.ui.output.tools.show_output then
     return
   end
@@ -627,7 +627,7 @@ function M._format_tool(output, part)
   elseif tool == 'task' then
     M._format_task_tool(output, input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], tool_output)
   else
-    M._format_action(output, icons.get('tool') .. ' tool', tool)
+    M.format_action(output, icons.get('tool') .. ' tool', tool)
   end
 
   if part.state.status == 'error' and part.state.error then
@@ -643,7 +643,7 @@ function M._format_tool(output, part)
 
   local end_line = output:get_line_count()
   if end_line - start_line > 1 then
-    M._add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1)
+    M.add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1)
   end
 end
 
@@ -661,7 +661,7 @@ function M._format_task_tool(output, input, metadata, tool_output)
     description = string.format('%s (@%s)', description, agent_type)
   end
 
-  M._format_action(output, icons.get('task') .. ' task', description)
+  M.format_action(output, icons.get('task') .. ' task', description)
 
   if config.ui.output.tools.show_output then
     -- Show task summary from metadata
@@ -726,7 +726,7 @@ end
 ---@param output Output Output object to write to
 ---@param code string
 ---@param file_type string
-function M._format_diff(output, code, file_type)
+function M.format_diff(output, code, file_type)
   output:add_empty_line()
 
   --- NOTE: use longer code fence because code could contain ```
@@ -770,7 +770,7 @@ end
 ---@param hl_group string Highlight group for the border character
 ---@param win_col number
 ---@param text_hl_group? string Optional highlight group for the background/foreground of text lines
-function M._add_vertical_border(output, start_line, end_line, hl_group, win_col, text_hl_group)
+function M.add_vertical_border(output, start_line, end_line, hl_group, win_col, text_hl_group)
   for line = start_line, end_line do
     local extmark_opts = {
       virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
@@ -816,7 +816,7 @@ function M.format_part(part, message, is_last_part)
     elseif part.type == 'file' then
       local file_line = M._format_context_file(output, part.filename)
       if file_line then
-        M._add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+        M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
         content_added = true
       end
     end
@@ -836,8 +836,7 @@ function M.format_part(part, message, is_last_part)
     end
   elseif role == 'system' then
     if part.type == 'permissions-display' then
-      local text = table.concat(permission_window.get_display_lines(), '\n')
-      output:add_lines(vim.split(vim.trim(text), '\n'))
+      permission_window.format_display(output)
       content_added = true
     end
   end

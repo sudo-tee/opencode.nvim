@@ -59,8 +59,24 @@ local util = require('opencode.util')
 --- @field metadata table
 --- @field time {created: number}
 
+--- @class OpencodePermissionAsked
+--- @field id string
+--- @field type string
+--- @field pattern string|string[]
+--- @field sessionID string
+--- @field tool? {messageID: string, callID: string}
+--- @field messageID string
+--- @field callID? string
+--- @field title string
+--- @field metadata table
+--- @field time {created: number}
+
 --- @class EventPermissionUpdated
 --- @field type "permission.updated"
+--- @field properties OpencodePermission
+
+--- @class EventPermissionAsked
+--- @field type "permission.asked"
 --- @field properties OpencodePermission
 
 --- @class EventPermissionReplied
@@ -120,6 +136,7 @@ local util = require('opencode.util')
 --- | "session.deleted"
 --- | "session.error"
 --- | "permission.updated"
+--- | "permission.asked"
 --- | "permission.replied"
 --- | "question.asked"
 --- | "question.replied"

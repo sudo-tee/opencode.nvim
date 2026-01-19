@@ -188,8 +188,8 @@ function M._append_permissions_display()
     type = 'permissions-display',
   }
 
-  local permission_lines = permission_window.get_display_lines()
-  if #permission_lines > 0 then
+  local permissions = permission_window.get_all_permissions()
+  if #permissions > 0 then
     M.on_part_updated({ part = fake_part })
   end
 end

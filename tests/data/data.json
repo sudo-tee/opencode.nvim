@@ -1,0 +1,2072 @@
+[
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768568063397 },
+        "id": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "agent": "build",
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df05a7002IvqOYSHa16Wn6I",
+        "synthetic": true,
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/home/francis/Projects/_nvim/opencode.nvim/test.txt\"}"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df05a9001tTv3L50sE4T3Xk",
+        "synthetic": true,
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "text": "<file>\n00001| \n\n(End of file - total 1 lines)\n</file>"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "file",
+        "id": "prt_bc6df05a9002h4Ux0X6y2GFsMl",
+        "filename": "test.txt",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "mime": "text/plain",
+        "messageID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "url": "file:///home/francis/Projects/_nvim/opencode.nvim/test.txt"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df05a7001DmYFULWiOWGfBV",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "text": "write random words in the file"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768480296573, "updated": 1768568063427 },
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "slug": "tidy-engine",
+        "title": "New session - 2026-01-15T12:31:36.573Z",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "version": "1.1.20",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568063436 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568063397 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "summary": { "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568063487 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "New session - 2026-01-15T12:31:36.573Z",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 0, "additions": 0, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6df0b63001UE5grBGOGygnbJ",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "snapshot": "5749ab3dda9a67983feae16f3d51642f778e8f22"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": " the"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": " of"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of random words to `/home/francis/Projects/_",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": "/_"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of random words to `/home/francis/Projects/_nvim/opencode.nvim/test.txt`. First,",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": ","
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of random words to `/home/francis/Projects/_nvim/opencode.nvim/test.txt`. First, let me generate 10 random words.\n\nNext,",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": ","
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of random words to `/home/francis/Projects/_nvim/opencode.nvim/test.txt`. First, let me generate 10 random words.\n\nNext, I will write these random words into the file",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "start": 1768568064870 }
+      },
+      "delta": " file"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df0b66001nJ6eFr4VFeywmx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "Since the file is empty, I’ll write a selection of random words to `/home/francis/Projects/_nvim/opencode.nvim/test.txt`. First, let me generate 10 random words.\n\nNext, I will write these random words into the file.",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "time": { "end": 1768568065924, "start": 1768568065924 }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6df0f780017gdKP1JVYqnr7r",
+        "callID": "call_ha0MyMQJLlYquMS9wLvT2oax",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "status": "running",
+          "time": { "start": 1768568065918 },
+          "input": {
+            "content": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          }
+        },
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "tool": "write"
+      }
+    }
+  },
+  {
+    "type": "permission.asked",
+    "properties": {
+      "metadata": {
+        "filepath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt",
+        "diff": "Index: /home/francis/Projects/_nvim/opencode.nvim/test.txt\n===================================================================\n--- /home/francis/Projects/_nvim/opencode.nvim/test.txt\n+++ /home/francis/Projects/_nvim/opencode.nvim/test.txt\n@@ -0,0 +1,1 @@\n+apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\\ No newline at end of file\n"
+      },
+      "patterns": ["test.txt"],
+      "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+      "id": "per_bc6df0f83001VKHMee19kgcN2Q",
+      "always": ["*"],
+      "permission": "edit",
+      "tool": {
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "callID": "call_ha0MyMQJLlYquMS9wLvT2oax"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568063397 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "summary": {
+          "title": "Summarize text: 'write random words in file'",
+          "diffs": []
+        },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "permission.replied",
+    "properties": {
+      "reply": "once",
+      "requestID": "per_bc6df0f83001VKHMee19kgcN2Q",
+      "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO"
+    }
+  },
+  {
+    "type": "file.edited",
+    "properties": {
+      "file": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6df0f780017gdKP1JVYqnr7r",
+        "callID": "call_ha0MyMQJLlYquMS9wLvT2oax",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "time": { "end": 1768568079672, "start": 1768568065918 },
+          "title": "test.txt",
+          "status": "completed",
+          "output": "Wrote file successfully.",
+          "input": {
+            "content": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          },
+          "metadata": {
+            "diagnostics": {},
+            "exists": true,
+            "truncated": false,
+            "filepath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          }
+        },
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "tool": "write"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6df453b001g5JCCjGyLNL3p8",
+        "reason": "tool-calls",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7",
+        "tokens": {
+          "input": 10369,
+          "output": 95,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 10369,
+          "output": 95,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568063436 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "patch",
+        "id": "prt_bc6df45600017WUz9WUBDxrhnh",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "files": ["/home/francis/Projects/_nvim/opencode.nvim/test.txt"],
+        "hash": "5749ab3dda9a67983feae16f3d51642f778e8f22",
+        "messageID": "msg_bc6df05cc001eW38b2ckd4BsMA"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df05cc001eW38b2ckd4BsMA",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 10369,
+          "output": 95,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568063436, "completed": 1768568079716 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568079732 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568063397 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "summary": {
+          "title": "Summarize text: 'write random words in file'",
+          "diffs": [
+            {
+              "before": "",
+              "deletions": 0,
+              "additions": 1,
+              "file": "test.txt",
+              "after": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet"
+            }
+          ]
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568079755 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "New session - 2026-01-15T12:31:36.573Z",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6df47f0001pFZzu6oMojfFhc",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": "Projects"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": "vim"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " random"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " banana"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " planet"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\nIf you need more words, want them",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " them"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\nIf you need more words, want them formatted",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " formatted"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\nIf you need more words, want them formatted differently, or want to verify the content, just",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " just"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568084623 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\nIf you need more words, want them formatted differently, or want to verify the content, just let",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "start": 1768568080380 }
+      },
+      "delta": " let"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6df47fc001RU2AQqr9w7HJJS",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "The file `/home/francis/Projects/_nvim/opencode.nvim/test.txt` now contains 10 random words:\n\napple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\nIf you need more words, want them formatted differently, or want to verify the content, just let me know!",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "time": { "end": 1768568084889, "start": 1768568084889 }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6df599a001BhODhrg3Fd6Zig",
+        "reason": "stop",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7",
+        "tokens": {
+          "input": 109,
+          "output": 60,
+          "reasoning": 0,
+          "cache": { "read": 10368, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "finish": "stop",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 109,
+          "output": 60,
+          "reasoning": 0,
+          "cache": { "read": 10368, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568079732 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6df4574001B2ZohDztlBT5Se",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "finish": "stop",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 109,
+          "output": 60,
+          "reasoning": 0,
+          "cache": { "read": 10368, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568079732, "completed": 1768568084919 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "session.idle",
+    "properties": { "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO" }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568063397 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6df05a5001zZkWsqQxZcO9Eh",
+        "summary": {
+          "title": "Summarize text: 'write random words in file'",
+          "diffs": [
+            {
+              "before": "",
+              "deletions": 0,
+              "additions": 1,
+              "file": "test.txt",
+              "after": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet"
+            }
+          ]
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568084938 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768568113440 },
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "agent": "build",
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dfc920002hOvRDMIodhogLT",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "text": "add some more in another line"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568113446 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568113452 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": { "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568113487 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6dfcb88001S7Ex5BqHUN3ZXZ",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6dfcb89001exI2wKUB876Rdb",
+        "callID": "call_6cB7X66RB0hDFTC22Fmrjeb4",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": { "status": "pending", "input": {}, "raw": "" },
+        "messageID": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "tool": "read"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6dfcb89001exI2wKUB876Rdb",
+        "callID": "call_6cB7X66RB0hDFTC22Fmrjeb4",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "time": { "end": 1768568114119, "start": 1768568114118 },
+          "title": "test.txt",
+          "status": "completed",
+          "output": "<file>\n00001| apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\n(End of file - total 1 lines)\n</file>",
+          "input": {
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          },
+          "metadata": {
+            "preview": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+            "truncated": false
+          }
+        },
+        "messageID": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "tool": "read"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6dfcbe4001JFKBaiPgcehYGr",
+        "reason": "tool-calls",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7",
+        "tokens": {
+          "input": 53,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 53,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568113452 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfc92c001LT3Eyczy0y86DP",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 53,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568113452, "completed": 1768568114179 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568114186 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": { "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568114206 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 1, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6dfceb9001JluLptNsXpycca",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "snapshot": "d85d1c561768f811fdb69769f447fea386fccdb7"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6dfcec6001ILawWId95vdEKy",
+        "callID": "call_AADQnlhnwYKKBSB1OBLnlFpl",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": { "status": "pending", "input": {}, "raw": "" },
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "tool": "write"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6dfcec6001ILawWId95vdEKy",
+        "callID": "call_AADQnlhnwYKKBSB1OBLnlFpl",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "status": "running",
+          "time": { "start": 1768568115233 },
+          "input": {
+            "content": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet\ndoor bicycle cloud jasmine rocket shadow lamp orange",
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          }
+        },
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "tool": "write"
+      }
+    }
+  },
+  {
+    "type": "permission.asked",
+    "properties": {
+      "metadata": {
+        "filepath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt",
+        "diff": "Index: /home/francis/Projects/_nvim/opencode.nvim/test.txt\n===================================================================\n--- /home/francis/Projects/_nvim/opencode.nvim/test.txt\n+++ /home/francis/Projects/_nvim/opencode.nvim/test.txt\n@@ -1,1 +1,2 @@\n-apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n\\ No newline at end of file\n+apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n+door bicycle cloud jasmine rocket shadow lamp orange\n\\ No newline at end of file\n"
+      },
+      "patterns": ["test.txt"],
+      "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+      "id": "per_bc6dfd022001Sh59ji1EPrx7Jm",
+      "always": ["*"],
+      "permission": "edit",
+      "tool": {
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "callID": "call_AADQnlhnwYKKBSB1OBLnlFpl"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": { "title": "Short text summary", "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": {
+          "title": "Short summary for small text snippet",
+          "diffs": []
+        },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "permission.replied",
+    "properties": {
+      "reply": "once",
+      "requestID": "per_bc6dfd022001Sh59ji1EPrx7Jm",
+      "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO"
+    }
+  },
+  {
+    "type": "file.edited",
+    "properties": {
+      "file": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6dfcec6001ILawWId95vdEKy",
+        "callID": "call_AADQnlhnwYKKBSB1OBLnlFpl",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "time": { "end": 1768568124277, "start": 1768568115233 },
+          "title": "test.txt",
+          "status": "completed",
+          "output": "Wrote file successfully.",
+          "input": {
+            "content": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet\ndoor bicycle cloud jasmine rocket shadow lamp orange",
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          },
+          "metadata": {
+            "diagnostics": {},
+            "exists": true,
+            "truncated": false,
+            "filepath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          }
+        },
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "tool": "write"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6dff377001pai4nu78Gm1JkG",
+        "reason": "tool-calls",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009",
+        "tokens": {
+          "input": 117,
+          "output": 51,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 117,
+          "output": 51,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568114186 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "patch",
+        "id": "prt_bc6dff3a9001L7GlhISj3ntkWe",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "files": ["/home/francis/Projects/_nvim/opencode.nvim/test.txt"],
+        "hash": "d85d1c561768f811fdb69769f447fea386fccdb7",
+        "messageID": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dfcc0a0017Ecc6vQbhMuQLR",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 117,
+          "output": 51,
+          "reasoning": 0,
+          "cache": { "read": 10496, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568114186, "completed": 1768568124331 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568124347 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": {
+          "title": "Short summary for small text snippet",
+          "diffs": [
+            {
+              "before": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+              "deletions": 1,
+              "additions": 2,
+              "file": "test.txt",
+              "after": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet\ndoor bicycle cloud jasmine rocket shadow lamp orange"
+            }
+          ]
+        },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568124373 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 2, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6dff5f3001vRhcghXUVEy5vY",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " added"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " file"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": "/"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": "`"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt` are now:\n\n1. apple banana umbrella mountain river",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " river"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt` are now:\n\n1. apple banana umbrella mountain river sparkle tiger keyboard planet velvet  \n2. door bicycle",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " bicycle"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt` are now:\n\n1. apple banana umbrella mountain river sparkle tiger keyboard planet velvet  \n2. door bicycle cloud jasmine rocket shadow lamp orange\n\nLet me know",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " know"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt` are now:\n\n1. apple banana umbrella mountain river sparkle tiger keyboard planet velvet  \n2. door bicycle cloud jasmine rocket shadow lamp orange\n\nLet me know if you’d like to add more words or need",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "start": 1768568124917 }
+      },
+      "delta": " need"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6dff5f4001Q1LvQ0A7ujyThz",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "text": "I've added another line of random words to the file. The updated contents of `/home/francis/Projects/_nvim/opencode.nvim/test.txt` are now:\n\n1. apple banana umbrella mountain river sparkle tiger keyboard planet velvet  \n2. door bicycle cloud jasmine rocket shadow lamp orange\n\nLet me know if you’d like to add more words or need anything else!",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "time": { "end": 1768568126156, "start": 1768568126156 }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6dffacc001jOi0KbNckk01Kp",
+        "reason": "stop",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009",
+        "tokens": {
+          "input": 51,
+          "output": 75,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "stop",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 51,
+          "output": 75,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568124347 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6dff3bb001pgUjC4CBqYkWO9",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "finish": "stop",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 51,
+          "output": 75,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568124347, "completed": 1768568126177 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": { "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO" }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568126200 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 2, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568113440 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6dfc920001yGA7DBKNFE0F3h",
+        "summary": {
+          "title": "Short summary for small text snippet",
+          "diffs": [
+            {
+              "before": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+              "deletions": 1,
+              "additions": 2,
+              "file": "test.txt",
+              "after": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet\ndoor bicycle cloud jasmine rocket shadow lamp orange"
+            }
+          ]
+        },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768568134335 },
+        "id": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "agent": "build",
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "text",
+        "id": "prt_bc6e01abf002O0FDIRHjejcPh7",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "text": "remove mountain"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568134347 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 2, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568134357 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568134335 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "summary": { "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568134397 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 2, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6e0252d0016jWj0RoQxP6v3X",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6e0252e001iWeBAKEwPA9k22",
+        "callID": "call_XuoOkkxD9XH2ZrbKENYoxA44",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": { "status": "pending", "input": {}, "raw": "" },
+        "messageID": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "tool": "read"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6e0252e001iWeBAKEwPA9k22",
+        "callID": "call_XuoOkkxD9XH2ZrbKENYoxA44",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "time": { "end": 1768568137109, "start": 1768568137108 },
+          "title": "test.txt",
+          "status": "completed",
+          "output": "<file>\n00001| apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n00002| door bicycle cloud jasmine rocket shadow lamp orange\n\n(End of file - total 2 lines)\n</file>",
+          "input": {
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          },
+          "metadata": {
+            "preview": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet\ndoor bicycle cloud jasmine rocket shadow lamp orange",
+            "truncated": false
+          }
+        },
+        "messageID": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "tool": "read"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-finish",
+        "id": "prt_bc6e025a4001sJslfpnlGYe4NV",
+        "reason": "tool-calls",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009",
+        "tokens": {
+          "input": 134,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 134,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568134357 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6e01ad5001CRbygjOE4cQbhx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "finish": "tool-calls",
+        "cost": 0,
+        "mode": "build",
+        "agent": "build",
+        "tokens": {
+          "input": 134,
+          "output": 28,
+          "reasoning": 0,
+          "cache": { "read": 10624, "write": 0 }
+        },
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568134357, "completed": 1768568137148 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_bc6e025c4001wyAPEeJkkzTNy9",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "parentID": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": { "read": 0, "write": 0 }
+        },
+        "cost": 0,
+        "agent": "build",
+        "mode": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "time": { "created": 1768568137156 },
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568134335 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "summary": { "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "time": { "created": 1768480296573, "updated": 1768568137174 },
+        "version": "1.1.20",
+        "slug": "tidy-engine",
+        "title": "Write random words to `file://test.txt`",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "summary": { "files": 1, "additions": 2, "deletions": 0 },
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "step-start",
+        "id": "prt_bc6e0283b001x6FdndWpXGU1zq",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "messageID": "msg_bc6e025c4001wyAPEeJkkzTNy9",
+        "snapshot": "58e165cf15d6cbc8b0cb8eda08ec56665e10c009"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6e02849001QSSpyO0c360b21",
+        "callID": "call_NNCfGPxPgan5OgpQDfLk9vWx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": { "status": "pending", "input": {}, "raw": "" },
+        "messageID": "msg_bc6e025c4001wyAPEeJkkzTNy9",
+        "tool": "edit"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "type": "tool",
+        "id": "prt_bc6e02849001QSSpyO0c360b21",
+        "callID": "call_NNCfGPxPgan5OgpQDfLk9vWx",
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "state": {
+          "status": "running",
+          "time": { "start": 1768568138096 },
+          "input": {
+            "oldString": "apple banana umbrella mountain river sparkle tiger keyboard planet velvet",
+            "newString": "apple banana umbrella river sparkle tiger keyboard planet velvet",
+            "filePath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt"
+          }
+        },
+        "messageID": "msg_bc6e025c4001wyAPEeJkkzTNy9",
+        "tool": "edit"
+      }
+    }
+  },
+  {
+    "type": "permission.asked",
+    "properties": {
+      "metadata": {
+        "filepath": "/home/francis/Projects/_nvim/opencode.nvim/test.txt",
+        "diff": "Index: /home/francis/Projects/_nvim/opencode.nvim/test.txt\n===================================================================\n--- /home/francis/Projects/_nvim/opencode.nvim/test.txt\n+++ /home/francis/Projects/_nvim/opencode.nvim/test.txt\n@@ -1,2 +1,2 @@\n-apple banana umbrella mountain river sparkle tiger keyboard planet velvet\n+apple banana umbrella river sparkle tiger keyboard planet velvet\n door bicycle cloud jasmine rocket shadow lamp orange\n\\ No newline at end of file\n"
+      },
+      "patterns": ["test.txt"],
+      "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+      "id": "per_bc6e02972001FeghC3oKT3xzi7",
+      "always": ["*"],
+      "permission": "edit",
+      "tool": {
+        "messageID": "msg_bc6e025c4001wyAPEeJkkzTNy9",
+        "callID": "call_NNCfGPxPgan5OgpQDfLk9vWx"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568134335 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "summary": { "title": "Summary of \"remove mountain\"", "diffs": [] },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1768568134335 },
+        "system": "# Code References\n\n**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**\n\nFormat: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`\n\nExamples:\n- CORRECT: \"The error is in `file://src/services/process.ts:712`\"\n- INCORRECT: \"The error is in file://src/services/process.ts:712\"\n- INCORRECT: \"The error is in src/services/process.ts:712\"\n\nThis matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.\n",
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "sessionID": "ses_43e5c3183ffeVDw6th1yRs4yBO",
+        "agent": "build",
+        "id": "msg_bc6e01abf001K0aGYL5CNMfcf5",
+        "summary": {
+          "title": "Summary for phrase 'remove mountain'",
+          "diffs": []
+        },
+        "role": "user"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] }
+]

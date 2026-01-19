@@ -86,26 +86,40 @@ function M.get_current_permission()
 end
 
 ---Get permission display lines to append to output
----@return string[]
-function M.get_display_lines()
+---@param output Output
+function M.format_display(output)
+  local formatter = require('opencode.ui.formatter')
+  local icons = require('opencode.ui.icons')
   if #M._permission_queue == 0 then
     return {}
   end
-
-  local lines = {}
 
   local keys = get_permission_keys()
 
   M.setup_keymaps()
 
   for i, permission in ipairs(M._permission_queue) do
-    table.insert(lines, '')
-    table.insert(lines, '> [!WARNING] Permission Required')
-    table.insert(lines, '>')
+    local start_line = output:get_line_count()
+
+    output:add_line(icons.get('warning') .. ' Permission Required')
+    output:add_extmark(start_line, {
+      line_hl_group = 'OpencodePermissionTitle',
+    } --[[@as OutputExtmark]])
+
+    output:add_line('')
 
     local title = permission.title or table.concat(permission.patterns or {}, ', ') or 'Unknown Permission'
-    table.insert(lines, '>  `' .. title .. '`')
-    table.insert(lines, '>')
+    local perm_type = permission.permission or permission.type or 'unknown'
+
+    output:add_line((icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '*' .. ' `' .. title .. '`')
+    output:add_line('')
+
+    if perm_type == 'edit' and permission.metadata.diff then
+      local file_type = permission.metadata.filepath and vim.fn.fnamemodify(permission.metadata.filepath, ':e') or ''
+      formatter.format_diff(output, permission.metadata.diff, file_type)
+    end
+
+    output:add_line('')
 
     if keys then
       local actions = {}
@@ -114,9 +128,9 @@ function M.get_display_lines()
       for _, action in ipairs(action_order) do
         local key = keys[action]
         if key then
-          local action_label = action == 'accept' and 'Accept'
-            or action == 'accept_all' and 'Always'
-            or action == 'deny' and 'Deny'
+          local action_label = action == 'accept' and '*Accept*'
+            or action == 'accept_all' and '*Always*'
+            or action == 'deny' and '*Deny*'
             or action
 
           if #M._permission_queue > 1 then
@@ -127,18 +141,19 @@ function M.get_display_lines()
         end
       end
       if #actions > 0 then
-        table.insert(lines, '> ' .. table.concat(actions, '   '))
+        output:add_line(table.concat(actions, '   '))
       end
     end
 
     if i < #M._permission_queue then
-      table.insert(lines, '>')
+      output:add_line('')
     end
+    local end_line = output:get_line_count()
+    formatter.add_vertical_border(output, start_line + 1, end_line, 'OpencodePermissionBorder', -2)
+    output:add_line('')
   end
 
-  table.insert(lines, '')
-
-  return lines
+  output:add_line('')
 end
 
 function M.clear_keymaps()

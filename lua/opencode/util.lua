@@ -348,9 +348,9 @@ function M.strdisplaywidth(str)
   return vim.fn.strdisplaywidth(str)
 end
 
---- Parse run command arguments with optional agent, model, and context prefixes.
+--- Parse run command arguments with optional agent, model, variant, and context prefixes.
 --- Returns opts table and remaining prompt string.
---- Format: [agent=<name>] [model=<model>] [context=<key=value,...>] <prompt>
+--- Format: [agent=<name>] [model=<model>] [variant=<variant>] [context=<key=value,...>] <prompt>
 --- Also supports quick context syntax like "#buffer #git_diff" in the prompt
 --- @param args string[]
 --- @return table opts, string prompt
@@ -361,6 +361,7 @@ function M.parse_run_args(args)
   for i, token in ipairs(args) do
     local agent = token:match('^agent=(.+)$')
     local model = token:match('^model=(.+)$')
+    local variant = token:match('^variant=(.+)$')
     local context = token:match('^context=(.+)$')
 
     if agent then
@@ -368,6 +369,9 @@ function M.parse_run_args(args)
       prompt_start_idx = i + 1
     elseif model then
       opts.model = model
+      prompt_start_idx = i + 1
+    elseif variant then
+      opts.variant = variant
       prompt_start_idx = i + 1
     elseif context then
       opts.context = M.parse_dot_args(context:gsub(',', ' '))
@@ -524,6 +528,28 @@ function M.get_visual_range()
     end_line = end_line,
     end_col = end_col,
   }
+end
+
+--- Sort items by priority level (low, medium, high) and then alphabetically by a key.
+--- @param items table[] Array of items to sort
+--- @param key_fn fun(item: table): string Function to extract the key from each item
+--- @param priority_map? table<string, number> Optional custom priority map (defaults to {low=1, medium=2, high=3})
+--- @return table[] sorted_items The sorted array (sorts in-place and returns the same array)
+function M.sort_by_priority(items, key_fn, priority_map)
+  local default_priority = 99
+
+  table.sort(items, function(a, b)
+    local a_key = key_fn(a)
+    local b_key = key_fn(b)
+    local a_priority = priority_map[a_key] or default_priority
+    local b_priority = priority_map[b_key] or default_priority
+    if a_priority ~= b_priority then
+      return a_priority < b_priority
+    end
+    return a_key < b_key
+  end)
+
+  return items
 end
 
 return M

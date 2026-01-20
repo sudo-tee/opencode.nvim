@@ -154,13 +154,18 @@ M.send_message = Promise.async(function(prompt, opts)
   context.load()
   opts.model = opts.model or M.initialize_current_model():await()
   opts.agent = opts.agent or state.current_mode or config.default_mode
-
+  opts.variant = opts.variant or state.current_variant
   local params = {}
 
   if opts.model then
     local provider, model = opts.model:match('^(.-)/(.+)$')
     params.model = { providerID = provider, modelID = model }
     state.current_model = opts.model
+
+    if opts.variant then
+      params.variant = opts.variant
+      state.current_variant = opts.variant
+    end
   end
 
   if opts.agent then
@@ -255,7 +260,7 @@ function M.before_run(opts)
 end
 
 function M.configure_provider()
-  require('opencode.provider').select(function(selection)
+  require('opencode.model_picker').select(function(selection)
     if not selection then
       if state.windows then
         ui.focus_input()
@@ -268,10 +273,94 @@ function M.configure_provider()
     if state.windows then
       ui.focus_input()
     else
-      vim.notify('Changed provider to ' .. selection.display, vim.log.levels.INFO)
+      vim.notify('Changed provider to ' .. model_str, vim.log.levels.INFO)
     end
   end)
 end
+
+function M.configure_variant()
+  require('opencode.variant_picker').select(function(selection)
+    if not selection then
+      if state.windows then
+        ui.focus_input()
+      end
+      return
+    end
+
+    state.current_variant = selection.name
+
+    -- Save variant to model state
+    if state.current_model then
+      local provider, model = state.current_model:match('^(.-)/(.+)$')
+      if provider and model then
+        local model_state = require('opencode.model_state')
+        model_state.set_variant(provider, model, selection.name)
+      end
+    end
+
+    if state.windows then
+      ui.focus_input()
+    else
+      vim.notify('Changed variant to ' .. selection.name, vim.log.levels.INFO)
+    end
+  end)
+end
+
+M.cycle_variant = Promise.async(function()
+  if not state.current_model then
+    vim.notify('No model selected', vim.log.levels.WARN)
+    return
+  end
+
+  local provider, model = state.current_model:match('^(.-)/(.+)$')
+  if not provider or not model then
+    return
+  end
+
+  local config_file = require('opencode.config_file')
+  local model_info = config_file.get_model_info(provider, model)
+
+  if not model_info or not model_info.variants then
+    vim.notify('Current model does not support variants', vim.log.levels.WARN)
+    return
+  end
+
+  local variants = {}
+  for variant_name, _ in pairs(model_info.variants) do
+    table.insert(variants, variant_name)
+  end
+
+  util.sort_by_priority(variants, function(item)
+    return item
+  end, { low = 1, medium = 2, high = 3 })
+
+  if #variants == 0 then
+    return
+  end
+
+  local total_count = #variants + 1
+
+  local current_index
+  if state.current_variant == nil then
+    current_index = total_count
+  else
+    current_index = util.index_of(variants, state.current_variant) or 0
+  end
+
+  local next_index = (current_index % total_count) + 1
+
+  local next_variant
+  if next_index > #variants then
+    next_variant = nil
+  else
+    next_variant = variants[next_index]
+  end
+
+  state.current_variant = next_variant
+
+  local model_state = require('opencode.model_state')
+  model_state.set_variant(provider, model, next_variant)
+end)
 
 M.cancel = Promise.async(function()
   if state.windows and state.active_session then
@@ -461,6 +550,23 @@ function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
   state.subscribe('user_message_count', M._on_user_message_count_change)
   state.subscribe('pending_permissions', M._on_current_permission_change)
+  state.subscribe('current_model', function(key, new_val, old_val)
+    if new_val ~= old_val then
+      state.current_variant = nil
+
+      -- Load saved variant for the new model
+      if new_val then
+        local provider, model = new_val:match('^(.-)/(.+)$')
+        if provider and model then
+          local model_state = require('opencode.model_state')
+          local saved_variant = model_state.get_variant(provider, model)
+          if saved_variant then
+            state.current_variant = saved_variant
+          end
+        end
+      end
+    end
+  end)
 
   vim.schedule(function()
     M.opencode_ok()

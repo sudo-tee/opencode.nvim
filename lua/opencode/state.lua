@@ -27,6 +27,7 @@
 ---@field restore_points RestorePoint[]
 ---@field current_model string|nil
 ---@field current_model_info table|nil
+---@field current_variant string|nil
 ---@field messages OpencodeMessage[]|nil
 ---@field current_message OpencodeMessage|nil
 ---@field last_user_message OpencodeMessage|nil
@@ -76,6 +77,7 @@ local _state = {
   restore_points = {},
   current_model = nil,
   current_model_info = nil,
+  current_variant = nil,
   -- messages
   messages = nil,
   current_message = nil,

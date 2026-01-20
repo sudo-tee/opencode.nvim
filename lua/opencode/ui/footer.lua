@@ -44,6 +44,10 @@ local function build_right_segments()
 
   if not state.is_running() and state.current_model and config.ui.display_model then
     table.insert(segments, { state.current_model, 'OpencodeHint' })
+    if state.current_variant then
+      table.insert(segments, { '·', 'OpencodeHint' })
+      table.insert(segments, { state.current_variant, 'OpencodeVariant' })
+    end
     table.insert(segments, { ' ' })
   end
 
@@ -149,6 +153,7 @@ function M.setup(windows)
   -- for model changes
   state.subscribe('current_model', on_change)
   state.subscribe('current_mode', on_change)
+  state.subscribe('current_variant', on_change)
   state.subscribe('active_session', on_change)
   -- to show C-c message
   state.subscribe('job_count', on_job_count_changed)
@@ -173,6 +178,7 @@ function M.close()
 
   state.unsubscribe('current_model', on_change)
   state.unsubscribe('current_mode', on_change)
+  state.unsubscribe('current_variant', on_change)
   state.unsubscribe('active_session', on_change)
   state.unsubscribe('job_count', on_job_count_changed)
   state.unsubscribe('restore_points', on_change)

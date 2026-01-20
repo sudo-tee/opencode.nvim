@@ -127,6 +127,7 @@ require('opencode').setup({
       ['<leader>os'] = { 'select_session' }, -- Select and load a opencode session
       ['<leader>oR'] = { 'rename_session' }, -- Rename current session
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
+      ['<leader>oV'] = { 'configure_variant' }, -- Switch model variant for the current model
       ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
       ['<leader>ov'] = { 'paste_image'}, -- Paste image from clipboard into current session
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
@@ -161,6 +162,7 @@ require('opencode').setup({
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } }, -- Navigate to next prompt in history
       ['<M-m>'] = { 'switch_mode' }, -- Switch between modes (build/plan)
+      ['<M-r>'] = { 'cycle_variant', mode = { 'n', 'i' } }, -- Cycle through available model variants
     },
     output_window = {
       ['<esc>'] = { 'close' }, -- Close UI windows
@@ -169,6 +171,7 @@ require('opencode').setup({
       ['[['] = { 'prev_message' }, -- Navigate to previous message in the conversation
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
       ['i'] = { 'focus_input', 'n' }, -- Focus on input window and enter insert mode at the end of the input from the output window
+      ['<M-r>'] = { 'cycle_variant', mode = { 'n' } }, -- Cycle through available model variants
       ['<leader>oS'] = { 'select_child_session' }, -- Select and load a child session
       ['<leader>oD'] = { 'debug_message' }, -- Open raw message in new buffer for debugging
       ['<leader>oO'] = { 'debug_output' }, -- Open raw output in new buffer for debugging
@@ -377,6 +380,18 @@ In the model picker, press **`<C-f>`** to toggle the currently selected model as
 
 No configuration is needed - the plugin respects and updates the OpenCode CLI format automatically.
 
+### Model Variants
+
+Some models support multiple variants (e.g., different context window sizes or optimization modes). The plugin provides convenient ways to switch between available variants for the currently active model.
+
+#### Switching Variants
+
+- **Via picker**: Press `<leader>oV` to open the variant picker showing all available variants for the current model
+- **Via cycling**: Press `<M-r>` (Alt+R) in the input or output window to cycle through available variants
+- **Via slash command**: Type `/variant` in the input window
+
+When you switch variants, the plugin remembers your selection per model, so the next time you use that model, it will automatically use the last selected variant.
+
 ### UI icons (disable emojis or customize)
 
 By default, opencode.nvim uses emojis for icons in the UI. If you prefer a plain, emoji-free interface, you can switch to the `text` preset or override icons individually.
@@ -552,6 +567,8 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Open timeline picker (navigate/undo/redo/fork to message)   | `<leader>oT`                          | `:Opencode timeline`                        | `require('opencode.api').timeline()`                                   |
 | Browse code references from conversation                    | `gr` (window)                         | `:Opencode references` / `/references`      | `require('opencode.api').references()`                                 |
 | Configure provider and model                                | `<leader>op`                          | `:Opencode configure provider`              | `require('opencode.api').configure_provider()`                         |
+| Configure model variant                                     | `<leader>oV`                          | `:Opencode variant` / `/variant`            | `require('opencode.api').configure_variant()`                          |
+| Cycle through model variants                                | `<M-r>` (window)                      | -                                           | `require('opencode.api').cycle_variant()`                              |
 | Open diff view of changes                                   | `<leader>od`                          | `:Opencode diff open`                       | `require('opencode.api').diff_open()`                                  |
 | Navigate to next file diff                                  | `<leader>o]`                          | `:Opencode diff next`                       | `require('opencode.api').diff_next()`                                  |
 | Navigate to previous file diff                              | `<leader>o[`                          | `:Opencode diff prev`                       | `require('opencode.api').diff_prev()`                                  |
@@ -720,6 +737,7 @@ You can run predefined user commands and built-in slash commands from the input 
 - `/help` — Show help
 - `/mcp` — Show MCP servers
 - `/models` — Switch provider/model
+- `/variant` — Switch model variant
 - `/sessions` — Switch session
 - `/child-sessions` — Switch to a child session
 - `/agent` — Switch agent/mode

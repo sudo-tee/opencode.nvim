@@ -63,6 +63,10 @@ function M.get_opencode_providers()
   end)
 end
 
+--- Get model information for a specific provider and model
+--- @param provider string Provider ID
+--- @param model string Model ID
+--- @return OpencodeModel|nil Model information with variants
 M.get_model_info = function(provider, model)
   local providers_response = M.get_opencode_providers():peek()
 

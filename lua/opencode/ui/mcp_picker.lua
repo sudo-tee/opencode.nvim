@@ -2,6 +2,7 @@ local M = {}
 local base_picker = require('opencode.ui.base_picker')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
+local util = require('opencode.util')
 
 ---Format MCP server item for picker
 ---@param mcp_item table MCP server definition
@@ -69,21 +70,14 @@ function M.pick(callback)
       })
     end
 
-    table.sort(items, function(a, b)
-      local status_priority = {
-        connected = 1,
-        failed = 2,
-        disabled = 3,
-        disconnected = 4,
-      }
-      local a_priority = status_priority[a.status] or 5
-      local b_priority = status_priority[b.status] or 5
-
-      if a_priority ~= b_priority then
-        return a_priority < b_priority
-      end
-      return a.name < b.name
-    end)
+    util.sort_by_priority(items, function(item)
+      return item.status
+    end, {
+      connected = 1,
+      failed = 2,
+      disabled = 3,
+      disconnected = 4,
+    })
 
     return items
   end)

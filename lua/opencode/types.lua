@@ -372,6 +372,7 @@
 ---@field context? OpencodeContextConfig
 ---@field model? string
 ---@field agent? string
+---@field variant? string
 
 ---@class CompletionContext
 ---@field trigger_char string The character that triggered completion
@@ -468,6 +469,9 @@
 ---@field context number Maximum context length in tokens
 ---@field output number Maximum output length in tokens
 
+---@class OpencodeModelVariant
+---@field reasoningEffort string Reasoning effort level (e.g., "low", "medium", "high")
+
 ---@class OpencodeModel
 ---@field id string Unique identifier for the model
 ---@field name string Human-readable name of the model
@@ -482,6 +486,7 @@
 ---@field open_weights boolean Whether the model has open weights
 ---@field limit OpencodeModelLimits Token limits for the model
 ---@field cost OpencodeModelCost Pricing information for the model
+---@field variants table<string, OpencodeModelVariant>|nil Model variants with different configurations
 
 ---@class OpencodeProvider
 ---@field id string Unique identifier for the provider

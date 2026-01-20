@@ -83,6 +83,14 @@ function M.configure_provider()
   core.configure_provider()
 end
 
+function M.configure_variant()
+  core.configure_variant()
+end
+
+function M.cycle_variant()
+  core.cycle_variant()
+end
+
 function M.cancel()
   core.cancel()
 end
@@ -1205,6 +1213,11 @@ M.commands = {
     fn = M.configure_provider,
   },
 
+  variant = {
+    desc = 'Switch model variant',
+    fn = M.configure_variant,
+  },
+
   run = {
     desc = 'Run prompt in current session',
     fn = function(args)
@@ -1334,6 +1347,7 @@ M.slash_commands_map = {
   ['/history'] = { fn = M.select_history, desc = 'Select from history' },
   ['/mcp'] = { fn = M.mcp, desc = 'Show MCP server configuration' },
   ['/models'] = { fn = M.configure_provider, desc = 'Switch provider/model' },
+  ['/variant'] = { fn = M.configure_variant, desc = 'Switch model variant' },
   ['/new'] = { fn = M.open_input_new_session, desc = 'Create new session' },
   ['/redo'] = { fn = M.redo, desc = 'Redo last action' },
   ['/sessions'] = { fn = M.select_session, desc = 'Select session' },
@@ -1365,6 +1379,7 @@ M.legacy_command_map = {
   OpencodeSelectChildSession = 'session child',
   OpencodeTogglePane = 'toggle_pane',
   OpencodeConfigureProvider = 'models',
+  OpencodeConfigureVariant = 'variant',
   OpencodeRun = 'run',
   OpencodeRunNewSession = 'run_new',
   OpencodeDiff = 'diff open',

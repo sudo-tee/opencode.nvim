@@ -289,15 +289,6 @@ function M.configure_variant()
 
     state.current_variant = selection.name
 
-    -- Save variant to model state
-    if state.current_model then
-      local provider, model = state.current_model:match('^(.-)/(.+)$')
-      if provider and model then
-        local model_state = require('opencode.model_state')
-        model_state.set_variant(provider, model, selection.name)
-      end
-    end
-
     if state.windows then
       ui.focus_input()
     else

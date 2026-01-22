@@ -1,4 +1,4 @@
--- Code reference picker for navigating to file:// URI references in LLM responses
+-- Code reference picker for navigating to file references in LLM responses
 local state = require('opencode.state')
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
@@ -11,7 +11,6 @@ local M = {}
 ---@return boolean
 local function file_exists(file_path)
   local path = file_path
-  -- Make absolute if relative
   if not vim.startswith(path, '/') then
     path = vim.fn.getcwd() .. '/' .. path
   end
@@ -29,16 +28,67 @@ end
 ---@field pos number[]|nil Position as {line, col} for Snacks picker preview
 ---@field end_pos number[]|nil End position as {line, col} for Snacks picker range highlighting
 
----Parse file:// URI references from text
+---Create absolute path from relative path
+---@param path string
+---@return string
+local function make_absolute_path(path)
+  if not vim.startswith(path, '/') then
+    return vim.fn.getcwd() .. '/' .. path
+  end
+  return path
+end
+
+---Create a CodeReference object from parsed components
+---@param path string
+---@param line number|nil
+---@param column number|nil
+---@param end_line number|nil
+---@param message_id string
+---@param match_start number
+---@param match_end number
+---@return CodeReference
+local function create_code_reference(path, line, column, end_line, message_id, match_start, match_end)
+  local abs_path = make_absolute_path(path)
+
+  return {
+    file_path = path,
+    line = line,
+    column = column,
+    message_id = message_id,
+    match_start = match_start,
+    match_end = match_end,
+    file = abs_path,
+    pos = line and { line, (column or 1) - 1 } or nil,
+    end_pos = end_line and { end_line, 0 } or nil,
+  }
+end
+
+---Parse line, column, and range information from pattern captures
+---@param line_str string
+---@param col_or_end_str string
+---@param end_line_str string
+---@return number|nil line, number|nil column, number|nil end_line
+local function parse_position_info(line_str, col_or_end_str, end_line_str)
+  local line = line_str ~= '' and tonumber(line_str) or nil
+  local column = nil
+  local end_line = nil
+
+  if end_line_str ~= '' then
+    end_line = tonumber(end_line_str)
+  elseif col_or_end_str ~= '' then
+    column = tonumber(col_or_end_str)
+  end
+
+  return line, column, end_line
+end
+
+---Generic function to parse file references using a given pattern
 ---@param text string The text to parse
+---@param pattern string Lua pattern to match
 ---@param message_id string The message ID for tracking
 ---@return CodeReference[]
-function M.parse_references(text, message_id)
+local function parse_references_with_pattern(text, pattern, message_id)
   local references = {}
-
-  -- Match file:// URIs with optional line and column numbers or line ranges
-  -- Formats: file://path/to/file or file://path/to/file:line or file://path/to/file:line:column or file://path/to/file:line-endline
-  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)-?(%d*)'
   local search_start = 1
 
   while search_start <= #text do
@@ -47,44 +97,83 @@ function M.parse_references(text, message_id)
       break
     end
 
-    -- Only add if file exists
     if file_exists(path) then
-      local line = line_str ~= '' and tonumber(line_str) or nil
-      local column = nil
-      local end_line = nil
+      local line, column, end_line = parse_position_info(line_str, col_or_end_str, end_line_str)
 
-      -- Determine if we have a range or a column
-      if end_line_str ~= '' then
-        -- Range format: file://path:start-end
-        end_line = tonumber(end_line_str)
-      elseif col_or_end_str ~= '' then
-        -- Column format: file://path:line:col
-        column = tonumber(col_or_end_str)
-      end
-
-      -- Create absolute path for Snacks preview
-      local abs_path = path
-      if not vim.startswith(path, '/') then
-        abs_path = vim.fn.getcwd() .. '/' .. path
-      end
-
-      table.insert(references, {
-        file_path = path,
-        line = line,
-        column = column,
-        message_id = message_id,
-        match_start = match_start,
-        match_end = match_end,
-        file = abs_path,
-        pos = line and { line, (column or 1) - 1 } or nil,
-        end_pos = end_line and { end_line, 0 } or nil,
-      })
+      local ref = create_code_reference(path, line, column, end_line, message_id, match_start, match_end)
+      table.insert(references, ref)
     end
 
     search_start = match_end + 1
   end
 
   return references
+end
+
+---Parse backtick-wrapped file references like `path/file.lua:42`
+---@param text string
+---@param message_id string
+---@return CodeReference[]
+local function parse_backtick_refs(text, message_id)
+  local pattern = '`([^`]+%.[%w]+):?(%d*):?(%d*)-?(%d*)`'
+  return parse_references_with_pattern(text, pattern, message_id)
+end
+
+---Parse file:// URI references (backward compatibility)
+---@param text string
+---@param message_id string
+---@return CodeReference[]
+local function parse_file_uri_refs(text, message_id)
+  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)-?(%d*)'
+  return parse_references_with_pattern(text, pattern, message_id)
+end
+
+---Parse plain file paths like path/file.lua:42 or path/file.lua
+---@param text string
+---@param message_id string
+---@return CodeReference[]
+local function parse_plain_path_refs(text, message_id)
+  -- Match file paths with optional extension and line/column info
+  -- Relies on file_exists() to filter out false positives like URLs
+  local pattern = '([%w_%./-]+%.[%w]+):?(%d*):?(%d*)-?(%d*)'
+  return parse_references_with_pattern(text, pattern, message_id)
+end
+
+---Parse file references from text using multiple pattern strategies
+---@param text string The text to parse
+---@param message_id string The message ID for tracking
+---@return CodeReference[]
+function M.parse_references(text, message_id)
+  local all_refs = {}
+
+  local backtick_refs = parse_backtick_refs(text, message_id)
+  local file_uri_refs = parse_file_uri_refs(text, message_id)
+  local plain_refs = parse_plain_path_refs(text, message_id)
+
+  vim.list_extend(all_refs, backtick_refs)
+  vim.list_extend(all_refs, file_uri_refs)
+  vim.list_extend(all_refs, plain_refs)
+
+  table.sort(all_refs, function(a, b)
+    return a.match_start < b.match_start
+  end)
+
+  local deduplicated = {}
+  for _, ref in ipairs(all_refs) do
+    local overlaps = false
+    for _, existing in ipairs(deduplicated) do
+      if ref.match_start <= existing.match_end and existing.match_start <= ref.match_end then
+        overlaps = true
+        break
+      end
+    end
+
+    if not overlaps then
+      table.insert(deduplicated, ref)
+    end
+  end
+
+  return deduplicated
 end
 
 ---Collect all references from assistant messages in the current session
@@ -97,13 +186,10 @@ function M.collect_references()
     return all_references
   end
 
-  -- Process messages in reverse order (most recent first)
   for i = #state.messages, 1, -1 do
     local msg = state.messages[i]
 
-    -- Only process assistant messages
     if msg.info and msg.info.role == 'assistant' then
-      -- Use cached references if available, otherwise parse on-demand
       local refs = msg.references or M._parse_message_references(msg)
       for _, ref in ipairs(refs) do
         table.insert(all_references, ref)
@@ -111,11 +197,12 @@ function M.collect_references()
     end
   end
 
-  -- Deduplicate across all messages (keep first occurrence which is most recent)
+  -- Keep first occurrence which is most recent due to reverse iteration
   local seen = {}
   local deduplicated = {}
   for _, ref in ipairs(all_references) do
-    local dedup_key = ref.file_path .. ':' .. (ref.line or 0)
+    local relative_path = vim.fn.fnamemodify(ref.file_path, ':~:.')
+    local dedup_key = relative_path .. ':' .. (ref.line or 0)
     if not seen[dedup_key] then
       seen[dedup_key] = true
       table.insert(deduplicated, ref)
@@ -142,6 +229,15 @@ function M._parse_message_references(msg)
         table.insert(refs, ref)
       end
     end
+
+    if part.type == 'tool' then
+      local file_path = vim.tbl_get(part, 'state', 'input', 'filePath')
+      if file_path and file_exists(file_path) then
+        local relative_path = vim.fn.fnamemodify(file_path, ':~:.')
+        local ref = create_code_reference(relative_path, nil, nil, nil, message_id, 0, 0)
+        table.insert(refs, ref)
+      end
+    end
   end
   return refs
 end
@@ -153,7 +249,6 @@ function M._parse_session_messages()
   end
 
   for _, msg in ipairs(state.messages) do
-    -- Only parse assistant messages that don't already have references cached
     if msg.info and msg.info.role == 'assistant' and not msg.references then
       msg.references = M._parse_message_references(msg)
     end
@@ -163,17 +258,13 @@ end
 ---Setup reference picker event subscriptions
 ---Should be called once during plugin initialization
 function M.setup()
-  -- Subscribe to session.idle to parse references when AI is done responding
   if state.event_manager then
     state.event_manager:subscribe('session.idle', function()
       M._parse_session_messages()
     end)
   end
 
-  -- Subscribe to messages changes to handle session loads
   state.subscribe('messages', function()
-    -- Parse any messages that don't have cached references
-    -- This handles loading previous sessions
     M._parse_session_messages()
   end)
 end
@@ -230,27 +321,19 @@ end
 ---Navigate to a code reference
 ---@param ref CodeReference
 function M.navigate_to(ref)
-  local file_path = ref.file_path
+  local file_path = make_absolute_path(ref.file_path)
 
-  -- Make absolute if relative
-  if not vim.startswith(file_path, '/') then
-    file_path = vim.fn.getcwd() .. '/' .. file_path
-  end
-
-  -- Open the file in a new tab
   vim.cmd('tabedit ' .. vim.fn.fnameescape(file_path))
 
-  -- Jump to line if specified
   if ref.line then
     local line = math.max(1, ref.line)
     local col = ref.column and math.max(0, ref.column - 1) or 0
 
-    -- Make sure we don't exceed buffer line count
     local line_count = vim.api.nvim_buf_line_count(0)
     line = math.min(line, line_count)
 
     vim.api.nvim_win_set_cursor(0, { line, col })
-    vim.cmd('normal! zz') -- Center the view
+    vim.cmd('normal! zz')
   end
 end
 

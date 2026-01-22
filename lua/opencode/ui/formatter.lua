@@ -499,7 +499,17 @@ end
 ---@param input FileToolInput data for the tool
 ---@param metadata FileToolMetadata Metadata for the tool use
 function M._format_file_tool(output, tool_type, input, metadata)
-  local file_name = input and vim.fn.fnamemodify(input.filePath, ':t') or ''
+  local file_name = ''
+  if input then
+    local relative = vim.fn.fnamemodify(input.filePath, ':.')
+    local absolute = vim.fn.fnamemodify(input.filePath, ':p')
+    if relative == absolute then
+      file_name = vim.fn.fnamemodify(input.filePath, ':~')
+    else
+      file_name = relative
+    end
+  end
+
   local file_type = input and util.get_markdown_filetype(input.filePath) or ''
   local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 

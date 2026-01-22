@@ -11,9 +11,6 @@ local M = {}
 ---@return boolean
 local function file_exists(file_path)
   local path = file_path
-  if not vim.startswith(path, '/') then
-    path = vim.fn.getcwd() .. '/' .. path
-  end
   return vim.fn.filereadable(path) == 1
 end
 

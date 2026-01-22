@@ -501,12 +501,13 @@ end
 function M._format_file_tool(output, tool_type, input, metadata)
   local file_name = ''
   if input then
-    local relative = vim.fn.fnamemodify(input.filePath, ':.')
+    local cwd = vim.fn.getcwd()
     local absolute = vim.fn.fnamemodify(input.filePath, ':p')
-    if relative == absolute then
-      file_name = vim.fn.fnamemodify(input.filePath, ':~')
+    
+    if vim.startswith(absolute, cwd .. '/') then
+      file_name = absolute:sub(#cwd + 2)
     else
-      file_name = relative
+      file_name = vim.fn.fnamemodify(input.filePath, ':t')
     end
   end
 

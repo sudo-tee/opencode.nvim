@@ -195,6 +195,7 @@
 ---@field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
 ---@field default_global_keymaps boolean
 ---@field default_mode 'build' | 'plan' | string -- Default mode
+---@field default_system_prompt string | nil
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
 ---@field keymap OpencodeKeymap
@@ -373,6 +374,7 @@
 ---@field model? string
 ---@field agent? string
 ---@field variant? string
+---@field system? s
 
 ---@class CompletionContext
 ---@field trigger_char string The character that triggered completion

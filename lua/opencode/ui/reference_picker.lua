@@ -6,12 +6,18 @@ local icons = require('opencode.ui.icons')
 
 local M = {}
 
----Check if a file exists
----@param file_path string
+---Check if a file reference is valid
+---@param path string File path
+---@param context string Surrounding text
 ---@return boolean
-local function file_exists(file_path)
-  local path = file_path
-  return vim.fn.filereadable(path) == 1
+local function is_valid_file_reference(path, context)
+  -- Reject URLs
+  if context:lower():match('https?://') or context:lower():match('www%.') then
+    return false
+  end
+
+  -- Must have extension and exist
+  return path:match('%.[%w]+$') and vim.fn.filereadable(path) == 1
 end
 
 ---@class CodeReference
@@ -79,7 +85,7 @@ local function parse_position_info(line_str, col_or_end_str, end_line_str)
   return line, column, end_line
 end
 
----Generic function to parse file references using a given pattern
+---Parse file references using a pattern
 ---@param text string The text to parse
 ---@param pattern string Lua pattern to match
 ---@param message_id string The message ID for tracking
@@ -94,9 +100,11 @@ local function parse_references_with_pattern(text, pattern, message_id)
       break
     end
 
-    if file_exists(path) then
-      local line, column, end_line = parse_position_info(line_str, col_or_end_str, end_line_str)
+    local context_start = math.max(1, match_start - 30)
+    local context = text:sub(context_start, match_end + 10)
 
+    if is_valid_file_reference(path, context) then
+      local line, column, end_line = parse_position_info(line_str, col_or_end_str, end_line_str)
       local ref = create_code_reference(path, line, column, end_line, message_id, match_start, match_end)
       table.insert(references, ref)
     end
@@ -107,35 +115,6 @@ local function parse_references_with_pattern(text, pattern, message_id)
   return references
 end
 
----Parse backtick-wrapped file references like `path/file.lua:42`
----@param text string
----@param message_id string
----@return CodeReference[]
-local function parse_backtick_refs(text, message_id)
-  local pattern = '`([^`]+%.[%w]+):?(%d*):?(%d*)-?(%d*)`'
-  return parse_references_with_pattern(text, pattern, message_id)
-end
-
----Parse file:// URI references (backward compatibility)
----@param text string
----@param message_id string
----@return CodeReference[]
-local function parse_file_uri_refs(text, message_id)
-  local pattern = 'file://([%w_./%-]+):?(%d*):?(%d*)-?(%d*)'
-  return parse_references_with_pattern(text, pattern, message_id)
-end
-
----Parse plain file paths like path/file.lua:42 or path/file.lua
----@param text string
----@param message_id string
----@return CodeReference[]
-local function parse_plain_path_refs(text, message_id)
-  -- Match file paths with optional extension and line/column info
-  -- Relies on file_exists() to filter out false positives like URLs
-  local pattern = '([%w_%./-]+%.[%w]+):?(%d*):?(%d*)-?(%d*)'
-  return parse_references_with_pattern(text, pattern, message_id)
-end
-
 ---Parse file references from text using multiple pattern strategies
 ---@param text string The text to parse
 ---@param message_id string The message ID for tracking
@@ -143,29 +122,27 @@ end
 function M.parse_references(text, message_id)
   local all_refs = {}
 
-  local backtick_refs = parse_backtick_refs(text, message_id)
-  local file_uri_refs = parse_file_uri_refs(text, message_id)
-  local plain_refs = parse_plain_path_refs(text, message_id)
+  local patterns = {
+    '`([^`\n]+%.%w+):?(%d*):?(%d*)-?(%d*)`', -- Backticks: `file.ext:line`
+    'file://([%S]+%.%w+):?(%d*):?(%d*)-?(%d*)', -- file:// URIs
+    '([%w_./%-]+/[%w_./%-]*%.%w+):?(%d*):?(%d*)-?(%d*)', -- Paths with /
+    '([%w_%-]+%.%w+):?(%d*):?(%d*)-?(%d*)', -- Top-level files
+  }
 
-  vim.list_extend(all_refs, backtick_refs)
-  vim.list_extend(all_refs, file_uri_refs)
-  vim.list_extend(all_refs, plain_refs)
+  for _, pattern in ipairs(patterns) do
+    local refs = parse_references_with_pattern(text, pattern, message_id)
+    vim.list_extend(all_refs, refs)
+  end
 
+  -- Sort by position and deduplicate
   table.sort(all_refs, function(a, b)
     return a.match_start < b.match_start
   end)
 
   local deduplicated = {}
   for _, ref in ipairs(all_refs) do
-    local overlaps = false
-    for _, existing in ipairs(deduplicated) do
-      if ref.match_start <= existing.match_end and existing.match_start <= ref.match_end then
-        overlaps = true
-        break
-      end
-    end
-
-    if not overlaps then
+    local last = deduplicated[#deduplicated]
+    if not last or ref.match_start > last.match_end then
       table.insert(deduplicated, ref)
     end
   end
@@ -229,7 +206,7 @@ function M._parse_message_references(msg)
 
     if part.type == 'tool' then
       local file_path = vim.tbl_get(part, 'state', 'input', 'filePath')
-      if file_path and file_exists(file_path) then
+      if file_path and vim.fn.filereadable(file_path) == 1 then
         local relative_path = vim.fn.fnamemodify(file_path, ':~:.')
         local ref = create_code_reference(relative_path, nil, nil, nil, message_id, 0, 0)
         table.insert(refs, ref)

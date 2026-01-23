@@ -174,6 +174,8 @@ M.send_message = Promise.async(function(prompt, opts)
   end
 
   params.parts = context.format_message(prompt, opts.context):await()
+  params.system = opts.system or config.default_system_prompt or nil
+
   M.before_run(opts)
 
   local session_id = state.active_session.id

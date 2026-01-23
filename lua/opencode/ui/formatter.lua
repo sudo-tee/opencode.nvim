@@ -500,14 +500,14 @@ end
 ---@param metadata FileToolMetadata Metadata for the tool use
 function M._format_file_tool(output, tool_type, input, metadata)
   local file_name = ''
-  if input then
+  if input and input.filePath then
     local cwd = vim.fn.getcwd()
     local absolute = vim.fn.fnamemodify(input.filePath, ':p')
-    
+
     if vim.startswith(absolute, cwd .. '/') then
       file_name = absolute:sub(#cwd + 2)
     else
-      file_name = vim.fn.fnamemodify(input.filePath, ':t')
+      file_name = absolute
     end
   end
 

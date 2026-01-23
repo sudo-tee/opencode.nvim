@@ -18,8 +18,7 @@ local function is_valid_file_reference(path, context)
     return false
   end
 
-  -- Must have extension and exist
-  return path:match('%.[%w]+$') and vim.fn.filereadable(path) == 1
+  return (path:match('%.[%w]+$') and vim.fn.filereadable(path) == 1) or false
 end
 
 ---@class CodeReference
@@ -105,7 +104,7 @@ local function parse_references_with_pattern(text, pattern, message_id)
     local context_start = math.max(1, match_start - 30)
     local context = text:sub(context_start, match_end + 10)
 
-    if is_valid_file_reference(path, context) then
+    if path and is_valid_file_reference(path, context) then
       local line, column, end_line = parse_position_info(line_str, col_or_end_str, end_line_str)
       local ref = create_code_reference(path, line, column, end_line, message_id, match_start, match_end)
       table.insert(references, ref)
@@ -177,8 +176,8 @@ function M.collect_references()
   local seen = {}
   local deduplicated = {}
   for _, ref in ipairs(all_references) do
-    local relative_path = vim.fn.fnamemodify(ref.file_path, ':~:.')
-    local dedup_key = relative_path .. ':' .. (ref.line or 0)
+    local normalized_path = vim.fn.fnamemodify(ref.file_path, ':p')
+    local dedup_key = normalized_path .. ':' .. (ref.line or 0)
     if not seen[dedup_key] then
       seen[dedup_key] = true
       table.insert(deduplicated, ref)

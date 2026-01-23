@@ -11,8 +11,10 @@ local M = {}
 ---@param context string Surrounding text
 ---@return boolean
 local function is_valid_file_reference(path, context)
-  -- Reject URLs
-  if context:lower():match('https?://') or context:lower():match('www%.') then
+  -- Reject URLs (but allow file paths that merely contain these substrings)
+  local lower = context:lower()
+  -- Match http/https URLs at word boundaries or www.-style URLs
+  if lower:match('%f[%w]https?://%S+') or lower:match('%f[%w]www%.[%w%-_]+') then
     return false
   end
 

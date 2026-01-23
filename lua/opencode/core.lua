@@ -173,22 +173,9 @@ M.send_message = Promise.async(function(prompt, opts)
     state.current_mode = opts.agent
   end
 
-  params.system = [[
-# Code References
-
-**CRITICAL: Always use the file:// URI scheme when referencing files in responses AND wrap them in backticks.**
-
-Format: `file://path/to/file.lua`, `file://path/to/file.lua:42`, or `file://path/to/file.lua:42-50`
-
-Examples:
-- CORRECT: "The error is in `file://src/services/process.ts:712`"
-- INCORRECT: "The error is in file://src/services/process.ts:712"
-- INCORRECT: "The error is in src/services/process.ts:712"
-
-This matches the file:// URI format that the reference picker already parses from your responses, enabling automatic navigation.
-]]
-
   params.parts = context.format_message(prompt, opts.context):await()
+  params.system = opts.system or config.default_system_prompt or nil
+
   M.before_run(opts)
 
   local session_id = state.active_session.id

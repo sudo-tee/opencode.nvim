@@ -32,3 +32,32 @@
 - **Tests:** Place in `tests/minimal/`, `tests/unit/`, or `tests/replay/`. Manual/visual tests in `tests/manual/`.
 
 _Agentic coding agents must follow these conventions strictly for consistency and reliability._
+
+## File Reference Detection
+
+The plugin automatically detects file references in LLM responses and makes them navigable via the reference picker (`<leader>or` or `:Opencode references`).
+
+### Supported Formats
+
+The reference picker recognizes these file reference patterns:
+
+1. **Backtick-wrapped** (recommended by LLMs naturally):
+   - `` `path/to/file.lua` ``
+   - `` `path/to/file.lua:42` ``
+   - `` `path/to/file.lua:42:10` `` (with column)
+   - `` `path/to/file.lua:42-50` `` (line range)
+
+2. **file:// URIs** (backward compatibility):
+   - `file://path/to/file.lua`
+   - `file://path/to/file.lua:42`
+   - `file://path/to/file.lua:42-50`
+
+3. **Plain paths** (natural format):
+   - `path/to/file.lua`
+   - `path/to/file.lua:42`
+   - `./relative/path.lua:42`
+   - `/absolute/path.lua:42`
+
+All formats support both relative and absolute paths. Files must exist to be recognized (validation prevents false positives).
+
+**No system prompt configuration is required** - the parser works with all LLM providers, including those without system prompt support.

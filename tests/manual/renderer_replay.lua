@@ -15,7 +15,7 @@ local M = {
 
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
-  local data_file = vim.fn.getcwd() .. '/' .. file_path
+  local data_file = file_path
   local f = io.open(data_file, 'r')
   if not f then
     vim.notify('Could not open ' .. data_file, vim.log.levels.ERROR)
@@ -152,6 +152,30 @@ function M.normalize_namespace_ids(extmarks)
   return helpers.normalize_namespace_ids(extmarks)
 end
 
+function M.normalize_file_paths(data)
+  local cwd = vim.fn.getcwd()
+  local mock_cwd = helpers.MOCK_CWD
+
+  local function replace_paths(value)
+    if type(value) == 'string' then
+      if vim.startswith(value, cwd) then
+        return mock_cwd .. value:sub(#cwd + 1)
+      end
+      return value
+    elseif type(value) == 'table' then
+      local result = {}
+      for k, v in pairs(value) do
+        result[k] = replace_paths(v)
+      end
+      return result
+    else
+      return value
+    end
+  end
+
+  return replace_paths(data)
+end
+
 function M.save_output(filename)
   if not state.windows or not state.windows.output_buf then
     vim.notify('No output buffer available', vim.log.levels.ERROR)
@@ -174,8 +198,11 @@ function M.save_output(filename)
     timestamp = os.time(),
   }
 
+  snapshot = M.normalize_file_paths(snapshot)
+
   if filename then
     local json = vim.json.encode(snapshot)
+
     local f = io.open(filename, 'w')
     if not f then
       vim.notify('Failed to open file for writing: ' .. filename, vim.log.levels.ERROR)

@@ -3,6 +3,8 @@
 
 local M = {}
 
+M.MOCK_CWD = '/mock/project/path'
+
 function M.replay_setup()
   local config = require('opencode.config')
   local config_file = require('opencode.config_file')
@@ -33,9 +35,23 @@ function M.replay_setup()
   end
 
   M.mock_time_utils()
+  M.mock_getcwd()
 
   if not config.config then
     config.config = vim.deepcopy(config.defaults)
+  end
+end
+
+function M.mock_getcwd()
+  local original_getcwd = vim.fn.getcwd
+
+  ---@diagnostic disable-next-line: duplicate-set-field
+  vim.fn.getcwd = function()
+    return M.MOCK_CWD
+  end
+
+  return function()
+    vim.fn.getcwd = original_getcwd
   end
 end
 

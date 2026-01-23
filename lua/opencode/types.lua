@@ -374,7 +374,7 @@
 ---@field model? string
 ---@field agent? string
 ---@field variant? string
----@field system? s
+---@field system? string
 
 ---@class CompletionContext
 ---@field trigger_char string The character that triggered completion

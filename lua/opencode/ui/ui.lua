@@ -99,6 +99,7 @@ end
 
 function M.create_windows()
   vim.treesitter.language.register('markdown', 'opencode_output')
+  vim.treesitter.language.register('markdown', 'opencode')
 
   local autocmds = require('opencode.ui.autocmds')
 

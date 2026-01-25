@@ -85,7 +85,17 @@ M.open = Promise.async(function(opts)
     ui.focus_output({ restore_position = are_windows_closed })
   end
 
-  local server = server_job.ensure_server():await()
+  local server
+  local server_ok, server_err = pcall(function()
+    server = server_job.ensure_server():await()
+  end)
+
+  if not server_ok or not server then
+    state.is_opening = false
+    vim.notify('Failed to start opencode server: ' .. tostring(server_err or 'Unknown error'), vim.log.levels.ERROR)
+    return Promise.new():reject(server_err or 'Server failed to start')
+  end
+
   state.opencode_server = server
 
   local ok, err = pcall(function()

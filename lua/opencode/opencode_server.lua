@@ -100,9 +100,21 @@ function OpencodeServer:spawn(opts)
       end
     end,
     stderr = function(err, data)
-      if err or data then
-        self.spawn_promise:reject(err or data)
-        safe_call(opts.on_error, err or data)
+      if err then
+        self.spawn_promise:reject(err)
+        safe_call(opts.on_error, err)
+        return
+      end
+      if data then
+        -- Filter out INFO/WARN/DEBUG log lines (not actual errors)
+        local log_level = data:match('^%s*(%u+)%s')
+        if log_level and (log_level == 'INFO' or log_level == 'WARN' or log_level == 'DEBUG') then
+          -- Ignore log lines, don't reject
+          return
+        end
+        -- Only reject on actual errors
+        self.spawn_promise:reject(data)
+        safe_call(opts.on_error, data)
       end
     end,
   }, function(exit_opts)

@@ -64,7 +64,8 @@ M.defaults = {
       ['<leader>ods'] = { 'debug_session' },
     },
     input_window = {
-      ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
+      ['<cr>'] = { 'submit_input_prompt', mode = { 'n' } },
+      ['<S-cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
       ['<esc>'] = { 'close' },
       ['<C-c>'] = { 'cancel' },
       ['~'] = { 'mention_file', mode = 'i' },
@@ -92,7 +93,7 @@ M.defaults = {
     session_picker = {
       rename_session = { '<C-r>' },
       delete_session = { '<C-d>' },
-      new_session = { '<C-n>' },
+      new_session = { '<C-s>' },
     },
     timeline_picker = {
       undo = { '<C-u>', mode = { 'i', 'n' } },

@@ -935,6 +935,21 @@ function M.permission_deny(permission)
   M.respond_to_permission('reject', permission)
 end
 
+function M.question_answer()
+  local question_window = require('opencode.ui.question_window')
+  local question_info = question_window.get_current_question_info()
+  if question_info and question_info.options and question_info.options[1] then
+    question_window._answer_with_option(1)
+  end
+end
+
+function M.question_other()
+  local question_window = require('opencode.ui.question_window')
+  if question_window.has_question() then
+    question_window._answer_with_custom()
+  end
+end
+
 function M.toggle_tool_output()
   local action_text = config.ui.output.tools.show_output and 'Hiding' or 'Showing'
   vim.notify(action_text .. ' tool output display', vim.log.levels.INFO)

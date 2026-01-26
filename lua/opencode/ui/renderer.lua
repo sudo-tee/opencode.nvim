@@ -88,6 +88,8 @@ function M.setup_subscriptions(subscribe)
     { 'permission.asked', M.on_permission_updated },
     { 'permission.replied', M.on_permission_replied },
     { 'question.asked', M.on_question_asked },
+    { 'question.replied', M.clear_question_display },
+    { 'question.rejected', M.clear_question_display },
     { 'file.edited', M.on_file_edited },
     { 'custom.restore_point.created', M.on_restore_points },
     { 'custom.emit_events.finished', M.on_emit_events_finished },
@@ -170,7 +172,7 @@ function M._render_full_session_data(session_data)
 end
 
 ---Append permissions display as a fake part at the end
-function M._append_permissions_display()
+function M.render_permissions_display()
   local fake_message = {
     info = {
       id = 'permission-display-message',
@@ -179,7 +181,7 @@ function M._append_permissions_display()
     },
     parts = {},
   }
-  M.on_message_updated(fake_message)
+  M.on_message_updated(fake_message --[[@as OpencodeMessage]])
 
   local fake_part = {
     id = 'permission-display-part',
@@ -191,6 +193,58 @@ function M._append_permissions_display()
   local permissions = permission_window.get_all_permissions()
   if #permissions > 0 then
     M.on_part_updated({ part = fake_part })
+  end
+end
+
+function M.clear_question_display()
+  local question_window = require('opencode.ui.question_window')
+  question_window.clear_question()
+  M._remove_part_from_buffer('question-display-part')
+  M._remove_message_from_buffer('question-display-message')
+end
+
+---Render question display as a fake part
+function M.render_question_display()
+  local question_window = require('opencode.ui.question_window')
+
+  local current_question = question_window._current_question
+
+  if not question_window.has_question() or not current_question or not current_question.id then
+    M._remove_part_from_buffer('question-display-part')
+    M._remove_message_from_buffer('question-display-message')
+    return
+  end
+
+  local message_id = 'question-display-message'
+  local part_id = 'question-display-part'
+
+  local fake_message = {
+    info = {
+      id = message_id,
+      sessionID = state.active_session and state.active_session.id or '',
+      role = 'system',
+    },
+    parts = {},
+  }
+  M.on_message_updated(fake_message --[[@as OpencodeMessage]])
+
+  local fake_part = {
+    id = part_id,
+    messageID = message_id,
+    sessionID = state.active_session and state.active_session.id or '',
+    type = 'questions-display',
+  }
+
+  M.on_part_updated({ part = fake_part })
+  M._redraw()
+  M.scroll_to_bottom(true)
+end
+
+function M._redraw()
+  if state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win) then
+    vim.api.nvim_win_call(state.windows.output_win, function()
+      vim.cmd('redraw')
+    end)
   end
 end
 
@@ -847,7 +901,7 @@ function M.on_permission_updated(permission)
 
   permission_window.add_permission(permission)
 
-  M._append_permissions_display()
+  M.render_permissions_display()
 
   M._rerender_part('permission-display-part')
   M.scroll_to_bottom()
@@ -886,10 +940,8 @@ function M.on_question_asked(properties)
     return
   end
 
-  vim.schedule(function()
-    local question_picker = require('opencode.ui.question_picker')
-    question_picker.show(properties)
-  end)
+  local question_window = require('opencode.ui.question_window')
+  question_window.show_question(properties)
 end
 
 function M.on_file_edited(properties)

@@ -208,8 +208,8 @@
 ---@field quick_chat OpencodeQuickChatConfig
 
 ---@class MessagePartState
----@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput Input data for the tool
----@field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata Metadata about the tool execution
+---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput|QuestionToolInput Input data for the tool
+---@field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata|QuestionToolMetadata Metadata about the tool execution
 ---@field time { start: number, end: number } Timestamps for tool use
 ---@field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
 ---@field title string Title of the tool use
@@ -306,6 +306,13 @@
 ---@field sessionID string Session ID
 ---@field questions OpencodeQuestionInfo[] Questions to ask
 ---@field tool? { messageID: string, callID: string }
+
+---@class QuestionToolInput
+---@field questions OpencodeQuestionInfo[] Questions that were asked
+
+---@class QuestionToolMetadata: ToolMetadataBase
+---@field answers string[][] Array of answer arrays (one per question)
+---@field truncated boolean Whether the results were truncated
 
 ---@class MessageTokenCount
 ---@field reasoning number

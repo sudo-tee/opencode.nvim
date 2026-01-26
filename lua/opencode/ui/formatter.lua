@@ -609,6 +609,30 @@ function M._format_list_tool(output, input, metadata, tool_output)
 end
 
 ---@param output Output Output object to write to
+---@param input QuestionToolInput Question tool input data
+---@param metadata QuestionToolMetadata Question tool metadata
+---@param status string Status of the tool execution
+function M._format_question_tool(output, input, metadata, status)
+  M.format_action(output, icons.get('question') .. ' question', '')
+  output:add_empty_line()
+  if not config.ui.output.tools.show_output or status ~= 'completed' then
+    return
+  end
+
+  local questions = input and input.questions or {}
+  local answers = metadata and metadata.answers or {}
+
+  for i, question in ipairs(questions) do
+    output:add_line(string.format('**Q%d:** %s', i, question.question or question.header or ''))
+    local answer = answers[i] and answers[i][1] or 'No answer'
+    output:add_line(string.format('**A%d:** %s', i, answer))
+    if i < #questions then
+      output:add_line('')
+    end
+  end
+end
+
+---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
 function M._format_tool(output, part)
   local tool = part.tool
@@ -637,6 +661,13 @@ function M._format_tool(output, part)
     M._format_webfetch_tool(output, input --[[@as WebFetchToolInput]])
   elseif tool == 'task' then
     M._format_task_tool(output, input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], tool_output)
+  elseif tool == 'question' then
+    M._format_question_tool(
+      output,
+      input --[[@as QuestionToolInput]],
+      metadata --[[@as QuestionToolMetadata]],
+      part.state.status
+    )
   else
     M.format_action(output, icons.get('tool') .. ' tool', tool)
   end
@@ -848,6 +879,10 @@ function M.format_part(part, message, is_last_part)
   elseif role == 'system' then
     if part.type == 'permissions-display' then
       permission_window.format_display(output)
+      content_added = true
+    elseif part.type == 'questions-display' then
+      local question_window = require('opencode.ui.question_window')
+      question_window.format_display(output)
       content_added = true
     end
   end

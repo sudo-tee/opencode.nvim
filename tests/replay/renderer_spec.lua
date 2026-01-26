@@ -102,6 +102,8 @@ describe('renderer unit tests', function()
     'message.part.removed',
     'permission.updated',
     'permission.replied',
+    'question.replied',
+    'question.asked',
     'file.edited',
     'custom.restore_point.created',
     'custom.emit_events.finished',
@@ -164,6 +166,8 @@ describe('renderer functional tests', function()
   local skip_full_session = {
     'permission-prompt',
     'permission-ask-new',
+    'question-ask',
+    'multiple-question-ask',
     'shifting-and-multiple-perms',
     'message-removal',
   }

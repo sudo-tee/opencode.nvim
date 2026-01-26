@@ -400,6 +400,8 @@ function M.start(opts)
     'message.removed',
     'permission.updated',
     'permission.replied',
+    'question.replied',
+    'question.asked',
     'file.edited',
     'server.connected',
   }

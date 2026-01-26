@@ -1,0 +1,873 @@
+[
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1769198322822 },
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "id": "msg_bec700486001b1nUph5xg7dVAO",
+        "role": "user",
+        "agent": "build",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "id": "prt_bec7004870026BAMj0yPOVLQir",
+        "synthetic": true,
+        "text": "Called the Read tool with the following input: {\"filePath\":\"/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/renderer.lua\"}",
+        "type": "text",
+        "messageID": "msg_bec700486001b1nUph5xg7dVAO"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "id": "prt_bec70048e001lHNrZgYJN748Vw",
+        "synthetic": true,
+        "text": "<file>\n00001| local state = require('opencode.state')\n00002| local config = require('opencode.config')\n00003| local formatter = require('opencode.ui.formatter')\n00004| local output_window = require('opencode.ui.output_window')\n00005| local permission_window = require('opencode.ui.permission_window')\n00006| local Promise = require('opencode.promise')\n00007| local RenderState = require('opencode.ui.render_state')\n00008| \n00009| local M = {\n00010|   _prev_line_count = 0,\n00011|   _render_state = RenderState.new(),\n00012|   _last_part_formatted = {\n00013|     part_id = nil,\n00014|     formatted_data = nil --[[@as Output|nil]],\n00015|   },\n00016| }\n00017| \n00018| local trigger_on_data_rendered = require('opencode.util').debounce(function()\n00019|   local cb_type = type(config.ui.output.rendering.on_data_rendered)\n00020| \n00021|   if cb_type == 'boolean' then\n00022|     return\n00023|   end\n00024| \n00025|   if not state.windows or not state.windows.output_buf or not state.windows.output_win then\n00026|     return\n00027|   end\n00028| \n00029|   if cb_type == 'function' then\n00030|     pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)\n00031|   elseif vim.fn.exists(':RenderMarkdown') > 0 then\n00032|     vim.cmd(':RenderMarkdown')\n00033|   elseif vim.fn.exists(':Markview') > 0 then\n00034|     vim.cmd(':Markview render ' .. state.windows.output_buf)\n00035|   end\n00036| end, config.ui.output.rendering.markdown_debounce_ms or 250)\n00037| \n00038| ---Reset renderer state\n00039| function M.reset()\n00040|   M._prev_line_count = 0\n00041|   M._render_state:reset()\n00042|   M._last_part_formatted = { part_id = nil, formatted_data = nil }\n00043| \n00044|   output_window.clear()\n00045| \n00046|   state.messages = {}\n00047|   state.last_user_message = nil\n00048|   state.tokens_count = 0\n00049| \n00050|   local permissions = state.pending_permissions or {}\n00051|   if #permissions and state.api_client then\n00052|     for _, permission in ipairs(permissions) do\n00053|       require('opencode.api').permission_deny(permission)\n00054|     end\n00055|   end\n00056|   permission_window.clear_all()\n00057|   state.pending_permissions = {}\n00058| \n00059|   trigger_on_data_rendered()\n00060| end\n00061| \n00062| ---Set up event subscriptions\n00063| ---@param subscribe? boolean false to unsubscribe\n00064| function M.setup_subscriptions(subscribe)\n00065|   subscribe = subscribe == nil and true or subscribe\n00066| \n00067|   if subscribe then\n00068|     state.subscribe('is_opencode_focused', M.on_focus_changed)\n00069|     state.subscribe('active_session', M.on_session_changed)\n00070|   else\n00071|     state.unsubscribe('is_opencode_focused', M.on_focus_changed)\n00072|     state.unsubscribe('active_session', M.on_session_changed)\n00073|   end\n00074| \n00075|   if not state.event_manager then\n00076|     return\n00077|   end\n00078| \n00079|   local event_subscriptions = {\n00080|     { 'session.updated', M.on_session_updated },\n00081|     { 'session.compacted', M.on_session_compacted },\n00082|     { 'session.error', M.on_session_error },\n00083|     { 'message.updated', M.on_message_updated },\n00084|     { 'message.removed', M.on_message_removed },\n00085|     { 'message.part.updated', M.on_part_updated },\n00086|     { 'message.part.removed', M.on_part_removed },\n00087|     { 'permission.updated', M.on_permission_updated },\n00088|     { 'permission.asked', M.on_permission_updated },\n00089|     { 'permission.replied', M.on_permission_replied },\n00090|     { 'question.asked', M.on_question_asked },\n00091|     { 'question.replied', M.clear_question_display },\n00092|     { 'question.rejected', M.render_question_display },\n00093|     { 'file.edited', M.on_file_edited },\n00094|     { 'custom.restore_point.created', M.on_restore_points },\n00095|     { 'custom.emit_events.finished', M.on_emit_events_finished },\n00096|   }\n00097| \n00098|   for _, sub in ipairs(event_subscriptions) do\n00099|     if subscribe then\n00100|       state.event_manager:subscribe(sub[1], sub[2])\n00101|     else\n00102|       state.event_manager:unsubscribe(sub[1], sub[2])\n00103|     end\n00104|   end\n00105| end\n00106| \n00107| ---Clean up and teardown renderer. Unsubscribes from all events\n00108| function M.teardown()\n00109|   M.setup_subscriptions(false)\n00110|   M.reset()\n00111| end\n00112| \n00113| ---Fetch full session messages from server\n00114| ---@return Promise<OpencodeMessage[]> Promise resolving to list of OpencodeMessage\n00115| local function fetch_session()\n00116|   local session = state.active_session\n00117|   if not session or not session or session == '' then\n00118|     return Promise.new():resolve(nil)\n00119|   end\n00120| \n00121|   state.last_user_message = nil\n00122|   return require('opencode.session').get_messages(session)\n00123| end\n00124| \n00125| ---Request all of the session data from the opencode server and render it\n00126| ---@return Promise<OpencodeMessage[]>\n00127| function M.render_full_session()\n00128|   if not output_window.mounted() or not state.api_client then\n00129|     return Promise.new():resolve(nil)\n00130|   end\n00131| \n00132|   return fetch_session():and_then(M._render_full_session_data)\n00133| end\n00134| \n00135| function M._render_full_session_data(session_data)\n00136|   M.reset()\n00137| \n00138|   if not state.active_session or not state.messages then\n00139|     return\n00140|   end\n00141| \n00142|   local revert_index = nil\n00143| \n00144|   -- if we're loading a session and there's no currently selected model, set it\n00145|   -- from the messages\n00146|   local set_mode_from_messages = not state.current_model\n00147| \n00148|   for i, msg in ipairs(session_data) do\n00149|     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then\n00150|       revert_index = i\n00151|     end\n00152| \n00153|     M.on_message_updated({ info = msg.info }, revert_index)\n00154| \n00155|     for _, part in ipairs(msg.parts or {}) do\n00156|       M.on_part_updated({ part = part }, revert_index)\n00157|     end\n00158|   end\n00159| \n00160|   if revert_index then\n00161|     M._write_formatted_data(formatter._format_revert_message(state.messages, revert_index))\n00162|   end\n00163| \n00164|   if set_mode_from_messages then\n00165|     M._set_model_and_mode_from_messages()\n00166|   end\n00167|   M.scroll_to_bottom()\n00168| \n00169|   if config.hooks and config.hooks.on_session_loaded then\n00170|     pcall(config.hooks.on_session_loaded, state.active_session)\n00171|   end\n00172| end\n00173| \n00174| ---Append permissions display as a fake part at the end\n00175| function M._append_permissions_display()\n00176|   local fake_message = {\n00177|     info = {\n00178|       id = 'permission-display-message',\n00179|       sessionID = state.active_session and state.active_session.id or '',\n00180|       role = 'system',\n00181|     },\n00182|     parts = {},\n00183|   }\n00184|   M.on_message_updated(fake_message)\n00185| \n00186|   local fake_part = {\n00187|     id = 'permission-display-part',\n00188|     messageID = 'permission-display-message',\n00189|     sessionID = state.active_session and state.active_session.id or '',\n00190|     type = 'permissions-display',\n00191|   }\n00192| \n00193|   local permissions = permission_window.get_all_permissions()\n00194|   if #permissions > 0 then\n00195|     M.on_part_updated({ part = fake_part })\n00196|   end\n00197| end\n00198| \n00199| function M.clear_question_display()\n00200|   vim.print('⭕ ❱ renderer.lua:199 ❱ ƒ(M.clear_question_display) ❱ ')\n00201|   M._remove_part_from_buffer('question-display-part')\n00202|   M._remove_message_from_buffer('question-display-message')\n00203| end\n00204| \n00205| ---Render question display as a fake part\n00206| function M.render_question_display()\n00207|   local question_window = require('opencode.ui.question_window')\n00208| \n00209|   local current_question = question_window._current_question\n00210| \n00211|   if not question_window.has_question() or not current_question or not current_question.id then\n00212|     M._remove_part_from_buffer('question-display-part')\n00213|     M._remove_message_from_buffer('question-display-message')\n00214|     return\n00215|   end\n00216| \n00217|   local message_id = 'question-display-message'\n00218|   local part_id = 'question-display-part'\n00219| \n00220|   local existing_part = M._render_state:get_part(part_id)\n00221| \n00222|   local fake_message = {\n00223|     info = {\n00224|       id = message_id,\n00225|       sessionID = state.active_session and state.active_session.id or '',\n00226|       role = 'system',\n00227|       time = { created = os.time(), completed = os.time() },\n00228|       tokens = { reasoning = 0, input = 0, output = 0, cache = { write = 0, read = 0 } },\n00229|       system = {},\n00230|       path = { cwd = vim.fn.getcwd(), root = vim.fn.getcwd() },\n00231|       modelID = '',\n00232|       providerID = '',\n00233|       error = {},\n00234|     },\n00235|     parts = {},\n00236|   }\n00237|   M.on_message_updated(fake_message)\n00238| \n00239|   local fake_part = {\n00240|     id = part_id,\n00241|     messageID = message_id,\n00242|     sessionID = state.active_session and state.active_session.id or '',\n00243|     type = 'questions-display',\n00244|   }\n00245| \n00246|   M.on_part_updated({ part = fake_part })\n00247| \n00248|   if existing_part then\n00249|     M._rerender_part(part_id)\n00250|   end\n00251| \n00252|   M.scroll_to_bottom(true)\n00253| \n00254|   -- Force a redraw to ensure the update is visible immediately\n00255|   if state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win) then\n00256|     vim.api.nvim_win_call(state.windows.output_win, function()\n00257|       vim.cmd('redraw')\n00258|     end)\n00259|   end\n00260| end\n00261| \n00262| ---Render lines as the entire output buffer\n00263| ---@param lines any\n00264| function M.render_lines(lines)\n00265|   local output = require('opencode.ui.output'):new()\n00266|   output.lines = lines\n00267|   M.render_output(output)\n00268| end\n00269| \n00270| ---Sets the entire output buffer based on output_data\n00271| ---@param output_data Output Output object from formatter\n00272| function M.render_output(output_data)\n00273|   if not output_window.mounted() then\n00274|     return\n00275|   end\n00276| \n00277|   local lines = output_data.lines or {}\n00278| \n00279|   output_window.set_lines(lines)\n00280|   output_window.clear_extmarks()\n00281|   output_window.set_extmarks(output_data.extmarks)\n00282|   M.scroll_to_bottom()\n00283| end\n00284| \n00285| ---Called when EventManager has finished emitting a batch of events\n00286| function M.on_emit_events_finished()\n00287|   M.scroll_to_bottom()\n00288| end\n00289| \n00290| ---Find the most recently used model from the messages\n00291| function M._set_model_and_mode_from_messages()\n00292|   if not state.messages then\n00293|     return\n00294|   end\n00295| \n00296|   for i = #state.messages, 1, -1 do\n00297|     local message = state.messages[i]\n00298| \n00299|     if message and message.info then\n00300|       if message.info.modelID and message.info.providerID then\n00301|         state.current_model = message.info.providerID .. '/' .. message.info.modelID\n00302|         if message.info.mode then\n00303|           state.current_mode = message.info.mode\n00304|         end\n00305|         return\n00306|       end\n00307|     end\n00308|   end\n00309| \n00310|   -- we didn't find a model from any messages, set it to the default\n00311|   require('opencode.core').initialize_current_model()\n00312| end\n00313| \n00314| ---Auto-scroll to bottom if user was already at bottom\n00315| ---Respects cursor position if user has scrolled up\n00316| ---@param force? boolean If true, scroll regardless of current position\n00317| function M.scroll_to_bottom(force)\n00318|   if not state.windows or not state.windows.output_buf or not state.windows.output_win then\n00319|     return\n00320|   end\n00321| \n00322|   if not vim.api.nvim_win_is_valid(state.windows.output_win) then\n00323|     return\n00324|   end\n00325| \n00326|   local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)\n00327|   if not ok or line_count == 0 then\n00328|     return\n00329|   end\n00330| \n00331|   local prev_line_count = M._prev_line_count or 0\n00332| \n00333|   ---@cast line_count integer\n00334|   M._prev_line_count = line_count\n00335| \n00336|   trigger_on_data_rendered()\n00337| \n00338|   -- Determine if we should scroll to bottom\n00339|   local should_scroll = force == true\n00340| \n00341|   if not should_scroll then\n00342|     -- Always scroll on initial render\n00343|     if prev_line_count == 0 then\n00344|       should_scroll = true\n00345|     -- Scroll if user is at bottom (respects manual scroll position)\n00346|     elseif output_window.viewport_at_bottom then\n00347|       should_scroll = true\n00348|     end\n00349|   end\n00350| \n00351|   if should_scroll then\n00352|     vim.api.nvim_win_set_cursor(state.windows.output_win, { line_count, 0 })\n00353|     -- Use zb to position the cursor line at the bottom of the visible window\n00354|     vim.api.nvim_win_call(state.windows.output_win, function()\n00355|       vim.cmd('normal! zb')\n00356|     end)\n00357|     output_window.viewport_at_bottom = true\n00358|   else\n00359|     -- User has scrolled up, don't scroll\n00360|     output_window.viewport_at_bottom = false\n00361|   end\n00362| end\n00363| \n00364| ---Write data to output_buf, including normal text and extmarks\n00365| ---@param formatted_data Output Formatted data as Output object\n00366| ---@param part_id? string Optional part ID to store actions\n00367| ---@param start_line? integer Optional line to insert at (shifts content down). If nil, appends to end of buffer.\n00368| ---@return {line_start: integer, line_end: integer}? Range where data was written\n00369| function M._write_formatted_data(formatted_data, part_id, start_line)\n00370|   if not state.windows or not state.windows.output_buf then\n00371|     return\n00372|   end\n00373| \n00374|   local buf = state.windows.output_buf\n00375|   local is_insertion = start_line ~= nil\n00376|   local target_line = start_line or output_window.get_buf_line_count()\n00377|   local new_lines = formatted_data.lines\n00378|   local extmarks = formatted_data.extmarks\n00379| \n00380|   if #new_lines == 0 or not buf then\n00381|     return nil\n00382|   end\n00383| \n00384|   if is_insertion then\n00385|     output_window.set_lines(new_lines, target_line, target_line)\n00386|   else\n00387|     local extra_newline = vim.tbl_extend('keep', {}, new_lines)\n00388|     table.insert(extra_newline, '')\n00389|     target_line = target_line - 1\n00390|     output_window.set_lines(extra_newline, target_line)\n00391|   end\n00392| \n00393|   -- update actions and extmarks after the insertion because that may\n00394|   -- adjust target_line (e.g. when we we're replacing the double newline at\n00395|   -- the end)\n00396| \n00397|   if part_id and formatted_data.actions then\n00398|     M._render_state:add_actions(part_id, formatted_data.actions, target_line)\n00399|   end\n00400| \n00401|   output_window.set_extmarks(extmarks, target_line)\n00402| \n00403|   return {\n00404|     line_start = target_line,\n00405|     line_end = target_line + #new_lines - 1,\n00406|   }\n00407| end\n00408| \n00409| ---Insert new part, either at end of buffer or in the middle for out-of-order parts\n00410| ---@param part_id string Part ID\n00411| ---@param formatted_data Output Formatted data as Output object\n00412| ---@return boolean Success status\n00413| function M._insert_part_to_buffer(part_id, formatted_data)\n00414|   local cached = M._render_state:get_part(part_id)\n00415|   if not cached then\n00416|     return false\n00417|   end\n00418| \n00419|   if #formatted_data.lines == 0 then\n00420|     return true\n00421|   end\n00422| \n00423|   local is_current_message = state.current_message\n00424|     and state.current_message.info\n00425|     and state.current_message.info.id == cached.message_id\n00426| \n00427|   if is_current_message then\n00428|     -- NOTE: we're inserting a part for the current message, just add it to the end\n00429| \n00430|     local range = M._write_formatted_data(formatted_data, part_id)\n00431|     if not range then\n00432|       return false\n00433|     end\n00434| \n00435|     M._render_state:set_part(cached.part, range.line_start, range.line_end)\n00436| \n00437|     M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }\n00438| \n00439|     return true\n00440|   end\n00441| \n00442|   -- NOTE: We're inserting a part for the first time for a previous message. We need to find\n00443|   -- the insertion line (after the last part of this message or after the message header if\n00444|   -- no parts).\n00445|   local insertion_line = M._get_insertion_point_for_part(part_id, cached.message_id)\n00446|   if not insertion_line then\n00447|     return false\n00448|   end\n00449| \n00450|   local range = M._write_formatted_data(formatted_data, part_id, insertion_line)\n00451|   if not range then\n00452|     return false\n00453|   end\n00454| \n00455|   local line_count = #formatted_data.lines\n00456|   M._render_state:shift_all(insertion_line, line_count)\n00457| \n00458|   M._render_state:set_part(cached.part, range.line_start, range.line_end)\n00459| \n00460|   return true\n00461| end\n00462| \n00463| ---Replace existing part in buffer\n00464| ---Adjusts line positions of subsequent parts if line count changes\n00465| ---@param part_id string Part ID\n00466| ---@param formatted_data Output Formatted data as Output object\n00467| ---@return boolean Success status\n00468| function M._replace_part_in_buffer(part_id, formatted_data)\n00469|   local cached = M._render_state:get_part(part_id)\n00470|   if not cached or not cached.line_start or not cached.line_end then\n00471|     return false\n00472|   end\n00473| \n00474|   local new_lines = formatted_data.lines\n00475|   local new_line_count = #new_lines\n00476| \n00477|   local old_formatted = M._last_part_formatted\n00478|   local can_optimize = old_formatted\n00479|     and old_formatted.part_id == part_id\n00480|     and old_formatted.formatted_data\n00481|     and old_formatted.formatted_data.lines\n00482| \n00483|   local lines_to_write = new_lines\n00484|   local write_start_line = cached.line_start\n00485| \n00486|   if can_optimize then\n00487|     -- NOTE: This is an optimization to only replace the lines that are different\n00488|     -- if we're replacing the most recently formatted part.\n00489| \n00490|     ---@cast old_formatted { formatted_data: { lines: string[] } }\n00491|     local old_lines = old_formatted.formatted_data.lines\n00492|     local first_diff_line = nil\n00493| \n00494|     -- Find the first line that's different\n00495|     for i = 1, math.min(#old_lines, new_line_count) do\n00496|       if old_lines[i] ~= new_lines[i] then\n00497|         first_diff_line = i\n00498|         break\n00499|       end\n00500|     end\n00501| \n00502|     if not first_diff_line and new_line_count > #old_lines then\n00503|       -- The old lines all matched but maybe there are more new lines\n00504|       first_diff_line = #old_lines + 1\n00505|     end\n00506| \n00507|     if first_diff_line then\n00508|       lines_to_write = vim.list_slice(new_lines, first_diff_line, new_line_count)\n00509|       write_start_line = cached.line_start + first_diff_line - 1\n00510|     elseif new_line_count == #old_lines then\n00511|       -- Nothing was different, so we're done\n00512|       M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }\n00513|       return true\n00514|     end\n00515|   end\n00516| \n00517|   M._render_state:clear_actions(part_id)\n00518| \n00519|   output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)\n00520|   output_window.set_lines(lines_to_write, write_start_line, cached.line_end + 1)\n00521| \n00522|   local new_line_end = cached.line_start + new_line_count - 1\n00523| \n00524|   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)\n00525| \n00526|   if formatted_data.actions then\n00527|     M._render_state:add_actions(part_id, formatted_data.actions, cached.line_start + 1)\n00528|   end\n00529| \n00530|   M._render_state:update_part_lines(part_id, cached.line_start, new_line_end)\n00531| \n00532|   M._last_part_formatted = { part_id = part_id, formatted_data = formatted_data }\n00533| \n00534|   return true\n00535| end\n00536| \n00537| ---Remove part from buffer and adjust subsequent line positions\n00538| ---@param part_id string Part ID\n00539| function M._remove_part_from_buffer(part_id)\n00540|   local cached = M._render_state:get_part(part_id)\n00541|   if not cached or not cached.line_start or not cached.line_end then\n00542|     return\n00543|   end\n00544| \n00545|   if not state.windows or not state.windows.output_buf then\n00546|     return\n00547|   end\n00548| \n00549|   output_window.clear_extmarks(cached.line_start - 1, cached.line_end)\n00550|   output_window.set_lines({}, cached.line_start - 1, cached.line_end)\n00551| \n00552|   M._render_state:remove_part(part_id)\n00553| end\n00554| \n00555| ---Remove message header from buffer and adjust subsequent line positions\n00556| ---@param message_id string Message ID\n00557| function M._remove_message_from_buffer(message_id)\n00558|   local cached = M._render_state:get_message(message_id)\n00559|   if not cached or not cached.line_start or not cached.line_end then\n00560|     return\n00561|   end\n00562| \n00563|   if not state.windows or not state.windows.output_buf then\n00564|     return\n00565|   end\n00566| \n00567|   output_window.clear_extmarks(cached.line_start - 1, cached.line_end)\n00568|   output_window.set_lines({}, cached.line_start - 1, cached.line_end)\n00569| \n00570|   M._render_state:remove_message(message_id)\n00571| end\n00572| \n00573| ---Adds a message (most likely just a header) to the buffer\n00574| ---@param message OpencodeMessage Message to add\n00575| function M._add_message_to_buffer(message)\n00576|   local header_data = formatter.format_message_header(message)\n00577|   local range = M._write_formatted_data(header_data)\n00578| \n00579|   if range then\n00580|     M._render_state:set_message(message, range.line_start, range.line_end)\n00581|   end\n00582| end\n00583| \n00584| ---Replace existing message header in buffer\n00585| ---@param message_id string Message ID\n00586| ---@param formatted_data Output Formatted header as Output object\n00587| ---@return boolean Success status\n00588| function M._replace_message_in_buffer(message_id, formatted_data)\n00589|   local cached = M._render_state:get_message(message_id)\n00590|   if not cached or not cached.line_start or not cached.line_end then\n00591|     return false\n00592|   end\n00593| \n00594|   local new_lines = formatted_data.lines\n00595|   local new_line_count = #new_lines\n00596| \n00597|   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)\n00598|   output_window.set_lines(new_lines, cached.line_start, cached.line_end + 1)\n00599|   output_window.set_extmarks(formatted_data.extmarks, cached.line_start)\n00600| \n00601|   local old_line_end = cached.line_end\n00602|   local new_line_end = cached.line_start + new_line_count - 1\n00603| \n00604|   M._render_state:set_message(cached.message, cached.line_start, new_line_end)\n00605| \n00606|   local delta = new_line_end - old_line_end\n00607|   if delta ~= 0 then\n00608|     M._render_state:shift_all(old_line_end + 1, delta)\n00609|   end\n00610| \n00611|   return true\n00612| end\n00613| \n00614| ---Event handler for message.updated events\n00615| ---Creates new message or updates existing message info\n00616| ---@param message {info: MessageInfo} Event properties\n00617| ---@param revert_index? integer Revert index in session, if applicable\n00618| function M.on_message_updated(message, revert_index)\n00619|   if not state.active_session or not state.messages then\n00620|     return\n00621|   end\n00622| \n00623|   local msg = message --[[@as OpencodeMessage]]\n00624|   if not msg or not msg.info or not msg.info.id or not msg.info.sessionID then\n00625|     return\n00626|   end\n00627| \n00628|   if state.active_session.id ~= msg.info.sessionID then\n00629|     ---@TODO This is probably a child session message, handle differently?\n00630|     -- vim.notify('Session id does not match, discarding message: ' .. vim.inspect(message), vim.log.levels.WARN)\n00631|     return\n00632|   end\n00633| \n00634|   local rendered_message = M._render_state:get_message(msg.info.id)\n00635|   local found_msg = rendered_message and rendered_message.message\n00636| \n00637|   if revert_index then\n00638|     if not found_msg then\n00639|       table.insert(state.messages, msg)\n00640|     end\n00641|     M._render_state:set_message(msg, 0, 0)\n00642|     return\n00643|   end\n00644| \n00645|   if found_msg then\n00646|     local error_changed = not vim.deep_equal(found_msg.info.error, msg.info.error)\n00647| \n00648|     found_msg.info = msg.info\n00649| \n00650|     --- NOTE: error handling is a bit messy because errors come in on messages\n00651|     --- but we want to display the error at the end. In this case, we an error\n00652|     --- was added to this message. We find the last part and re-render it to\n00653|     --- display the message. If there are no parts, we'll re-render the message\n00654| \n00655|     if error_changed and not revert_index then\n00656|       local last_part_id = M._get_last_part_for_message(found_msg)\n00657|       if last_part_id then\n00658|         M._rerender_part(last_part_id)\n00659|       else\n00660|         local header_data = formatter.format_message_header(found_msg)\n00661|         M._replace_message_in_buffer(msg.info.id, header_data)\n00662|       end\n00663|     end\n00664|   else\n00665|     table.insert(state.messages, msg)\n00666| \n00667|     M._add_message_to_buffer(msg)\n00668| \n00669|     state.current_message = msg\n00670|     if message.info.role == 'user' then\n00671|       state.last_user_message = msg\n00672|     end\n00673|   end\n00674| \n00675|   M._update_stats_from_message(msg)\n00676| end\n00677| \n00678| ---Event handler for message.part.updated events\n00679| ---Inserts new parts or replaces existing parts in buffer\n00680| ---@param properties {part: OpencodeMessagePart} Event properties\n00681| ---@param revert_index? integer Revert index in session, if applicable\n00682| function M.on_part_updated(properties, revert_index)\n00683|   if not properties or not properties.part or not state.active_session then\n00684|     return\n00685|   end\n00686| \n00687|   local part = properties.part\n00688|   if not part.id or not part.messageID or not part.sessionID then\n00689|     return\n00690|   end\n00691| \n00692|   if state.active_session.id ~= part.sessionID then\n00693|     ---@TODO This is probably a child session part, handle differently?\n00694|     -- vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)\n00695|     return\n00696|   end\n00697| \n00698|   local rendered_message = M._render_state:get_message(part.messageID)\n00699|   if not rendered_message or not rendered_message.message then\n00700|     vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)\n00701|     return\n00702|   end\n00703| \n00704|   local message = rendered_message.message\n00705| \n00706|   message.parts = message.parts or {}\n00707| \n00708|   local part_data = M._render_state:get_part(part.id)\n00709|   local is_new_part = not part_data\n00710| \n00711|   local prev_last_part_id = M._get_last_part_for_message(message)\n00712|   local is_last_part = is_new_part or (prev_last_part_id == part.id)\n00713| \n00714|   if is_new_part then\n00715|     table.insert(message.parts, part)\n00716|   else\n00717|     for i = #message.parts, 1, -1 do\n00718|       if message.parts[i].id == part.id then\n00719|         message.parts[i] = part\n00720|         break\n00721|       end\n00722|     end\n00723|   end\n00724| \n00725|   if part.type == 'step-start' or part.type == 'step-finish' then\n00726|     return\n00727|   end\n00728| \n00729|   if is_new_part then\n00730|     M._render_state:set_part(part)\n00731|   else\n00732|     local rendered_part = M._render_state:update_part_data(part)\n00733|     -- NOTE: This isn't the first time we've seen the part but we haven't rendered it previously\n00734|     -- so try and render it this time by setting is_new_part = true (otherwise we'd call\n00735|     -- _replace_message_in_buffer and it wouldn't do anything because the part hasn't been rendered)\n00736|     if not rendered_part or (not rendered_part.line_start and not rendered_part.line_end) then\n00737|       is_new_part = true\n00738|     end\n00739|   end\n00740| \n00741|   local formatted = formatter.format_part(part, message, is_last_part)\n00742| \n00743|   if revert_index and is_new_part then\n00744|     return\n00745|   end\n00746| \n00747|   if is_new_part then\n00748|     M._insert_part_to_buffer(part.id, formatted)\n00749| \n00750|     if message.info.error then\n00751|       --- NOTE: More error display code. As mentioned above, errors come in on messages\n00752|       --- but we want to display them after parts so we tack the error onto the last\n00753|       --- part. When a part is added and there's an error, we need to rerender\n00754|       --- previous last part so it doesn't also display the message. If there was no previous\n00755|       --- part, then we need to rerender the header so it doesn't display the error\n00756| \n00757|       if not prev_last_part_id then\n00758|         -- no previous part, we're the first part, re-render the message header\n00759|         -- so it doesn't also display the error\n00760|         local header_data = formatter.format_message_header(message)\n00761|         M._replace_message_in_buffer(part.messageID, header_data)\n00762|       elseif prev_last_part_id ~= part.id then\n00763|         M._rerender_part(prev_last_part_id)\n00764|       end\n00765|     end\n00766|   else\n00767|     M._replace_part_in_buffer(part.id, formatted)\n00768|   end\n00769| \n00770|   if (part.type == 'file' or part.type == 'agent') and part.source then\n00771|     -- we have a mention, we need to rerender the early part to highlight\n00772|     -- the mention.\n00773|     local text_part_id = M._find_text_part_for_message(message)\n00774|     if text_part_id then\n00775|       M._rerender_part(text_part_id)\n00776|     end\n00777|   end\n00778| end\n00779| \n00780| ---Event handler for message.part.removed events\n00781| ---@param properties {sessionID: string, messageID: string, partID: string} Event properties\n00782| function M.on_part_removed(properties)\n00783|   if not properties then\n00784|     return\n00785|   end\n00786| \n00787|   local part_id = properties.partID\n00788|   if not part_id then\n00789|     return\n00790|   end\n00791| \n00792|   local cached = M._render_state:get_part(part_id)\n00793|   if cached and cached.message_id then\n00794|     local rendered_message = M._render_state:get_message(cached.message_id)\n00795|     if rendered_message and rendered_message.message then\n00796|       local message = rendered_message.message\n00797|       if message.parts then\n00798|         for i, part in ipairs(message.parts) do\n00799|           if part.id == part_id then\n00800|             table.remove(message.parts, i)\n00801|             break\n00802|           end\n00803|         end\n00804|       end\n00805|     end\n00806|   end\n00807| \n00808|   M._remove_part_from_buffer(part_id)\n00809| end\n00810| \n00811| ---Event handler for message.removed events\n00812| ---Removes message and all its parts from buffer\n00813| ---@param properties {sessionID: string, messageID: string} Event properties\n00814| function M.on_message_removed(properties)\n00815|   if not properties or not state.messages then\n00816|     return\n00817|   end\n00818| \n00819|   local message_id = properties.messageID\n00820|   if not message_id then\n00821|     return\n00822|   end\n00823| \n00824|   local rendered_message = M._render_state:get_message(message_id)\n00825|   if not rendered_message or not rendered_message.message then\n00826|     return\n00827|   end\n00828| \n00829|   local message = rendered_message.message\n00830|   for _, part in ipairs(message.parts or {}) do\n00831|     if part.id then\n00832|       M._remove_part_from_buffer(part.id)\n00833|     end\n00834|   end\n00835| \n00836|   M._remove_message_from_buffer(message_id)\n00837| \n00838|   for i, msg in ipairs(state.messages or {}) do\n00839|     if msg.info.id == message_id then\n00840|       table.remove(state.messages, i)\n00841|       break\n00842|     end\n00843|   end\n00844| end\n00845| \n00846| ---Event handler for session.compacted events\n00847| ---@param properties {sessionID: string} Event properties\n00848| function M.on_session_compacted(properties)\n00849|   vim.notify('Session has been compacted')\n00850| end\n00851| \n00852| ---Event handler for session.updated events\n00853| ---@param properties {info: Session}\n00854| function M.on_session_updated(properties)\n00855|   if not properties or not properties.info or not state.active_session then\n00856|     return\n00857|   end\n00858|   if not vim.deep_equal(state.active_session.revert, properties.info.revert) then\n00859|     state.active_session.revert = properties.info.revert\n00860|     M._render_full_session_data(state.messages)\n00861|   end\n00862| end\n00863| \n00864| ---Event handler for session.error events\n00865| ---@param properties {sessionID: string, error: table} Event properties\n00866| function M.on_session_error(properties)\n00867|   if not properties or not properties.error then\n00868|     return\n00869|   end\n00870| \n00871|   -- NOTE: we're handling message errors so session errors seem duplicative\n00872|   if config.debug.enabled then\n00873|     vim.notify('Session error: ' .. vim.inspect(properties.error))\n00874|   end\n00875| end\n00876| \n00877| ---Event handler for permission.updated events\n00878| ---Re-renders part that requires permission and adds to permission window\n00879| ---@param permission OpencodePermission Event properties\n00880| function M.on_permission_updated(permission)\n00881|   local tool = permission.tool\n00882| \n00883|   ---@TODO this is for backward compatibility, remove later\n00884|   local callID = tool and tool.callID or permission.callID\n00885|   local messageID = tool and tool.messageID or permission.messageID\n00886| \n00887|   if not permission or not messageID or not callID then\n00888|     return\n00889|   end\n00890| \n00891|   -- Add permission to pending queue\n00892|   if not state.pending_permissions then\n00893|     state.pending_permissions = {}\n00894|   end\n00895| \n00896|   -- Check if permission already exists in queue\n00897|   local existing_index = nil\n00898|   for i, existing in ipairs(state.pending_permissions) do\n00899|     if existing.id == permission.id then\n00900|       existing_index = i\n00901|       break\n00902|     end\n00903|   end\n00904| \n00905|   local permissions = vim.deepcopy(state.pending_permissions)\n00906|   if existing_index then\n00907|     permissions[existing_index] = permission\n00908|   else\n00909|     table.insert(permissions, permission)\n00910|   end\n00911|   state.pending_permissions = permissions\n00912| \n00913|   permission_window.add_permission(permission)\n00914| \n00915|   M._append_permissions_display()\n00916| \n00917|   M._rerender_part('permission-display-part')\n00918|   M.scroll_to_bottom()\n00919| end\n00920| \n00921| ---Event handler for permission.replied events\n00922| ---Re-renders part after permission is resolved and removes from window\n00923| ---@param properties {sessionID: string, permissionID?: string,requestID?: string, response: string}|{} Event properties\n00924| function M.on_permission_replied(properties)\n00925|   if not properties then\n00926|     return\n00927|   end\n00928| \n00929|   local permission_id = properties.permissionID or properties.requestID\n00930| \n00931|   if permission_id then\n00932|     permission_window.remove_permission(permission_id)\n00933|     state.pending_permissions = vim.deepcopy(permission_window.get_all_permissions())\n00934|     if #state.pending_permissions == 0 then\n00935|       M._remove_part_from_buffer('permission-display-part')\n00936|       M._remove_message_from_buffer('permission-display-message')\n00937|     end\n00938|     M._rerender_part('permission-display-part')\n00939|   end\n00940| end\n00941| \n00942| ---Event handler for question.asked events\n00943| ---Shows the question picker UI for the user to answer\n00944| ---@param properties OpencodeQuestionRequest Event properties\n00945| function M.on_question_asked(properties)\n00946|   if not properties or not properties.id or not properties.questions then\n00947|     return\n00948|   end\n00949| \n00950|   if not state.active_session or properties.sessionID ~= state.active_session.id then\n00951|     return\n00952|   end\n00953| \n00954|   vim.schedule(function()\n00955|     local question_window = require('opencode.ui.question_window')\n00956|     question_window.show_question(properties)\n00957|     M.render_question_display()\n00958|   end)\n00959| end\n00960| \n00961| function M.on_file_edited(properties)\n00962|   vim.cmd('checktime')\n00963|   if config.hooks and config.hooks.on_file_edited then\n00964|     pcall(config.hooks.on_file_edited, properties.file)\n00965|   end\n00966| end\n00967| \n00968| ---@param properties RestorePointCreatedEvent\n00969| function M.on_restore_points(properties)\n00970|   state.append('restore_points', properties.restore_point)\n00971|   if not properties or not properties.restore_point or not properties.restore_point.from_snapshot_id then\n00972|     return\n00973|   end\n00974|   local part = M._render_state:get_part_by_snapshot_id(properties.restore_point.from_snapshot_id)\n00975|   if part then\n00976|     M.on_part_updated({ part = part })\n00977|   end\n00978| end\n00979| \n00980| ---Find part ID by call ID and message ID\n00981| ---Useful for finding a part for a permission\n00982| ---@param call_id string Call ID to search for\n00983| ---@param message_id string Message ID to check the parts of\n00984| ---@return string? part_id Part ID if found, nil otherwise\n00985| function M._find_part_by_call_id(call_id, message_id)\n00986|   return M._render_state:get_part_by_call_id(call_id, message_id)\n00987| end\n00988| \n00989| ---Find the text part in a message\n00990| ---@param message OpencodeMessage The message containing the parts\n00991| ---@return string? text_part_id The ID of the text part\n00992| function M._find_text_part_for_message(message)\n00993|   if not message or not message.parts then\n00994|     return nil\n00995|   end\n00996| \n00997|   for _, part in ipairs(message.parts) do\n00998|     if part.type == 'text' and not part.synthetic then\n00999|       return part.id\n01000|     end\n01001|   end\n01002| \n01003|   return nil\n01004| end\n01005| \n01006| ---Find the last part in a message\n01007| ---@param message OpencodeMessage The message containing the parts\n01008| ---@return string? last_part_id The ID of the last part\n01009| function M._get_last_part_for_message(message)\n01010|   if not message or not message.parts or #message.parts == 0 then\n01011|     return nil\n01012|   end\n01013| \n01014|   for i = #message.parts, 1, -1 do\n01015|     local part = message.parts[i]\n01016|     if part.type ~= 'step-start' and part.type ~= 'step-finish' and part.id then\n01017|       return part.id\n01018|     end\n01019|   end\n01020| \n01021|   return nil\n01022| end\n01023| \n01024| ---Get insertion point for an out-of-order part\n01025| ---@param part_id string The part ID to insert\n01026| ---@param message_id string The message ID the part belongs to\n01027| ---@return integer? insertion_line The line to insert at (1-indexed), or nil on error\n01028| function M._get_insertion_point_for_part(part_id, message_id)\n01029|   local rendered_message = M._render_state:get_message(message_id)\n01030|   if not rendered_message or not rendered_message.message then\n01031|     return nil\n01032|   end\n01033| \n01034|   local message = rendered_message.message\n01035| \n01036|   local insertion_line = rendered_message.line_end and (rendered_message.line_end + 1)\n01037|   if not insertion_line then\n01038|     return nil\n01039|   end\n01040| \n01041|   local current_part_index = nil\n01042|   if message.parts then\n01043|     for i, part in ipairs(message.parts) do\n01044|       if part.id == part_id then\n01045|         current_part_index = i\n01046|         break\n01047|       end\n01048|     end\n01049|   end\n01050| \n01051|   if not current_part_index then\n01052|     return insertion_line\n01053|   end\n01054| \n01055|   for i = current_part_index - 1, 1, -1 do\n01056|     local prev_part = message.parts[i]\n01057|     if prev_part and prev_part.id then\n01058|       local prev_rendered = M._render_state:get_part(prev_part.id)\n01059| \n01060|       if prev_rendered and prev_rendered.line_end then\n01061|         return prev_rendered.line_end + 1\n01062|       end\n01063|     end\n01064|   end\n01065| \n01066|   return insertion_line\n01067| end\n01068| \n01069| ---Re-render existing part with current state\n01070| ---Used for permission updates and other dynamic changes\n01071| ---@param part_id string Part ID to re-render\n01072| function M._rerender_part(part_id)\n01073|   local cached = M._render_state:get_part(part_id)\n01074|   if not cached or not cached.part then\n01075|     return\n01076|   end\n01077| \n01078|   local part = cached.part\n01079|   local rendered_message = M._render_state:get_message(cached.message_id)\n01080|   if not rendered_message or not rendered_message.message then\n01081|     return\n01082|   end\n01083| \n01084|   local message = rendered_message.message\n01085|   local last_part_id = M._get_last_part_for_message(message)\n01086|   local is_last_part = (last_part_id == part_id)\n01087|   local formatted = formatter.format_part(part, message, is_last_part)\n01088| \n01089|   M._replace_part_in_buffer(part_id, formatted)\n01090| end\n01091| \n01092| ---Event handler for focus changes\n01093| ---Re-renders part associated with current permission for displaying global shortcuts or buffer-local ones\n01094| function M.on_focus_changed()\n01095|   -- Check permission window first, fallback to state\n01096|   local current_permission = permission_window.get_all_permissions()[1]\n01097| \n01098|   if not current_permission then\n01099|     return\n01100|   end\n01101| \n01102|   M._rerender_part('permission-display-part')\n01103|   trigger_on_data_rendered()\n01104| end\n01105| \n01106| function M.on_session_changed(_, new, _)\n01107|   M.reset()\n01108|   if new then\n01109|     M.render_full_session()\n01110|   end\n01111| end\n01112| \n01113| ---Get all actions available at a specific line\n01114| ---@param line integer 0-indexed line number\n01115| ---@return table[] List of actions available at that line\n01116| function M.get_actions_for_line(line)\n01117|   return M._render_state:get_actions_at_line(line)\n01118| end\n01119| \n01120| ---Update display stats from a single message\n01121| ---@param message OpencodeMessage\n01122| function M._update_stats_from_message(message)\n01123|   if not state.current_model and message.info.providerID and message.info.providerID ~= '' then\n01124|     state.current_model = message.info.providerID .. '/' .. message.info.modelID\n01125|   end\n01126| \n01127|   local tokens = message.info.tokens\n01128|   if tokens and tokens.input > 0 then\n01129|     state.tokens_count = tokens.input + tokens.output + tokens.cache.read + tokens.cache.write\n01130|   end\n01131| \n01132|   if message.info.cost and type(message.info.cost) == 'number' then\n01133|     state.cost = message.info.cost\n01134|   end\n01135| end\n01136| \n01137| ---Get rendered message by ID\n01138| ---@param message_id string Message ID\n01139| ---@return RenderedMessage|nil Rendered message or nil if not found\n01140| function M.get_rendered_message(message_id)\n01141|   local rendered_msg = M._render_state:get_message(message_id)\n01142|   if rendered_msg then\n01143|     return rendered_msg\n01144|   end\n01145|   return nil\n01146| end\n01147| \n01148| return M\n01149| \n\n(End of file - total 1149 lines)\n</file>",
+        "type": "text",
+        "messageID": "msg_bec700486001b1nUph5xg7dVAO"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "mime": "text/plain",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "id": "prt_bec70048e0020OzBtNbBep209b",
+        "messageID": "msg_bec700486001b1nUph5xg7dVAO",
+        "filename": "lua/opencode/ui/renderer.lua",
+        "type": "file",
+        "url": "file:///home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/renderer.lua"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_bec700487001WuKleCk1c5VoKo",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec700486001b1nUph5xg7dVAO",
+        "type": "text",
+        "text": "can you use the question tool and ask me a question with an other choice"
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "slug": "swift-lagoon",
+        "time": { "created": 1769198322449, "updated": 1769198322848 },
+        "title": "New session - 2026-01-23T19:58:42.449Z",
+        "id": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "version": "1.1.31",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 0,
+          "cache": { "read": 0, "write": 0 },
+          "input": 0,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198322863 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "agent": "build",
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1769198322822 },
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "id": "msg_bec700486001b1nUph5xg7dVAO",
+        "role": "user",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "agent": "build",
+        "summary": { "diffs": [] }
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "slug": "swift-lagoon",
+        "time": { "created": 1769198322449, "updated": 1769198323000 },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "id": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "version": "1.1.31",
+        "title": "New session - 2026-01-23T19:58:42.449Z",
+        "summary": { "deletions": 0, "files": 0, "additions": 0 }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "snapshot": "d7ab3f36b93ab4a4945b1d4a429559a808bdbb06",
+        "id": "prt_bec701297001un4PeyHrxwYRn3",
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "type": "step-start",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "type": "tool",
+        "id": "prt_bec70129e001DR2RBU86ZBYYFS",
+        "state": { "input": {}, "raw": "", "status": "pending" },
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "callID": "call_BpayNRjIsH1yt9pxkkI9L1iV",
+        "tool": "question"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "question.asked",
+    "properties": {
+      "id": "que_bec701676001sb0J4cQwQ4NRDP",
+      "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+      "questions": [
+        {
+          "header": "Pick your favorite fruit",
+          "question": "Which of the following is your favorite fruit?",
+          "options": [
+            {
+              "label": "Apple",
+              "description": "Crisp and sweet, great for snacking."
+            },
+            {
+              "label": "Banana",
+              "description": "Soft and sweet, good for energy."
+            },
+            { "label": "Orange", "description": "Juicy and citrusy." },
+            {
+              "label": "Other",
+              "description": "Choose this if your favorite is not listed."
+            }
+          ]
+        }
+      ],
+      "tool": {
+        "callID": "call_BpayNRjIsH1yt9pxkkI9L1iV",
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "type": "tool",
+        "id": "prt_bec70129e001DR2RBU86ZBYYFS",
+        "state": {
+          "time": { "start": 1769198327415 },
+          "status": "running",
+          "input": {
+            "questions": [
+              {
+                "header": "Pick your favorite fruit",
+                "question": "Which of the following is your favorite fruit?",
+                "options": [
+                  {
+                    "label": "Apple",
+                    "description": "Crisp and sweet, great for snacking."
+                  },
+                  {
+                    "label": "Banana",
+                    "description": "Soft and sweet, good for energy."
+                  },
+                  { "label": "Orange", "description": "Juicy and citrusy." },
+                  {
+                    "label": "Other",
+                    "description": "Choose this if your favorite is not listed."
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "callID": "call_BpayNRjIsH1yt9pxkkI9L1iV",
+        "tool": "question"
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1769198322822 },
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "id": "msg_bec700486001b1nUph5xg7dVAO",
+        "role": "user",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "agent": "build",
+        "summary": { "title": "Question with Other choice", "diffs": [] }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "slug": "swift-lagoon",
+        "time": { "created": 1769198322449, "updated": 1769198323000 },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "id": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "version": "1.1.31",
+        "title": "Ask question with Other option for renderer.lua",
+        "summary": { "deletions": 0, "files": 0, "additions": 0 }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "question.replied",
+    "properties": {
+      "requestID": "que_bec701676001sb0J4cQwQ4NRDP",
+      "answers": [["Banana"]],
+      "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT"
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "type": "tool",
+        "id": "prt_bec70129e001DR2RBU86ZBYYFS",
+        "state": {
+          "time": { "start": 1769198327415, "end": 1769198332822 },
+          "status": "completed",
+          "title": "Asked 1 question",
+          "input": {
+            "questions": [
+              {
+                "header": "Pick your favorite fruit",
+                "question": "Which of the following is your favorite fruit?",
+                "options": [
+                  {
+                    "label": "Apple",
+                    "description": "Crisp and sweet, great for snacking."
+                  },
+                  {
+                    "label": "Banana",
+                    "description": "Soft and sweet, good for energy."
+                  },
+                  { "label": "Orange", "description": "Juicy and citrusy." },
+                  {
+                    "label": "Other",
+                    "description": "Choose this if your favorite is not listed."
+                  }
+                ]
+              }
+            ]
+          },
+          "output": "User has answered your questions: \"Which of the following is your favorite fruit?\"=\"Banana\". You can now continue with the user's answers in mind.",
+          "metadata": { "answers": [["Banana"]], "truncated": false }
+        },
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "callID": "call_BpayNRjIsH1yt9pxkkI9L1iV",
+        "tool": "question"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "snapshot": "d7ab3f36b93ab4a4945b1d4a429559a808bdbb06",
+        "type": "step-finish",
+        "id": "prt_bec702b99001xR2YCLVxSsFh4v",
+        "reason": "tool-calls",
+        "messageID": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "cost": 0,
+        "tokens": {
+          "output": 99,
+          "cache": { "read": 11008, "write": 0 },
+          "input": 11617,
+          "reasoning": 0
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 99,
+          "cache": { "read": 11008, "write": 0 },
+          "input": 11617,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "finish": "tool-calls",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198322863 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "cost": 0,
+        "agent": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 99,
+          "cache": { "read": 11008, "write": 0 },
+          "input": 11617,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec7004af001ReI5P3VAVOzVzM",
+        "finish": "tool-calls",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198322863, "completed": 1769198332860 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "cost": 0,
+        "agent": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 0,
+          "cache": { "read": 0, "write": 0 },
+          "input": 0,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198332866 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "agent": "build",
+        "cost": 0
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1769198322822 },
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "id": "msg_bec700486001b1nUph5xg7dVAO",
+        "role": "user",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "agent": "build",
+        "summary": { "title": "Question with Other choice", "diffs": [] }
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "slug": "swift-lagoon",
+        "time": { "created": 1769198322449, "updated": 1769198332872 },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "id": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "version": "1.1.31",
+        "title": "Ask question with Other option for renderer.lua",
+        "summary": { "deletions": 0, "files": 0, "additions": 0 }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "snapshot": "d7ab3f36b93ab4a4945b1d4a429559a808bdbb06",
+        "id": "prt_bec702f490014gY0NPqlgGEtFc",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "step-start",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for"
+      },
+      "delta": " for"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a"
+      },
+      "delta": " a"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this"
+      },
+      "delta": " this"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used"
+      },
+      "delta": " used"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example"
+      },
+      "delta": " example"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt,"
+      },
+      "delta": ","
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know."
+      },
+      "delta": "."
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\""
+      },
+      "delta": "\""
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as"
+      },
+      "delta": "as"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can"
+      },
+      "delta": " can"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer"
+      },
+      "delta": " answer"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more"
+      },
+      "delta": " more"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more questions, want a demo"
+      },
+      "delta": " demo"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more questions, want a demo of question handling"
+      },
+      "delta": " handling"
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more questions, want a demo of question handling in your codebase,"
+      },
+      "delta": ","
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198333779 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more questions, want a demo of question handling in your codebase, or need help with anything else,"
+      },
+      "delta": ","
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "time": { "start": 1769198335156, "end": 1769198335156 },
+        "id": "prt_bec702f53001LbrJ51jQcGVqBq",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "type": "text",
+        "text": "Thank you for answering! If you have a context where you’d like this choice (Banana) to be used—such as for testing, an example prompt, or customizing a feature—just let me know. The question tool presents an \"Other\" option by default (as required), ensuring users can always supply their own answer. If you have more questions, want a demo of question handling in your codebase, or need help with anything else, just ask!"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "snapshot": "d7ab3f36b93ab4a4945b1d4a429559a808bdbb06",
+        "type": "step-finish",
+        "id": "prt_bec7034b5001eVR3MVHhpTKq3W",
+        "reason": "stop",
+        "messageID": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "cost": 0,
+        "tokens": {
+          "output": 95,
+          "cache": { "read": 22656, "write": 0 },
+          "input": 106,
+          "reasoning": 0
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 95,
+          "cache": { "read": 22656, "write": 0 },
+          "input": 106,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "finish": "stop",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198332866 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "cost": 0,
+        "agent": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "mode": "build",
+        "tokens": {
+          "output": 95,
+          "cache": { "read": 22656, "write": 0 },
+          "input": 106,
+          "reasoning": 0
+        },
+        "parentID": "msg_bec700486001b1nUph5xg7dVAO",
+        "id": "msg_bec702bc2001pQ5y1fXB7AuEhw",
+        "finish": "stop",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "time": { "created": 1769198332866, "completed": 1769198335180 },
+        "role": "assistant",
+        "modelID": "gpt-4.1",
+        "providerID": "github-copilot",
+        "cost": 0,
+        "agent": "build",
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        }
+      }
+    }
+  },
+  {
+    "type": "session.idle",
+    "properties": { "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT" }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "time": { "created": 1769198322822 },
+        "model": { "providerID": "github-copilot", "modelID": "gpt-4.1" },
+        "id": "msg_bec700486001b1nUph5xg7dVAO",
+        "role": "user",
+        "sessionID": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "agent": "build",
+        "summary": { "title": "Question with Other choice", "diffs": [] }
+      }
+    }
+  },
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "slug": "swift-lagoon",
+        "time": { "created": 1769198322449, "updated": 1769198335189 },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "id": "ses_4138ffceeffeMvrz0wckcMDrXT",
+        "projectID": "29d43526f88157cd4edd071b899dd01f240b771b",
+        "version": "1.1.31",
+        "title": "Ask question with Other option for renderer.lua",
+        "summary": { "deletions": 0, "files": 0, "additions": 0 }
+      }
+    }
+  },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] },
+  { "type": "custom.emit_events.finished", "properties": [] }
+]

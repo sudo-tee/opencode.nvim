@@ -40,6 +40,10 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeReference', { fg = '#1976D2', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeReasoningText', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodePermissionTitle', { fg = '#FF9E3B', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionOption', { link = 'Normal', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionOptionHover', { bg = '#E3F2FD', fg = '#1976D2', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionBorder', { fg = '#E3F2FD', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionTitle', { link = '@label', bold = true, default = true })
   else
     vim.api.nvim_set_hl(0, 'OpencodeBorder', { fg = '#616161', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeBackground', { link = 'Normal', default = true })
@@ -76,6 +80,10 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeReference', { fg = '#7AA2F7', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeReasoningText', { link = 'Comment', default = true })
     vim.api.nvim_set_hl(0, 'OpencodePermissionTitle', { fg = '#FF9E3B', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionOption', { link = 'Normal', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionOptionHover', { bg = '#2B3A5A', fg = '#61AFEF', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionBorder', { fg = '#2B3A5A', default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeQuestionTitle', { link = '@label', bold = true, default = true })
   end
 end
 

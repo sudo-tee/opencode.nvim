@@ -1531,7 +1531,7 @@ M.get_slash_commands = Promise.async(function()
         fn = function(...)
           return M.run_user_command(name, ...)
         end,
-        args = config_file.command_takes_arguments(def),
+        args = true,
       })
     end
   end

@@ -1,31 +1,12 @@
 local state = require('opencode.state')
-local config = require('opencode.config')
+local Dialog = require('opencode.ui.dialog')
 
 local M = {}
 
 -- Simple state
 M._permission_queue = {}
-M._selected_index = 1
-
----Get focus-aware permission keys
----@return table|nil keys table with accept, accept_all, deny keys
-local function get_permission_keys()
-  local is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
-
-  if is_opencode_focused then
-    return {
-      accept = config.keymap.permission.accept,
-      accept_all = config.keymap.permission.accept_all,
-      deny = config.keymap.permission.deny,
-    }
-  else
-    return {
-      accept = config.get_key_for_function('editor', 'permission_accept'),
-      accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
-      deny = config.get_key_for_function('editor', 'permission_deny'),
-    }
-  end
-end
+M._dialog = nil
+M._processing = false
 
 ---Add permission to queue
 ---@param permission OpencodePermission
@@ -38,11 +19,13 @@ function M.add_permission(permission)
   for i, existing in ipairs(M._permission_queue) do
     if existing.id == permission.id then
       M._permission_queue[i] = permission
+      M._setup_dialog() -- Refresh dialog when permission is updated
       return
     end
   end
 
   table.insert(M._permission_queue, permission)
+  M._setup_dialog() -- Setup dialog when first permission is added
 end
 
 ---Remove permission from queue
@@ -51,226 +34,152 @@ function M.remove_permission(permission_id)
   for i, permission in ipairs(M._permission_queue) do
     if permission.id == permission_id then
       table.remove(M._permission_queue, i)
-      if M._selected_index > #M._permission_queue then
-        M._selected_index = math.max(1, #M._permission_queue)
-      end
-      return
+      break
     end
   end
+
   if #M._permission_queue == 0 then
-    M.clear_keymaps()
+    M._clear_dialog()
+  else
+    M._setup_dialog() -- Setup dialog for next permission
   end
 end
 
----Select next permission
-function M.select_next()
-  if #M._permission_queue > 1 then
-    M._selected_index = M._selected_index % #M._permission_queue + 1
-  end
-end
-
----Select previous permission
-function M.select_prev()
-  if #M._permission_queue > 1 then
-    M._selected_index = M._selected_index == 1 and #M._permission_queue or M._selected_index - 1
-  end
-end
-
----Get currently selected permission
+---Get currently selected permission (always the first one now)
 ---@return OpencodePermission|nil
 function M.get_current_permission()
-  if M._selected_index > 0 and M._selected_index <= #M._permission_queue then
-    return M._permission_queue[M._selected_index]
-  end
-  return nil
+  return M._permission_queue[1]
 end
 
 ---Get permission display lines to append to output
 ---@param output Output
 function M.format_display(output)
-  local formatter = require('opencode.ui.formatter')
+  if #M._permission_queue == 0 or not M._dialog or M._processing then
+    return
+  end
+
+  local permission = M._permission_queue[1]
+  if not permission then
+    return
+  end
+
   local icons = require('opencode.ui.icons')
-  if #M._permission_queue == 0 then
-    return {}
+  local formatter = require('opencode.ui.formatter')
+
+  local progress = ''
+  if #M._permission_queue > 1 then
+    progress = string.format(' (%d/%d)', 1, #M._permission_queue)
   end
 
-  local keys = get_permission_keys()
+  local title = permission.title or table.concat(permission.patterns or {}, ', ') or 'Unknown Permission'
+  local perm_type = permission.permission or permission.type or 'unknown'
 
-  M.setup_keymaps()
+  local content = { (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '*' .. ' `' .. title .. '`' }
 
-  for i, permission in ipairs(M._permission_queue) do
-    local start_line = output:get_line_count()
+  local options = {
+    { label = 'Allow once' },
+    { label = 'Reject' },
+    { label = 'Allow always' },
+  }
 
-    output:add_line(icons.get('warning') .. ' Permission Required')
-    output:add_extmark(start_line, {
-      line_hl_group = 'OpencodePermissionTitle',
-    } --[[@as OutputExtmark]])
+  local render_content = nil
+  if perm_type == 'edit' and permission.metadata and permission.metadata.diff then
+    render_content = function(out)
+      out:add_line(content[1])
+      out:add_line('')
 
-    output:add_line('')
-
-    local title = permission.title or table.concat(permission.patterns or {}, ', ') or 'Unknown Permission'
-    local perm_type = permission.permission or permission.type or 'unknown'
-
-    output:add_line((icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '*' .. ' `' .. title .. '`')
-    output:add_line('')
-
-    if perm_type == 'edit' and permission.metadata.diff then
       local file_type = permission.metadata.filepath and vim.fn.fnamemodify(permission.metadata.filepath, ':e') or ''
-      formatter.format_diff(output, permission.metadata.diff, file_type)
+      formatter.format_diff(out, permission.metadata.diff, file_type)
     end
-
-    output:add_line('')
-
-    if keys then
-      local actions = {}
-      local action_order = { 'accept', 'deny', 'accept_all' }
-
-      for _, action in ipairs(action_order) do
-        local key = keys[action]
-        if key then
-          local action_label = action == 'accept' and '*Accept*'
-            or action == 'accept_all' and '*Always*'
-            or action == 'deny' and '*Deny*'
-            or action
-
-          if #M._permission_queue > 1 then
-            table.insert(actions, string.format('%s `%s%d`', action_label, key, i))
-          else
-            table.insert(actions, string.format('%s `%s`', action_label, key))
-          end
-        end
-      end
-      if #actions > 0 then
-        output:add_line(table.concat(actions, '   '))
-      end
-    end
-
-    if i < #M._permission_queue then
-      output:add_line('')
-    end
-    local end_line = output:get_line_count()
-    formatter.add_vertical_border(output, start_line + 1, end_line, 'OpencodePermissionBorder', -2)
-    output:add_line('')
   end
 
-  output:add_line('')
+  M._dialog:format_dialog(output, {
+    title = icons.get('warning') .. ' Permission Required' .. progress,
+    title_hl = 'OpencodePermissionTitle',
+    border_hl = 'OpencodePermissionBorder',
+    content = render_content and nil or content,
+    render_content = render_content,
+    options = options,
+    unfocused_message = 'Focus Opencode window to respond to permission',
+  })
 end
 
-function M.clear_keymaps()
+function M._setup_dialog()
   if #M._permission_queue == 0 then
+    M._clear_dialog()
     return
   end
 
-  local buffers = { state.windows and state.windows.input_buf, state.windows and state.windows.output_buf }
-  local opencode_keys = {
-    accept = config.keymap.permission.accept,
-    accept_all = config.keymap.permission.accept_all,
-    deny = config.keymap.permission.deny,
-  }
+  M._clear_dialog()
 
-  local editor_keys = {
-    accept = config.get_key_for_function('editor', 'permission_accept'),
-    accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
-    deny = config.get_key_for_function('editor', 'permission_deny'),
-  }
-
-  local action_order = { 'accept', 'deny', 'accept_all' }
-
-  local function safe_del(keymap, opts)
-    pcall(vim.keymap.del, 'n', keymap, opts)
-  end
-
-  for i, permission in ipairs(M._permission_queue) do
-    for _, action in ipairs(action_order) do
-      local opencode_key = opencode_keys[action]
-      if opencode_key then
-        for _, buf in ipairs(buffers) do
-          if buf then
-            safe_del(opencode_key .. tostring(i), { buffer = buf })
-            safe_del(opencode_key, { buffer = buf })
-          end
-        end
-      end
-
-      local editor_key = editor_keys[action]
-      if editor_key then
-        safe_del(editor_key .. tostring(i))
-        safe_del(editor_key)
-      end
-    end
-  end
-end
-
----Setup keymaps for all permission actions
-function M.setup_keymaps()
-  M.clear_keymaps()
-
-  if #M._permission_queue == 0 then
+  if not state.windows or not state.windows.output_buf then
     return
   end
 
-  local buffers = { state.windows and state.windows.input_buf, state.windows and state.windows.output_buf }
-  local api = require('opencode.api')
+  local buf = state.windows.output_buf
 
-  local opencode_keys = {
-    accept = config.keymap.permission.accept,
-    accept_all = config.keymap.permission.accept_all,
-    deny = config.keymap.permission.deny,
-  }
+  local function check_focused()
+    local ui = require('opencode.ui.ui')
+    return ui.is_opencode_focused() and #M._permission_queue > 0
+  end
 
-  local editor_keys = {
-    accept = config.get_key_for_function('editor', 'permission_accept'),
-    accept_all = config.get_key_for_function('editor', 'permission_accept_all'),
-    deny = config.get_key_for_function('editor', 'permission_deny'),
-  }
+  local function on_select(index)
+    if not check_focused() then
+      return
+    end
 
-  local action_order = { 'accept', 'deny', 'accept_all' }
+    local permission = M.get_current_permission()
+    if not permission then
+      return
+    end
 
-  for i, permission in ipairs(M._permission_queue) do
-    for _, action in ipairs(action_order) do
-      local api_func = api['permission_' .. action]
-      if api_func then
-        local function execute_action()
-          M._selected_index = i
+    M._processing = true
+    require('opencode.ui.renderer').render_permissions_display()
+    M._clear_dialog()
+
+    local api = require('opencode.api')
+    local actions = { 'accept', 'deny', 'accept_all' }
+    local action = actions[index]
+
+    vim.defer_fn(function()
+      if action then
+        local api_func = api['permission_' .. action]
+        if api_func then
           api_func(permission)
-          M.remove_permission(permission.id)
-        end
-
-        local opencode_key = opencode_keys[action]
-        if opencode_key then
-          local keymap_opts = {
-            silent = true,
-            desc = string.format('Permission %s: %s', #M._permission_queue > 1 and i or '', action),
-          }
-
-          for _, buf in ipairs(buffers) do
-            if buf then
-              local buffer_opts = vim.tbl_extend('force', keymap_opts, { buffer = buf })
-
-              if #M._permission_queue > 1 then
-                vim.keymap.set('n', opencode_key .. tostring(i), execute_action, buffer_opts)
-              else
-                vim.keymap.set('n', opencode_key, execute_action, buffer_opts)
-              end
-            end
-          end
-        end
-
-        local editor_key = editor_keys[action]
-        if editor_key then
-          local global_opts = {
-            silent = true,
-            desc = string.format('Permission %s: %s (global)', #M._permission_queue > 1 and i or '', action),
-          }
-
-          if #M._permission_queue > 1 then
-            vim.keymap.set('n', editor_key .. tostring(i), execute_action, global_opts)
-          else
-            vim.keymap.set('n', editor_key, execute_action, global_opts)
-          end
         end
       end
-    end
+      M.remove_permission(permission.id)
+      M._processing = false
+    end, 50)
+  end
+
+  local function on_navigate()
+    require('opencode.ui.renderer').render_permissions_display()
+  end
+
+  local function get_option_count()
+    return #M._permission_queue > 0 and 3 or 0 -- accept, deny, accept_all
+  end
+
+  M._dialog = Dialog.new({
+    buffer = buf,
+    on_select = on_select,
+    on_navigate = on_navigate,
+    get_option_count = get_option_count,
+    check_focused = check_focused,
+    namespace_prefix = 'opencode_permission',
+    keymaps = {
+      dismiss = '', -- Disable dismiss keymap and legend
+    },
+  })
+
+  M._dialog:setup()
+end
+
+function M._clear_dialog()
+  if M._dialog then
+    M._dialog:teardown()
+    M._dialog = nil
   end
 end
 
@@ -282,8 +191,8 @@ end
 
 ---Clear all permissions
 function M.clear_all()
+  M._clear_dialog()
   M._permission_queue = {}
-  M._selected_index = 1
 end
 
 ---Get all permissions

@@ -164,7 +164,7 @@ function M._render_full_session_data(session_data)
   if set_mode_from_messages then
     M._set_model_and_mode_from_messages()
   end
-  M.scroll_to_bottom()
+  M.scroll_to_bottom(true)
 
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, state.active_session)
@@ -173,6 +173,12 @@ end
 
 ---Append permissions display as a fake part at the end
 function M.render_permissions_display()
+  local permissions = permission_window.get_all_permissions()
+  if not permissions or #permissions == 0 then
+    M._remove_part_from_buffer('permission-display-part')
+    M._remove_message_from_buffer('permission-display-message')
+    return
+  end
   local fake_message = {
     info = {
       id = 'permission-display-message',
@@ -190,10 +196,8 @@ function M.render_permissions_display()
     type = 'permissions-display',
   }
 
-  local permissions = permission_window.get_all_permissions()
-  if #permissions > 0 then
-    M.on_part_updated({ part = fake_part })
-  end
+  M.on_part_updated({ part = fake_part })
+  M.scroll_to_bottom(true)
 end
 
 function M.clear_question_display()
@@ -236,16 +240,7 @@ function M.render_question_display()
   }
 
   M.on_part_updated({ part = fake_part })
-  M._redraw()
   M.scroll_to_bottom(true)
-end
-
-function M._redraw()
-  if state.windows and state.windows.output_win and vim.api.nvim_win_is_valid(state.windows.output_win) then
-    vim.api.nvim_win_call(state.windows.output_win, function()
-      vim.cmd('redraw')
-    end)
-  end
 end
 
 ---Render lines as the entire output buffer
@@ -904,7 +899,7 @@ function M.on_permission_updated(permission)
   M.render_permissions_display()
 
   M._rerender_part('permission-display-part')
-  M.scroll_to_bottom()
+  M.scroll_to_bottom(true)
 end
 
 ---Event handler for permission.replied events

@@ -1,20 +1,14 @@
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
+local Dialog = require('opencode.ui.dialog')
 
 local M = {}
 
 M._current_question = nil
 M._current_question_index = 1
 M._collected_answers = {}
-M._key_capture_ns = nil
-M._hovered_option = 1
-M._option_line_map = {}
 M._answering = false
-M._question_keymaps = {}
-
-local function toggle_input_window(show)
-  require('opencode.ui.input_window')[show and '_show' or '_hide']()
-end
+M._dialog = nil
 
 local function render_question()
   require('opencode.ui.renderer').render_question_display()
@@ -33,22 +27,17 @@ function M.show_question(question_request)
   M._current_question = question_request
   M._current_question_index = 1
   M._collected_answers = {}
-  M._hovered_option = 1
-  M._setup_key_capture()
+  M._setup_dialog()
   render_question()
-  toggle_input_window(false)
 end
 
 function M.clear_question()
-  M._clear_key_capture()
+  M._clear_dialog()
   M._current_question = nil
   M._current_question_index = 1
   M._collected_answers = {}
-  M._hovered_option = 1
-  M._option_line_map = {}
   M._answering = false
   render_question()
-  toggle_input_window(true)
 end
 
 ---@return OpencodeQuestionInfo|nil
@@ -80,11 +69,16 @@ local function answer_current_question(answer_value)
     M._send_reply(request.id, M._collected_answers)
     M.clear_question()
   else
-    M._clear_key_capture()
-    M._hovered_option = 1
-    M._setup_key_capture()
+    M._answering = false
+    M._clear_dialog()
+    M._setup_dialog()
   end
   render_question()
+  
+  -- Use schedule to ensure UI updates happen after all state changes
+  vim.schedule(function()
+    require('opencode.ui.renderer').scroll_to_bottom(true)
+  end)
 end
 
 local function find_other_option(options)
@@ -149,78 +143,49 @@ end
 
 ---@param output Output
 function M.format_display(output)
-  if not M.has_question() then
+  if not M.has_question() or M._answering then
     return
   end
 
   local question_info = M.get_current_question_info()
-  if not question_info then
+  if not question_info or not M._dialog then
     return
   end
 
-  local formatter = require('opencode.ui.formatter')
-  local start_line = output:get_line_count()
+  local icons = require('opencode.ui.icons')
 
   local progress = ''
   if M._current_question and #M._current_question.questions > 1 then
     progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
   end
 
-  output:add_line(icons.get('question') .. ' Question' .. progress)
-  output:add_extmark(start_line, { line_hl_group = 'OpencodeQuestionTitle' } --[[@as OutputExtmark]])
-  output:add_line('')
-  output:add_line(question_info.question)
-  output:add_line('')
-
+  -- Prepare options
   local options_to_display = add_other_if_missing(question_info.options)
-  local num_options = #options_to_display
-
-  M._option_line_map = {}
+  local options = {}
   for i, option in ipairs(options_to_display) do
-    local label = option.label
-    if option.description and option.description ~= '' then
-      label = label .. ' - ' .. option.description
-    end
-
-    local line_idx = output:get_line_count()
-    local line_text = M._hovered_option == i and string.format('    %d. %s ', i, label)
-      or string.format('    %d. %s', i, label)
-
-    output:add_line(line_text)
-    M._option_line_map[i] = line_idx
-
-    if M._hovered_option == i then
-      output:add_extmark(line_idx, { line_hl_group = 'OpencodeQuestionOptionHover' } --[[@as OutputExtmark]])
-      output:add_extmark(line_idx, {
-        start_col = 2,
-        virt_text = { { '› ', 'OpencodeQuestionOptionHover' } },
-        virt_text_pos = 'overlay',
-      } --[[@as OutputExtmark]])
-    end
+    table.insert(options, {
+      label = option.label,
+      description = option.description,
+    })
   end
 
-  output:add_line('')
-
-  if M.has_question() and not M._answering then
-    local ui = require('opencode.ui.ui')
-    if ui.is_opencode_focused() then
-      output:add_line('Navigate: `j`/`k` or `↑`/`↓`  Select: `<CR>` or `1-' .. num_options .. '`  Dismiss: `<Esc>`')
-    else
-      output:add_line('Focus Opencode window to answer question')
-    end
-  end
-
-  local end_line = output:get_line_count()
-  formatter.add_vertical_border(output, start_line + 1, end_line, 'OpencodeQuestionBorder', -2)
-  output:add_line('')
+  -- Use dialog's format_dialog method
+  M._dialog:format_dialog(output, {
+    title = icons.get('question') .. ' Question' .. progress,
+    title_hl = 'OpencodeQuestionTitle',
+    border_hl = 'OpencodeQuestionBorder',
+    content = { question_info.question },
+    options = options,
+    unfocused_message = 'Focus Opencode window to answer question',
+  })
 end
 
-function M._setup_key_capture()
+function M._setup_dialog()
   if not M.has_question() then
     return
   end
 
-  M._clear_key_capture()
+  M._clear_dialog()
 
   local question_info = M.get_current_question_info()
   if not question_info or not state.windows or not state.windows.output_buf then
@@ -228,42 +193,25 @@ function M._setup_key_capture()
   end
 
   local buf = state.windows.output_buf
-  local total_options = get_total_options(question_info)
 
   local function check_focused()
     local ui = require('opencode.ui.ui')
     return ui.is_opencode_focused() and M.has_question()
   end
 
-  local function navigate(delta)
-    return function()
-      if not check_focused() then
-        return
-      end
-      M._hovered_option = M._hovered_option + delta
-      if M._hovered_option < 1 then
-        M._hovered_option = total_options
-      elseif M._hovered_option > total_options then
-        M._hovered_option = 1
-      end
-      render_question()
-    end
-  end
-
-  local function select_option()
+  local function on_select(index)
     if not check_focused() then
       return
     end
     M._answering = true
     render_question()
-    M._clear_key_capture()
+    M._clear_dialog()
     vim.defer_fn(function()
-      M._answer_with_option(M._hovered_option)
-      M._answering = false
+      M._answer_with_option(index)
     end, 100)
   end
 
-  local function dismiss_question()
+  local function on_dismiss()
     if not check_focused() then
       return
     end
@@ -272,51 +220,32 @@ function M._setup_key_capture()
     render_question()
   end
 
-  M._question_keymaps = {
-    vim.keymap.set('n', 'k', navigate(-1), { buffer = buf, silent = true }),
-    vim.keymap.set('n', 'j', navigate(1), { buffer = buf, silent = true }),
-    vim.keymap.set('n', '<Up>', navigate(-1), { buffer = buf, silent = true }),
-    vim.keymap.set('n', '<Down>', navigate(1), { buffer = buf, silent = true }),
-    vim.keymap.set('n', '<CR>', select_option, { buffer = buf, silent = true }),
-    vim.keymap.set('n', '<Esc>', dismiss_question, { buffer = buf, silent = true }),
-  }
-
-  M._key_capture_ns = vim.api.nvim_create_namespace('opencode_question_keys')
-
-  vim.on_key(function(key, typed)
-    if not check_focused() or typed == '' then
-      return
-    end
-
-    if not M.has_question() then
-      M._clear_key_capture()
-    end
-
-    local num = tonumber(key)
-    if num and num >= 1 and num <= 9 and num <= total_options then
-      M._answering = true
-      M._hovered_option = num
-      render_question()
-      M._clear_key_capture()
-      vim.defer_fn(function()
-        M._answer_with_option(num)
-        M._answering = false
-      end, 100)
-    end
-  end, M._key_capture_ns)
-end
-
-function M._clear_key_capture()
-  if M._question_keymaps then
-    for _, keymap_id in ipairs(M._question_keymaps) do
-      pcall(vim.keymap.del, 'n', keymap_id, { buffer = state.windows.output_buf })
-    end
-    M._question_keymaps = {}
+  local function on_navigate()
+    render_question()
   end
 
-  if M._key_capture_ns then
-    vim.on_key(nil, M._key_capture_ns)
-    M._key_capture_ns = nil
+  local function get_option_count()
+    local question_info = M.get_current_question_info()
+    return question_info and get_total_options(question_info) or 0
+  end
+
+  M._dialog = Dialog.new({
+    buffer = buf,
+    on_select = on_select,
+    on_dismiss = on_dismiss,
+    on_navigate = on_navigate,
+    get_option_count = get_option_count,
+    check_focused = check_focused,
+    namespace_prefix = 'opencode_question',
+  })
+
+  M._dialog:setup()
+end
+
+function M._clear_dialog()
+  if M._dialog then
+    M._dialog:teardown()
+    M._dialog = nil
   end
 end
 

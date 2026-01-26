@@ -142,15 +142,12 @@ require('opencode').setup({
       ['<leader>orr'] = { 'diff_restore_snapshot_file' }, -- Restore a file to a restore point
       ['<leader>orR'] = { 'diff_restore_snapshot_all' }, -- Restore all files to a restore point
       ['<leader>ox'] = { 'swap_position' }, -- Swap Opencode pane left/right
-      ['<leader>opa'] = { 'permission_accept' }, -- Accept permission request once
-      ['<leader>opA'] = { 'permission_accept_all' }, -- Accept all (for current tool)
-      ['<leader>opd'] = { 'permission_deny' }, -- Deny permission request once
       ['<leader>ott'] = { 'toggle_tool_output' }, -- Toggle tools output (diffs, cmd output, etc.)
       ['<leader>otr'] = { 'toggle_reasoning_output' }, -- Toggle reasoning output (thinking steps)
       ['<leader>o/'] = { 'quick_chat', mode = { 'n', 'x' } }, -- Open quick chat input with selection context in visual mode or current line context in normal mode
     },
     input_window = {
-      ['<cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
+      ['<S-cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
       ['<esc>'] = { 'close' }, -- Close UI windows
       ['<C-c>'] = { 'cancel' }, -- Cancel opencode request while it is running
       ['~'] = { 'mention_file', mode = 'i' }, -- Pick a file and add to context. See File Mentions section
@@ -178,15 +175,10 @@ require('opencode').setup({
       ['<leader>oO'] = { 'debug_output' }, -- Open raw output in new buffer for debugging
       ['<leader>ods'] = { 'debug_session' }, -- Open raw session in new buffer for debugging
     },
-    permission = {
-      accept = 'a', -- Accept permission request once (only available when there is a pending permission request)
-      accept_all = 'A', -- Accept all (for current tool) permission request once (only available when there is a pending permission request)
-      deny = 'd', -- Deny permission request once (only available when there is a pending permission request)
-    },
     session_picker = {
       rename_session = { '<C-r>' }, -- Rename selected session in the session picker
       delete_session = { '<C-d>' }, -- Delete selected session in the session picker
-      new_session = { '<C-n>' }, -- Create and switch to a new session in the session picker
+      new_session = { '<C-s>' }, -- Create and switch to a new session in the session picker
     },
     timeline_picker = {
       undo = { '<C-u>', mode = { 'i', 'n' } }, -- Undo to selected message in timeline picker

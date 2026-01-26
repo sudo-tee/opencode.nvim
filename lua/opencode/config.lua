@@ -41,9 +41,6 @@ M.defaults = {
       ['<leader>orr'] = { 'diff_restore_snapshot_file', desc = 'Restore file snapshot' },
       ['<leader>orR'] = { 'diff_restore_snapshot_all', desc = 'Restore all snapshots' },
       ['<leader>ox'] = { 'swap_position', desc = 'Swap window position' },
-      ['<leader>oPa'] = { 'permission_accept', desc = 'Accept permission' },
-      ['<leader>oPA'] = { 'permission_accept_all', desc = 'Accept all permissions' },
-      ['<leader>oPd'] = { 'permission_deny', desc = 'Deny permission' },
       ['<leader>otr'] = { 'toggle_reasoning_output', desc = 'Toggle reasoning output' },
       ['<leader>ott'] = { 'toggle_tool_output', desc = 'Toggle tool output' },
       ['<leader>o/'] = { 'quick_chat', desc = 'Quick chat with current context', mode = { 'n', 'x' } },
@@ -84,11 +81,6 @@ M.defaults = {
       ['<leader>oD'] = { 'debug_message' },
       ['<leader>oO'] = { 'debug_output' },
       ['<leader>ods'] = { 'debug_session' },
-    },
-    permission = {
-      accept = 'a',
-      accept_all = 'A',
-      deny = 'd',
     },
     session_picker = {
       rename_session = { '<C-r>' },

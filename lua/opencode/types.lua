@@ -73,16 +73,10 @@
 ---@class OpencodeKeymapInputWindow : table<string, OpencodeKeymapEntry>
 ---@class OpencodeKeymapOutputWindow : table<string, OpencodeKeymapEntry>
 
----@class OpencodeKeymapPermission
----@field accept string
----@field accept_all string
----@field deny string
-
 ---@class OpencodeKeymap
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
----@field permission OpencodeKeymapPermission
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
 ---@field history_picker OpencodeHistoryPickerKeymap

@@ -50,7 +50,7 @@ M.get_all_workspace_sessions = Promise.async(function()
   if not util.is_git_project() then
     -- we only want sessions that are in the current workspace_folder
     sessions = vim.tbl_filter(function(session)
-      if session.workspace and vim.startswith(vim.fn.getcwd(), session.workspace) then
+      if session.directory and vim.startswith(vim.fn.getcwd(), session.directory) then
         return true
       end
       return false

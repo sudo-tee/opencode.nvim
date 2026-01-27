@@ -39,7 +39,10 @@ function OpencodeApiClient:_ensure_base_url()
   end
 
   if not state.opencode_server.url then
-    return false
+    state.opencode_server:get_spawn_promise():wait()
+    if not state.opencode_server.url then
+      return false
+    end
   end
 
   self.base_url = state.opencode_server.url:gsub('/$', '')

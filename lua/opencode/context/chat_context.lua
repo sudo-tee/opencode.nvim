@@ -193,16 +193,6 @@ end
 function M.add_file(file)
   local is_file = vim.fn.filereadable(file) == 1
   local is_dir = vim.fn.isdirectory(file) == 1
-  if not is_file and not is_dir then
-    vim.notify('File not added to context. Could not read.')
-    return
-  end
-
-  if not util.is_path_in_cwd(file) and not util.is_temp_path(file, 'pasted_image') then
-    vim.notify('File not added to context. Must be inside current working directory.')
-    return
-  end
-
   file = vim.fn.fnamemodify(file, ':p')
 
   if not M.context.mentioned_files then

@@ -252,7 +252,7 @@ local function update_keymap_prefix(prefix, default_prefix)
         local new_key = prefix .. key:sub(#default_prefix + 1)
 
         -- make sure there's not already a mapping for that key
-        if not new_mappings[new_key] then
+        if new_mappings[new_key] == nil then
           new_mappings[new_key] = opts
         end
       else

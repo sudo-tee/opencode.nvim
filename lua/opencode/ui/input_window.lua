@@ -182,27 +182,36 @@ M._execute_slash_command = function(command)
   end
 end
 
-function M.setup(windows)
+local function set_win_option(option, value, windows)
+  windows = windows or state.windows
+  vim.api.nvim_set_option_value(option, value, { win = windows.input_win, scope = 'local' })
+end
 
+local function set_buf_option(option, value, windows)
+  windows = windows or state.windows
+  vim.api.nvim_set_option_value(option, value, { buf = windows.input_buf })
+end
+
+function M.setup(windows)
   if config.ui.input.text.wrap then
-    vim.api.nvim_set_option_value('wrap', true, { win = windows.input_win })
-    vim.api.nvim_set_option_value('linebreak', true, { win = windows.input_win })
+    set_win_option('wrap', true, windows)
+    set_win_option('linebreak', true, windows)
   end
 
-  vim.api.nvim_set_option_value('filetype', 'opencode', { buf = windows.input_buf })
-  vim.api.nvim_set_option_value('winhighlight', config.ui.window_highlight, { win = windows.input_win })
-  vim.api.nvim_set_option_value('signcolumn', 'yes', { win = windows.input_win })
-  vim.api.nvim_set_option_value('cursorline', false, { win = windows.input_win })
-  vim.api.nvim_set_option_value('number', false, { win = windows.input_win })
-  vim.api.nvim_set_option_value('relativenumber', false, { win = windows.input_win })
-  vim.api.nvim_set_option_value('buftype', 'nofile', { buf = windows.input_buf })
-  vim.api.nvim_set_option_value('swapfile', false, { buf = windows.input_buf })
+  set_buf_option('filetype', 'opencode', windows)
+  set_win_option('winhighlight', config.ui.window_highlight, windows)
+  set_win_option('signcolumn', 'yes', windows)
+  set_win_option('cursorline', false, windows)
+  set_win_option('number', false, windows)
+  set_win_option('relativenumber', false, windows)
+  set_buf_option('buftype', 'nofile', windows)
+  set_buf_option('swapfile', false, windows)
 
   if config.ui.position ~= 'current' then
-    vim.api.nvim_set_option_value('winfixbuf', true, { win = windows.input_win })
+    set_win_option('winfixbuf', true, windows)
   end
-  vim.api.nvim_set_option_value('winfixheight', true, { win = windows.input_win })
-  vim.api.nvim_set_option_value('winfixwidth', true, { win = windows.input_win })
+  set_win_option('winfixheight', true, windows)
+  set_win_option('winfixwidth', true, windows)
 
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)

@@ -16,8 +16,7 @@ end
 ---Check if blink-cmp is available
 ---@return boolean
 function BlinkCmpEngine:is_available()
-  local ok = pcall(require, 'blink.cmp')
-  return ok and CompletionEngine.is_available()
+  return pcall(require, 'blink.cmp') and CompletionEngine.is_available()
 end
 
 ---Setup blink-cmp completion engine
@@ -36,7 +35,6 @@ function BlinkCmpEngine:setup(completion_sources)
     async = true,
   })
 
-  -- Hide blink-cmp menu on certain trigger characters when opened via other completion sources
   vim.api.nvim_create_autocmd('User', {
     group = vim.api.nvim_create_augroup('OpencodeBlinkCmp', { clear = true }),
     pattern = 'BlinkCmpMenuOpen',
@@ -49,10 +47,18 @@ function BlinkCmpEngine:setup(completion_sources)
 
       local blink = require('blink.cmp')
       local ctx = blink.get_context()
-
       local triggers = CompletionEngine.get_trigger_characters()
-      if ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character) then
-        blink.hide()
+
+      -- blink has a tendency to show other providers even when we want only our own.
+      local should_override = (
+        ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character)
+      ) or (ctx.trigger.initial_kind == 'keyword' and vim.tbl_contains(triggers, ctx.line:sub(1, 1)))
+
+      if should_override then
+        blink.show({
+          providers = { 'opencode_mentions' },
+          trigger_character = ctx.trigger.character,
+        })
       end
     end,
   })
@@ -62,8 +68,8 @@ end
 ---Check if blink-cmp completion menu is visible
 ---@return boolean
 function BlinkCmpEngine:is_visible()
-  local ok, blink = pcall(require, 'blink.cmp')
-  return ok and blink.is_visible()
+  local blink = require('blink.cmp')
+  return blink.is_visible()
 end
 
 ---Trigger completion manually for blink-cmp
@@ -83,10 +89,7 @@ function BlinkCmpEngine:trigger(trigger_char)
 end
 
 function BlinkCmpEngine:hide()
-  local blink = require('blink.cmp')
-  if blink.is_visible() then
-    blink.hide()
-  end
+  require('blink.cmp').hide()
 end
 
 -- Source implementation for blink-cmp provider (when this module is loaded by blink.cmp)
@@ -157,7 +160,7 @@ function Source:get_completions(ctx, callback)
   end)
 end
 
-function Source:execute(ctx, item, callback, default_implementation)
+function Source:execute(_, item, callback, default_implementation)
   default_implementation()
 
   if item.data and item.data.original_item then

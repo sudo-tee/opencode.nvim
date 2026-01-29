@@ -125,10 +125,16 @@
 ---@field icons { preset: 'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
 ---@field output OpencodeUIOutputConfig
----@field input { text: { wrap: boolean } }
+---@field input OpencodeUIInputConfig
 ---@field completion OpencodeCompletionConfig
 ---@field highlights? OpencodeHighlightConfig
 ---@field picker OpencodeUIPickerConfig
+
+---@class OpencodeUIInputConfig
+---@field text { wrap: boolean }
+---@field min_height? number
+---@field max_height? number
+---@field auto_hide boolean
 
 ---@class OpencodeHighlightConfig
 ---@field vertical_borders? { tool?: { fg?: string, bg?: string }, user?: { fg?: string, bg?: string }, assistant?: { fg?: string, bg?: string } }

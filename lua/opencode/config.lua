@@ -140,6 +140,8 @@ M.defaults = {
       text = {
         wrap = false,
       },
+      min_height = nil,
+      max_height = nil,
       -- Auto-hide input window when prompt is submitted or focus switches to output window
       auto_hide = false,
     },

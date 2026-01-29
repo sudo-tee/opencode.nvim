@@ -6,6 +6,62 @@ local M = {}
 M._hidden = false
 -- Flag to prevent WinClosed autocmd from closing all windows during toggle
 M._toggling = false
+M._resize_scheduled = false
+
+local function auto_resize_enabled()
+  return type(config.ui.input.min_height) == 'number' and type(config.ui.input.max_height) == 'number'
+end
+
+local function get_content_height(windows)
+  local line_count = vim.api.nvim_buf_line_count(windows.input_buf)
+  if line_count <= 0 then
+    return 1
+  end
+  if config.ui.input.text.wrap then
+    local ok, result = pcall(vim.api.nvim_win_text_height, windows.input_win, {
+      start_row = 0,
+      end_row = math.max(0, line_count - 1),
+    })
+    if ok and result and result.all then
+      return result.all
+    end
+  end
+
+  return line_count
+end
+
+local function get_winbar_height(windows)
+  local ok, winbar = pcall(vim.api.nvim_get_option_value, 'winbar', { win = windows.input_win })
+  if ok and type(winbar) == 'string' and winbar ~= '' then
+    return 1
+  end
+
+  return 0
+end
+
+local function calculate_height(windows)
+  local total_height = vim.api.nvim_get_option_value('lines', {})
+  if auto_resize_enabled() then
+    local min_height = math.max(1, math.floor(total_height * config.ui.input.min_height))
+    local max_height = math.max(min_height, math.floor(total_height * config.ui.input.max_height))
+    local content_height = get_content_height(windows) + get_winbar_height(windows)
+    return math.min(max_height, math.max(min_height, content_height))
+  end
+
+  return math.max(1, math.floor(total_height * config.ui.input_height))
+end
+
+local function apply_dimensions(windows, height)
+  if config.ui.position == 'current' then
+    pcall(vim.api.nvim_win_set_height, windows.input_win, height)
+    return
+  end
+
+  local total_width = vim.api.nvim_get_option_value('columns', {})
+  local width = math.floor(total_width * config.ui.window_width)
+
+  vim.api.nvim_win_set_config(windows.input_win, { width = width, height = height })
+end
 
 function M.create_buf()
   local input_buf = vim.api.nvim_create_buf(false, true)
@@ -226,18 +282,27 @@ function M.update_dimensions(windows)
     return
   end
 
-  local total_height = vim.api.nvim_get_option_value('lines', {})
-  local height = math.floor(total_height * config.ui.input_height)
+  local height = calculate_height(windows)
+  apply_dimensions(windows, height)
+end
 
-  if config.ui.position == 'current' then
-    pcall(vim.api.nvim_win_set_height, windows.input_win, height)
+function M.schedule_resize(windows)
+  if not auto_resize_enabled() then
     return
   end
 
-  local total_width = vim.api.nvim_get_option_value('columns', {})
-  local width = math.floor(total_width * config.ui.window_width)
+  windows = windows or state.windows
+  if not M.mounted(windows) or M._resize_scheduled then
+    return
+  end
 
-  vim.api.nvim_win_set_config(windows.input_win, { width = width, height = height })
+  M._resize_scheduled = true
+  vim.schedule(function()
+    M._resize_scheduled = false
+    if M.mounted(windows) then
+      M.update_dimensions(windows)
+    end
+  end)
 end
 
 function M.refresh_placeholder(windows, input_lines)
@@ -289,6 +354,7 @@ end
 function M.recover_input(windows)
   M.set_content(state.input_content, windows)
   require('opencode.ui.mention').highlight_all_mentions(windows.input_buf)
+  M.update_dimensions(windows)
 end
 
 function M.focus_input()
@@ -406,6 +472,7 @@ function M.setup_autocmds(windows, group)
       state.input_content = input_lines
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
+      M.schedule_resize(windows)
     end,
   })
 end

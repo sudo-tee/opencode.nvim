@@ -77,7 +77,7 @@ local function set_win_option(opt_name, value, win)
     end
   end
 
-  vim.api.nvim_set_option_value(opt_name, value, { win = win })
+  vim.api.nvim_set_option_value(opt_name, value, { win = win, scope = 'local' })
 end
 
 ---Helper to set buffer option (no saving needed)

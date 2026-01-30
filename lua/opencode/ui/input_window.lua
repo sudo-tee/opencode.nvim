@@ -459,7 +459,14 @@ function M.setup_autocmds(windows, group)
     callback = function()
       -- Auto-hide input window when auto_hide is enabled and focus leaves
       -- Don't hide if displaying a route (slash command output like /help)
-      if config.ui.input.auto_hide and not M.is_hidden() and not state.display_route then
+      -- Don't hide if input contains content
+      if
+        config.ui.input.auto_hide
+        and not M.is_hidden()
+        and not state.display_route
+        and #state.input_content == 1
+        and state.input_content[1] == ''
+      then
         M._hide()
       end
     end,

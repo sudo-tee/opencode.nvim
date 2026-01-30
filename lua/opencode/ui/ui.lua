@@ -274,7 +274,7 @@ end
 
 function M.toggle_zoom()
   local windows = state.windows
-  if not windows or not windows.output_win or not windows.input_win then
+  if not windows or not (windows.output_win or windows.input_win) then
     return
   end
 
@@ -288,8 +288,12 @@ function M.toggle_zoom()
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 
-  vim.api.nvim_win_set_config(windows.input_win, { width = width })
-  vim.api.nvim_win_set_config(windows.output_win, { width = width })
+  if windows.input_win ~= nil then
+    vim.api.nvim_win_set_config(windows.input_win, { width = width })
+  end
+  if windows.output_win ~= nil then
+    vim.api.nvim_win_set_config(windows.output_win, { width = width })
+  end
 end
 
 return M

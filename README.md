@@ -200,7 +200,6 @@ require('opencode').setup({
     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window
     window_width = 0.40, -- Width as percentage of editor width
     zoom_width = 0.8, -- Zoom width as percentage of editor width
-    input_height = 0.15, -- Input height as percentage of window height
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
@@ -220,9 +219,13 @@ require('opencode').setup({
       },
     },
     input = {
+      min_height = 0.10, -- min height of prompt input as percentage of window height
+      max_height = 0.25, -- max height of prompt input as percentage of window height
       text = {
         wrap = false, -- Wraps text inside input window
       },
+      -- Auto-hide input window when prompt is submitted or focus switches to output window
+      auto_hide = false,
     },
     picker = {
       snacks_layout = nil -- `layout` opts to pass to Snacks.picker.pick({ layout = ... })

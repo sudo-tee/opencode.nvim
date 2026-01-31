@@ -897,7 +897,7 @@ vim.api.nvim_create_autocmd('User', {
   pattern = 'OpencodeEvent:permission.asked',
   callback = function(args)
     local event = args.data.event
-    vim.notify('permission requested', vim.inspect(event))
+    vim.notify(vim.inspect(event))
     -- trigger custom logic
   end,
 })

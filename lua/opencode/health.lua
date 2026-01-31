@@ -133,15 +133,6 @@ local function check_configuration()
     health.ok(string.format('Window width: %s', config.ui.window_width))
   end
 
-  if config.ui.input_height <= 0 or config.ui.input_height > 1 then
-    health.warn(
-      string.format('Invalid input height: %s', config.ui.input_height),
-      { 'Input height should be between 0 and 1 (percentage of screen)' }
-    )
-  else
-    health.ok(string.format('Input height: %s', config.ui.input_height))
-  end
-
   local min_height = config.ui.input.min_height
   local max_height = config.ui.input.max_height
   if min_height ~= nil or max_height ~= nil then
@@ -175,6 +166,15 @@ local function check_configuration()
           { 'Ensure ui.input.min_height is less than or equal to ui.input.max_height' }
         )
       end
+    end
+  else
+    if config.ui.input_height <= 0 or config.ui.input_height > 1 then
+      health.warn(
+        string.format('Invalid input height: %s', config.ui.input_height),
+        { 'Input height should be between 0 and 1 (percentage of screen)' }
+      )
+    else
+      health.ok(string.format('Input height: %s', config.ui.input_height))
     end
   end
 

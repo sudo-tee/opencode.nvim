@@ -116,7 +116,6 @@
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field zoom_width number
----@field input_height number
 ---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean
 ---@field display_context_size boolean
@@ -132,8 +131,8 @@
 
 ---@class OpencodeUIInputConfig
 ---@field text { wrap: boolean }
----@field min_height? number
----@field max_height? number
+---@field min_height number
+---@field max_height number
 ---@field auto_hide boolean
 
 ---@class OpencodeHighlightConfig

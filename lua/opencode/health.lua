@@ -135,46 +135,35 @@ local function check_configuration()
 
   local min_height = config.ui.input.min_height
   local max_height = config.ui.input.max_height
-  if min_height ~= nil or max_height ~= nil then
-    if type(min_height) ~= 'number' or type(max_height) ~= 'number' then
-      health.warn(
-        'Input min/max height configuration incomplete',
-        { 'Set both ui.input.min_height and ui.input.max_height to enable auto-resize' }
-      )
-    else
-      if min_height <= 0 or min_height > 1 then
-        health.warn(
-          string.format('Invalid input min height: %s', min_height),
-          { 'Input min height should be between 0 and 1 (percentage of screen)' }
-        )
-      else
-        health.ok(string.format('Input min height: %s', min_height))
-      end
-
-      if max_height <= 0 or max_height > 1 then
-        health.warn(
-          string.format('Invalid input max height: %s', max_height),
-          { 'Input max height should be between 0 and 1 (percentage of screen)' }
-        )
-      else
-        health.ok(string.format('Input max height: %s', max_height))
-      end
-
-      if min_height > max_height then
-        health.warn(
-          'Input min height exceeds max height',
-          { 'Ensure ui.input.min_height is less than or equal to ui.input.max_height' }
-        )
-      end
-    end
+  if type(min_height) ~= 'number' or type(max_height) ~= 'number' then
+    health.warn(
+      'Input min/max height configuration incomplete',
+      { 'Set both ui.input.min_height and ui.input.max_height to enable auto-resize' }
+    )
   else
-    if config.ui.input_height <= 0 or config.ui.input_height > 1 then
+    if min_height <= 0 or min_height > 1 then
       health.warn(
-        string.format('Invalid input height: %s', config.ui.input_height),
-        { 'Input height should be between 0 and 1 (percentage of screen)' }
+        string.format('Invalid input min height: %s', min_height),
+        { 'Input min height should be between 0 and 1 (percentage of screen)' }
       )
     else
-      health.ok(string.format('Input height: %s', config.ui.input_height))
+      health.ok(string.format('Input min height: %s', min_height))
+    end
+
+    if max_height <= 0 or max_height > 1 then
+      health.warn(
+        string.format('Invalid input max height: %s', max_height),
+        { 'Input max height should be between 0 and 1 (percentage of screen)' }
+      )
+    else
+      health.ok(string.format('Input max height: %s', max_height))
+    end
+
+    if min_height > max_height then
+      health.warn(
+        'Input min height exceeds max height',
+        { 'Ensure ui.input.min_height is less than or equal to ui.input.max_height' }
+      )
     end
   end
 

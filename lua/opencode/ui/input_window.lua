@@ -8,10 +8,6 @@ M._hidden = false
 M._toggling = false
 M._resize_scheduled = false
 
-local function auto_resize_enabled()
-  return type(config.ui.input.min_height) == 'number' and type(config.ui.input.max_height) == 'number'
-end
-
 local function get_content_height(windows)
   local line_count = vim.api.nvim_buf_line_count(windows.input_buf)
   if line_count <= 0 then
@@ -41,14 +37,10 @@ end
 
 local function calculate_height(windows)
   local total_height = vim.api.nvim_get_option_value('lines', {})
-  if auto_resize_enabled() then
-    local min_height = math.max(1, math.floor(total_height * config.ui.input.min_height))
-    local max_height = math.max(min_height, math.floor(total_height * config.ui.input.max_height))
-    local content_height = get_content_height(windows) + get_winbar_height(windows)
-    return math.min(max_height, math.max(min_height, content_height))
-  end
-
-  return math.max(1, math.floor(total_height * config.ui.input_height))
+  local min_height = math.max(1, math.floor(total_height * config.ui.input.min_height))
+  local max_height = math.max(min_height, math.floor(total_height * config.ui.input.max_height))
+  local content_height = get_content_height(windows) + get_winbar_height(windows)
+  return math.min(max_height, math.max(min_height, content_height))
 end
 
 local function apply_dimensions(windows, height)
@@ -287,10 +279,6 @@ function M.update_dimensions(windows)
 end
 
 function M.schedule_resize(windows)
-  if not auto_resize_enabled() then
-    return
-  end
-
   windows = windows or state.windows
   if not M.mounted(windows) or M._resize_scheduled then
     return

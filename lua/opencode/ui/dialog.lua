@@ -18,7 +18,7 @@
 
 ---@class Dialog
 ---@field private _config DialogConfig
----@field private _keymaps integer[] List of keymap IDs for cleanup
+---@field private _keymaps string[] List of key bindings for cleanup
 ---@field private _key_capture_ns integer? Namespace for vim.on_key
 ---@field private _selected_index integer Currently selected option index
 ---@field private _active boolean Whether dialog is currently active
@@ -306,10 +306,10 @@ function Dialog:_setup_keymaps()
   if keymaps.up then
     for _, key in ipairs(keymaps.up) do
       if key and key ~= '' then
-        local id = vim.keymap.set('n', key, function()
+        vim.keymap.set('n', key, function()
           self:navigate(-1)
         end, keymap_opts)
-        table.insert(self._keymaps, id)
+        table.insert(self._keymaps, key)
       end
     end
   end
@@ -317,48 +317,52 @@ function Dialog:_setup_keymaps()
   if keymaps.down then
     for _, key in ipairs(keymaps.down) do
       if key and key ~= '' then
-        local id = vim.keymap.set('n', key, function()
+        vim.keymap.set('n', key, function()
           self:navigate(1)
         end, keymap_opts)
-        table.insert(self._keymaps, id)
+        table.insert(self._keymaps, key)
       end
     end
   end
 
   if keymaps.select and keymaps.select ~= '' then
-    local id = vim.keymap.set('n', keymaps.select, function()
+    vim.keymap.set('n', keymaps.select, function()
       self:select()
     end, keymap_opts)
-    table.insert(self._keymaps, id)
+    table.insert(self._keymaps, keymaps.select)
   end
 
   if keymaps.dismiss and keymaps.dismiss ~= '' then
-    local id = vim.keymap.set('n', keymaps.dismiss, function()
+    vim.keymap.set('n', keymaps.dismiss, function()
       self:dismiss()
     end, keymap_opts)
-    table.insert(self._keymaps, id)
+    table.insert(self._keymaps, keymaps.dismiss)
   end
 
   if keymaps.number_shortcuts then
     local option_count = self._config.get_option_count()
     local number_keymap_opts = vim.tbl_extend('force', keymap_opts, { nowait = true })
     for i = 1, math.min(option_count, 9) do
-      local id = vim.keymap.set('n', tostring(i), function()
+      local key = tostring(i)
+      vim.keymap.set('n', key, function()
         if not self._active or not self._config.check_focused() then
           return
         end
         self._selected_index = i
         self._config.on_select(i)
       end, number_keymap_opts)
-      table.insert(self._keymaps, id)
+      table.insert(self._keymaps, key)
     end
   end
 end
 
 ---Clear all buffer-scoped keymaps
 function Dialog:_clear_keymaps()
-  for _, keymap_id in ipairs(self._keymaps) do
-    pcall(vim.keymap.del, 'n', keymap_id, { buffer = self._config.buffer })
+  local buf = self._config.buffer
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    for _, key in ipairs(self._keymaps) do
+      pcall(vim.keymap.del, 'n', key, { buffer = buf })
+    end
   end
   self._keymaps = {}
 end

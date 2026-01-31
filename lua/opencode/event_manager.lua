@@ -303,12 +303,9 @@ end
 
 --- Emit an event to all subscribers
 --- @param event_name OpencodeEventName The event name
---- @param data any Data to pass to event listeners
+--- @param data table Data to pass to event listeners
 function EventManager:emit(event_name, data)
   local listeners = self.events[event_name]
-  if not listeners then
-    return
-  end
 
   local event = { type = event_name, properties = data }
 
@@ -316,12 +313,25 @@ function EventManager:emit(event_name, data)
     table.insert(self.captured_events, vim.deepcopy(event))
   end
 
-  for _, callback in ipairs(listeners) do
-    local ok, result = util.pcall_trace(callback, data)
+  -- Dispatch to internal listeners
+  if listeners then
+    for _, callback in ipairs(listeners) do
+      local ok, result = util.pcall_trace(callback, data)
 
-    if not ok then
-      vim.notify('Error calling ' .. event_name .. ' listener: ' .. result, vim.log.levels.ERROR)
+      if not ok then
+        vim.notify('Error calling ' .. event_name .. ' listener: ' .. result, vim.log.levels.ERROR)
+      end
     end
+  end
+
+  -- Fire User autocmd for external subscribers
+  if not vim.startswith(event_name, 'custom.') then
+    vim.api.nvim_exec_autocmds('User', {
+      pattern = 'OpencodeEvent:' .. event_name,
+      data = {
+        event = event,
+      },
+    })
   end
 end
 

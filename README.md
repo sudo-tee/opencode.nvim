@@ -877,8 +877,8 @@ The autocmd receives event data in `args.data.event`:
 
 ```lua
 {
-  type = "event.name",        -- The event type
-  properties = { ... }        -- Event-specific properties
+  type = "event.name",  -- Opencode event type
+  properties = { ... }  -- Event-specific properties
 }
 ```
 
@@ -889,6 +889,19 @@ You can use wildcards to match multiple event types:
 - `OpencodeEvent:*` - All events
 - `OpencodeEvent:session.*` - All session events
 - `OpencodeEvent:permission.*` - All permission events
+
+### Example
+
+```lua
+vim.api.nvim_create_autocmd('User', {
+  pattern = 'OpencodeEvent:permission.asked',
+  callback = function(args)
+    local event = args.data.event
+    vim.notify('permission requested', vim.inspect(event))
+    -- trigger custom logic
+  end,
+})
+```
 
 ## Quick chat
 

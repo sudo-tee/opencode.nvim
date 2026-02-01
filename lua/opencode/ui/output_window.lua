@@ -115,7 +115,8 @@ function M.update_dimensions(windows)
     return
   end
   local total_width = vim.api.nvim_get_option_value('columns', {})
-  local width = math.floor(total_width * config.ui.window_width)
+  local width_ratio = state.pre_zoom_width and config.ui.zoom_width or config.ui.window_width
+  local width = math.floor(total_width * width_ratio)
 
   vim.api.nvim_win_set_config(windows.output_win, { width = width })
 end

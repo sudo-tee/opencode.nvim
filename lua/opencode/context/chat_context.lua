@@ -167,6 +167,13 @@ function M.add_selection(selection)
     M.context.selections = {}
   end
 
+  -- prevent duplicate selection (same exact line range) from being added
+  for _, sel in ipairs(M.context.selections) do
+    if sel.file.path == selection.file.path and sel.lines == selection.lines then
+      return
+    end
+  end
+
   table.insert(M.context.selections, selection)
   state.context_updated_at = vim.uv.now()
 end

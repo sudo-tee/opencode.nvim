@@ -149,6 +149,20 @@ function M.get_current_file(buf, context_config)
 end
 
 ---@param buf integer
+---@return table|nil
+function M.get_current_file_for_selection(buf)
+  local file = vim.api.nvim_buf_get_name(buf)
+  if not file or file == '' or vim.fn.filereadable(file) ~= 1 then
+    return nil
+  end
+  return {
+    path = file,
+    name = vim.fn.fnamemodify(file, ':t'),
+    extension = vim.fn.fnamemodify(file, ':e'),
+  }
+end
+
+---@param buf integer
 ---@param win integer
 ---@param context_config? OpencodeContextConfig
 ---@return table|nil

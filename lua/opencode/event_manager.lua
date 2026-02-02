@@ -100,10 +100,9 @@ local util = require('opencode.util')
 --- @field properties {ide: string}
 
 --- @class ServerStartingEvent
---- @field server_job table
+--- @field url string
 
 --- @class ServerReadyEvent
---- @field server_job table
 --- @field url string
 
 --- @class ServerStoppedEvent
@@ -323,14 +322,12 @@ function EventManager:emit(event_name, data)
     end
   end
 
-  if not vim.startswith(event_name, 'custom.') then
-    vim.api.nvim_exec_autocmds('User', {
-      pattern = 'OpencodeEvent:' .. event_name,
-      data = {
-        event = event,
-      },
-    })
-  end
+  vim.api.nvim_exec_autocmds('User', {
+    pattern = 'OpencodeEvent:' .. event_name,
+    data = {
+      event = event,
+    },
+  })
 end
 
 --- Start the event manager and begin listening to server events
@@ -348,10 +345,10 @@ function EventManager:start()
     --- @param prev OpencodeServer|nil
     function(key, current, prev)
       if current and current:get_spawn_promise() then
-        self:emit('custom.server_starting', { server_job = current })
+        self:emit('custom.server_starting', { url = current.url })
 
         current:get_spawn_promise():and_then(function(server)
-          self:emit('custom.server_ready', { server_job = server, url = server.url })
+          self:emit('custom.server_ready', { url = server.url })
           vim.defer_fn(function()
             self:_subscribe_to_server_events(server)
           end, 200)

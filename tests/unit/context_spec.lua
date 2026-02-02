@@ -241,6 +241,42 @@ describe('add_file/add_selection/add_subagent', function()
     context.add_selection({ foo = 'bar' })
     assert.same({ { foo = 'bar' } }, context.get_context().selections)
   end)
+  it('does not add duplicate selections with same range', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1 }, context.get_context().selections)
+  end)
+  it('allows non-overlapping selections in same file', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '4-6', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
+  end)
+  it('allows overlapping selections in same file', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-4', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '3-6', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
+  end)
+  it('allows same line range in different files', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/bar.lua' }, lines = '1-2', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
+  end)
   it('adds a subagent', function()
     context.add_subagent('agentX')
     assert.same({ 'agentX' }, context.get_context().mentioned_subagents)

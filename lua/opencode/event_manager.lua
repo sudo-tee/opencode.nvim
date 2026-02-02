@@ -100,10 +100,9 @@ local util = require('opencode.util')
 --- @field properties {ide: string}
 
 --- @class ServerStartingEvent
---- @field server_job table
+--- @field url string
 
 --- @class ServerReadyEvent
---- @field server_job table
 --- @field url string
 
 --- @class ServerStoppedEvent
@@ -303,12 +302,9 @@ end
 
 --- Emit an event to all subscribers
 --- @param event_name OpencodeEventName The event name
---- @param data any Data to pass to event listeners
+--- @param data table Data to pass to event listeners
 function EventManager:emit(event_name, data)
   local listeners = self.events[event_name]
-  if not listeners then
-    return
-  end
 
   local event = { type = event_name, properties = data }
 
@@ -316,13 +312,22 @@ function EventManager:emit(event_name, data)
     table.insert(self.captured_events, vim.deepcopy(event))
   end
 
-  for _, callback in ipairs(listeners) do
-    local ok, result = util.pcall_trace(callback, data)
+  if listeners then
+    for _, callback in ipairs(listeners) do
+      local ok, result = util.pcall_trace(callback, data)
 
-    if not ok then
-      vim.notify('Error calling ' .. event_name .. ' listener: ' .. result, vim.log.levels.ERROR)
+      if not ok then
+        vim.notify('Error calling ' .. event_name .. ' listener: ' .. result, vim.log.levels.ERROR)
+      end
     end
   end
+
+  vim.api.nvim_exec_autocmds('User', {
+    pattern = 'OpencodeEvent:' .. event_name,
+    data = {
+      event = event,
+    },
+  })
 end
 
 --- Start the event manager and begin listening to server events
@@ -340,10 +345,10 @@ function EventManager:start()
     --- @param prev OpencodeServer|nil
     function(key, current, prev)
       if current and current:get_spawn_promise() then
-        self:emit('custom.server_starting', { server_job = current })
+        self:emit('custom.server_starting', { url = current.url })
 
         current:get_spawn_promise():and_then(function(server)
-          self:emit('custom.server_ready', { server_job = server, url = server.url })
+          self:emit('custom.server_ready', { url = server.url })
           vim.defer_fn(function()
             self:_subscribe_to_server_events(server)
           end, 200)

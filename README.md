@@ -52,6 +52,8 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [User Commands](#user-commands)
 - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
 - [Prompt Guard](#-prompt-guard)
+- [Custom user hooks](#-custom-user-hooks)
+- [Server-Sent Events (SSE) autocmds](#-server-sent-events-sse-autocmds)
 - [Quick Chat](#-quick-chat)
 - [Setting up opencode](#-setting-up-opencode)
 
@@ -867,6 +869,42 @@ require('opencode').setup({
 - **Before opening UI**: The guard is checked when opening the Opencode buffer for the first time. If denied, a WARN notification is shown and the UI is not opened.
 - **No parameters**: The guard function receives no parameters. Access vim state directly (e.g., `vim.fn.getcwd()`, `vim.bo.filetype`).
 - **Error handling**: If the guard function throws an error or returns a non-boolean value, the prompt is denied with an appropriate error message.
+
+## 📡 Server-Sent Events (SSE) autocmds
+
+Opencode.nvim forwards all server-sent events as Neovim User autocmds, allowing you to react to events and automate workflows. All events are fired with the pattern `OpencodeEvent:<event.type>`.
+
+### Event Data Structure
+
+The autocmd receives event data in `args.data.event`:
+
+```lua
+{
+  type = "event.name",  -- Opencode event type
+  properties = { ... }  -- Event-specific properties
+}
+```
+
+### Wildcard Patterns
+
+You can use wildcards to match multiple event types:
+
+- `OpencodeEvent:*` - All events
+- `OpencodeEvent:session.*` - All session events
+- `OpencodeEvent:permission.*` - All permission events
+
+### Example
+
+```lua
+vim.api.nvim_create_autocmd('User', {
+  pattern = 'OpencodeEvent:permission.asked',
+  callback = function(args)
+    local event = args.data.event
+    vim.notify(vim.inspect(event))
+    -- trigger custom logic
+  end,
+})
+```
 
 ## Quick chat
 

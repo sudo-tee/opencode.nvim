@@ -329,8 +329,9 @@ function M.refresh_placeholder(windows, input_lines)
     end
     if context_key then
       table.insert(virt_text, { context_key, 'OpencodeInputLegend' })
-      table.insert(virt_text, { ' context' .. padding, 'OpencodeHint' })
+      table.insert(virt_text, { ' context', 'OpencodeHint' })
     end
+    table.insert(virt_text, { padding, 'OpencodeHint' })
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
       virt_text = virt_text,
       virt_text_pos = 'overlay',

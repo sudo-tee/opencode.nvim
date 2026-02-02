@@ -311,21 +311,30 @@ function M.refresh_placeholder(windows, input_lines)
     local mention_file_key = config.get_key_for_function('input_window', 'mention_file')
     local context_key = config.get_key_for_function('input_window', 'context_items')
 
+    local virt_text = {
+      { 'Type your prompt here... ', 'OpencodeHint' },
+      { '!', 'OpencodeInputLegend' },
+      { ' shell ', 'OpencodeHint' },
+    }
+    if slash_key then
+      table.insert(virt_text, { slash_key, 'OpencodeInputLegend' })
+      table.insert(virt_text, { ' commands ', 'OpencodeHint' })
+    end
+    if mention_key then
+      table.insert(virt_text, { mention_key, 'OpencodeInputLegend' })
+      table.insert(virt_text, { ' mentions ', 'OpencodeHint' })
+    end
+    if mention_file_key then
+      table.insert(virt_text, { mention_file_key, 'OpencodeInputLegend' })
+      table.insert(virt_text, { ' files ', 'OpencodeHint' })
+    end
+    if context_key then
+      table.insert(virt_text, { context_key, 'OpencodeInputLegend' })
+      table.insert(virt_text, { ' context', 'OpencodeHint' })
+    end
+    table.insert(virt_text, { padding, 'OpencodeHint' })
     vim.api.nvim_buf_set_extmark(windows.input_buf, ns_id, 0, 0, {
-      virt_text = {
-        { 'Type your prompt here... ', 'OpencodeHint' },
-        { '!', 'OpencodeInputLegend' },
-        { ' shell ', 'OpencodeHint' },
-        { slash_key or '/', 'OpencodeInputLegend' },
-        { ' commands ', 'OpencodeHint' },
-        { mention_key or '@', 'OpencodeInputLegend' },
-        { ' mentions ', 'OpencodeHint' },
-        { mention_file_key or '~', 'OpencodeInputLegend' },
-        { ' files ', 'OpencodeHint' },
-        { context_key or '#', 'OpencodeInputLegend' },
-        { ' context' .. padding, 'OpencodeHint' },
-      },
-
+      virt_text = virt_text,
       virt_text_pos = 'overlay',
     })
   else

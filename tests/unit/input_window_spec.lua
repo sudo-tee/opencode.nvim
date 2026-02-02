@@ -84,8 +84,7 @@ describe('input_window', function()
         output_lines = lines
       end
 
-      output_window.clear = function()
-      end
+      output_window.clear = function() end
 
       vim.system = function(cmd, opts, callback)
         vim.schedule(function()
@@ -356,6 +355,75 @@ describe('input_window', function()
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
       state.windows = nil
+    end)
+  end)
+
+  describe('auto-show when hidden', function()
+    local input_buf, output_buf, input_win, output_win
+
+    before_each(function()
+      input_buf = vim.api.nvim_create_buf(false, true)
+      output_buf = vim.api.nvim_create_buf(false, true)
+      input_win = vim.api.nvim_open_win(input_buf, true, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 0,
+        col = 0,
+      })
+      output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 11,
+        col = 0,
+      })
+
+      state.windows = {
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+      }
+    end)
+
+    after_each(function()
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.windows = nil
+      input_window._hidden = false
+    end)
+
+    it('should auto-show when set_content is called with non-empty content while hidden', function()
+      input_window._hidden = true
+      pcall(vim.api.nvim_win_close, input_win, true)
+      state.windows.input_win = nil
+
+      input_window.set_content('test content')
+
+      assert.is_false(input_window._hidden)
+    end)
+
+    it('should not auto-show when set_content is called with empty content while hidden', function()
+      input_window._hidden = true
+      pcall(vim.api.nvim_win_close, input_win, true)
+      state.windows.input_win = nil
+
+      input_window.set_content('')
+
+      assert.is_true(input_window._hidden)
+    end)
+
+    it('should auto-show when _append_to_input is called while hidden', function()
+      input_window._hidden = true
+      pcall(vim.api.nvim_win_close, input_win, true)
+      state.windows.input_win = nil
+
+      input_window._append_to_input('appended content')
+
+      assert.is_false(input_window._hidden)
     end)
   end)
 end)

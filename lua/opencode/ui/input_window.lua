@@ -187,6 +187,10 @@ M._prompt_add_to_context = function(cmd, output, exit_code)
 end
 
 M._append_to_input = function(text)
+  if M._hidden then
+    M._show()
+  end
+
   if not M.mounted() then
     return
   end
@@ -378,12 +382,22 @@ end
 
 function M.set_content(text, windows)
   windows = windows or state.windows
+  if not windows or not windows.input_buf then
+    return
+  end
+
+  local lines = type(text) == 'table' and text or vim.split(tostring(text), '\n')
+  local has_content = #lines > 1 or (lines[1] and lines[1] ~= '')
+
+  if has_content and M._hidden then
+    M._show()
+    windows = state.windows
+  end
+
   if not M.mounted(windows) then
     return
   end
   ---@cast windows { input_win: integer, input_buf: integer }
-
-  local lines = type(text) == 'table' and text or vim.split(tostring(text), '\n')
 
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end

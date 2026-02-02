@@ -124,7 +124,6 @@ describe('EventManager', function()
       local autocmd_called = false
       local autocmd_data = nil
 
-      -- Set up autocmd listener
       local autocmd_id = vim.api.nvim_create_autocmd('User', {
         pattern = 'OpencodeEvent:test_event',
         callback = function(args)
@@ -133,15 +132,12 @@ describe('EventManager', function()
         end,
       })
 
-      -- Emit event
       event_manager:emit('test_event', { test = 'value' })
 
-      -- Wait for autocmd to fire
       vim.wait(100, function()
         return autocmd_called
       end)
 
-      -- Clean up
       vim.api.nvim_del_autocmd(autocmd_id)
 
       assert.is_true(autocmd_called)
@@ -156,7 +152,6 @@ describe('EventManager', function()
     it('should fire User autocmd even when no internal listeners exist', function()
       local autocmd_called = false
 
-      -- Set up autocmd listener (no internal listener subscribed)
       local autocmd_id = vim.api.nvim_create_autocmd('User', {
         pattern = 'OpencodeEvent:orphan_event',
         callback = function(args)
@@ -164,19 +159,15 @@ describe('EventManager', function()
         end,
       })
 
-      -- Emit event without internal listeners
       event_manager:emit('orphan_event', { data = 'test' })
 
-      -- Wait for autocmd to fire
       vim.wait(100, function()
         return autocmd_called
       end)
 
-      -- Clean up
       vim.api.nvim_del_autocmd(autocmd_id)
 
       assert.is_true(autocmd_called)
     end)
   end)
 end)
-

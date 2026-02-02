@@ -481,6 +481,7 @@ describe('opencode.core', function()
             model = 'anthropic/claude-3-opus',
           },
         },
+        model = 'gpt-4',
       })
 
       stub(config_file, 'get_opencode_agents').returns(agents_promise)
@@ -488,6 +489,7 @@ describe('opencode.core', function()
 
       state.current_mode = nil
       state.current_model = nil
+      state.user_mode_model_map = {}
 
       local promise = core.switch_to_mode('custom')
       local success = promise:wait()
@@ -495,34 +497,6 @@ describe('opencode.core', function()
       assert.is_true(success)
       assert.equal('custom', state.current_mode)
       assert.equal('anthropic/claude-3-opus', state.current_model)
-
-      config_file.get_opencode_agents:revert()
-      config_file.get_opencode_config:revert()
-    end)
-
-    it('does not change current model when mode has no model configured', function()
-      local Promise = require('opencode.promise')
-      local agents_promise = Promise.new()
-      agents_promise:resolve({ 'plan', 'build' })
-      local config_promise = Promise.new()
-      config_promise:resolve({
-        agent = {
-          plan = {},
-        },
-      })
-
-      stub(config_file, 'get_opencode_agents').returns(agents_promise)
-      stub(config_file, 'get_opencode_config').returns(config_promise)
-
-      state.current_mode = nil
-      state.current_model = 'existing/model'
-
-      local promise = core.switch_to_mode('plan')
-      local success = promise:wait()
-
-      assert.is_true(success)
-      assert.equal('plan', state.current_mode)
-      assert.equal('existing/model', state.current_model)
 
       config_file.get_opencode_agents:revert()
       config_file.get_opencode_config:revert()
@@ -551,6 +525,59 @@ describe('opencode.core', function()
       promise = core.switch_to_mode(nil)
       success = promise:wait()
       assert.is_false(success)
+    end)
+
+    it('respects user_mode_model_map priority: uses model stored in mode_model_map for mode', function()
+      local Promise = require('opencode.promise')
+      local agents_promise = Promise.new()
+      agents_promise:resolve({ 'plan', 'build' })
+      local config_promise = Promise.new()
+      config_promise:resolve({
+        agent = {
+          plan = { model = 'gpt-4' },
+        },
+        model = 'gpt-3',
+      })
+      stub(config_file, 'get_opencode_agents').returns(agents_promise)
+      stub(config_file, 'get_opencode_config').returns(config_promise)
+
+      state.current_mode = nil
+      state.current_model = 'should-be-overridden'
+      state.user_mode_model_map = { plan = 'anthropic/claude-3-haiku' }
+
+      local promise = core.switch_to_mode('plan')
+      local success = promise:wait()
+      assert.is_true(success)
+      assert.equal('plan', state.current_mode)
+      assert.equal('anthropic/claude-3-haiku', state.current_model)
+
+      config_file.get_opencode_agents:revert()
+      config_file.get_opencode_config:revert()
+    end)
+
+    it('falls back to config model if nothing else matches', function()
+      local Promise = require('opencode.promise')
+      local agents_promise = Promise.new()
+      agents_promise:resolve({ 'plan', 'build' })
+      local config_promise = Promise.new()
+      config_promise:resolve({
+        agent = {
+          plan = {},
+        },
+        model = 'default-model',
+      })
+      stub(config_file, 'get_opencode_agents').returns(agents_promise)
+      stub(config_file, 'get_opencode_config').returns(config_promise)
+      state.current_mode = nil
+      state.current_model = 'old-model'
+      state.user_mode_model_map = {}
+      local promise = core.switch_to_mode('plan')
+      local success = promise:wait()
+      assert.is_true(success)
+      assert.equal('plan', state.current_mode)
+      assert.equal('default-model', state.current_model)
+      config_file.get_opencode_agents:revert()
+      config_file.get_opencode_config:revert()
     end)
   end)
 end)

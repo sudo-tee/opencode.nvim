@@ -26,6 +26,7 @@
 ---@field active_session Session|nil
 ---@field restore_points RestorePoint[]
 ---@field current_model string|nil
+---@field user_mode_model_map table<string, string>
 ---@field current_model_info table|nil
 ---@field current_variant string|nil
 ---@field messages OpencodeMessage[]|nil
@@ -76,6 +77,7 @@ local _state = {
   active_session = nil,
   restore_points = {},
   current_model = nil,
+  user_mode_model_map = {},
   current_model_info = nil,
   current_variant = nil,
   -- messages

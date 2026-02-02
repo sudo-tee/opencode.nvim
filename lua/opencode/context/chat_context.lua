@@ -167,6 +167,13 @@ function M.add_selection(selection)
     M.context.selections = {}
   end
 
+  -- prevent duplicate selection (same exact line range) from being added
+  for _, sel in ipairs(M.context.selections) do
+    if sel.file.path == selection.file.path and sel.lines == selection.lines then
+      return
+    end
+  end
+
   table.insert(M.context.selections, selection)
   state.context_updated_at = vim.uv.now()
 end
@@ -387,11 +394,16 @@ function M.load()
   M.context.linter_errors = M.get_diagnostics(buf, nil, nil)
 
   -- Handle current selection
-  local current_selection = base_context.get_current_selection()
-  if current_selection and M.context.current_file then
-    local selection =
-      base_context.new_selection(M.context.current_file, current_selection.text, current_selection.lines)
-    M.add_selection(selection)
+  if base_context.is_context_enabled('selection') then
+    local current_selection = base_context.get_current_selection()
+    if current_selection then
+      local selection_file = base_context.get_current_file_for_selection(buf)
+      if selection_file then
+        local selection =
+          base_context.new_selection(selection_file, current_selection.text, current_selection.lines)
+        M.add_selection(selection)
+      end
+    end
   end
 end
 
@@ -486,7 +498,7 @@ M.format_message = Promise.async(function(prompt, opts)
     local selections = {}
 
     if range and range.start and range.stop then
-      local file = base_context.get_current_file(buf, context_config)
+      local file = base_context.get_current_file_for_selection(buf)
       if file then
         local selection = base_context.new_selection(
           file,
@@ -502,7 +514,7 @@ M.format_message = Promise.async(function(prompt, opts)
 
     local current_selection = base_context.get_current_selection(context_config)
     if current_selection then
-      local file = base_context.get_current_file(buf, context_config)
+      local file = base_context.get_current_file_for_selection(buf)
       if file then
         local selection = base_context.new_selection(file, current_selection.text, current_selection.lines)
         table.insert(selections, selection)

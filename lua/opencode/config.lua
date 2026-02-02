@@ -110,7 +110,6 @@ M.defaults = {
     input_position = 'bottom',
     window_width = 0.40,
     zoom_width = 0.8,
-    input_height = 0.15,
     picker_width = 100,
     display_model = true,
     display_context_size = true,
@@ -137,6 +136,8 @@ M.defaults = {
       always_scroll_to_bottom = false,
     },
     input = {
+      min_height = 0.10,
+      max_height = 0.25,
       text = {
         wrap = false,
       },

@@ -104,6 +104,54 @@ describe('format_message', function()
     assert.is_true(found_file)
     assert.is_true(found_agent)
   end)
+
+  it('includes selection even when current_file context is disabled', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+
+    ChatContext.context.current_file = nil
+    ChatContext.context.mentioned_files = {}
+    ChatContext.context.mentioned_subagents = {}
+    ChatContext.context.selections = {}
+
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_current_selection = function()
+      return { text = 'print("hello")', lines = '3, 4' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }
+    end
+
+    local parts = context.format_message('test prompt', {
+      current_file = { enabled = false },
+      selection = { enabled = true },
+    }):wait()
+
+    local selection_json = nil
+    local has_file_part = false
+    for _, part in ipairs(parts) do
+      if part.type == 'file' then
+        has_file_part = true
+      end
+      local json = context.decode_json_context(part.text or '', 'selection')
+      if json then
+        selection_json = json
+      end
+    end
+
+    assert.is_false(has_file_part)
+    assert.is_not_nil(selection_json)
+    assert.same({ path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }, selection_json.file)
+
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+  end)
 end)
 
 describe('delta_context', function()
@@ -192,6 +240,42 @@ describe('add_file/add_selection/add_subagent', function()
   it('adds a selection', function()
     context.add_selection({ foo = 'bar' })
     assert.same({ { foo = 'bar' } }, context.get_context().selections)
+  end)
+  it('does not add duplicate selections with same range', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1 }, context.get_context().selections)
+  end)
+  it('allows non-overlapping selections in same file', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '4-6', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
+  end)
+  it('allows overlapping selections in same file', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-4', content = 'one' }
+    local selection2 = { file = { path = '/tmp/foo.lua' }, lines = '3-6', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
+  end)
+  it('allows same line range in different files', function()
+    local selection1 = { file = { path = '/tmp/foo.lua' }, lines = '1-2', content = 'one' }
+    local selection2 = { file = { path = '/tmp/bar.lua' }, lines = '1-2', content = 'two' }
+
+    context.add_selection(selection1)
+    context.add_selection(selection2)
+
+    assert.same({ selection1, selection2 }, context.get_context().selections)
   end)
   it('adds a subagent', function()
     context.add_subagent('agentX')

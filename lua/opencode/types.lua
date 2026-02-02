@@ -116,7 +116,6 @@
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field zoom_width number
----@field input_height number
 ---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean
 ---@field display_context_size boolean
@@ -125,10 +124,16 @@
 ---@field icons { preset: 'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
 ---@field output OpencodeUIOutputConfig
----@field input { text: { wrap: boolean } }
+---@field input OpencodeUIInputConfig
 ---@field completion OpencodeCompletionConfig
 ---@field highlights? OpencodeHighlightConfig
 ---@field picker OpencodeUIPickerConfig
+
+---@class OpencodeUIInputConfig
+---@field text { wrap: boolean }
+---@field min_height number
+---@field max_height number
+---@field auto_hide boolean
 
 ---@class OpencodeHighlightConfig
 ---@field vertical_borders? { tool?: { fg?: string, bg?: string }, user?: { fg?: string, bg?: string }, assistant?: { fg?: string, bg?: string } }

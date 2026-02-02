@@ -16,18 +16,18 @@ end
 ---Check if blink-cmp is available
 ---@return boolean
 function BlinkCmpEngine:is_available()
-  local ok = pcall(require, 'blink.cmp')
-  return ok and CompletionEngine.is_available()
+  return pcall(require, 'blink.cmp') and CompletionEngine.is_available()
 end
 
 ---Setup blink-cmp completion engine
 ---@param completion_sources table[]
 ---@return boolean
 function BlinkCmpEngine:setup(completion_sources)
-  local ok, blink = pcall(require, 'blink.cmp')
+  local ok, _ = pcall(require, 'blink.cmp')
   if not ok then
     return false
   end
+  local blink = require('blink.cmp')
 
   CompletionEngine.setup(self, completion_sources)
 
@@ -36,7 +36,6 @@ function BlinkCmpEngine:setup(completion_sources)
     async = true,
   })
 
-  -- Hide blink-cmp menu on certain trigger characters when opened via other completion sources
   vim.api.nvim_create_autocmd('User', {
     group = vim.api.nvim_create_augroup('OpencodeBlinkCmp', { clear = true }),
     pattern = 'BlinkCmpMenuOpen',
@@ -47,23 +46,55 @@ function BlinkCmpEngine:setup(completion_sources)
         return
       end
 
-      local blink = require('blink.cmp')
       local ctx = blink.get_context()
-
       local triggers = CompletionEngine.get_trigger_characters()
-      if ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character) then
-        blink.hide()
+
+      -- blink has a tendency to show other providers even when we only want our own matching the trigger.
+      local should_override = (
+        ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character)
+      ) or (ctx.trigger.initial_kind == 'keyword' and vim.tbl_contains(triggers, ctx.line:sub(1, 1)))
+
+      if should_override then
+        blink.show({
+          providers = { 'opencode_mentions' },
+          trigger_character = ctx.trigger.character or ctx.line:sub(1, 1),
+        })
       end
     end,
   })
+
+  state.subscribe('input_content', function(_, content)
+    if self:is_visible() then
+      return
+    end
+    vim.schedule(function()
+      local blink = require('blink.cmp')
+      local ctx = blink.get_context()
+      if not ctx then
+        return
+      end
+
+      --blink ctx.line is out of date here, so we get the line ourselves
+      local line = vim.api.nvim_get_current_line()
+      local col = ctx.cursor[2]
+      local before_cursor = line:sub(1, col)
+      local trigger_char, trigger_match = CompletionEngine.parse_trigger(self, before_cursor)
+      if trigger_match then
+        blink.show({
+          providers = { 'opencode_mentions' },
+          trigger_character = trigger_char,
+        })
+      end
+    end)
+  end)
   return true
 end
 
 ---Check if blink-cmp completion menu is visible
 ---@return boolean
 function BlinkCmpEngine:is_visible()
-  local ok, blink = pcall(require, 'blink.cmp')
-  return ok and blink.is_visible()
+  local blink = require('blink.cmp')
+  return blink.is_visible()
 end
 
 ---Trigger completion manually for blink-cmp
@@ -83,10 +114,7 @@ function BlinkCmpEngine:trigger(trigger_char)
 end
 
 function BlinkCmpEngine:hide()
-  local blink = require('blink.cmp')
-  if blink.is_visible() then
-    blink.hide()
-  end
+  require('blink.cmp').hide()
 end
 
 -- Source implementation for blink-cmp provider (when this module is loaded by blink.cmp)
@@ -157,7 +185,7 @@ function Source:get_completions(ctx, callback)
   end)
 end
 
-function Source:execute(ctx, item, callback, default_implementation)
+function Source:execute(_, item, callback, default_implementation)
   default_implementation()
 
   if item.data and item.data.original_item then

@@ -313,7 +313,6 @@ function EventManager:emit(event_name, data)
     table.insert(self.captured_events, vim.deepcopy(event))
   end
 
-  -- Dispatch to internal listeners
   if listeners then
     for _, callback in ipairs(listeners) do
       local ok, result = util.pcall_trace(callback, data)
@@ -324,7 +323,6 @@ function EventManager:emit(event_name, data)
     end
   end
 
-  -- Fire User autocmd for external subscribers
   if not vim.startswith(event_name, 'custom.') then
     vim.api.nvim_exec_autocmds('User', {
       pattern = 'OpencodeEvent:' .. event_name,

@@ -106,8 +106,6 @@ M.open = Promise.async(function(opts)
       state.last_sent_context = nil
       context.unload_attachments()
 
-      state.current_model = nil
-      state.current_mode = nil
       M.ensure_current_mode():await()
 
       state.active_session = M.create_new_session():await()
@@ -266,6 +264,12 @@ function M.configure_provider()
     end
     local model_str = string.format('%s/%s', selection.provider, selection.model)
     state.current_model = model_str
+
+    if state.current_mode then
+      local mode_map = vim.deepcopy(state.user_mode_model_map)
+      mode_map[state.current_mode] = model_str
+      state.user_mode_model_map = mode_map
+    end
 
     if state.windows then
       ui.focus_input()
@@ -456,8 +460,13 @@ M.switch_to_mode = Promise.async(function(mode)
 
   local agent_config = opencode_config and opencode_config.agent or {}
   local mode_config = agent_config[mode] or {}
-  if mode_config.model and mode_config.model ~= '' then
+
+  if state.user_mode_model_map[mode] then
+    state.current_model = state.user_mode_model_map[mode]
+  elseif mode_config.model and mode_config.model ~= '' then
     state.current_model = mode_config.model
+  elseif opencode_config and opencode_config.model and opencode_config.model ~= '' then
+    state.current_model = opencode_config.model
   end
   return true
 end)

@@ -465,7 +465,7 @@ M.switch_to_mode = Promise.async(function(mode)
     state.current_model = state.user_mode_model_map[mode]
   elseif mode_config.model and mode_config.model ~= '' then
     state.current_model = mode_config.model
-  else
+  elseif opencode_config and opencode_config.model and opencode_config.model ~= '' then
     state.current_model = opencode_config.model
   end
   return true

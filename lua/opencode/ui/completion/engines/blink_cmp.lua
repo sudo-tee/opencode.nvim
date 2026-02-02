@@ -23,10 +23,11 @@ end
 ---@param completion_sources table[]
 ---@return boolean
 function BlinkCmpEngine:setup(completion_sources)
-  local ok, blink = pcall(require, 'blink.cmp')
+  local ok, _ = pcall(require, 'blink.cmp')
   if not ok then
     return false
   end
+  local blink = require('blink.cmp')
 
   CompletionEngine.setup(self, completion_sources)
 
@@ -45,11 +46,10 @@ function BlinkCmpEngine:setup(completion_sources)
         return
       end
 
-      local blink = require('blink.cmp')
       local ctx = blink.get_context()
       local triggers = CompletionEngine.get_trigger_characters()
 
-      -- blink has a tendency to show other providers even when we want only our own.
+      -- blink has a tendency to show other providers even when we only want our own matching the trigger.
       local should_override = (
         ctx.trigger.initial_kind == 'trigger_character' and vim.tbl_contains(triggers, ctx.trigger.character)
       ) or (ctx.trigger.initial_kind == 'keyword' and vim.tbl_contains(triggers, ctx.line:sub(1, 1)))
@@ -57,11 +57,36 @@ function BlinkCmpEngine:setup(completion_sources)
       if should_override then
         blink.show({
           providers = { 'opencode_mentions' },
-          trigger_character = ctx.trigger.character,
+          trigger_character = ctx.trigger.character or ctx.line:sub(1, 1),
         })
       end
     end,
   })
+
+  state.subscribe('input_content', function(_, content)
+    if self:is_visible() then
+      return
+    end
+    vim.schedule(function()
+      local blink = require('blink.cmp')
+      local ctx = blink.get_context()
+      if not ctx then
+        return
+      end
+
+      --blink ctx.line is out of date here, so we get the line ourselves
+      local line = vim.api.nvim_get_current_line()
+      local col = ctx.cursor[2]
+      local before_cursor = line:sub(1, col)
+      local trigger_char, trigger_match = CompletionEngine.parse_trigger(self, before_cursor)
+      if trigger_match then
+        blink.show({
+          providers = { 'opencode_mentions' },
+          trigger_character = trigger_char,
+        })
+      end
+    end)
+  end)
   return true
 end
 

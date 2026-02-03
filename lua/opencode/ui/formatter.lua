@@ -562,7 +562,12 @@ end
 function M._format_grep_tool(output, input, metadata)
   input = input or { path = '', include = '', pattern = '' }
 
-  local grep_str = string.format('%s` `%s', (input.path or input.include) or '', input.pattern or '')
+  local grep_str = vim
+    .iter({ input.path, input.include, input.pattern })
+    :filter(function(s)
+      return s ~= nil
+    end)
+    :join('` `')
 
   M.format_action(output, icons.get('search') .. ' grep', grep_str)
   if not config.ui.output.tools.show_output then

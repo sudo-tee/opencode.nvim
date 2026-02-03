@@ -8,6 +8,9 @@ M._hidden = false
 M._toggling = false
 M._resize_scheduled = false
 
+-- Cache namespace ID to avoid repeated creation
+local placeholder_ns = vim.api.nvim_create_namespace('input_placeholder')
+
 local function get_content_height(windows)
   local line_count = vim.api.nvim_buf_line_count(windows.input_buf)
   if line_count <= 0 then
@@ -303,7 +306,7 @@ function M.refresh_placeholder(windows, input_lines)
     input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
   end
   if #input_lines == 1 and input_lines[1] == '' then
-    local ns_id = vim.api.nvim_create_namespace('input_placeholder')
+    local ns_id = placeholder_ns
     local win_width = vim.api.nvim_win_get_width(windows.input_win)
     local padding = string.rep(' ', win_width)
     local slash_key = config.get_key_for_function('input_window', 'slash_commands')
@@ -338,7 +341,7 @@ function M.refresh_placeholder(windows, input_lines)
       virt_text_pos = 'overlay',
     })
   else
-    vim.api.nvim_buf_clear_namespace(windows.input_buf, vim.api.nvim_create_namespace('input_placeholder'), 0, -1)
+    vim.api.nvim_buf_clear_namespace(windows.input_buf, placeholder_ns, 0, -1)
   end
 end
 
@@ -346,7 +349,7 @@ function M.clear_placeholder(windows)
   if not windows or not windows.input_buf then
     return
   end
-  vim.api.nvim_buf_clear_namespace(windows.input_buf, vim.api.nvim_create_namespace('input_placeholder'), 0, -1)
+  vim.api.nvim_buf_clear_namespace(windows.input_buf, placeholder_ns, 0, -1)
 end
 
 function M.recover_input(windows)

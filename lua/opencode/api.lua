@@ -15,6 +15,37 @@ local Promise = require('opencode.promise')
 
 local M = {}
 
+---Get the current window state of opencode
+---@return {status: 'closed'|'hidden'|'visible', visible: boolean, hidden: boolean, position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
+function M.get_window_state()
+  local windows = state.windows
+  local status = state.get_window_status()
+
+  local cursor_positions = {
+    input = nil,
+    output = nil,
+  }
+
+  -- If windows are visible, get current cursor positions
+  if status == 'visible' then
+    cursor_positions.input = state.save_cursor_position('input', windows.input_win)
+    cursor_positions.output = state.save_cursor_position('output', windows.output_win)
+  else
+    -- Return saved positions
+    cursor_positions.input = state.get_cursor_position('input')
+    cursor_positions.output = state.get_cursor_position('output')
+  end
+
+  return {
+    status = status,
+    visible = status == 'visible',
+    hidden = status == 'hidden',
+    position = config.ui.position,
+    windows = windows,
+    cursor_positions = cursor_positions,
+  }
+end
+
 function M.swap_position()
   require('opencode.ui.ui').swap_position()
 end
@@ -51,6 +82,11 @@ function M.close()
   ui.close_windows(state.windows)
 end
 
+-- Hide the UI but keep buffers for fast restore.
+function M.hide()
+  ui.close_windows(state.windows, true)
+end
+
 function M.paste_image()
   core.paste_image_from_clipboard()
 end
@@ -74,13 +110,31 @@ M.toggle = Promise.async(function(new_session)
     focus = state.last_focused_opencode_window or 'input'
   end
 
-  if state.windows == nil or not are_windows_in_current_tab() then
-    if state.windows then
-      M.close()
+  -- Check if windows are actually open (not just if state.windows exists)
+  -- When hidden with persist_state, state.windows exists but window IDs are nil
+  local windows_open = state.windows ~= nil
+    and state.windows.input_win ~= nil
+    and vim.api.nvim_win_is_valid(state.windows.input_win)
+    and are_windows_in_current_tab()
+
+  if not windows_open then
+    -- Windows closed (or hidden with preserved buffers), open/restore them
+    -- Note: When hidden with persist_state, state.windows exists but window IDs are nil.
+    -- We should not call M.close() here as it would delete the preserved buffers.
+    -- Just clear the stale window state reference; create_windows will handle hidden buffers.
+    if state.windows and not state.has_hidden_buffers() then
+      -- No hidden buffers, safe to clear the stale state
+      state.windows = nil
     end
     core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
-    M.close()
+    -- Windows open, close/hide them
+    if config.ui.persist_state then
+      -- Keep buffers and avoid renderer teardown for faster restore.
+      M.hide()
+    else
+      M.close()
+    end
   end
 end)
 
@@ -1034,6 +1088,13 @@ M.commands = {
     desc = 'Close opencode windows',
     fn = function(args)
       M.close()
+    end,
+  },
+
+  hide = {
+    desc = 'Hide opencode windows (preserve buffers for fast restore)',
+    fn = function(args)
+      M.hide()
     end,
   },
 

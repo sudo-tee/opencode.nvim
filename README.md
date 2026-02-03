@@ -201,6 +201,7 @@ require('opencode').setup({
     position = 'right', -- 'right' (default), 'left' or 'current'. Position of the UI split. 'current' uses the current window for the output.
     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window
     window_width = 0.40, -- Width as percentage of editor width
+    persist_state = true, -- Preserve buffers and view state when toggling UI off (default: true). When true, buffers and scroll positions persist for faster restore.
     zoom_width = 0.8, -- Zoom width as percentage of editor width
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer

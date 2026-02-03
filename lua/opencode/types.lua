@@ -115,6 +115,7 @@
 ---@field position 'right'|'left'|'current' # Position of the UI (default: 'right')
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
+---@field persist_state boolean
 ---@field zoom_width number
 ---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean

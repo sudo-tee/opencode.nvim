@@ -264,6 +264,15 @@ function M.setup_autocmds(windows, group)
       M.viewport_at_bottom = M.is_at_bottom(windows.output_win)
     end,
   })
+
+  -- Save cursor position when leaving output window
+  vim.api.nvim_create_autocmd('WinLeave', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      state.save_cursor_position('output', windows.output_win)
+    end,
+  })
 end
 
 function M.clear()

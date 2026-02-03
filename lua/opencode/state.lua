@@ -196,6 +196,94 @@ function M.is_running()
   return M.job_count > 0
 end
 
+---Get the current window status
+---@return 'closed'|'hidden'|'visible'
+function M.get_window_status()
+  local windows = _state.windows
+  if windows == nil then
+    return 'closed'
+  end
+  if windows.input_win ~= nil and vim.api.nvim_win_is_valid(windows.input_win) then
+    return 'visible'
+  end
+  -- Check if we have hidden buffers (persist_state feature)
+  if _state._hidden_buffers and _state._hidden_buffers.input_buf and vim.api.nvim_buf_is_valid(_state._hidden_buffers.input_buf) then
+    return 'hidden'
+  end
+  return 'closed'
+end
+
+---Save cursor position for a window
+---@param win_type 'input'|'output'
+---@param win_id integer|nil
+function M.save_cursor_position(win_type, win_id)
+  if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
+  local ok, pos = pcall(vim.api.nvim_win_get_cursor, win_id)
+  if ok then
+    if win_type == 'input' then
+      _state.last_input_window_position = pos
+    elseif win_type == 'output' then
+      _state.last_output_window_position = pos
+    end
+  end
+end
+
+---Get saved cursor position
+---@param win_type 'input'|'output'
+---@return integer[]|nil
+function M.get_cursor_position(win_type)
+  if win_type == 'input' then
+    return _state.last_input_window_position
+  elseif win_type == 'output' then
+    return _state.last_output_window_position
+  end
+  return nil
+end
+
+---Store hidden buffers for persist_state feature
+---@param input_buf integer|nil
+---@param output_buf integer|nil
+---@param input_was_visible boolean
+function M.stash_hidden_buffers(input_buf, output_buf, input_was_visible)
+  _state._hidden_buffers = {
+    input_buf = input_buf,
+    output_buf = output_buf,
+    input_was_visible = input_was_visible,
+  }
+end
+
+---Peek at hidden buffers without consuming them (check only)
+---@return boolean
+function M.has_hidden_buffers()
+  local hidden = _state._hidden_buffers
+  if not hidden then
+    return false
+  end
+  -- Validate buffers are still valid
+  local input_valid = hidden.input_buf and vim.api.nvim_buf_is_valid(hidden.input_buf)
+  local output_valid = hidden.output_buf and vim.api.nvim_buf_is_valid(hidden.output_buf)
+  return input_valid and output_valid
+end
+
+---Consume hidden buffers (returns and clears them)
+---@return {input_buf: integer|nil, output_buf: integer|nil, input_was_visible: boolean}|nil
+function M.consume_hidden_buffers()
+  local hidden = _state._hidden_buffers
+  if not hidden then
+    return nil
+  end
+  -- Validate buffers are still valid
+  local input_valid = hidden.input_buf and vim.api.nvim_buf_is_valid(hidden.input_buf)
+  local output_valid = hidden.output_buf and vim.api.nvim_buf_is_valid(hidden.output_buf)
+  if not input_valid or not output_valid then
+    hidden = nil
+  end
+  _state._hidden_buffers = nil
+  return hidden
+end
+
 --- Observable state proxy. All reads/writes go through this table.
 --- Use `state.subscribe(key, cb)` to listen for changes.
 --- Use `state.unsubscribe(key, cb)` to remove listeners.

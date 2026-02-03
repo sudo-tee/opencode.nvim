@@ -159,7 +159,7 @@ describe('opencode.core', function()
       assert.truthy(state.active_session)
     end)
 
-    it('focuses the appropriate window', function()
+    it('focuses the appropriate window and restores cursor positions', function()
       state.windows = nil
       ui.focus_input:revert()
       ui.focus_output:revert()
@@ -171,9 +171,11 @@ describe('opencode.core', function()
         output_focused = true
       end)
 
+      -- When focus is 'input', both windows should have cursor positions restored
+      -- output is restored first, then input is focused
       core.open({ new_session = false, focus = 'input' }):wait()
       assert.is_true(input_focused)
-      assert.is_false(output_focused)
+      assert.is_true(output_focused)
 
       input_focused, output_focused = false, false
       core.open({ new_session = false, focus = 'output' }):wait()

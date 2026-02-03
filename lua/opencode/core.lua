@@ -68,6 +68,9 @@ M.open = Promise.async(function(opts)
   end
 
   local are_windows_closed = state.windows == nil
+    or state.windows.input_win == nil
+    or not vim.api.nvim_win_is_valid(state.windows.input_win)
+  local restoring_hidden = are_windows_closed and ui.has_hidden_buffers()
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local mentioned_files = context.get_context().mentioned_files or {}
@@ -77,6 +80,12 @@ M.open = Promise.async(function(opts)
     end
 
     state.windows = ui.create_windows()
+  end
+
+  -- Restore cursor positions for both windows when reopening
+  -- This ensures output window scroll position is preserved even when focus is on input
+  if are_windows_closed then
+    ui.focus_output({ restore_position = true })
   end
 
   if opts.focus == 'input' then
@@ -117,7 +126,7 @@ M.open = Promise.async(function(opts)
           state.active_session = M.create_new_session():await()
         end
       else
-        if not state.display_route and are_windows_closed then
+        if not state.display_route and are_windows_closed and not restoring_hidden then
           -- We're not displaying /help or something like that but we have an active session
           -- and the windows were closed so we need to do a full refresh. This mostly happens
           -- when opening the window after having closed it since we're not currently clearing

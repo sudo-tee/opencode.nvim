@@ -160,6 +160,7 @@ function M.setup(windows)
   state.subscribe('restore_points', on_change)
 
   vim.api.nvim_create_autocmd({ 'VimResized', 'WinResized' }, {
+    group = vim.api.nvim_create_augroup('OpencodeFooterResize', { clear = true }),
     callback = function()
       M.update_window(windows)
     end,

@@ -424,7 +424,7 @@ function M._format_context_file(output, path)
   if vim.startswith(path, cwd) then
     path = path:sub(#cwd + 2)
   end
-  return output:add_line(string.format('[%s](%s)', path, path))
+  return output:add_line(string.format('[`%s`](%s)', path, path))
 end
 
 ---@param output Output Output object to write to

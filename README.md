@@ -149,7 +149,7 @@ require('opencode').setup({
       ['<leader>o/'] = { 'quick_chat', mode = { 'n', 'x' } }, -- Open quick chat input with selection context in visual mode or current line context in normal mode
     },
     input_window = {
-      ['<S-cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
+      ['<C-s>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
       ['<esc>'] = { 'close' }, -- Close UI windows
       ['<C-c>'] = { 'cancel' }, -- Cancel opencode request while it is running
       ['~'] = { 'mention_file', mode = 'i' }, -- Pick a file and add to context. See File Mentions section

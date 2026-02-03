@@ -62,7 +62,7 @@ M.defaults = {
     },
     input_window = {
       ['<cr>'] = { 'submit_input_prompt', mode = { 'n' } },
-      ['<S-cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
+      ['<C-s>'] = { 'submit_input_prompt', mode = { 'n', 'i' } },
       ['<esc>'] = { 'close' },
       ['<C-c>'] = { 'cancel' },
       ['~'] = { 'mention_file', mode = 'i' },

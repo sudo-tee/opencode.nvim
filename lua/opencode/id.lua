@@ -18,14 +18,14 @@ local LENGTH = 26
 -- Generate random base62 string
 local function random_base62(length)
   local chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-  local result = ''
+  local parts = {}
 
-  for _ = 1, length do
+  for i = 1, length do
     local rand = math.random(1, 62)
-    result = result .. chars:sub(rand, rand)
+    parts[i] = chars:sub(rand, rand)
   end
 
-  return result
+  return table.concat(parts)
 end
 
 -- Convert number to hex string with padding
@@ -81,11 +81,12 @@ local function generate_new_id(prefix, descending)
   end
 
   -- Extract 6 bytes (48 bits) from the timestamp
-  local time_bytes = ''
+  local time_parts = {}
   for i = 5, 0, -1 do
     local byte_val = band(rshift(now, i * 8), 0xff)
-    time_bytes = time_bytes .. to_hex_padded(byte_val, 1)
+    time_parts[6 - i] = to_hex_padded(byte_val, 1)
   end
+  local time_bytes = table.concat(time_parts)
 
   -- Generate random suffix
   local random_suffix = random_base62(LENGTH - 12)

@@ -75,15 +75,18 @@ function M.setup_autocmds(windows)
   end
 end
 
+---@param windows OpencodeWindowState?
 function M.setup_resize_handler(windows)
   local resize_group = vim.api.nvim_create_augroup('OpencodeResize', { clear = true })
   vim.api.nvim_create_autocmd('VimResized', {
     group = resize_group,
     callback = function()
+      require('opencode.ui.ui').reconcile_windows(windows, 'input')
+      require('opencode.ui.ui').reconcile_windows(windows, 'output')
       require('opencode.ui.topbar').render()
       require('opencode.ui.footer').update_window(windows)
-      require('opencode.ui.input_window').update_dimensions(windows)
-      require('opencode.ui.output_window').update_dimensions(windows)
+      input_window.update_dimensions(windows)
+      output_window.update_dimensions(windows)
     end,
   })
 

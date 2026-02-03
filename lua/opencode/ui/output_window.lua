@@ -23,6 +23,7 @@ function M._build_output_win_config()
   }
 end
 
+---@param windows OpencodeWindowState?
 function M.mounted(windows)
   windows = windows or state.windows
   return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)

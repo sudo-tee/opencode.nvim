@@ -296,4 +296,48 @@ function M.toggle_zoom()
   end
 end
 
+---Reconcile window state when duplicate windows may have been created
+---This can happen when external commands like 'tabdo' manipulate window layouts
+---@param windows OpencodeWindowState?
+---@param key string
+function M.reconcile_windows(windows, key)
+  local buf_key = key .. '_buf'
+  if not windows or not windows[buf_key] then
+    return
+  end
+
+  local wins = vim.fn.win_findbuf(windows[buf_key])
+  if type(wins) ~= 'table' or #wins == 0 then
+    return
+  end
+
+  local valid_wins = {}
+  for _, win in ipairs(wins) do
+    if vim.api.nvim_win_is_valid(win) then
+      table.insert(valid_wins, win)
+    end
+  end
+  if #valid_wins == 0 then
+    return
+  end
+
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  local preferred = nil
+  for _, win in ipairs(valid_wins) do
+    if vim.api.nvim_win_get_tabpage(win) == current_tab then
+      preferred = win
+      break
+    end
+  end
+  preferred = preferred or valid_wins[1]
+
+  windows[key .. '_win'] = preferred
+
+  for _, win in ipairs(valid_wins) do
+    if win ~= preferred and vim.api.nvim_win_get_tabpage(win) == current_tab then
+      pcall(vim.api.nvim_win_close, win, false)
+    end
+  end
+end
+
 return M

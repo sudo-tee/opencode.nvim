@@ -560,9 +560,12 @@ end
 ---@param input GrepToolInput data for the tool
 ---@param metadata GrepToolMetadata Metadata for the tool use
 function M._format_grep_tool(output, input, metadata)
-  input = input or { path = '', include = '', pattern = '' }
-
-  local grep_str = string.format('%s` `%s', (input.path or input.include) or '', input.pattern or '')
+  local grep_str = table.concat(
+    vim.tbl_filter(function(part)
+      return part ~= nil
+    end, { input.path or input.include, input.pattern }),
+    '` `'
+  )
 
   M.format_action(output, icons.get('search') .. ' grep', grep_str)
   if not config.ui.output.tools.show_output then

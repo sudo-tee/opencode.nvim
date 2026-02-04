@@ -158,15 +158,16 @@ function Source:get_completions(ctx, callback)
       trigger_char = trigger_char or '',
     }
 
+    local CompletionItemKind = require('blink.cmp.types').CompletionItemKind
+
     local items = {}
     for _, source in ipairs(completion_sources) do
       local source_items = source.complete(context):await()
       for i, item in ipairs(source_items) do
         local insert_text = item.insert_text or item.label
-        table.insert(items, {
+
+        local blink_item = {
           label = item.label,
-          kind = item.kind,
-          kind_icon = item.kind_icon,
           kind_hl = item.kind_hl,
           detail = item.detail,
           documentation = item.documentation,
@@ -177,7 +178,18 @@ function Source:get_completions(ctx, callback)
           data = {
             original_item = item,
           },
-        })
+        }
+
+        local kind = item.kind:gsub("^%l", string.upper)
+        if CompletionItemKind[kind] then
+          -- blink builtin kinds, e.g. Folder/File
+          blink_item.kind = CompletionItemKind[kind]
+        else
+          -- custom kind: https://cmp.saghen.dev/recipes.html#set-source-kind-icon-and-name
+          blink_item.kind_name = kind
+          blink_item.kind_icon = item.kind_icon
+        end
+        table.insert(items, blink_item)
       end
     end
 

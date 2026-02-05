@@ -3,6 +3,7 @@ local ui = require('opencode.ui.ui')
 local helpers = require('tests.helpers')
 local output_window = require('opencode.ui.output_window')
 local assert = require('luassert')
+local stub = require('luassert.stub')
 local config = require('opencode.config')
 
 local function assert_output_matches(expected, actual, name)
@@ -143,6 +144,52 @@ describe('renderer unit tests', function()
         string.format('Renderer did not unsubscribe from event: %s', event_name)
       )
     end
+  end)
+
+  it('updates active session title from session.updated event', function()
+    local renderer = require('opencode.ui.renderer')
+
+    state.active_session = {
+      id = 'ses_123',
+      title = 'New session - 2026-02-05T22:26:08.579Z',
+      time = { created = 1, updated = 1 },
+    }
+
+    renderer.on_session_updated({
+      info = {
+        id = 'ses_123',
+        title = 'Branch review request',
+        time = { created = 1, updated = 2 },
+      },
+    })
+
+    assert.are.equal('Branch review request', state.active_session.title)
+  end)
+
+  it('rerenders full session when revert changes', function()
+    local renderer = require('opencode.ui.renderer')
+
+    state.messages = {}
+    state.active_session = {
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+      revert = { messageID = 'msg_1', snapshot = 'a', diff = '' },
+    }
+
+    local render_stub = stub(renderer, '_render_full_session_data')
+
+    renderer.on_session_updated({
+      info = {
+        id = 'ses_123',
+        title = 'Session',
+        time = { created = 1, updated = 2 },
+        revert = { messageID = 'msg_2', snapshot = 'b', diff = '' },
+      },
+    })
+
+    assert.stub(render_stub).was_called_with(state.messages)
+    render_stub:revert()
   end)
 end)
 

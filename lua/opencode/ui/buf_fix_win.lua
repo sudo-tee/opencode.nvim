@@ -44,8 +44,17 @@ local function setup()
   end
   global_autocmd_setup = true
 
+  local augroup = vim.api.nvim_create_augroup('OpenCodeBufFixWin', { clear = false })
   vim.api.nvim_create_autocmd({ 'WinNew', 'VimResized' }, {
+    group = augroup,
     callback = check_all_buffers,
+  })
+  vim.api.nvim_create_autocmd('BufDelete', {
+    callback = function(args)
+      if args and args.buf then
+        buff_to_win_map[args.buf] = nil
+      end
+    end,
   })
 end
 
@@ -56,7 +65,9 @@ function M.fix_to_win(buf, get_intended_window)
   setup()
 
   buff_to_win_map[buf] = get_intended_window
+  local augroup = vim.api.nvim_create_augroup('OpenCodeBufFixWin_' .. buf, { clear = true })
   vim.api.nvim_create_autocmd('BufWinEnter', {
+    group = augroup,
     buffer = buf,
     callback = function()
       close_duplicates(buf, get_intended_window)

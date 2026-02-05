@@ -224,14 +224,25 @@ end
 
 function M.get_session_from_events(events, with_session_updates)
   -- renderer needs a valid session id
-  -- find the last session.updated event
+  -- merge session.updated events and use the latest updated session
 
   if with_session_updates then
-    for i = #events, 1, -1 do
-      local event = events[i]
-      if event.type == 'session.updated' and event.properties.info and event.properties.info then
-        return event.properties.info
+    local sessions_by_id = {}
+    local last_session_id = nil
+
+    for _, event in ipairs(events) do
+      if event.type == 'session.updated' and event.properties.info then
+        local info = event.properties.info
+        if info.id then
+          local existing = sessions_by_id[info.id] or {}
+          sessions_by_id[info.id] = vim.tbl_deep_extend('force', existing, vim.deepcopy(info))
+          last_session_id = info.id
+        end
       end
+    end
+
+    if last_session_id then
+      return sessions_by_id[last_session_id]
     end
   end
   for _, event in ipairs(events) do

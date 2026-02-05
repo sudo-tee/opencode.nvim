@@ -55,13 +55,29 @@ function M.paste_image()
   core.paste_image_from_clipboard()
 end
 
+--- Check if opencode windows are in the current tab page
+--- @return boolean
+local function are_windows_in_current_tab()
+  if not state.windows or not state.windows.output_win then
+    return false
+  end
+
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, state.windows.output_win)
+  return ok and win_tab == current_tab
+end
+
 M.toggle = Promise.async(function(new_session)
   -- When auto_hide input is enabled, always focus input; otherwise use last focused
   local focus = 'input' ---@cast focus 'input' | 'output'
   if not config.ui.input.auto_hide then
     focus = state.last_focused_opencode_window or 'input'
   end
-  if state.windows == nil then
+
+  if state.windows == nil or not are_windows_in_current_tab() then
+    if state.windows then
+      M.close()
+    end
     core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
     M.close()

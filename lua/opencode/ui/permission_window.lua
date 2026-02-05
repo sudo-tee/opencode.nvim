@@ -71,7 +71,9 @@ function M.format_display(output)
     progress = string.format(' (%d/%d)', 1, #M._permission_queue)
   end
 
-  local title = permission.title or table.concat(permission.patterns or {}, ', ') or 'Unknown Permission'
+  local title = permission.title
+    or table.concat(permission.patterns or {}, ', '):gsub('\r', '\\r'):gsub('\n', '\\n')
+    or 'Unknown Permission'
   local perm_type = permission.permission or permission.type or 'unknown'
 
   local content = { (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '*' .. ' `' .. title .. '`' }

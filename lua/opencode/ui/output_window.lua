@@ -11,7 +11,6 @@ function M.create_buf()
 
   local buffixwin = require('opencode.ui.buf_fix_win')
   buffixwin.fix_to_win(output_buf, function()
-    local state = require('opencode.state')
     return state.windows and state.windows.output_win
   end)
 

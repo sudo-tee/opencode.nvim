@@ -15,16 +15,14 @@ local function close_duplicates(buf, get_win)
   end
 
   local wins = vim.fn.win_findbuf(buf)
-  if #wins <= 1 then
-    return
-  end
-
-  for _, win in ipairs(wins) do
-    if win ~= intended and vim.api.nvim_win_is_valid(win) then
-      vim.schedule(function()
-        pcall(vim.api.nvim_win_close, win, true)
-      end)
-    end
+  if #wins > 1 then
+    vim.schedule(function()
+      for _, win in ipairs(wins) do
+        if win ~= intended and vim.api.nvim_win_is_valid(win) then
+          pcall(vim.api.nvim_win_close, win, true)
+        end
+      end
+    end)
   end
 end
 

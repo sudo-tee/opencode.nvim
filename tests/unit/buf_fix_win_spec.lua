@@ -358,6 +358,25 @@ describe('buf_fix_win module', function()
       assert.equal(initial_buf2 + 1, final_buf2)
     end)
 
+    it('should not accumulate BufWinEnter autocmds when fix_to_win is called multiple times for same buffer', function()
+      local buf = create_test_buffer()
+      local win = create_test_window(buf)
+
+      local initial = #vim.api.nvim_get_autocmds({ event = 'BufWinEnter', buffer = buf })
+
+      fresh_buf_fix_win.fix_to_win(buf, function()
+        return win
+      end)
+      local after_first = #vim.api.nvim_get_autocmds({ event = 'BufWinEnter', buffer = buf })
+      fresh_buf_fix_win.fix_to_win(buf, function()
+        return win
+      end)
+      local after_second = #vim.api.nvim_get_autocmds({ event = 'BufWinEnter', buffer = buf })
+
+      assert.equal(initial + 1, after_first)
+      assert.equal(initial + 1, after_second)
+    end)
+
     it('should setup global VimResized autocmd when fix_to_win is first called', function()
       local buf = create_test_buffer()
       local win = create_test_window(buf)

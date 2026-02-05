@@ -81,15 +81,12 @@ function M.setup_resize_handler(windows)
   vim.api.nvim_create_autocmd('VimResized', {
     group = resize_group,
     callback = function()
-      require('opencode.ui.ui').reconcile_windows(windows, 'input')
-      require('opencode.ui.ui').reconcile_windows(windows, 'output')
       require('opencode.ui.topbar').render()
       require('opencode.ui.footer').update_window(windows)
       input_window.update_dimensions(windows)
       output_window.update_dimensions(windows)
     end,
   })
-
   vim.api.nvim_create_autocmd('WinResized', {
     group = resize_group,
     callback = function(args)

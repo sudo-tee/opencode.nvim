@@ -8,6 +8,13 @@ M.viewport_at_bottom = true
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
+
+  local buffixwin = require('opencode.ui.buf_fix_win')
+  buffixwin.fix_to_win(output_buf, function()
+    local state = require('opencode.state')
+    return state.windows and state.windows.output_win
+  end)
+
   return output_buf
 end
 
@@ -97,7 +104,10 @@ function M.setup(windows)
   set_win_option('relativenumber', false, windows.output_win)
   set_buf_option('modifiable', false, windows.output_buf)
   set_buf_option('buftype', 'nofile', windows.output_buf)
+  set_buf_option('bufhidden', 'hide', windows.output_buf)
+  set_buf_option('buflisted', false, windows.output_buf)
   set_buf_option('swapfile', false, windows.output_buf)
+
   if config.ui.position ~= 'current' then
     set_win_option('winfixbuf', true, windows.output_win)
   end

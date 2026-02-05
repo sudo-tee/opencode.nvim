@@ -62,6 +62,13 @@ end
 function M.create_buf()
   local input_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('filetype', 'opencode', { buf = input_buf })
+
+  local buffixwin = require('opencode.ui.buf_fix_win')
+  buffixwin.fix_to_win(input_buf, function()
+    local state = require('opencode.state')
+    return state.windows and state.windows.input_win
+  end)
+
   return input_buf
 end
 
@@ -261,6 +268,8 @@ function M.setup(windows)
   set_win_option('number', false, windows)
   set_win_option('relativenumber', false, windows)
   set_buf_option('buftype', 'nofile', windows)
+  set_buf_option('bufhidden', 'hide', windows)
+  set_buf_option('buflisted', false, windows)
   set_buf_option('swapfile', false, windows)
 
   if config.ui.position ~= 'current' then

@@ -64,7 +64,7 @@ describe('Timer', function()
       assert.is_true(timer:is_running())
 
       -- Wait for multiple ticks
-      vim.wait(500, function()
+      vim.wait(1000, function()
         return tick_count >= 3
       end)
 

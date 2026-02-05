@@ -24,7 +24,9 @@ local function ensure_vim_leave_autocmd()
     callback = function()
       local state = require('opencode.state')
       if state.opencode_server then
-        state.opencode_server:shutdown():wait(2000)
+        pcall(function()
+          state.opencode_server:shutdown():wait(2000)
+        end)
       end
     end,
   })
@@ -56,15 +58,27 @@ function OpencodeServer:shutdown()
   end
 
   if self.job and self.job.pid then
+    local job = self.job
+
+    self.job = nil
+    self.url = nil
+    self.handle = nil
+
     pcall(function()
-      self.job:kill('sigterm')
+      job:kill(15) -- SIGTERM
     end)
+
+    vim.defer_fn(function()
+      if job and job.pid then
+        pcall(function()
+          job:kill(9) -- SIGKILL
+        end)
+      end
+    end, 500)
+  else
+    self.shutdown_promise:resolve(true)
   end
 
-  self.job = nil
-  self.url = nil
-  self.handle = nil
-  self.shutdown_promise:resolve(true)
   return self.shutdown_promise
 end
 
@@ -118,6 +132,7 @@ function OpencodeServer:spawn(opts)
       end
     end,
   }, function(exit_opts)
+    -- Clear fields if not already cleared by shutdown()
     self.job = nil
     self.url = nil
     self.handle = nil

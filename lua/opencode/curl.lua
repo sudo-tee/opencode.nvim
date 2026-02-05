@@ -130,7 +130,7 @@ function M.request(opts)
       shutdown = function()
         if job and job.pid then
           pcall(function()
-            job:kill('sigterm')
+            job:kill(15) -- SIGTERM
           end)
         end
       end,

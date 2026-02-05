@@ -34,7 +34,8 @@ describe('permission_window', function()
     assert.are.equal(1, #captured_opts.content)
 
     local rendered_title = captured_opts.content[1]
-    assert.is_true(rendered_title:find('\\n', 1, true) ~= nil)
+    local expected_pattern = "python3 - <<'PY'\\nprint('hello')\\nPY"
+    assert.is_true(rendered_title:find('`' .. expected_pattern .. '`', 1, true) ~= nil)
     assert.is_nil(rendered_title:find('\n', 1, true))
   end)
 end)

@@ -847,10 +847,17 @@ function M.on_session_updated(properties)
 
   local current_session = state.active_session
   local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
+  local previous_title = current_session.title
 
   local merged_session = vim.tbl_deep_extend('force', vim.deepcopy(current_session), updated_session)
   if not vim.deep_equal(current_session, merged_session) then
-    state.active_session = merged_session
+    for key, value in pairs(merged_session) do
+      current_session[key] = value
+    end
+
+    if updated_session.title and updated_session.title ~= previous_title then
+      require('opencode.ui.topbar').render()
+    end
   end
 
   if revert_changed then

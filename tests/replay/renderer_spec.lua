@@ -148,12 +148,16 @@ describe('renderer unit tests', function()
 
   it('updates active session title from session.updated event', function()
     local renderer = require('opencode.ui.renderer')
+    local topbar = require('opencode.ui.topbar')
 
     state.active_session = {
       id = 'ses_123',
       title = 'New session - 2026-02-05T22:26:08.579Z',
       time = { created = 1, updated = 1 },
     }
+
+    local active_session_ref = state.active_session
+    local topbar_render_stub = stub(topbar, 'render')
 
     renderer.on_session_updated({
       info = {
@@ -163,7 +167,10 @@ describe('renderer unit tests', function()
       },
     })
 
+    assert.is_true(state.active_session == active_session_ref)
     assert.are.equal('Branch review request', state.active_session.title)
+    assert.stub(topbar_render_stub).was_called()
+    topbar_render_stub:revert()
   end)
 
   it('rerenders full session when revert changes', function()
@@ -189,6 +196,29 @@ describe('renderer unit tests', function()
     })
 
     assert.stub(render_stub).was_called_with(state.messages)
+    render_stub:revert()
+  end)
+
+  it('ignores session.updated for non-active session IDs', function()
+    local renderer = require('opencode.ui.renderer')
+
+    state.active_session = {
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    }
+
+    local render_stub = stub(renderer, '_render_full_session_data')
+
+    renderer.on_session_updated({
+      info = {
+        id = 'ses_999',
+        title = 'Should not apply',
+      },
+    })
+
+    assert.are.equal('Session', state.active_session.title)
+    assert.stub(render_stub).was_not_called()
     render_stub:revert()
   end)
 end)

@@ -46,17 +46,39 @@ describe('opencode.opencode_server', function()
 
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
-    server.job = { pid = 2, kill = function() end }
-    server.url = 'http://x'
-    server.handle = 2
+    local exit_callback
+    
+    -- Mock vim.system to capture the exit callback
+    vim.system = function(cmd, opts, on_exit)
+      exit_callback = on_exit
+      return { pid = 2, kill = function() end }
+    end
+    
+    -- Spawn the server so the exit callback is set up
+    server:spawn({
+      cwd = '.',
+      on_ready = function() end,
+      on_error = function() end,
+      on_exit = function() end,
+    })
+    
     local resolved = false
     server:get_shutdown_promise():and_then(function()
       resolved = true
     end)
+    
+    -- Call shutdown (sends SIGTERM)
     server:shutdown()
-    vim.wait(50, function()
+    
+    -- Simulate the process exiting by calling the exit callback
+    vim.schedule(function()
+      exit_callback({ code = 0, signal = 0 })
+    end)
+    
+    vim.wait(100, function()
       return resolved
     end)
+    
     assert.is_true(resolved)
     assert.is_nil(server.job)
     assert.is_nil(server.url)

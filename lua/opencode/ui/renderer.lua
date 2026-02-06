@@ -850,6 +850,9 @@ function M.on_session_updated(properties)
   local previous_title = current_session.title
 
   local merged_session = vim.tbl_deep_extend('force', vim.deepcopy(current_session), updated_session)
+
+  -- mutate existing `state.active_session` table in place
+  -- reassigning would cause UI flickering on frequent `session.updated` events since it triggers a full rerender
   if not vim.deep_equal(current_session, merged_session) then
     for key, value in pairs(merged_session) do
       current_session[key] = value

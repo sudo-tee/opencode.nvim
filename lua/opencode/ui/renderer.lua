@@ -839,8 +839,31 @@ function M.on_session_updated(properties)
   if not properties or not properties.info or not state.active_session then
     return
   end
-  if not vim.deep_equal(state.active_session.revert, properties.info.revert) then
-    state.active_session.revert = properties.info.revert
+
+  local updated_session = properties.info
+  if not updated_session.id or updated_session.id ~= state.active_session.id then
+    return
+  end
+
+  local current_session = state.active_session
+  local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
+  local previous_title = current_session.title
+
+  local merged_session = vim.tbl_deep_extend('force', vim.deepcopy(current_session), updated_session)
+
+  if not vim.deep_equal(current_session, merged_session) then
+    -- mutate existing `state.active_session` table in place
+    -- reassigning would cause UI flickering on frequent `session.updated` events since it triggers a full rerender
+    for key, value in pairs(merged_session) do
+      current_session[key] = value
+    end
+
+    if updated_session.title and updated_session.title ~= previous_title then
+      require('opencode.ui.topbar').render()
+    end
+  end
+
+  if revert_changed then
     M._render_full_session_data(state.messages)
   end
 end

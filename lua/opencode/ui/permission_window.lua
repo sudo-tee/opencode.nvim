@@ -72,7 +72,7 @@ function M.format_display(output)
   end
 
   local title = permission.title
-    or table.concat(permission.patterns or {}, ', '):gsub('\r', '\\r'):gsub('\n', '\\n')
+    or table.concat(permission.patterns or {}, '`, `'):gsub('\r', '\\r'):gsub('\n', '\\n')
     or 'Unknown Permission'
   local perm_type = permission.permission or permission.type or 'unknown'
 

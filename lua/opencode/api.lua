@@ -15,6 +15,51 @@ local Promise = require('opencode.promise')
 
 local M = {}
 
+---Get the current window state of opencode
+---@return {status: 'closed'|'hidden'|'visible', visible: boolean, hidden: boolean, position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
+function M.get_window_state()
+  ---@type OpencodeWindowState|nil
+  local windows = state.windows
+  local status = state.get_window_status()
+
+  ---@param win_id integer|nil
+  ---@return integer[]|nil
+  local function get_window_cursor(win_id)
+    if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+      return nil
+    end
+    local ok, pos = pcall(vim.api.nvim_win_get_cursor, win_id)
+    if ok then
+      return pos
+    end
+    return nil
+  end
+
+  local input_cursor = get_window_cursor(windows and windows.input_win)
+  if input_cursor == nil then
+    input_cursor = state.get_cursor_position('input')
+  end
+
+  local output_cursor = get_window_cursor(windows and windows.output_win)
+  if output_cursor == nil then
+    output_cursor = state.get_cursor_position('output')
+  end
+
+  local cursor_positions = {
+    input = input_cursor,
+    output = output_cursor,
+  }
+
+  return {
+    status = status,
+    visible = status == 'visible',
+    hidden = status == 'hidden',
+    position = config.ui.position,
+    windows = windows,
+    cursor_positions = cursor_positions,
+  }
+end
+
 function M.swap_position()
   require('opencode.ui.ui').swap_position()
 end
@@ -51,6 +96,11 @@ function M.close()
   ui.close_windows(state.windows)
 end
 
+-- Hide the UI but keep buffers for fast restore.
+function M.hide()
+  ui.close_windows(state.windows, true)
+end
+
 function M.paste_image()
   core.paste_image_from_clipboard()
 end
@@ -58,29 +108,54 @@ end
 --- Check if opencode windows are in the current tab page
 --- @return boolean
 local function are_windows_in_current_tab()
-  if not state.windows or not state.windows.output_win then
+  if not state.windows then
     return false
   end
 
   local current_tab = vim.api.nvim_get_current_tabpage()
-  local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, state.windows.output_win)
-  return ok and win_tab == current_tab
+
+  local function is_window_in_current_tab(win_id)
+    if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+      return false
+    end
+    local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, win_id)
+    return ok and win_tab == current_tab
+  end
+
+  return is_window_in_current_tab(state.windows.input_win)
+    or is_window_in_current_tab(state.windows.output_win)
 end
 
 M.toggle = Promise.async(function(new_session)
-  -- When auto_hide input is enabled, always focus input; otherwise use last focused
   local focus = 'input' ---@cast focus 'input' | 'output'
   if not config.ui.input.auto_hide then
     focus = state.last_focused_opencode_window or 'input'
   end
 
-  if state.windows == nil or not are_windows_in_current_tab() then
-    if state.windows then
-      M.close()
+  local function is_valid_win(win_id)
+    return win_id ~= nil and vim.api.nvim_win_is_valid(win_id)
+  end
+
+  local windows_open = state.windows ~= nil
+    and (is_valid_win(state.windows.input_win) or is_valid_win(state.windows.output_win))
+    and are_windows_in_current_tab()
+
+  if not windows_open then
+    if state.windows and not state.has_hidden_buffers() then
+      state.windows = nil
     end
     core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
-    M.close()
+    if state.display_route then
+      M.close()
+      return
+    end
+
+    if config.ui.persist_state then
+      M.hide()
+    else
+      M.close()
+    end
   end
 end)
 
@@ -1034,6 +1109,13 @@ M.commands = {
     desc = 'Close opencode windows',
     fn = function(args)
       M.close()
+    end,
+  },
+
+  hide = {
+    desc = 'Hide opencode windows (preserve buffers for fast restore)',
+    fn = function(args)
+      M.hide()
     end,
   },
 

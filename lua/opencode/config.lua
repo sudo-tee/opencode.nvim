@@ -109,6 +109,7 @@ M.defaults = {
     position = 'right',
     input_position = 'bottom',
     window_width = 0.40,
+    persist_state = true,
     zoom_width = 0.8,
     picker_width = 100,
     display_model = true,

@@ -159,7 +159,7 @@ describe('opencode.core', function()
       assert.truthy(state.active_session)
     end)
 
-    it('focuses the appropriate window', function()
+    it('focuses the appropriate window and restores cursor positions', function()
       state.windows = nil
       ui.focus_input:revert()
       ui.focus_output:revert()
@@ -171,14 +171,54 @@ describe('opencode.core', function()
         output_focused = true
       end)
 
+      -- When focus is 'input', both windows should have cursor positions restored
+      -- output is restored first, then input is focused
       core.open({ new_session = false, focus = 'input' }):wait()
       assert.is_true(input_focused)
-      assert.is_false(output_focused)
+      assert.is_true(output_focused)
 
       input_focused, output_focused = false, false
       core.open({ new_session = false, focus = 'output' }):wait()
       assert.is_false(input_focused)
       assert.is_true(output_focused)
+    end)
+
+    it('does not force full render when restoring hidden buffers', function()
+      state.active_session = { id = 'test-session' }
+
+      local status_stub = stub(state, 'get_window_status').returns('hidden')
+      local hidden_stub = stub(ui, 'has_hidden_buffers').returns(true)
+
+      core.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.stub(ui.render_output).was_not_called()
+
+      hidden_stub:revert()
+      status_stub:revert()
+    end)
+
+    it('forces full render when restoring hidden buffers from bottom', function()
+      state.active_session = { id = 'test-session' }
+
+      ui.create_windows:revert()
+      stub(ui, 'create_windows').returns({
+        mock = 'windows',
+        input_buf = 1,
+        output_buf = 2,
+        input_win = 3,
+        output_win = 4,
+        output_was_at_bottom = true,
+      })
+
+      local status_stub = stub(state, 'get_window_status').returns('hidden')
+      local hidden_stub = stub(ui, 'has_hidden_buffers').returns(true)
+
+      core.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.stub(ui.render_output).was_called()
+
+      hidden_stub:revert()
+      status_stub:revert()
     end)
 
     it('creates a new session when no active session and no last session exists', function()

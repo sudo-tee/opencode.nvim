@@ -280,7 +280,11 @@ function M.setup(windows)
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)
   M.setup_keymaps(windows)
-  M.recover_input(windows)
+  -- Only recover input if buffer is empty (not restored from hidden state)
+  local lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+  if #lines == 0 or (#lines == 1 and lines[1] == '') then
+    M.recover_input(windows)
+  end
 
   require('opencode.ui.context_bar').render(windows)
 end
@@ -480,6 +484,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.input_buf,
     callback = function()
+      -- Save cursor position before leaving
+      state.save_cursor_position('input', windows.input_win)
+
       -- Auto-hide input window when auto_hide is enabled and focus leaves
       -- Don't hide if displaying a route (slash command output like /help)
       -- Don't hide if input contains content

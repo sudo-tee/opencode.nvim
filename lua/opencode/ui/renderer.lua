@@ -339,6 +339,8 @@ function M.scroll_to_bottom(force)
       vim.cmd('normal! zb')
     end)
     output_window.viewport_at_bottom = true
+    -- Save cursor position for persist_state feature
+    state.save_cursor_position('output', state.windows.output_win)
   else
     -- User has scrolled up, don't scroll
     output_window.viewport_at_bottom = false

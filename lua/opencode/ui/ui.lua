@@ -1,4 +1,6 @@
+---@type OpencodeConfig & OpencodeConfigModule
 local config = require('opencode.config')
+---@type OpencodeStateModule
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
@@ -9,17 +11,33 @@ local topbar = require('opencode.ui.topbar')
 local M = {}
 
 ---@param windows OpencodeWindowState?
-function M.close_windows(windows)
+---@param preserve_buffers? boolean If true and persist_state is enabled, preserve buffers
+function M.close_windows(windows, preserve_buffers)
   if not windows then
     return
   end
+
+  state.save_cursor_position('input', windows.input_win)
+  state.save_cursor_position('output', windows.output_win)
+  local input_was_hidden = input_window.is_hidden()
+  local output_was_at_bottom = output_window.viewport_at_bottom
 
   if M.is_opencode_focused() then
     M.return_to_last_code_win()
   end
 
+  if state.display_route then
+    state.display_route = nil
+  end
+
+  local should_preserve = preserve_buffers == true and config.ui.persist_state
+
   topbar.close()
-  renderer.teardown()
+  if should_preserve then
+    renderer.setup_subscriptions(false)
+  else
+    renderer.teardown()
+  end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
@@ -27,27 +45,44 @@ function M.close_windows(windows)
   ---@cast windows { input_win: integer, output_win: integer, input_buf: integer, output_buf: integer }
   pcall(vim.api.nvim_win_close, windows.input_win, true)
   if config.ui.position == 'current' then
-    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
-    if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
-      pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
-    end
-    -- Restore original window options
-    if state.saved_window_options and vim.api.nvim_win_is_valid(windows.output_win) then
-      for opt, value in pairs(state.saved_window_options) do
-        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+    -- Only try to restore if output window is still valid
+    if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
+      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
+      if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
+        pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
       end
-      state.saved_window_options = nil
+      if state.saved_window_options then
+        for opt, value in pairs(state.saved_window_options) do
+          pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+        end
+        state.saved_window_options = nil
+      end
     end
   else
     pcall(vim.api.nvim_win_close, windows.output_win, true)
   end
-  pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
-  pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
-  footer.close()
 
-  if state.windows == windows then
-    state.windows = nil
+  if should_preserve then
+    state.stash_hidden_buffers(
+      windows.input_buf,
+      windows.output_buf,
+      not input_was_hidden,
+      output_was_at_bottom
+    )
+    if state.windows == windows then
+      state.windows.input_win = nil
+      state.windows.output_win = nil
+    end
+  else
+    input_window._hidden = false
+    pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
+    state.clear_hidden_buffers()
+    if state.windows == windows then
+      state.windows = nil
+    end
   end
+  footer.close()
 end
 
 function M.return_to_last_code_win()
@@ -76,8 +111,8 @@ local function open_split(direction, type)
 end
 
 function M.create_split_windows(input_buf, output_buf)
-  if state.windows then
-    M.close_windows(state.windows)
+  if state.windows and state.windows.input_win and vim.api.nvim_win_is_valid(state.windows.input_win) then
+    M.close_windows(state.windows, config.ui.persist_state)
   end
   local ui_conf = config.ui
 
@@ -85,12 +120,18 @@ function M.create_split_windows(input_buf, output_buf)
   if ui_conf.position == 'current' then
     main_win = vim.api.nvim_get_current_win()
   else
-    main_win = open_split(ui_conf.position, 'vertical')
+    ---@type 'left'|'right'
+    local split_direction = ui_conf.position == 'left' and 'left' or 'right'
+    main_win = open_split(split_direction, 'vertical')
   end
   vim.api.nvim_set_current_win(main_win)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')
   local output_win = main_win
+
+  if ui_conf.position == 'current' then
+    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
+  end
 
   vim.api.nvim_win_set_buf(input_win, input_buf)
   vim.api.nvim_win_set_buf(output_win, output_buf)
@@ -108,12 +149,24 @@ function M.create_windows()
     state.current_code_buf = vim.api.nvim_get_current_buf()
   end
 
-  local buffers = M.setup_buffers()
+  local buffers
+  local restored = state.consume_hidden_buffers()
+  if restored then
+    buffers = {
+      input_buf = restored.input_buf,
+      output_buf = restored.output_buf,
+      footer_buf = footer.create_buf(),
+    }
+  else
+    buffers = M.setup_buffers()
+  end
+
   local windows = buffers
   local win_ids = M.create_split_windows(buffers.input_buf, buffers.output_buf)
 
   windows.input_win = win_ids.input_win
   windows.output_win = win_ids.output_win
+  windows.output_was_at_bottom = restored and restored.output_was_at_bottom == true
 
   input_window.setup(windows)
   output_window.setup(windows)
@@ -126,7 +179,15 @@ function M.create_windows()
   autocmds.setup_resize_handler(windows)
   require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
 
+  if restored and not restored.input_was_visible then
+    input_window._hide()
+  end
+
   return windows
+end
+
+function M.has_hidden_buffers()
+  return state.has_hidden_buffers()
 end
 
 function M.focus_input(opts)
@@ -262,7 +323,7 @@ end
 function M.swap_position()
   local ui_conf = config.ui
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
-  config.values.ui.position = new_pos
+  config.ui.position = new_pos
 
   if state.windows then
     M.close_windows(state.windows)

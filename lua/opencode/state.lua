@@ -5,6 +5,13 @@
 ---@field footer_buf integer|nil
 ---@field input_buf integer|nil
 ---@field output_buf integer|nil
+---@field output_was_at_bottom boolean|nil
+
+---@class OpencodeHiddenBuffers
+---@field input_buf integer
+---@field output_buf integer
+---@field input_was_visible boolean
+---@field output_was_at_bottom boolean|nil
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
@@ -43,13 +50,11 @@
 ---@field pre_zoom_width integer|nil
 ---@field required_version string
 ---@field opencode_cli_version string|nil
----@field append fun( key:string, value:any)
----@field remove fun( key:string, idx:number)
----@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
----@field subscribe fun( key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
----@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
----@field is_running fun():boolean
+---@field _hidden_buffers OpencodeHiddenBuffers|nil
 
+---@class OpencodeStateModule: OpencodeState
+
+---@type OpencodeStateModule
 local M = {}
 
 -- Internal raw state table
@@ -199,17 +204,23 @@ end
 ---Get the current window status
 ---@return 'closed'|'hidden'|'visible'
 function M.get_window_status()
-  local windows = _state.windows
-  if windows == nil then
-    return 'closed'
-  end
-  if windows.input_win ~= nil and vim.api.nvim_win_is_valid(windows.input_win) then
-    return 'visible'
-  end
-  -- Check if we have hidden buffers (persist_state feature)
-  if _state._hidden_buffers and _state._hidden_buffers.input_buf and vim.api.nvim_buf_is_valid(_state._hidden_buffers.input_buf) then
+  -- Check hidden buffers first to avoid race condition during close_windows()
+  if M.has_hidden_buffers() then
     return 'hidden'
   end
+
+  local windows = _state.windows
+  local input_visible = windows
+    and windows.input_win ~= nil
+    and vim.api.nvim_win_is_valid(windows.input_win)
+  local output_visible = windows
+    and windows.output_win ~= nil
+    and vim.api.nvim_win_is_valid(windows.output_win)
+
+  if input_visible or output_visible then
+    return 'visible'
+  end
+
   return 'closed'
 end
 
@@ -227,6 +238,8 @@ function M.save_cursor_position(win_type, win_id)
     elseif win_type == 'output' then
       _state.last_output_window_position = pos
     end
+  else
+    vim.notify('Failed to save cursor position: ' .. tostring(pos), vim.log.levels.DEBUG)
   end
 end
 
@@ -246,12 +259,19 @@ end
 ---@param input_buf integer|nil
 ---@param output_buf integer|nil
 ---@param input_was_visible boolean
-function M.stash_hidden_buffers(input_buf, output_buf, input_was_visible)
+---@param output_was_at_bottom? boolean
+function M.stash_hidden_buffers(input_buf, output_buf, input_was_visible, output_was_at_bottom)
   _state._hidden_buffers = {
     input_buf = input_buf,
     output_buf = output_buf,
     input_was_visible = input_was_visible,
+    output_was_at_bottom = output_was_at_bottom,
   }
+end
+
+---Clear hidden buffer snapshot
+function M.clear_hidden_buffers()
+  _state._hidden_buffers = nil
 end
 
 ---Peek at hidden buffers without consuming them (check only)
@@ -261,26 +281,39 @@ function M.has_hidden_buffers()
   if not hidden then
     return false
   end
-  -- Validate buffers are still valid
-  local input_valid = hidden.input_buf and vim.api.nvim_buf_is_valid(hidden.input_buf)
-  local output_valid = hidden.output_buf and vim.api.nvim_buf_is_valid(hidden.output_buf)
-  return input_valid and output_valid
+
+  if type(hidden.input_buf) ~= 'number' or type(hidden.output_buf) ~= 'number' then
+    _state._hidden_buffers = nil
+    return false
+  end
+
+  return vim.api.nvim_buf_is_valid(hidden.input_buf)
+    and vim.api.nvim_buf_is_valid(hidden.output_buf)
 end
 
 ---Consume hidden buffers (returns and clears them)
----@return {input_buf: integer|nil, output_buf: integer|nil, input_was_visible: boolean}|nil
+---@return {input_buf: integer|nil, output_buf: integer|nil, input_was_visible: boolean, output_was_at_bottom: boolean|nil}|nil
 function M.consume_hidden_buffers()
   local hidden = _state._hidden_buffers
   if not hidden then
     return nil
   end
-  -- Validate buffers are still valid
-  local input_valid = hidden.input_buf and vim.api.nvim_buf_is_valid(hidden.input_buf)
-  local output_valid = hidden.output_buf and vim.api.nvim_buf_is_valid(hidden.output_buf)
-  if not input_valid or not output_valid then
-    hidden = nil
-  end
+
+  -- Consume: clear state immediately
   _state._hidden_buffers = nil
+
+  -- Validate types
+  if type(hidden.input_buf) ~= 'number' or type(hidden.output_buf) ~= 'number' then
+    return nil
+  end
+
+  -- Validate buffer validity
+  local input_valid = vim.api.nvim_buf_is_valid(hidden.input_buf)
+  local output_valid = vim.api.nvim_buf_is_valid(hidden.output_buf)
+  if not input_valid or not output_valid then
+    return nil
+  end
+
   return hidden
 end
 
@@ -308,4 +341,4 @@ return setmetatable(M, {
   __ipairs = function()
     return ipairs(_state)
   end,
-}) --[[@as OpencodeState]]
+}) --[[@as OpencodeStateModule]]

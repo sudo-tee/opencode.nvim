@@ -1,4 +1,6 @@
+---@type OpencodeConfig & OpencodeConfigModule
 local config = require('opencode.config')
+---@type OpencodeStateModule
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
@@ -15,11 +17,10 @@ function M.close_windows(windows, preserve_buffers)
     return
   end
 
-  -- Save cursor positions and input visibility state before closing windows
   state.save_cursor_position('input', windows.input_win)
   state.save_cursor_position('output', windows.output_win)
-  -- Capture input visibility before closing windows (input_window.is_hidden() won't work after)
-  local input_was_visible = not input_window.is_hidden()
+  local input_was_hidden = input_window.is_hidden()
+  local output_was_at_bottom = output_window.viewport_at_bottom
 
   if M.is_opencode_focused() then
     M.return_to_last_code_win()
@@ -50,7 +51,6 @@ function M.close_windows(windows, preserve_buffers)
       if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
         pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
       end
-      -- Restore original window options
       if state.saved_window_options then
         for opt, value in pairs(state.saved_window_options) do
           pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
@@ -63,8 +63,12 @@ function M.close_windows(windows, preserve_buffers)
   end
 
   if should_preserve then
-    state.stash_hidden_buffers(windows.input_buf, windows.output_buf, input_was_visible)
-    -- Keep state.windows but clear window IDs since they're closed
+    state.stash_hidden_buffers(
+      windows.input_buf,
+      windows.output_buf,
+      not input_was_hidden,
+      output_was_at_bottom
+    )
     if state.windows == windows then
       state.windows.input_win = nil
       state.windows.output_win = nil
@@ -73,7 +77,7 @@ function M.close_windows(windows, preserve_buffers)
     input_window._hidden = false
     pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
     pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
-    state.stash_hidden_buffers(nil, nil, true) -- Clear hidden buffers
+    state.clear_hidden_buffers()
     if state.windows == windows then
       state.windows = nil
     end
@@ -116,14 +120,15 @@ function M.create_split_windows(input_buf, output_buf)
   if ui_conf.position == 'current' then
     main_win = vim.api.nvim_get_current_win()
   else
-    main_win = open_split(ui_conf.position, 'vertical')
+    ---@type 'left'|'right'
+    local split_direction = ui_conf.position == 'left' and 'left' or 'right'
+    main_win = open_split(split_direction, 'vertical')
   end
   vim.api.nvim_set_current_win(main_win)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')
   local output_win = main_win
 
-  -- Clear winfixbuf before setting buffer to avoid E1513 error
   if ui_conf.position == 'current' then
     pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
   end
@@ -161,6 +166,7 @@ function M.create_windows()
 
   windows.input_win = win_ids.input_win
   windows.output_win = win_ids.output_win
+  windows.output_was_at_bottom = restored and restored.output_was_at_bottom == true
 
   input_window.setup(windows)
   output_window.setup(windows)
@@ -173,7 +179,6 @@ function M.create_windows()
   autocmds.setup_resize_handler(windows)
   require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
 
-  -- Restore input window visibility snapshot; auto_hide continues to control later focus changes.
   if restored and not restored.input_was_visible then
     input_window._hide()
   end
@@ -318,7 +323,7 @@ end
 function M.swap_position()
   local ui_conf = config.ui
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
-  config.values.ui.position = new_pos
+  config.ui.position = new_pos
 
   if state.windows then
     M.close_windows(state.windows)

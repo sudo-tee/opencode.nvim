@@ -67,10 +67,9 @@ M.open = Promise.async(function(opts)
     require('opencode.context').load()
   end
 
-  local are_windows_closed = state.windows == nil
-    or state.windows.input_win == nil
-    or not vim.api.nvim_win_is_valid(state.windows.input_win)
-  local restoring_hidden = are_windows_closed and ui.has_hidden_buffers()
+  local window_status = state.get_window_status()
+  local are_windows_closed = window_status ~= 'visible'
+  local restoring_hidden = window_status == 'hidden' and ui.has_hidden_buffers()
   if are_windows_closed then
     -- Check if whether prompting will be allowed
     local mentioned_files = context.get_context().mentioned_files or {}
@@ -82,8 +81,12 @@ M.open = Promise.async(function(opts)
     state.windows = ui.create_windows()
   end
 
-  -- Restore cursor positions for both windows when reopening
-  -- This ensures output window scroll position is preserved even when focus is on input
+  local should_sync_on_restore = restoring_hidden
+    and state.windows
+    and state.windows.output_was_at_bottom == true
+  -- Preserve reading context when reopening from hidden state:
+  -- only resync output when the user was previously following the bottom.
+
   if are_windows_closed then
     ui.focus_output({ restore_position = true })
   end
@@ -126,11 +129,10 @@ M.open = Promise.async(function(opts)
           state.active_session = M.create_new_session():await()
         end
       else
-        if not state.display_route and are_windows_closed and not restoring_hidden then
-          -- We're not displaying /help or something like that but we have an active session
-          -- and the windows were closed so we need to do a full refresh. This mostly happens
-          -- when opening the window after having closed it since we're not currently clearing
-          -- the session on api.close()
+        if not state.display_route
+          and are_windows_closed
+          and (not restoring_hidden or should_sync_on_restore)
+        then
           ui.render_output()
         end
       end

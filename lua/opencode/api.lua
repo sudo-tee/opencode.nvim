@@ -18,23 +18,37 @@ local M = {}
 ---Get the current window state of opencode
 ---@return {status: 'closed'|'hidden'|'visible', visible: boolean, hidden: boolean, position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
 function M.get_window_state()
+  ---@type OpencodeWindowState|nil
   local windows = state.windows
   local status = state.get_window_status()
 
-  local cursor_positions = {
-    input = nil,
-    output = nil,
-  }
-
-  -- If windows are visible, get current cursor positions
-  if status == 'visible' then
-    cursor_positions.input = state.save_cursor_position('input', windows.input_win)
-    cursor_positions.output = state.save_cursor_position('output', windows.output_win)
-  else
-    -- Return saved positions
-    cursor_positions.input = state.get_cursor_position('input')
-    cursor_positions.output = state.get_cursor_position('output')
+  ---@param win_id integer|nil
+  ---@return integer[]|nil
+  local function get_window_cursor(win_id)
+    if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+      return nil
+    end
+    local ok, pos = pcall(vim.api.nvim_win_get_cursor, win_id)
+    if ok then
+      return pos
+    end
+    return nil
   end
+
+  local input_cursor = get_window_cursor(windows and windows.input_win)
+  if input_cursor == nil then
+    input_cursor = state.get_cursor_position('input')
+  end
+
+  local output_cursor = get_window_cursor(windows and windows.output_win)
+  if output_cursor == nil then
+    output_cursor = state.get_cursor_position('output')
+  end
+
+  local cursor_positions = {
+    input = input_cursor,
+    output = output_cursor,
+  }
 
   return {
     status = status,
@@ -94,43 +108,50 @@ end
 --- Check if opencode windows are in the current tab page
 --- @return boolean
 local function are_windows_in_current_tab()
-  if not state.windows or not state.windows.output_win then
+  if not state.windows then
     return false
   end
 
   local current_tab = vim.api.nvim_get_current_tabpage()
-  local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, state.windows.output_win)
-  return ok and win_tab == current_tab
+
+  local function is_window_in_current_tab(win_id)
+    if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+      return false
+    end
+    local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, win_id)
+    return ok and win_tab == current_tab
+  end
+
+  return is_window_in_current_tab(state.windows.input_win)
+    or is_window_in_current_tab(state.windows.output_win)
 end
 
 M.toggle = Promise.async(function(new_session)
-  -- When auto_hide input is enabled, always focus input; otherwise use last focused
   local focus = 'input' ---@cast focus 'input' | 'output'
   if not config.ui.input.auto_hide then
     focus = state.last_focused_opencode_window or 'input'
   end
 
-  -- Check if windows are actually open (not just if state.windows exists)
-  -- When hidden with persist_state, state.windows exists but window IDs are nil
+  local function is_valid_win(win_id)
+    return win_id ~= nil and vim.api.nvim_win_is_valid(win_id)
+  end
+
   local windows_open = state.windows ~= nil
-    and state.windows.input_win ~= nil
-    and vim.api.nvim_win_is_valid(state.windows.input_win)
+    and (is_valid_win(state.windows.input_win) or is_valid_win(state.windows.output_win))
     and are_windows_in_current_tab()
 
   if not windows_open then
-    -- Windows closed (or hidden with preserved buffers), open/restore them
-    -- Note: When hidden with persist_state, state.windows exists but window IDs are nil.
-    -- We should not call M.close() here as it would delete the preserved buffers.
-    -- Just clear the stale window state reference; create_windows will handle hidden buffers.
     if state.windows and not state.has_hidden_buffers() then
-      -- No hidden buffers, safe to clear the stale state
       state.windows = nil
     end
     core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
   else
-    -- Windows open, close/hide them
+    if state.display_route then
+      M.close()
+      return
+    end
+
     if config.ui.persist_state then
-      -- Keep buffers and avoid renderer teardown for faster restore.
       M.hide()
     else
       M.close()

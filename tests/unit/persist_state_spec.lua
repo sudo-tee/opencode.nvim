@@ -1,6 +1,22 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local ui = require('opencode.ui.ui')
+local input_window = require('opencode.ui.input_window')
+
+-- persist_state coverage matrix
+-- +------------------+------------------------------------+-----------------------------------------------+-------------------------------+
+-- | Area             | Scenario                           | Expected behavior                              | Note                          |
+-- +------------------+------------------------------------+-----------------------------------------------+-------------------------------+
+-- | Config default   | no user override                   | ui.persist_state defaults to true              |                               |
+-- | Config opt-out   | ui.persist_state = false           | toggle fully closes; no hidden state retained  | compatibility path            |
+-- | Preserve close   | close_windows(..., true)           | input/output buffers remain valid              |                               |
+-- | Reopen restore   | create_windows() after hidden      | same buffer ids reused; input text unchanged   |                               |
+-- | State machine    | closed -> visible -> hidden        | status/visible/hidden flags are consistent     |                               |
+-- | Getter purity    | get_window_state() while visible   | does not call save_cursor_position()           | read API must be side-effect free |
+-- | Toggle E2E       | open -> hide -> reopen             | transitions valid; buffer content preserved    |                               |
+-- | Output-only view | input auto-hidden, output visible  | still treated as visible for toggle decisions  | prevents false-closed path    |
+-- | Non-preserve E2E | persist_state = false, then toggle | final status is closed; hidden buffers absent  | prevents snapshot leakage     |
+-- +------------------+------------------------------------+-----------------------------------------------+-------------------------------+
 
 describe('persist_state', function()
   local windows
@@ -182,6 +198,29 @@ describe('persist_state', function()
 
       cleanup_windows()
     end)
+
+    it('should not mutate cursor state when reading window state', function()
+      config.setup({ ui = { position = 'right', persist_state = true } })
+
+      create_code_file()
+      api.toggle(false):wait()
+
+      local original_save_cursor = state.save_cursor_position
+      local save_calls = 0
+      state.save_cursor_position = function(...)
+        save_calls = save_calls + 1
+        return original_save_cursor(...)
+      end
+
+      local window_state = api.get_window_state()
+
+      state.save_cursor_position = original_save_cursor
+
+      assert.equals('visible', window_state.status)
+      assert.equals(0, save_calls)
+
+      cleanup_windows()
+    end)
   end)
 
   describe('api.toggle() integration', function()
@@ -233,6 +272,45 @@ describe('persist_state', function()
       assert.equals('test content', lines[1], 'content should be preserved')
 
       cleanup_windows()
+    end)
+
+    it('should treat output-only view as visible when toggling', function()
+      config.setup({
+        ui = {
+          position = 'right',
+          persist_state = true,
+          input = { auto_hide = true },
+        },
+      })
+
+      create_code_file({ 'line 1', 'line 2' })
+
+      api.toggle(false):wait()
+      input_window._hide()
+
+      assert.equals('visible', state.get_window_status())
+
+      api.toggle(false):wait()
+      local window_state = api.get_window_state()
+      assert.equals('hidden', window_state.status)
+
+      cleanup_windows()
+    end)
+
+    it('should fully close when persist_state is disabled', function()
+      config.setup({
+        ui = { position = 'right', persist_state = false },
+      })
+
+      create_code_file({ 'line 1', 'line 2' })
+
+      api.toggle(false):wait()
+      assert.equals('visible', state.get_window_status())
+
+      api.toggle(false):wait()
+      local window_state = api.get_window_state()
+      assert.equals('closed', window_state.status)
+      assert.is_false(ui.has_hidden_buffers())
     end)
   end)
 end)

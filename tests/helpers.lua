@@ -234,8 +234,7 @@ function M.get_session_from_events(events, with_session_updates)
       if event.type == 'session.updated' and event.properties.info then
         local info = event.properties.info
         if info.id then
-          local existing = sessions_by_id[info.id] or {}
-          sessions_by_id[info.id] = vim.tbl_deep_extend('force', existing, vim.deepcopy(info))
+          sessions_by_id[info.id] = vim.deepcopy(info)
           last_session_id = info.id
         end
       end

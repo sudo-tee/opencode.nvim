@@ -132,7 +132,7 @@ function M.render_full_session()
   return fetch_session():and_then(M._render_full_session_data)
 end
 
-function M._render_full_session_data(session_data)
+function M._render_full_session_data(session_data, prev_revert, revert)
   M.reset()
 
   if not state.active_session or not state.messages then
@@ -548,6 +548,9 @@ function M._remove_message_from_buffer(message_id)
     return
   end
 
+  if cached.line_start == 0 and cached.line_end == 0 then
+    return
+  end
   output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
   output_window.set_lines({}, cached.line_start - 1, cached.line_end)
 
@@ -849,12 +852,14 @@ function M.on_session_updated(properties)
   local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
   local previous_title = current_session.title
 
-  local merged_session = vim.tbl_deep_extend('force', vim.deepcopy(current_session), updated_session)
+  if not vim.deep_equal(current_session, updated_session) then
+    for key in pairs(current_session) do
+      if updated_session[key] == nil then
+        current_session[key] = nil
+      end
+    end
 
-  if not vim.deep_equal(current_session, merged_session) then
-    -- mutate existing `state.active_session` table in place
-    -- reassigning would cause UI flickering on frequent `session.updated` events since it triggers a full rerender
-    for key, value in pairs(merged_session) do
+    for key, value in pairs(updated_session) do
       current_session[key] = value
     end
 
@@ -1107,7 +1112,11 @@ function M.on_focus_changed()
   trigger_on_data_rendered()
 end
 
-function M.on_session_changed(_, new, _)
+function M.on_session_changed(_, new, old)
+  if (old and old.id) == (new and new.id) then
+    return
+  end
+
   M.reset()
   if new then
     M.render_full_session()

@@ -171,7 +171,13 @@ function M.clear_extmarks(start_line, end_line, clear_all)
   start_line = start_line or 0
   end_line = end_line or -1
 
-  vim.api.nvim_buf_clear_namespace(state.windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
+  pcall(
+    vim.api.nvim_buf_clear_namespace,
+    state.windows.output_buf,
+    clear_all and -1 or M.namespace,
+    start_line,
+    end_line
+  )
 end
 
 ---Apply extmarks to the output buffer

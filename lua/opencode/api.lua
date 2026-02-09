@@ -698,7 +698,7 @@ function M.undo(messageId)
     return
   end
 
-  local message_to_revert = messageId or state.last_user_message and state.last_user_message.info.id
+  local message_to_revert = messageId or (state.last_user_message and state.last_user_message.info.id)
   if not message_to_revert then
     vim.notify('No user message to undo', vim.log.levels.WARN)
     return
@@ -1132,7 +1132,10 @@ M.commands = {
 
   undo = {
     desc = 'Undo last action',
-    fn = M.undo,
+    fn = function(args)
+      local message_id = args[1]
+      M.undo(message_id)
+    end,
   },
 
   redo = {

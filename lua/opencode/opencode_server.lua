@@ -25,7 +25,7 @@ local function ensure_vim_leave_autocmd()
       local state = require('opencode.state')
       if state.opencode_server then
         pcall(function()
-          state.opencode_server:shutdown():wait(2000)
+          state.opencode_server:shutdown()
         end)
       end
     end,
@@ -50,32 +50,44 @@ function OpencodeServer:is_running()
   return self.job and self.job.pid ~= nil
 end
 
---- Clean up this server job
---- @return Promise<boolean>
 function OpencodeServer:shutdown()
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
   end
 
-  if self.job and self.job.pid then
-    local job = self.job
+  if not self.job or not self.job.pid then
+    self.shutdown_promise:resolve(true)
+    return self.shutdown_promise
+  end
 
-    self.job = nil
-    self.url = nil
-    self.handle = nil
+  local job = self.job
+  local pid = job.pid
 
+  self.job = nil
+  self.url = nil
+  self.handle = nil
+
+  -- Graceful shutdown (SIGTERM)
+  pcall(function()
+    vim.uv.kill(pid, 15)
+  end)
+
+  local exited = vim.wait(500, function()
+    return self.shutdown_promise:is_resolved()
+  end, 50)
+
+  -- Forceful shutdown (SIGKILL) if not exited after waiting
+  if not exited then
     pcall(function()
-      job:kill(15) -- SIGTERM
+      vim.uv.kill(pid, 9)
     end)
 
-    vim.defer_fn(function()
-      if job and job.pid then
-        pcall(function()
-          job:kill(9) -- SIGKILL
-        end)
-      end
-    end, 500)
-  else
+    vim.wait(200, function()
+      return self.shutdown_promise:is_resolved()
+    end, 50)
+  end
+
+  if not self.shutdown_promise:is_resolved() then
     self.shutdown_promise:resolve(true)
   end
 

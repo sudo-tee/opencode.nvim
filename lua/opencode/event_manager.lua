@@ -273,14 +273,27 @@ function EventManager:_on_drained_events(events)
     if event.type == 'message.part.updated' and event.properties.part then
       local part_id = event.properties.part.id
       if part_update_indices[part_id] then
-        -- vim.notify('collapsing: ' .. part_id .. ' text: ' .. vim.inspect(event.properties.part.text))
-        -- put this event in the earlier slot
+        local previous_index = part_update_indices[part_id]
 
-        -- move this newer part to the position of the original part
-        collapsed_events[part_update_indices[part_id]] = event
+        -- Preserve ordering dependencies for permission events.
+        -- Moving a later part update earlier can break correlation when
+        -- permission.updated/permission.asked sits between the two updates.
+        local has_intervening_permission_event = false
+        for j = previous_index + 1, i - 1 do
+          if events[j] and (events[j].type == 'permission.updated' or events[j].type == 'permission.asked') then
+            has_intervening_permission_event = true
+            break
+          end
+        end
 
-        -- clear out this parts now unneeded position
-        collapsed_events[i] = nil
+        if has_intervening_permission_event then
+          collapsed_events[previous_index] = nil
+          collapsed_events[i] = event
+          part_update_indices[part_id] = i
+        else
+          collapsed_events[previous_index] = event
+          collapsed_events[i] = nil
+        end
       else
         part_update_indices[part_id] = i
         collapsed_events[i] = event

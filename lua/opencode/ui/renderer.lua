@@ -727,6 +727,19 @@ function M.on_part_updated(properties, revert_index)
 
   local formatted = formatter.format_part(part, message, is_last_part)
 
+  if part.callID and state.pending_permissions then
+    for _, permission in ipairs(state.pending_permissions) do
+      local tool = permission.tool
+      local perm_callID = tool and tool.callID or permission.callID
+      local perm_messageID = tool and tool.messageID or permission.messageID
+
+      if perm_callID == part.callID and perm_messageID == part.messageID then
+        require('opencode.ui.permission_window').update_permission_from_part(permission.id, part)
+        break
+      end
+    end
+  end
+
   if revert_index and is_new_part then
     return
   end

@@ -15,17 +15,67 @@ function M.add_permission(permission)
     return
   end
 
+  if permission.tool then
+    permission._message_id = permission.tool.messageID
+    permission._call_id = permission.tool.callID
+  end
+
   -- Update if exists, otherwise add
   for i, existing in ipairs(M._permission_queue) do
     if existing.id == permission.id then
       M._permission_queue[i] = permission
-      M._setup_dialog() -- Refresh dialog when permission is updated
+      M._setup_dialog()
       return
     end
   end
 
   table.insert(M._permission_queue, permission)
-  M._setup_dialog() -- Setup dialog when first permission is added
+  M._setup_dialog()
+end
+
+---Update permission from message part data
+---@param permission_id string
+---@param part table
+---@return boolean
+function M.update_permission_from_part(permission_id, part)
+  if not permission_id or not part then
+    return false
+  end
+
+  local permission = nil
+  for i, existing in ipairs(M._permission_queue) do
+    if existing.id == permission_id then
+      permission = existing
+      break
+    end
+  end
+
+  if not permission then
+    return false
+  end
+
+  if part.state and part.state.input then
+    local input = part.state.input
+    local updated = false
+
+    if input.description and input.description ~= '' then
+      permission._description = input.description
+      updated = true
+    end
+
+    if input.command and input.command ~= '' then
+      permission._command = input.command
+      updated = true
+    end
+
+    if updated and M._dialog then
+      M._setup_dialog()
+    end
+
+    return true
+  end
+
+  return false
 end
 
 ---Remove permission from queue
@@ -71,12 +121,24 @@ function M.format_display(output)
     progress = string.format(' (%d/%d)', 1, #M._permission_queue)
   end
 
-  local title = permission.title
-    or table.concat(permission.patterns or {}, '`, `'):gsub('\r', '\\r'):gsub('\n', '\\n')
-    or 'Unknown Permission'
   local perm_type = permission.permission or permission.type or 'unknown'
 
-  local content = { (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '*' .. ' `' .. title .. '`' }
+  local display_text
+  if permission._description and permission._description ~= '' then
+    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* ' .. permission._description
+  elseif permission.title then
+    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* `' .. permission.title .. '`'
+  else
+    local patterns = table.concat(permission.patterns or {}, '`, `'):gsub('\r', '\\r'):gsub('\n', '\\n')
+    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* `' .. (patterns ~= '' and patterns or 'Unknown Permission') .. '`'
+  end
+
+  local content = { display_text }
+
+  if permission._command and permission._command ~= '' then
+    local escaped_command = permission._command:gsub('\r', '\\r'):gsub('\n', '\\n')
+    table.insert(content, '> `' .. escaped_command .. '`')
+  end
 
   local options = {
     { label = 'Allow once' },
@@ -88,6 +150,9 @@ function M.format_display(output)
   if perm_type == 'edit' and permission.metadata and permission.metadata.diff then
     render_content = function(out)
       out:add_line(content[1])
+      if content[2] then
+        out:add_line(content[2])
+      end
       out:add_line('')
 
       local file_type = permission.metadata.filepath and vim.fn.fnamemodify(permission.metadata.filepath, ':e') or ''
@@ -110,6 +175,11 @@ function M._setup_dialog()
   if #M._permission_queue == 0 then
     M._clear_dialog()
     return
+  end
+
+  local saved_selection = nil
+  if M._dialog then
+    saved_selection = M._dialog:get_selection()
   end
 
   M._clear_dialog()
@@ -176,6 +246,10 @@ function M._setup_dialog()
   })
 
   M._dialog:setup()
+
+  if saved_selection then
+    M._dialog:set_selection(saved_selection)
+  end
 end
 
 function M._clear_dialog()

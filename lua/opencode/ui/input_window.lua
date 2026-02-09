@@ -569,6 +569,9 @@ function M._show()
   local was_at_bottom = output_window.viewport_at_bottom
 
   local output_win = windows.output_win
+  if not vim.api.nvim_win_is_valid(output_win) then
+    return
+  end
   vim.api.nvim_set_current_win(output_win)
 
   local input_position = config.ui.input_position or 'bottom'

@@ -474,15 +474,24 @@
       26,
       0,
       {
-        "line_hl_group": "OpencodeDialogOptionHover",
         "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
       23,
-      26,
+      27,
       0,
       {
         "ns_id": 3,
@@ -502,45 +511,6 @@
     ],
     [
       24,
-      26,
-      2,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "› ",
-            "OpencodeDialogOptionHover"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "overlay",
-        "virt_text_repeat_linebreak": false
-      }
-    ],
-    [
-      25,
-      27,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      26,
       28,
       0,
       {
@@ -560,8 +530,39 @@
       }
     ],
     [
-      27,
+      25,
       29,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      26,
+      30,
+      0,
+      {
+        "line_hl_group": "OpencodeDialogOptionHover",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      27,
+      30,
       0,
       {
         "ns_id": 3,
@@ -582,6 +583,85 @@
     [
       28,
       30,
+      2,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "› ",
+            "OpencodeDialogOptionHover"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      29,
+      31,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      30,
+      32,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      31,
+      33,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      32,
+      34,
       0,
       {
         "ns_id": 3,
@@ -625,7 +705,11 @@
     "",
     "  Permission Required",
     "",
-    "  *bash* `git status`",
+    "  *bash*",
+    "```bash",
+    "git status",
+    "```",
+    "",
     "",
     "    1. Allow once ",
     "    2. Reject",
@@ -635,5 +719,5 @@
     "",
     ""
   ],
-  "timestamp": 1770748577
+  "timestamp": 1770751427
 }

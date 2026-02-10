@@ -19,7 +19,7 @@ describe('permission_window', function()
       return captured_opts
     end
 
-    it('escapes line breaks in permission titles for display', function()
+    it('renders patterns in a fenced block when title and description are missing', function()
       local captured_opts = nil
       permission_window._dialog = {
         format_dialog = function(_, _, opts)
@@ -42,12 +42,12 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(1, #captured_opts.content)
-
-      local rendered_title = captured_opts.content[1]
-      local expected_pattern = "python3 - <<'PY'\\nprint('hello')\\nPY"
-      assert.is_true(rendered_title:find('`' .. expected_pattern .. '`', 1, true) ~= nil)
-      assert.is_nil(rendered_title:find('\n', 1, true))
+      assert.are.equal(5, #captured_opts.content)
+      assert.is_true(captured_opts.content[1]:find('*bash*', 1, true) ~= nil)
+      assert.are.equal('```bash', captured_opts.content[2])
+      assert.are.equal("python3 - <<'PY'\nprint('hello')\nPY", captured_opts.content[3])
+      assert.are.equal('```', captured_opts.content[4])
+      assert.are.equal('', captured_opts.content[5])
     end)
 
     it('displays description when available', function()
@@ -73,8 +73,9 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(1, #captured_opts.content)
+      assert.are.equal(2, #captured_opts.content)
       assert.is_true(captured_opts.content[1]:find('Run Python script to analyze data', 1, true) ~= nil)
+      assert.are.equal('', captured_opts.content[2])
     end)
 
     it('displays command on second line when available', function()
@@ -99,8 +100,12 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(2, #captured_opts.content)
-      assert.is_true(captured_opts.content[2]:find('python3 analyze.py --input data.csv', 1, true) ~= nil)
+      assert.are.equal(5, #captured_opts.content)
+      assert.is_true(captured_opts.content[1]:find('Some Title', 1, true) ~= nil)
+      assert.are.equal('', captured_opts.content[2])
+      assert.are.equal('```bash', captured_opts.content[3])
+      assert.are.equal('python3 analyze.py --input data.csv', captured_opts.content[4])
+      assert.are.equal('```', captured_opts.content[5])
     end)
 
     it('displays both description and command when available', function()
@@ -125,9 +130,12 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(2, #captured_opts.content)
+      assert.are.equal(5, #captured_opts.content)
       assert.is_true(captured_opts.content[1]:find('Run Python script to analyze data', 1, true) ~= nil)
-      assert.is_true(captured_opts.content[2]:find('python3 analyze.py --input data.csv', 1, true) ~= nil)
+      assert.are.equal('', captured_opts.content[2])
+      assert.are.equal('```bash', captured_opts.content[3])
+      assert.are.equal('python3 analyze.py --input data.csv', captured_opts.content[4])
+      assert.are.equal('```', captured_opts.content[5])
     end)
 
     it('falls back to title when description is not available', function()
@@ -152,8 +160,9 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(1, #captured_opts.content)
+      assert.are.equal(2, #captured_opts.content)
       assert.is_true(captured_opts.content[1]:find('My Permission Title', 1, true) ~= nil)
+      assert.are.equal('', captured_opts.content[2])
     end)
 
     it('falls back to patterns when neither description nor title available', function()
@@ -177,12 +186,16 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(1, #captured_opts.content)
-      assert.is_true(captured_opts.content[1]:find('pattern1', 1, true) ~= nil)
-      assert.is_true(captured_opts.content[1]:find('pattern2', 1, true) ~= nil)
+      assert.are.equal(6, #captured_opts.content)
+      assert.is_true(captured_opts.content[1]:find('*bash*', 1, true) ~= nil)
+      assert.are.equal('```bash', captured_opts.content[2])
+      assert.are.equal('pattern1', captured_opts.content[3])
+      assert.are.equal('pattern2', captured_opts.content[4])
+      assert.are.equal('```', captured_opts.content[5])
+      assert.are.equal('', captured_opts.content[6])
     end)
 
-    it('escapes newlines in command display', function()
+    it('renders multiline commands as separate lines in fenced block', function()
       local captured_opts = nil
       permission_window._dialog = {
         format_dialog = function(_, _, opts)
@@ -203,9 +216,12 @@ describe('permission_window', function()
 
       assert.is_not_nil(captured_opts)
       assert.is_not_nil(captured_opts.content)
-      assert.are.equal(2, #captured_opts.content)
-      assert.is_nil(captured_opts.content[2]:find('\n', 1, true))
-      assert.is_true(captured_opts.content[2]:find('\\n', 1, true) ~= nil)
+      assert.are.equal(8, #captured_opts.content)
+      local command_start = #captured_opts.content - 3
+      assert.are.equal('```bash', captured_opts.content[command_start])
+      assert.are.equal("echo 'line1'", captured_opts.content[command_start + 1])
+      assert.are.equal("echo 'line2'", captured_opts.content[command_start + 2])
+      assert.are.equal('```', captured_opts.content[command_start + 3])
     end)
   end)
 

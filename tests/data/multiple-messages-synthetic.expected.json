@@ -1,5 +1,361 @@
 {
-  "timestamp": 1766432125,
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:41)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_001]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      2,
+      2,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      3,
+      3,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      4,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:42)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_002]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      5,
+      17,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:43)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_003]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      7,
+      19,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      8,
+      22,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:44)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_004]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      9,
+      33,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:45)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_005]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      10,
+      34,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      11,
+      35,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      12,
+      38,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2001-09-09 01:46:46)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_006]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ]
+  ],
   "lines": [
     "----",
     "",
@@ -49,229 +405,5 @@
     "",
     ""
   ],
-  "extmarks": [
-    [
-      1,
-      1,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:41)", "OpencodeHint"],
-          [" [msg_001]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ],
-    [
-      2,
-      2,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      3,
-      3,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      4,
-      6,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:42)", "OpencodeHint"],
-          [" [msg_002]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ],
-    [
-      5,
-      17,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:43)", "OpencodeHint"],
-          [" [msg_003]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ],
-    [
-      6,
-      18,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      7,
-      19,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      8,
-      22,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:44)", "OpencodeHint"],
-          [" [msg_004]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ],
-    [
-      9,
-      33,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:45)", "OpencodeHint"],
-          [" [msg_005]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ],
-    [
-      10,
-      34,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      11,
-      35,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 4096
-      }
-    ],
-    [
-      12,
-      38,
-      0,
-      {
-        "virt_text_repeat_linebreak": false,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "ns_id": 3,
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          ["", "OpencodeHint"],
-          [" (2001-09-09 01:46:46)", "OpencodeHint"],
-          [" [msg_006]", "OpencodeHint"]
-        ],
-        "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "priority": 10
-      }
-    ]
-  ],
-  "actions": []
+  "timestamp": 1770748575
 }

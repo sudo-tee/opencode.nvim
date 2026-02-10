@@ -1,4 +1,45 @@
 {
+  "actions": [
+    {
+      "args": [
+        "c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"
+      ],
+      "display_line": 14,
+      "key": "R",
+      "range": {
+        "from": 14,
+        "to": 14
+      },
+      "text": "[R]evert file",
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "args": [
+        "c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"
+      ],
+      "display_line": 14,
+      "key": "A",
+      "range": {
+        "from": 14,
+        "to": 14
+      },
+      "text": "Revert [A]ll",
+      "type": "diff_revert_all"
+    },
+    {
+      "args": [
+        "c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"
+      ],
+      "display_line": 14,
+      "key": "D",
+      "range": {
+        "from": 14,
+        "to": 14
+      },
+      "text": "[D]iff",
+      "type": "diff_open"
+    }
+  ],
   "extmarks": [
     [
       1,
@@ -7,19 +48,36 @@
       {
         "ns_id": 3,
         "priority": 10,
-        "virt_text_hide": false,
         "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2025-10-12 05:43:49)", "OpencodeHint"],
-          [" [msg_9d6f253910015UFmkGkiWtUsRW]", "OpencodeHint"]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-12 05:43:49)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9d6f253910015UFmkGkiWtUsRW]",
+            "OpencodeHint"
+          ]
         ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "virt_text_repeat_linebreak": false
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -29,12 +87,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -44,12 +107,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -59,19 +127,36 @@
       {
         "ns_id": 3,
         "priority": 10,
-        "virt_text_hide": false,
         "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4.5", "OpencodeHint"],
-          [" (2025-10-12 05:43:49)", "OpencodeHint"],
-          [" [msg_9d6f253df001TjqxW12FAjGf5s]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4.5",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-12 05:43:49)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9d6f253df001TjqxW12FAjGf5s]",
+            "OpencodeHint"
+          ]
         ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "virt_text_repeat_linebreak": false
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -81,12 +166,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -1,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -96,12 +186,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -1,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -111,12 +206,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -1,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -126,12 +226,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -1,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -141,12 +246,17 @@
       {
         "ns_id": 3,
         "priority": 4096,
-        "virt_text_hide": false,
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -1,
-        "virt_text_repeat_linebreak": true
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -156,47 +266,38 @@
       {
         "ns_id": 3,
         "priority": 10,
-        "virt_text_hide": false,
         "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4.5", "OpencodeHint"],
-          [" (2025-10-12 05:44:00)", "OpencodeHint"],
-          [" [msg_9d6f27f4800103Tp3N6i6JW53p]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4.5",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-12 05:44:00)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9d6f27f4800103Tp3N6i6JW53p]",
+            "OpencodeHint"
+          ]
         ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
-        "virt_text_win_col": -3,
-        "virt_text_repeat_linebreak": false
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ]
-  ],
-  "actions": [
-    {
-      "key": "R",
-      "type": "diff_revert_selected_file",
-      "text": "[R]evert file",
-      "args": ["c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"],
-      "range": { "from": 14, "to": 14 },
-      "display_line": 14
-    },
-    {
-      "key": "A",
-      "type": "diff_revert_all",
-      "text": "Revert [A]ll",
-      "args": ["c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"],
-      "range": { "from": 14, "to": 14 },
-      "display_line": 14
-    },
-    {
-      "key": "D",
-      "type": "diff_open",
-      "text": "[D]iff",
-      "args": ["c78fb2dd2d533cfe530692cc3e3c8f92a0e4af1d"],
-      "range": { "from": 14, "to": 14 },
-      "display_line": 14
-    }
   ],
   "lines": [
     "----",
@@ -220,5 +321,5 @@
     "",
     ""
   ],
-  "timestamp": 1769172178
+  "timestamp": 1770748578
 }

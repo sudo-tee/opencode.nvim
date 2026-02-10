@@ -1,4 +1,445 @@
 {
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2026-01-26 14:30:46)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_bfab6dbf3001ZOVHTFKR1CMUE5]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      2,
+      2,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      3,
+      3,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      4,
+      4,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      5,
+      5,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      7,
+      8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-4.1",
+            "OpencodeHint"
+          ],
+          [
+            " (2026-01-26 14:30:46)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_bfab6dc80001FueCN7E2691J2R]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      8,
+      13,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleSystem"
+          ],
+          [
+            " "
+          ],
+          [
+            "SYSTEM",
+            "OpencodeMessageRoleSystem"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [question-display-message]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      9,
+      15,
+      0,
+      {
+        "line_hl_group": "OpencodeQuestionTitle",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      10,
+      15,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      11,
+      16,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      12,
+      17,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      13,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      14,
+      19,
+      0,
+      {
+        "line_hl_group": "OpencodeDialogOptionHover",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      15,
+      19,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      16,
+      19,
+      2,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "› ",
+            "OpencodeDialogOptionHover"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      17,
+      20,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      18,
+      21,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      19,
+      22,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      20,
+      23,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ]
+  ],
   "lines": [
     "----",
     "",
@@ -27,300 +468,5 @@
     "",
     ""
   ],
-  "actions": [],
-  "extmarks": [
-    [
-      1,
-      1,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 10,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "win_col",
-        "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2026-01-26 14:30:46)", "OpencodeHint"],
-          [" [msg_bfab6dbf3001ZOVHTFKR1CMUE5]", "OpencodeHint"]
-        ],
-        "ns_id": 3
-      }
-    ],
-    [
-      2,
-      2,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      3,
-      3,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      4,
-      4,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      5,
-      5,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      6,
-      6,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      7,
-      8,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 10,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "win_col",
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-4.1", "OpencodeHint"],
-          [" (2026-01-26 14:30:46)", "OpencodeHint"],
-          [" [msg_bfab6dc80001FueCN7E2691J2R]", "OpencodeHint"]
-        ],
-        "ns_id": 3
-      }
-    ],
-    [
-      8,
-      13,
-      0,
-      {
-        "virt_text_win_col": -3,
-        "priority": 10,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "win_col",
-        "virt_text": [
-          [" ", "OpencodeMessageRoleSystem"],
-          [" "],
-          ["SYSTEM", "OpencodeMessageRoleSystem"],
-          ["", "OpencodeHint"],
-          ["", "OpencodeHint"],
-          [" [question-display-message]", "OpencodeHint"]
-        ],
-        "ns_id": 3
-      }
-    ],
-    [9, 15, 0, { "line_hl_group": "OpencodeQuestionTitle", "priority": 4096, "right_gravity": true, "ns_id": 3 }],
-    [
-      10,
-      15,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      11,
-      16,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      12,
-      17,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      13,
-      18,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [14, 19, 0, { "line_hl_group": "OpencodeDialogOptionHover", "priority": 4096, "right_gravity": true, "ns_id": 3 }],
-    [
-      15,
-      19,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      16,
-      19,
-      2,
-      {
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "overlay",
-        "virt_text": [["› ", "OpencodeDialogOptionHover"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      17,
-      20,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      18,
-      21,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      19,
-      22,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ],
-    [
-      20,
-      23,
-      0,
-      {
-        "virt_text_win_col": -2,
-        "priority": 4096,
-        "virt_text_hide": false,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": true,
-        "virt_text_pos": "win_col",
-        "virt_text": [["▌", "OpencodeQuestionBorder"]],
-        "ns_id": 3
-      }
-    ]
-  ],
-  "timestamp": 1769441953
+  "timestamp": 1770748576
 }

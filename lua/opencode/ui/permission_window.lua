@@ -121,23 +121,32 @@ function M.format_display(output)
     progress = string.format(' (%d/%d)', 1, #M._permission_queue)
   end
 
-  local perm_type = permission.permission or permission.type or 'unknown'
+  local content = {}
+  local perm_type = permission.permission or permission.type or ''
 
-  local display_text
   if permission._description and permission._description ~= '' then
-    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* ' .. permission._description
+    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* ' .. permission._description)
   elseif permission.title then
-    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* `' .. permission.title .. '`'
+    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* `' .. permission.title .. '`')
   else
-    local patterns = table.concat(permission.patterns or {}, '`, `'):gsub('\r', '\\r'):gsub('\n', '\\n')
-    display_text = (icons.get(perm_type) or '') .. ' *' .. (perm_type or '') .. '* `' .. (patterns ~= '' and patterns or 'Unknown Permission') .. '`'
+    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '*')
+    local lines = permission.patterns or {}
+    table.insert(content, string.format('```%s', perm_type))
+    for i, line in ipairs(lines) do
+      table.insert(content, line)
+    end
+    table.insert(content, '```')
   end
 
-  local content = { display_text }
+  table.insert(content, '')
 
   if permission._command and permission._command ~= '' then
-    local escaped_command = permission._command:gsub('\r', '\\r'):gsub('\n', '\\n')
-    table.insert(content, '> `' .. escaped_command .. '`')
+    local lines = vim.split(permission._command, '\n')
+    table.insert(content, string.format('```%s', perm_type))
+    for i, line in ipairs(lines) do
+      table.insert(content, line)
+    end
+    table.insert(content, '```')
   end
 
   local options = {

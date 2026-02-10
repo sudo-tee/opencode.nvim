@@ -626,7 +626,15 @@ function M._format_question_tool(output, input, metadata, status)
   local answers = metadata and metadata.answers or {}
 
   for i, question in ipairs(questions) do
-    output:add_line(string.format('**Q%d:** %s', i, question.question or question.header or ''))
+    local question_lines = vim.split(question.question, '\n')
+    if #question_lines > 1 then
+      output:add_line(string.format('**Q%d:** %s', i, question.header))
+      for _, line in ipairs(question_lines) do
+        output:add_line(line)
+      end
+    else
+      output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
+    end
     local answer = answers[i] and answers[i][1] or 'No answer'
     output:add_line(string.format('**A%d:** %s', i, answer))
     if i < #questions then

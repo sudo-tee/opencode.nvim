@@ -1,4 +1,5 @@
 {
+  "actions": [],
   "extmarks": [
     [
       1,
@@ -6,20 +7,37 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4.5",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-13 20:10:06)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9df31cc90001HGn2UbFUgqJnLr]",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4.5", "OpencodeHint"],
-          [" (2025-10-13 20:10:06)", "OpencodeHint"],
-          [" [msg_9df31cc90001HGn2UbFUgqJnLr]", "OpencodeHint"]
-        ]
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -28,13 +46,18 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -43,13 +66,18 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -58,13 +86,18 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -73,13 +106,18 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -88,13 +126,18 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -103,18 +146,21 @@
       0,
       {
         "ns_id": 3,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_win_col": -1
       }
     ]
   ],
-  "actions": [],
-  "timestamp": 1770747731,
   "lines": [
     "----",
     "",
@@ -127,5 +173,6 @@
     "> Error message: JSON Parse error: Unterminated string",
     "",
     ""
-  ]
+  ],
+  "timestamp": 1770748773
 }

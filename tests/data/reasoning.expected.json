@@ -1,25 +1,43 @@
 {
+  "actions": [],
   "extmarks": [
     [
       1,
       1,
       0,
       {
-        "virt_text_repeat_linebreak": false,
+        "ns_id": 3,
         "priority": 10,
-        "virt_text_win_col": -3,
+        "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2025-12-17 19:33:20)", "OpencodeHint"],
-          [" [msg_reason_user1]", "OpencodeHint"]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-12-17 19:33:20)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_reason_user1]",
+            "OpencodeHint"
+          ]
         ],
-        "right_gravity": true,
         "virt_text_hide": false,
-        "ns_id": 3,
-        "virt_text_pos": "win_col"
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -27,14 +45,19 @@
       2,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "right_gravity": true,
-        "virt_text_hide": false,
         "ns_id": 3,
-        "virt_text_pos": "win_col"
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -42,14 +65,19 @@
       3,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -3,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
-        "right_gravity": true,
-        "virt_text_hide": false,
         "ns_id": 3,
-        "virt_text_pos": "win_col"
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -57,21 +85,38 @@
       6,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "priority": 10,
-        "virt_text_win_col": -3,
-        "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4", "OpencodeHint"],
-          [" (2025-12-17 19:33:20)", "OpencodeHint"],
-          [" [msg_reason_asst1]", "OpencodeHint"]
-        ],
-        "right_gravity": true,
-        "virt_text_hide": false,
         "ns_id": 3,
-        "virt_text_pos": "win_col"
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-12-17 19:33:20)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_reason_asst1]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -79,15 +124,20 @@
       8,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -95,15 +145,20 @@
       9,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -111,15 +166,20 @@
       10,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -127,15 +187,20 @@
       11,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -143,15 +208,20 @@
       12,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -159,15 +229,20 @@
       13,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -175,15 +250,20 @@
       14,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -191,15 +271,20 @@
       15,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -207,15 +292,20 @@
       16,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -223,15 +313,20 @@
       17,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -239,15 +334,20 @@
       18,
       0,
       {
-        "right_gravity": true,
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "priority": 4096,
-        "virt_text_win_col": -1,
-        "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
-        "line_hl_group": "OpencodeReasoningText"
+        "virt_text_win_col": -1
       }
     ]
   ],
@@ -285,6 +385,5 @@
     "",
     ""
   ],
-  "actions": [],
-  "timestamp": 1770747728
+  "timestamp": 1770748771
 }

@@ -6,21 +6,38 @@
       1,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
-        "virt_text_hide": false,
+        "priority": 10,
+        "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" (2025-10-10 22:06:43)", "OpencodeHint"],
-          [" [msg_9d0297a630014CA5ly3Vvw8Kt5]", "OpencodeHint"]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-10 22:06:43)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9d0297a630014CA5ly3Vvw8Kt5]",
+            "OpencodeHint"
+          ]
         ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3,
-        "priority": 10
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -28,14 +45,19 @@
       2,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3,
-        "priority": 4096
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -43,14 +65,19 @@
       3,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3,
-        "priority": 4096
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -58,14 +85,19 @@
       4,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3,
-        "priority": 4096
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -73,14 +105,19 @@
       5,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3,
-        "priority": 4096
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -88,25 +125,41 @@
       8,
       0,
       {
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
-        "virt_text_hide": false,
+        "priority": 10,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["PLAN", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4", "OpencodeHint"],
-          [" (2025-10-10 22:06:43)", "OpencodeHint"],
-          [" [msg_9d0297ab3001UGZU9fDJM4Y75w]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "PLAN",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4",
+            "OpencodeHint"
+          ],
+          [
+            " (2025-10-10 22:06:43)",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_9d0297ab3001UGZU9fDJM4Y75w]",
+            "OpencodeHint"
+          ]
         ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3,
-        "priority": 10
+        "virt_text_win_col": -3
       }
     ]
   ],
-  "timestamp": 1770747731,
   "lines": [
     "----",
     "",
@@ -170,5 +223,6 @@
     "- Follow Lua module patterns with `local M = {}`",
     "",
     ""
-  ]
+  ],
+  "timestamp": 1770748774
 }

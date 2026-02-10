@@ -216,6 +216,11 @@ M.defaults = {
       enabled = false,
     },
   },
+  logging = {
+    enabled = false,
+    level = 'info', -- debug, info, warn, error
+    outfile = nil,
+  },
   debug = {
     enabled = false,
     capture_streamed_events = false,

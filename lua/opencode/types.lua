@@ -189,6 +189,11 @@
 ---@field default_agent? string -- Use current mode if nil
 ---@field instructions? string[] -- Custom instructions for quick chat
 
+---@class OpencodeLoggingConfig
+---@field enabled boolean
+---@field level 'debug' | 'info' | 'warn' | 'error'
+---@field outfile string|nil
+
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
 ---@field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
@@ -200,6 +205,7 @@
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig
+---@field logging OpencodeLoggingConfig
 ---@field debug OpencodeDebugConfig
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
 ---@field hooks OpencodeHooks

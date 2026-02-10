@@ -201,7 +201,7 @@ function M.save_output(filename)
   snapshot = M.normalize_file_paths(snapshot)
 
   if filename then
-    local json = vim.json.encode(snapshot)
+    local json = vim.json.encode(snapshot, { indent = '  ', sort_keys = true })
 
     local f = io.open(filename, 'w')
     if not f then

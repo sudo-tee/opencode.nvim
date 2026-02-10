@@ -50,6 +50,13 @@ function OpencodeServer:is_running()
   return self.job and self.job.pid ~= nil
 end
 
+local function kill_process(pid, signal, desc)
+  local log = require('opencode.log')
+  local ok, err = pcall(vim.uv.kill, pid, signal)
+  log.debug('shutdown: %s pid=%d sig=%d ok=%s err=%s', desc, pid, signal, tostring(ok), tostring(err))
+  return ok, err
+end
+
 function OpencodeServer:shutdown()
   local log = require('opencode.log')
   if self.shutdown_promise:is_resolved() then
@@ -57,21 +64,27 @@ function OpencodeServer:shutdown()
   end
 
   if self.job and self.job.pid then
+    ---@cast self.job vim.SystemObj
     local pid = self.job.pid
+    local children = vim.api.nvim_get_proc_children(pid)
 
-    self.job = nil
-    self.url = nil
-    self.handle = nil
+    if #children > 0 then
+      log.debug('shutdown: process pid=%d has %d children (%s)', pid, #children, vim.inspect(children))
 
-    local ok_term, err_term = pcall(vim.uv.kill, pid, 15)
-    log.debug('shutdown: SIGTERM pid=%d ok=%s err=%s', pid, tostring(ok_term), tostring(err_term))
+      for _, cid in ipairs(children) do
+        kill_process(cid, 15, 'SIGTERM child')
+      end
+    end
 
-    local ok_kill, err_kill = pcall(vim.uv.kill, pid, 9)
-    log.debug('shutdown: SIGKILL pid=%d ok=%s err=%s', pid, tostring(ok_kill), tostring(err_kill))
+    kill_process(pid, 15, 'SIGTERM')
+    kill_process(pid, 9, 'SIGKILL')
   else
     log.debug('shutdown: no job running')
   end
 
+  self.job = nil
+  self.url = nil
+  self.handle = nil
   self.shutdown_promise:resolve(true)
   return self.shutdown_promise
 end

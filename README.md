@@ -297,6 +297,11 @@ require('opencode').setup({
       enabled = false,
     },
   },
+  logging = {
+    enabled = false,
+    level = 'warn', -- debug, info, warn, error
+    outfile = nil,
+  },
   debug = {
     enabled = false, -- Enable debug messages in the output window
     capture_streamed_events = false,

@@ -143,7 +143,7 @@ function M.format_display(output)
   if permission._command and permission._command ~= '' then
     local lines = vim.split(permission._command, '\n')
     table.insert(content, string.format('```%s', perm_type))
-    for i, line in ipairs(lines) do
+    for _, line in ipairs(lines) do
       table.insert(content, line)
     end
     table.insert(content, '```')

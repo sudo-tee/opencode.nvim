@@ -23,10 +23,9 @@ local function ensure_vim_leave_autocmd()
     group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
     callback = function()
       local state = require('opencode.state')
+      local log = require('opencode.log')
       if state.opencode_server then
-        pcall(function()
-          state.opencode_server:shutdown()
-        end)
+        state.opencode_server:shutdown()
       end
     end,
   })
@@ -35,6 +34,7 @@ end
 --- Create a new ServerJob instance
 --- @return OpencodeServer
 function OpencodeServer.new()
+  local log = require('opencode.log')
   ensure_vim_leave_autocmd()
 
   return setmetatable({
@@ -51,46 +51,28 @@ function OpencodeServer:is_running()
 end
 
 function OpencodeServer:shutdown()
+  local log = require('opencode.log')
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
   end
 
-  if not self.job or not self.job.pid then
-    self.shutdown_promise:resolve(true)
-    return self.shutdown_promise
+  if self.job and self.job.pid then
+    local pid = self.job.pid
+
+    self.job = nil
+    self.url = nil
+    self.handle = nil
+
+    local ok_term, err_term = pcall(vim.uv.kill, pid, 15)
+    log.debug('shutdown: SIGTERM pid=%d ok=%s err=%s', pid, tostring(ok_term), tostring(err_term))
+
+    local ok_kill, err_kill = pcall(vim.uv.kill, pid, 9)
+    log.debug('shutdown: SIGKILL pid=%d ok=%s err=%s', pid, tostring(ok_kill), tostring(err_kill))
+  else
+    log.debug('shutdown: no job running')
   end
 
-  local job = self.job
-  local pid = job.pid
-
-  self.job = nil
-  self.url = nil
-  self.handle = nil
-
-  -- Graceful shutdown (SIGTERM)
-  pcall(function()
-    vim.uv.kill(pid, 15)
-  end)
-
-  local exited = vim.wait(500, function()
-    return self.shutdown_promise:is_resolved()
-  end, 50)
-
-  -- Forceful shutdown (SIGKILL) if not exited after waiting
-  if not exited then
-    pcall(function()
-      vim.uv.kill(pid, 9)
-    end)
-
-    vim.wait(200, function()
-      return self.shutdown_promise:is_resolved()
-    end, 50)
-  end
-
-  if not self.shutdown_promise:is_resolved() then
-    self.shutdown_promise:resolve(true)
-  end
-
+  self.shutdown_promise:resolve(true)
   return self.shutdown_promise
 end
 
@@ -105,6 +87,7 @@ end
 --- @return Promise<OpencodeServer>
 function OpencodeServer:spawn(opts)
   opts = opts or {}
+  local log = require('opencode.log')
 
   self.job = vim.system({
     config.opencode_executable,
@@ -122,6 +105,7 @@ function OpencodeServer:spawn(opts)
           self.url = url
           self.spawn_promise:resolve(self)
           safe_call(opts.on_ready, self.job, url)
+          log.debug('spawn: server ready at url=%s', url)
         end
       end
     end,
@@ -154,6 +138,7 @@ function OpencodeServer:spawn(opts)
 
   self.handle = self.job and self.job.pid
 
+  log.debug('spawn: started job with pid=%s', tostring(self.job and self.job.pid))
   return self.spawn_promise
 end
 

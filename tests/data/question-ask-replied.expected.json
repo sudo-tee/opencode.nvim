@@ -1,1 +1,230 @@
-{"extmarks":[[1,1,0,{"priority":10,"virt_text_pos":"win_col","virt_text":[["▌󰭻 ","OpencodeMessageRoleUser"],[" "],["USER","OpencodeMessageRoleUser"],["","OpencodeHint"],[" (2026-01-26 14:23:12)","OpencodeHint"],[" [msg_bfaafef41001700DjtCwvhFxse]","OpencodeHint"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":false}],[2,2,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeMessageRoleUser"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":true}],[3,3,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeMessageRoleUser"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":true}],[4,4,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeMessageRoleUser"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":true}],[5,5,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeMessageRoleUser"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":true}],[6,6,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeMessageRoleUser"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":true}],[7,8,0,{"priority":10,"virt_text_pos":"win_col","virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-4.1","OpencodeHint"],[" (2026-01-26 14:23:12)","OpencodeHint"],[" [msg_bfaafefb3001iBSmqfzFffDjCS]","OpencodeHint"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":false}],[8,10,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeToolBorder"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-1,"right_gravity":true,"virt_text_repeat_linebreak":true}],[9,11,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeToolBorder"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-1,"right_gravity":true,"virt_text_repeat_linebreak":true}],[10,12,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeToolBorder"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-1,"right_gravity":true,"virt_text_repeat_linebreak":true}],[11,13,0,{"priority":4096,"virt_text_pos":"win_col","virt_text":[["▌","OpencodeToolBorder"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-1,"right_gravity":true,"virt_text_repeat_linebreak":true}],[12,16,0,{"priority":10,"virt_text_pos":"win_col","virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-4.1","OpencodeHint"],[" (2026-01-26 14:23:22)","OpencodeHint"],[" [msg_bfab0156d001NyMxaTnj6Cml0c]","OpencodeHint"]],"ns_id":3,"virt_text_hide":false,"virt_text_win_col":-3,"right_gravity":true,"virt_text_repeat_linebreak":false}]],"timestamp":1769437626,"lines":["----","","","[`tests/replay/renderer_spec.lua`](tests/replay/renderer_spec.lua)","","can you use the question tool and ask me a question with an other choice","","----","","","** question** ","","**Q1:** What is your favorite color?","**A1:** Red","","----","","","Thank you! You chose \"Red\" as your favorite color. If you have a specific task, question, or want to see this preference used in an example or feature, please let me know how you'd like to proceed!","",""],"actions":[]}
+{
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "priority": 10,
+        "virt_text_pos": "win_col",
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" (2026-01-26 14:23:12)", "OpencodeHint"],
+          [" [msg_bfaafef41001700DjtCwvhFxse]", "OpencodeHint"]
+        ],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      2,
+      2,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      3,
+      3,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      4,
+      4,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      5,
+      5,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      6,
+      6,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      7,
+      8,
+      0,
+      {
+        "priority": 10,
+        "virt_text_pos": "win_col",
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-4.1", "OpencodeHint"],
+          [" (2026-01-26 14:23:12)", "OpencodeHint"],
+          [" [msg_bfaafefb3001iBSmqfzFffDjCS]", "OpencodeHint"]
+        ],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      8,
+      10,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -1,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      9,
+      11,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -1,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      10,
+      12,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -1,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      11,
+      13,
+      0,
+      {
+        "priority": 4096,
+        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -1,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": true
+      }
+    ],
+    [
+      12,
+      16,
+      0,
+      {
+        "priority": 10,
+        "virt_text_pos": "win_col",
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-4.1", "OpencodeHint"],
+          [" (2026-01-26 14:23:22)", "OpencodeHint"],
+          [" [msg_bfab0156d001NyMxaTnj6Cml0c]", "OpencodeHint"]
+        ],
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false
+      }
+    ]
+  ],
+  "timestamp": 1769437626,
+  "lines": [
+    "----",
+    "",
+    "",
+    "[`tests/replay/renderer_spec.lua`](tests/replay/renderer_spec.lua)",
+    "",
+    "can you use the question tool and ask me a question with an other choice",
+    "",
+    "----",
+    "",
+    "",
+    "** question** ",
+    "",
+    "**Q1:** What is your favorite color?",
+    "**A1:** Red",
+    "",
+    "----",
+    "",
+    "",
+    "Thank you! You chose \"Red\" as your favorite color. If you have a specific task, question, or want to see this preference used in an example or feature, please let me know how you'd like to proceed!",
+    "",
+    ""
+  ],
+  "actions": []
+}

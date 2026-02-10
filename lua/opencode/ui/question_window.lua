@@ -74,7 +74,7 @@ local function answer_current_question(answer_value)
     M._setup_dialog()
   end
   render_question()
-  
+
   -- Use schedule to ensure UI updates happen after all state changes
   vim.schedule(function()
     require('opencode.ui.renderer').scroll_to_bottom(true)
@@ -174,7 +174,7 @@ function M.format_display(output)
     title = icons.get('question') .. ' Question' .. progress,
     title_hl = 'OpencodeQuestionTitle',
     border_hl = 'OpencodeQuestionBorder',
-    content = { question_info.question },
+    content = vim.split(question_info.question, '\n'),
     options = options,
     unfocused_message = 'Focus Opencode window to answer question',
   })

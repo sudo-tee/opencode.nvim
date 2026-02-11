@@ -1013,6 +1013,21 @@ M.review = Promise.async(function(args)
     end)
 end)
 
+--- Add the current visual selection to the context without opening/focusing the panel.
+--- Can be called from any buffer. Selections accumulate across files.
+M.add_visual_selection = Promise.async(
+  ---@param _ any Unused
+  ---@param range OpencodeSelectionRange
+  function(_, range)
+    local context = require('opencode.context')
+    local added = context.add_visual_selection(range)
+
+    if added then
+      M.open_input():await()
+    end
+  end
+)
+
 ---@type table<string, OpencodeUICommand>
 M.commands = {
   open = {
@@ -1369,6 +1384,11 @@ M.commands = {
     desc = 'Browse code references from conversation',
     fn = M.references,
   },
+
+  add_visual_selection = {
+    desc = 'Add current visual selection to context',
+    fn = M.add_visual_selection,
+  },
 }
 
 M.slash_commands_map = {
@@ -1449,6 +1469,7 @@ M.legacy_command_map = {
 
 function M.route_command(opts)
   local args = vim.split(opts.args or '', '%s+', { trimempty = true })
+  ---@type OpencodeSelectionRange|nil
   local range = nil
 
   if opts.range and opts.range > 0 then

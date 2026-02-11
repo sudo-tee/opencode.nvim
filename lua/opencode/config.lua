@@ -28,6 +28,7 @@ M.defaults = {
       ['<leader>oR'] = { 'rename_session', desc = 'Rename session' },
       ['<leader>op'] = { 'configure_provider', desc = 'Configure provider' },
       ['<leader>oV'] = { 'configure_variant', desc = 'Configure model variant' },
+      ['<leader>oy'] = { 'add_visual_selection', desc = 'Add visual selection to context', mode = { 'v' } },
       ['<leader>oz'] = { 'toggle_zoom', desc = 'Toggle zoom' },
       ['<leader>ov'] = { 'paste_image', desc = 'Paste image from clipboard' },
       ['<leader>od'] = { 'diff_open', desc = 'Open diff view' },

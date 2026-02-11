@@ -188,10 +188,32 @@ function M.get_current_cursor_data(buf, win, context_config)
 end
 
 ---@param context_config? OpencodeContextConfig
+---@param range? OpencodeSelectionRange
 ---@return table|nil
-function M.get_current_selection(context_config)
+function M.get_current_selection(context_config, range)
   if not M.is_context_enabled('selection', context_config) then
     return nil
+  end
+
+  if range and range.start and range.stop then
+    local buf = vim.api.nvim_get_current_buf()
+    local start_line = math.floor(range.start)
+    local end_line = math.floor(range.stop)
+    local lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
+    local text = table.concat(lines, '\n')
+
+    if not text or text == '' then
+      return nil
+    end
+
+    if vim.fn.mode() == 'V' then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', true)
+    end
+
+    return {
+      text = text:match('[^%s]') and text or nil,
+      lines = start_line .. ', ' .. end_line,
+    }
   end
 
   -- Return nil if not in a visual mode

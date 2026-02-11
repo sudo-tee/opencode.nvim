@@ -131,6 +131,7 @@ require('opencode').setup({
       ['<leader>oR'] = { 'rename_session' }, -- Rename current session
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
       ['<leader>oV'] = { 'configure_variant' }, -- Switch model variant for the current model
+      ['<leader>oy'] = { 'add_visual_selection', mode = {'v'} },
       ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
       ['<leader>ov'] = { 'paste_image'}, -- Paste image from clipboard into current session
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
@@ -612,6 +613,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Toggle tools output (diffs, cmd output, etc.)               | `<leader>ott`                         | `:Opencode toggle_tool_output`              | `require('opencode.api').toggle_tool_output()`                         |
 | Toggle reasoning output (thinking steps)                    | `<leader>otr`                         | `:Opencode toggle_reasoning_output`         | `require('opencode.api').toggle_reasoning_output()`                    |
 | Open a quick chat input with selection/current line context | `<leader>o/`                          | `:Opencode quick_chat`                      | `require('opencode.api').quick_chat()`                                 |
+| Add visual selection to context                             | `<leader>oy`                          | `:Opencode add_visual_selection`            | `require('opencode.api').add_visual_selection()`                       |
 
 ### Run opts
 

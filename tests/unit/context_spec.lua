@@ -62,14 +62,14 @@ describe('format_message', function()
       linter_errors = nil,
       cursor_data = nil,
     }
-    
+
     original_delta_context = context.delta_context
     original_get_context = context.get_context
-    
+
     context.get_context = function()
       return mock_context
     end
-    
+
     context.delta_context = function()
       return context.get_context()
     end
@@ -127,10 +127,12 @@ describe('format_message', function()
       return { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }
     end
 
-    local parts = context.format_message('test prompt', {
-      current_file = { enabled = false },
-      selection = { enabled = true },
-    }):wait()
+    local parts = context
+      .format_message('test prompt', {
+        current_file = { enabled = false },
+        selection = { enabled = true },
+      })
+      :wait()
 
     local selection_json = nil
     local has_file_part = false
@@ -167,7 +169,7 @@ describe('delta_context', function()
       linter_errors = nil,
       cursor_data = nil,
     }
-    
+
     original_get_context = context.get_context
     context.get_context = function()
       return mock_context
@@ -200,12 +202,12 @@ describe('add_file/add_selection/add_subagent', function()
   before_each(function()
     -- Store original context
     original_context = vim.deepcopy(ChatContext.context)
-    
+
     -- Reset to clean state
     ChatContext.context.mentioned_files = {}
     ChatContext.context.selections = {}
     ChatContext.context.mentioned_subagents = {}
-    
+
     context.delta_context()
   end)
 
@@ -321,7 +323,7 @@ end)
 
 describe('get_diagnostics with chat context selections', function()
   local ChatContext
-  
+
   before_each(function()
     ChatContext = require('opencode.context.chat_context')
     -- Reset chat context
@@ -340,7 +342,7 @@ describe('get_diagnostics with chat context selections', function()
     local mock_selection = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("hello")',
-      lines = '5, 8'  -- Lines 5 to 8 (1-based)
+      lines = '5, 8', -- Lines 5 to 8 (1-based)
     }
     ChatContext.add_selection(mock_selection)
 
@@ -359,9 +361,9 @@ describe('get_diagnostics with chat context selections', function()
     -- Verify that a list of ranges was passed to base_context
     assert.is_not_nil(captured_range)
     assert.equal('table', type(captured_range))
-    assert.equal(1, #captured_range)  -- Should have one range in the list
-    assert.equal(4, captured_range[1].start_line)  -- 5 - 1 (0-based)
-    assert.equal(7, captured_range[1].end_line)    -- 8 - 1 (0-based)
+    assert.equal(1, #captured_range) -- Should have one range in the list
+    assert.equal(4, captured_range[1].start_line) -- 5 - 1 (0-based)
+    assert.equal(7, captured_range[1].end_line) -- 8 - 1 (0-based)
 
     -- Restore original function
     BaseContext.get_diagnostics = original_get_diagnostics
@@ -372,7 +374,7 @@ describe('get_diagnostics with chat context selections', function()
     local mock_selection = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("hello")',
-      lines = '5, 8'
+      lines = '5, 8',
     }
     ChatContext.add_selection(mock_selection)
 
@@ -403,7 +405,7 @@ describe('get_diagnostics with chat context selections', function()
     local mock_selection = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("hello")',
-      lines = '3-7'  -- Lines 3 to 7 with dash separator
+      lines = '3-7', -- Lines 3 to 7 with dash separator
     }
     ChatContext.add_selection(mock_selection)
 
@@ -422,9 +424,9 @@ describe('get_diagnostics with chat context selections', function()
     -- Verify that a list of ranges was passed and parsed correctly from dash format
     assert.is_not_nil(captured_range)
     assert.equal('table', type(captured_range))
-    assert.equal(1, #captured_range)  -- Should have one range in the list
-    assert.equal(2, captured_range[1].start_line)  -- 3 - 1 (0-based)
-    assert.equal(6, captured_range[1].end_line)    -- 7 - 1 (0-based)
+    assert.equal(1, #captured_range) -- Should have one range in the list
+    assert.equal(2, captured_range[1].start_line) -- 3 - 1 (0-based)
+    assert.equal(6, captured_range[1].end_line) -- 7 - 1 (0-based)
 
     -- Restore original function
     BaseContext.get_diagnostics = original_get_diagnostics
@@ -458,17 +460,17 @@ describe('get_diagnostics with chat context selections', function()
     local selection1 = {
       file = { path = '/tmp/test1.lua', name = 'test1.lua', extension = 'lua' },
       content = 'print("first")',
-      lines = '3, 5'
+      lines = '3, 5',
     }
     local selection2 = {
       file = { path = '/tmp/test2.lua', name = 'test2.lua', extension = 'lua' },
       content = 'print("second")',
-      lines = '10, 12'
+      lines = '10, 12',
     }
     local selection3 = {
       file = { path = '/tmp/test3.lua', name = 'test3.lua', extension = 'lua' },
       content = 'print("third")',
-      lines = '7, 8'
+      lines = '7, 8',
     }
     ChatContext.add_selection(selection1)
     ChatContext.add_selection(selection2)
@@ -488,7 +490,7 @@ describe('get_diagnostics with chat context selections', function()
             lnum = r.start_line,
             col = 0,
             message = 'Mock diagnostic for range ' .. r.start_line .. '-' .. r.end_line,
-            severity = 1
+            severity = 1,
           })
         end
         return result
@@ -502,18 +504,18 @@ describe('get_diagnostics with chat context selections', function()
     -- Verify that a single range list was passed containing all selections
     assert.is_not_nil(captured_range)
     assert.equal('table', type(captured_range))
-    assert.equal(3, #captured_range)  -- Should have three ranges in the list
-    
+    assert.equal(3, #captured_range) -- Should have three ranges in the list
+
     -- Check each range matches the selections
-    assert.equal(2, captured_range[1].start_line)   -- 3 - 1 (0-based)
-    assert.equal(4, captured_range[1].end_line)     -- 5 - 1 (0-based)
-    
-    assert.equal(9, captured_range[2].start_line)   -- 10 - 1 (0-based)
-    assert.equal(11, captured_range[2].end_line)    -- 12 - 1 (0-based)
-    
-    assert.equal(6, captured_range[3].start_line)   -- 7 - 1 (0-based)
-    assert.equal(7, captured_range[3].end_line)     -- 8 - 1 (0-based)
-    
+    assert.equal(2, captured_range[1].start_line) -- 3 - 1 (0-based)
+    assert.equal(4, captured_range[1].end_line) -- 5 - 1 (0-based)
+
+    assert.equal(9, captured_range[2].start_line) -- 10 - 1 (0-based)
+    assert.equal(11, captured_range[2].end_line) -- 12 - 1 (0-based)
+
+    assert.equal(6, captured_range[3].start_line) -- 7 - 1 (0-based)
+    assert.equal(7, captured_range[3].end_line) -- 8 - 1 (0-based)
+
     -- Verify that all diagnostics from all ranges are combined in the result
     assert.equal(3, #result)
 
@@ -526,19 +528,19 @@ describe('get_diagnostics with chat context selections', function()
     local selection1 = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("first")',
-      lines = '15-17'  -- Dash format
+      lines = '15-17', -- Dash format
     }
     local selection2 = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("second")',
-      lines = '2, 4'   -- Comma format
+      lines = '2, 4', -- Comma format
     }
     local selection3 = {
       file = { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' },
       content = 'print("third")',
-      lines = '20'     -- Single line
+      lines = '20', -- Single line
     }
-    
+
     ChatContext.add_selection(selection1)
     ChatContext.add_selection(selection2)
     ChatContext.add_selection(selection3)
@@ -557,7 +559,7 @@ describe('get_diagnostics with chat context selections', function()
             lnum = r.start_line,
             col = 0,
             message = 'Mock diagnostic',
-            severity = 1
+            severity = 1,
           })
         end
         return result
@@ -571,22 +573,377 @@ describe('get_diagnostics with chat context selections', function()
     -- Verify that a single range list was passed containing all selections
     assert.is_not_nil(captured_range)
     assert.equal('table', type(captured_range))
-    assert.equal(3, #captured_range)  -- Should have three ranges in the list
-    
+    assert.equal(3, #captured_range) -- Should have three ranges in the list
+
     -- Check ranges for different line formats
-    assert.equal(14, captured_range[1].start_line)  -- 15 - 1 (0-based)
-    assert.equal(16, captured_range[1].end_line)    -- 17 - 1 (0-based)
-    
-    assert.equal(1, captured_range[2].start_line)   -- 2 - 1 (0-based)
-    assert.equal(3, captured_range[2].end_line)     -- 4 - 1 (0-based)
-    
-    assert.equal(19, captured_range[3].start_line)  -- 20 - 1 (0-based, single line)
-    assert.equal(19, captured_range[3].end_line)    -- 20 - 1 (0-based, single line)
-    
+    assert.equal(14, captured_range[1].start_line) -- 15 - 1 (0-based)
+    assert.equal(16, captured_range[1].end_line) -- 17 - 1 (0-based)
+
+    assert.equal(1, captured_range[2].start_line) -- 2 - 1 (0-based)
+    assert.equal(3, captured_range[2].end_line) -- 4 - 1 (0-based)
+
+    assert.equal(19, captured_range[3].start_line) -- 20 - 1 (0-based, single line)
+    assert.equal(19, captured_range[3].end_line) -- 20 - 1 (0-based, single line)
+
     -- Verify that all diagnostics from all ranges are combined in the result
     assert.equal(3, #result)
 
     -- Restore original function
     BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+end)
+
+describe('ChatContext.load() preserves selections on file switch', function()
+  local ChatContext
+  local BaseContext
+  local state
+
+  before_each(function()
+    ChatContext = require('opencode.context.chat_context')
+    BaseContext = require('opencode.context.base_context')
+    state = require('opencode.state')
+
+    -- Reset chat context
+    ChatContext.context = {
+      mentioned_files = {},
+      selections = {},
+      mentioned_subagents = {},
+      current_file = nil,
+      cursor_data = nil,
+      linter_errors = nil,
+    }
+
+    -- Mock state to indicate active session
+    state.active_session = true
+    state.is_opening = false
+  end)
+
+  it('should not clear selections when switching to a different file', function()
+    -- Add selections from a previous file
+    local selection1 = {
+      file = { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' },
+      content = 'print("hello")',
+      lines = '1, 3',
+    }
+    local selection2 = {
+      file = { path = '/tmp/bar.lua', name = 'bar.lua', extension = 'lua' },
+      content = 'print("world")',
+      lines = '5, 8',
+    }
+    ChatContext.add_selection(selection1)
+    ChatContext.add_selection(selection2)
+
+    -- Mock BaseContext to simulate switching to a new file
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_file = BaseContext.get_current_file
+    local original_get_current_cursor_data = BaseContext.get_current_cursor_data
+    local original_is_context_enabled = BaseContext.is_context_enabled
+    local original_get_current_selection = BaseContext.get_current_selection
+
+    BaseContext.get_current_buf = function()
+      return 1, 1 -- Return mock buffer and window
+    end
+    BaseContext.get_current_file = function()
+      return { path = '/tmp/baz.lua', name = 'baz.lua', extension = 'lua' }
+    end
+    BaseContext.get_current_cursor_data = function()
+      return { line = 1, column = 0, line_content = '', lines_before = 0, lines_after = 0 }
+    end
+    BaseContext.is_context_enabled = function(context_type)
+      return context_type == 'selection'
+    end
+    BaseContext.get_current_selection = function()
+      return nil -- No active visual selection
+    end
+
+    -- Mock get_diagnostics to return empty
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    -- Call load() which should update current_file but NOT clear selections
+    ChatContext.load()
+
+    -- Verify selections are still present
+    assert.equal(2, #ChatContext.context.selections)
+    assert.same(selection1, ChatContext.context.selections[1])
+    assert.same(selection2, ChatContext.context.selections[2])
+
+    -- Verify current_file was updated to the new file
+    assert.is_not_nil(ChatContext.context.current_file)
+    assert.equal('/tmp/baz.lua', ChatContext.context.current_file.path)
+    assert.equal('baz.lua', ChatContext.context.current_file.name)
+
+    -- Restore original functions
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_file = original_get_current_file
+    BaseContext.get_current_cursor_data = original_get_current_cursor_data
+    BaseContext.is_context_enabled = original_is_context_enabled
+    BaseContext.get_current_selection = original_get_current_selection
+    ChatContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should add new visual selection from current buffer when load() is called', function()
+    -- Start with one existing selection from another file
+    local existing_selection = {
+      file = { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' },
+      content = 'existing',
+      lines = '1, 2',
+    }
+    ChatContext.add_selection(existing_selection)
+
+    -- Mock BaseContext to simulate a new file with an active visual selection
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_file = BaseContext.get_current_file
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+    local original_get_current_cursor_data = BaseContext.get_current_cursor_data
+    local original_is_context_enabled = BaseContext.is_context_enabled
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_new_selection = BaseContext.new_selection
+
+    local current_file = { path = '/tmp/bar.lua', name = 'bar.lua', extension = 'lua' }
+
+    BaseContext.get_current_buf = function()
+      return 2, 2 -- Different buffer
+    end
+    BaseContext.get_current_file = function()
+      return current_file
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return current_file
+    end
+    BaseContext.get_current_cursor_data = function()
+      return { line = 5, column = 0, line_content = '', lines_before = 0, lines_after = 0 }
+    end
+    BaseContext.is_context_enabled = function(context_type)
+      return context_type == 'selection'
+    end
+    BaseContext.get_current_selection = function()
+      return { text = 'new selection', lines = '5, 7' }
+    end
+    BaseContext.new_selection = function(file, text, lines)
+      return { file = file, content = text, lines = lines }
+    end
+
+    -- Mock get_diagnostics to return empty
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    -- Call load() which should add the new visual selection
+    ChatContext.load()
+
+    -- Verify both selections are present
+    assert.equal(2, #ChatContext.context.selections)
+    assert.same(existing_selection, ChatContext.context.selections[1])
+    assert.equal('/tmp/bar.lua', ChatContext.context.selections[2].file.path)
+    assert.equal('new selection', ChatContext.context.selections[2].content)
+    assert.equal('5, 7', ChatContext.context.selections[2].lines)
+
+    -- Restore original functions
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_file = original_get_current_file
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+    BaseContext.get_current_cursor_data = original_get_current_cursor_data
+    BaseContext.is_context_enabled = original_is_context_enabled
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.new_selection = original_new_selection
+    ChatContext.get_diagnostics = original_get_diagnostics
+  end)
+end)
+
+describe('add_visual_selection API', function()
+  local context
+  local BaseContext
+  local util
+
+  before_each(function()
+    context = require('opencode.context')
+    BaseContext = require('opencode.context.base_context')
+    util = require('opencode.util')
+
+    -- Clear selections before each test
+    local ChatContext = require('opencode.context.chat_context')
+    ChatContext.context.selections = {}
+  end)
+
+  it('should add a visual selection via add_visual_selection API', function()
+    -- Mock the required functions
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+    local original_new_selection = BaseContext.new_selection
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function()
+      return { text = 'function foo()\n  return 42\nend', lines = '10, 12' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' }
+    end
+    BaseContext.new_selection = function(file, text, lines)
+      return { file = file, content = text, lines = lines }
+    end
+
+    -- Mock vim.api.nvim_get_current_buf
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+    vim.api.nvim_get_current_buf = function()
+      return 5
+    end
+
+    -- Mock vim.notify to prevent output during tests
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    -- Call add_visual_selection
+    local success = context.add_visual_selection()
+
+    -- Verify selection was added successfully
+    assert.is_true(success)
+    assert.equal(1, #notifications)
+    assert.is_not_nil(notifications[1].msg:match('Selection added from test.lua'))
+
+    -- Verify selection was added to context
+    local selections = context.get_context().selections
+    assert.equal(1, #selections)
+    assert.equal('/tmp/test.lua', selections[1].file.path)
+    assert.equal('function foo()\n  return 42\nend', selections[1].content)
+    assert.equal('10, 12', selections[1].lines)
+
+    -- Restore original functions
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+    BaseContext.new_selection = original_new_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
+  end)
+
+  it('should add a range-based selection via add_visual_selection with explicit range', function()
+    -- Mock the required functions
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+    local original_new_selection = BaseContext.new_selection
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function(config, range)
+      assert.is_not_nil(range)
+      assert.equal(15, range.start)
+      assert.equal(20, range.stop)
+      return { text = 'range-based selection', lines = '15-20' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return { path = '/tmp/range.lua', name = 'range.lua', extension = 'lua' }
+    end
+    BaseContext.new_selection = function(file, text, lines)
+      return { file = file, content = text, lines = lines }
+    end
+
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+    vim.api.nvim_get_current_buf = function()
+      return 7
+    end
+
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    local range = { start = 15, stop = 20 }
+    local success = context.add_visual_selection(range)
+
+    assert.is_true(success)
+    assert.equal(1, #notifications)
+    assert.is_not_nil(notifications[1].msg:match('Selection added from range.lua'))
+
+    local selections = context.get_context().selections
+    assert.equal(1, #selections)
+    assert.equal('/tmp/range.lua', selections[1].file.path)
+    assert.equal('range-based selection', selections[1].content)
+    assert.equal('15-20', selections[1].lines)
+
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+    BaseContext.new_selection = original_new_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
+  end)
+
+  it('should return false and notify when not a file buffer', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+
+    util.is_buf_a_file = function()
+      return false
+    end
+
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+    vim.api.nvim_get_current_buf = function()
+      return 10
+    end
+
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    local success = context.add_visual_selection()
+
+    assert.is_false(success)
+    assert.equal(1, #notifications)
+    assert.equal('Cannot add selection: not a file buffer', notifications[1].msg)
+    assert.equal(vim.log.levels.WARN, notifications[1].level)
+
+    util.is_buf_a_file = original_is_buf_a_file
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
+  end)
+
+  it('should return false and notify when no visual selection found', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function()
+      return nil -- No selection
+    end
+
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+    vim.api.nvim_get_current_buf = function()
+      return 11
+    end
+
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    local success = context.add_visual_selection()
+
+    assert.is_false(success)
+    assert.equal(1, #notifications)
+    assert.equal('No visual selection found', notifications[1].msg)
+    assert.equal(vim.log.levels.WARN, notifications[1].level)
+
+    -- Restore original functions
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
   end)
 end)

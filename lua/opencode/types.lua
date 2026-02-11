@@ -556,3 +556,7 @@
 ---@field messages number Number of messages reverted
 ---@field tool_calls number Number of tool calls reverted
 ---@field files table<string, {additions: number, deletions: number}> Summary of file changes reverted
+
+---@class OpencodeSelectionRange
+---@field start number Starting line number (inclusive)
+---@field stop number Ending line number (inclusive)

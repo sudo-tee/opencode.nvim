@@ -82,6 +82,42 @@ function M.clear_selections()
   ChatContext.clear_selections()
 end
 
+--- Captures the current visual selection and adds it to the context.
+--- This can be called from any buffer at any time, even when the panel is already open.
+--- Selections persist across file switches and accumulate across buffers.
+---@param range? OpencodeSelectionRange
+---@return boolean success Whether a selection was successfully added
+function M.add_visual_selection(range)
+  local buf = vim.api.nvim_get_current_buf()
+
+  if not util.is_buf_a_file(buf) then
+    vim.notify('Cannot add selection: not a file buffer', vim.log.levels.WARN)
+    return false
+  end
+
+  local current_selection = BaseContext.get_current_selection(nil, range)
+  if not current_selection then
+    vim.notify('No visual selection found', vim.log.levels.WARN)
+    return false
+  end
+
+  local file = BaseContext.get_current_file_for_selection(buf)
+  if not file then
+    vim.notify('Cannot determine file for selection', vim.log.levels.WARN)
+    return false
+  end
+
+  local selection = BaseContext.new_selection(file, current_selection.text, current_selection.lines)
+  M.add_selection(selection)
+
+  vim.notify(
+    string.format('Selection added from %s (lines %s)', file.name, current_selection.lines),
+    vim.log.levels.INFO
+  )
+
+  return true
+end
+
 function M.add_file(file)
   local is_file = vim.fn.filereadable(file) == 1
   local is_dir = vim.fn.isdirectory(file) == 1

@@ -379,10 +379,6 @@ function M.load()
   local should_update_file, is_different_file = M.should_update_current_file(current_file)
 
   if should_update_file then
-    if is_different_file then
-      M.context.selections = {}
-    end
-
     M.context.current_file = current_file
     if M.context.current_file then
       M.context.current_file.sent_at = nil
@@ -399,8 +395,7 @@ function M.load()
     if current_selection then
       local selection_file = base_context.get_current_file_for_selection(buf)
       if selection_file then
-        local selection =
-          base_context.new_selection(selection_file, current_selection.text, current_selection.lines)
+        local selection = base_context.new_selection(selection_file, current_selection.text, current_selection.lines)
         M.add_selection(selection)
       end
     end

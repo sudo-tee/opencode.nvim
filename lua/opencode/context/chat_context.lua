@@ -376,7 +376,7 @@ function M.load()
   local current_file = base_context.get_current_file(buf)
   local cursor_data = base_context.get_current_cursor_data(buf, win)
 
-  local should_update_file, is_different_file = M.should_update_current_file(current_file)
+  local should_update_file = M.should_update_current_file(current_file)
 
   if should_update_file then
     M.context.current_file = current_file

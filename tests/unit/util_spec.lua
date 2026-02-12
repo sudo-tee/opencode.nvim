@@ -258,14 +258,9 @@ describe('util.format_duration_seconds', function()
     assert.is_nil(util.format_duration_seconds(nil, os.time()))
   end)
 
-  it('returns live duration for in-progress operations', function()
+  it('returns nil for in-progress operations', function()
     local start_time = os.time() - 3
-    assert.equals('3s', util.format_duration_seconds(start_time, nil))
-  end)
-
-  it('shows at least 1s while in progress', function()
-    local start_time = os.time()
-    assert.equals('1s', util.format_duration_seconds(start_time, nil))
+    assert.is_nil(util.format_duration_seconds(start_time, nil))
   end)
 
   it('returns nil for finished durations below one second', function()

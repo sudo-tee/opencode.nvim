@@ -126,6 +126,79 @@ describe('ui zoom state', function()
 
       assert.equals(80, state.pre_zoom_width)
     end)
+
+    it('calls update_dimensions when dynamic height is enabled', function()
+      config.setup({
+        ui = {
+          input = {
+            min_height = 0.1,
+            max_height = 0.25,
+          },
+        },
+      })
+
+      package.loaded['opencode.ui.input_window'] = nil
+      local dynamic_height_input_window = require('opencode.ui.input_window')
+
+      local update_calls = 0
+      local original_defer_fn = vim.defer_fn
+      local original_update_dimensions = dynamic_height_input_window.update_dimensions
+
+      vim.defer_fn = function(fn)
+        fn()
+      end
+
+      dynamic_height_input_window.update_dimensions = function(...)
+        update_calls = update_calls + 1
+        return original_update_dimensions(...)
+      end
+
+      dynamic_height_input_window.schedule_resize(windows)
+
+      assert.equals(1, update_calls)
+
+      vim.defer_fn = original_defer_fn
+      dynamic_height_input_window.update_dimensions = original_update_dimensions
+      package.loaded['opencode.ui.input_window'] = nil
+      require('opencode.ui.input_window')
+    end)
+
+    it('does not call update_dimensions when dynamic height disabled (fixed input height)', function()
+      config.setup({
+        ui = {
+          input = {
+            min_height = 0.2,
+            max_height = 0.2,
+          },
+        },
+      })
+
+      package.loaded['opencode.ui.input_window'] = nil
+      local fixed_height_input_window = require('opencode.ui.input_window')
+
+      local update_calls = 0
+      local original_update_dimensions = fixed_height_input_window.update_dimensions
+      fixed_height_input_window.update_dimensions = function(...)
+        update_calls = update_calls + 1
+        return original_update_dimensions(...)
+      end
+
+      fixed_height_input_window.schedule_resize(windows)
+
+      assert.equals(0, update_calls)
+
+      fixed_height_input_window.update_dimensions = original_update_dimensions
+      config.setup({
+        ui = {
+          input = {
+            min_height = 0.1,
+            max_height = 0.25,
+          },
+        },
+      })
+      package.loaded['opencode.ui.input_window'] = nil
+      require('opencode.ui.input_window')
+    end)
   end)
 
   describe('output_window.update_dimensions', function()

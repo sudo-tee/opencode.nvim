@@ -38,8 +38,14 @@ local function get_winbar_height(windows)
   return 0
 end
 
+local dynamic_height_enabled = config.ui.input.min_height ~= config.ui.input.max_height
+
+---@return integer
 local function calculate_height(windows)
   local total_height = vim.api.nvim_get_option_value('lines', {})
+  if not dynamic_height_enabled then
+    return math.floor(total_height * config.ui.input.min_height)
+  end
   local min_height = math.max(1, math.floor(total_height * config.ui.input.min_height))
   local max_height = math.max(min_height, math.floor(total_height * config.ui.input.max_height))
   local content_height = get_content_height(windows) + get_winbar_height(windows)
@@ -274,7 +280,6 @@ function M.setup(windows)
   if config.ui.position ~= 'current' then
     set_win_option('winfixbuf', true, windows)
   end
-  set_win_option('winfixheight', true, windows)
   set_win_option('winfixwidth', true, windows)
 
   M.update_dimensions(windows)
@@ -295,18 +300,21 @@ function M.update_dimensions(windows)
 end
 
 function M.schedule_resize(windows)
+  if not dynamic_height_enabled then
+    return
+  end
   windows = windows or state.windows
   if not M.mounted(windows) or M._resize_scheduled then
     return
   end
 
   M._resize_scheduled = true
-  vim.schedule(function()
+  vim.defer_fn(function()
     M._resize_scheduled = false
     if M.mounted(windows) then
       M.update_dimensions(windows)
     end
-  end)
+  end, math.floor(1000 / 60)) -- throttle to 60 FPS
 end
 
 function M.refresh_placeholder(windows, input_lines)

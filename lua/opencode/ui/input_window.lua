@@ -314,7 +314,7 @@ function M.schedule_resize(windows)
     if M.mounted(windows) then
       M.update_dimensions(windows)
     end
-  end, 1000 / 60) -- debounce to 60 FPS
+  end, math.floor(1000 / 60)) -- throttle to 60 FPS
 end
 
 function M.refresh_placeholder(windows, input_lines)

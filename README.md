@@ -207,6 +207,7 @@ require('opencode').setup({
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
+    reference_picker_center_on_jump = false, -- Center viewport (zz) when jumping to a code reference (default: false)
     icons = {
       preset = 'nerdfonts', -- 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')
       overrides = {}, -- Optional per-key overrides, see section below

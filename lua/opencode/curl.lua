@@ -78,6 +78,8 @@ function M.request(opts)
 
   if opts.stream then
     local buffer = ''
+    -- job.pid is not cleared on process exit
+    local is_running = true
 
     local job_opts = {
       stdout = function(err, chunk)
@@ -114,20 +116,26 @@ function M.request(opts)
       job_opts.stdin = opts.body
     end
 
-    local job = vim.system(args, job_opts, opts.on_exit and function(result)
-      -- Flush any remaining buffer content
+    local job = vim.system(args, job_opts, function(result)
+      is_running = false
+
       if buffer and buffer ~= '' then
         opts.stream(nil, buffer)
       end
-      opts.on_exit(result.code, result.signal)
-    end or nil)
+
+      if opts.on_exit then
+        opts.on_exit(result.code, result.signal)
+      end
+    end)
 
     return {
       _job = job,
       is_running = function()
-        return job and job.pid ~= nil
+        return is_running
       end,
       shutdown = function()
+        -- Flip state before kill so callers immediately observe shutdown.
+        is_running = false
         if job and job.pid then
           pcall(function()
             job:kill(15) -- SIGTERM

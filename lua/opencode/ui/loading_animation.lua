@@ -97,8 +97,8 @@ end
 function M.stop()
   M._clear_animation_timer()
   M._animation.current_frame = 1
-  if state.windows and state.windows.footer_buf then
-    vim.api.nvim_buf_clear_namespace(state.windows.footer_buf, M._animation.ns_id, 0, -1)
+  if state.windows and state.windows.footer_buf and vim.api.nvim_buf_is_valid(state.windows.footer_buf) then
+    pcall(vim.api.nvim_buf_clear_namespace, state.windows.footer_buf, M._animation.ns_id, 0, -1)
   end
 end
 

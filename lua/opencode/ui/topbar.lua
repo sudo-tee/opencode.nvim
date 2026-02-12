@@ -16,7 +16,10 @@ local function format_token_info()
   if state.current_model then
     if config.ui.display_context_size then
       local provider, model = state.current_model:match('^(.-)/(.+)$')
-      local model_info = config_file.get_model_info(provider, model)
+      local ok, model_info = pcall(config_file.get_model_info, provider, model)
+      if not ok then
+        model_info = nil
+      end
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
       table.insert(parts, util.format_number(state.tokens_count) or nil)
       if limit > 0 then
@@ -92,7 +95,7 @@ function M.render()
       return
     end
     local win = state.windows.output_win
-    if not win then
+    if not win or not vim.api.nvim_win_is_valid(win) then
       return
     end
 

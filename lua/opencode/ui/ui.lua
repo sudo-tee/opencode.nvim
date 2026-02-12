@@ -206,8 +206,8 @@ end
 ---called before submitting input or doing something that might generate events
 ---from opencode
 ---@param synchronous? boolean If true, waits until session is fully rendered
-function M.render_output(synchronous)
-  local ret = renderer.render_full_session()
+function M.render_output(synchronous, opts)
+  local ret = renderer.render_full_session(opts)
 
   if ret and synchronous then
     ret:wait()

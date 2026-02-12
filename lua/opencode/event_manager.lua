@@ -157,6 +157,9 @@ local util = require('opencode.util')
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
+--- @field _health_check_timer number|nil Timer ID for health check
+--- @field _last_message_count number|nil Last known message count for incremental polling
+--- @field _was_window_visible boolean Tracks visible/hidden transition for poll sync
 local EventManager = {}
 EventManager.__index = EventManager
 
@@ -168,6 +171,8 @@ function EventManager.new()
     server_subscription = nil,
     is_started = false,
     captured_events = {},
+    _last_message_count = nil,
+    _was_window_visible = false,
   }, EventManager)
 
   local throttle_ms = config.ui.output.rendering.event_throttle_ms
@@ -351,6 +356,8 @@ function EventManager:start()
 
   self.is_started = true
 
+  self:_start_health_check()
+
   state.subscribe(
     'opencode_server',
     --- @param key string
@@ -377,6 +384,12 @@ function EventManager:start()
       end
     end
   )
+
+  state.subscribe('active_session', function(key, new, prev)
+    if not new or not prev or new.id ~= prev.id then
+      self._last_message_count = nil
+    end
+  end)
 end
 
 function EventManager:stop()
@@ -386,9 +399,11 @@ function EventManager:stop()
 
   self.is_started = false
   self:_cleanup_server_subscription()
+  self:_stop_health_check()
 
   self.throttling_emitter:clear()
   self.events = {}
+  self._was_window_visible = false
 end
 
 --- Subscribe to server-sent events from the API
@@ -419,6 +434,74 @@ function EventManager:_cleanup_server_subscription()
       end
     end)
     self.server_subscription = nil
+  end
+end
+
+function EventManager:_start_health_check()
+  if self._health_check_timer then
+    return
+  end
+
+  self._health_check_timer = vim.fn.timer_start(5000, function()
+    if not self.is_started then
+      return
+    end
+
+    local server = state.opencode_server
+    if not server or not server.url then
+      return
+    end
+
+    if self.server_subscription and self.server_subscription.is_running then
+      if not self.server_subscription.is_running() then
+        vim.notify('Event subscription disconnected, reconnecting...', vim.log.levels.INFO)
+        self:_subscribe_to_server_events(server)
+      end
+    elseif not self.server_subscription then
+      self:_subscribe_to_server_events(server)
+    end
+
+    if state.active_session and state.api_client then
+      self:_poll_external_messages()
+    end
+  end, { ['repeat'] = -1 })
+end
+
+--- Poll for messages from external clients (CLI workaround)
+--- opencode server doesn't broadcast CLI events via SSE, so we poll periodically
+--- Uses incremental check to avoid unnecessary re-renders (prevents thinking animation flicker)
+function EventManager:_poll_external_messages()
+  local status = state.get_window_status()
+  if status ~= 'visible' then
+    self._was_window_visible = false
+    return
+  end
+
+  if not self._was_window_visible then
+    -- Seed cached count on hidden→visible transition to avoid redundant render.
+    self._last_message_count = state.messages and #state.messages or 0
+    self._was_window_visible = true
+    return
+  end
+
+  local current_count = state.messages and #state.messages or 0
+
+  if self._last_message_count and self._last_message_count == current_count then
+    return
+  end
+
+  self._last_message_count = current_count
+
+  vim.schedule(function()
+    local ui = require('opencode.ui.ui')
+    ui.render_output(false, { force_scroll = false })
+  end)
+end
+
+function EventManager:_stop_health_check()
+  if self._health_check_timer then
+    vim.fn.timer_stop(self._health_check_timer)
+    self._health_check_timer = nil
   end
 end
 

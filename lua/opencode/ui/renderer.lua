@@ -9,6 +9,9 @@ local RenderState = require('opencode.ui.render_state')
 local M = {
   _prev_line_count = 0,
   _render_state = RenderState.new(),
+  _last_incremental_update_at = 0,
+  _full_render_in_flight = nil,
+  _full_render_pending = false,
   _last_part_formatted = {
     part_id = nil,
     formatted_data = nil --[[@as Output|nil]],
@@ -39,6 +42,7 @@ end, config.ui.output.rendering.markdown_debounce_ms or 250)
 function M.reset()
   M._prev_line_count = 0
   M._render_state:reset()
+  M._full_render_pending = false
   M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
   output_window.clear()
@@ -124,15 +128,68 @@ end
 
 ---Request all of the session data from the opencode server and render it
 ---@return Promise<OpencodeMessage[]>
-function M.render_full_session()
+---@param opts? {force_scroll?: boolean} Options for rendering
+function M.render_full_session(opts)
+  opts = opts or {}
+  
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
 
-  return fetch_session():and_then(M._render_full_session_data)
+  if M._full_render_in_flight then
+    M._full_render_pending = true
+    return M._full_render_in_flight
+  end
+
+  local request_started_at = vim.loop.hrtime()
+  local render_promise = fetch_session():and_then(function(session_data)
+    return M._render_full_session_data(session_data, request_started_at, opts)
+  end)
+
+  M._full_render_in_flight = render_promise
+
+  render_promise:finally(function()
+    M._full_render_in_flight = nil
+
+    if M._full_render_pending then
+      M._full_render_pending = false
+      vim.schedule(function()
+        if output_window.mounted() and state.api_client then
+          M.render_full_session(opts)
+        end
+      end)
+    end
+  end)
+
+  return render_promise
 end
 
-function M._render_full_session_data(session_data, prev_revert, revert)
+---@param session_data table
+---@param request_started_at number
+---@param opts? {force_scroll?: boolean}
+function M._render_full_session_data(session_data, request_started_at, opts)
+  opts = opts or {}
+  session_data = session_data or {}
+
+  if request_started_at and request_started_at < M._last_incremental_update_at then
+    return
+  end
+
+  local existing_messages = state.messages or {}
+  local active_session_id = state.active_session and state.active_session.id or nil
+  local has_live_messages_for_active_session = false
+  if active_session_id then
+    for _, message in ipairs(existing_messages) do
+      if message and message.info and message.info.sessionID == active_session_id then
+        has_live_messages_for_active_session = true
+        break
+      end
+    end
+  end
+
+  if #session_data == 0 and has_live_messages_for_active_session then
+    return
+  end
   M.reset()
 
   if not state.active_session or not state.messages then
@@ -164,7 +221,7 @@ function M._render_full_session_data(session_data, prev_revert, revert)
   if set_mode_from_messages then
     M._set_model_and_mode_from_messages()
   end
-  M.scroll_to_bottom(true)
+  M.scroll_to_bottom(opts.force_scroll == true)
 
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, state.active_session)
@@ -254,7 +311,7 @@ end
 ---Sets the entire output buffer based on output_data
 ---@param output_data Output Output object from formatter
 function M.render_output(output_data)
-  if not output_window.mounted() then
+  if not output_window.buffer_valid() then
     return
   end
 
@@ -299,11 +356,11 @@ end
 ---Respects cursor position if user has scrolled up
 ---@param force? boolean If true, scroll regardless of current position
 function M.scroll_to_bottom(force)
-  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
+  if not state.windows or not state.windows.output_buf then
     return
   end
 
-  if not vim.api.nvim_win_is_valid(state.windows.output_win) then
+  if not state.windows.output_win or not vim.api.nvim_win_is_valid(state.windows.output_win) then
     return
   end
 
@@ -326,8 +383,7 @@ function M.scroll_to_bottom(force)
     -- Always scroll on initial render
     if prev_line_count == 0 then
       should_scroll = true
-    -- Scroll if user is at bottom (respects manual scroll position)
-    elseif output_window.viewport_at_bottom then
+    elseif output_window.is_at_bottom(state.windows.output_win) then
       should_scroll = true
     end
   end
@@ -338,10 +394,6 @@ function M.scroll_to_bottom(force)
     vim.api.nvim_win_call(state.windows.output_win, function()
       vim.cmd('normal! zb')
     end)
-    output_window.viewport_at_bottom = true
-  else
-    -- User has scrolled up, don't scroll
-    output_window.viewport_at_bottom = false
   end
 end
 
@@ -607,6 +659,8 @@ function M.on_message_updated(message, revert_index)
     return
   end
 
+  M._last_incremental_update_at = vim.loop.hrtime()
+
   local msg = message --[[@as OpencodeMessage]]
   if not msg or not msg.info or not msg.info.id or not msg.info.sessionID then
     return
@@ -670,6 +724,8 @@ function M.on_part_updated(properties, revert_index)
   if not properties or not properties.part or not state.active_session then
     return
   end
+
+  M._last_incremental_update_at = vim.loop.hrtime()
 
   local part = properties.part
   if not part.id or not part.messageID or not part.sessionID then
@@ -1130,9 +1186,10 @@ function M.on_session_changed(_, new, old)
     return
   end
 
-  M.reset()
   if new then
     M.render_full_session()
+  else
+    M.reset()
   end
 end
 

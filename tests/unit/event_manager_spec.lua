@@ -1,7 +1,9 @@
 local EventManager = require('opencode.event_manager')
+local stub = require('luassert.stub')
 
 describe('EventManager', function()
   local event_manager
+  local state = require('opencode.state')
 
   before_each(function()
     event_manager = EventManager.new()
@@ -168,6 +170,84 @@ describe('EventManager', function()
       vim.api.nvim_del_autocmd(autocmd_id)
 
       assert.is_true(autocmd_called)
+    end)
+  end)
+
+  describe('external message polling visibility transition', function()
+    local ui
+    local get_window_status_stub
+    local render_output_stub
+
+    before_each(function()
+      ui = require('opencode.ui.ui')
+    end)
+
+    after_each(function()
+      if get_window_status_stub then
+        get_window_status_stub:revert()
+        get_window_status_stub = nil
+      end
+      if render_output_stub then
+        render_output_stub:revert()
+        render_output_stub = nil
+      end
+    end)
+
+    it('skips render on hidden to visible transition when message count unchanged', function()
+      local statuses = { 'hidden', 'visible', 'visible' }
+      local idx = 0
+
+      get_window_status_stub = stub(state, 'get_window_status').invokes(function()
+        idx = idx + 1
+        return statuses[idx] or 'visible'
+      end)
+
+      local render_calls = 0
+      render_output_stub = stub(ui, 'render_output').invokes(function()
+        render_calls = render_calls + 1
+      end)
+
+      state.messages = { { info = { id = 'm1' } } }
+      event_manager._last_message_count = 1
+
+      event_manager:_poll_external_messages()  -- hidden: skip
+      event_manager:_poll_external_messages()  -- visible: seed count, return
+      event_manager:_poll_external_messages()  -- visible: count unchanged, skip
+
+      vim.wait(100, function() return false end)
+
+      assert.are.equal(0, render_calls)
+    end)
+
+    it('renders on hidden to visible transition when new messages arrived', function()
+      local statuses = { 'hidden', 'visible', 'visible' }
+      local idx = 0
+
+      get_window_status_stub = stub(state, 'get_window_status').invokes(function()
+        idx = idx + 1
+        return statuses[idx] or 'visible'
+      end)
+
+      local render_calls = 0
+      render_output_stub = stub(ui, 'render_output').invokes(function()
+        render_calls = render_calls + 1
+      end)
+
+      state.messages = { { info = { id = 'm1' } } }
+      event_manager._last_message_count = 1
+
+      event_manager:_poll_external_messages()  -- hidden: skip
+      event_manager:_poll_external_messages()  -- visible: seed count=1, return
+
+      -- Simulate new message arriving from CLI while visible
+      table.insert(state.messages, { info = { id = 'm2' } })
+      event_manager:_poll_external_messages()  -- visible: count 2 != 1, render
+
+      vim.wait(100, function()
+        return render_calls == 1
+      end)
+
+      assert.are.equal(1, render_calls)
     end)
   end)
 end)

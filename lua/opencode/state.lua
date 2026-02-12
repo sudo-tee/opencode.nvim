@@ -196,6 +196,14 @@ function M.is_running()
   return M.job_count > 0
 end
 
+---@return 'visible'|'hidden'|'closed'
+function M.get_window_status()
+  if M.windows and M.windows.output_win and vim.api.nvim_win_is_valid(M.windows.output_win) then
+    return 'visible'
+  end
+  return 'closed'
+end
+
 ---@param pos any
 ---@return integer[]|nil
 local function normalize_cursor(pos)

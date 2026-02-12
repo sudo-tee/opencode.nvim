@@ -26,10 +26,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-16 04:27:36)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9eb45fbe60020xE560OGH3Vdoo]",
             "OpencodeHint"
           ]
@@ -42,27 +38,26 @@
     ],
     [
       2,
-      5,
+      1,
       0,
       {
         "ns_id": 3,
-        "priority": 4096,
+        "priority": 9,
         "right_gravity": true,
         "virt_text": [
           [
-            "▌",
-            "OpencodeToolBorder"
+            " 2025-10-16 04:27:36",
+            "OpencodeHint"
           ]
         ],
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
       3,
-      6,
+      5,
       0,
       {
         "ns_id": 3,
@@ -82,7 +77,7 @@
     ],
     [
       4,
-      7,
+      6,
       0,
       {
         "ns_id": 3,
@@ -102,7 +97,7 @@
     ],
     [
       5,
-      8,
+      7,
       0,
       {
         "ns_id": 3,
@@ -122,7 +117,7 @@
     ],
     [
       6,
-      9,
+      8,
       0,
       {
         "ns_id": 3,
@@ -142,7 +137,7 @@
     ],
     [
       7,
-      10,
+      9,
       0,
       {
         "ns_id": 3,
@@ -162,6 +157,26 @@
     ],
     [
       8,
+      10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      9,
       13,
       0,
       {
@@ -185,10 +200,6 @@
             "OpencodeHint"
           ],
           [
-            "",
-            "OpencodeHint"
-          ],
-          [
             " [permission-display-message]",
             "OpencodeHint"
           ]
@@ -200,7 +211,7 @@
       }
     ],
     [
-      9,
+      10,
       15,
       0,
       {
@@ -211,28 +222,8 @@
       }
     ],
     [
-      10,
-      15,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
       11,
-      16,
+      15,
       0,
       {
         "ns_id": 3,
@@ -252,7 +243,7 @@
     ],
     [
       12,
-      17,
+      16,
       0,
       {
         "ns_id": 3,
@@ -272,7 +263,7 @@
     ],
     [
       13,
-      18,
+      17,
       0,
       {
         "ns_id": 3,
@@ -292,7 +283,7 @@
     ],
     [
       14,
-      19,
+      18,
       0,
       {
         "ns_id": 3,
@@ -312,7 +303,7 @@
     ],
     [
       15,
-      20,
+      19,
       0,
       {
         "ns_id": 3,
@@ -332,7 +323,7 @@
     ],
     [
       16,
-      21,
+      20,
       0,
       {
         "ns_id": 3,
@@ -352,7 +343,7 @@
     ],
     [
       17,
-      22,
+      21,
       0,
       {
         "ns_id": 3,
@@ -372,6 +363,26 @@
     ],
     [
       18,
+      22,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      19,
       23,
       0,
       {
@@ -382,7 +393,7 @@
       }
     ],
     [
-      19,
+      20,
       23,
       0,
       {
@@ -402,7 +413,7 @@
       }
     ],
     [
-      20,
+      21,
       23,
       2,
       {
@@ -421,7 +432,7 @@
       }
     ],
     [
-      21,
+      22,
       24,
       0,
       {
@@ -441,7 +452,7 @@
       }
     ],
     [
-      22,
+      23,
       25,
       0,
       {
@@ -461,7 +472,7 @@
       }
     ],
     [
-      23,
+      24,
       26,
       0,
       {
@@ -481,7 +492,7 @@
       }
     ],
     [
-      24,
+      25,
       27,
       0,
       {
@@ -507,7 +518,7 @@
     "",
     "Perfect! Now I understand how it works. The message headers have extmarks with `virt_text` where the first element contains the icon (either `header_user` or `header_assistant`). Let me check the output_window module to understand the extmark namespace:",
     "",
-    "**  run** `Find extmark namespace usage`",
+    "**  run** `Find extmark namespace usage` 10345010s",
     "",
     "`````bash",
     "> rg \"nvim_buf_get_extmarks|ns_id\" /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/output_window.lua -B 2 -A 2",
@@ -533,5 +544,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751427
+  "timestamp": 1770933871
 }

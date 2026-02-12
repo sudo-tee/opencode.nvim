@@ -66,10 +66,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-12 05:43:49)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9d6f253910015UFmkGkiWtUsRW]",
             "OpencodeHint"
           ]
@@ -82,27 +78,26 @@
     ],
     [
       2,
-      2,
+      1,
       0,
       {
         "ns_id": 3,
-        "priority": 4096,
+        "priority": 9,
         "right_gravity": true,
         "virt_text": [
           [
-            "▌",
-            "OpencodeMessageRoleUser"
+            " 2025-10-12 05:43:49",
+            "OpencodeHint"
           ]
         ],
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
       3,
-      3,
+      2,
       0,
       {
         "ns_id": 3,
@@ -122,6 +117,26 @@
     ],
     [
       4,
+      3,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      5,
       6,
       0,
       {
@@ -145,10 +160,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-12 05:43:49)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9d6f253df001TjqxW12FAjGf5s]",
             "OpencodeHint"
           ]
@@ -160,7 +171,26 @@
       }
     ],
     [
-      5,
+      6,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-12 05:43:49",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      7,
       8,
       0,
       {
@@ -180,7 +210,7 @@
       }
     ],
     [
-      6,
+      8,
       9,
       0,
       {
@@ -200,7 +230,7 @@
       }
     ],
     [
-      7,
+      9,
       10,
       0,
       {
@@ -220,7 +250,7 @@
       }
     ],
     [
-      8,
+      10,
       11,
       0,
       {
@@ -240,7 +270,7 @@
       }
     ],
     [
-      9,
+      11,
       12,
       0,
       {
@@ -260,7 +290,7 @@
       }
     ],
     [
-      10,
+      12,
       17,
       0,
       {
@@ -284,10 +314,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-12 05:44:00)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9d6f27f4800103Tp3N6i6JW53p]",
             "OpencodeHint"
           ]
@@ -296,6 +322,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      13,
+      17,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-12 05:44:00",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -308,7 +353,7 @@
     "----",
     "",
     "",
-    "**  write** `/Users/cam/tmp/a/test.txt`",
+    "**  write** `/Users/cam/tmp/a/test.txt` 8s",
     "",
     "`````txt",
     ":)",
@@ -321,5 +366,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751428
+  "timestamp": 1770933872
 }

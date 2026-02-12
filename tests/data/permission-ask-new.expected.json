@@ -719,7 +719,7 @@
     "----",
     "",
     "",
-    "**  run** `Shows working tree status` 3311795s",
+    "**  run** `Shows working tree status`",
     "",
     "`````bash",
     "> git status",
@@ -745,5 +745,5 @@
     "",
     ""
   ],
-  "timestamp": 1770933871
+  "timestamp": 1770935239
 }

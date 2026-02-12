@@ -121,6 +121,7 @@
 ---@field display_context_size boolean
 ---@field display_cost boolean
 ---@field window_highlight string
+---@field reference_picker_center_on_jump boolean
 ---@field icons { preset: 'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
 ---@field output OpencodeUIOutputConfig

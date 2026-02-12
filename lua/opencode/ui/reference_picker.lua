@@ -308,7 +308,9 @@ function M.navigate_to(ref)
     line = math.min(line, line_count)
 
     vim.api.nvim_win_set_cursor(0, { line, col })
-    vim.cmd('normal! zz')
+    if config.ui.reference_picker_center_on_jump then
+      vim.cmd('normal! zz')
+    end
   end
 end
 

@@ -92,7 +92,7 @@ M.get_opencode_agents = Promise.async(function()
   local agents = {}
   for agent, opts in pairs(cfg.agent or {}) do
     -- Only include agents that are enabled and have the right mode
-    if opts.disable ~= true and (opts.mode == 'primary' or opts.mode == 'all') then
+    if opts.disable ~= true and opts.hidden ~= true and (opts.mode == 'primary' or opts.mode == 'all') then
       table.insert(agents, agent)
     end
   end
@@ -102,7 +102,7 @@ M.get_opencode_agents = Promise.async(function()
   for _, mode in ipairs({ 'plan', 'build' }) do
     if not vim.tbl_contains(agents, mode) then
       local mode_config = cfg.agent and cfg.agent[mode]
-      if mode_config == nil or (mode_config.disable ~= true) then
+      if mode_config == nil or (mode_config.disable ~= true and mode_config.hidden ~= true) then
         table.insert(agents, 1, mode)
       end
     end
@@ -119,11 +119,20 @@ M.get_subagents = Promise.async(function()
 
   local subagents = {}
   for agent, opts in pairs(cfg.agent or {}) do
-    if opts.mode ~= 'primary' or opts.mode == 'all' then
+    -- Only include agents that are not disabled, not hidden, and not primary-only
+    if opts.disable ~= true and opts.hidden ~= true and (opts.mode ~= 'primary' or opts.mode == 'all') then
       table.insert(subagents, agent)
     end
   end
-  table.insert(subagents, 1, 'general')
+
+  for _, default_agent in ipairs({ 'general', 'explore' }) do
+    if not vim.tbl_contains(subagents, default_agent) then
+      local agent_config = cfg.agent and cfg.agent[default_agent]
+      if agent_config == nil or (agent_config.disable ~= true and agent_config.hidden ~= true) then
+        table.insert(subagents, 1, default_agent)
+      end
+    end
+  end
 
   return subagents
 end)

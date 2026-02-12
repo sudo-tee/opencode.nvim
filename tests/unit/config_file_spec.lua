@@ -85,6 +85,110 @@ describe('config_file.setup', function()
     end):wait()
   end)
 
+  it('get_opencode_agents filters out hidden agents', function()
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({
+            agent = {
+              ['custom'] = { mode = 'primary' },
+              ['compaction'] = { mode = 'primary', hidden = true },
+              ['title'] = { mode = 'primary', hidden = true },
+            },
+          })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_opencode_agents():await()
+      assert.True(vim.tbl_contains(agents, 'custom'))
+      assert.False(vim.tbl_contains(agents, 'compaction'))
+      assert.False(vim.tbl_contains(agents, 'title'))
+    end):wait()
+  end)
+
+  it('get_subagents filters out hidden agents', function()
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({
+            agent = {
+              ['explore'] = { mode = 'all' },
+              ['compaction'] = { mode = 'all', hidden = true },
+              ['summary'] = { hidden = true },
+            },
+          })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_subagents():await()
+      assert.True(vim.tbl_contains(agents, 'general'))
+      assert.True(vim.tbl_contains(agents, 'explore'))
+      assert.False(vim.tbl_contains(agents, 'compaction'))
+      assert.False(vim.tbl_contains(agents, 'summary'))
+    end):wait()
+  end)
+
+  it('get_subagents does not duplicate built-in agents when configured', function()
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({
+            agent = {
+              ['general'] = { mode = 'subagent', model = 'custom/model' },
+              ['explore'] = { mode = 'all', temperature = 0.5 },
+              ['custom'] = { mode = 'subagent' },
+            },
+          })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_subagents():await()
+
+      -- Count occurrences of each agent
+      local general_count = 0
+      local explore_count = 0
+      for _, agent in ipairs(agents) do
+        if agent == 'general' then
+          general_count = general_count + 1
+        elseif agent == 'explore' then
+          explore_count = explore_count + 1
+        end
+      end
+
+      -- Each should appear exactly once
+      assert.equal(1, general_count, 'general should appear exactly once')
+      assert.equal(1, explore_count, 'explore should appear exactly once')
+      assert.True(vim.tbl_contains(agents, 'custom'))
+    end):wait()
+  end)
+
+  it('get_subagents respects disabled built-in agents', function()
+    Promise.spawn(function()
+      state.api_client = {
+        get_config = function()
+          return Promise.new():resolve({
+            agent = {
+              ['general'] = { disable = true },
+              ['explore'] = { hidden = true },
+            },
+          })
+        end,
+        get_current_project = function()
+          return Promise.new():resolve({ id = 'p1' })
+        end,
+      }
+      local agents = config_file.get_subagents():await()
+      assert.False(vim.tbl_contains(agents, 'general'))
+      assert.False(vim.tbl_contains(agents, 'explore'))
+    end):wait()
+  end)
+
   it('get_opencode_project returns project', function()
     Promise.spawn(function()
       local project = { id = 'p1', name = 'X' }

@@ -132,11 +132,25 @@ end
 ---@param end_time number|nil
 ---@return string|nil
 function M.format_duration_seconds(start_time, end_time)
-  if not start_time or not end_time then
+  local normalized_start = M.normalize_timestamp(start_time)
+  if not normalized_start then
     return nil
   end
 
-  return string.format('%ds', math.max(0, M.normalize_timestamp(end_time) - M.normalize_timestamp(start_time)))
+  local is_in_progress = end_time == nil
+  local normalized_end = M.normalize_timestamp(end_time) or os.time()
+  local elapsed_seconds = math.max(0, normalized_end - normalized_start)
+
+  if is_in_progress then
+    elapsed_seconds = math.max(1, elapsed_seconds)
+    return string.format('%ds', elapsed_seconds)
+  end
+
+  if elapsed_seconds < 1 then
+    return nil
+  end
+
+  return string.format('%ds', elapsed_seconds)
 end
 
 function M.index_of(tbl, value)

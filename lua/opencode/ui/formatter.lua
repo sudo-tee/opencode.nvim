@@ -672,7 +672,9 @@ function M._format_tool(output, part)
   local metadata = part.state.metadata or {}
   local tool_output = part.state.output or ''
   local tool_time = part.state.time or {}
-  local duration_text = util.format_duration_seconds(tool_time.start, tool_time['end'])
+  local tool_status = part.state.status
+  local should_show_duration = tool ~= 'question' and tool_status ~= 'pending'
+  local duration_text = should_show_duration and util.format_duration_seconds(tool_time.start, tool_time['end']) or nil
 
   if tool == 'bash' then
     M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]], duration_text)

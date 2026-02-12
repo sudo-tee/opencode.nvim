@@ -469,6 +469,134 @@ describe('opencode.core', function()
     end)
   end)
 
+  describe('handle_directory_change', function()
+    local server_job
+    local context
+
+    before_each(function()
+      server_job = require('opencode.server_job')
+      context = require('opencode.context')
+      stub(server_job, 'ensure_server').invokes(function()
+        local p = Promise.new()
+        p:resolve({
+          is_running = function()
+            return true
+          end,
+          shutdown = function()
+            return Promise.new():resolve()
+          end,
+          url = 'http://127.0.0.1:4000',
+        })
+        return p
+      end)
+      stub(context, 'unload_attachments')
+    end)
+
+    after_each(function()
+      if server_job.ensure_server.revert then
+        server_job.ensure_server:revert()
+      end
+      if context.unload_attachments.revert then
+        context.unload_attachments:revert()
+      end
+    end)
+
+    it('does nothing when no server is running', function()
+      state.opencode_server = nil
+      state.active_session = { id = 'sess1' }
+
+      core.handle_directory_change():wait()
+
+      assert.is_nil(state.opencode_server)
+      assert.equal('sess1', state.active_session.id)
+      assert.stub(server_job.ensure_server).was_not_called()
+    end)
+
+    it('shuts down existing server and starts new one', function()
+      local shutdown_called = false
+      state.opencode_server = {
+        is_running = function()
+          return true
+        end,
+        shutdown = function()
+          shutdown_called = true
+          return Promise.new():resolve()
+        end,
+        url = 'http://127.0.0.1:4000',
+      }
+
+      core.handle_directory_change():wait()
+
+      assert.is_true(shutdown_called)
+      assert.stub(server_job.ensure_server).was_called()
+    end)
+
+    it('clears active session and context', function()
+      state.opencode_server = {
+        is_running = function()
+          return true
+        end,
+        shutdown = function()
+          return Promise.new():resolve()
+        end,
+        url = 'http://127.0.0.1:4000',
+      }
+      state.active_session = { id = 'old-session' }
+      state.last_sent_context = { some = 'context' }
+
+      core.handle_directory_change():wait()
+
+      -- Should be set to the new session from get_last_workspace_session stub
+      assert.truthy(state.active_session)
+      assert.equal('test-session', state.active_session.id)
+      assert.is_nil(state.last_sent_context)
+      assert.stub(context.unload_attachments).was_called()
+    end)
+
+    it('loads last workspace session for new directory', function()
+      state.opencode_server = {
+        is_running = function()
+          return true
+        end,
+        shutdown = function()
+          return Promise.new():resolve()
+        end,
+        url = 'http://127.0.0.1:4000',
+      }
+
+      core.handle_directory_change():wait()
+
+      assert.truthy(state.active_session)
+      assert.equal('test-session', state.active_session.id)
+      assert.stub(session.get_last_workspace_session).was_called()
+    end)
+
+    it('creates new session when no last session exists', function()
+      state.opencode_server = {
+        is_running = function()
+          return true
+        end,
+        shutdown = function()
+          return Promise.new():resolve()
+        end,
+        url = 'http://127.0.0.1:4000',
+      }
+
+      -- Override stub to return nil (no last session)
+      session.get_last_workspace_session:revert()
+      stub(session, 'get_last_workspace_session').invokes(function()
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
+      end)
+
+      core.handle_directory_change():wait()
+
+      assert.truthy(state.active_session)
+      assert.truthy(state.active_session.id)
+    end)
+  end)
+
   describe('switch_to_mode', function()
     it('sets current model from config file when mode has a model configured', function()
       local Promise = require('opencode.promise')

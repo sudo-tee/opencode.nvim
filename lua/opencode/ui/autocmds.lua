@@ -52,24 +52,8 @@ function M.setup_autocmds(windows)
   vim.api.nvim_create_autocmd('DirChanged', {
     group = group,
     callback = Promise.async(function(event)
-      local log = require('opencode.log')
-      local state = require('opencode.state')
-      local server_job = require('opencode.server_job')
-      local session = require('opencode.session')
       local core = require('opencode.core')
-
-      if state.opencode_server then
-        vim.notify('Directory changed, restarting Opencode server...', vim.log.levels.INFO)
-        log.info('Shutting down Opencode server due to directory change...')
-        state.opencode_server:shutdown():await()
-        server_job.ensure_server():await()
-        state.active_session = nil
-        vim.notify('Loading last session for new working dir', vim.log.levels.INFO)
-        state.active_session = session.get_last_workspace_session():await()
-        if not state.active_session then
-          state.active_session = core.create_new_session():await()
-        end
-      end
+      core.handle_directory_change():await()
     end),
   })
 

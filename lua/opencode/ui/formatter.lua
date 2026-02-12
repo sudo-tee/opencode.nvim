@@ -28,11 +28,6 @@ function M._format_reasoning(output, part)
     local duration_text = util.format_duration_seconds(time.start, time['end'])
     if duration_text then
       title = string.format('%s (%s)', title, duration_text)
-    else
-      local start_text = util.format_time(time.start) or ''
-      if start_text ~= '' then
-        title = string.format('%s (%s)', title, start_text)
-      end
     end
   end
 

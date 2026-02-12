@@ -27,7 +27,7 @@ function M._format_reasoning(output, part)
   if time and type(time) == 'table' and time.start then
     local duration_text = util.format_duration_seconds(time.start, time['end'])
     if duration_text then
-      title = string.format('%s (%s)', title, duration_text)
+      title = string.format('%s %s', title, duration_text)
     end
   end
 

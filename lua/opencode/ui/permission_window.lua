@@ -130,10 +130,11 @@ function M.format_display(output)
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* `' .. permission.title .. '`')
   else
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '*')
-    local lines = permission.patterns or {}
     table.insert(content, string.format('```%s', perm_type))
-    for i, line in ipairs(lines) do
-      table.insert(content, line)
+    for _, pattern in ipairs(permission.patterns or {}) do
+      for _, line in ipairs(vim.split(pattern, '\n')) do
+        table.insert(content, line)
+      end
     end
     table.insert(content, '```')
   end

@@ -196,6 +196,68 @@ function M.is_running()
   return M.job_count > 0
 end
 
+---@param pos any
+---@return integer[]|nil
+local function normalize_cursor(pos)
+  if type(pos) ~= 'table' or #pos < 2 then
+    return nil
+  end
+  local line = tonumber(pos[1])
+  local col = tonumber(pos[2])
+  if not line or not col then
+    return nil
+  end
+  return { math.max(1, math.floor(line)), math.max(0, math.floor(col)) }
+end
+
+---Save cursor position from a window
+---@param win_type 'input'|'output'
+---@param win_id integer|nil
+---@return integer[]|nil
+function M.save_cursor_position(win_type, win_id)
+  if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+    return nil
+  end
+
+  local ok, pos = pcall(vim.api.nvim_win_get_cursor, win_id)
+  if not ok then
+    return nil
+  end
+
+  local normalized = normalize_cursor(pos)
+  if not normalized then
+    return nil
+  end
+
+  M.set_cursor_position(win_type, normalized)
+  return normalized
+end
+
+---Set saved cursor position
+---@param win_type 'input'|'output'
+---@param pos integer[]|nil
+function M.set_cursor_position(win_type, pos)
+  local normalized = normalize_cursor(pos)
+  if win_type == 'input' then
+    _state.last_input_window_position = normalized
+  elseif win_type == 'output' then
+    _state.last_output_window_position = normalized
+  end
+end
+
+---Get saved cursor position
+---@param win_type 'input'|'output'
+---@return integer[]|nil
+function M.get_cursor_position(win_type)
+  if win_type == 'input' then
+    return normalize_cursor(_state.last_input_window_position)
+  end
+  if win_type == 'output' then
+    return normalize_cursor(_state.last_output_window_position)
+  end
+  return nil
+end
+
 --- Observable state proxy. All reads/writes go through this table.
 --- Use `state.subscribe(key, cb)` to listen for changes.
 --- Use `state.unsubscribe(key, cb)` to remove listeners.

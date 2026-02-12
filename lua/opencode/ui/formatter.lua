@@ -19,27 +19,26 @@ M.separator = {
 ---@param part OpencodeMessagePart
 function M._format_reasoning(output, part)
   local text = vim.trim(part.text or '')
-  if text == '' then
-    return
-  end
 
   local start_line = output:get_line_count() + 1
 
   local title = 'Reasoning'
   local time = part.time
   if time and type(time) == 'table' and time.start then
-    local start_text = util.format_time(time.start) or ''
-    local end_text = (time['end'] and util.format_time(time['end'])) or nil
-    if end_text and end_text ~= '' then
-      title = string.format('%s (%s - %s)', title, start_text, end_text)
-    elseif start_text ~= '' then
-      title = string.format('%s (%s)', title, start_text)
+    local duration_text = util.format_duration_seconds(time.start, time['end'])
+    if duration_text then
+      title = string.format('%s (%s)', title, duration_text)
+    else
+      local start_text = util.format_time(time.start) or ''
+      if start_text ~= '' then
+        title = string.format('%s (%s)', title, start_text)
+      end
     end
   end
 
   M.format_action(output, icons.get('reasoning') .. ' ' .. title, '')
 
-  if config.ui.output.tools.show_reasoning_output then
+  if config.ui.output.tools.show_reasoning_output and text ~= '' then
     output:add_empty_line()
     output:add_lines(vim.split(text, '\n'))
     output:add_empty_line()
@@ -219,7 +218,6 @@ function M.format_message_header(message)
   local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
   local time = message.info.time and message.info.time.created or nil
-  local time_text = (time and ' (' .. util.format_time(time) .. ')' or '')
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
   local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
 
@@ -250,12 +248,19 @@ function M.format_message_header(message)
       { ' ' },
       { display_name, role_hl },
       { model_text, 'OpencodeHint' },
-      { time_text, 'OpencodeHint' },
       { debug_text, 'OpencodeHint' },
     },
     virt_text_win_col = -3,
     priority = 10,
   } --[[@as OutputExtmark]])
+
+  if time then
+    output:add_extmark(output:get_line_count() - 1, {
+      virt_text = { { ' ' .. util.format_time(time), 'OpencodeHint' } },
+      virt_text_pos = 'right_align',
+      priority = 9,
+    } --[[@as OutputExtmark]])
+  end
 
   -- Only want to show the error if we have no parts. If we have parts, they'll
   -- handle rendering the error
@@ -468,11 +473,14 @@ end
 ---@param output Output Output object to write to
 ---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)
-function M.format_action(output, tool_type, value)
+---@param duration_text? string
+function M.format_action(output, tool_type, value, duration_text)
   if not tool_type or not value then
     return
   end
-  local line = string.format('**%s** %s', tool_type, value and #value > 0 and ('`' .. value .. '`') or '')
+  local detail = value and #value > 0 and ('`' .. value .. '`') or ''
+  local duration_suffix = duration_text and (' ' .. duration_text) or ''
+  local line = string.format('**%s** %s%s', tool_type, detail, duration_suffix)
 
   output:add_line(line)
 end
@@ -480,8 +488,9 @@ end
 ---@param output Output Output object to write to
 ---@param input BashToolInput data for the tool
 ---@param metadata BashToolMetadata Metadata for the tool use
-function M._format_bash_tool(output, input, metadata)
-  M.format_action(output, icons.get('run') .. ' run', input and input.description)
+---@param duration_text? string
+function M._format_bash_tool(output, input, metadata, duration_text)
+  M.format_action(output, icons.get('run') .. ' run', input and input.description, duration_text)
 
   if not config.ui.output.tools.show_output then
     return
@@ -498,7 +507,8 @@ end
 ---@param tool_type string Tool type (e.g., 'read', 'edit', 'write')
 ---@param input FileToolInput data for the tool
 ---@param metadata FileToolMetadata Metadata for the tool use
-function M._format_file_tool(output, tool_type, input, metadata)
+---@param duration_text? string
+function M._format_file_tool(output, tool_type, input, metadata, duration_text)
   local file_name = ''
   if input and input.filePath then
     local cwd = vim.fn.getcwd()
@@ -514,7 +524,7 @@ function M._format_file_tool(output, tool_type, input, metadata)
   local file_type = input and util.get_markdown_filetype(input.filePath) or ''
   local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 
-  M.format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name)
+  M.format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name, duration_text)
 
   if not config.ui.output.tools.show_output then
     return
@@ -530,8 +540,9 @@ end
 ---@param output Output Output object to write to
 ---@param title string
 ---@param input TodoToolInput
-function M._format_todo_tool(output, title, input)
-  M.format_action(output, icons.get('plan') .. ' plan', (title or ''))
+---@param duration_text? string
+function M._format_todo_tool(output, title, input, duration_text)
+  M.format_action(output, icons.get('plan') .. ' plan', (title or ''), duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -547,8 +558,9 @@ end
 ---@param output Output Output object to write to
 ---@param input GlobToolInput data for the tool
 ---@param metadata GlobToolMetadata Metadata for the tool use
-function M._format_glob_tool(output, input, metadata)
-  M.format_action(output, icons.get('search') .. ' glob', input and input.pattern)
+---@param duration_text? string
+function M._format_glob_tool(output, input, metadata, duration_text)
+  M.format_action(output, icons.get('search') .. ' glob', input and input.pattern, duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -559,7 +571,8 @@ end
 ---@param output Output Output object to write to
 ---@param input GrepToolInput data for the tool
 ---@param metadata GrepToolMetadata Metadata for the tool use
-function M._format_grep_tool(output, input, metadata)
+---@param duration_text? string
+function M._format_grep_tool(output, input, metadata, duration_text)
   local grep_str = table.concat(
     vim.tbl_filter(function(part)
       return part ~= nil
@@ -567,7 +580,7 @@ function M._format_grep_tool(output, input, metadata)
     '` `'
   )
 
-  M.format_action(output, icons.get('search') .. ' grep', grep_str)
+  M.format_action(output, icons.get('search') .. ' grep', grep_str, duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -579,16 +592,18 @@ end
 
 ---@param output Output Output object to write to
 ---@param input WebFetchToolInput data for the tool
-function M._format_webfetch_tool(output, input)
-  M.format_action(output, icons.get('web') .. ' fetch', input and input.url)
+---@param duration_text? string
+function M._format_webfetch_tool(output, input, duration_text)
+  M.format_action(output, icons.get('web') .. ' fetch', input and input.url, duration_text)
 end
 
 ---@param output Output Output object to write to
 ---@param input ListToolInput
 ---@param metadata ListToolMetadata
 ---@param tool_output string
-function M._format_list_tool(output, input, metadata, tool_output)
-  M.format_action(output, icons.get('list') .. ' list', input and input.path or '')
+---@param duration_text? string
+function M._format_list_tool(output, input, metadata, tool_output, duration_text)
+  M.format_action(output, icons.get('list') .. ' list', input and input.path or '', duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -615,8 +630,9 @@ end
 ---@param input QuestionToolInput Question tool input data
 ---@param metadata QuestionToolMetadata Question tool metadata
 ---@param status string Status of the tool execution
-function M._format_question_tool(output, input, metadata, status)
-  M.format_action(output, icons.get('question') .. ' question', '')
+---@param duration_text? string
+function M._format_question_tool(output, input, metadata, status, duration_text)
+  M.format_action(output, icons.get('question') .. ' question', '', duration_text)
   output:add_empty_line()
   if not config.ui.output.tools.show_output or status ~= 'completed' then
     return
@@ -655,32 +671,47 @@ function M._format_tool(output, part)
   local input = part.state.input or {}
   local metadata = part.state.metadata or {}
   local tool_output = part.state.output or ''
+  local tool_time = part.state.time or {}
+  local duration_text = util.format_duration_seconds(tool_time.start, tool_time['end'])
 
   if tool == 'bash' then
-    M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]])
+    M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]], duration_text)
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
-    M._format_file_tool(output, tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]])
+    M._format_file_tool(output, tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]], duration_text)
   elseif tool == 'todowrite' then
-    M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]])
+    M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]], duration_text)
   elseif tool == 'glob' then
-    M._format_glob_tool(output, input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]])
+    M._format_glob_tool(output, input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]], duration_text)
   elseif tool == 'list' then
-    M._format_list_tool(output, input --[[@as ListToolInput]], metadata --[[@as ListToolMetadata]], tool_output)
+    M._format_list_tool(
+      output,
+      input --[[@as ListToolInput]],
+      metadata --[[@as ListToolMetadata]],
+      tool_output,
+      duration_text
+    )
   elseif tool == 'grep' then
-    M._format_grep_tool(output, input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]])
+    M._format_grep_tool(output, input --[[@as GrepToolInput]], metadata --[[@as GrepToolMetadata]], duration_text)
   elseif tool == 'webfetch' then
-    M._format_webfetch_tool(output, input --[[@as WebFetchToolInput]])
+    M._format_webfetch_tool(output, input --[[@as WebFetchToolInput]], duration_text)
   elseif tool == 'task' then
-    M._format_task_tool(output, input --[[@as TaskToolInput]], metadata --[[@as TaskToolMetadata]], tool_output)
+    M._format_task_tool(
+      output,
+      input --[[@as TaskToolInput]],
+      metadata --[[@as TaskToolMetadata]],
+      tool_output,
+      duration_text
+    )
   elseif tool == 'question' then
     M._format_question_tool(
       output,
       input --[[@as QuestionToolInput]],
       metadata --[[@as QuestionToolMetadata]],
-      part.state.status
+      part.state.status,
+      duration_text
     )
   else
-    M.format_action(output, icons.get('tool') .. ' tool', tool)
+    M.format_action(output, icons.get('tool') .. ' tool', tool, duration_text)
   end
 
   if part.state.status == 'error' and part.state.error then
@@ -704,7 +735,8 @@ end
 ---@param input TaskToolInput data for the tool
 ---@param metadata TaskToolMetadata Metadata for the tool use
 ---@param tool_output string
-function M._format_task_tool(output, input, metadata, tool_output)
+---@param duration_text? string
+function M._format_task_tool(output, input, metadata, tool_output, duration_text)
   local start_line = output:get_line_count() + 1
 
   -- Show agent type if available
@@ -714,7 +746,7 @@ function M._format_task_tool(output, input, metadata, tool_output)
     description = string.format('%s (@%s)', description, agent_type)
   end
 
-  M.format_action(output, icons.get('task') .. ' task', description)
+  M.format_action(output, icons.get('task') .. ' task', description, duration_text)
 
   if config.ui.output.tools.show_output then
     -- Show task summary from metadata
@@ -877,7 +909,7 @@ function M.format_part(part, message, is_last_part)
     if part.type == 'text' and part.text then
       M._format_assistant_message(output, vim.trim(part.text))
       content_added = true
-    elseif part.type == 'reasoning' and part.text then
+    elseif part.type == 'reasoning' then
       M._format_reasoning(output, part)
       content_added = true
     elseif part.type == 'tool' then

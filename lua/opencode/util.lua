@@ -88,18 +88,55 @@ end
 --- @param timestamp number
 --- @return string: Formatted time string
 function M.format_time(timestamp)
-  local formats = { day = '%I:%M %p', year = '%d %b %I:%M %p', full = '%d %b %Y %I:%M %p' }
-
-  if timestamp > 1e12 then
-    timestamp = math.floor(timestamp / 1000)
+  timestamp = M.normalize_timestamp(timestamp)
+  if not timestamp then
+    return ''
   end
 
   local same_day = os.date('%Y-%m-%d') == os.date('%Y-%m-%d', timestamp)
   local same_year = os.date('%Y') == os.date('%Y', timestamp)
+  local locale_time = vim.trim(os.date('%X', timestamp) or '')
 
-  local format_str = same_day and formats.day or (same_year and formats.year or formats.full)
+  -- Keep output close to previous formatting by dropping seconds when present.
+  locale_time = locale_time:gsub('^(%d?%d:%d%d):%d%d(.*)$', '%1%2')
+  if locale_time == '' then
+    locale_time = vim.trim(os.date('%H:%M', timestamp) or '')
+  end
 
-  return os.date(format_str, timestamp) --[[@as string]]
+  if same_day then
+    return locale_time
+  end
+
+  if same_year then
+    return string.format('%s %s', os.date('%d %b', timestamp), locale_time)
+  end
+
+  return string.format('%s %s', os.date('%d %b %Y', timestamp), locale_time)
+end
+
+---@param timestamp number
+---@return number
+function M.normalize_timestamp(timestamp)
+  if not timestamp then
+    return nil
+  end
+
+  if timestamp > 1e12 then
+    return math.floor(timestamp / 1000)
+  end
+
+  return timestamp
+end
+
+---@param start_time number|nil
+---@param end_time number|nil
+---@return string|nil
+function M.format_duration_seconds(start_time, end_time)
+  if not start_time or not end_time then
+    return nil
+  end
+
+  return string.format('%ds', math.max(0, M.normalize_timestamp(end_time) - M.normalize_timestamp(start_time)))
 end
 
 function M.index_of(tbl, value)

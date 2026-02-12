@@ -128,7 +128,7 @@ function M.normalize_timestamp(timestamp)
   return timestamp
 end
 
----@param start_time number|nil
+---@param start_time number
 ---@param end_time number|nil
 ---@return string|nil
 function M.format_duration_seconds(start_time, end_time)

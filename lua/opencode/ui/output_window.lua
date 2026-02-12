@@ -3,7 +3,6 @@ local config = require('opencode.config')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
-M.viewport_at_bottom = true
 
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
@@ -35,9 +34,17 @@ function M.mounted(windows)
   return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)
 end
 
----Check if the output window is currently at the bottom
+---Check if the output buffer is valid (even if window is hidden)
+---@param windows? OpencodeWindowState
+---@return boolean
+function M.buffer_valid(windows)
+  windows = windows or state.windows
+  return windows and windows.output_buf and vim.api.nvim_buf_is_valid(windows.output_buf)
+end
+
+---Check if the cursor in output window is at the bottom
 ---@param win? integer Window ID, defaults to state.windows.output_win
----@return boolean true if at bottom, false otherwise
+---@return boolean true if cursor at bottom, false otherwise
 function M.is_at_bottom(win)
   if config.ui.output.always_scroll_to_bottom then
     return true
@@ -58,11 +65,12 @@ function M.is_at_bottom(win)
     return true
   end
 
-  local botline = vim.fn.line('w$', win)
+  local ok2, cursor = pcall(vim.api.nvim_win_get_cursor, win)
+  if not ok2 then
+    return true
+  end
 
-  -- Consider at bottom if bottom visible line is at or near the end
-  -- Use -1 tolerance for wrapped lines
-  return botline >= line_count - 1
+  return cursor[1] >= line_count
 end
 
 ---Helper to set window option and save original value for position='current'
@@ -132,7 +140,7 @@ function M.update_dimensions(windows)
 end
 
 function M.get_buf_line_count()
-  if not M.mounted() then
+  if not M.buffer_valid() then
     return 0
   end
   ---@cast state.windows { output_buf: integer }
@@ -145,7 +153,7 @@ end
 ---@param start_line? integer The starting line to set, defaults to 0
 ---@param end_line? integer The last line to set, defaults to -1
 function M.set_lines(lines, start_line, end_line)
-  if not M.mounted() then
+  if not M.buffer_valid() then
     return
   end
   ---@cast state.windows { output_buf: integer }
@@ -163,7 +171,7 @@ end
 ---@param end_line? integer Line to clear until, defaults to -1
 ---@param clear_all? boolean If true, clears all extmarks in the buffer
 function M.clear_extmarks(start_line, end_line, clear_all)
-  if not M.mounted() then
+  if not M.buffer_valid() then
     return
   end
   ---@cast state.windows { output_buf: integer }
@@ -184,7 +192,7 @@ end
 ---@param extmarks table<number, OutputExtmark[]> Extmarks indexed by line
 ---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
 function M.set_extmarks(extmarks, line_offset)
-  if not M.mounted() or not extmarks or type(extmarks) ~= 'table' then
+  if not M.buffer_valid() or not extmarks or type(extmarks) ~= 'table' then
     return
   end
   ---@cast state.windows { output_buf: integer }
@@ -262,12 +270,11 @@ function M.setup_autocmds(windows, group)
     end,
   })
 
-  -- Track scroll position when window is scrolled
-  vim.api.nvim_create_autocmd('WinScrolled', {
+  vim.api.nvim_create_autocmd('CursorMoved', {
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      M.viewport_at_bottom = M.is_at_bottom(windows.output_win)
+      state.save_cursor_position('output', windows.output_win)
     end,
   })
 end
@@ -277,7 +284,6 @@ function M.clear()
   -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
   -- extmarks behind
   M.clear_extmarks(0, -1, true)
-  M.viewport_at_bottom = true
 end
 
 ---Get the output buffer

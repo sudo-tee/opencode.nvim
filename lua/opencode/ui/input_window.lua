@@ -513,6 +513,14 @@ function M.setup_autocmds(windows, group)
       M.schedule_resize(windows)
     end,
   })
+
+  vim.api.nvim_create_autocmd('CursorMoved', {
+    group = group,
+    buffer = windows.input_buf,
+    callback = function()
+      state.save_cursor_position('input', windows.input_win)
+    end,
+  })
 end
 
 ---Toggle the input window visibility (hide/show)
@@ -539,7 +547,7 @@ function M._hide()
   end
 
   local output_window = require('opencode.ui.output_window')
-  local was_at_bottom = output_window.viewport_at_bottom
+  local was_at_bottom = output_window.is_at_bottom(windows.output_win)
 
   M._hidden = true
   M._toggling = true
@@ -574,7 +582,7 @@ function M._show()
   end
 
   local output_window = require('opencode.ui.output_window')
-  local was_at_bottom = output_window.viewport_at_bottom
+  local was_at_bottom = output_window.is_at_bottom(windows.output_win)
 
   local output_win = windows.output_win
   if not vim.api.nvim_win_is_valid(output_win) then

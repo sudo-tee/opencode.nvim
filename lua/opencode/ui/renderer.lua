@@ -326,9 +326,14 @@ function M.scroll_to_bottom(force)
     -- Always scroll on initial render
     if prev_line_count == 0 then
       should_scroll = true
-    -- Scroll if user is at bottom (respects manual scroll position)
-    elseif output_window.viewport_at_bottom then
+    -- Respect explicit config to always follow output
+    elseif config.ui.output.always_scroll_to_bottom then
       should_scroll = true
+    -- Scroll if user is at bottom (respects manual scroll position)
+    else
+      local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, state.windows.output_win)
+      local cursor_row = ok_cursor and cursor[1] or 1
+      should_scroll = cursor_row >= prev_line_count
     end
   end
 
@@ -338,10 +343,6 @@ function M.scroll_to_bottom(force)
     vim.api.nvim_win_call(state.windows.output_win, function()
       vim.cmd('normal! zb')
     end)
-    output_window.viewport_at_bottom = true
-  else
-    -- User has scrolled up, don't scroll
-    output_window.viewport_at_bottom = false
   end
 end
 

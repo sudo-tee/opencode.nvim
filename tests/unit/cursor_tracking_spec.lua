@@ -185,3 +185,57 @@ describe('output_window.is_at_bottom', function()
     assert.is_true(output_window.is_at_bottom(win))
   end)
 end)
+
+describe('renderer.scroll_to_bottom', function()
+  local renderer = require('opencode.ui.renderer')
+  local output_window = require('opencode.ui.output_window')
+  local buf, win
+
+  before_each(function()
+    config.setup({})
+    buf = vim.api.nvim_create_buf(false, true)
+    local lines = {}
+    for i = 1, 50 do
+      lines[i] = 'line ' .. i
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+    })
+
+    state.windows = { output_win = win, output_buf = buf }
+    renderer._prev_line_count = 50
+  end)
+
+  after_each(function()
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    state.windows = nil
+    renderer._prev_line_count = 0
+    output_window.viewport_at_bottom = nil
+  end)
+
+  it('does not force-scroll when user cursor is above previous bottom', function()
+    vim.api.nvim_win_set_cursor(win, { 10, 0 })
+    output_window.viewport_at_bottom = true
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(10, cursor[1])
+  end)
+
+  it('still scrolls when always_scroll_to_bottom is enabled', function()
+    config.values.ui.output.always_scroll_to_bottom = true
+    vim.api.nvim_win_set_cursor(win, { 10, 0 })
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(51, cursor[1])
+    config.values.ui.output.always_scroll_to_bottom = false
+  end)
+end)

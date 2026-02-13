@@ -472,10 +472,18 @@ describe('opencode.core', function()
   describe('handle_directory_change', function()
     local server_job
     local context
+    local original_defer_fn
 
     before_each(function()
       server_job = require('opencode.server_job')
       context = require('opencode.context')
+      original_defer_fn = vim.defer_fn
+
+      -- Mock vim.defer_fn to execute immediately in tests
+      vim.defer_fn = function(fn, delay)
+        fn()
+      end
+
       stub(server_job, 'ensure_server').invokes(function()
         local p = Promise.new()
         p:resolve({
@@ -493,6 +501,7 @@ describe('opencode.core', function()
     end)
 
     after_each(function()
+      vim.defer_fn = original_defer_fn
       if server_job.ensure_server.revert then
         server_job.ensure_server:revert()
       end

@@ -49,12 +49,12 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd('DirChanged', {
+  vim.api.nvim_create_autocmd('DirChangedPre', {
     group = group,
-    callback = Promise.async(function(event)
+    callback = function(event)
       local core = require('opencode.core')
-      core.handle_directory_change():await()
-    end),
+      core.handle_directory_change()
+    end,
   })
 
   if require('opencode.config').ui.position == 'current' then

@@ -545,10 +545,6 @@ end
 
 --- Handle working directory changes by restarting the server and loading the appropriate session.
 --- This function performs the following steps:
---- 1. Shuts down the existing opencode server
---- 2. Starts a new server instance
---- 3. Clears the active session and context
---- 4. Loads the last workspace session for the new directory, or creates a new one if none exists
 --- @return Promise<void>
 M.handle_directory_change = Promise.async(function()
   local log = require('opencode.log')
@@ -556,17 +552,34 @@ M.handle_directory_change = Promise.async(function()
   if state.opencode_server then
     vim.notify('Directory changed, restarting Opencode server...', vim.log.levels.INFO)
     log.info('Shutting down Opencode server due to directory change...')
-    state.opencode_server:shutdown():await()
-    server_job.ensure_server():await()
-    state.active_session = nil
-    vim.notify('Loading last session for new working dir', vim.log.levels.INFO)
-    state.last_sent_context = nil
-    context.unload_attachments()
 
-    state.active_session = session.get_last_workspace_session():await()
-    if not state.active_session then
-      state.active_session = M.create_new_session():await()
-    end
+    state.opencode_server:shutdown():await()
+
+    vim.defer_fn(
+      Promise.async(function()
+        state.opencode_server = nil
+        server_job.ensure_server():await()
+
+        vim.notify('Loading last session for new working dir [' .. vim.fn.getcwd() .. ']', vim.log.levels.INFO)
+
+        state.active_session = nil
+        state.last_sent_context = nil
+        context.unload_attachments()
+
+        local is_new = false
+        state.active_session = session.get_last_workspace_session():await()
+
+        if not state.active_session then
+          is_new = true
+          state.active_session = M.create_new_session():await()
+        end
+
+        log.debug(
+          'Loaded session for new working dir' .. vim.inspect({ session = state.active_session, is_new = is_new })
+        )
+      end),
+      200
+    )
   end
 end)
 

@@ -103,6 +103,15 @@ describe('util.format_time', function()
     return os.time({ year = year, month = month, day = day, hour = hour or 0, min = min or 0, sec = sec or 0 })
   end
 
+  local function compact_locale_time(timestamp)
+    local locale_time = vim.trim(os.date('%X', timestamp) or '')
+    locale_time = locale_time:gsub('^(%d?%d:%d%d):%d%d(.*)$', '%1%2')
+    if locale_time == '' then
+      locale_time = vim.trim(os.date('%H:%M', timestamp) or '')
+    end
+    return locale_time
+  end
+
   local today = os.date('*t')
   local today_morning = make_timestamp(today.year, today.month, today.day, 8, 30, 0)
   local today_afternoon = make_timestamp(today.year, today.month, today.day, 15, 45, 30)
@@ -114,56 +123,52 @@ describe('util.format_time', function()
   local next_year = make_timestamp(today.year + 1, 6, 15, 12, 0, 0)
 
   describe('today timestamps', function()
-    it('formats morning time correctly', function()
+    it('formats morning time with locale time only', function()
       local result = util.format_time(today_morning)
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
+      assert.equals(compact_locale_time(today_morning), result)
       assert.is_nil(result:match('%d%d%d%d'))
     end)
 
-    it('formats afternoon time correctly', function()
+    it('formats afternoon time with locale time only', function()
       local result = util.format_time(today_afternoon)
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
+      assert.equals(compact_locale_time(today_afternoon), result)
       assert.is_nil(result:match('%d%d%d%d'))
     end)
 
-    it('formats late evening time correctly', function()
+    it('formats late evening time with locale time only', function()
       local result = util.format_time(today_evening)
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
+      assert.equals(compact_locale_time(today_evening), result)
       assert.is_nil(result:match('%d%d%d%d'))
     end)
 
     it('formats current time as time-only', function()
       local current_time = os.time()
       local result = util.format_time(current_time)
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
+      assert.equals(compact_locale_time(current_time), result)
       assert.is_nil(result:match('%d%d%d%d'))
     end)
   end)
 
   describe('other day timestamps', function()
-    it('formats yesterday with date', function()
+    it('formats yesterday with date prefix and locale time', function()
       local result = util.format_time(yesterday)
-      local yesterday_date = os.date('*t', yesterday)
-      if yesterday_date.year == today.year then
-        assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
-      else
-        assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
-      end
+      local expected_prefix = os.date('%d %b', yesterday) .. ' '
+      assert.is_true(vim.startswith(result, expected_prefix))
+      assert.equals(compact_locale_time(yesterday), result:sub(#expected_prefix + 1))
     end)
 
-    it('formats last week with date', function()
+    it('formats last week with date prefix and locale time', function()
       local result = util.format_time(last_week)
-      local last_week_date = os.date('*t', last_week)
-      if last_week_date.year == today.year then
-        assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', result)
-      else
-        assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
-      end
+      local expected_prefix = os.date('%d %b', last_week) .. ' '
+      assert.is_true(vim.startswith(result, expected_prefix))
+      assert.equals(compact_locale_time(last_week), result:sub(#expected_prefix + 1))
     end)
 
-    it('formats future date with full date', function()
+    it('formats future date with full date and locale time', function()
       local result = util.format_time(next_year)
-      assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
+      local expected_prefix = os.date('%d %b %Y', next_year) .. ' '
+      assert.is_true(vim.startswith(result, expected_prefix))
+      assert.equals(compact_locale_time(next_year), result:sub(#expected_prefix + 1))
       assert.matches('%d%d%d%d', result)
     end)
   end)
@@ -185,11 +190,7 @@ describe('util.format_time', function()
 
       assert.is_not_nil(result)
       assert.is_string(result)
-
-      local is_time_only = result:match('^%d%d?:%d%d [AP]M$')
-      local is_same_year = result:match('^%d%d? %a%a%a %d%d?:%d%d [AP]M$')
-      local is_full_date = result:match('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$')
-      assert.is_true(is_time_only ~= nil or is_same_year ~= nil or is_full_date ~= nil)
+      assert.is_true(result:find(':', 1, true) ~= nil)
     end)
 
     it('does not convert regular second timestamps', function()
@@ -207,20 +208,14 @@ describe('util.format_time', function()
       local midnight = make_timestamp(today.year, today.month, today.day, 0, 0, 0)
       local result = util.format_time(midnight)
 
-      if os.date('%Y-%m-%d', midnight) == os.date('%Y-%m-%d') then
-        assert.matches('^%d%d?:%d%d [AP]M$', result)
-        assert.matches('12:00 AM', result) -- Midnight should be 12:00 AM
-      else
-        assert.matches('^%d%d? %a%a%a %d%d%d%d %d%d?:%d%d [AP]M$', result)
-      end
+      assert.equals(compact_locale_time(midnight), result)
     end)
 
     it('handles noon correctly', function()
       local noon = make_timestamp(today.year, today.month, today.day, 12, 0, 0)
       local result = util.format_time(noon)
 
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
-      assert.matches('12:00 PM', result) -- Noon should be 12:00 PM
+      assert.equals(compact_locale_time(noon), result)
     end)
 
     it('handles date boundary transitions', function()
@@ -230,16 +225,14 @@ describe('util.format_time', function()
       local late_result = util.format_time(late_today)
       local early_result = util.format_time(early_tomorrow)
 
-      -- Late today should be time-only
-      assert.matches('^%d%d?:%d%d [AP]M$', late_result)
+      assert.equals(compact_locale_time(late_today), late_result)
 
-      -- Early tomorrow behavior depends on whether it's actually tomorrow
       if os.date('%Y-%m-%d', early_tomorrow) == os.date('%Y-%m-%d') then
-        -- Still today
-        assert.matches('^%d%d?:%d%d [AP]M$', early_result)
+        assert.equals(compact_locale_time(early_tomorrow), early_result)
       else
-        -- Actually tomorrow
-        assert.matches('^%d%d? %a%a%a %d%d?:%d%d [AP]M$', early_result)
+        local expected_prefix = os.date('%d %b', early_tomorrow) .. ' '
+        assert.is_true(vim.startswith(early_result, expected_prefix))
+        assert.equals(compact_locale_time(early_tomorrow), early_result:sub(#expected_prefix + 1))
       end
     end)
   end)
@@ -255,8 +248,36 @@ describe('util.format_time', function()
       assert.equals(timestamp_date, current_date)
 
       local result = util.format_time(now)
-      assert.matches('^%d%d?:%d%d [AP]M$', result)
+      assert.equals(compact_locale_time(now), result)
     end)
+  end)
+end)
+
+describe('util.format_duration_seconds', function()
+  it('returns nil without a start time', function()
+    assert.is_nil(util.format_duration_seconds(nil, os.time()))
+  end)
+
+  it('returns nil for in-progress operations', function()
+    local start_time = os.time() - 3
+    assert.is_nil(util.format_duration_seconds(start_time, nil))
+  end)
+
+  it('returns nil for finished durations below one second', function()
+    local now = os.time()
+    assert.is_nil(util.format_duration_seconds(now, now))
+  end)
+
+  it('returns seconds for finished durations >= 1s', function()
+    local end_time = os.time()
+    local start_time = end_time - 5
+    assert.equals('5s', util.format_duration_seconds(start_time, end_time))
+  end)
+
+  it('supports millisecond timestamps for finished durations', function()
+    local start_ms = 1700000000000
+    local end_ms = start_ms + 4000
+    assert.equals('4s', util.format_duration_seconds(start_ms, end_ms))
   end)
 end)
 

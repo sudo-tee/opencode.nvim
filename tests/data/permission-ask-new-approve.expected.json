@@ -66,10 +66,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-05 14:07:54)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_b8e7c60a2001Kisjwk2mVB4dye]",
             "OpencodeHint"
           ]
@@ -82,6 +78,25 @@
     ],
     [
       2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-05 14:07:54",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
       2,
       0,
       {
@@ -101,28 +116,8 @@
       }
     ],
     [
-      3,
-      3,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       4,
-      4,
+      3,
       0,
       {
         "ns_id": 3,
@@ -142,6 +137,26 @@
     ],
     [
       5,
+      4,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
       5,
       0,
       {
@@ -161,7 +176,7 @@
       }
     ],
     [
-      6,
+      7,
       6,
       0,
       {
@@ -181,28 +196,8 @@
       }
     ],
     [
-      7,
-      7,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       8,
-      8,
+      7,
       0,
       {
         "ns_id": 3,
@@ -222,6 +217,26 @@
     ],
     [
       9,
+      8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      10,
       10,
       0,
       {
@@ -245,10 +260,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-05 14:07:54)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_b8e7c60f1001aEWYlAaDRXQ4aJ]",
             "OpencodeHint"
           ]
@@ -260,7 +271,26 @@
       }
     ],
     [
+      11,
       10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-05 14:07:54",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      12,
       12,
       0,
       {
@@ -280,7 +310,7 @@
       }
     ],
     [
-      11,
+      13,
       13,
       0,
       {
@@ -300,7 +330,7 @@
       }
     ],
     [
-      12,
+      14,
       14,
       0,
       {
@@ -320,7 +350,7 @@
       }
     ],
     [
-      13,
+      15,
       15,
       0,
       {
@@ -340,7 +370,7 @@
       }
     ],
     [
-      14,
+      16,
       16,
       0,
       {
@@ -360,7 +390,7 @@
       }
     ],
     [
-      15,
+      17,
       17,
       0,
       {
@@ -380,7 +410,7 @@
       }
     ],
     [
-      16,
+      18,
       18,
       0,
       {
@@ -400,7 +430,7 @@
       }
     ],
     [
-      17,
+      19,
       19,
       0,
       {
@@ -420,7 +450,7 @@
       }
     ],
     [
-      18,
+      20,
       20,
       0,
       {
@@ -440,7 +470,7 @@
       }
     ],
     [
-      19,
+      21,
       21,
       0,
       {
@@ -460,7 +490,7 @@
       }
     ],
     [
-      20,
+      22,
       22,
       0,
       {
@@ -480,7 +510,7 @@
       }
     ],
     [
-      21,
+      23,
       23,
       0,
       {
@@ -500,7 +530,7 @@
       }
     ],
     [
-      22,
+      24,
       24,
       0,
       {
@@ -520,7 +550,7 @@
       }
     ],
     [
-      23,
+      25,
       25,
       0,
       {
@@ -540,7 +570,7 @@
       }
     ],
     [
-      24,
+      26,
       26,
       0,
       {
@@ -560,7 +590,7 @@
       }
     ],
     [
-      25,
+      27,
       27,
       0,
       {
@@ -580,7 +610,7 @@
       }
     ],
     [
-      26,
+      28,
       28,
       0,
       {
@@ -600,7 +630,7 @@
       }
     ],
     [
-      27,
+      29,
       29,
       0,
       {
@@ -620,7 +650,7 @@
       }
     ],
     [
-      28,
+      30,
       30,
       0,
       {
@@ -640,7 +670,7 @@
       }
     ],
     [
-      29,
+      31,
       31,
       0,
       {
@@ -660,7 +690,7 @@
       }
     ],
     [
-      30,
+      32,
       32,
       0,
       {
@@ -680,7 +710,7 @@
       }
     ],
     [
-      31,
+      33,
       33,
       0,
       {
@@ -700,7 +730,7 @@
       }
     ],
     [
-      32,
+      34,
       34,
       0,
       {
@@ -720,7 +750,7 @@
       }
     ],
     [
-      33,
+      35,
       39,
       0,
       {
@@ -744,10 +774,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-05 14:08:26)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_b8e7cde9e0013hRkUyt0X2yMil]",
             "OpencodeHint"
           ]
@@ -756,6 +782,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      36,
+      39,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-05 14:08:26",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -772,7 +817,7 @@
     "----",
     "",
     "",
-    "**  run** `Shows working tree status`",
+    "**  run** `Shows working tree status` 30s",
     "",
     "`````bash",
     "> git status",
@@ -816,5 +861,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751427
+  "timestamp": 1770935238
 }

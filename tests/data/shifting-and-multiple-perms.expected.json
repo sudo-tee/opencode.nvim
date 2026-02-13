@@ -26,10 +26,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:05:49)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb39d68001J2h30a50B2774b]",
             "OpencodeHint"
           ]
@@ -42,6 +38,25 @@
     ],
     [
       2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:05:49",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
       2,
       0,
       {
@@ -61,7 +76,7 @@
       }
     ],
     [
-      3,
+      4,
       3,
       0,
       {
@@ -81,28 +96,8 @@
       }
     ],
     [
-      4,
-      4,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       5,
-      5,
+      4,
       0,
       {
         "ns_id": 3,
@@ -122,6 +117,26 @@
     ],
     [
       6,
+      5,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      7,
       8,
       0,
       {
@@ -145,10 +160,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:05:50)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb39dc3002f81rMRqF2WO1UU]",
             "OpencodeHint"
           ]
@@ -160,7 +171,26 @@
       }
     ],
     [
-      7,
+      8,
+      8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:05:50",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      9,
       83,
       0,
       {
@@ -184,10 +214,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:07:23)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb50a0b001WFK7AMDV45cF8Z]",
             "OpencodeHint"
           ]
@@ -199,7 +225,26 @@
       }
     ],
     [
-      8,
+      10,
+      83,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:07:23",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      11,
       84,
       0,
       {
@@ -219,7 +264,7 @@
       }
     ],
     [
-      9,
+      12,
       85,
       0,
       {
@@ -239,7 +284,7 @@
       }
     ],
     [
-      10,
+      13,
       88,
       0,
       {
@@ -263,10 +308,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:07:23)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb50a2a002dzMgbQnasd86o1]",
             "OpencodeHint"
           ]
@@ -278,7 +319,26 @@
       }
     ],
     [
-      11,
+      14,
+      88,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:07:23",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      15,
       111,
       0,
       {
@@ -302,10 +362,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:08:01)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb59d93001LSm9y0DS9p8cP6]",
             "OpencodeHint"
           ]
@@ -317,7 +373,26 @@
       }
     ],
     [
-      12,
+      16,
+      111,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:08:01",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      17,
       112,
       0,
       {
@@ -337,7 +412,7 @@
       }
     ],
     [
-      13,
+      18,
       113,
       0,
       {
@@ -357,7 +432,7 @@
       }
     ],
     [
-      14,
+      19,
       116,
       0,
       {
@@ -381,10 +456,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-17 01:08:01)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_9efb59db4002uWmyFRTjRIhIaQ]",
             "OpencodeHint"
           ]
@@ -396,7 +467,26 @@
       }
     ],
     [
-      15,
+      20,
+      116,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-17 01:08:01",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      21,
       125,
       0,
       {
@@ -420,10 +510,6 @@
             "OpencodeHint"
           ],
           [
-            "",
-            "OpencodeHint"
-          ],
-          [
             " [permission-display-message]",
             "OpencodeHint"
           ]
@@ -435,7 +521,7 @@
       }
     ],
     [
-      16,
+      22,
       127,
       0,
       {
@@ -446,128 +532,8 @@
       }
     ],
     [
-      17,
-      127,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      18,
-      128,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      19,
-      129,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      20,
-      130,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      21,
-      131,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      22,
-      132,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
       23,
-      133,
+      127,
       0,
       {
         "ns_id": 3,
@@ -587,7 +553,7 @@
     ],
     [
       24,
-      134,
+      128,
       0,
       {
         "ns_id": 3,
@@ -607,7 +573,7 @@
     ],
     [
       25,
-      135,
+      129,
       0,
       {
         "ns_id": 3,
@@ -627,7 +593,7 @@
     ],
     [
       26,
-      136,
+      130,
       0,
       {
         "ns_id": 3,
@@ -647,6 +613,126 @@
     ],
     [
       27,
+      131,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      28,
+      132,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      29,
+      133,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      30,
+      134,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      31,
+      135,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      32,
+      136,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      33,
       137,
       0,
       {
@@ -670,7 +756,7 @@
       }
     ],
     [
-      28,
+      34,
       137,
       0,
       {
@@ -690,7 +776,7 @@
       }
     ],
     [
-      29,
+      35,
       138,
       0,
       {
@@ -710,7 +796,7 @@
       }
     ],
     [
-      30,
+      36,
       139,
       0,
       {
@@ -730,7 +816,7 @@
       }
     ],
     [
-      31,
+      37,
       140,
       0,
       {
@@ -750,7 +836,7 @@
       }
     ],
     [
-      32,
+      38,
       141,
       0,
       {
@@ -770,7 +856,7 @@
       }
     ],
     [
-      33,
+      39,
       142,
       0,
       {
@@ -790,7 +876,7 @@
       }
     ],
     [
-      34,
+      40,
       143,
       0,
       {
@@ -810,7 +896,7 @@
       }
     ],
     [
-      35,
+      41,
       144,
       0,
       {
@@ -830,7 +916,7 @@
       }
     ],
     [
-      36,
+      42,
       145,
       0,
       {
@@ -841,7 +927,7 @@
       }
     ],
     [
-      37,
+      43,
       145,
       0,
       {
@@ -861,7 +947,7 @@
       }
     ],
     [
-      38,
+      44,
       145,
       2,
       {
@@ -880,7 +966,7 @@
       }
     ],
     [
-      39,
+      45,
       146,
       0,
       {
@@ -900,7 +986,7 @@
       }
     ],
     [
-      40,
+      46,
       147,
       0,
       {
@@ -920,7 +1006,7 @@
       }
     ],
     [
-      41,
+      47,
       148,
       0,
       {
@@ -940,7 +1026,7 @@
       }
     ],
     [
-      42,
+      48,
       149,
       0,
       {
@@ -1114,5 +1200,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751431
+  "timestamp": 1770935242
 }

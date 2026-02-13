@@ -26,10 +26,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-05 14:07:54)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_b8e7c60a2001Kisjwk2mVB4dye]",
             "OpencodeHint"
           ]
@@ -42,6 +38,25 @@
     ],
     [
       2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-05 14:07:54",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
       2,
       0,
       {
@@ -61,28 +76,8 @@
       }
     ],
     [
-      3,
-      3,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       4,
-      4,
+      3,
       0,
       {
         "ns_id": 3,
@@ -102,6 +97,26 @@
     ],
     [
       5,
+      4,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
       5,
       0,
       {
@@ -121,7 +136,7 @@
       }
     ],
     [
-      6,
+      7,
       6,
       0,
       {
@@ -141,28 +156,8 @@
       }
     ],
     [
-      7,
-      7,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       8,
-      8,
+      7,
       0,
       {
         "ns_id": 3,
@@ -182,6 +177,26 @@
     ],
     [
       9,
+      8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      10,
       10,
       0,
       {
@@ -205,10 +220,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-05 14:07:54)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_b8e7c60f1001aEWYlAaDRXQ4aJ]",
             "OpencodeHint"
           ]
@@ -220,7 +231,26 @@
       }
     ],
     [
+      11,
       10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-05 14:07:54",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      12,
       12,
       0,
       {
@@ -240,7 +270,7 @@
       }
     ],
     [
-      11,
+      13,
       13,
       0,
       {
@@ -260,7 +290,7 @@
       }
     ],
     [
-      12,
+      14,
       14,
       0,
       {
@@ -280,7 +310,7 @@
       }
     ],
     [
-      13,
+      15,
       15,
       0,
       {
@@ -300,7 +330,7 @@
       }
     ],
     [
-      14,
+      16,
       16,
       0,
       {
@@ -320,7 +350,7 @@
       }
     ],
     [
-      15,
+      17,
       17,
       0,
       {
@@ -340,7 +370,7 @@
       }
     ],
     [
-      16,
+      18,
       20,
       0,
       {
@@ -364,10 +394,6 @@
             "OpencodeHint"
           ],
           [
-            "",
-            "OpencodeHint"
-          ],
-          [
             " [permission-display-message]",
             "OpencodeHint"
           ]
@@ -379,7 +405,7 @@
       }
     ],
     [
-      17,
+      19,
       22,
       0,
       {
@@ -390,48 +416,8 @@
       }
     ],
     [
-      18,
-      22,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      19,
-      23,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodePermissionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
       20,
-      24,
+      22,
       0,
       {
         "ns_id": 3,
@@ -451,7 +437,7 @@
     ],
     [
       21,
-      25,
+      23,
       0,
       {
         "ns_id": 3,
@@ -471,7 +457,7 @@
     ],
     [
       22,
-      26,
+      24,
       0,
       {
         "ns_id": 3,
@@ -491,7 +477,7 @@
     ],
     [
       23,
-      27,
+      25,
       0,
       {
         "ns_id": 3,
@@ -511,7 +497,7 @@
     ],
     [
       24,
-      28,
+      26,
       0,
       {
         "ns_id": 3,
@@ -531,7 +517,7 @@
     ],
     [
       25,
-      29,
+      27,
       0,
       {
         "ns_id": 3,
@@ -551,18 +537,27 @@
     ],
     [
       26,
-      30,
+      28,
       0,
       {
-        "line_hl_group": "OpencodeDialogOptionHover",
         "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
       27,
-      30,
+      29,
       0,
       {
         "ns_id": 3,
@@ -583,25 +578,17 @@
     [
       28,
       30,
-      2,
+      0,
       {
+        "line_hl_group": "OpencodeDialogOptionHover",
         "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "› ",
-            "OpencodeDialogOptionHover"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "overlay",
-        "virt_text_repeat_linebreak": false
+        "right_gravity": true
       }
     ],
     [
       29,
-      31,
+      30,
       0,
       {
         "ns_id": 3,
@@ -621,6 +608,45 @@
     ],
     [
       30,
+      30,
+      2,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "› ",
+            "OpencodeDialogOptionHover"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      31,
+      31,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      32,
       32,
       0,
       {
@@ -640,7 +666,7 @@
       }
     ],
     [
-      31,
+      33,
       33,
       0,
       {
@@ -660,7 +686,7 @@
       }
     ],
     [
-      32,
+      34,
       34,
       0,
       {
@@ -719,5 +745,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751427
+  "timestamp": 1770935239
 }

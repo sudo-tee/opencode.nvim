@@ -26,10 +26,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:23:12)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfaafef41001700DjtCwvhFxse]",
             "OpencodeHint"
           ]
@@ -42,6 +38,25 @@
     ],
     [
       2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:23:12",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
       2,
       0,
       {
@@ -61,28 +76,8 @@
       }
     ],
     [
-      3,
-      3,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       4,
-      4,
+      3,
       0,
       {
         "ns_id": 3,
@@ -102,7 +97,7 @@
     ],
     [
       5,
-      5,
+      4,
       0,
       {
         "ns_id": 3,
@@ -122,7 +117,7 @@
     ],
     [
       6,
-      6,
+      5,
       0,
       {
         "ns_id": 3,
@@ -142,6 +137,26 @@
     ],
     [
       7,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      8,
       8,
       0,
       {
@@ -165,10 +180,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:23:12)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfaafefb3001iBSmqfzFffDjCS]",
             "OpencodeHint"
           ]
@@ -180,7 +191,26 @@
       }
     ],
     [
+      9,
       8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:23:12",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      10,
       10,
       0,
       {
@@ -200,7 +230,7 @@
       }
     ],
     [
-      9,
+      11,
       11,
       0,
       {
@@ -220,7 +250,7 @@
       }
     ],
     [
-      10,
+      12,
       12,
       0,
       {
@@ -240,7 +270,7 @@
       }
     ],
     [
-      11,
+      13,
       13,
       0,
       {
@@ -260,7 +290,7 @@
       }
     ],
     [
-      12,
+      14,
       16,
       0,
       {
@@ -284,10 +314,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:23:22)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfab0156d001NyMxaTnj6Cml0c]",
             "OpencodeHint"
           ]
@@ -296,6 +322,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      15,
+      16,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:23:22",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -322,5 +367,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751428
+  "timestamp": 1770935240
 }

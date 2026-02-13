@@ -26,10 +26,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:41)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_001]",
             "OpencodeHint"
           ]
@@ -42,27 +38,26 @@
     ],
     [
       2,
-      2,
+      1,
       0,
       {
         "ns_id": 3,
-        "priority": 4096,
+        "priority": 9,
         "right_gravity": true,
         "virt_text": [
           [
-            "▌",
-            "OpencodeMessageRoleUser"
+            " 2001-09-09 01:46:41",
+            "OpencodeHint"
           ]
         ],
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
       3,
-      3,
+      2,
       0,
       {
         "ns_id": 3,
@@ -82,6 +77,26 @@
     ],
     [
       4,
+      3,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      5,
       6,
       0,
       {
@@ -105,10 +120,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:42)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_002]",
             "OpencodeHint"
           ]
@@ -120,7 +131,26 @@
       }
     ],
     [
-      5,
+      6,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2001-09-09 01:46:42",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      7,
       17,
       0,
       {
@@ -144,10 +174,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:43)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_003]",
             "OpencodeHint"
           ]
@@ -159,7 +185,26 @@
       }
     ],
     [
-      6,
+      8,
+      17,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2001-09-09 01:46:43",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      9,
       18,
       0,
       {
@@ -179,7 +224,7 @@
       }
     ],
     [
-      7,
+      10,
       19,
       0,
       {
@@ -199,7 +244,7 @@
       }
     ],
     [
-      8,
+      11,
       22,
       0,
       {
@@ -223,10 +268,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:44)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_004]",
             "OpencodeHint"
           ]
@@ -238,7 +279,26 @@
       }
     ],
     [
-      9,
+      12,
+      22,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2001-09-09 01:46:44",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      13,
       33,
       0,
       {
@@ -262,10 +322,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:45)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_005]",
             "OpencodeHint"
           ]
@@ -277,7 +333,26 @@
       }
     ],
     [
-      10,
+      14,
+      33,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2001-09-09 01:46:45",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      15,
       34,
       0,
       {
@@ -297,7 +372,7 @@
       }
     ],
     [
-      11,
+      16,
       35,
       0,
       {
@@ -317,7 +392,7 @@
       }
     ],
     [
-      12,
+      17,
       38,
       0,
       {
@@ -341,10 +416,6 @@
             "OpencodeHint"
           ],
           [
-            " (2001-09-09 01:46:46)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_006]",
             "OpencodeHint"
           ]
@@ -353,6 +424,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      18,
+      38,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2001-09-09 01:46:46",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -405,5 +495,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751425
+  "timestamp": 1770935236
 }

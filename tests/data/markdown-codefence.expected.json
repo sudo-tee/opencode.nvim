@@ -66,10 +66,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-28 21:53:58)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_a2cd04588001P9plKmrFnsNH3M]",
             "OpencodeHint"
           ]
@@ -82,27 +78,26 @@
     ],
     [
       2,
-      5,
+      1,
       0,
       {
         "ns_id": 3,
-        "priority": 4096,
+        "priority": 9,
         "right_gravity": true,
         "virt_text": [
           [
-            "▌",
-            "OpencodeToolBorder"
+            " 2025-10-28 21:53:58",
+            "OpencodeHint"
           ]
         ],
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
       3,
-      6,
+      5,
       0,
       {
         "ns_id": 3,
@@ -122,7 +117,7 @@
     ],
     [
       4,
-      7,
+      6,
       0,
       {
         "ns_id": 3,
@@ -142,7 +137,7 @@
     ],
     [
       5,
-      8,
+      7,
       0,
       {
         "ns_id": 3,
@@ -162,7 +157,7 @@
     ],
     [
       6,
-      9,
+      8,
       0,
       {
         "ns_id": 3,
@@ -182,7 +177,7 @@
     ],
     [
       7,
-      10,
+      9,
       0,
       {
         "ns_id": 3,
@@ -202,7 +197,7 @@
     ],
     [
       8,
-      11,
+      10,
       0,
       {
         "ns_id": 3,
@@ -222,6 +217,26 @@
     ],
     [
       9,
+      11,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      10,
       12,
       0,
       {
@@ -245,7 +260,7 @@
       }
     ],
     [
-      10,
+      11,
       12,
       0,
       {
@@ -265,7 +280,7 @@
       }
     ],
     [
-      11,
+      12,
       13,
       0,
       {
@@ -289,7 +304,7 @@
       }
     ],
     [
-      12,
+      13,
       13,
       0,
       {
@@ -309,7 +324,7 @@
       }
     ],
     [
-      13,
+      14,
       14,
       0,
       {
@@ -333,7 +348,7 @@
       }
     ],
     [
-      14,
+      15,
       14,
       0,
       {
@@ -353,7 +368,7 @@
       }
     ],
     [
-      15,
+      16,
       15,
       0,
       {
@@ -377,7 +392,7 @@
       }
     ],
     [
-      16,
+      17,
       15,
       0,
       {
@@ -397,7 +412,7 @@
       }
     ],
     [
-      17,
+      18,
       16,
       0,
       {
@@ -417,7 +432,7 @@
       }
     ],
     [
-      18,
+      19,
       17,
       0,
       {
@@ -437,7 +452,7 @@
       }
     ],
     [
-      19,
+      20,
       18,
       0,
       {
@@ -457,7 +472,7 @@
       }
     ],
     [
-      20,
+      21,
       19,
       0,
       {
@@ -477,7 +492,7 @@
       }
     ],
     [
-      21,
+      22,
       20,
       0,
       {
@@ -497,7 +512,7 @@
       }
     ],
     [
-      22,
+      23,
       21,
       0,
       {
@@ -517,7 +532,7 @@
       }
     ],
     [
-      23,
+      24,
       26,
       0,
       {
@@ -541,10 +556,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-28 21:54:05)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_a2cd062fb001UA0ZzR6JxgLxDQ]",
             "OpencodeHint"
           ]
@@ -556,7 +567,26 @@
       }
     ],
     [
-      24,
+      25,
+      26,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-28 21:54:05",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      26,
       31,
       0,
       {
@@ -580,10 +610,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-28 22:34:58)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_a2cf5ce65001YLvVsYxIboFcP4]",
             "OpencodeHint"
           ]
@@ -595,7 +621,26 @@
       }
     ],
     [
-      25,
+      27,
+      31,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-28 22:34:58",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      28,
       32,
       0,
       {
@@ -615,7 +660,7 @@
       }
     ],
     [
-      26,
+      29,
       33,
       0,
       {
@@ -635,7 +680,7 @@
       }
     ],
     [
-      27,
+      30,
       34,
       0,
       {
@@ -655,7 +700,7 @@
       }
     ],
     [
-      28,
+      31,
       35,
       0,
       {
@@ -675,7 +720,7 @@
       }
     ],
     [
-      29,
+      32,
       38,
       0,
       {
@@ -699,10 +744,6 @@
             "OpencodeHint"
           ],
           [
-            " (2025-10-28 22:34:58)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_a2cf5cf0f002oBAjmnGIMGXjez]",
             "OpencodeHint"
           ]
@@ -711,6 +752,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      33,
+      38,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-28 22:34:58",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -794,5 +854,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751424
+  "timestamp": 1770935236
 }

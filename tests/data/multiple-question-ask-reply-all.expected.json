@@ -66,10 +66,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:30:46)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfab6dbf3001ZOVHTFKR1CMUE5]",
             "OpencodeHint"
           ]
@@ -82,6 +78,25 @@
     ],
     [
       2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:30:46",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
       2,
       0,
       {
@@ -101,28 +116,8 @@
       }
     ],
     [
-      3,
-      3,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       4,
-      4,
+      3,
       0,
       {
         "ns_id": 3,
@@ -142,7 +137,7 @@
     ],
     [
       5,
-      5,
+      4,
       0,
       {
         "ns_id": 3,
@@ -162,7 +157,7 @@
     ],
     [
       6,
-      6,
+      5,
       0,
       {
         "ns_id": 3,
@@ -182,6 +177,26 @@
     ],
     [
       7,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      8,
       8,
       0,
       {
@@ -205,10 +220,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:30:46)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfab6dc80001FueCN7E2691J2R]",
             "OpencodeHint"
           ]
@@ -220,7 +231,26 @@
       }
     ],
     [
+      9,
       8,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:30:46",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      10,
       10,
       0,
       {
@@ -240,7 +270,7 @@
       }
     ],
     [
-      9,
+      11,
       11,
       0,
       {
@@ -260,7 +290,7 @@
       }
     ],
     [
-      10,
+      12,
       12,
       0,
       {
@@ -280,7 +310,7 @@
       }
     ],
     [
-      11,
+      13,
       13,
       0,
       {
@@ -300,7 +330,7 @@
       }
     ],
     [
-      12,
+      14,
       14,
       0,
       {
@@ -320,7 +350,7 @@
       }
     ],
     [
-      13,
+      15,
       15,
       0,
       {
@@ -340,7 +370,7 @@
       }
     ],
     [
-      14,
+      16,
       16,
       0,
       {
@@ -360,7 +390,7 @@
       }
     ],
     [
-      15,
+      17,
       17,
       0,
       {
@@ -380,7 +410,7 @@
       }
     ],
     [
-      16,
+      18,
       18,
       0,
       {
@@ -400,7 +430,7 @@
       }
     ],
     [
-      17,
+      19,
       19,
       0,
       {
@@ -420,7 +450,7 @@
       }
     ],
     [
-      18,
+      20,
       20,
       0,
       {
@@ -440,7 +470,7 @@
       }
     ],
     [
-      19,
+      21,
       21,
       0,
       {
@@ -460,7 +490,7 @@
       }
     ],
     [
-      20,
+      22,
       26,
       0,
       {
@@ -484,10 +514,6 @@
             "OpencodeHint"
           ],
           [
-            " (2026-01-26 14:31:55)",
-            "OpencodeHint"
-          ],
-          [
             " [msg_bfab7e7fd0018kA9yLHMkJM3fA]",
             "OpencodeHint"
           ]
@@ -496,6 +522,25 @@
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
         "virt_text_win_col": -3
+      }
+    ],
+    [
+      23,
+      26,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2026-01-26 14:31:55",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ]
   ],
@@ -537,5 +582,5 @@
     "",
     ""
   ],
-  "timestamp": 1770751425
+  "timestamp": 1770935237
 }

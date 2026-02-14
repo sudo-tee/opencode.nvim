@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
+local ui = require('opencode.ui.ui')
 
 describe('cursor persistence (state)', function()
   before_each(function()
@@ -237,5 +238,49 @@ describe('renderer.scroll_to_bottom', function()
     local cursor = vim.api.nvim_win_get_cursor(win)
     assert.equals(51, cursor[1])
     config.values.ui.output.always_scroll_to_bottom = false
+  end)
+end)
+
+describe('ui.focus_input', function()
+  local input_buf, output_buf, input_win, output_win
+
+  before_each(function()
+    input_buf = vim.api.nvim_create_buf(false, true)
+    output_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'abcde' })
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'output' })
+
+    output_win = vim.api.nvim_open_win(output_buf, true, {
+      relative = 'editor', width = 40, height = 5, row = 0, col = 0,
+    })
+    input_win = vim.api.nvim_open_win(input_buf, true, {
+      relative = 'editor', width = 40, height = 5, row = 6, col = 0,
+    })
+
+    state.windows = {
+      input_win = input_win,
+      output_win = output_win,
+      input_buf = input_buf,
+      output_buf = output_buf,
+    }
+    state.last_input_window_position = { 1, 4 }
+  end)
+
+  after_each(function()
+    pcall(vim.api.nvim_win_close, input_win, true)
+    pcall(vim.api.nvim_win_close, output_win, true)
+    pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+    state.windows = nil
+    state.last_input_window_position = nil
+  end)
+
+  it('does not restore cursor when already focused in input window', function()
+    vim.api.nvim_set_current_win(input_win)
+    vim.api.nvim_win_set_cursor(input_win, { 1, 2 })
+
+    ui.focus_input({ restore_position = true, start_insert = false })
+
+    assert.same({ 1, 2 }, vim.api.nvim_win_get_cursor(input_win))
   end)
 end)

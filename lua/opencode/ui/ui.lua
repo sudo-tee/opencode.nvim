@@ -136,8 +136,11 @@ function M.focus_input(opts)
     return
   end
 
+  local was_input_focused = vim.api.nvim_get_current_win() == windows.input_win
+
   if input_window.is_hidden() then
     input_window._show()
+    was_input_focused = false
   end
 
   if not windows.input_win then
@@ -146,7 +149,7 @@ function M.focus_input(opts)
 
   vim.api.nvim_set_current_win(windows.input_win)
 
-  if opts.restore_position and state.last_input_window_position then
+  if opts.restore_position and not was_input_focused and state.last_input_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
   end
   if vim.api.nvim_get_current_win() == windows.input_win and opts.start_insert then

@@ -490,9 +490,9 @@
     "    2. plenary.nvim - Plenary.nvim provides unit test utilities for Neovim plugins.",
     "    3. other - Other or custom test framework",
     "",
-    "Navigate: `j`/`k` or `↑`/`↓`  Select: `<CR>` or `1-3`  Dismiss: `<Esc>`",
+    "Navigate: `j`/`k` or `↑`/`↓`  Select: `<CR>` or `1-4`  Dismiss: `<Esc>`",
     "",
     ""
   ],
-  "timestamp": 1770935237
+  "timestamp": 1771083485
 }

@@ -8,46 +8,274 @@ local topbar = require('opencode.ui.topbar')
 
 local M = {}
 
----@param windows OpencodeWindowState?
-function M.close_windows(windows)
-  if not windows then
+---Capture cursor positions from both windows for snapshot
+---@param windows OpencodeWindowState
+---@return {input: integer[]|nil, output: integer[]|nil}
+local function capture_cursors_position(windows)
+  return {
+    input = state.get_window_cursor(windows.input_win),
+    output = state.get_window_cursor(windows.output_win),
+  }
+end
+
+---@param win_id integer|nil
+---@param buf_id integer|nil
+---@param cursor integer[]|nil
+local function restore_window_cursor(win_id, buf_id, cursor)
+  if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
+  if not buf_id or not vim.api.nvim_buf_is_valid(buf_id) then
+    return
+  end
+  if type(cursor) ~= 'table' or #cursor < 2 then
     return
   end
 
-  if M.is_opencode_focused() then
-    M.return_to_last_code_win()
+  local line_count = vim.api.nvim_buf_line_count(buf_id)
+  if line_count <= 0 then
+    return
   end
 
-  topbar.close()
-  renderer.teardown()
+  local line = tonumber(cursor[1]) or 1
+  local col = tonumber(cursor[2]) or 0
+
+  line = math.max(1, math.min(math.floor(line), line_count))
+  col = math.max(0, math.floor(col))
+
+  local ok, line_text = pcall(vim.api.nvim_buf_get_lines, buf_id, line - 1, line, false)
+  if ok then
+    local text = line_text[1] or ''
+    col = math.min(col, #text)
+  end
+
+  pcall(vim.api.nvim_win_set_cursor, win_id, { line, col })
+end
+
+---@param windows OpencodeWindowState
+---@return OpencodeHiddenBuffers
+local function capture_hidden_snapshot(windows)
+  local current_win = vim.api.nvim_get_current_win()
+  local focused = state.last_focused_opencode_window or 'input'
+  if current_win == windows.output_win then
+    focused = 'output'
+  elseif current_win == windows.input_win then
+    focused = 'input'
+  end
+  local ok, view = pcall(vim.api.nvim_win_call, windows.output_win, vim.fn.winsaveview)
+  local cursor_positions = capture_cursors_position(windows)
+
+  return {
+    input_buf = windows.input_buf,
+    output_buf = windows.output_buf,
+    footer_buf = windows.footer_buf,
+    output_was_at_bottom = output_window.is_at_bottom(windows.output_win),
+    input_hidden = input_window.is_hidden(),
+    input_cursor = cursor_positions.input,
+    output_cursor = cursor_positions.output,
+    output_view = ok and type(view) == 'table' and view or nil,
+    focused_window = focused,
+    position = config.ui.position,
+    owner_tab = state.are_windows_in_current_tab()
+      and vim.api.nvim_get_current_tabpage() or nil,
+  }
+end
+
+---@param windows OpencodeWindowState?
+---@param persist? boolean If true, preserve buffers for fast restore
+function M.close_windows(windows, persist)
+  local should_preserve = persist == true and config.ui.persist_state
+  if should_preserve then
+    return M.hide_visible_windows(windows)
+  end
+  return M.teardown_visible_windows(windows)
+end
+
+-- Finalization strategies for close_windows_impl
+local FINALIZE = {
+  hide = function(windows, snapshot)
+    for _, buf in ipairs({ windows.input_buf, windows.output_buf, windows.footer_buf }) do
+      if buf and vim.api.nvim_buf_is_valid(buf) then
+        pcall(vim.api.nvim_set_option_value, 'bufhidden', 'hide', { buf = buf })
+      end
+    end
+    if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
+      local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
+      if ok then state.input_content = lines end
+    end
+    state.stash_hidden_buffers(snapshot)
+    if state.windows == windows then
+      state.windows.input_win = nil
+      state.windows.output_win = nil
+      state.windows.footer_win = nil
+      state.windows.output_was_at_bottom = snapshot.output_was_at_bottom
+    end
+  end,
+
+  teardown = function(windows, _)
+    input_window._hidden = false
+    pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
+    if state.windows == windows then
+      state.windows = nil
+    end
+    state.clear_hidden_window_state()
+  end,
+}
+
+-- Close windows with two strategies: hide (preserve buffers for restore) or teardown (cleanup all)
+-- TODO: This function handles too many concerns; consider splitting into dedicated hide/teardown functions
+local function close_windows_impl(windows, should_preserve)
+  if not windows then return end
+  should_preserve = should_preserve == true and config.ui.persist_state
+
+  -- Capture state before any cleanup (only for hide mode)
+  local snapshot = should_preserve and capture_hidden_snapshot(windows) or nil
+  if should_preserve then state.clear_hidden_window_state() end
+
+  if M.is_opencode_focused() then M.return_to_last_code_win() end
+  if state.display_route then state.display_route = nil end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeFooterResize')
 
-  ---@cast windows { input_win: integer, output_win: integer, input_buf: integer, output_buf: integer }
+  topbar.close()
+  if should_preserve then
+    footer.close(true)
+  else
+    renderer.teardown()
+    footer.close(false)
+  end
+
   pcall(vim.api.nvim_win_close, windows.input_win, true)
+
+  -- 'current' mode reuses the output window as a normal editor window
   if config.ui.position == 'current' then
-    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
-    if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
-      pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
-    end
-    -- Restore original window options
-    if state.saved_window_options and vim.api.nvim_win_is_valid(windows.output_win) then
-      for opt, value in pairs(state.saved_window_options) do
-        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+    if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
+      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
+      if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
+        pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
       end
-      state.saved_window_options = nil
+      if state.saved_window_options then
+        for opt, value in pairs(state.saved_window_options) do
+          pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
+        end
+        state.saved_window_options = nil
+      end
     end
   else
     pcall(vim.api.nvim_win_close, windows.output_win, true)
   end
-  pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
-  pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
-  footer.close()
 
-  if state.windows == windows then
-    state.windows = nil
+  if should_preserve then
+    FINALIZE.hide(windows, snapshot)
+  else
+    FINALIZE.teardown(windows, nil)
   end
+end
+
+function M.hide_visible_windows(windows)
+  return close_windows_impl(windows, true)
+end
+
+function M.teardown_visible_windows(windows)
+  return close_windows_impl(windows, false)
+end
+
+function M.drop_hidden_snapshot()
+  renderer.teardown()
+
+  local hidden = state.inspect_hidden_buffers()
+  if hidden then
+    for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf }) do
+      if buf and vim.api.nvim_buf_is_valid(buf) then
+        pcall(vim.api.nvim_buf_delete, buf, { force = true })
+      end
+    end
+  end
+
+  input_window._hidden = false
+  state.clear_hidden_window_state()
+end
+
+---Restore windows using preserved buffers
+---@return boolean success
+function M.restore_hidden_windows()
+  local hidden = state.inspect_hidden_buffers()
+  if not hidden then
+    return false
+  end
+
+  local autocmds = require('opencode.ui.autocmds')
+  local footer_buf = hidden.footer_buf
+  if not footer_buf or not vim.api.nvim_buf_is_valid(footer_buf) then
+    footer_buf = footer.create_buf()
+  end
+
+  local win_ids = M.create_split_windows(hidden.input_buf, hidden.output_buf)
+
+  state.consume_hidden_buffers()
+
+  local windows = state.windows
+  if not windows then
+    windows = {}
+    state.windows = windows
+  end
+  windows.input_buf = hidden.input_buf
+  windows.output_buf = hidden.output_buf
+  windows.footer_buf = footer_buf
+  windows.input_win = win_ids.input_win
+  windows.output_win = win_ids.output_win
+  windows.footer_win = nil
+  windows.output_was_at_bottom = hidden.output_was_at_bottom == true
+
+  state.set_cursor_position('input', hidden.input_cursor)
+  state.set_cursor_position('output', hidden.output_cursor)
+
+  input_window.setup(windows)
+  output_window.setup(windows)
+  footer.setup(windows)
+  if state.api_client and type(state.api_client.list_providers) == 'function' then
+    topbar.setup()
+  end
+
+  autocmds.setup_autocmds(windows)
+  autocmds.setup_resize_handler(windows)
+
+  if hidden.input_hidden then
+    input_window._hide()
+  end
+
+  vim.schedule(function()
+    local w = state.windows
+    if not w then return end
+
+    if hidden.output_was_at_bottom then
+      renderer.scroll_to_bottom(true)
+    else
+      restore_window_cursor(w.output_win, w.output_buf, state.get_cursor_position('output'))
+      if type(hidden.output_view) == 'table' then
+        pcall(vim.api.nvim_win_call, w.output_win, function()
+          vim.fn.winrestview(hidden.output_view)
+        end)
+      end
+    end
+
+    if not hidden.input_hidden then
+      restore_window_cursor(w.input_win, w.input_buf, state.get_cursor_position('input'))
+    end
+  end)
+
+  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
+
+  return true
+end
+
+---Check if we have valid hidden buffers
+---@return boolean
+function M.has_hidden_buffers()
+  return state.has_hidden_buffers()
 end
 
 function M.return_to_last_code_win()
@@ -76,8 +304,8 @@ local function open_split(direction, type)
 end
 
 function M.create_split_windows(input_buf, output_buf)
-  if state.windows then
-    M.close_windows(state.windows)
+  if input_window.mounted() or output_window.mounted() then
+    M.close_windows(state.windows, false)
   end
   local ui_conf = config.ui
 
@@ -91,6 +319,10 @@ function M.create_split_windows(input_buf, output_buf)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')
   local output_win = main_win
+
+  if ui_conf.position == 'current' then
+    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
+  end
 
   vim.api.nvim_win_set_buf(input_win, input_buf)
   vim.api.nvim_win_set_buf(output_win, output_buf)
@@ -108,6 +340,7 @@ function M.create_windows()
     state.current_code_buf = vim.api.nvim_get_current_buf()
   end
 
+  -- Create new windows from scratch
   local buffers = M.setup_buffers()
   local windows = buffers
   local win_ids = M.create_split_windows(buffers.input_buf, buffers.output_buf)
@@ -209,8 +442,9 @@ end
 ---called before submitting input or doing something that might generate events
 ---from opencode
 ---@param synchronous? boolean If true, waits until session is fully rendered
-function M.render_output(synchronous)
-  local ret = renderer.render_full_session()
+---@param opts? {force_scroll?: boolean}
+function M.render_output(synchronous, opts)
+  local ret = renderer.render_full_session(opts)
 
   if ret and synchronous then
     ret:wait()
@@ -268,7 +502,7 @@ function M.swap_position()
   config.values.ui.position = new_pos
 
   if state.windows then
-    M.close_windows(state.windows)
+    M.close_windows(state.windows, false)
   end
   vim.schedule(function()
     require('opencode.api').toggle(state.active_session == nil)
@@ -291,11 +525,24 @@ function M.toggle_zoom()
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 
+  local function resize_window(win)
+    if not win or not vim.api.nvim_win_is_valid(win) then
+      return
+    end
+
+    local win_config = vim.api.nvim_win_get_config(win)
+    if win_config.relative ~= '' then
+      vim.api.nvim_win_set_config(win, { width = width })
+    else
+      vim.api.nvim_win_set_width(win, width)
+    end
+  end
+
   if windows.input_win ~= nil then
-    vim.api.nvim_win_set_config(windows.input_win, { width = width })
+    resize_window(windows.input_win)
   end
   if windows.output_win ~= nil then
-    vim.api.nvim_win_set_config(windows.output_win, { width = width })
+    resize_window(windows.output_win)
   end
 end
 

@@ -156,13 +156,13 @@ describe('cursor persistence (state)', function()
     end)
   end)
 
-  describe('save_cursor_position', function()
+  describe('get_window_cursor', function()
     it('returns nil for invalid window', function()
-      assert.is_nil(state.save_cursor_position('input', nil))
-      assert.is_nil(state.save_cursor_position('input', 999999))
+      assert.is_nil(state.get_window_cursor(nil))
+      assert.is_nil(state.get_window_cursor(999999))
     end)
 
-    it('captures and persists from a real window', function()
+    it('gets cursor from a real window', function()
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line1', 'line2', 'line3' })
       local win = vim.api.nvim_open_win(buf, true, {
@@ -174,8 +174,11 @@ describe('cursor persistence (state)', function()
       })
       vim.api.nvim_win_set_cursor(win, { 2, 3 })
 
-      local saved = state.save_cursor_position('output', win)
-      assert.same({ 2, 3 }, saved)
+      local pos = state.get_window_cursor(win)
+      assert.same({ 2, 3 }, pos)
+
+      -- Manually save to verify persistence path
+      state.set_cursor_position('output', pos)
       assert.same({ 2, 3 }, state.get_cursor_position('output'))
 
       pcall(vim.api.nvim_win_close, win, true)

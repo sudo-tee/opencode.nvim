@@ -26,7 +26,7 @@ M.select_session = Promise.async(function(parent_id)
 
   ui.select_session(filtered_sessions, function(selected_session)
     if not selected_session then
-      if state.windows then
+      if state.is_visible() then
         ui.focus_input()
       end
       return
@@ -43,8 +43,8 @@ M.switch_session = Promise.async(function(session_id)
   M.ensure_current_mode():await()
 
   state.active_session = selected_session
-  if state.windows then
-    state.restore_points = {}
+  state.restore_points = {}
+  if state.is_visible() then
     ui.focus_input()
   else
     M.open()
@@ -53,7 +53,7 @@ end)
 
 ---@param opts? OpenOpts
 M.open_if_closed = Promise.async(function(opts)
-  if not state.windows then
+  if not state.is_visible() then
     M.open(opts):await()
   end
 end)
@@ -89,10 +89,28 @@ M.open = Promise.async(function(opts)
     require('opencode.context').load()
   end
 
-  local are_windows_closed = state.windows == nil
+  local open_windows_action = opts.open_action or state.resolve_open_windows_action()
+  local are_windows_closed = open_windows_action ~= 'reuse_visible'
+  local restoring_hidden = open_windows_action == 'restore_hidden'
+
   if are_windows_closed then
+    if not ui.is_opencode_focused() then
+      state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
+      state.current_code_buf = vim.api.nvim_get_current_buf()
+    end
+
     M.is_prompting_allowed()
-    state.windows = ui.create_windows()
+
+    if restoring_hidden then
+      local restored = ui.restore_hidden_windows()
+      if not restored then
+        state.clear_hidden_window_state()
+        restoring_hidden = false
+        state.windows = ui.create_windows()
+      end
+    else
+      state.windows = ui.create_windows()
+    end
   end
 
   if opts.focus == 'input' then
@@ -122,13 +140,14 @@ M.open = Promise.async(function(opts)
       log.debug('Created new session on open', { session = state.active_session.id })
     else
       M.ensure_current_mode():await()
+
       if not state.active_session then
         state.active_session = session.get_last_workspace_session():await()
         if not state.active_session then
           state.active_session = M.create_new_session():await()
         end
       else
-        if not state.display_route and are_windows_closed then
+        if not state.display_route and are_windows_closed and not restoring_hidden then
           -- We're not displaying /help or something like that but we have an active session
           -- and the windows were closed so we need to do a full refresh. This mostly happens
           -- when opening the window after having closed it since we're not currently clearing
@@ -268,7 +287,7 @@ end
 function M.configure_provider()
   require('opencode.model_picker').select(function(selection)
     if not selection then
-      if state.windows then
+      if state.is_visible() then
         ui.focus_input()
       end
       return
@@ -282,7 +301,7 @@ function M.configure_provider()
       state.user_mode_model_map = mode_map
     end
 
-    if state.windows then
+    if state.is_visible() then
       ui.focus_input()
     else
       vim.notify('Changed provider to ' .. model_str, vim.log.levels.INFO)
@@ -293,7 +312,7 @@ end
 function M.configure_variant()
   require('opencode.variant_picker').select(function(selection)
     if not selection then
-      if state.windows then
+      if state.is_visible() then
         ui.focus_input()
       end
       return
@@ -301,7 +320,7 @@ function M.configure_variant()
 
     state.current_variant = selection.name
 
-    if state.windows then
+    if state.is_visible() then
       ui.focus_input()
     else
       vim.notify('Changed variant to ' .. selection.name, vim.log.levels.INFO)
@@ -366,41 +385,42 @@ M.cycle_variant = Promise.async(function()
 end)
 
 M.cancel = Promise.async(function()
-  if state.windows and state.active_session then
-    if state.is_running() then
-      M._abort_count = M._abort_count + 1
+  if state.active_session and state.is_running() then
+    M._abort_count = M._abort_count + 1
 
-      local permissions = state.pending_permissions or {}
-      if #permissions and state.api_client then
-        for _, permission in ipairs(permissions) do
-          require('opencode.api').permission_deny(permission)
-        end
-      end
-
-      local ok, result = pcall(function()
-        return state.api_client:abort_session(state.active_session.id):wait()
-      end)
-
-      if not ok then
-        vim.notify('Abort error: ' .. vim.inspect(result))
-      end
-
-      if M._abort_count >= 3 then
-        vim.notify('Re-starting Opencode server')
-        M._abort_count = 0
-        -- close existing server
-        if state.opencode_server then
-          state.opencode_server:shutdown():await()
-        end
-
-        -- start a new one
-        state.opencode_server = nil
-
-        -- NOTE: start a new server here to make sure we're subscribed
-        -- to server events before a user sends a message
-        state.opencode_server = server_job.ensure_server():await() --[[@as OpencodeServer]]
+    local permissions = state.pending_permissions or {}
+    if #permissions and state.api_client then
+      for _, permission in ipairs(permissions) do
+        require('opencode.api').permission_deny(permission)
       end
     end
+
+    local ok, result = pcall(function()
+      return state.api_client:abort_session(state.active_session.id):wait()
+    end)
+
+    if not ok then
+      vim.notify('Abort error: ' .. vim.inspect(result))
+    end
+
+    if M._abort_count >= 3 then
+      vim.notify('Re-starting Opencode server')
+      M._abort_count = 0
+      -- close existing server
+      if state.opencode_server then
+        state.opencode_server:shutdown():await()
+      end
+
+      -- start a new one
+      state.opencode_server = nil
+
+      -- NOTE: start a new server here to make sure we're subscribed
+      -- to server events before a user sends a message
+      state.opencode_server = server_job.ensure_server():await() --[[@as OpencodeServer]]
+    end
+  end
+
+  if state.is_visible() then
     require('opencode.ui.footer').clear()
     input_window.set_content('')
     require('opencode.history').index = nil

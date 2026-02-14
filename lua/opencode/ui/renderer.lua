@@ -254,7 +254,7 @@ end
 ---Sets the entire output buffer based on output_data
 ---@param output_data Output Output object from formatter
 function M.render_output(output_data)
-  if not output_window.mounted() then
+  if not output_window.buffer_valid() then
     return
   end
 

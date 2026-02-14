@@ -209,6 +209,7 @@ require('opencode').setup({
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
+    persist_state = true, -- Keep buffers when toggling/closing UI so window state restores quickly
     icons = {
       preset = 'nerdfonts', -- 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')
       overrides = {}, -- Optional per-key overrides, see section below
@@ -440,6 +441,19 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 - snapshot, restore_point, restore_count, file
 - status_on, status_off
 - border, bullet
+
+### Window Persistence Behavior
+
+`ui.persist_state` controls how `toggle` behaves:
+
+- `persist_state = true` (default): `toggle()` hides/restores the UI and keeps buffers/session view in memory for fast restore.
+- `persist_state = false`: `toggle()` fully tears down UI buffers and recreates them on next open.
+
+Related APIs:
+
+- `require('opencode.api').toggle()` follows the `persist_state` behavior above.
+- `require('opencode.api').close()` always fully closes and clears hidden snapshot state.
+- `require('opencode.api').hide()` preserves buffers only when `persist_state = true`; otherwise it behaves like close.
 
 ### Picker Layout
 

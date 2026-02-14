@@ -430,6 +430,25 @@ describe('opencode.core', function()
     end)
   end)
 
+  describe('cancel', function()
+    it('aborts running session even when ui is not visible', function()
+      state.windows = nil
+      state.active_session = { id = 'sess1' }
+      state.job_count = 1
+
+      local abort_stub = stub(state.api_client, 'abort_session').invokes(function()
+        return Promise.new():resolve(true)
+      end)
+
+      core.cancel():wait()
+
+      assert.stub(abort_stub).was_called()
+      assert.stub(ui.focus_input).was_not_called()
+
+      abort_stub:revert()
+    end)
+  end)
+
   describe('opencode_ok (version checks)', function()
     local original_system
     local original_executable

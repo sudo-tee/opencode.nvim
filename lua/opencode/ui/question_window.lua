@@ -92,7 +92,7 @@ end
 
 local function get_total_options(question_info)
   local has_other = find_other_option(question_info.options) ~= nil
-  return has_other and (#question_info.options + 1) or #question_info.options
+  return has_other and #question_info.options or (#question_info.options + 1)
 end
 
 ---@param option_index number
@@ -131,10 +131,8 @@ function M._answer_with_custom()
 end
 
 local function add_other_if_missing(options)
-  for _, opt in ipairs(options) do
-    if opt.label:lower() == 'other' then
-      return options
-    end
+  if find_other_option(options) ~= nil then
+    return options
   end
   local result = vim.deepcopy(options)
   table.insert(result, { label = 'Other', description = 'Type your own answer' })

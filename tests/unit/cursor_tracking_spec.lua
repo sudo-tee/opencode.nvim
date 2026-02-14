@@ -284,3 +284,103 @@ describe('ui.focus_input', function()
     assert.same({ 1, 2 }, vim.api.nvim_win_get_cursor(input_win))
   end)
 end)
+
+describe('renderer._add_message_to_buffer scrolling', function()
+  local renderer = require('opencode.ui.renderer')
+  local formatter = require('opencode.ui.formatter')
+  local stub = require('luassert.stub')
+  local buf, win
+
+  before_each(function()
+    config.setup({})
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'existing line' })
+
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+    })
+
+    state.windows = { output_win = win, output_buf = buf }
+    state.active_session = { id = 'test-session' }
+    state.messages = {}
+    renderer._prev_line_count = 1
+    renderer._render_state:reset()
+  end)
+
+  after_each(function()
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    state.windows = nil
+    state.active_session = nil
+    state.messages = nil
+    renderer._prev_line_count = 0
+    renderer._render_state:reset()
+  end)
+
+  it('scrolls to bottom when user message is added', function()
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local user_message = {
+      info = {
+        id = 'msg-1',
+        sessionID = 'test-session',
+        role = 'user',
+      },
+      parts = {},
+    }
+
+    local scroll_called_with_force = false
+    stub(renderer, 'scroll_to_bottom').invokes(function(force)
+      scroll_called_with_force = force == true
+    end)
+
+    renderer._add_message_to_buffer(user_message)
+
+    assert.is_true(scroll_called_with_force)
+    assert.stub(renderer.scroll_to_bottom).was_called_with(true)
+
+    renderer.scroll_to_bottom:revert()
+  end)
+
+  it('does not scroll when assistant message is added', function()
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local assistant_message = {
+      info = {
+        id = 'msg-2',
+        sessionID = 'test-session',
+        role = 'assistant',
+      },
+      parts = {},
+    }
+
+    stub(renderer, 'scroll_to_bottom')
+
+    renderer._add_message_to_buffer(assistant_message)
+
+    assert.stub(renderer.scroll_to_bottom).was_not_called()
+
+    renderer.scroll_to_bottom:revert()
+  end)
+
+  it('does not scroll when system message is added', function()
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local system_message = {
+      info = {
+        id = 'msg-3',
+        sessionID = 'test-session',
+        role = 'system',
+      },
+      parts = {},
+    }
+
+    stub(renderer, 'scroll_to_bottom')
+
+    renderer._add_message_to_buffer(system_message)
+
+    assert.stub(renderer.scroll_to_bottom).was_not_called()
+
+    renderer.scroll_to_bottom:revert()
+  end)
+end)

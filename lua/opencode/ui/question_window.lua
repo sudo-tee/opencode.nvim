@@ -92,7 +92,7 @@ end
 
 local function get_total_options(question_info)
   local has_other = find_other_option(question_info.options) ~= nil
-  return has_other and #question_info.options or (#question_info.options + 1)
+  return has_other and (#question_info.options + 1) or #question_info.options
 end
 
 ---@param option_index number

@@ -567,6 +567,10 @@ function M._add_message_to_buffer(message)
   if range then
     M._render_state:set_message(message, range.line_start, range.line_end)
   end
+
+  if message.info.role == 'user' then
+    M.scroll_to_bottom(true)
+  end
 end
 
 ---Replace existing message header in buffer

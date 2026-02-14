@@ -8,6 +8,85 @@ describe('cursor persistence (state)', function()
     state.set_cursor_position('output', nil)
   end)
 
+  describe('renderer.scroll_to_bottom', function()
+    local renderer = require('opencode.ui.renderer')
+    local buf, win
+
+    before_each(function()
+      config.setup({})
+      renderer.reset()
+
+      buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'line 1',
+        'line 2',
+        'line 3',
+        'line 4',
+        'line 5',
+        'line 6',
+        'line 7',
+        'line 8',
+        'line 9',
+        'line 10',
+      })
+
+      win = vim.api.nvim_open_win(buf, true, {
+        relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+      })
+
+      state.windows = { output_win = win, output_buf = buf }
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_win_set_cursor(win, { 10, 0 })
+    end)
+
+    after_each(function()
+      renderer.reset()
+      pcall(vim.api.nvim_win_close, win, true)
+      pcall(vim.api.nvim_buf_delete, buf, { force = true })
+      state.windows = nil
+    end)
+
+    it('auto-scrolls when cursor was at previous bottom and buffer grows', function()
+      renderer.scroll_to_bottom()
+
+      vim.api.nvim_buf_set_lines(buf, 10, 10, false, { 'line 11', 'line 12' })
+      renderer.scroll_to_bottom()
+
+      local cursor = vim.api.nvim_win_get_cursor(win)
+      assert.equals(12, cursor[1])
+    end)
+
+    it('does not auto-scroll when user moved away from previous bottom before growth', function()
+      renderer.scroll_to_bottom()
+
+      vim.api.nvim_win_set_cursor(win, { 5, 0 })
+      vim.api.nvim_buf_set_lines(buf, 10, 10, false, { 'line 11', 'line 12' })
+      renderer.scroll_to_bottom()
+
+      local cursor = vim.api.nvim_win_get_cursor(win)
+      assert.equals(5, cursor[1])
+    end)
+
+    it('auto-scrolls even when output window is unfocused if cursor was at previous bottom', function()
+      renderer.scroll_to_bottom()
+
+      local input_buf = vim.api.nvim_create_buf(false, true)
+      vim.cmd('vsplit')
+      local input_win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(input_win, input_buf)
+      vim.api.nvim_set_current_win(input_win)
+
+      vim.api.nvim_buf_set_lines(buf, 10, 10, false, { 'line 11' })
+      renderer.scroll_to_bottom()
+
+      local cursor = vim.api.nvim_win_get_cursor(win)
+      assert.equals(11, cursor[1])
+
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+    end)
+  end)
+
   describe('set/get round-trip', function()
     it('stores and retrieves input cursor', function()
       state.set_cursor_position('input', { 5, 3 })
@@ -176,13 +255,10 @@ describe('output_window.is_at_bottom', function()
     vim.api.nvim_win_set_cursor(win, { 50, 0 })
     assert.is_true(output_window.is_at_bottom(win))
 
-    -- Scroll viewport up via winrestview, cursor stays at line 50
     pcall(vim.api.nvim_win_call, win, function()
       vim.fn.winrestview({ topline = 1 })
     end)
 
-    -- Cursor is still at 50, so is_at_bottom should still be true
-    -- This is the key behavioral difference from viewport-based check
     assert.is_true(output_window.is_at_bottom(win))
   end)
 end)

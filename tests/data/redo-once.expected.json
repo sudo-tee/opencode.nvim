@@ -2,78 +2,78 @@
   "actions": [
     {
       "args": [
-        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
       ],
-      "display_line": 22,
+      "display_line": 56,
       "key": "R",
       "range": {
-        "from": 22,
-        "to": 22
+        "from": 56,
+        "to": 56
       },
       "text": "[R]evert file",
       "type": "diff_revert_selected_file"
     },
     {
       "args": [
-        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
       ],
-      "display_line": 22,
+      "display_line": 56,
       "key": "A",
       "range": {
-        "from": 22,
-        "to": 22
+        "from": 56,
+        "to": 56
       },
       "text": "Revert [A]ll",
       "type": "diff_revert_all"
     },
     {
       "args": [
-        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
       ],
-      "display_line": 22,
+      "display_line": 56,
       "key": "D",
       "range": {
-        "from": 22,
-        "to": 22
+        "from": 56,
+        "to": 56
       },
       "text": "[D]iff",
       "type": "diff_open"
     },
     {
       "args": [
-        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
       ],
-      "display_line": 56,
+      "display_line": 22,
       "key": "R",
       "range": {
-        "from": 56,
-        "to": 56
+        "from": 22,
+        "to": 22
       },
       "text": "[R]evert file",
       "type": "diff_revert_selected_file"
     },
     {
       "args": [
-        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
       ],
-      "display_line": 56,
+      "display_line": 22,
       "key": "A",
       "range": {
-        "from": 56,
-        "to": 56
+        "from": 22,
+        "to": 22
       },
       "text": "Revert [A]ll",
       "type": "diff_revert_all"
     },
     {
       "args": [
-        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
       ],
-      "display_line": 56,
+      "display_line": 22,
       "key": "D",
       "range": {
-        "from": 56,
-        "to": 56
+        "from": 22,
+        "to": 22
       },
       "text": "[D]iff",
       "type": "diff_open"
@@ -1148,5 +1148,5 @@
     " test.txt: +1 -1",
     ""
   ],
-  "timestamp": 1771084742
+  "timestamp": 1770935241
 }

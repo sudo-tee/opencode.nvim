@@ -2,6 +2,45 @@
   "actions": [
     {
       "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "R",
+      "range": {
+        "from": 90,
+        "to": 90
+      },
+      "text": "[R]evert file",
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "A",
+      "range": {
+        "from": 90,
+        "to": 90
+      },
+      "text": "Revert [A]ll",
+      "type": "diff_revert_all"
+    },
+    {
+      "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "D",
+      "range": {
+        "from": 90,
+        "to": 90
+      },
+      "text": "[D]iff",
+      "type": "diff_open"
+    },
+    {
+      "args": [
         "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
       ],
       "display_line": 22,
@@ -74,45 +113,6 @@
       "range": {
         "from": 56,
         "to": 56
-      },
-      "text": "[D]iff",
-      "type": "diff_open"
-    },
-    {
-      "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
-      ],
-      "display_line": 90,
-      "key": "R",
-      "range": {
-        "from": 90,
-        "to": 90
-      },
-      "text": "[R]evert file",
-      "type": "diff_revert_selected_file"
-    },
-    {
-      "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
-      ],
-      "display_line": 90,
-      "key": "A",
-      "range": {
-        "from": 90,
-        "to": 90
-      },
-      "text": "Revert [A]ll",
-      "type": "diff_revert_all"
-    },
-    {
-      "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
-      ],
-      "display_line": 90,
-      "key": "D",
-      "range": {
-        "from": 90,
-        "to": 90
       },
       "text": "[D]iff",
       "type": "diff_open"
@@ -1658,5 +1658,5 @@
     "",
     ""
   ],
-  "timestamp": 1771083489
+  "timestamp": 1771084741
 }

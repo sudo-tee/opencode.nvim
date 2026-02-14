@@ -543,6 +543,46 @@ function M.paste_image_from_clipboard()
   return image_handler.paste_image_from_clipboard()
 end
 
+--- Handle working directory changes by restarting the server and loading the appropriate session.
+--- This function performs the following steps:
+--- @return Promise<void>
+M.handle_directory_change = Promise.async(function()
+  local log = require('opencode.log')
+
+  if state.opencode_server then
+    vim.notify('Directory changed, restarting Opencode server...', vim.log.levels.INFO)
+    log.info('Shutting down Opencode server due to directory change...')
+
+    state.opencode_server:shutdown():await()
+
+    vim.defer_fn(
+      Promise.async(function()
+        state.opencode_server = nil
+        server_job.ensure_server():await()
+
+        vim.notify('Loading last session for new working dir [' .. vim.fn.getcwd() .. ']', vim.log.levels.INFO)
+
+        state.active_session = nil
+        state.last_sent_context = nil
+        context.unload_attachments()
+
+        local is_new = false
+        state.active_session = session.get_last_workspace_session():await()
+
+        if not state.active_session then
+          is_new = true
+          state.active_session = M.create_new_session():await()
+        end
+
+        log.debug(
+          'Loaded session for new working dir' .. vim.inspect({ session = state.active_session, is_new = is_new })
+        )
+      end),
+      200
+    )
+  end
+end)
+
 function M.setup()
   state.subscribe('opencode_server', on_opencode_server)
   state.subscribe('user_message_count', M._on_user_message_count_change)

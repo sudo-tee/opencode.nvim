@@ -34,7 +34,6 @@ end
 --- Create a new ServerJob instance
 --- @return OpencodeServer
 function OpencodeServer.new()
-  local log = require('opencode.log')
   ensure_vim_leave_autocmd()
 
   return setmetatable({

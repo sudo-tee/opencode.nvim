@@ -145,10 +145,13 @@ function Dialog:teardown()
   self._active = false
   self:_clear_keymaps()
 
-  -- Show input window if it was hidden
+  -- Show input window if it was hidden, but only if auto_hide is disabled
   if self._config.hide_input then
+    local config = require('opencode.config')
     local input_window = require('opencode.ui.input_window')
-    input_window._show()
+    if not config.ui.input.auto_hide then
+      input_window._show()
+    end
   end
 end
 

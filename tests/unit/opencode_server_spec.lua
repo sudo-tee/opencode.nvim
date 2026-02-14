@@ -2,13 +2,45 @@ local OpencodeServer = require('opencode.opencode_server')
 local assert = require('luassert')
 
 describe('opencode.opencode_server', function()
-  local original_system
+  local original_uv_spawn
+  local original_uv_new_pipe
+  local original_uv_kill
+  
   before_each(function()
-    original_system = vim.system
+    original_uv_spawn = vim.uv.spawn
+    original_uv_new_pipe = vim.uv.new_pipe
+    original_uv_kill = vim.uv.kill
   end)
+  
   after_each(function()
-    vim.system = original_system
+    vim.uv.spawn = original_uv_spawn
+    vim.uv.new_pipe = original_uv_new_pipe
+    vim.uv.kill = original_uv_kill
   end)
+  
+  -- Helper to create mock pipe
+  local function create_mock_pipe()
+    local read_callback
+    return {
+      read_start = function(self, callback)
+        read_callback = callback
+        return self
+      end,
+      read_stop = function(self)
+        return self
+      end,
+      close = function(self) end,
+      is_closing = function()
+        return false
+      end,
+      trigger_read = function(err, data)
+        if read_callback then
+          read_callback(err, data)
+        end
+      end,
+    }
+  end
+
   -- Tests for server lifecycle behavior
 
   it('creates a new server object', function()
@@ -22,13 +54,29 @@ describe('opencode.opencode_server', function()
   it('spawn promise resolves when stdout emits server URL', function()
     local server = OpencodeServer.new()
     local resolved
-    vim.system = function(cmd, opts)
-      -- Simulate server output asynchronously
-      vim.schedule(function()
-        opts.stdout(nil, 'opencode server listening on http://127.0.0.1:7777')
-      end)
-      return { pid = 1, kill = function() end }
+    local stdout_pipe = create_mock_pipe()
+    local stderr_pipe = create_mock_pipe()
+    local exit_callback
+    
+    vim.uv.new_pipe = function()
+      if not stdout_pipe._used then
+        stdout_pipe._used = true
+        return stdout_pipe
+      else
+        return stderr_pipe
+      end
     end
+    
+    vim.uv.spawn = function(cmd, opts, callback)
+      exit_callback = callback
+      return {
+        is_closing = function()
+          return false
+        end,
+        close = function() end,
+      }, 1
+    end
+    
     server:spawn({
       cwd = '.',
       on_ready = function(_, url)
@@ -37,21 +85,48 @@ describe('opencode.opencode_server', function()
       on_error = function() end,
       on_exit = function() end,
     })
+    
+    -- Simulate server output asynchronously
+    vim.schedule(function()
+      stdout_pipe.trigger_read(nil, 'opencode server listening on http://127.0.0.1:7777')
+    end)
+    
     vim.wait(100, function()
       return resolved ~= nil
     end)
+    
     assert.equals('http://127.0.0.1:7777', resolved)
     assert.equals('http://127.0.0.1:7777', server.url)
   end)
 
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
+    local stdout_pipe = create_mock_pipe()
+    local stderr_pipe = create_mock_pipe()
     local exit_callback
+    local process_handle = {
+      is_closing = function()
+        return false
+      end,
+      close = function() end,
+    }
     
-    -- Mock vim.system to capture the exit callback
-    vim.system = function(cmd, opts, on_exit)
-      exit_callback = on_exit
-      return { pid = 2, kill = function() end }
+    vim.uv.new_pipe = function()
+      if not stdout_pipe._used then
+        stdout_pipe._used = true
+        return stdout_pipe
+      else
+        return stderr_pipe
+      end
+    end
+    
+    vim.uv.spawn = function(cmd, opts, callback)
+      exit_callback = callback
+      return process_handle, 2
+    end
+    
+    vim.uv.kill = function()
+      return true
     end
     
     -- Spawn the server so the exit callback is set up
@@ -67,13 +142,15 @@ describe('opencode.opencode_server', function()
       resolved = true
     end)
     
-    -- Call shutdown (sends SIGTERM)
+    -- Call shutdown (sends SIGTERM/SIGKILL)
     server:shutdown()
     
     -- Simulate the process exiting by calling the exit callback
-    vim.schedule(function()
-      exit_callback({ code = 0, signal = 0 })
-    end)
+    if exit_callback then
+      vim.schedule(function()
+        exit_callback(0, 0)
+      end)
+    end
     
     vim.wait(100, function()
       return resolved
@@ -87,31 +164,29 @@ describe('opencode.opencode_server', function()
 
   it('calls on_error when stderr is triggered', function()
     local called = { on_error = false }
-    local opts_captured = {}
-    vim.system = function(cmd, opts)
-      opts_captured.stdout = opts.stdout
-      opts_captured.stderr = opts.stderr
-      opts_captured.exit = opts.exit
-      return {
-        pid = 43,
-        kill = function()
-          called.killed = true
-        end,
-        stdout = function(err, data)
-          if opts_captured.stdout then
-            opts_captured.stdout(err, data)
-          end
-        end,
-        stderr = function(err, data)
-          opts_captured.stderr(err, data)
-        end,
-        exit = function(code, signal)
-          if opts_captured.exit then
-            opts_captured.exit(code, signal)
-          end
-        end,
-      }
+    local stdout_pipe = create_mock_pipe()
+    local stderr_pipe = create_mock_pipe()
+    local exit_callback
+    
+    vim.uv.new_pipe = function()
+      if not stdout_pipe._used then
+        stdout_pipe._used = true
+        return stdout_pipe
+      else
+        return stderr_pipe
+      end
     end
+    
+    vim.uv.spawn = function(cmd, opts, callback)
+      exit_callback = callback
+      return {
+        is_closing = function()
+          return false
+        end,
+        close = function() end,
+      }, 43
+    end
+    
     local server = OpencodeServer.new()
     server:spawn({
       cwd = '.',
@@ -126,45 +201,45 @@ describe('opencode.opencode_server', function()
         called.on_exit = true
       end,
     })
-    -- Simulate stderr after job is set
-    server.job.stderr(nil, 'some error')
+    
+    -- Simulate stderr after spawn
+    vim.schedule(function()
+      stderr_pipe.trigger_read(nil, 'some error')
+    end)
+    
     vim.wait(100, function()
       return called.on_error
     end)
+    
     assert.is_true(called.on_error)
   end)
 
   it('calls on_exit and clears fields when process exits', function()
     local called = { on_exit = false }
-    local opts_captured = {}
-    vim.system = function(cmd, opts, on_exit)
-      opts_captured.stdout = opts.stdout
-      opts_captured.stderr = opts.stderr
-      opts_captured.exit = on_exit
-      return {
-        pid = 44,
-        kill = function()
-          called.killed = true
-        end,
-        stdout = function(err, data)
-          if opts_captured.stdout then
-            opts_captured.stdout(err, data)
-          end
-        end,
-        stderr = function(err, data)
-          if opts_captured.stderr then
-            opts_captured.stderr(err, data)
-          end
-        end,
-        exit = function(code, signal)
-          opts_captured.exit({ code = code, signal = signal })
-        end,
-      }
+    local stdout_pipe = create_mock_pipe()
+    local stderr_pipe = create_mock_pipe()
+    local exit_callback
+    
+    vim.uv.new_pipe = function()
+      if not stdout_pipe._used then
+        stdout_pipe._used = true
+        return stdout_pipe
+      else
+        return stderr_pipe
+      end
     end
+    
+    vim.uv.spawn = function(cmd, opts, callback)
+      exit_callback = callback
+      return {
+        is_closing = function()
+          return false
+        end,
+        close = function() end,
+      }, 44
+    end
+    
     local server = OpencodeServer.new()
-    server.job = { pid = 44 }
-    server.url = 'http://localhost:5678'
-    server.handle = 44
     server:spawn({
       cwd = '.',
       on_ready = function() end,
@@ -174,11 +249,18 @@ describe('opencode.opencode_server', function()
         assert.equals(0, exit_opts.code)
       end,
     })
-    -- Simulate exit after job is set
-    server.job.exit(0, 0)
+    
+    -- Simulate exit after spawn
+    vim.schedule(function()
+      if exit_callback then
+        exit_callback(0, 0)
+      end
+    end)
+    
     vim.wait(100, function()
       return called.on_exit
     end)
+    
     assert.is_true(called.on_exit)
     assert.is_nil(server.job)
     assert.is_nil(server.url)

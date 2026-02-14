@@ -1,4 +1,6 @@
 local EventManager = require('opencode.event_manager')
+local Promise = require('opencode.promise')
+local state = require('opencode.state')
 
 describe('EventManager', function()
   local event_manager
@@ -75,6 +77,26 @@ describe('EventManager', function()
     assert.is_false(callback_called)
   end)
 
+  it('does not duplicate the same event callback', function()
+    local callback_called = 0
+    local callback = function()
+      callback_called = callback_called + 1
+    end
+
+    event_manager:subscribe('test_event', callback)
+    event_manager:subscribe('test_event', callback)
+
+    assert.are.equal(1, event_manager:get_subscriber_count('test_event'))
+
+    event_manager:emit('test_event', {})
+
+    vim.wait(100, function()
+      return callback_called > 0
+    end)
+
+    assert.are.equal(1, callback_called)
+  end)
+
   it('should track subscriber count', function()
     local callback1 = function() end
     local callback2 = function() end
@@ -117,6 +139,54 @@ describe('EventManager', function()
 
     event_manager:start() -- Should not do anything
     assert.are.equal(first_start, event_manager.is_started)
+  end)
+
+  it('does not duplicate opencode_server listener across restart', function()
+    local original_defer_fn = vim.defer_fn
+    vim.defer_fn = function(fn, _)
+      fn()
+    end
+
+    local original_subscribe_to_server_events = event_manager._subscribe_to_server_events
+    local subscribe_calls = 0
+
+    event_manager._subscribe_to_server_events = function()
+      subscribe_calls = subscribe_calls + 1
+    end
+
+    local function resolved(value)
+      local p = Promise.new()
+      p:resolve(value)
+      return p
+    end
+
+    local fake_server = {
+      url = 'http://127.0.0.1:4000',
+      get_spawn_promise = function(self)
+        return resolved(self)
+      end,
+      get_shutdown_promise = function()
+        return resolved(true)
+      end,
+    }
+
+    state.opencode_server = nil
+
+    event_manager:start()
+    event_manager:stop()
+    event_manager:start()
+
+    state.opencode_server = fake_server
+
+    vim.wait(200, function()
+      return subscribe_calls > 0
+    end)
+
+    assert.are.equal(1, subscribe_calls)
+
+    state.opencode_server = nil
+    event_manager._subscribe_to_server_events = original_subscribe_to_server_events
+    vim.defer_fn = original_defer_fn
   end)
 
   describe('User autocmd events', function()

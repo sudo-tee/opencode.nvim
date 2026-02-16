@@ -461,10 +461,24 @@ local function snacks_picker_ui(opts)
     finder = function()
       return opts.items
     end,
+    matcher = {
+      sort_empty = false,
+    },
+    sort = {
+      fields = { 'score:desc', 'idx' },
+    },
     transform = function(item, ctx)
-      if not item.text then
-        local picker_item = opts.format_fn(item)
-        item.text = picker_item:to_string()
+      if type(item) == 'table' then
+        if item.idx == nil then
+          item.idx = ctx.idx
+        end
+        if item.favorite_index and item.favorite_index < 999 then
+          item.score_add = (item.score_add or 0) + (1000 - item.favorite_index) * 1000
+        end
+        if not item.text then
+          local picker_item = opts.format_fn(item)
+          item.text = picker_item:to_string()
+        end
       end
     end,
     format = function(item)

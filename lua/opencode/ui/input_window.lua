@@ -491,10 +491,14 @@ function M.setup_autocmds(windows, group)
       -- Auto-hide input window when auto_hide is enabled and focus leaves
       -- Don't hide if displaying a route (slash command output like /help)
       -- Don't hide if input contains content
+      -- Don't hide if output window is empty (new session - user needs to start chat)
+      local output_window = require('opencode.ui.output_window')
+      local output_is_empty = output_window.get_buf_line_count() <= 1
       if
         config.ui.input.auto_hide
         and not M.is_hidden()
         and not state.display_route
+        and not output_is_empty
         and #state.input_content == 1
         and state.input_content[1] == ''
       then

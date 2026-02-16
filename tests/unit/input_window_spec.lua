@@ -358,6 +358,128 @@ describe('input_window', function()
     end)
   end)
 
+  describe('auto-hide behavior', function()
+    local input_buf, output_buf, input_win, output_win
+    local original_config
+
+    before_each(function()
+      local config = require('opencode.config')
+      original_config = vim.deepcopy(config.ui)
+
+      input_buf = vim.api.nvim_create_buf(false, true)
+      output_buf = vim.api.nvim_create_buf(false, true)
+      input_win = vim.api.nvim_open_win(input_buf, true, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 0,
+        col = 0,
+      })
+      output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 11,
+        col = 0,
+      })
+
+      state.windows = {
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+      }
+      state.input_content = { '' }
+      state.display_route = false
+
+      config.ui.input.auto_hide = true
+    end)
+
+    after_each(function()
+      local config = require('opencode.config')
+      config.ui = original_config
+
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.windows = nil
+      state.input_content = nil
+      state.display_route = nil
+      input_window._hidden = false
+    end)
+
+    it('should NOT auto-hide when output window is empty (new session)', function()
+      vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { '' })
+
+      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_exec_autocmds('WinLeave', {
+        buffer = input_buf,
+        modeline = false,
+      })
+
+      assert.is_false(input_window.is_hidden())
+      assert.is_true(vim.api.nvim_win_is_valid(input_win))
+
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+
+    it('should auto-hide when output window has content and input is empty', function()
+      vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
+
+      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_exec_autocmds('WinLeave', {
+        buffer = input_buf,
+        modeline = false,
+      })
+
+      assert.is_true(input_window.is_hidden())
+
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+
+    it('should NOT auto-hide when input has content', function()
+      vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
+      vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'user typing...' })
+      state.input_content = { 'user typing...' }
+
+      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_exec_autocmds('WinLeave', {
+        buffer = input_buf,
+        modeline = false,
+      })
+
+      assert.is_false(input_window.is_hidden())
+      assert.is_true(vim.api.nvim_win_is_valid(input_win))
+
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+
+    it('should NOT auto-hide when display_route is active', function()
+      vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
+      state.display_route = true
+
+      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_exec_autocmds('WinLeave', {
+        buffer = input_buf,
+        modeline = false,
+      })
+
+      assert.is_false(input_window.is_hidden())
+      assert.is_true(vim.api.nvim_win_is_valid(input_win))
+
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+  end)
+
   describe('auto-show when hidden', function()
     local input_buf, output_buf, input_win, output_win
 

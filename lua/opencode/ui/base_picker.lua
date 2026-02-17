@@ -234,19 +234,17 @@ local function fzf_ui(opts)
       fzf_opts = {
         ['--prompt'] = opts.title .. ' > ',
         ['--multi'] = has_multi_action and true or nil,
+        ['--with-nth'] = '2..', -- hide the index prefix from display
+        ['--delimiter'] = '\x01', -- use SOH as delimiter (invisible char)
       },
       _headers = { 'actions' },
       -- Enable builtin previewer for file preview support
       previewer = opts.preview == 'file' and 'builtin' or nil,
       fn_fzf_index = function(line)
-        -- Strip the appended file:line:col info before matching
-        -- fzf-lua uses nbsp (U+2002 EN SPACE) as separator
-        local nbsp = '\xe2\x80\x82'
-        local display_part = line:match('^([^' .. nbsp .. ']+)') or line
-        for i, item in ipairs(opts.items) do
-          if opts.format_fn(item):to_string() == display_part then
-            return i
-          end
+        -- Extract the numeric index prefix before the SOH delimiter
+        local idx_str = line:match('^(%d+)\x01')
+        if idx_str then
+          return tonumber(idx_str)
         end
         return nil
       end,
@@ -255,8 +253,11 @@ local function fzf_ui(opts)
 
   local function create_finder()
     return function(fzf_cb)
-      for _, item in ipairs(opts.items) do
+      for idx, item in ipairs(opts.items) do
         local line_str = opts.format_fn(item):to_string()
+
+        -- Prepend index with SOH delimiter for reliable matching
+        local indexed_line = tostring(idx) .. '\x01' .. line_str
 
         -- For file preview support, append file:line:col format
         -- fzf-lua's builtin previewer automatically parses this format
@@ -278,11 +279,11 @@ local function fzf_ui(opts)
             -- Append position info after nbsp separator (fzf-lua standard)
             -- nbsp is U+2002 EN SPACE, not regular tab
             local nbsp = '\xe2\x80\x82'
-            line_str = line_str .. nbsp .. pos_info
+            indexed_line = indexed_line .. nbsp .. pos_info
           end
         end
 
-        fzf_cb(line_str)
+        fzf_cb(indexed_line)
       end
       fzf_cb()
     end

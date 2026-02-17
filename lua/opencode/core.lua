@@ -548,18 +548,17 @@ end
 --- @return Promise<void>
 M.handle_directory_change = Promise.async(function()
   local log = require('opencode.log')
+  if not state.active_session then
+    is_new = true
+    state.active_session = M.create_new_session():await()
+  end
 
   if state.opencode_server then
-    vim.notify('Directory changed, restarting Opencode server...', vim.log.levels.INFO)
-    log.info('Shutting down Opencode server due to directory change...')
-
-    state.opencode_server:shutdown():await()
+    vim.notify('Working directory changed.', vim.log.levels.INFO)
+    log.debug('Working directory change %s', vim.inspect({ cwd = vim.fn.getcwd() }))
 
     vim.defer_fn(
       Promise.async(function()
-        state.opencode_server = nil
-        server_job.ensure_server():await()
-
         vim.notify('Loading last session for new working dir [' .. vim.fn.getcwd() .. ']', vim.log.levels.INFO)
 
         state.active_session = nil
@@ -567,12 +566,7 @@ M.handle_directory_change = Promise.async(function()
         context.unload_attachments()
 
         local is_new = false
-        state.active_session = session.get_last_workspace_session():await()
-
-        if not state.active_session then
-          is_new = true
-          state.active_session = M.create_new_session():await()
-        end
+        state.active_session = session.get_last_workspace_session():await() or M.create_new_session():await()
 
         log.debug(
           'Loaded session for new working dir' .. vim.inspect({ session = state.active_session, is_new = is_new })

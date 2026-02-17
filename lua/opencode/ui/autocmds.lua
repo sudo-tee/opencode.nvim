@@ -49,7 +49,7 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd('DirChangedPre', {
+  vim.api.nvim_create_autocmd('DirChanged', {
     group = group,
     callback = function(event)
       local core = require('opencode.core')

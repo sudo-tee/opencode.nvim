@@ -62,6 +62,10 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
   local url = self.base_url .. endpoint
 
   if query then
+    if not query.directory then
+      query.directory = vim.fn.getcwd()
+    end
+
     local params = {}
 
     for k, v in pairs(query) do

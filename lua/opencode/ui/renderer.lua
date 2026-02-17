@@ -9,8 +9,6 @@ local RenderState = require('opencode.ui.render_state')
 local M = {
   _prev_line_count = 0,
   _render_state = RenderState.new(),
-  _full_render_in_flight = nil,
-  _full_render_pending_opts = nil,
   _last_part_formatted = {
     part_id = nil,
     formatted_data = nil --[[@as Output|nil]],
@@ -41,7 +39,6 @@ end, config.ui.output.rendering.markdown_debounce_ms or 250)
 function M.reset()
   M._prev_line_count = 0
   M._render_state:reset()
-  M._full_render_pending_opts = nil
   M._last_part_formatted = { part_id = nil, formatted_data = nil }
 
   output_window.clear()
@@ -125,50 +122,17 @@ local function fetch_session()
   return require('opencode.session').get_messages(session)
 end
 
----@param opts? {force_scroll?: boolean}
+---Request all of the session data from the opencode server and render it
 ---@return Promise<OpencodeMessage[]>
-function M.render_full_session(opts)
-  opts = opts or {}
-
+function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
 
-  if M._full_render_in_flight then
-    M._full_render_pending_opts = M._full_render_pending_opts or {}
-    M._full_render_pending_opts.force_scroll = M._full_render_pending_opts.force_scroll
-      or (opts.force_scroll == true)
-    return M._full_render_in_flight
-  end
-
-  local render_promise = fetch_session():and_then(function(session_data)
-    return M._render_full_session_data(session_data, opts)
-  end)
-
-  M._full_render_in_flight = render_promise
-
-  render_promise:finally(function()
-    M._full_render_in_flight = nil
-
-    local pending_opts = M._full_render_pending_opts
-    if pending_opts then
-      M._full_render_pending_opts = nil
-      vim.schedule(function()
-        if output_window.mounted() and state.api_client then
-          M.render_full_session(pending_opts)
-        end
-      end)
-    end
-  end)
-
-  return render_promise
+  return fetch_session():and_then(M._render_full_session_data)
 end
 
----@param session_data table
----@param opts? {force_scroll?: boolean}
-function M._render_full_session_data(session_data, opts)
-  opts = opts or {}
-  session_data = session_data or {}
+function M._render_full_session_data(session_data, prev_revert, revert)
   M.reset()
 
   if not state.active_session or not state.messages then
@@ -200,7 +164,7 @@ function M._render_full_session_data(session_data, opts)
   if set_mode_from_messages then
     M._set_model_and_mode_from_messages()
   end
-  M.scroll_to_bottom(opts.force_scroll == true)
+  M.scroll_to_bottom(true)
 
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, state.active_session)

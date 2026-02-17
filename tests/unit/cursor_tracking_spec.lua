@@ -31,7 +31,11 @@ describe('cursor persistence (state)', function()
       })
 
       win = vim.api.nvim_open_win(buf, true, {
-        relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 0,
+        col = 0,
       })
 
       state.windows = { output_win = win, output_buf = buf }
@@ -162,7 +166,11 @@ describe('cursor persistence (state)', function()
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line1', 'line2', 'line3' })
       local win = vim.api.nvim_open_win(buf, true, {
-        relative = 'editor', width = 40, height = 10, row = 0, col = 0,
+        relative = 'editor',
+        width = 40,
+        height = 10,
+        row = 0,
+        col = 0,
       })
       vim.api.nvim_win_set_cursor(win, { 2, 3 })
 
@@ -190,7 +198,11 @@ describe('output_window.is_at_bottom', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
     win = vim.api.nvim_open_win(buf, true, {
-      relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+      relative = 'editor',
+      width = 80,
+      height = 10,
+      row = 0,
+      col = 0,
     })
 
     state.windows = { output_win = win, output_buf = buf }
@@ -241,7 +253,11 @@ describe('output_window.is_at_bottom', function()
   it('returns true for empty buffer', function()
     local empty_buf = vim.api.nvim_create_buf(false, true)
     local empty_win = vim.api.nvim_open_win(empty_buf, true, {
-      relative = 'editor', width = 40, height = 5, row = 0, col = 0,
+      relative = 'editor',
+      width = 40,
+      height = 5,
+      row = 0,
+      col = 0,
     })
     state.windows = { output_win = empty_win, output_buf = empty_buf }
 
@@ -255,10 +271,13 @@ describe('output_window.is_at_bottom', function()
     vim.api.nvim_win_set_cursor(win, { 50, 0 })
     assert.is_true(output_window.is_at_bottom(win))
 
+    -- Scroll viewport up via winrestview, cursor stays at line 50
     pcall(vim.api.nvim_win_call, win, function()
       vim.fn.winrestview({ topline = 1 })
     end)
 
+    -- Cursor is still at 50, so is_at_bottom should still be true
+    -- This is the key behavioral difference from viewport-based check
     assert.is_true(output_window.is_at_bottom(win))
   end)
 end)
@@ -278,7 +297,11 @@ describe('renderer.scroll_to_bottom', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
     win = vim.api.nvim_open_win(buf, true, {
-      relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+      relative = 'editor',
+      width = 80,
+      height = 10,
+      row = 0,
+      col = 0,
     })
 
     state.windows = { output_win = win, output_buf = buf }
@@ -327,10 +350,18 @@ describe('ui.focus_input', function()
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'output' })
 
     output_win = vim.api.nvim_open_win(output_buf, true, {
-      relative = 'editor', width = 40, height = 5, row = 0, col = 0,
+      relative = 'editor',
+      width = 40,
+      height = 5,
+      row = 0,
+      col = 0,
     })
     input_win = vim.api.nvim_open_win(input_buf, true, {
-      relative = 'editor', width = 40, height = 5, row = 6, col = 0,
+      relative = 'editor',
+      width = 40,
+      height = 5,
+      row = 6,
+      col = 0,
     })
 
     state.windows = {
@@ -373,7 +404,11 @@ describe('renderer._add_message_to_buffer scrolling', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'existing line' })
 
     win = vim.api.nvim_open_win(buf, true, {
-      relative = 'editor', width = 80, height = 10, row = 0, col = 0,
+      relative = 'editor',
+      width = 80,
+      height = 10,
+      row = 0,
+      col = 0,
     })
 
     state.windows = { output_win = win, output_buf = buf }

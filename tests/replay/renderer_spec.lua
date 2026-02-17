@@ -244,6 +244,7 @@ describe('renderer functional tests', function()
     'permission-prompt',
     'permission-ask-new',
     'question-ask',
+    'question-ask-other',
     'multiple-question-ask',
     'shifting-and-multiple-perms',
     'message-removal',

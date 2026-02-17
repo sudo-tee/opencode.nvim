@@ -277,6 +277,40 @@ function M.setup_autocmds(windows, group)
       state.save_cursor_position('output', windows.output_win)
     end,
   })
+
+  vim.api.nvim_create_autocmd('WinScrolled', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      if not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+        return
+      end
+
+      local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
+      if not ok then
+        return
+      end
+
+      local ok2, line_count = pcall(vim.api.nvim_buf_line_count, windows.output_buf)
+      if not ok2 or line_count == 0 then
+        return
+      end
+
+      if cursor[1] >= line_count then
+        local ok3, view = pcall(vim.api.nvim_win_call, windows.output_win, vim.fn.winsaveview)
+        if ok3 and type(view) == 'table' then
+          local topline = view.topline or 1
+          local win_height = vim.api.nvim_win_get_height(windows.output_win)
+          local visible_bottom = math.min(topline + win_height - 1, line_count)
+
+          if visible_bottom < line_count then
+            pcall(vim.api.nvim_win_set_cursor, windows.output_win, { visible_bottom, 0 })
+            state.save_cursor_position('output', windows.output_win)
+          end
+        end
+      end
+    end,
+  })
 end
 
 function M.clear()

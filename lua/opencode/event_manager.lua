@@ -154,6 +154,7 @@ local util = require('opencode.util')
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
+--- @field state_server_listener function|nil Listener for state.opencode_server updates
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
@@ -166,6 +167,7 @@ function EventManager.new()
   local self = setmetatable({
     events = {},
     server_subscription = nil,
+    state_server_listener = nil,
     is_started = false,
     captured_events = {},
   }, EventManager)
@@ -208,6 +210,13 @@ function EventManager:subscribe(event_name, callback)
   if not self.events[event_name] then
     self.events[event_name] = {}
   end
+
+  for _, cb in ipairs(self.events[event_name]) do
+    if cb == callback then
+      return
+    end
+  end
+
   table.insert(self.events[event_name], callback)
 end
 
@@ -243,10 +252,10 @@ function EventManager:unsubscribe(event_name, callback)
     return
   end
 
-  for i, cb in ipairs(listeners) do
+  for i = #listeners, 1, -1 do
+    local cb = listeners[i]
     if cb == callback then
       table.remove(listeners, i)
-      break
     end
   end
 end
@@ -351,31 +360,34 @@ function EventManager:start()
 
   self.is_started = true
 
-  state.subscribe(
-    'opencode_server',
-    --- @param key string
-    --- @param current OpencodeServer|nil
-    --- @param prev OpencodeServer|nil
-    function(key, current, prev)
-      if current and current:get_spawn_promise() then
-        self:emit('custom.server_starting', { url = current.url })
+  if self.state_server_listener then
+    state.unsubscribe('opencode_server', self.state_server_listener)
+  end
 
-        current:get_spawn_promise():and_then(function(server)
-          self:emit('custom.server_ready', { url = server.url })
-          vim.defer_fn(function()
-            self:_subscribe_to_server_events(server)
-          end, 200)
-        end)
+  self.state_server_listener = function(key, current, prev)
+    if current and current:get_spawn_promise() then
+      self:emit('custom.server_starting', { url = current.url })
 
-        current:get_shutdown_promise():and_then(function()
-          self:emit('custom.server_stopped', {})
-          self:_cleanup_server_subscription()
-        end)
-      elseif prev and not current then
+      current:get_spawn_promise():and_then(function(server)
+        self:emit('custom.server_ready', { url = server.url })
+        vim.defer_fn(function()
+          self:_subscribe_to_server_events(server)
+        end, 200)
+      end)
+
+      current:get_shutdown_promise():and_then(function()
         self:emit('custom.server_stopped', {})
         self:_cleanup_server_subscription()
-      end
+      end)
+    elseif prev and not current then
+      self:emit('custom.server_stopped', {})
+      self:_cleanup_server_subscription()
     end
+  end
+
+  state.subscribe(
+    'opencode_server',
+    self.state_server_listener
   )
 end
 
@@ -385,6 +397,10 @@ function EventManager:stop()
   end
 
   self.is_started = false
+  if self.state_server_listener then
+    state.unsubscribe('opencode_server', self.state_server_listener)
+    self.state_server_listener = nil
+  end
   self:_cleanup_server_subscription()
 
   self.throttling_emitter:clear()

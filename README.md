@@ -615,7 +615,16 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Toggle tools output (diffs, cmd output, etc.)               | `<leader>ott`                         | `:Opencode toggle_tool_output`              | `require('opencode.api').toggle_tool_output()`                         |
 | Toggle reasoning output (thinking steps)                    | `<leader>otr`                         | `:Opencode toggle_reasoning_output`         | `require('opencode.api').toggle_reasoning_output()`                    |
 | Open a quick chat input with selection/current line context | `<leader>o/`                          | `:Opencode quick_chat`                      | `require('opencode.api').quick_chat()`                                 |
-| Add visual selection to context                             | `<leader>oy`                          | `:Opencode add_visual_selection`            | `require('opencode.api').add_visual_selection()`                       |
+| Add visual selection to context                             | `<leader>oy`                          | `:Opencode add_visual_selection`            | `require('opencode.api').add_visual_selection(opts?)`                  |
+
+**add_visual_selection opts:**
+
+- `open_input` (boolean, default: `true`): Whether to open the input window after adding the selection. Set to `false` to add selection silently without changing focus.
+
+Example keymap for silent add:
+```lua
+['<leader>oY'] = { 'add_visual_selection', { open_input = false }, mode = {'v'} }
+```
 
 ### Run opts
 

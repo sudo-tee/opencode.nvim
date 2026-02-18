@@ -1,4 +1,3 @@
-local Promise = require('opencode.promise')
 local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
 local M = {}
@@ -52,6 +51,8 @@ function M.setup_autocmds(windows)
   vim.api.nvim_create_autocmd('DirChanged', {
     group = group,
     callback = function(event)
+      local state = require('opencode.state')
+      state.current_cwd = event.file
       local core = require('opencode.core')
       core.handle_directory_change()
     end,

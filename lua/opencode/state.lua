@@ -43,6 +43,7 @@
 ---@field pre_zoom_width integer|nil
 ---@field required_version string
 ---@field opencode_cli_version string|nil
+---@field current_cwd string|nil
 ---@field append fun( key:string, value:any)
 ---@field remove fun( key:string, idx:number)
 ---@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
@@ -97,6 +98,7 @@ local _state = {
   -- versions
   required_version = '0.6.3',
   opencode_cli_version = nil,
+  current_cwd = vim.fn.getcwd(),
 }
 
 -- Listener registry: { [key] = {cb1, cb2, ...}, ['*'] = {cb1, ...} }

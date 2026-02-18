@@ -10,6 +10,7 @@ local config = require('opencode.config')
 local image_handler = require('opencode.image_handler')
 local Promise = require('opencode.promise')
 local permission_window = require('opencode.ui.permission_window')
+local log = require('opencode.log')
 
 local M = {}
 M._abort_count = 0
@@ -57,6 +58,27 @@ M.open_if_closed = Promise.async(function(opts)
   end
 end)
 
+M.is_prompting_allowed = function()
+  local mentioned_files = context.get_context().mentioned_files or {}
+  local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
+  if not allowed then
+    vim.notify(err_msg or 'Prompt denied by prompt_guard', vim.log.levels.ERROR)
+  end
+  return allowed
+end
+
+M.check_cwd = function()
+  if state.current_cwd ~= vim.fn.getcwd() then
+    log.debug(
+      'CWD changed since last check, resetting session and context',
+      { current_cwd = state.current_cwd, new_cwd = vim.fn.getcwd() }
+    )
+    state.current_cwd = vim.fn.getcwd()
+    state.active_session = nil
+    context.unload_attachments()
+  end
+end
+
 ---@param opts? OpenOpts
 M.open = Promise.async(function(opts)
   opts = opts or { focus = 'input', new_session = false }
@@ -69,13 +91,7 @@ M.open = Promise.async(function(opts)
 
   local are_windows_closed = state.windows == nil
   if are_windows_closed then
-    -- Check if whether prompting will be allowed
-    local mentioned_files = context.get_context().mentioned_files or {}
-    local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
-    if not allowed then
-      vim.notify(err_msg or 'Prompts will be denied by prompt_guard', vim.log.levels.WARN)
-    end
-
+    M.is_prompting_allowed()
     state.windows = ui.create_windows()
   end
 
@@ -85,22 +101,16 @@ M.open = Promise.async(function(opts)
     ui.focus_output({ restore_position = are_windows_closed })
   end
 
-  local server
-  local server_ok, server_err = pcall(function()
-    server = server_job.ensure_server():await()
-  end)
+  local server = server_job.ensure_server():await()
 
-  if not server_ok or not server then
+  if not server then
     state.is_opening = false
-    vim.notify('Failed to start opencode server: ' .. tostring(server_err or 'Unknown error'), vim.log.levels.ERROR)
-    return Promise.new():reject(server_err or 'Server failed to start')
+    return Promise.new():reject('Server failed to start')
   end
 
-  state.opencode_server = server
+  M.check_cwd()
 
   local ok, err = pcall(function()
-    state.opencode_server = server
-
     if opts.new_session then
       state.active_session = nil
       state.last_sent_context = nil
@@ -109,6 +119,7 @@ M.open = Promise.async(function(opts)
       M.ensure_current_mode():await()
 
       state.active_session = M.create_new_session():await()
+      log.debug('Created new session on open', { session = state.active_session.id })
     else
       M.ensure_current_mode():await()
       if not state.active_session then
@@ -543,38 +554,22 @@ function M.paste_image_from_clipboard()
   return image_handler.paste_image_from_clipboard()
 end
 
---- Handle working directory changes by restarting the server and loading the appropriate session.
---- This function performs the following steps:
+--- Handle working directory changes loading the appropriate session.
 --- @return Promise<void>
 M.handle_directory_change = Promise.async(function()
   local log = require('opencode.log')
-  if not state.active_session then
-    is_new = true
-    state.active_session = M.create_new_session():await()
-  end
 
-  if state.opencode_server then
-    vim.notify('Working directory changed.', vim.log.levels.INFO)
-    log.debug('Working directory change %s', vim.inspect({ cwd = vim.fn.getcwd() }))
+  local cwd = vim.fn.getcwd()
+  log.debug('Working directory change %s', vim.inspect({ cwd = cwd }))
+  vim.notify('Loading last session for new working dir [' .. cwd .. ']', vim.log.levels.INFO)
 
-    vim.defer_fn(
-      Promise.async(function()
-        vim.notify('Loading last session for new working dir [' .. vim.fn.getcwd() .. ']', vim.log.levels.INFO)
+  state.active_session = nil
+  state.last_sent_context = nil
+  context.unload_attachments()
 
-        state.active_session = nil
-        state.last_sent_context = nil
-        context.unload_attachments()
+  state.active_session = session.get_last_workspace_session():await() or M.create_new_session():await()
 
-        local is_new = false
-        state.active_session = session.get_last_workspace_session():await() or M.create_new_session():await()
-
-        log.debug(
-          'Loaded session for new working dir' .. vim.inspect({ session = state.active_session, is_new = is_new })
-        )
-      end),
-      200
-    )
-  end
+  log.debug('Loaded session for new working dir ' .. vim.inspect({ session = state.active_session }))
 end)
 
 function M.setup()

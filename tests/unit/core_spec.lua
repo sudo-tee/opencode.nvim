@@ -152,6 +152,37 @@ describe('opencode.core', function()
       }, state.windows)
     end)
 
+    it('ensure the current cwd is correct when opening', function()
+      local cwd = vim.fn.getcwd()
+      state.current_cwd = nil
+      core.open({ new_session = false, focus = 'input' }):wait()
+      assert.equal(cwd, state.current_cwd)
+    end)
+
+    it('reload the active_session if cwd has changed since last session', function()
+      local original_getcwd = vim.fn.getcwd
+
+      state.windows = nil
+      state.active_session = { id = 'old-session' }
+      state.current_cwd = '/some/old/path'
+      vim.fn.getcwd = function()
+        return '/some/new/path'
+      end
+      session.get_last_workspace_session:revert()
+      stub(session, 'get_last_workspace_session').invokes(function()
+        local p = Promise.new()
+        p:resolve({ id = 'new_cwd-test-session' })
+        return p
+      end)
+
+      core.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.truthy(state.active_session)
+      assert.equal('new_cwd-test-session', state.active_session.id)
+      -- Restore original cwd function
+      vim.fn.getcwd = original_getcwd
+    end)
+
     it('handles new session properly', function()
       state.windows = nil
       state.active_session = { id = 'old-session' }
@@ -472,23 +503,16 @@ describe('opencode.core', function()
   describe('handle_directory_change', function()
     local server_job
     local context
-    local original_defer_fn
 
     before_each(function()
       server_job = require('opencode.server_job')
       context = require('opencode.context')
-      original_defer_fn = vim.defer_fn
-
-      -- Mock vim.defer_fn to execute immediately in tests
-      vim.defer_fn = function(fn, delay)
-        fn()
-      end
 
       stub(context, 'unload_attachments')
     end)
 
     after_each(function()
-      vim.defer_fn = original_defer_fn
+      context.unload_attachments:revert()
     end)
 
     it('clears active session and context', function()

@@ -63,6 +63,9 @@ describe('api_client', function()
     local original_call_api = server_job.call_api
     local captured_calls = {}
     local original_cwd = vim.fn.getcwd
+    local state = require('opencode.state')
+    state.current_cwd = '/current/directory'
+
     vim.fn.getcwd = function()
       return '/current/directory'
     end

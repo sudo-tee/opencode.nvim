@@ -1,4 +1,5 @@
 local server_job = require('opencode.server_job')
+local state = require('opencode.state')
 
 --- @class OpencodeApiClient
 --- @field base_url string The base URL of the opencode server
@@ -63,7 +64,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
 
   if query then
     if not query.directory then
-      query.directory = vim.fn.getcwd()
+      query.directory = state.current_cwd or vim.fn.getcwd()
     end
 
     local params = {}

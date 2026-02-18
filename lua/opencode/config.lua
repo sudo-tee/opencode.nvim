@@ -156,6 +156,7 @@ M.defaults = {
           '^%.git/',
           '^%.svn/',
           '^%.hg/',
+          '^%.jj/',
           'node_modules/',
           '%.pyc$',
           '%.o$',

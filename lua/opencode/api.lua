@@ -1013,16 +1013,15 @@ M.review = Promise.async(function(args)
     end)
 end)
 
---- Add the current visual selection to the context without opening/focusing the panel.
---- Can be called from any buffer. Selections accumulate across files.
 M.add_visual_selection = Promise.async(
-  ---@param _ any Unused
+  ---@param opts? {open_input?: boolean}
   ---@param range OpencodeSelectionRange
-  function(_, range)
+  function(opts, range)
+    opts = vim.tbl_extend('force', { open_input = true }, opts or {})
     local context = require('opencode.context')
     local added = context.add_visual_selection(range)
 
-    if added then
+    if added and opts.open_input then
       M.open_input():await()
     end
   end

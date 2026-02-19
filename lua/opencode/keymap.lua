@@ -27,7 +27,16 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, def
       -- Skip keymap if explicitly set to false (disabled)
     elseif config_entry then
       local func_name = config_entry[1]
-      local callback = type(func_name) == 'function' and func_name or api[func_name]
+      local func_args = config_entry[2]
+      local raw_callback = type(func_name) == 'function' and func_name or api[func_name]
+      local callback = raw_callback
+
+      if raw_callback and func_args then
+        callback = function()
+          raw_callback(func_args)
+        end
+      end
+
       local modes = config_entry.mode or default_modes
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
       opts.desc = config_entry.desc or cmds[func_name] and cmds[func_name].desc

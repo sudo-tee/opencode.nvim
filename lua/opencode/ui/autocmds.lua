@@ -48,6 +48,16 @@ function M.setup_autocmds(windows)
     end,
   })
 
+  vim.api.nvim_create_autocmd('DirChanged', {
+    group = group,
+    callback = function(event)
+      local state = require('opencode.state')
+      state.current_cwd = event.file
+      local core = require('opencode.core')
+      core.handle_directory_change()
+    end,
+  })
+
   if require('opencode.config').ui.position == 'current' then
     vim.api.nvim_create_autocmd('BufEnter', {
       group = group,

@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
+local log = require('opencode.log')
 
 local M = {}
 M.requests = {}
@@ -146,6 +147,8 @@ function M.ensure_server()
       promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
+      log.error('Error starting opencode server: ' .. vim.inspect(err))
+      vim.notify('Failed to start opencode server', vim.log.levels.ERROR)
       promise:reject(err)
     end,
     on_exit = function(exit_opts)

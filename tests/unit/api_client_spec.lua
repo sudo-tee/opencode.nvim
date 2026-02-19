@@ -62,6 +62,13 @@ describe('api_client', function()
     local server_job = require('opencode.server_job')
     local original_call_api = server_job.call_api
     local captured_calls = {}
+    local original_cwd = vim.fn.getcwd
+    local state = require('opencode.state')
+    state.current_cwd = '/current/directory'
+
+    vim.fn.getcwd = function()
+      return '/current/directory'
+    end
 
     server_job.call_api = function(url, method, body)
       table.insert(captured_calls, { url = url, method = method, body = body })
@@ -74,7 +81,7 @@ describe('api_client', function()
 
     -- Test without query params
     client:list_projects()
-    assert.are.equal('http://localhost:8080/project', captured_calls[1].url)
+    assert.are.equal('http://localhost:8080/project?directory=/current/directory', captured_calls[1].url)
     assert.are.equal('GET', captured_calls[1].method)
 
     -- Test with query params
@@ -95,5 +102,6 @@ describe('api_client', function()
 
     -- Restore original function
     server_job.call_api = original_call_api
+    vim.fn.getcwd = original_cwd
   end)
 end)

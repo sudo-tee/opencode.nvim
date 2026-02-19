@@ -152,6 +152,37 @@ describe('opencode.core', function()
       }, state.windows)
     end)
 
+    it('ensure the current cwd is correct when opening', function()
+      local cwd = vim.fn.getcwd()
+      state.current_cwd = nil
+      core.open({ new_session = false, focus = 'input' }):wait()
+      assert.equal(cwd, state.current_cwd)
+    end)
+
+    it('reload the active_session if cwd has changed since last session', function()
+      local original_getcwd = vim.fn.getcwd
+
+      state.windows = nil
+      state.active_session = { id = 'old-session' }
+      state.current_cwd = '/some/old/path'
+      vim.fn.getcwd = function()
+        return '/some/new/path'
+      end
+      session.get_last_workspace_session:revert()
+      stub(session, 'get_last_workspace_session').invokes(function()
+        local p = Promise.new()
+        p:resolve({ id = 'new_cwd-test-session' })
+        return p
+      end)
+
+      core.open({ new_session = false, focus = 'input' }):wait()
+
+      assert.truthy(state.active_session)
+      assert.equal('new_cwd-test-session', state.active_session.id)
+      -- Restore original cwd function
+      vim.fn.getcwd = original_getcwd
+    end)
+
     it('handles new session properly', function()
       state.windows = nil
       state.active_session = { id = 'old-session' }
@@ -466,6 +497,58 @@ describe('opencode.core', function()
       state.opencode_cli_version = nil
       state.required_version = '0.4.2'
       assert.is_true(core.opencode_ok():await())
+    end)
+  end)
+
+  describe('handle_directory_change', function()
+    local server_job
+    local context
+
+    before_each(function()
+      server_job = require('opencode.server_job')
+      context = require('opencode.context')
+
+      stub(context, 'unload_attachments')
+    end)
+
+    after_each(function()
+      context.unload_attachments:revert()
+    end)
+
+    it('clears active session and context', function()
+      state.active_session = { id = 'old-session' }
+      state.last_sent_context = { some = 'context' }
+
+      core.handle_directory_change():wait()
+
+      -- Should be set to the new session from get_last_workspace_session stub
+      assert.truthy(state.active_session)
+      assert.equal('test-session', state.active_session.id)
+      assert.is_nil(state.last_sent_context)
+      assert.stub(context.unload_attachments).was_called()
+    end)
+
+    it('loads last workspace session for new directory', function()
+      core.handle_directory_change():wait()
+
+      assert.truthy(state.active_session)
+      assert.equal('test-session', state.active_session.id)
+      assert.stub(session.get_last_workspace_session).was_called()
+    end)
+
+    it('creates new session when no last session exists', function()
+      -- Override stub to return nil (no last session)
+      session.get_last_workspace_session:revert()
+      stub(session, 'get_last_workspace_session').invokes(function()
+        local p = Promise.new()
+        p:resolve(nil)
+        return p
+      end)
+
+      core.handle_directory_change():wait()
+
+      assert.truthy(state.active_session)
+      assert.truthy(state.active_session.id)
     end)
   end)
 

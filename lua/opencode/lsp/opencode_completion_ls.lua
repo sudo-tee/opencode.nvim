@@ -43,7 +43,6 @@ local function get_completion_context(params)
   local line = lines[1] or ''
   local line_to_cursor = line:sub(1, col)
 
-  -- Find the trigger character
   local triggers = completion.get_trigger_characters()
   for _, t in ipairs(triggers) do
     if t and line_to_cursor:match(vim.pesc(t) .. '[^%s]*$') then
@@ -100,7 +99,7 @@ end
 
 ---Completion handler - provides completion items
 ---@param params lsp.CompletionParams
----@param callback fun(err?: lsp.ResponseError, result: lsp.CompletionItem[])
+---@param callback fun(err?: lsp.ResponseError, result: lsp.CompletionItem[] | lsp.CompletionList)
 handlers[ms.textDocument_completion] = function(params, callback)
   local word, trigger_char, line = get_completion_context(params)
 
@@ -124,8 +123,8 @@ handlers[ms.textDocument_completion] = function(params, callback)
   Promise.all(promises)
     :and_then(function(results)
       local all_items = {}
-
       local is_incomplete = false
+
       for i, items in ipairs(results) do
         for _, item in ipairs(items or {}) do
           local source = completion.get_source_by_name(item.source_name)
@@ -137,10 +136,7 @@ handlers[ms.textDocument_completion] = function(params, callback)
         end
       end
 
-      callback(nil, {
-        isIncomplete = is_incomplete,
-        items = all_items,
-      })
+      callback(nil, { isIncomplete = is_incomplete, items = all_items })
       completion.store_completion_items(all_items)
     end)
     :catch(function(err)
@@ -148,15 +144,6 @@ handlers[ms.textDocument_completion] = function(params, callback)
       log.error('Error in completion handler: ' .. tostring(err))
       callback(nil, {})
     end)
-end
-
----Resolve handler - provides additional documentation for completion items
----@param params lsp.CompletionItem
----@param callback fun(err?: lsp.ResponseError, result: lsp.CompletionItem)
-handlers[ms.completionItem_resolve] = function(params, callback)
-  local item = vim.deepcopy(params)
-
-  callback(nil, item)
 end
 
 ---Create the LSP server configuration

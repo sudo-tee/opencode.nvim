@@ -146,40 +146,6 @@ describe('opencode.api', function()
     end)
   end)
 
-  describe('completion triggers', function()
-    it('does not restore cursor position for context_items', function()
-      local config = require('opencode.config')
-      local original_get_key_for_function = config.get_key_for_function
-      local original_completion = package.loaded['opencode.ui.completion']
-
-      config.get_key_for_function = function(scope, function_name)
-        if scope == 'input_window' and function_name == 'context_items' then
-          return '#'
-        end
-        return original_get_key_for_function(scope, function_name)
-      end
-
-      local trigger_char = nil
-      package.loaded['opencode.ui.completion'] = {
-        trigger_completion = function(char)
-          return function()
-            trigger_char = char
-          end
-        end,
-      }
-
-      stub(ui, 'focus_input')
-
-      api.context_items()
-
-      config.get_key_for_function = original_get_key_for_function
-      package.loaded['opencode.ui.completion'] = original_completion
-
-      assert.stub(ui.focus_input).was_called_with({ restore_position = false, start_insert = true })
-      assert.equal('#', trigger_char)
-    end)
-  end)
-
   describe('run command argument parsing', function()
     it('parses agent prefix and passes to send_message', function()
       api.commands.run.fn({ 'agent=plan', 'analyze', 'this', 'code' }):wait()

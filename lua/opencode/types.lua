@@ -198,7 +198,6 @@
 
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
----@field preferred_completion 'blink' | 'nvim-cmp' | 'vim_complete' | nil -- Preferred completion strategy for mentons and commands
 ---@field default_global_keymaps boolean
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field default_system_prompt string | nil
@@ -414,6 +413,15 @@
 ---@field priority number Priority for ordering sources
 ---@field complete fun(context: CompletionContext): Promise<CompletionItem[]> Function to generate completion items
 ---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
+---@field is_incomplete? boolean Whether the completion results are incomplete (for sources that support pagination)
+---@field get_trigger_character? fun(): string|nil Optional function returning the trigger character for this source
+---@field custom_kind? integer Custom LSP CompletionItemKind registered for this source
+
+---Extended LSP completion item with opencode-specific rendering fields
+---@class OpencodeLspItem : lsp.CompletionItem
+---@field kind lsp.CompletionItemKind
+---@field kind_hl? string Highlight group for the kind icon
+---@field kind_icon string Icon string for the kind
 
 ---@class OpencodeContext
 ---@field current_file OpencodeContextFile|nil

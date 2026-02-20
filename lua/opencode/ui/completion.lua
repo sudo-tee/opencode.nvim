@@ -1,48 +1,7 @@
-local M = {}
-
-local completion_sources = {}
-M._current_engine = nil
-
--- Engine configuration mapping
-local ENGINE_CONFIG = {
-  ['nvim-cmp'] = {
-    module = 'opencode.ui.completion.engines.nvim_cmp',
-    constructor = 'new',
-  },
-  ['blink'] = {
-    module = 'opencode.ui.completion.engines.blink_cmp',
-    constructor = 'create', -- Special case for blink
-  },
-  ['vim_complete'] = {
-    module = 'opencode.ui.completion.engines.vim_complete',
-    constructor = 'new',
-  },
+local M = {
+  ---@type CompletionSource[]
+  _sources = {},
 }
-
----Load and create an engine instance
----@param engine_name string
----@return table|nil engine
-local function load_engine(engine_name)
-  local config = ENGINE_CONFIG[engine_name]
-  if not config then
-    vim.notify('Unknown completion engine: ' .. tostring(engine_name), vim.log.levels.WARN)
-    return nil
-  end
-
-  local ok, EngineClass = pcall(require, config.module)
-  if not ok then
-    vim.notify('Failed to load ' .. engine_name .. ' engine: ' .. tostring(EngineClass), vim.log.levels.ERROR)
-    return nil
-  end
-
-  local constructor = EngineClass[config.constructor]
-  if not constructor then
-    vim.notify('Engine ' .. engine_name .. ' missing ' .. config.constructor .. ' method', vim.log.levels.ERROR)
-    return nil
-  end
-
-  return constructor()
-end
 
 function M.setup()
   local files_source = require('opencode.ui.completion.files')
@@ -55,49 +14,51 @@ function M.setup()
   M.register_source(commands_source.get_source())
   M.register_source(context_source.get_source())
 
-  table.sort(completion_sources, function(a, b)
+  table.sort(M._sources, function(a, b)
     return (a.priority or 0) > (b.priority or 0)
   end)
+end
 
-  local engine_name = M.get_completion_engine()
-  local engine = load_engine(engine_name)
-  local setup_success = false
-
-  if engine and engine.setup then
-    setup_success = engine:setup(completion_sources)
+function M.get_trigger_characters()
+  local triggers = {}
+  for _, source in ipairs(M._sources) do
+    if source.get_trigger_character then
+      table.insert(triggers, source.get_trigger_character())
+    end
   end
-
-  if setup_success then
-    M._current_engine = engine
-  else
-    M._current_engine = nil
-    vim.notify(
-      'Opencode: No completion engine available (engine: ' .. tostring(engine_name) .. ')',
-      vim.log.levels.WARN
-    )
-  end
+  return triggers
 end
 
 ---Register a completion source
 ---@param source CompletionSource
 function M.register_source(source)
-  table.insert(completion_sources, source)
+  table.insert(M._sources, source)
 end
 
 ---@return CompletionSource[]
 function M.get_sources()
-  return completion_sources
+  return M._sources
 end
 
----Call the on_complete method for a completion item
+---@param name string
+---@return CompletionSource?
+function M.get_source_by_name(name)
+  for _, source in ipairs(M._sources) do
+    if source.name == name then
+      return source
+    end
+  end
+  return nil
+end
+
+---Call the on_completion_done method for a completion item
 ---@param item CompletionItem
-function M.on_complete(item)
+function M.on_completion_done(item)
   if not item.source_name then
     return
   end
 
-  -- Find the source that provided this item
-  for _, source in ipairs(completion_sources) do
+  for _, source in ipairs(M._sources) do
     if source.name == item.source_name and source.on_complete then
       source.on_complete(item)
       break
@@ -105,42 +66,60 @@ function M.on_complete(item)
   end
 end
 
-function M.get_completion_engine()
-  local config = require('opencode.config')
-  local engine = config.preferred_completion
-  if not engine then
-    local ok_cmp = pcall(require, 'cmp')
-    local ok_blink = pcall(require, 'blink.cmp')
-    if ok_blink then
-      engine = 'blink'
-    elseif ok_cmp then
-      engine = 'nvim-cmp'
-    else
-      engine = 'vim_complete'
-    end
-  end
-  return engine
+--- NOTE: Quirks and utilities for completion engines
+--- Ideally, these should be avoided and instead completion sources should adapt to the capabilities of the engine. But in practice, some quirks are unavoidable.
+
+--- This makes the completion UX much better with aligned icons and proper highlights
+function M.supports_kind_icons()
+  local blink_ok, blink = pcall(require, 'blink.cmp')
+  return blink_ok
 end
 
-function M.trigger_completion(trigger_char)
-  return function()
-    if M._current_engine and M._current_engine.trigger then
-      M._current_engine:trigger(trigger_char)
-    end
+--- Returns true when a float-based completion engine (blink.cmp, nvim-cmp, coc)
+--- is available. Engines that use the native PUM (mini.completion, vim built-in)
+function M.has_completion_engine()
+  local blink_ok, blink = pcall(require, 'blink.cmp')
+  if blink_ok then
+    return true
   end
-end
 
-function M.hide_completion()
-  if M._current_engine and M._current_engine.hide then
-    M._current_engine:hide()
+  local cmp_ok, cmp = pcall(require, 'cmp')
+  if cmp_ok then
+    return true
   end
-end
 
-function M.is_visible()
-  if M._current_engine and M._current_engine.is_visible then
-    return M._current_engine:is_visible()
+  local mini_ok, mini = pcall(require, 'mini.completion')
+  if mini_ok then
+    return true
   end
+
+  if vim.fn.exists('*coc#pum#visible') == 1 then
+    return true
+  end
+
   return false
+end
+
+--- Check if the completion menu is currently visible.
+--- Engines that use the native PUM (mini.completion, vim built-in) are
+--- covered by the pumvisible() fallback at the end.
+function M.is_completion_visible()
+  local blink_ok, blink = pcall(require, 'blink.cmp')
+  if blink_ok and type(blink.is_visible) == 'function' then
+    return blink.is_visible()
+  end
+
+  local cmp_ok, cmp = pcall(require, 'cmp')
+  if cmp_ok and type(cmp.visible) == 'function' then
+    return cmp.visible()
+  end
+
+  if vim.fn.exists('*coc#pum#visible') == 1 then
+    return vim.fn['coc#pum#visible']() == 1
+  end
+
+  -- native PUM fallback (mini.completion, vim built-in, etc.)
+  return vim.fn.pumvisible() == 1
 end
 
 return M

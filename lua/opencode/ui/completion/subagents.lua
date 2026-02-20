@@ -10,7 +10,7 @@ local subagent_source = {
   complete = Promise.async(function(context)
     local subagents = require('opencode.config_file').get_subagents():await()
     local config = require('opencode.config')
-    local expected_trigger = config.get_key_for_function('input_window', 'mention')
+    local expected_trigger = '@'
     if context.trigger_char ~= expected_trigger then
       return {}
     end

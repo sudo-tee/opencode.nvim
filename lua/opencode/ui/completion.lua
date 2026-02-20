@@ -2,6 +2,7 @@ local M = {}
 
 local completion_sources = {}
 M._current_engine = nil
+M._pending = {}
 
 -- Engine configuration mapping
 local ENGINE_CONFIG = {
@@ -63,18 +64,77 @@ function M.setup()
   local engine = load_engine(engine_name)
   local setup_success = false
 
-  if engine and engine.setup then
-    setup_success = engine:setup(completion_sources)
+  -- if engine and engine.setup then
+  --   setup_success = engine:setup(completion_sources)
+  -- end
+  --
+  -- if setup_success then
+  --   M._current_engine = engine
+  -- else
+  --   M._current_engine = nil
+  --   vim.notify(
+  --     'Opencode: No completion engine available (engine: ' .. tostring(engine_name) .. ')',
+  --     vim.log.levels.WARN
+  --   )
+  -- end
+end
+
+function M.on_insert_enter()
+  M._last_line = vim.api.nvim_get_current_line()
+  M._last_col = vim.api.nvim_win_get_cursor(0)[2]
+end
+
+function M.on_text_changed()
+  if not next(M._pending) then
+    return
   end
 
-  if setup_success then
-    M._current_engine = engine
-  else
-    M._current_engine = nil
-    vim.notify(
-      'Opencode: No completion engine available (engine: ' .. tostring(engine_name) .. ')',
-      vim.log.levels.WARN
-    )
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+
+  -- detect inserted text
+  local inserted = line:sub(M._last_col + 1, col)
+
+  if M._pending[inserted] then
+    local item = M._pending[inserted]
+
+    M._pending = {}
+
+    -- Notify the LSP server about the completed item
+    local ok, opencode_ls = pcall(require, 'opencode.lsp.opencode_ls')
+    if ok and opencode_ls.on_completion_done then
+      opencode_ls.on_completion_done(item)
+    end
+  end
+
+  M._last_line = line
+  M._last_col = col
+end
+
+function M.store_completion_items(items)
+  M._pending = {}
+  M._last_line = vim.api.nvim_get_current_line()
+  M._last_col = vim.api.nvim_win_get_cursor(0)[2]
+
+  for _, item in ipairs(items or {}) do
+    local word = item.insertText or item.label
+    ---strip the trigger character from the start of the word if it exists, this is needed for the slash commands and mentions completion to work properly
+    local config = require('opencode.config')
+    local triggers = {
+      config.get_key_for_function('input_window', 'mention'),
+      config.get_key_for_function('input_window', 'slash_commands'),
+      config.get_key_for_function('input_window', 'context_items'),
+    }
+    for _, t in ipairs(triggers) do
+      if t and word:sub(1, #t) == t then
+        word = word:sub(#t + 1)
+        break
+      end
+    end
+
+    if word then
+      M._pending[word] = item
+    end
   end
 end
 
@@ -87,6 +147,15 @@ end
 ---@return CompletionSource[]
 function M.get_sources()
   return completion_sources
+end
+
+function M.get_source_by_name(name)
+  for _, source in ipairs(completion_sources) do
+    if source.name == name then
+      return source
+    end
+  end
+  return nil
 end
 
 ---Call the on_complete method for a completion item

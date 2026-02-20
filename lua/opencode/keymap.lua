@@ -25,6 +25,7 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, def
   for key_binding, config_entry in pairs(keymap_config) do
     if config_entry == false then
       -- Skip keymap if explicitly set to false (disabled)
+    elseif key_binding == '@' or key_binding == '/' or key_binding == '#' then
     elseif config_entry then
       local func_name = config_entry[1]
       local callback = type(func_name) == 'function' and func_name or api[func_name]

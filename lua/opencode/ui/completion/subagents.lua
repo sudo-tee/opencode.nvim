@@ -51,6 +51,10 @@ local subagent_source = {
     mention.highlight_all_mentions(state.windows.input_buf)
     context.add_subagent(item.data.name)
   end,
+  get_trigger_character = function()
+    local config = require('opencode.config')
+    return config.get_key_for_function('input_window', 'mention')
+  end,
 }
 
 ---Get the subagent completion source

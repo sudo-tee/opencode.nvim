@@ -111,6 +111,7 @@ end
 local file_source = {
   name = 'files',
   priority = 5,
+  is_incomplete = true,
   complete = Promise.async(function(context)
     local sort_util = require('opencode.ui.completion.sort')
     local file_config = config.ui.completion.file_sources
@@ -145,6 +146,10 @@ local file_source = {
     mention.highlight_all_mentions(state.windows.input_buf)
 
     context.add_file(item.data.full_path)
+  end,
+  get_trigger_character = function()
+    local config = require('opencode.config')
+    return config.get_key_for_function('input_window', 'mention')
   end,
 }
 

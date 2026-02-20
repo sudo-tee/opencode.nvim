@@ -411,6 +411,7 @@
 ---@field priority number Priority for ordering sources
 ---@field complete fun(context: CompletionContext): Promise<CompletionItem[]> Function to generate completion items
 ---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
+---@field is_incomplete? boolean Whether the completion results are incomplete (for sources that support pagination)
 
 ---@class OpencodeContext
 ---@field current_file OpencodeContextFile|nil

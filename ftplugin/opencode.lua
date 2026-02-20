@@ -9,21 +9,18 @@ vim.b.did_ftplugin = true
 
 local bufnr = vim.api.nvim_get_current_buf()
 
--- Start the in-process LSP server
-local ok_lsp, opencode_ls = pcall(require, 'opencode.lsp.opencode_ls')
-if not ok_lsp then
-  vim.notify('Failed to load opencode LSP server: ' .. tostring(opencode_ls), vim.log.levels.WARN)
-  return
-end
-
-local client_id = opencode_ls.start(bufnr)
+local opencode_completion_ls = require('opencode.lsp.opencode_completion_ls')
+local client_id = opencode_completion_ls.start(bufnr)
+local completion = require('opencode.ui.completion')
 
 if client_id then
-  local completion = require('opencode.ui.completion')
   -- track insert start state
   vim.api.nvim_create_autocmd('InsertEnter', {
     buffer = bufnr,
     callback = function()
+      if not completion.has_completion_engine() then
+        vim.lsp.completion.enable(true, client_id, bufnr, { autotrigger = true })
+      end
       completion.on_insert_enter()
     end,
   })

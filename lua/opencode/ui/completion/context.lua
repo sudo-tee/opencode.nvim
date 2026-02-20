@@ -29,7 +29,7 @@ local function create_context_item(name, type, available, documentation, icon, a
     kind_hl = not icon and available and 'OpencodeContextSwitchOn' or nil,
     detail = name,
     documentation = documentation or (available and name or 'Enable ' .. name .. ' for this message'),
-    insert_text = '',
+    insert_text = name,
     source_name = 'context',
     priority = priority or (available and 100 or 200),
     data = { type = type, name = name, available = available, additional_data = additional_data },
@@ -290,6 +290,10 @@ local context_source = {
     vim.schedule(function()
       remove_inserted_text(item)
     end)
+  end,
+  get_trigger_character = function()
+    local config = require('opencode.config')
+    return config.get_key_for_function('input_window', 'context_items')
   end,
 }
 

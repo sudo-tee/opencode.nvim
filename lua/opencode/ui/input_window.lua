@@ -522,7 +522,10 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.input_buf,
     callback = function()
-      state.save_cursor_position('input', windows.input_win)
+      local pos = state.get_window_cursor(windows.input_win)
+      if pos then
+        state.set_cursor_position('input', pos)
+      end
     end,
   })
 end
@@ -555,6 +558,11 @@ function M._hide()
 
   M._hidden = true
   M._toggling = true
+
+  local pos = state.get_window_cursor(windows.input_win)
+  if pos then
+    state.set_cursor_position('input', pos)
+  end
 
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil

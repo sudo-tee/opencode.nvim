@@ -5,6 +5,23 @@
 ---@field footer_buf integer|nil
 ---@field input_buf integer|nil
 ---@field output_buf integer|nil
+---@field output_was_at_bottom boolean|nil
+
+---@class OpencodeHiddenBuffers
+---@field input_buf integer
+---@field output_buf integer
+---@field footer_buf integer|nil
+---@field output_was_at_bottom boolean
+---@field input_hidden boolean
+---@field input_cursor integer[]|nil
+---@field output_cursor integer[]|nil
+---@field output_view table|nil
+---@field focused_window 'input'|'output'|nil
+---@field position 'right'|'left'|'current'|nil
+---@field owner_tab integer|nil
+
+---@class OpencodeToggleDecision
+---@field action 'open'|'close'|'hide'|'close_hidden'|'restore_hidden'|'migrate'
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
@@ -44,12 +61,27 @@
 ---@field required_version string
 ---@field opencode_cli_version string|nil
 ---@field current_cwd string|nil
+---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field append fun( key:string, value:any)
 ---@field remove fun( key:string, idx:number)
----@field subscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field subscribe fun( key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun( key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
+---@field get_window_state fun(): {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
+---@field is_window_in_current_tab fun(win_id: integer|nil): boolean
+---@field are_windows_in_current_tab fun(): boolean
+---@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
+---@field set_cursor_position fun(win_type: 'input'|'output', pos: integer[]|nil)
+---@field get_cursor_position fun(win_type: 'input'|'output'): integer[]|nil
+---@field stash_hidden_buffers fun(hidden: OpencodeHiddenBuffers|nil)
+---@field inspect_hidden_buffers fun(): OpencodeHiddenBuffers|nil
+---@field is_hidden_snapshot_in_current_tab fun(): boolean
+---@field clear_hidden_window_state fun()
+---@field has_hidden_buffers fun(): boolean
+---@field consume_hidden_buffers fun(): OpencodeHiddenBuffers|nil
+---@field resolve_toggle_decision fun(persist_state: boolean, has_display_route: boolean): OpencodeToggleDecision
+---@field resolve_open_windows_action fun(): 'reuse_visible'|'restore_hidden'|'create_fresh'
+---@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
 
 local M = {}
 
@@ -99,6 +131,9 @@ local _state = {
   required_version = '0.6.3',
   opencode_cli_version = nil,
   current_cwd = vim.fn.getcwd(),
+
+  -- persist_state snapshot
+  _hidden_buffers = nil,
 }
 
 -- Listener registry: { [key] = {cb1, cb2, ...}, ['*'] = {cb1, ...} }
@@ -121,6 +156,13 @@ function M.subscribe(key, cb)
   if not _listeners[key] then
     _listeners[key] = {}
   end
+
+  for _, fn in ipairs(_listeners[key]) do
+    if fn == cb then
+      return
+    end
+  end
+
   table.insert(_listeners[key], cb)
 end
 
@@ -133,10 +175,11 @@ function M.unsubscribe(key, cb)
   if not list then
     return
   end
-  for i, fn in ipairs(list) do
+
+  for i = #list, 1, -1 do
+    local fn = list[i]
     if fn == cb then
       table.remove(list, i)
-      break
     end
   end
 end
@@ -198,25 +241,164 @@ function M.is_running()
   return M.job_count > 0
 end
 
+---@param win_id integer|nil
+---@return boolean
+function M.is_window_in_current_tab(win_id)
+  if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+    return false
+  end
+
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, win_id)
+  return ok and win_tab == current_tab
+end
+
+---@return boolean
+function M.are_windows_in_current_tab()
+  if not _state.windows then
+    return false
+  end
+
+  return M.is_window_in_current_tab(_state.windows.input_win)
+    or M.is_window_in_current_tab(_state.windows.output_win)
+end
+
+---@return boolean
+function M.is_visible()
+  return M.get_window_state().status == 'visible'
+end
+
+---@class OpencodeToggleContext
+---@field status 'closed'|'hidden'|'visible'
+---@field in_tab boolean
+---@field persist_state boolean
+---@field has_display_route boolean
+
+---@generic T
+---@param rules T[]
+---@param match fun(rule: T): boolean
+---@return T|nil
+local function first_matching_rule(rules, match)
+  for _, rule in ipairs(rules) do
+    if match(rule) then
+      return rule
+    end
+  end
+
+  return nil
+end
+
+--- ORDER MATTERS: Rules are evaluated top-to-bottom; first match wins.
+--- In particular, the has_display_route rule must precede the persist_state=true/hide rule,
+--- otherwise toggling while viewing /help or /commands would hide instead of close.
+local TOGGLE_ACTION_RULES = {
+  {
+    action = 'restore_hidden',
+    when = function(ctx)
+      return ctx.status == 'hidden' and ctx.persist_state
+    end,
+  },
+  {
+    action = 'close_hidden',
+    when = function(ctx)
+      return ctx.status == 'hidden' and not ctx.persist_state
+    end,
+  },
+  {
+    action = 'migrate',
+    when = function(ctx)
+      return ctx.status == 'visible' and not ctx.in_tab
+    end,
+  },
+  {
+    action = 'close',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and ctx.has_display_route
+    end,
+  },
+  {
+    action = 'close',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and not ctx.persist_state
+    end,
+  },
+  {
+    action = 'hide',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and ctx.persist_state and not ctx.has_display_route
+    end,
+  },
+  {
+    action = 'open',
+    when = function(ctx)
+      return ctx.status == 'closed'
+    end,
+  },
+}
+
+---@param status 'closed'|'hidden'|'visible'
+---@param in_tab boolean
+---@param persist_state boolean
+---@param has_display_route boolean
+---@return string
+local function lookup_toggle_action(status, in_tab, persist_state, has_display_route)
+  local ctx = {
+    status = status,
+    in_tab = in_tab,
+    persist_state = persist_state,
+    has_display_route = has_display_route,
+  }
+
+  local matched_rule = first_matching_rule(TOGGLE_ACTION_RULES, function(rule)
+    return rule.when(ctx)
+  end)
+
+  return matched_rule and matched_rule.action or 'open'
+end
+
+---@param persist_state boolean
+---@param has_display_route boolean
+---@return OpencodeToggleDecision
+function M.resolve_toggle_decision(persist_state, has_display_route)
+  local status = M.get_window_state().status
+  local in_tab = M.are_windows_in_current_tab()
+
+  local action = lookup_toggle_action(status, in_tab, persist_state, has_display_route)
+  return { action = action }
+end
+
+---@return 'reuse_visible'|'restore_hidden'|'create_fresh'
+function M.resolve_open_windows_action()
+  local status = M.get_window_state().status
+  if status == 'visible' then
+    return M.are_windows_in_current_tab() and 'reuse_visible' or 'create_fresh'
+  end
+  if status == 'hidden' then
+    return 'restore_hidden'
+  end
+  return 'create_fresh'
+end
+
 ---@param pos any
 ---@return integer[]|nil
 local function normalize_cursor(pos)
   if type(pos) ~= 'table' or #pos < 2 then
     return nil
   end
+
   local line = tonumber(pos[1])
   local col = tonumber(pos[2])
   if not line or not col then
     return nil
   end
+
   return { math.max(1, math.floor(line)), math.max(0, math.floor(col)) }
 end
 
----Save cursor position from a window
----@param win_type 'input'|'output'
+---Get cursor position from a window (pure query, no side effects)
 ---@param win_id integer|nil
 ---@return integer[]|nil
-function M.save_cursor_position(win_type, win_id)
+function M.get_window_cursor(win_id)
   if not win_id or not vim.api.nvim_win_is_valid(win_id) then
     return nil
   end
@@ -226,13 +408,7 @@ function M.save_cursor_position(win_type, win_id)
     return nil
   end
 
-  local normalized = normalize_cursor(pos)
-  if not normalized then
-    return nil
-  end
-
-  M.set_cursor_position(win_type, normalized)
-  return normalized
+  return normalize_cursor(pos)
 end
 
 ---Set saved cursor position
@@ -258,6 +434,155 @@ function M.get_cursor_position(win_type)
     return normalize_cursor(_state.last_output_window_position)
   end
   return nil
+end
+
+---@param hidden OpencodeHiddenBuffers|nil
+---@return OpencodeHiddenBuffers|nil
+local function normalize_hidden_buffers(hidden)
+  if type(hidden) ~= 'table' then return nil end
+
+  local function valid_buf(b) return type(b) == 'number' and vim.api.nvim_buf_is_valid(b) end
+  if not valid_buf(hidden.input_buf) or not valid_buf(hidden.output_buf) then return nil end
+  if type(hidden.input_hidden) ~= 'boolean' then return nil end
+
+  local fw = hidden.focused_window
+  return {
+    input_buf = hidden.input_buf,
+    output_buf = hidden.output_buf,
+    footer_buf = valid_buf(hidden.footer_buf) and hidden.footer_buf or nil,
+    output_was_at_bottom = hidden.output_was_at_bottom == true,
+    input_hidden = hidden.input_hidden,
+    input_cursor = normalize_cursor(hidden.input_cursor),
+    output_cursor = normalize_cursor(hidden.output_cursor),
+    output_view = type(hidden.output_view) == 'table' and vim.deepcopy(hidden.output_view) or nil,
+    focused_window = (fw == 'input' or fw == 'output') and fw or nil,
+    position = hidden.position,
+    owner_tab = type(hidden.owner_tab) == 'number' and hidden.owner_tab or nil,
+  }
+end
+
+---@param copy boolean
+---@return OpencodeHiddenBuffers|nil
+local function read_hidden_buffers_snapshot(copy)
+  local normalized = normalize_hidden_buffers(_state._hidden_buffers)
+  if not normalized then
+    return nil
+  end
+
+  if not copy then
+    return normalized
+  end
+
+  return vim.deepcopy(normalized)
+end
+
+---@return boolean
+function M.is_hidden_snapshot_in_current_tab()
+  local hidden = read_hidden_buffers_snapshot(false)
+  if not hidden then
+    return false
+  end
+
+  if type(hidden.owner_tab) ~= 'number' then
+    return true
+  end
+
+  return hidden.owner_tab == vim.api.nvim_get_current_tabpage()
+end
+
+---Store hidden buffers snapshot
+---@param hidden OpencodeHiddenBuffers|nil
+function M.stash_hidden_buffers(hidden)
+  if hidden == nil then
+    _state._hidden_buffers = nil
+    return
+  end
+
+  _state._hidden_buffers = normalize_hidden_buffers(hidden)
+end
+
+---Inspect hidden buffers snapshot without mutating state
+---@return OpencodeHiddenBuffers|nil
+function M.inspect_hidden_buffers()
+  return read_hidden_buffers_snapshot(true)
+end
+
+---Clear hidden snapshot and drop empty window state
+function M.clear_hidden_window_state()
+  _state._hidden_buffers = nil
+  if _state.windows and not _state.windows.input_win and not _state.windows.output_win then
+    _state.windows = nil
+  end
+end
+
+---Check if hidden buffers snapshot is available
+---@return boolean
+function M.has_hidden_buffers()
+  return read_hidden_buffers_snapshot(false) ~= nil
+end
+
+---Consume hidden buffers snapshot
+---@return OpencodeHiddenBuffers|nil
+function M.consume_hidden_buffers()
+  local hidden = M.inspect_hidden_buffers()
+  _state._hidden_buffers = nil
+  return hidden
+end
+
+---@return boolean
+local function is_visible_in_tab()
+  local w = _state.windows
+  if not w then
+    return false
+  end
+  local input_valid = w.input_win and vim.api.nvim_win_is_valid(w.input_win)
+  local output_valid = w.output_win and vim.api.nvim_win_is_valid(w.output_win)
+  return (input_valid or output_valid) and M.are_windows_in_current_tab()
+end
+
+-- STATUS_DETECTION rules for get_window_state (evaluated in order)
+local STATUS_DETECTION = {
+  {
+    name = 'hidden_snapshot',
+    test = function() return M.has_hidden_buffers() and M.is_hidden_snapshot_in_current_tab() end,
+    status = 'hidden',
+    get_windows = function() return nil end,
+  },
+  {
+    name = 'visible_in_tab',
+    test = is_visible_in_tab,
+    status = 'visible',
+    get_windows = function() return _state.windows end,
+  },
+  {
+    name = 'closed',
+    test = function() return true end,
+    status = 'closed',
+    get_windows = function() return nil end,
+  },
+}
+
+---Get comprehensive window state for API consumers
+---@return {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
+function M.get_window_state()
+  local config = require('opencode.config')
+
+  local status_rule = first_matching_rule(STATUS_DETECTION, function(rule)
+    return rule.test()
+  end)
+
+  local status = status_rule and status_rule.status or 'closed'
+  local current_windows = status_rule and status_rule.get_windows() or nil
+
+  return {
+    status = status,
+    position = config.ui.position,
+    windows = current_windows and vim.deepcopy(current_windows) or nil,
+    cursor_positions = {
+      input = M.get_window_cursor(current_windows and current_windows.input_win) or M.get_cursor_position('input'),
+      output = M.get_window_cursor(current_windows and current_windows.output_win) or M.get_cursor_position('output'),
+    },
+  }
 end
 
 --- Observable state proxy. All reads/writes go through this table.

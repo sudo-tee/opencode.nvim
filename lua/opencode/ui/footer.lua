@@ -169,12 +169,15 @@ function M.setup(windows)
   loading_animation.setup()
 end
 
-function M.close()
+---@param preserve_buffer? boolean
+function M.close(preserve_buffer)
   local windows = state.windows
   if windows then
     ---@cast windows {footer_win: integer, footer_buf: integer}
     pcall(vim.api.nvim_win_close, windows.footer_win, true)
-    pcall(vim.api.nvim_buf_delete, windows.footer_buf, { force = true })
+    if not preserve_buffer then
+      pcall(vim.api.nvim_buf_delete, windows.footer_buf, { force = true })
+    end
   end
 
   state.unsubscribe('current_model', on_change)

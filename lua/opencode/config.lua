@@ -116,6 +116,7 @@ M.defaults = {
     display_context_size = true,
     display_cost = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
+    persist_state = true,
     icons = {
       preset = 'nerdfonts',
       overrides = {},

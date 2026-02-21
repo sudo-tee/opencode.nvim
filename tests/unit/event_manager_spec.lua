@@ -1,6 +1,7 @@
 local EventManager = require('opencode.event_manager')
 local Promise = require('opencode.promise')
 local state = require('opencode.state')
+local config = require('opencode.config')
 
 describe('EventManager', function()
   local event_manager
@@ -187,6 +188,93 @@ describe('EventManager', function()
     state.opencode_server = nil
     event_manager._subscribe_to_server_events = original_subscribe_to_server_events
     vim.defer_fn = original_defer_fn
+  end)
+
+  it('normalizes message.part.delta into message.part.updated', function()
+    local original_event_collapsing = config.ui.output.rendering.event_collapsing
+    config.ui.output.rendering.event_collapsing = true
+
+    local received = {}
+    event_manager:subscribe('message.part.updated', function(data)
+      table.insert(received, vim.deepcopy(data.part))
+    end)
+
+    event_manager:_on_drained_events({
+      {
+        type = 'message.part.updated',
+        properties = {
+          part = {
+            id = 'part_1',
+            messageID = 'msg_1',
+            sessionID = 'ses_1',
+            type = 'text',
+            text = '',
+          },
+        },
+      },
+      {
+        type = 'message.part.delta',
+        properties = {
+          partID = 'part_1',
+          messageID = 'msg_1',
+          sessionID = 'ses_1',
+          field = 'text',
+          delta = 'hello',
+        },
+      },
+      {
+        type = 'message.part.delta',
+        properties = {
+          partID = 'part_1',
+          messageID = 'msg_1',
+          sessionID = 'ses_1',
+          field = 'text',
+          delta = ' world',
+        },
+      },
+    })
+
+    config.ui.output.rendering.event_collapsing = original_event_collapsing
+
+    assert.are.equal(1, #received)
+    assert.are.equal('hello world', received[1].text)
+  end)
+
+  it('keeps accumulated delta text across event batches', function()
+    local received = {}
+    event_manager:subscribe('message.part.updated', function(data)
+      table.insert(received, vim.deepcopy(data.part))
+    end)
+
+    event_manager:_on_drained_events({
+      {
+        type = 'message.part.updated',
+        properties = {
+          part = {
+            id = 'part_2',
+            messageID = 'msg_2',
+            sessionID = 'ses_2',
+            type = 'text',
+            text = '',
+          },
+        },
+      },
+    })
+
+    event_manager:_on_drained_events({
+      {
+        type = 'message.part.delta',
+        properties = {
+          partID = 'part_2',
+          messageID = 'msg_2',
+          sessionID = 'ses_2',
+          field = 'text',
+          delta = 'abc',
+        },
+      },
+    })
+
+    assert.are.equal('abc', received[#received].text)
   end)
 
   describe('User autocmd events', function()

@@ -49,9 +49,39 @@ function M.setup_autocmds(windows)
   })
 
   vim.api.nvim_create_autocmd('DirChanged', {
+    pattern = { 'global', 'tabpage' },
     group = group,
     callback = function(event)
       local state = require('opencode.state')
+      if state.current_cwd == event.file then
+        return
+      end
+
+      if event.match == 'tabpage' then
+        local windows = state.windows
+        if not windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+          return
+        end
+
+        local ok, opencode_tab = pcall(vim.api.nvim_win_get_tabpage, windows.output_win)
+        if not ok then
+          return
+        end
+
+        local changed_tab = vim.api.nvim_get_current_tabpage()
+        local changed_window = event.data and event.data.changed_window
+        if changed_window and vim.api.nvim_win_is_valid(changed_window) then
+          local win_ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, changed_window)
+          if win_ok then
+            changed_tab = win_tab
+          end
+        end
+
+        if changed_tab ~= opencode_tab then
+          return
+        end
+      end
+
       state.current_cwd = event.file
       local core = require('opencode.core')
       core.handle_directory_change()

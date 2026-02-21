@@ -91,48 +91,7 @@ function M.close_windows(windows, persist)
   return M.teardown_visible_windows(windows)
 end
 
--- Finalization strategies for close_windows_impl
-local FINALIZE = {
-  hide = function(windows, snapshot)
-    for _, buf in ipairs({ windows.input_buf, windows.output_buf, windows.footer_buf }) do
-      if buf and vim.api.nvim_buf_is_valid(buf) then
-        pcall(vim.api.nvim_set_option_value, 'bufhidden', 'hide', { buf = buf })
-      end
-    end
-    if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
-      local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
-      if ok then state.input_content = lines end
-    end
-    state.stash_hidden_buffers(snapshot)
-    if state.windows == windows then
-      state.windows.input_win = nil
-      state.windows.output_win = nil
-      state.windows.footer_win = nil
-      state.windows.output_was_at_bottom = snapshot.output_was_at_bottom
-    end
-  end,
-
-  teardown = function(windows, _)
-    input_window._hidden = false
-    pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
-    pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
-    if state.windows == windows then
-      state.windows = nil
-    end
-    state.clear_hidden_window_state()
-  end,
-}
-
--- Close windows with two strategies: hide (preserve buffers for restore) or teardown (cleanup all)
--- TODO: This function handles too many concerns; consider splitting into dedicated hide/teardown functions
-local function close_windows_impl(windows, should_preserve)
-  if not windows then return end
-  should_preserve = should_preserve == true and config.ui.persist_state
-
-  -- Capture state before any cleanup (only for hide mode)
-  local snapshot = should_preserve and capture_hidden_snapshot(windows) or nil
-  if should_preserve then state.clear_hidden_window_state() end
-
+local function prepare_window_close()
   if M.is_opencode_focused() then M.return_to_last_code_win() end
   if state.display_route then state.display_route = nil end
 
@@ -141,16 +100,9 @@ local function close_windows_impl(windows, should_preserve)
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeFooterResize')
 
   topbar.close()
-  if should_preserve then
-    footer.close(true)
-  else
-    renderer.teardown()
-    footer.close(false)
-  end
+end
 
-  pcall(vim.api.nvim_win_close, windows.input_win, true)
-
-  -- 'current' mode reuses the output window as a normal editor window
+local function close_or_restore_output_window(windows)
   if config.ui.position == 'current' then
     if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
       pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
@@ -164,23 +116,64 @@ local function close_windows_impl(windows, should_preserve)
         state.saved_window_options = nil
       end
     end
-  else
-    pcall(vim.api.nvim_win_close, windows.output_win, true)
+    return
   end
 
-  if should_preserve then
-    FINALIZE.hide(windows, snapshot)
-  else
-    FINALIZE.teardown(windows, nil)
-  end
+  pcall(vim.api.nvim_win_close, windows.output_win, true)
 end
 
 function M.hide_visible_windows(windows)
-  return close_windows_impl(windows, true)
+  if not windows then
+    return
+  end
+  if not config.ui.persist_state then
+    return M.teardown_visible_windows(windows)
+  end
+
+  local snapshot = capture_hidden_snapshot(windows)
+  state.clear_hidden_window_state()
+
+  prepare_window_close()
+  footer.close(true)
+  pcall(vim.api.nvim_win_close, windows.input_win, true)
+  close_or_restore_output_window(windows)
+
+  for _, buf in ipairs({ windows.input_buf, windows.output_buf, windows.footer_buf }) do
+    if buf and vim.api.nvim_buf_is_valid(buf) then
+      pcall(vim.api.nvim_set_option_value, 'bufhidden', 'hide', { buf = buf })
+    end
+  end
+  if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
+    local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
+    if ok then state.input_content = lines end
+  end
+  state.stash_hidden_buffers(snapshot)
+  if state.windows == windows then
+    state.windows.input_win = nil
+    state.windows.output_win = nil
+    state.windows.footer_win = nil
+    state.windows.output_was_at_bottom = snapshot.output_was_at_bottom
+  end
 end
 
 function M.teardown_visible_windows(windows)
-  return close_windows_impl(windows, false)
+  if not windows then
+    return
+  end
+
+  prepare_window_close()
+  renderer.teardown()
+  footer.close(false)
+  pcall(vim.api.nvim_win_close, windows.input_win, true)
+  close_or_restore_output_window(windows)
+
+  input_window._hidden = false
+  pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
+  pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
+  if state.windows == windows then
+    state.windows = nil
+  end
+  state.clear_hidden_window_state()
 end
 
 function M.drop_hidden_snapshot()

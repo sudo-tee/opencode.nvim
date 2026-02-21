@@ -268,35 +268,73 @@ function M.is_visible()
   return M.get_window_state().status == 'visible'
 end
 
+---@class OpencodeToggleContext
+---@field status 'closed'|'hidden'|'visible'
+---@field in_tab boolean
+---@field persist_state boolean
+---@field has_display_route boolean
 
-
--- ORDER MATTERS: Rules are evaluated top-to-bottom; first match wins.
--- In particular, the has_display_route rule must precede the persist_state=true/hide rule,
--- otherwise toggling while viewing /help or /commands would hide instead of close.
-local TOGGLE_ACTION = {
-  { when = { status = 'hidden', persist_state = true }, action = 'restore_hidden' },
-  { when = { status = 'hidden', persist_state = false }, action = 'close_hidden' },
-
-  { when = { status = 'visible', in_tab = false }, action = 'migrate' },
-  { when = { status = 'visible', in_tab = true, has_display_route = true }, action = 'close' },
-  { when = { status = 'visible', in_tab = true, persist_state = false }, action = 'close' },
-  { when = { status = 'visible', in_tab = true, persist_state = true, has_display_route = false }, action = 'hide' },
-
-  { when = { status = 'closed' }, action = 'open' },
-}
-
----@param when table
----@param ctx table
----@return boolean
-local function toggle_rule_matches(when, ctx)
-  for key, expected in pairs(when) do
-    if ctx[key] ~= expected then
-      return false
+---@generic T
+---@param rules T[]
+---@param match fun(rule: T): boolean
+---@return T|nil
+local function first_matching_rule(rules, match)
+  for _, rule in ipairs(rules) do
+    if match(rule) then
+      return rule
     end
   end
 
-  return true
+  return nil
 end
+
+--- ORDER MATTERS: Rules are evaluated top-to-bottom; first match wins.
+--- In particular, the has_display_route rule must precede the persist_state=true/hide rule,
+--- otherwise toggling while viewing /help or /commands would hide instead of close.
+local TOGGLE_ACTION_RULES = {
+  {
+    action = 'restore_hidden',
+    when = function(ctx)
+      return ctx.status == 'hidden' and ctx.persist_state
+    end,
+  },
+  {
+    action = 'close_hidden',
+    when = function(ctx)
+      return ctx.status == 'hidden' and not ctx.persist_state
+    end,
+  },
+  {
+    action = 'migrate',
+    when = function(ctx)
+      return ctx.status == 'visible' and not ctx.in_tab
+    end,
+  },
+  {
+    action = 'close',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and ctx.has_display_route
+    end,
+  },
+  {
+    action = 'close',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and not ctx.persist_state
+    end,
+  },
+  {
+    action = 'hide',
+    when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and ctx.persist_state and not ctx.has_display_route
+    end,
+  },
+  {
+    action = 'open',
+    when = function(ctx)
+      return ctx.status == 'closed'
+    end,
+  },
+}
 
 ---@param status 'closed'|'hidden'|'visible'
 ---@param in_tab boolean
@@ -311,13 +349,11 @@ local function lookup_toggle_action(status, in_tab, persist_state, has_display_r
     has_display_route = has_display_route,
   }
 
-  for _, rule in ipairs(TOGGLE_ACTION) do
-    if toggle_rule_matches(rule.when, ctx) then
-      return rule.action
-    end
-  end
+  local matched_rule = first_matching_rule(TOGGLE_ACTION_RULES, function(rule)
+    return rule.when(ctx)
+  end)
 
-  return 'open'
+  return matched_rule and matched_rule.action or 'open'
 end
 
 ---@param persist_state boolean
@@ -531,14 +567,12 @@ local STATUS_DETECTION = {
 function M.get_window_state()
   local config = require('opencode.config')
 
-  local status, current_windows
-  for _, rule in ipairs(STATUS_DETECTION) do
-    if rule.test() then
-      status = rule.status
-      current_windows = rule.get_windows()
-      break
-    end
-  end
+  local status_rule = first_matching_rule(STATUS_DETECTION, function(rule)
+    return rule.test()
+  end)
+
+  local status = status_rule and status_rule.status or 'closed'
+  local current_windows = status_rule and status_rule.get_windows() or nil
 
   return {
     status = status,

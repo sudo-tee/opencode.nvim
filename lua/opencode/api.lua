@@ -105,39 +105,44 @@ M.toggle = Promise.async(function(new_session)
     state.display_route ~= nil
   )
   local action = decision.action
-
-  local EARLY_RETURN_ACTIONS = {
-    close = M.close,
-    hide = M.hide,
-    close_hidden = ui.drop_hidden_snapshot,
-  }
+  local is_new_session = new_session == true
 
   local function open_windows(restore_hidden)
     local ctx = build_toggle_open_context(restore_hidden == true)
     return core.open({
-      new_session = new_session == true,
+      new_session = is_new_session,
       focus = ctx.focus,
       start_insert = false,
       open_action = ctx.open_action,
     }):await()
   end
 
-  local early_return = EARLY_RETURN_ACTIONS[action]
-  if early_return then
-    return early_return()
-  end
-
-  if action == 'migrate' then
-    -- NOTE: We currently don't support preserving Opencode UI state across tabs.
-    -- If Opencode is visible in a different tab, we tear it down there and recreate it here.
-    if state.windows then
-      ui.teardown_visible_windows(state.windows)
-    end
-
+  local function open_fresh_windows()
     return open_windows(false)
   end
 
-  return open_windows(action == 'restore_hidden')
+  local function restore_hidden_windows()
+    return open_windows(true)
+  end
+
+  local function migrate_windows()
+    if state.windows then
+      ui.teardown_visible_windows(state.windows)
+    end
+    return open_fresh_windows()
+  end
+
+  local action_handlers = {
+    close = M.close,
+    hide = M.hide,
+    close_hidden = ui.drop_hidden_snapshot,
+    migrate = migrate_windows,
+    restore_hidden = restore_hidden_windows,
+    open = open_fresh_windows,
+  }
+
+  local handler = action_handlers[action] or action_handlers.open
+  return handler()
 end)
 
 ---@param new_session boolean?

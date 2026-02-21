@@ -174,6 +174,7 @@ end
 
 function M.load_session_from_events(events)
   local session_data = {}
+  local parts_by_id = {}
 
   for _, event in ipairs(events) do
     local properties = event.properties
@@ -210,10 +211,51 @@ function M.load_session_from_events(events)
 
           if existing_part then
             msg.parts[existing_part] = vim.deepcopy(part)
+            parts_by_id[part.id] = msg.parts[existing_part]
           else
             table.insert(msg.parts, vim.deepcopy(part))
+            parts_by_id[part.id] = msg.parts[#msg.parts]
           end
           break
+        end
+      end
+    elseif event.type == 'message.part.delta'
+      and properties.partID
+      and properties.messageID
+      and properties.field then
+      local part = parts_by_id[properties.partID]
+
+      if not part then
+        for _, msg in ipairs(session_data) do
+          if msg.info.id == properties.messageID then
+            part = {
+              id = properties.partID,
+              messageID = properties.messageID,
+              sessionID = properties.sessionID,
+              type = properties.field == 'text' and 'text' or nil,
+            }
+            if properties.field == 'text' then
+              part.text = ''
+            end
+            table.insert(msg.parts, part)
+            parts_by_id[properties.partID] = part
+            break
+          end
+        end
+      end
+
+      if part then
+        local field = properties.field
+        local delta = properties.delta
+        if type(delta) == 'string' then
+          local current = part[field]
+          if type(current) == 'string' then
+            part[field] = current .. delta
+          else
+            part[field] = delta
+          end
+        else
+          part[field] = delta
         end
       end
     end
@@ -247,7 +289,9 @@ function M.get_session_from_events(events, with_session_updates)
   for _, event in ipairs(events) do
     -- find the session id in a message or part event
     local properties = event.properties
-    local session_id = properties.info and properties.info.sessionID or properties.part and properties.part.sessionID
+    local session_id = properties.info and properties.info.sessionID
+      or properties.part and properties.part.sessionID
+      or properties.sessionID
 
     if session_id then
       ---@diagnostic disable-next-line: missing-fields

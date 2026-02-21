@@ -647,7 +647,13 @@ function M._format_question_tool(output, input, metadata, status, duration_text)
       output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
     end
     local answer = answers[i] and answers[i][1] or 'No answer'
-    output:add_line(string.format('**A%d:** %s', i, answer))
+    local answer_lines = vim.split(answer, '\n', { plain = true })
+
+    output:add_line(string.format('**A%d:** %s', i, answer_lines[1]))
+    for line_idx = 2, #answer_lines do
+      output:add_line(answer_lines[line_idx])
+    end
+
     if i < #questions then
       output:add_line('')
     end

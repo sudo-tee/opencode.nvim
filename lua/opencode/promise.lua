@@ -402,4 +402,20 @@ function Promise.system(cmd, opts)
   return p
 end
 
+---Wait for all promises to resolve
+---Returns a promise that resolves with a table of all results
+---If any promise rejects, the returned promise rejects with that error
+---@generic T
+---@param promises Promise<T>[]
+---@return Promise<T[]>
+function Promise.all(promises)
+  return Promise.spawn(function()
+    local results = {}
+    for i, promise in ipairs(promises) do
+      results[i] = promise:await()
+    end
+    return results
+  end)
+end
+
 return Promise

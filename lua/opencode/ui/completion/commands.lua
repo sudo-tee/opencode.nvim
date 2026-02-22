@@ -51,7 +51,7 @@ local command_source = {
           kind_icon = icons.get('command'),
           detail = command.description,
           documentation = command.documentation .. (command.args and '\n\n* This command takes arguments.' or ''),
-          insert_text = command.name,
+          insert_text = command.name:sub(2),
           source_name = 'commands',
           data = {
             name = command.name,
@@ -85,6 +85,10 @@ local command_source = {
         vim.notify('Command not found: ' .. item.label, vim.log.levels.ERROR)
       end
     end
+  end,
+  get_trigger_character = function()
+    local config = require('opencode.config')
+    return config.get_key_for_function('input_window', 'slash_commands')
   end,
 }
 

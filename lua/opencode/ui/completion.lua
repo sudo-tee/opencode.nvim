@@ -6,8 +6,6 @@ local M = {
   _pending = {},
 }
 
-local completion_sources = {}
-
 function M.setup()
   local files_source = require('opencode.ui.completion.files')
   local subagents_source = require('opencode.ui.completion.subagents')

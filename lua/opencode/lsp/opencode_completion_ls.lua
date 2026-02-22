@@ -17,7 +17,7 @@ handlers[ms.initialize] = function(params, callback)
   callback(nil, {
     capabilities = {
       completionProvider = {
-        resolveProvider = true,
+        resolveProvider = false,
         triggerCharacters = triggers,
       },
     },

@@ -118,7 +118,8 @@ end
 
 function M.has_completion_engine()
   local config = require('opencode.config')
-  if config.preferred_completion_engine and config.preferred_completion_engine ~= 'vim_complete' then
+  local preferred = config.preferred_completion or config.preferred_completion_engine
+  if preferred and preferred ~= 'vim_complete' then
     return true
   end
 

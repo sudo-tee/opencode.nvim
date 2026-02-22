@@ -412,6 +412,7 @@
 ---@field complete fun(context: CompletionContext): Promise<CompletionItem[]> Function to generate completion items
 ---@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
 ---@field is_incomplete? boolean Whether the completion results are incomplete (for sources that support pagination)
+---@field get_trigger_character? fun(): string|nil Optional function returning the trigger character for this source
 
 ---@class OpencodeContext
 ---@field current_file OpencodeContextFile|nil

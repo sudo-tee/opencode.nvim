@@ -184,4 +184,55 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.url)
     assert.is_nil(server.handle)
   end)
+
+  describe('external server support', function()
+    it('creates an external server instance with from_external', function()
+      local server = OpencodeServer.from_external('http://192.168.1.100:8080')
+      assert.is_table(server)
+      assert.is_nil(server.job) -- No local job
+      assert.equals('http://192.168.1.100:8080', server.url)
+      assert.is_nil(server.handle)
+      
+      -- Spawn promise should already be resolved
+      local resolved = false
+      server:get_spawn_promise():and_then(function()
+        resolved = true
+      end)
+      vim.wait(10, function()
+        return resolved
+      end)
+      assert.is_true(resolved)
+    end)
+
+    it('is_running returns true for external server with URL', function()
+      local server = OpencodeServer.from_external('http://localhost:8080')
+      assert.is_true(server:is_running())
+    end)
+
+    it('is_running returns false for external server without URL', function()
+      local server = OpencodeServer.from_external('http://localhost:8080')
+      server.url = nil
+      assert.is_false(server:is_running())
+    end)
+
+    it('shutdown clears external server without killing process', function()
+      local server = OpencodeServer.from_external('http://localhost:8080')
+      local resolved = false
+      
+      server:get_shutdown_promise():and_then(function()
+        resolved = true
+      end)
+      
+      server:shutdown()
+      
+      vim.wait(10, function()
+        return resolved
+      end)
+      
+      assert.is_true(resolved)
+      assert.is_nil(server.url)
+      assert.is_nil(server.handle)
+      assert.is_nil(server.job) -- Should remain nil, no process was killed
+    end)
+  end)
 end)

@@ -584,6 +584,12 @@ function M.help()
 
   local max_desc_length = math.min(90, vim.api.nvim_win_get_width(state.windows.output_win) - 30)
 
+  -- Ensure M.commands is a table before processing
+  if type(M.commands) ~= 'table' then
+    vim.notify('Error: commands table is not initialized correctly: ' .. type(M.commands), vim.log.levels.ERROR)
+    return
+  end
+
   local sorted_commands = vim.tbl_keys(M.commands)
   table.sort(sorted_commands)
 

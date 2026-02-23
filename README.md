@@ -58,6 +58,7 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Server-Sent Events (SSE) autocmds](#-server-sent-events-sse-autocmds)
 - [Quick Chat](#-quick-chat)
 - [Setting up opencode](#-setting-up-opencode)
+- [Connecting to an External/Containerized Opencode Server](#-connecting-to-an-externalcontainerized-opencode-server)
 
 ## ⚠️Caution
 
@@ -120,6 +121,14 @@ require('opencode').setup({
   default_system_prompt = nil, -- Custom system prompt to use for all sessions. If nil, uses the default built-in system prompt
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
   opencode_executable = 'opencode', -- Name of your opencode binary
+  
+  -- External server configuration (optional)
+  -- Use these options to connect to a containerized or remote opencode server instead of spawning a local one
+  external_server_url = nil, -- URL or hostname of external server (e.g., 'http://192.168.1.100', 'localhost', or 'https://myserver.com')
+  external_server_port = nil, -- Port of external server (e.g., 8080)
+  external_server_timeout = 5, -- Timeout in seconds for health check when connecting to external server
+  external_server_container_cwd = '/app', -- Container path where host cwd is mounted (defaults to '/app')
+  
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened
@@ -984,6 +993,88 @@ If you're new to opencode:
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file
+
+## 🐳 Connecting to an External/Containerized Opencode Server
+
+For security or isolation purposes, you may want to run the opencode server in a container or on a separate machine. This plugin supports connecting to external opencode servers instead of spawning a local one.
+
+### Why use an external server?
+
+- **Security**: Isolate the opencode server from your host machine ([security concerns](https://cy.md/opencode-rce/))
+- **Containerization**: Run opencode in Docker or other container environments
+- **Remote development**: Connect to a server running on a different machine
+- **Resource management**: Run the server on a more powerful machine
+
+### Configuration
+
+Add these options to your `setup()` configuration:
+
+```lua
+require('opencode').setup({
+  -- Connect to containerized opencode server
+  external_server_url = 'http://localhost',  -- or "192.168.1.100" or "https://myserver.com"
+  external_server_port = 8080,
+  external_server_timeout = 5,  -- optional, defaults to 5 seconds
+  
+  -- Path mapping for containerized environments (optional)
+  -- Defaults to '/app' - change only if you mount to a different path
+  external_server_container_cwd = '/app',  -- Container mount point (default: '/app')
+  
+  -- Rest of your configuration...
+})
+```
+
+### Example: Running Opencode in Docker
+
+Here's an example of running opencode in a Docker container that mounts your project directory:
+
+```bash
+# Start from your project directory
+cd /Users/yourname/projects/myproject
+
+# Run opencode server in a container, mounting current directory to /app
+docker run -d \
+  --name opencode-server \
+  -p 8080:4096 \
+  -v $(pwd):/app \
+  -v ~/.config/opencode:/root/.config/opencode \
+  your-opencode-image \
+  opencode serve --port 4096 --hostname 0.0.0.0
+```
+
+Then configure the plugin - that's it! The default `/app` mount point will be used automatically:
+
+```lua
+require('opencode').setup({
+  external_server_url = 'localhost',
+  external_server_port = 8080,
+  -- external_server_container_cwd defaults to '/app' - no need to specify!
+})
+```
+
+### Behavior
+
+- If both `external_server_url` and `external_server_port` are configured, the plugin will try to connect to the external server first
+- If the external server is unreachable, a warning will be displayed and the plugin will fall back to spawning a local server
+- If no external server is configured (default), the plugin behaves as before, spawning a local server automatically
+- The health check uses the `/global/health` endpoint with the configured timeout
+- Path mapping: When `external_server_container_cwd` is configured, all directory paths are automatically translated from the host's current working directory to the container path
+
+### Path Mapping Details
+
+The `external_server_container_cwd` configuration is essential when using containerized servers with volume mounts:
+
+- **Default value**: `/app` (the most common container mount point)
+- **When to change**: Only if your container mounts to a different path (e.g., `/workspace`, `/code`, `/project`)
+- **How it works**: The plugin automatically detects your current working directory and translates all file paths to use the container mount point
+- **Example**: If you start Neovim in `/Users/yourname/projects/myapp` and your container mounts it as `/app`, paths are automatically translated from `/Users/yourname/projects/myapp/src/file.lua` to `/app/src/file.lua`
+- **Automatic for most setups**: If you use the standard `docker run -v $(pwd):/app` pattern, you don't need to configure anything
+
+### Notes
+
+- The protocol (http:// or https://) is automatically prepended if you provide just a hostname
+- Make sure your firewall allows connections to the specified port
+- The server must be running and accessible before starting Neovim
 
 ## 🙏 Acknowledgements
 

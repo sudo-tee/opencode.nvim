@@ -203,6 +203,10 @@
 ---@field default_system_prompt string | nil
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
+---@field external_server_url string | nil -- URL/hostname of external opencode server (e.g., "http://192.168.1.100" or "localhost")
+---@field external_server_port number | nil -- Port of external opencode server (e.g., 8080)
+---@field external_server_timeout number -- Timeout in seconds for external server health check (default: 5)
+---@field external_server_container_cwd string | nil -- Container path where host cwd is mounted (e.g., '/app')
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig

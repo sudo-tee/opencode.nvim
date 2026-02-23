@@ -45,8 +45,33 @@ function OpencodeServer.new()
   }, OpencodeServer)
 end
 
+--- Create a server instance that connects to an external server
+--- @param url string The external server URL
+--- @return OpencodeServer
+function OpencodeServer.from_external(url)
+  ensure_vim_leave_autocmd()
+
+  local instance = setmetatable({
+    job = nil,
+    url = url,
+    handle = nil,
+    spawn_promise = Promise.new(),
+    shutdown_promise = Promise.new(),
+  }, OpencodeServer)
+  
+  -- Mark as already resolved since external server is already running
+  instance.spawn_promise:resolve(instance)
+  
+  return instance
+end
+
 function OpencodeServer:is_running()
-  return self.job and self.job.pid ~= nil
+  -- If this is an external server (no job), check if URL is set
+  if not self.job then
+    return self.url ~= nil
+  end
+  -- Local server: check job pid
+  return self.job.pid ~= nil
 end
 
 local function kill_process(pid, signal, desc)
@@ -62,7 +87,17 @@ function OpencodeServer:shutdown()
     return self.shutdown_promise
   end
 
-  if self.job and self.job.pid then
+  -- Skip process killing if this is an external server (no job)
+  if not self.job then
+    log.debug('shutdown: external server, clearing URL only')
+    self.url = nil
+    self.handle = nil
+    self.shutdown_promise:resolve(true)
+    return self.shutdown_promise
+  end
+
+  -- Local server: kill the process
+  if self.job.pid then
     ---@cast self.job vim.SystemObj
     local pid = self.job.pid
     local children = vim.api.nvim_get_proc_children(pid)

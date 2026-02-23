@@ -3,9 +3,99 @@ local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 local log = require('opencode.log')
+local config = require('opencode.config')
 
 local M = {}
 M.requests = {}
+
+--- Normalize a URL by prepending http:// if no protocol is specified
+--- @param url string The URL to normalize
+--- @return string normalized_url The normalized URL
+local function normalize_url(url)
+  if not url:match('^https?://') then
+    return 'http://' .. url
+  end
+  return url
+end
+
+--- URL encode a string for use in query parameters
+--- @param str string The string to encode
+--- @return string encoded_string The URL-encoded string
+local function url_encode(str)
+  if not str then return '' end
+  str = string.gsub(str, '\n', '\r\n')
+  str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
+    return string.format('%%%02X', string.byte(c))
+  end)
+  return str
+end
+
+--- Try to connect to an external opencode server by checking its health endpoint
+--- @param base_url string The server base URL (host:port)
+--- @param timeout number Timeout in seconds
+--- @return Promise<string|nil> promise Resolves with base URL if successful, rejects if connection fails
+local function try_external_server(base_url, timeout)
+  local promise = Promise.new()
+  
+  -- Try multiple potential health check endpoints
+  local health_endpoints = {
+    '/global/health',  -- Standard endpoint for local spawned servers
+    '/api/health',     -- Common API health endpoint
+    '/health',         -- Simple health endpoint
+  }
+  
+  local attempts = 0
+  local last_error = nil
+  
+  local function try_next_endpoint()
+    attempts = attempts + 1
+    if attempts > #health_endpoints then
+      promise:reject(last_error or 'All health check endpoints failed')
+      return
+    end
+    
+    local health_url = base_url .. health_endpoints[attempts]
+    log.debug('try_external_server: checking health at %s (attempt %d/%d)', health_url, attempts, #health_endpoints)
+    
+    curl.request({
+      url = health_url,
+      method = 'GET',
+      timeout = timeout * 1000, -- Convert to milliseconds
+      callback = function(response)
+        if response and response.status >= 200 and response.status < 300 then
+          -- Check if response is JSON (not HTML from web UI)
+          local is_json = response.body and (response.body:match('^%s*{') or response.body:match('^%s*%['))
+          
+          if is_json then
+            local success, health_data = pcall(vim.json.decode, response.body)
+            if success and health_data then
+              log.debug('try_external_server: health check passed at %s', health_url)
+              -- For external servers, return the base URL
+              -- The directory query parameter in API calls will handle workspace routing
+              promise:resolve(base_url)
+              return
+            end
+          else
+            log.debug('try_external_server: endpoint %s returned HTML, trying next', health_url)
+          end
+        else
+          log.debug('try_external_server: endpoint %s returned status %d', health_url, response and response.status or 0)
+        end
+        
+        last_error = string.format('Health check failed at %s', health_url)
+        try_next_endpoint()
+      end,
+      on_error = function(err)
+        log.debug('try_external_server: endpoint %s error: %s', health_url, vim.inspect(err))
+        last_error = err
+        try_next_endpoint()
+      end,
+    })
+  end
+  
+  try_next_endpoint()
+  return promise
+end
 
 --- @param response {status: integer, body: string}
 --- @param cb fun(err: any, result: any)
@@ -133,13 +223,57 @@ function M.stream_api(url, method, body, on_chunk)
 end
 
 --- Ensure the opencode server is running, starting it if necessary.
+--- Tries to connect to an external server if configured, otherwise spawns a local server.
 --- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
 function M.ensure_server()
   local promise = Promise.new()
+  
+  -- If server is already running, return it
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
   end
 
+  -- Check if external server is configured
+  local external_url = config.external_server_url
+  local external_port = config.external_server_port
+  
+  if external_url and external_port then
+    -- Normalize URL and construct full address
+    local normalized_url = normalize_url(external_url)
+    local base_url = string.format('%s:%d', normalized_url, external_port)
+    local timeout = config.external_server_timeout or 5
+    
+    log.debug('ensure_server: trying external server at %s (timeout=%ds)', base_url, timeout)
+    
+    -- Try to connect to external server
+    try_external_server(base_url, timeout):and_then(function(server_url)
+      -- Successfully connected to external server
+      log.debug('ensure_server: connected to external server at %s', server_url)
+      state.opencode_server = opencode_server.from_external(server_url)
+      promise:resolve(state.opencode_server)
+    end):catch(function(err)
+      -- Failed to connect to external server, fall back to local
+      log.warn('ensure_server: failed to connect to external server: %s', vim.inspect(err))
+      vim.notify(
+        string.format('Failed to connect to external opencode server at %s. Falling back to local server.', base_url),
+        vim.log.levels.WARN
+      )
+      
+      -- Spawn local server as fallback
+      M.spawn_local_server(promise)
+    end)
+  else
+    -- No external server configured, spawn local server
+    log.debug('ensure_server: no external server configured, spawning local server')
+    M.spawn_local_server(promise)
+  end
+
+  return promise
+end
+
+--- Spawn a local opencode server
+--- @param promise Promise<OpencodeServer> The promise to resolve/reject
+function M.spawn_local_server(promise)
   state.opencode_server = opencode_server.new()
 
   state.opencode_server:spawn({
@@ -155,8 +289,6 @@ function M.ensure_server()
       promise:reject('Server exited')
     end,
   })
-
-  return promise
 end
 
 return M

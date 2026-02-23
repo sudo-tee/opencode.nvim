@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local ThrottlingEmitter = require('opencode.throttling_emitter')
 local util = require('opencode.util')
+local log = require('opencode.log')
 
 --- @class EventInstallationUpdated
 --- @field type "installation.updated"
@@ -361,7 +362,11 @@ function EventManager:_on_drained_events(events)
 
   if not config.ui.output.rendering.event_collapsing then
     for _, event in ipairs(normalized_events) do
-      self:emit(event.type, event.properties)
+      if event and event.type then
+        self:emit(event.type, event.properties)
+      else
+        log.warn('Received event with missing type: %s', vim.inspect(event))
+      end
     end
     self:emit('custom.emit_events.finished', {})
     return
@@ -381,10 +386,10 @@ function EventManager:_on_drained_events(events)
         -- permission.updated/permission.asked sits between the two updates.
         local has_intervening_permission_event = false
         for j = previous_index + 1, i - 1 do
-          if normalized_events[j] and (
-            normalized_events[j].type == 'permission.updated'
-            or normalized_events[j].type == 'permission.asked'
-          ) then
+          if
+            normalized_events[j]
+            and (normalized_events[j].type == 'permission.updated' or normalized_events[j].type == 'permission.asked')
+          then
             has_intervening_permission_event = true
             break
           end
@@ -409,8 +414,10 @@ function EventManager:_on_drained_events(events)
 
   for i = 1, #normalized_events do
     local event = collapsed_events[i]
-    if event then
+    if event and event.type then
       self:emit(event.type, event.properties)
+    elseif event then
+      log.warn('Received collapsed event with missing type: %s', vim.inspect(event))
     end
   end
 
@@ -480,10 +487,7 @@ function EventManager:start()
     end
   end
 
-  state.subscribe(
-    'opencode_server',
-    self.state_server_listener
-  )
+  state.subscribe('opencode_server', self.state_server_listener)
 end
 
 function EventManager:stop()

@@ -201,6 +201,7 @@ require('opencode').setup({
     },
   },
   ui = {
+    enable_treesitter_markdown = true, -- Use Treesitter for markdown rendering in the output window (default: true).
     position = 'right', -- 'right' (default), 'left' or 'current'. Position of the UI split. 'current' uses the current window for the output.
     input_position = 'bottom', -- 'bottom' (default) or 'top'. Position of the input window
     window_width = 0.40, -- Width as percentage of editor width
@@ -636,6 +637,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 - `open_input` (boolean, default: `true`): Whether to open the input window after adding the selection. Set to `false` to add selection silently without changing focus.
 
 Example keymap for silent add:
+
 ```lua
 ['<leader>oY'] = { 'add_visual_selection', { open_input = false }, mode = {'v'} }
 ```

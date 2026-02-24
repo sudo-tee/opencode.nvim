@@ -107,6 +107,7 @@ M.defaults = {
     },
   },
   ui = {
+    enable_treesitter_markdown = true,
     position = 'right',
     input_position = 'bottom',
     window_width = 0.40,

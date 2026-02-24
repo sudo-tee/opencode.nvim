@@ -76,8 +76,7 @@ local function capture_hidden_snapshot(windows)
     output_view = ok and type(view) == 'table' and view or nil,
     focused_window = focused,
     position = config.ui.position,
-    owner_tab = state.are_windows_in_current_tab()
-      and vim.api.nvim_get_current_tabpage() or nil,
+    owner_tab = state.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
   }
 end
 
@@ -92,8 +91,12 @@ function M.close_windows(windows, persist)
 end
 
 local function prepare_window_close()
-  if M.is_opencode_focused() then M.return_to_last_code_win() end
-  if state.display_route then state.display_route = nil end
+  if M.is_opencode_focused() then
+    M.return_to_last_code_win()
+  end
+  if state.display_route then
+    state.display_route = nil
+  end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
@@ -145,7 +148,9 @@ function M.hide_visible_windows(windows)
   end
   if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
     local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
-    if ok then state.input_content = lines end
+    if ok then
+      state.input_content = lines
+    end
   end
   state.stash_hidden_buffers(snapshot)
   if state.windows == windows then
@@ -242,7 +247,9 @@ function M.restore_hidden_windows()
 
   vim.schedule(function()
     local w = state.windows
-    if not w then return end
+    if not w then
+      return
+    end
 
     if hidden.output_was_at_bottom then
       renderer.scroll_to_bottom(true)
@@ -323,8 +330,10 @@ function M.create_split_windows(input_buf, output_buf)
 end
 
 function M.create_windows()
-  vim.treesitter.language.register('markdown', 'opencode_output')
-  vim.treesitter.language.register('markdown', 'opencode')
+  if config.ui.enable_treesitter_markdown then
+    vim.treesitter.language.register('markdown', 'opencode_output')
+    vim.treesitter.language.register('markdown', 'opencode')
+  end
 
   local autocmds = require('opencode.ui.autocmds')
 

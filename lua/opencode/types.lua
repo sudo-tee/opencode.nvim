@@ -112,6 +112,7 @@
 ---@field frames string[]
 
 ---@class OpencodeUIConfig
+---@field enable_treesitter_markdown boolean
 ---@field position 'right'|'left'|'current' # Position of the UI (default: 'right')
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number

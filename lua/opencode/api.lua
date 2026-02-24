@@ -48,40 +48,101 @@ function M.close()
     return
   end
 
-  ui.close_windows(state.windows)
+  ui.teardown_visible_windows(state.windows)
+end
+
+function M.hide()
+  ui.hide_visible_windows(state.windows)
 end
 
 function M.paste_image()
   core.paste_image_from_clipboard()
 end
 
---- Check if opencode windows are in the current tab page
---- @return boolean
-local function are_windows_in_current_tab()
-  if not state.windows or not state.windows.output_win then
-    return false
+---@return {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
+function M.get_window_state()
+  return state.get_window_state()
+end
+
+---@param hidden OpencodeHiddenBuffers|nil
+---@return 'input'|'output'
+local function resolve_hidden_focus(hidden)
+  if hidden and (hidden.focused_window == 'input' or hidden.focused_window == 'output') then
+    return hidden.focused_window
   end
 
-  local current_tab = vim.api.nvim_get_current_tabpage()
-  local ok, win_tab = pcall(vim.api.nvim_win_get_tabpage, state.windows.output_win)
-  return ok and win_tab == current_tab
+  if hidden and hidden.input_hidden then
+    return 'output'
+  end
+
+  return 'input'
+end
+
+---@param restore_hidden boolean
+---@return {focus: 'input'|'output', open_action: 'reuse_visible'|'restore_hidden'|'create_fresh'}
+local function build_toggle_open_context(restore_hidden)
+  if restore_hidden then
+    local hidden = state.inspect_hidden_buffers()
+    return {
+      focus = resolve_hidden_focus(hidden),
+      open_action = 'restore_hidden',
+    }
+  end
+
+  local focus = config.ui.input.auto_hide and 'input'
+    or state.last_focused_opencode_window
+    or 'input'
+
+  return {
+    focus = focus,
+    open_action = 'create_fresh',
+  }
 end
 
 M.toggle = Promise.async(function(new_session)
-  -- When auto_hide input is enabled, always focus input; otherwise use last focused
-  local focus = 'input' ---@cast focus 'input' | 'output'
-  if not config.ui.input.auto_hide then
-    focus = state.last_focused_opencode_window or 'input'
+  local decision = state.resolve_toggle_decision(
+    config.ui.persist_state,
+    state.display_route ~= nil
+  )
+  local action = decision.action
+  local is_new_session = new_session == true
+
+  local function open_windows(restore_hidden)
+    local ctx = build_toggle_open_context(restore_hidden == true)
+    return core.open({
+      new_session = is_new_session,
+      focus = ctx.focus,
+      start_insert = false,
+      open_action = ctx.open_action,
+    }):await()
   end
 
-  if state.windows == nil or not are_windows_in_current_tab() then
-    if state.windows then
-      M.close()
-    end
-    core.open({ new_session = new_session == true, focus = focus, start_insert = false }):await()
-  else
-    M.close()
+  local function open_fresh_windows()
+    return open_windows(false)
   end
+
+  local function restore_hidden_windows()
+    return open_windows(true)
+  end
+
+  local function migrate_windows()
+    if state.windows then
+      ui.teardown_visible_windows(state.windows)
+    end
+    return open_fresh_windows()
+  end
+
+  local action_handlers = {
+    close = M.close,
+    hide = M.hide,
+    close_hidden = ui.drop_hidden_snapshot,
+    migrate = migrate_windows,
+    restore_hidden = restore_hidden_windows,
+    open = open_fresh_windows,
+  }
+
+  local handler = action_handlers[action] or action_handlers.open
+  return handler()
 end)
 
 ---@param new_session boolean?
@@ -271,7 +332,7 @@ function M.set_review_breakpoint()
 end
 
 function M.prev_history()
-  if not state.windows then
+  if not state.is_visible() then
     return
   end
   local prev_prompt = history.prev()
@@ -282,7 +343,7 @@ function M.prev_history()
 end
 
 function M.next_history()
-  if not state.windows then
+  if not state.is_visible() then
     return
   end
   local next_prompt = history.next()
@@ -517,7 +578,7 @@ function M.help()
     '|--------------|-------------|',
   }, false)
 
-  if not state.windows or not state.windows.output_win then
+  if not state.is_visible() or not state.windows.output_win then
     return
   end
 
@@ -1048,6 +1109,13 @@ M.commands = {
     desc = 'Close opencode windows',
     fn = function(args)
       M.close()
+    end,
+  },
+
+  hide = {
+    desc = 'Hide opencode windows (preserve buffers for fast restore)',
+    fn = function(args)
+      M.hide()
     end,
   },
 

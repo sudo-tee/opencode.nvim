@@ -64,6 +64,26 @@ describe('opencode.state (observable)', function()
     state.foo = nil
   end)
 
+  it('does not register duplicate listeners for the same callback', function()
+    local called = 0
+    local cb = function()
+      called = called + 1
+    end
+
+    state.subscribe('dup_key', cb)
+    state.subscribe('dup_key', cb)
+
+    state.dup_key = 'value'
+    vim.wait(50, function()
+      return called > 0
+    end)
+
+    assert.equals(1, called)
+
+    state.unsubscribe('dup_key', cb)
+    state.dup_key = nil
+  end)
+
   it('does not notify if value is unchanged', function()
     local called = false
     state.subscribe('bar', function()

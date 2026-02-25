@@ -1040,8 +1040,10 @@ cd /Users/yourname/projects/myproject
 docker run -d \
   --name opencode-server \
   -p 8080:4096 \
-  -v $(pwd):/app \
-  -v ~/.config/opencode:/root/.config/opencode \
+  -v ~/.local/state/opencode:/home/node/.local/state/opencode \
+  -v ~/.local/share/opencode:/home/node/.local/share/opencode \
+  -v ~/.config/opencode:/home/node/.config/opencode \
+  -v $(pwd):/app:rw \
   your-opencode-image \
   opencode serve --port 4096 --hostname 0.0.0.0
 ```
@@ -1054,20 +1056,54 @@ require('opencode').setup({
   custom_server_url = 'localhost',
   custom_server_port = 8080,
   container_cwd = '/app'
+})
+```
+
+Setting a custom opencode server command:
+
+```lua
+require('opencode').setup({
+  custom_server_enabled = true,
+  custom_server_url = 'localhost',
+  custom_server_port = 'auto',
+  container_cwd = '/app'
   -- Or run docker command directly from Lua config!
   -- Substituting the configuration variables!
-  custom_server_command = function()
-    return os.execute(string.format([[
-/bin/bash -c "docker run -d --rm
---name opencode-%s
--p %d:4096
--v %s:/app
--v ~/.config/opencode:/root/.config/opencode
-opencode:latest opencode serve --port 4096 --hostname '0.0.0.0'"]],
-      vim.fn.getcwd(),
+  custom_server_command = function(custom_server_port, custom_server_url)
+    local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+    local cwd = vim.fn.getcwd()
+    local container_name = string.format('opencode-%s', dir_name)
+
+    -- Check if container is already running
+    local check_cmd = string.format('docker ps --filter "name=%s" --format "{{.Names}}"', container_name)
+    local handle = io.popen(check_cmd)
+    local result = handle:read("*a")
+    handle:close()
+
+    if result and result:match(container_name) then
+      print(string.format("Container %s is already running, skipping start", container_name))
+      return true
+    end
+
+    -- First, try to stop any existing container with the same name
+    os.execute(string.format('docker stop %s 2>/dev/null || true', container_name))
+
+    local cmd = string.format([[
+docker run -d --rm \
+--name %s \
+-p %d:4096 \
+-v ~/.local/state/opencode:/home/node/.local/state/opencode \
+-v ~/.local/share/opencode:/home/node/.local/share/opencode \
+-v ~/.config/opencode:/home/node/.config/opencode \
+-v "%s":/app:rw \
+opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
+      container_name,
       custom_server_port,
-      vim.fn.getcwd()
-    ))
+      cwd
+    )
+
+    print("Starting OpenCode container: " .. container_name)
+    return os.execute(cmd)
   end,
 })
 ```

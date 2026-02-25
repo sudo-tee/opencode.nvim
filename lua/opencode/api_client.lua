@@ -1,24 +1,25 @@
 local server_job = require('opencode.server_job')
 local state = require('opencode.state')
 local config = require('opencode.config')
+local url_encode = require('opencode.util').url_encode
 
 --- Translate host path to container path if container_cwd is configured
 --- @param path string The host path
 --- @return string container_path The container path (or original if no mapping)
 local function translate_path(path)
-  -- Only apply path mapping if external server is configured
-  if not config.external_server_url or not config.external_server_port then
+  -- Only apply path mapping if server is configured
+  if not config.custom_server_enabled then
     return path
   end
-  
-  local container_cwd = config.external_server_container_cwd
+
+  local container_cwd = config.container_cwd
   if not container_cwd then
     return path
   end
-  
+
   -- Get the host cwd (where Neovim was started)
   local host_cwd = vim.fn.getcwd()
-  
+
   -- Check if path starts with host cwd
   if vim.startswith(path, host_cwd) then
     -- Replace host cwd with container cwd
@@ -29,21 +30,8 @@ local function translate_path(path)
     end
     return container_cwd .. relative_path
   end
-  
-  return path
-end
 
---- URL encode a string for use in query parameters
---- @param str string The string to encode
---- @return string encoded_string The URL-encoded string
-local function url_encode(str)
-  if not str then return '' end
-  str = tostring(str)
-  str = string.gsub(str, '\n', '\r\n')
-  str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
-    return string.format('%%%02X', string.byte(c))
-  end)
-  return str
+  return path
 end
 
 --- @class OpencodeApiClient
@@ -111,7 +99,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     if not query.directory then
       query.directory = state.current_cwd or vim.fn.getcwd()
     end
-    
+
     -- Translate directory path if path mapping is configured
     query.directory = translate_path(query.directory)
 
@@ -119,7 +107,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
 
     for k, v in pairs(query) do
       if v ~= nil then
-        table.insert(params, url_encode(k) .. '=' .. url_encode(tostring(v)))
+        table.insert(params, url_encode(k) .. '=' .. url_encode(v))
       end
     end
 

@@ -4,96 +4,105 @@ local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 local log = require('opencode.log')
 local config = require('opencode.config')
+local util = require('opencode.util')
 
 local M = {}
 M.requests = {}
 
---- Normalize a URL by prepending http:// if no protocol is specified
---- @param url string The URL to normalize
---- @return string normalized_url The normalized URL
-local function normalize_url(url)
-  if not url:match('^https?://') then
-    return 'http://' .. url
+--- @return string
+local function get_port_mapping_file()
+  local data_dir = vim.fn.stdpath('data')
+  return data_dir .. '/opencode_port_mappings.json'
+end
+
+--- @return table<string, string>
+local function load_port_mappings()
+  local file_path = get_port_mapping_file()
+  local file = io.open(file_path, 'r')
+  if not file then
+    return {}
   end
-  return url
+  
+  local content = file:read('*all')
+  file:close()
+  
+  if not content or content == '' then
+    return {}
+  end
+  
+  local success, mappings = pcall(vim.json.decode, content)
+  return success and mappings or {}
 end
 
---- URL encode a string for use in query parameters
---- @param str string The string to encode
---- @return string encoded_string The URL-encoded string
-local function url_encode(str)
-  if not str then return '' end
-  str = string.gsub(str, '\n', '\r\n')
-  str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
-    return string.format('%%%02X', string.byte(c))
-  end)
-  return str
+--- @param mappings table<string, string>
+local function save_port_mappings(mappings)
+  local file_path = get_port_mapping_file()
+  local file = io.open(file_path, 'w')
+  if not file then
+    log.warn('Failed to open port mappings file for writing: %s', file_path)
+    return
+  end
+  
+  file:write(vim.json.encode(mappings))
+  file:close()
 end
 
---- Try to connect to an external opencode server by checking its health endpoint
---- @param base_url string The server base URL (host:port)
---- @param timeout number Timeout in seconds
---- @return Promise<string|nil> promise Resolves with base URL if successful, rejects if connection fails
-local function try_external_server(base_url, timeout)
+--- @param port number
+--- @param current_dir string
+--- @return string|nil
+local function check_port_mapping(port, current_dir)
+  local mappings = load_port_mappings()
+  local port_key = tostring(port)
+  local mapped_dir = mappings[port_key]
+  
+  if mapped_dir and mapped_dir ~= current_dir then
+    return mapped_dir
+  end
+  
+  return nil
+end
+
+--- @param port number
+--- @param directory string
+local function register_port_mapping(port, directory)
+  local mappings = load_port_mappings()
+  mappings[tostring(port)] = directory
+  save_port_mappings(mappings)
+end
+
+--- @param base_url string
+--- @param timeout number
+--- @return Promise<string|nil>
+local function try_custom_server(base_url, timeout)
   local promise = Promise.new()
+  local health_url = base_url .. '/global/health'
   
-  -- Try multiple potential health check endpoints
-  local health_endpoints = {
-    '/global/health',  -- Standard endpoint for local spawned servers
-    '/api/health',     -- Common API health endpoint
-    '/health',         -- Simple health endpoint
-  }
-  
-  local attempts = 0
-  local last_error = nil
-  
-  local function try_next_endpoint()
-    attempts = attempts + 1
-    if attempts > #health_endpoints then
-      promise:reject(last_error or 'All health check endpoints failed')
-      return
-    end
-    
-    local health_url = base_url .. health_endpoints[attempts]
-    log.debug('try_external_server: checking health at %s (attempt %d/%d)', health_url, attempts, #health_endpoints)
-    
-    curl.request({
-      url = health_url,
-      method = 'GET',
-      timeout = timeout * 1000, -- Convert to milliseconds
-      callback = function(response)
-        if response and response.status >= 200 and response.status < 300 then
-          -- Check if response is JSON (not HTML from web UI)
-          local is_json = response.body and (response.body:match('^%s*{') or response.body:match('^%s*%['))
-          
-          if is_json then
-            local success, health_data = pcall(vim.json.decode, response.body)
-            if success and health_data then
-              log.debug('try_external_server: health check passed at %s', health_url)
-              -- For external servers, return the base URL
-              -- The directory query parameter in API calls will handle workspace routing
-              promise:resolve(base_url)
-              return
-            end
-          else
-            log.debug('try_external_server: endpoint %s returned HTML, trying next', health_url)
-          end
-        else
-          log.debug('try_external_server: endpoint %s returned status %d', health_url, response and response.status or 0)
+  log.debug('try_custom_server: checking health at %s', health_url)
+
+  curl.request({
+    url = health_url,
+    method = 'GET',
+    timeout = timeout * 1000,
+    callback = function(response)
+      if response and response.status >= 200 and response.status < 300 then
+        local success, health_data = pcall(vim.json.decode, response.body)
+        if success and health_data then
+          log.debug('try_custom_server: health check passed')
+          promise:resolve(base_url)
+          return
         end
-        
-        last_error = string.format('Health check failed at %s', health_url)
-        try_next_endpoint()
-      end,
-      on_error = function(err)
-        log.debug('try_external_server: endpoint %s error: %s', health_url, vim.inspect(err))
-        last_error = err
-        try_next_endpoint()
-      end,
-    })
-  end
-  
-  try_next_endpoint()
+      end
+      
+      local err_msg = string.format('Health check failed at %s (status: %d)', health_url, response and response.status or 0)
+      log.debug('try_custom_server: %s', err_msg)
+      promise:reject(err_msg)
+    end,
+    on_error = function(err)
+      log.debug('try_custom_server: error connecting to %s: %s', health_url, vim.inspect(err))
+      promise:reject(err)
+    end,
+  })
+
   return promise
 end
 
@@ -180,7 +189,6 @@ function M.call_api(url, method, body)
     opts.body = body and vim.json.encode(body) or '{}'
   end
 
-  -- add opts to request_entry for request tracking
   request_entry[1] = opts
 
   curl.request(opts)
@@ -223,56 +231,129 @@ function M.stream_api(url, method, body, on_chunk)
 end
 
 --- Ensure the opencode server is running, starting it if necessary.
---- Tries to connect to an external server if configured, otherwise spawns a local server.
---- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
+--- @return Promise<OpencodeServer>
 function M.ensure_server()
   local promise = Promise.new()
-  
-  -- If server is already running, return it
+
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
   end
 
-  -- Check if external server is configured
-  local external_url = config.external_server_url
-  local external_port = config.external_server_port
-  
-  if external_url and external_port then
-    -- Normalize URL and construct full address
-    local normalized_url = normalize_url(external_url)
-    local base_url = string.format('%s:%d', normalized_url, external_port)
-    local timeout = config.external_server_timeout or 5
-    
-    log.debug('ensure_server: trying external server at %s (timeout=%ds)', base_url, timeout)
-    
-    -- Try to connect to external server
-    try_external_server(base_url, timeout):and_then(function(server_url)
-      -- Successfully connected to external server
-      log.debug('ensure_server: connected to external server at %s', server_url)
-      state.opencode_server = opencode_server.from_external(server_url)
-      promise:resolve(state.opencode_server)
-    end):catch(function(err)
-      -- Failed to connect to external server, fall back to local
-      log.warn('ensure_server: failed to connect to external server: %s', vim.inspect(err))
-      vim.notify(
-        string.format('Failed to connect to external opencode server at %s. Falling back to local server.', base_url),
-        vim.log.levels.WARN
-      )
-      
-      -- Spawn local server as fallback
-      M.spawn_local_server(promise)
-    end)
-  else
-    -- No external server configured, spawn local server
-    log.debug('ensure_server: no external server configured, spawning local server')
+  if not config.custom_server_enabled then
+    log.debug('ensure_server: custom server not enabled, spawning local server')
     M.spawn_local_server(promise)
+    return promise
   end
+
+  local custom_url = config.custom_server_url
+  if not custom_url then
+    log.error('ensure_server: custom_server_enabled is true but custom_server_url is not set')
+    vim.notify(
+      'Custom server enabled but custom_server_url is not configured',
+      vim.log.levels.ERROR
+    )
+    promise:reject('custom_server_url is required when custom_server_enabled is true')
+    return promise
+  end
+
+  local custom_port = config.custom_server_port
+  if custom_port == nil then
+    custom_port = 4096
+  elseif custom_port == 'auto' then
+    custom_port = math.random(1024, 65535)
+    log.debug('ensure_server: using auto-generated port %d', custom_port)
+  end
+
+  local normalized_url = util.normalize_url_protocol(custom_url)
+  local base_url = string.format('%s:%d', normalized_url, custom_port)
+  local timeout = config.custom_server_timeout or 5
+
+  log.debug('ensure_server: trying custom server at %s (timeout=%ds)', base_url, timeout)
+
+  M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
 
   return promise
 end
 
---- Spawn a local opencode server
---- @param promise Promise<OpencodeServer> The promise to resolve/reject
+--- @param base_url string
+--- @param timeout number
+--- @param promise Promise<OpencodeServer>
+--- @param custom_port number|nil
+--- @param custom_url string|nil
+function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
+  try_custom_server(base_url, timeout):and_then(function(custom_server_url)
+    log.debug('try_connect_to_custom_server: connected to custom server at %s', custom_server_url)
+    
+    local current_dir = vim.fn.getcwd()
+    local mapped_dir = check_port_mapping(custom_port, current_dir)
+    
+    if mapped_dir then
+      log.warn('try_connect_to_custom_server: port %d is already mapped to directory %s but current directory is %s', 
+        custom_port, mapped_dir, current_dir)
+      
+      vim.notify(
+        string.format(
+          'Warning: OpenCode server at %s (port %d) is already serving a different directory:\n' ..
+          'Server directory: %s\n' ..
+          'Current directory: %s\n\n' ..
+          'To run isolated servers per project, configure custom_server_port = "auto" in your config.',
+          base_url, custom_port, mapped_dir, current_dir
+        ),
+        vim.log.levels.WARN
+      )
+    else
+      register_port_mapping(custom_port, current_dir)
+    end
+    
+    state.opencode_server = opencode_server.from_custom(custom_server_url)
+    promise:resolve(state.opencode_server)
+  end):catch(function(err)
+    log.warn('try_connect_to_custom_server: failed to connect to custom server: %s', vim.inspect(err))
+    
+    if config.custom_server_command and custom_port and custom_url then
+      log.debug('try_connect_to_custom_server: server not running, executing custom_server_command')
+      vim.notify(
+        string.format('Custom server not found at %s, attempting to start it...', base_url),
+        vim.log.levels.INFO
+      )
+      
+      local ok, result = pcall(config.custom_server_command, custom_port, custom_url)
+      if not ok then
+        log.error('try_connect_to_custom_server: custom_server_command failed: %s', vim.inspect(result))
+        vim.notify(
+          string.format('Failed to execute custom_server_command: %s', tostring(result)),
+          vim.log.levels.ERROR
+        )
+        M.spawn_local_server(promise)
+        return
+      end
+      
+      vim.defer_fn(function()
+        try_custom_server(base_url, timeout):and_then(function(custom_server_url)
+          log.debug('try_connect_to_custom_server: connected to custom server after starting at %s', custom_server_url)
+          register_port_mapping(custom_port, vim.fn.getcwd())
+          state.opencode_server = opencode_server.from_custom(custom_server_url)
+          promise:resolve(state.opencode_server)
+        end):catch(function(retry_err)
+          log.error('try_connect_to_custom_server: failed to connect after starting server: %s', vim.inspect(retry_err))
+          vim.notify(
+            string.format('Failed to connect to custom opencode server at %s after starting. Falling back to local server.', base_url),
+            vim.log.levels.WARN
+          )
+          M.spawn_local_server(promise)
+        end)
+      end, 2000)
+    else
+      vim.notify(
+        string.format('Failed to connect to custom opencode server at %s. Falling back to local server.', base_url),
+        vim.log.levels.WARN
+      )
+      M.spawn_local_server(promise)
+    end
+  end)
+end
+
+--- @param promise Promise<OpencodeServer>
 function M.spawn_local_server(promise)
   state.opencode_server = opencode_server.new()
 

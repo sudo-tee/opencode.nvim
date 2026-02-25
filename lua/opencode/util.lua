@@ -84,6 +84,29 @@ function M.sanitize_lines(lines)
   return stripped_lines
 end
 
+--- Normalize a URL by prepending http:// if no protocol is specified
+--- @param url string The URL to normalize
+--- @return string normalized_url The normalized URL
+function M.normalize_url_protocol(url)
+  if not url:match('^https?://') then
+    return 'http://' .. url
+  end
+  return url
+end
+
+--- URL encode a string for use in query parameters
+--- @param str string The string to encode
+--- @return string encoded_string The URL-encoded string
+function M.url_encode(str)
+  if not str then return '' end
+  str = tostring(str)
+  str = string.gsub(str, '\n', '\r\n')
+  str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
+    return string.format('%%%02X', string.byte(c))
+  end)
+  return str
+end
+
 --- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string

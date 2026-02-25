@@ -45,10 +45,10 @@ function OpencodeServer.new()
   }, OpencodeServer)
 end
 
---- Create a server instance that connects to an external server
---- @param url string The external server URL
+--- Create a server instance that connects to a custom server
+--- @param url string The custom server URL
 --- @return OpencodeServer
-function OpencodeServer.from_external(url)
+function OpencodeServer.from_custom(url)
   ensure_vim_leave_autocmd()
 
   local instance = setmetatable({
@@ -58,15 +58,14 @@ function OpencodeServer.from_external(url)
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
   }, OpencodeServer)
-  
-  -- Mark as already resolved since external server is already running
+
   instance.spawn_promise:resolve(instance)
-  
+
   return instance
 end
 
 function OpencodeServer:is_running()
-  -- If this is an external server (no job), check if URL is set
+  -- If this is a custom server (no job), check if URL is set
   if not self.job then
     return self.url ~= nil
   end
@@ -87,9 +86,8 @@ function OpencodeServer:shutdown()
     return self.shutdown_promise
   end
 
-  -- Skip process killing if this is an external server (no job)
   if not self.job then
-    log.debug('shutdown: external server, clearing URL only')
+    log.debug('shutdown: custom server, clearing URL only')
     self.url = nil
     self.handle = nil
     self.shutdown_promise:resolve(true)

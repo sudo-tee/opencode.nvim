@@ -14,10 +14,12 @@ M.defaults = {
   legacy_commands = true,
   keymap_prefix = '<leader>o',
   opencode_executable = 'opencode',
-  external_server_url = nil,
-  external_server_port = nil,
-  external_server_timeout = 5,
-  external_server_container_cwd = '/app', -- Container path where host cwd is mounted (defaults to '/app')
+  custom_server_enabled = false,
+  custom_server_url = nil,
+  custom_server_port = nil,
+  custom_server_timeout = 5,
+  custom_server_command = nil,
+  container_cwd = nil,
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle', desc = 'Toggle Opencode window' },

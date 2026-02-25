@@ -47,13 +47,13 @@ describe('opencode.opencode_server', function()
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
     local exit_callback
-    
+
     -- Mock vim.system to capture the exit callback
     vim.system = function(cmd, opts, on_exit)
       exit_callback = on_exit
       return { pid = 2, kill = function() end }
     end
-    
+
     -- Spawn the server so the exit callback is set up
     server:spawn({
       cwd = '.',
@@ -61,24 +61,24 @@ describe('opencode.opencode_server', function()
       on_error = function() end,
       on_exit = function() end,
     })
-    
+
     local resolved = false
     server:get_shutdown_promise():and_then(function()
       resolved = true
     end)
-    
+
     -- Call shutdown (sends SIGTERM)
     server:shutdown()
-    
+
     -- Simulate the process exiting by calling the exit callback
     vim.schedule(function()
       exit_callback({ code = 0, signal = 0 })
     end)
-    
+
     vim.wait(100, function()
       return resolved
     end)
-    
+
     assert.is_true(resolved)
     assert.is_nil(server.job)
     assert.is_nil(server.url)
@@ -185,14 +185,14 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.handle)
   end)
 
-  describe('external server support', function()
-    it('creates an external server instance with from_external', function()
-      local server = OpencodeServer.from_external('http://192.168.1.100:8080')
+  describe('custom server support', function()
+    it('creates a custom server instance with from_custom', function()
+      local server = OpencodeServer.from_custom('http://192.168.1.100:8080')
       assert.is_table(server)
       assert.is_nil(server.job) -- No local job
       assert.equals('http://192.168.1.100:8080', server.url)
       assert.is_nil(server.handle)
-      
+
       -- Spawn promise should already be resolved
       local resolved = false
       server:get_spawn_promise():and_then(function()
@@ -204,31 +204,31 @@ describe('opencode.opencode_server', function()
       assert.is_true(resolved)
     end)
 
-    it('is_running returns true for external server with URL', function()
-      local server = OpencodeServer.from_external('http://localhost:8080')
+    it('is_running returns true for custom server with URL', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
       assert.is_true(server:is_running())
     end)
 
-    it('is_running returns false for external server without URL', function()
-      local server = OpencodeServer.from_external('http://localhost:8080')
+    it('is_running returns false for custom server without URL', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
       server.url = nil
       assert.is_false(server:is_running())
     end)
 
-    it('shutdown clears external server without killing process', function()
-      local server = OpencodeServer.from_external('http://localhost:8080')
+    it('shutdown clears custom server without killing process', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
       local resolved = false
-      
+
       server:get_shutdown_promise():and_then(function()
         resolved = true
       end)
-      
+
       server:shutdown()
-      
+
       vim.wait(10, function()
         return resolved
       end)
-      
+
       assert.is_true(resolved)
       assert.is_nil(server.url)
       assert.is_nil(server.handle)

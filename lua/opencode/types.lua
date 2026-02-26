@@ -111,6 +111,15 @@
 ---@class OpencodeLoadingAnimationConfig
 ---@field frames string[]
 
+---@class OpencodeServerConfig
+---@field url string | nil -- URL/hostname of custom opencode server (e.g., "http://192.168.1.100" or "localhost")
+---@field port number | 'auto' | nil -- Port number, 'auto' for random, or nil for default (4096)
+---@field timeout number -- Timeout in seconds for health check (default: 5)
+---@field spawn_command fun(port: number, url: string): nil | nil -- Optional function to start the server
+---@field kill_command fun(port: number, url: string): nil | nil -- Optional function to stop the server when auto_kill is true
+---@field auto_kill boolean -- Kill spawned servers when nvim exits (default: true)
+---@field path_map string | fun(host_path: string): string | nil -- Map host paths to server paths
+
 ---@class OpencodeUIConfig
 ---@field enable_treesitter_markdown boolean
 ---@field position 'right'|'left'|'current' # Position of the UI (default: 'right')
@@ -203,12 +212,7 @@
 ---@field default_system_prompt string | nil
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
----@filed custom_server_enabled boolean -- Whether to use a custom opencode server instead of spawning one automatically
----@field custom_server_url string | nil -- URL/hostname of custom opencode server (e.g., "http://192.168.1.100" or "localhost")
----@field custom_server_port number | nil -- Port of custom opencode server (e.g., 8080)
----@field custom_server_timeout number -- Timeout in seconds for custom server health check (default: 5)
----@field custom_server_command fun(): nil | nil -- Optional function to run to start the custom server (e.g., open a terminal with the command)
----@field container_cwd string | nil -- Container path where host cwd is mounted (e.g., '/app')
+---@field server OpencodeServerConfig -- Custom/external server configuration
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig

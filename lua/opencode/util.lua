@@ -107,6 +107,41 @@ function M.url_encode(str)
   return str
 end
 
+--- Apply path mapping transformation if configured
+--- @param path string The path to transform
+--- @return string transformed_path The transformed path (or original if no mapping)
+function M.apply_path_map(path)
+  if not path then
+    return path
+  end
+  
+  local config = require('opencode.config')
+  local path_map = config.server.path_map
+  
+  if not path_map then
+    return path
+  end
+  
+  if type(path_map) == 'function' then
+    local ok, result = pcall(path_map, path)
+    if ok and result then
+      return result
+    end
+    return path
+  elseif type(path_map) == 'string' then
+    local host_cwd = vim.fn.getcwd()
+    if vim.startswith(path, host_cwd) then
+      local relative_path = path:sub(#host_cwd + 1)
+      if relative_path == '' then
+        return path_map
+      end
+      return path_map .. relative_path
+    end
+  end
+  
+  return path
+end
+
 --- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string

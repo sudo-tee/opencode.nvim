@@ -6,6 +6,7 @@ local config = require('opencode.config')
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
 --- @field url string|nil The server URL once ready
+--- @field port number|nil The port this server is using (for custom servers)
 --- @field handle any Compatibility property for job.stop interface
 --- @field spawn_promise Promise<OpencodeServer>
 --- @field shutdown_promise Promise<boolean>
@@ -23,9 +24,14 @@ local function ensure_vim_leave_autocmd()
     group = vim.api.nvim_create_augroup('OpencodeVimLeavePre', { clear = true }),
     callback = function()
       local state = require('opencode.state')
+      local server_job = require('opencode.server_job')
       local log = require('opencode.log')
       if state.opencode_server then
-        state.opencode_server:shutdown()
+        if state.opencode_server.port then
+          server_job.unregister_port_usage(state.opencode_server.port)
+        else
+          state.opencode_server:shutdown()
+        end
       end
     end,
   })
@@ -39,6 +45,7 @@ function OpencodeServer.new()
   return setmetatable({
     job = nil,
     url = nil,
+    port = nil,
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
@@ -47,13 +54,15 @@ end
 
 --- Create a server instance that connects to a custom server
 --- @param url string The custom server URL
+--- @param port number|nil The port number (for PID tracking)
 --- @return OpencodeServer
-function OpencodeServer.from_custom(url)
+function OpencodeServer.from_custom(url, port)
   ensure_vim_leave_autocmd()
 
   local instance = setmetatable({
     job = nil,
     url = url,
+    port = port,
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
@@ -87,14 +96,35 @@ function OpencodeServer:shutdown()
   end
 
   if not self.job then
-    log.debug('shutdown: custom server, clearing URL only')
+    local config = require('opencode.config')
+    if config.server.kill_command and config.server.auto_kill and self.port then
+      log.debug('shutdown: custom server, executing kill_command for port %d (auto_kill=true)', self.port)
+      local ok, result = pcall(config.server.kill_command, self.port, config.server.url or '127.0.0.1')
+      if not ok then
+        log.error('shutdown: kill_command failed: %s', vim.inspect(result))
+        vim.schedule(function()
+          vim.notify(
+            string.format('[opencode.nvim] Failed to execute kill_command: %s', tostring(result)),
+            vim.log.levels.WARN
+          )
+        end)
+      else
+        log.debug('shutdown: kill_command executed successfully for port %d', self.port)
+      end
+    else
+      if config.server.kill_command and not config.server.auto_kill then
+        log.debug('shutdown: custom server, skipping kill_command (auto_kill=false)')
+      else
+        log.debug('shutdown: custom server, clearing URL only (no kill_command configured)')
+      end
+    end
+
     self.url = nil
     self.handle = nil
     self.shutdown_promise:resolve(true)
     return self.shutdown_promise
   end
 
-  -- Local server: kill the process
   if self.job.pid then
     ---@cast self.job vim.SystemObj
     local pid = self.job.pid

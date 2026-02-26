@@ -2,36 +2,27 @@ local server_job = require('opencode.server_job')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local url_encode = require('opencode.util').url_encode
+local apply_path_map = require('opencode.util').apply_path_map
 
---- Translate host path to container path if container_cwd is configured
---- @param path string The host path
---- @return string container_path The container path (or original if no mapping)
-local function translate_path(path)
-  -- Only apply path mapping if server is configured
-  if not config.custom_server_enabled then
-    return path
+--- Transform file paths in API payloads using configured path_map
+--- @param data any The data to transform (table, string, or other)
+--- @return any transformed_data The data with paths transformed
+local function transform_paths_recursive(data)
+  if type(data) ~= 'table' then
+    return data
   end
 
-  local container_cwd = config.container_cwd
-  if not container_cwd then
-    return path
-  end
-
-  -- Get the host cwd (where Neovim was started)
-  local host_cwd = vim.fn.getcwd()
-
-  -- Check if path starts with host cwd
-  if vim.startswith(path, host_cwd) then
-    -- Replace host cwd with container cwd
-    local relative_path = path:sub(#host_cwd + 1)
-    -- Handle case where path equals host_cwd exactly
-    if relative_path == '' then
-      return container_cwd
+  local result = {}
+  for key, value in pairs(data) do
+    if type(value) == 'string' and (key == 'filePath' or key == 'path' or key == 'directory') then
+      result[key] = apply_path_map(value)
+    elseif type(value) == 'table' then
+      result[key] = transform_paths_recursive(value)
+    else
+      result[key] = value
     end
-    return container_cwd .. relative_path
   end
-
-  return path
+  return result
 end
 
 --- @class OpencodeApiClient
@@ -100,8 +91,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
       query.directory = state.current_cwd or vim.fn.getcwd()
     end
 
-    -- Translate directory path if path mapping is configured
-    query.directory = translate_path(query.directory)
+    query = transform_paths_recursive(query)
 
     local params = {}
 
@@ -114,6 +104,10 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     if #params > 0 then
       url = url .. '?' .. table.concat(params, '&')
     end
+  end
+
+  if body and type(body) == 'table' then
+    body = transform_paths_recursive(body)
   end
 
   return server_job.call_api(url, method, body)

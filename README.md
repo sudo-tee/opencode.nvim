@@ -49,16 +49,19 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Installation](#-installation)
 - [Configuration](#️-configuration)
 - [Usage](#-usage)
+- [Permissions](#-permissions)
 - [Context](#-context)
 - [Agents](#-agents)
-- [User Commands](#user-commands)
+- [Custom/External Server Configuration](#-customexternal-server-configuration)
+- [User Commands and Slash Commands](#user-commands-and-slash-commands)
 - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
-- [Prompt Guard](#-prompt-guard)
+- [Contextual Restore points](#-contextual-restore-points)
+- [Highlight Groups](#highlight-groups)
+- [Prompt Guard](#️-prompt-guard)
 - [Custom user hooks](#-custom-user-hooks)
 - [Server-Sent Events (SSE) autocmds](#-server-sent-events-sse-autocmds)
-- [Quick Chat](#-quick-chat)
-- [Setting up opencode](#-setting-up-opencode)
-- [Connecting to a custom Opencode server](#connecting-to-a-custom-opencode-server)
+- [Quick Chat](#quick-chat)
+- [Setting up Opencode](#-setting-up-opencode)
 
 ## ⚠️Caution
 
@@ -122,14 +125,15 @@ require('opencode').setup({
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
   opencode_executable = 'opencode', -- Name of your opencode binary
 
-  -- Custom server configuration (optional)
-  -- Use these options to connect to a containerized or remote opencode server instead of spawning a local one
-  custom_server_enabled = false, -- Set to true to connect to a custom server instead of spawning a local opencode process
-  custom_server_url = nil, -- URL or hostname of custom server (e.g., 'http://192.168.1.100', 'localhost', or 'https://myserver.com')
-  custom_server_port = nil, -- Port of custom server (e.g., 8080)
-  custom_server_timeout = 5, -- Timeout in seconds for health check when connecting to custom server
-  custom_server_command = nil, -- Optional command to run to start the server if custom_server_enabled is true. If nil, it will assume the server is already running and will just try to connect to it.
-  container_cwd = nil, -- Container path where host cwd should be mounted
+  -- Server configuration for custom/external opencode servers
+  server = {
+    url = nil,             -- URL/hostname (e.g., 'http://192.168.1.100', 'localhost', 'https://myserver.com')
+    port = nil,            -- Port number (e.g., 8080), 'auto' for random port, or nil for default (4096)
+    timeout = 5,           -- Health check timeout in seconds when connecting
+    spawn_command = nil,   -- Optional function to start the server: function(port, url) ... end
+    auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true)
+    path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
+  },
 
   keymap = {
     editor = {
@@ -768,6 +772,136 @@ You can create custom agents through your opencode config file. Each agent can h
 
 See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
 
+## 🔌 Custom/External Server Configuration
+
+By default, opencode.nvim spawns a local `opencode serve` process. You can instead connect to an external or containerized opencode server by configuring the `server` table.
+
+### Basic Connection
+
+Connect to an existing server:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',     -- or 'http://192.168.1.100'
+    port = 8080,
+    timeout = 5,
+  },
+})
+```
+
+### Auto-Spawning with Docker
+
+Use `spawn_command` to automatically start your server and `kill_command` to stop it:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 'auto',  -- Random port for project isolation
+    -- Path mapping: translate host paths to container paths
+    path_map = function(host_path)
+      local cwd = vim.fn.getcwd()
+      -- Replace host project directory with container mount point
+      return host_path:gsub(vim.pesc(cwd), '/app')
+    end,
+    -- Spawn command: start Docker container with opencode server
+    spawn_command = function(port, url)
+      local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+      local cwd = vim.fn.getcwd()
+      local container_name = string.format('opencode-%s', dir_name)
+
+      -- Check if container is already running
+      local check_cmd = string.format('docker ps --filter "name=%s" --format "{{.Names}}"', container_name)
+      local handle = io.popen(check_cmd)
+      local result = handle:read("*a")
+      handle:close()
+
+      if result and result:match(container_name) then
+        print(string.format("[opencode.nvim] Container %s is already running, skipping start", container_name))
+        return true
+      end
+
+      -- First, try to stop any existing container with the same name
+      os.execute(string.format('docker stop %s 2>/dev/null || true', container_name))
+
+      local cmd = string.format([[
+docker run -d --rm \
+--name %s \
+-p %d:4096 \
+-v ~/.local/state/opencode:/home/node/.local/state/opencode \
+-v ~/.local/share/opencode:/home/node/.local/share/opencode \
+-v ~/.config/opencode:/home/node/.config/opencode \
+-v "%s":/app:rw \
+opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
+        container_name,
+        port,
+        cwd
+      )
+
+      print(string.format("[opencode.nvim] Starting OpenCode container: %s on port %d", container_name, port))
+      return os.execute(cmd)
+    end,
+    -- Kill command: stop Docker container when auto_kill is triggered
+    kill_command = function(port, url)
+      local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+      local container_name = string.format('opencode-%s', dir_name)
+      
+      print(string.format("[opencode.nvim] Stopping OpenCode container: %s", container_name))
+      return os.execute(string.format('docker stop %s 2>/dev/null', container_name))
+    end,
+    auto_kill = true,  -- Enable automatic cleanup when last nvim exits
+  },
+})
+```
+
+### Path Mapping for Containers/WSL
+
+When paths on the server differ from your host (e.g., `/app` in container vs `/home/user/project` on host):
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    path_map = '/app',  -- Simple string replacement
+  },
+})
+```
+
+For WSL or complex mappings, use a function:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    path_map = function(host_path)
+      -- Convert Windows path to WSL path
+      local wsl_path = host_path:gsub('^C:', '/mnt/c')
+      return wsl_path
+    end,
+  },
+})
+```
+
+### Configuration Options
+
+- `url` (string | nil): Server hostname/URL (e.g., 'localhost', 'http://192.168.1.100')
+- `port` (number | 'auto' | nil): Port number, `'auto'` for random port, or nil for default (4096)
+- `timeout` (number): Health check timeout in seconds (default: 5)
+- `spawn_command` (function | nil): Optional function to start server: `function(port, url) ... end`
+- `kill_command` (function | nil): Optional function to stop server when `auto_kill` triggers: `function(port, url) ... end`
+- `auto_kill` (boolean): Kill spawned servers when last nvim instance exits (default: true)
+- `path_map` (string | function | nil): Transform host paths to server paths
+
+### Multi-Instance Support
+
+When `port = 'auto'` is used, opencode.nvim:
+- Tracks which nvim instances are using each port
+- Only kills the server when the last nvim instance exits (if `auto_kill = true`)
+- Warns if connecting to a server configured for a different directory
+
 ## User Commands and Slash Commands
 
 You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
@@ -995,141 +1129,6 @@ If you're new to opencode:
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file
-
-## Connecting to a custom Opencode server
-
-For security or isolation purposes, you may want to run the opencode server in a container or on a separate machine. This plugin allows you to control the origin of the opencode server (hostname and port) instead of the default behavior— which will control the spawning of new, local opencode instances.
-
-### Why use a custom server?
-
-- **Security**: Isolate the opencode server from your host machine ([security concerns](https://cy.md/opencode-rce/))
-- **Containerization**: Run opencode in Docker or other container environments
-- **Remote development**: Connect to a server running on a different machine
-- **Session persistence**: Connect to the same server instance using TUI or opencode.nvim
-
-### Configuration
-
-Add these options to your `setup()` configuration:
-
-```lua
-require('opencode').setup({
-  -- Connect to containerized opencode server
-  custom_server_enabled = true,            -- required for custom opencode server, defaults to false
-  custom_server_url = 'http://localhost',  -- required if "custom_server_enabled"— "192.168.1.100" or "https://myserver.com"
-  custom_server_port = 8080,               -- will default to 4096, setting 'auto' will use a new, unique port on each startup (1024-65535)
-  custom_server_timeout = 5,               -- optional, defaults to 5 seconds
-  custom_server_command = nil,             -- optional, function that returns the command to start the opencode server (if not already running).
-
-  -- Path mapping for containerized environments (optional)
-  -- Change if you mount to a different path
-  container_cwd = '/app',  -- Container mount point (i.e., MOUNT '/app')
-
-  -- Rest of your configuration...
-})
-```
-
-### Example: Running Opencode in Docker
-
-Here's an example of running opencode in a Docker container that mounts your project directory:
-
-```bash
-# Start from your project directory
-cd /Users/yourname/projects/myproject
-
-# Run opencode server in a container, mounting current directory to /app
-docker run -d \
-  --name opencode-server \
-  -p 8080:4096 \
-  -v ~/.local/state/opencode:/home/node/.local/state/opencode \
-  -v ~/.local/share/opencode:/home/node/.local/share/opencode \
-  -v ~/.config/opencode:/home/node/.config/opencode \
-  -v $(pwd):/app:rw \
-  your-opencode-image \
-  opencode serve --port 4096 --hostname 0.0.0.0
-```
-
-Then configure the plugin - that's it! When running the opencode server from a container, you will want to set `container_cwd` to match the container mount point. This will translate host paths to container paths:
-
-```lua
-require('opencode').setup({
-  custom_server_enabled = true,
-  custom_server_url = 'localhost',
-  custom_server_port = 8080,
-  container_cwd = '/app'
-})
-```
-
-Setting a custom opencode server command:
-
-```lua
-require('opencode').setup({
-  custom_server_enabled = true,
-  custom_server_url = 'localhost',
-  custom_server_port = 'auto',
-  container_cwd = '/app'
-  -- Or run docker command directly from Lua config!
-  -- Substituting the configuration variables!
-  custom_server_command = function(custom_server_port, custom_server_url)
-    local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
-    local cwd = vim.fn.getcwd()
-    local container_name = string.format('opencode-%s', dir_name)
-
-    -- Check if container is already running
-    local check_cmd = string.format('docker ps --filter "name=%s" --format "{{.Names}}"', container_name)
-    local handle = io.popen(check_cmd)
-    local result = handle:read("*a")
-    handle:close()
-
-    if result and result:match(container_name) then
-      print(string.format("Container %s is already running, skipping start", container_name))
-      return true
-    end
-
-    -- First, try to stop any existing container with the same name
-    os.execute(string.format('docker stop %s 2>/dev/null || true', container_name))
-
-    local cmd = string.format([[
-docker run -d --rm \
---name %s \
--p %d:4096 \
--v ~/.local/state/opencode:/home/node/.local/state/opencode \
--v ~/.local/share/opencode:/home/node/.local/share/opencode \
--v ~/.config/opencode:/home/node/.config/opencode \
--v "%s":/app:rw \
-opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
-      container_name,
-      custom_server_port,
-      cwd
-    )
-
-    print("Starting OpenCode container: " .. container_name)
-    return os.execute(cmd)
-  end,
-})
-```
-
-### Behavior
-
-- If both `custom_server_url` and `custom_server_port` are configured, the plugin will try to connect to the custom server first
-- If the custom server is unreachable, a warning will be displayed and the plugin will fall back to spawning a local server
-- If no custom server is configured (default), the plugin behaves as before, spawning a local server automatically
-- The health check uses the `/global/health` endpoint with the configured timeout
-- Path mapping: When `container_cwd` is configured, all directory paths are automatically translated from the host's current working directory to the container path
-
-### Path Mapping Details
-
-The `container_cwd` configuration is essential when using containerized servers with volume mounts:
-
-- **Default value**: `nil`
-- **When to change**: If your container mounts to a different path than your host (e.g., `/workspace`, `/code`, `/project`)
-- **How it works**: The plugin automatically detects your current working directory and translates all file paths to use the container mount point
-- **Example**: If you start Neovim in `/Users/yourname/projects/myapp` and your container mounts it as `/app`, paths are automatically translated from `/Users/yourname/projects/myapp/src/file.lua` to `/app/src/file.lua`
-
-### Notes
-
-- The protocol (http:// or https://) is automatically prepended if you provide just a hostname
-- Make sure your firewall allows connections to the specified port
-- The server must be running and accessible before starting Neovim
 
 ## 🙏 Acknowledgements
 

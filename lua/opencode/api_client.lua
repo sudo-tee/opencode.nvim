@@ -463,11 +463,11 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
   self:_ensure_base_url()
   local url = self.base_url .. '/event'
   if directory then
-    url = url .. '?directory=' .. directory
+    local mapped_directory = apply_path_map(directory)
+    url = url .. '?directory=' .. url_encode(mapped_directory)
   end
 
   return server_job.stream_api(url, 'GET', nil, function(chunk)
-    -- strip data: prefix if present
     chunk = chunk:gsub('^data:%s*', '')
     local ok, event = pcall(vim.json.decode, vim.trim(chunk))
     if ok and event then

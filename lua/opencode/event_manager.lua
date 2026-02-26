@@ -167,6 +167,7 @@ local log = require('opencode.log')
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
 --- @field state_server_listener function|nil Listener for state.opencode_server updates
+--- @field state_cwd_listener function|nil Listener for state.current_cwd updates
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
@@ -180,6 +181,7 @@ function EventManager.new()
     events = {},
     server_subscription = nil,
     state_server_listener = nil,
+    state_cwd_listener = nil,
     is_started = false,
     captured_events = {},
     _parts_by_id = {},
@@ -488,6 +490,19 @@ function EventManager:start()
   end
 
   state.subscribe('opencode_server', self.state_server_listener)
+
+  if self.state_cwd_listener then
+    state.unsubscribe('current_cwd', self.state_cwd_listener)
+  end
+
+  self.state_cwd_listener = function(key, new_cwd, old_cwd)
+    if new_cwd ~= old_cwd and state.opencode_server and state.opencode_server.url then
+      log.debug('Directory changed from %s to %s, re-subscribing to server events', old_cwd, new_cwd)
+      self:_subscribe_to_server_events(state.opencode_server)
+    end
+  end
+
+  state.subscribe('current_cwd', self.state_cwd_listener)
 end
 
 function EventManager:stop()
@@ -499,6 +514,10 @@ function EventManager:stop()
   if self.state_server_listener then
     state.unsubscribe('opencode_server', self.state_server_listener)
     self.state_server_listener = nil
+  end
+  if self.state_cwd_listener then
+    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    self.state_cwd_listener = nil
   end
   self:_cleanup_server_subscription()
 
@@ -522,7 +541,9 @@ function EventManager:_subscribe_to_server_events(server)
     self.throttling_emitter:enqueue(event)
   end
 
-  self.server_subscription = api_client:subscribe_to_events(nil, emitter)
+  local directory = state.current_cwd or vim.fn.getcwd()
+  log.debug('Subscribing to server events for directory: %s', directory)
+  self.server_subscription = api_client:subscribe_to_events(directory, emitter)
 end
 
 function EventManager:_cleanup_server_subscription()

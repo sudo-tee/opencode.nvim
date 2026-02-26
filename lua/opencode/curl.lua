@@ -168,7 +168,8 @@ function M.request(opts)
     vim.system(args, job_opts, function(result)
       if result.code ~= 0 then
         if opts.on_error then
-          opts.on_error({ message = result.stderr or 'curl failed' })
+          local err_msg = (result.stderr and result.stderr ~= '') and result.stderr or 'curl failed'
+          opts.on_error({ message = err_msg })
         end
         return
       end

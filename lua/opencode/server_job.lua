@@ -47,7 +47,42 @@ local function save_port_mappings(mappings)
   file:close()
 end
 
---- Remove stale nvim PIDs from all port mappings
+--- Kill orphaned servers that have no connected clients
+--- @param port number
+--- @param started_by_nvim boolean
+local function kill_orphaned_server(port, started_by_nvim)
+  if not started_by_nvim then
+    log.debug('clean_stale_pids: port %d server not started by nvim, skipping kill', port)
+    return
+  end
+
+  log.info('clean_stale_pids: killing orphaned server on port %d (no connected clients)', port)
+  
+  local base_url = string.format('http://127.0.0.1:%d', port)
+  local shutdown_url = base_url .. '/global/shutdown'
+  
+  curl.request({
+    url = shutdown_url,
+    method = 'POST',
+    timeout = 2000,
+    proxy = '',
+    callback = function(response)
+      if response and response.status >= 200 and response.status < 300 then
+        log.debug('clean_stale_pids: graceful shutdown successful for port %d', port)
+      else
+        log.debug('clean_stale_pids: graceful shutdown failed for port %d, will let OS clean up', port)
+      end
+    end,
+    on_error = function(err)
+      log.debug('clean_stale_pids: shutdown request failed for port %d: %s', port, vim.inspect(err))
+    end,
+  })
+  
+  -- Note: We don't forcefully kill processes as they may be Docker containers
+  -- or other managed processes. The graceful shutdown should handle it.
+end
+
+--- Remove stale nvim PIDs from all port mappings and kill orphaned servers
 local function clean_stale_pids()
   local mappings = load_port_mappings()
   local changed = false
@@ -55,14 +90,35 @@ local function clean_stale_pids()
   for port_key, mapping in pairs(mappings) do
     if mapping.nvim_pids then
       local active_pids = {}
-      for _, pid in ipairs(mapping.nvim_pids) do
+      for _, pid_entry in ipairs(mapping.nvim_pids) do
+        local pid = type(pid_entry) == 'number' and pid_entry or pid_entry.pid
+
         if vim.fn.getpid() == pid or vim.uv.kill(pid, 0) then
-          table.insert(active_pids, pid)
+          if type(pid_entry) == 'number' then
+            table.insert(active_pids, {
+              pid = pid_entry,
+              directory = mapping.directory,
+              mode = 'serve',
+            })
+            changed = true
+          else
+            table.insert(active_pids, pid_entry)
+          end
         else
           changed = true
         end
       end
       mapping.nvim_pids = active_pids
+      
+      if #active_pids == 0 then
+        local port = tonumber(port_key)
+        if port and mapping.started_by_nvim then
+          kill_orphaned_server(port, mapping.started_by_nvim)
+        end
+        log.debug('clean_stale_pids: removing mapping for port %d (no connected clients)', port)
+        mappings[port_key] = nil
+        changed = true
+      end
     end
   end
 
@@ -87,11 +143,31 @@ local function check_port_mapping(port, current_dir)
   return nil
 end
 
+--- Find existing port for current directory in port mappings
+--- @param current_dir string
+--- @return number|nil port number if found, nil otherwise
+local function find_existing_port_for_directory(current_dir)
+  clean_stale_pids()
+  local mappings = load_port_mappings()
+  
+  for port_key, mapping in pairs(mappings) do
+    if mapping.directory == current_dir and mapping.nvim_pids and #mapping.nvim_pids > 0 then
+      local port = tonumber(port_key)
+      if port then
+        return port
+      end
+    end
+  end
+  
+  return nil
+end
+
 --- Register port usage by this nvim instance
 --- @param port number
 --- @param directory string
 --- @param started_by_nvim boolean
-local function register_port_usage(port, directory, started_by_nvim)
+local function register_port_usage(port, directory, started_by_nvim, mode)
+  mode = mode or 'serve'  -- 'serve' or 'attach'
   clean_stale_pids()
   local mappings = load_port_mappings()
   local port_key = tostring(port)
@@ -120,20 +196,40 @@ local function register_port_usage(port, directory, started_by_nvim)
   end
 
   local pid_exists = false
-  for _, pid in ipairs(mapping.nvim_pids) do
-    if pid == current_pid then
-      pid_exists = true
-      break
+  local updated_pids = {}
+
+  for _, pid_entry in ipairs(mapping.nvim_pids) do
+    if type(pid_entry) == 'number' then
+      local migrated_entry = {
+        pid = pid_entry,
+        directory = mapping.directory,
+        mode = 'serve',
+      }
+      table.insert(updated_pids, migrated_entry)
+      if pid_entry == current_pid then
+        pid_exists = true
+      end
+    else
+      table.insert(updated_pids, pid_entry)
+      if pid_entry.pid == current_pid then
+        pid_exists = true
+      end
     end
   end
 
+  mapping.nvim_pids = updated_pids
+
   if not pid_exists then
-    table.insert(mapping.nvim_pids, current_pid)
+    table.insert(mapping.nvim_pids, {
+      pid = current_pid,
+      directory = directory,
+      mode = mode,
+    })
   end
 
   save_port_mappings(mappings)
-  log.debug('register_port_usage: port=%d dir=%s nvim_pid=%d started_by_nvim=%s auto_kill=%s',
-    port, directory, current_pid, tostring(started_by_nvim), tostring(auto_kill))
+  log.debug('register_port_usage: port=%d dir=%s nvim_pid=%d mode=%s started_by_nvim=%s auto_kill=%s',
+    port, directory, current_pid, mode, tostring(started_by_nvim), tostring(auto_kill))
 end
 
 --- Unregister port usage by this nvim instance, killing server if last instance
@@ -154,20 +250,39 @@ M.unregister_port_usage = function(port)
 
   local current_pid = vim.fn.getpid()
   local new_pids = {}
-  for _, pid in ipairs(mapping.nvim_pids or {}) do
-    if pid ~= current_pid then
-      table.insert(new_pids, pid)
+
+  for _, pid_entry in ipairs(mapping.nvim_pids or {}) do
+    local entry_pid = type(pid_entry) == 'number' and pid_entry or pid_entry.pid
+
+    if entry_pid ~= current_pid then
+      if type(pid_entry) == 'number' then
+        table.insert(new_pids, {
+          pid = pid_entry,
+          directory = mapping.directory,
+          mode = 'serve',
+        })
+      else
+        table.insert(new_pids, pid_entry)
+      end
     end
   end
 
   mapping.nvim_pids = new_pids
 
-  if #new_pids == 0 and mapping.started_by_nvim and mapping.auto_kill then
-    log.debug('unregister_port_usage: last nvim instance for port %d, will shutdown server', port)
-    mappings[port_key] = nil
-    if state.opencode_server then
+  local should_shutdown_server = #new_pids == 0 and mapping.started_by_nvim and mapping.auto_kill
+  
+  if state.opencode_server then
+    if state.opencode_server.mode == 'attach' then
+      log.debug('unregister_port_usage: shutting down attach process for port %d', port)
+      state.opencode_server:shutdown()
+    elseif should_shutdown_server then
+      log.debug('unregister_port_usage: last nvim instance for port %d, shutting down server', port)
       state.opencode_server:shutdown()
     end
+  end
+
+  if should_shutdown_server then
+    mappings[port_key] = nil
   else
     log.debug('unregister_port_usage: port=%d still has %d nvim instance(s)', port, #new_pids)
   end
@@ -320,11 +435,15 @@ function M.stream_api(url, method, body, on_chunk)
       if err.message:match('exit_code=nil') then
         return
       end
-      vim.notify('[opencode.nvim] Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      vim.schedule(function()
+        vim.notify('[opencode.nvim] Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
     end,
     on_exit = function(code, signal)
       if code ~= 0 then
-        vim.notify('[opencode.nvim] Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
+        vim.schedule(function()
+          vim.notify('[opencode.nvim] Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
+        end)
       end
     end,
   }
@@ -356,8 +475,19 @@ function M.ensure_server()
   if custom_port == nil then
     custom_port = 4096
   elseif custom_port == 'auto' then
-    custom_port = math.random(1024, 65535)
-    log.debug('ensure_server: using auto-generated port %d', custom_port)
+    -- Check if this directory already has a server running
+    local current_dir = vim.fn.getcwd()
+    local existing_port = find_existing_port_for_directory(current_dir)
+    
+    if existing_port then
+      custom_port = existing_port
+      log.debug('ensure_server: found existing server for directory on port %d, reusing it', existing_port)
+    else
+      custom_port = math.random(1024, 65535)
+      log.debug('ensure_server: using auto-generated port %d', custom_port)
+    end
+  else
+    log.debug('ensure_server: using configured port %d', custom_port)
   end
 
   local normalized_url = util.normalize_url_protocol(custom_url)
@@ -383,35 +513,55 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
     local current_dir = vim.fn.getcwd()
     local mapped_dir = check_port_mapping(custom_port, current_dir)
 
-    if mapped_dir and config.server.spawn_command then
-      log.info('try_connect_to_custom_server: port %d is already mapped to directory %s but current directory is %s',
+    -- Check if we should use attach mode
+    local should_attach = (
+      not config.server.spawn_command and  -- No custom spawn command
+      custom_port and                       -- Static port configured
+      config.server.port ~= 'auto' and     -- Not auto port
+      mapped_dir and                        -- Port already mapped
+      mapped_dir ~= current_dir            -- Different directory
+    )
+
+    if should_attach then
+      log.info('try_connect_to_custom_server: server running on port %d for directory %s, attaching from %s',
         custom_port, mapped_dir, current_dir)
 
       vim.notify(
         string.format(
-          '[opencode.nvim] Note: OpenCode server at %s (port %d) may be configured to serve a different project directory:\n' ..
-          'Mapped directory: %s\n' ..
-          'Current directory: %s\n\n' ..
-          'To run isolated servers per project, configure server.port = "auto" in your config.',
-          base_url, custom_port, mapped_dir, current_dir
+          '[opencode.nvim] Attaching to existing server at %s\nServer directory: %s\nYour directory: %s',
+          base_url, mapped_dir, current_dir
         ),
         vim.log.levels.INFO
       )
+
+      state.opencode_server = opencode_server.new()
+      state.opencode_server.port = custom_port
+      state.opencode_server:attach({
+        url = base_url,
+        dir = current_dir,
+        on_ready = function()
+          register_port_usage(custom_port, current_dir, false, 'attach')
+          promise:resolve(state.opencode_server)
+        end,
+        on_error = function(err)
+          log.error('attach failed: %s', vim.inspect(err))
+          promise:reject(err)
+        end,
+        on_exit = function(exit_opts)
+          log.debug('attach process exited with code %s', tostring(exit_opts.code))
+        end
+      })
+      return
     end
 
-    if not config.server.path_map and mapped_dir and mapped_dir ~= current_dir then
-      vim.notify(
-        string.format(
-          '[opencode.nvim] Warning: Connected to server at %s, but no path mapping is configured.\n' ..
-          'The server may be serving a different directory (%s) than your current directory (%s).\n' ..
-          'Configure server.path_map to translate paths correctly.',
-          base_url, mapped_dir, current_dir
-        ),
-        vim.log.levels.WARN
-      )
+    local mappings = load_port_mappings()
+    local existing_started_by_nvim = false
+    if mappings[tostring(custom_port)] then
+      existing_started_by_nvim = mappings[tostring(custom_port)].started_by_nvim or false
     end
-
-    register_port_usage(custom_port, current_dir, false)
+    
+    local port_mode = mapped_dir and 'custom' or 'serve'
+    register_port_usage(custom_port, current_dir, existing_started_by_nvim, port_mode)
 
     state.opencode_server = opencode_server.from_custom(custom_server_url, custom_port)
     promise:resolve(state.opencode_server)
@@ -481,6 +631,7 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
 
       retry_connection()
     else
+      -- No spawn_command configured, fallback to local server with custom port/hostname
       if config.server.port == 'auto' then
         vim.notify(
           string.format('[opencode.nvim] Failed to connect to custom opencode server at %s. Falling back to local server.', base_url),
@@ -488,33 +639,54 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
         )
         M.spawn_local_server(promise)
       else
+        log.debug('try_connect_to_custom_server: no spawn_command, falling back to local server with port=%s hostname=%s', custom_port, custom_url)
         vim.notify(
-          string.format('[opencode.nvim] Failed to connect to custom opencode server at %s on port %d. No spawn_command configured.', base_url, custom_port),
-          vim.log.levels.ERROR
+          string.format('[opencode.nvim] Custom server not found at %s on port %d. Starting local opencode server on this port...', base_url, custom_port),
+          vim.log.levels.INFO
         )
-        promise:reject(string.format('Failed to connect to custom server at %s:%d', custom_url, custom_port))
+        M.spawn_local_server(promise, custom_port, custom_url)
       end
     end
   end)
 end
 
 --- @param promise Promise<OpencodeServer>
-function M.spawn_local_server(promise)
+--- @param port? number|string Optional custom port
+--- @param hostname? string Optional custom hostname
+function M.spawn_local_server(promise, port, hostname)
   state.opencode_server = opencode_server.new()
 
-  state.opencode_server:spawn({
+  local spawn_opts = {
     on_ready = function(_, base_url)
+      local url_port = base_url:match(':(%d+)')
+      if url_port then
+        local port_num = tonumber(url_port)
+        state.opencode_server.port = port_num
+        register_port_usage(port_num, vim.fn.getcwd(), true, 'serve')
+        log.debug('spawn_local_server: registered port %d for reference counting', port_num)
+      end
       promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
       log.error('Error starting opencode server: ' .. vim.inspect(err))
-      vim.notify('[opencode.nvim] Failed to start opencode server', vim.log.levels.ERROR)
+      vim.schedule(function()
+        vim.notify('[opencode.nvim] Failed to start opencode server', vim.log.levels.ERROR)
+      end)
       promise:reject(err)
     end,
     on_exit = function(exit_opts)
       promise:reject('Server exited')
     end,
-  })
+  }
+
+  if port then
+    spawn_opts.port = port
+  end
+  if hostname then
+    spawn_opts.hostname = hostname
+  end
+
+  state.opencode_server:spawn(spawn_opts)
 end
 
 return M

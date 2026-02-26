@@ -7,6 +7,7 @@ local config = require('opencode.config')
 --- @field job any The vim.system job handle
 --- @field url string|nil The server URL once ready
 --- @field port number|nil The port this server is using (for custom servers)
+--- @field mode 'serve'|'attach'|'custom' How this instance connected to the server
 --- @field handle any Compatibility property for job.stop interface
 --- @field spawn_promise Promise<OpencodeServer>
 --- @field shutdown_promise Promise<boolean>
@@ -46,6 +47,7 @@ function OpencodeServer.new()
     job = nil,
     url = nil,
     port = nil,
+    mode = nil,
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
@@ -63,6 +65,7 @@ function OpencodeServer.from_custom(url, port)
     job = nil,
     url = url,
     port = port,
+    mode = 'custom',
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
@@ -92,6 +95,20 @@ end
 function OpencodeServer:shutdown()
   local log = require('opencode.log')
   if self.shutdown_promise:is_resolved() then
+    return self.shutdown_promise
+  end
+
+  if self.mode == 'attach' then
+    log.debug('shutdown: attached instance, disconnecting only')
+    
+    if self.job and self.job.pid then
+      kill_process(self.job.pid, 15, 'SIGTERM attach process')
+    end
+    
+    self.job = nil
+    self.url = nil
+    self.handle = nil
+    self.shutdown_promise:resolve(true)
     return self.shutdown_promise
   end
 
@@ -153,6 +170,8 @@ end
 
 --- @class OpencodeServerSpawnOpts
 --- @field cwd? string
+--- @field port? number|string Custom port to use (will be converted to string for CLI)
+--- @field hostname? string Custom hostname to bind to
 --- @field on_ready fun(job: any, url: string)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(exit_opts: vim.SystemCompleted )
@@ -164,10 +183,26 @@ function OpencodeServer:spawn(opts)
   opts = opts or {}
   local log = require('opencode.log')
 
-  self.job = vim.system({
+  local cmd = {
     config.opencode_executable,
     'serve',
-  }, {
+  }
+  
+  if opts.port then
+    table.insert(cmd, '--port')
+    table.insert(cmd, tostring(opts.port))
+  end
+  
+  if opts.hostname then
+    table.insert(cmd, '--hostname')
+    table.insert(cmd, opts.hostname)
+  end
+
+  log.debug('spawn: starting opencode server with command: %s', vim.inspect(cmd))
+
+  self.mode = 'serve'
+
+  self.job = vim.system(cmd, {
     cwd = opts.cwd,
     stdout = function(err, data)
       if err then
@@ -214,6 +249,78 @@ function OpencodeServer:spawn(opts)
   self.handle = self.job and self.job.pid
 
   log.debug('spawn: started job with pid=%s', tostring(self.job and self.job.pid))
+  return self.spawn_promise
+end
+
+--- @class OpencodeServerAttachOpts
+--- @field url string Server URL to attach to
+--- @field dir string Directory to use as working directory
+--- @field on_ready fun(job: any, url: string)
+--- @field on_error fun(err: any)
+--- @field on_exit fun(exit_opts: vim.SystemCompleted )
+
+--- Attach to an existing opencode server
+--- @param opts OpencodeServerAttachOpts
+--- @return Promise<OpencodeServer>
+function OpencodeServer:attach(opts)
+  local log = require('opencode.log')
+
+  local cmd = {
+    config.opencode_executable,
+    'attach',
+    opts.url,
+    '--dir',
+    opts.dir,
+  }
+
+  log.debug('attach: attaching to server with command: %s', vim.inspect(cmd))
+
+  self.mode = 'attach'
+
+  self.job = vim.system(cmd, {
+    stdout = function(err, data)
+      if err then
+        safe_call(opts.on_error, err)
+        return
+      end
+      if data then
+        -- Look for connection confirmation in stdout
+        -- The attach command should output something when connected
+        if not self.url then
+          self.url = opts.url
+          self.spawn_promise:resolve(self)
+          safe_call(opts.on_ready, self.job, opts.url)
+          log.debug('attach: connected to server at url=%s', opts.url)
+        end
+      end
+    end,
+    stderr = function(err, data)
+      if err then
+        self.spawn_promise:reject(err)
+        safe_call(opts.on_error, err)
+        return
+      end
+      if data then
+        -- Filter out INFO/WARN/DEBUG log lines
+        local log_level = data:match('^%s*(%u+)%s')
+        if log_level and (log_level == 'INFO' or log_level == 'WARN' or log_level == 'DEBUG') then
+          return
+        end
+        self.spawn_promise:reject(data)
+        safe_call(opts.on_error, data)
+      end
+    end,
+  }, function(exit_opts)
+    self.job = nil
+    self.url = nil
+    self.handle = nil
+    safe_call(opts.on_exit, exit_opts)
+    self.shutdown_promise:resolve(true)
+  end)
+
+  self.handle = self.job and self.job.pid
+
+  log.debug('attach: started attach process with pid=%s', tostring(self.job and self.job.pid))
   return self.spawn_promise
 end
 

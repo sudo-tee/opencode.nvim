@@ -13,7 +13,16 @@ M.defaults = {
   default_system_prompt = nil,
   legacy_commands = true,
   keymap_prefix = '<leader>o',
-  opencode_executable = 'opencode',
+  runtime = {
+    command = { 'opencode' },
+    serve_args = { 'serve' },
+    version_args = { '--version' },
+    startup_timeout_ms = 15000,
+    path = {
+      to_server = nil,
+      to_local = nil,
+    },
+  },
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle', desc = 'Toggle Opencode window' },

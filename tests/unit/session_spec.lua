@@ -11,6 +11,7 @@ local session_list_mock = require('tests.mocks.session_list')
 local util = require('opencode.util')
 local assert = require('luassert')
 local config_file = require('opencode.config_file')
+local config = require('opencode.config')
 local state = require('opencode.state')
 local Promise = require('opencode.promise')
 
@@ -24,6 +25,7 @@ describe('opencode.session', function()
   local original_json_decode
   local original_get_opencode_project
   local original_api_client
+  local original_runtime
   local session_files = {}
   local mock_data = {}
 
@@ -43,6 +45,7 @@ describe('opencode.session', function()
     original_json_decode = vim.fn.json_decode
     original_get_opencode_project = config_file.get_opencode_project
     original_api_client = state.api_client
+    original_runtime = vim.deepcopy(config.runtime)
     -- mock vim.fs and isdirectory
     config_file.get_opencode_project = function()
       local p = Promise.new()
@@ -206,6 +209,7 @@ describe('opencode.session', function()
     util.is_git_project = original_is_git_project
     config_file.get_opencode_project = original_get_opencode_project
     state.api_client = original_api_client
+    config.runtime = original_runtime
     mock_data = {}
   end)
 
@@ -245,6 +249,53 @@ describe('opencode.session', function()
 
       -- Should be nil since no sessions match
       assert.is_nil(result)
+    end)
+
+    it('matches workspace when server session directory is in /mnt form', function()
+      mock_data.workspace = 'C:\\Users\\jimmy\\myproject1'
+
+      util.is_git_project = function()
+        return false
+      end
+
+      state.api_client.list_sessions = function()
+        local p = Promise.new()
+        p:resolve({
+          {
+            id = 'new-8',
+            parentID = nil,
+            directory = '/mnt/c/Users/jimmy/myproject1',
+            time = { updated = 2 },
+          },
+          {
+            id = 'old-1',
+            parentID = nil,
+            directory = '/mnt/c/Users/jimmy/another',
+            time = { updated = 1 },
+          },
+        })
+        return p
+      end
+
+      config.runtime.path.to_local = function(path)
+        local drive, rest = path:match('^/mnt/([a-zA-Z])/?(.*)$')
+        if not drive then
+          return path
+        end
+
+        local win_rest = rest:gsub('/', '\\')
+        if win_rest ~= '' then
+          return string.format('%s:\\%s', drive:upper(), win_rest)
+        end
+
+        return string.format('%s:\\', drive:upper())
+      end
+
+      local result = session.get_last_workspace_session():wait()
+
+      assert.is_not_nil(result)
+      assert.equal('new-8', result.id)
+      assert.equal('C:\\Users\\jimmy\\myproject1', result.directory)
     end)
 
     it('handles JSON parsing errors', function()

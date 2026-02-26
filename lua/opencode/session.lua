@@ -43,6 +43,12 @@ M.get_all_workspace_sessions = Promise.async(function()
     return nil
   end
 
+  for _, s in ipairs(sessions) do
+    if s.directory then
+      s.directory = util.to_local_path(s.directory)
+    end
+  end
+
   table.sort(sessions, function(a, b)
     return a.time.updated > b.time.updated
   end)

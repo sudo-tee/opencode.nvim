@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local config = require('opencode.config')
 
 describe('util.parse_dot_args', function()
   it('parses flat booleans', function()
@@ -95,6 +96,73 @@ describe('util.parse_run_args', function()
     local opts, prompt = util.parse_run_args({ 'agent=plan', 'some', 'prompt', 'model=openai/gpt-4' })
     assert.are.same({ agent = 'plan' }, opts)
     assert.equals('some prompt model=openai/gpt-4', prompt)
+  end)
+end)
+
+describe('util path mapping', function()
+  local original_runtime
+
+  before_each(function()
+    original_runtime = vim.deepcopy(config.runtime)
+  end)
+
+  after_each(function()
+    config.runtime = original_runtime
+  end)
+
+  it('converts Windows drive paths to WSL mount paths', function()
+    assert.equals(
+      '/mnt/c/Users/me/repo/file.lua',
+      util.to_wsl_path('C:\\Users\\me\\repo\\file.lua')
+    )
+  end)
+
+  it('normalizes backslashes for non-drive paths', function()
+    assert.equals('foo/bar/baz.lua', util.to_wsl_path('foo\\bar\\baz.lua'))
+  end)
+
+  it('maps server path when runtime to_server transform is configured', function()
+    config.runtime.path.to_server = util.to_wsl_path
+    assert.equals('/mnt/d/workspace/app', util.to_server_path('D:\\workspace\\app'))
+  end)
+
+  it('returns original path when runtime to_server transform is not configured', function()
+    config.runtime.path.to_server = nil
+    assert.equals('D:\\workspace\\app', util.to_server_path('D:\\workspace\\app'))
+  end)
+
+  it('maps server path back to local path when runtime to_local transform is configured', function()
+    config.runtime.path.to_local = function(path)
+      local drive, rest = path:match('^/mnt/([a-zA-Z])/?(.*)$')
+      if not drive then
+        return path
+      end
+
+      local win_rest = rest:gsub('/', '\\')
+      if win_rest ~= '' then
+        return string.format('%s:\\%s', drive:upper(), win_rest)
+      end
+
+      return string.format('%s:\\', drive:upper())
+    end
+    assert.equals('C:\\Users\\me\\repo', util.to_local_path('/mnt/c/Users/me/repo'))
+  end)
+
+  it('returns original mount path when runtime to_local transform is not configured', function()
+    config.runtime.path.to_local = nil
+    assert.equals('/mnt/c/Users/me/repo', util.to_local_path('/mnt/c/Users/me/repo'))
+  end)
+
+  it('falls back to original paths when transforms fail', function()
+    config.runtime.path.to_server = function()
+      error('boom')
+    end
+    config.runtime.path.to_local = function()
+      error('boom')
+    end
+
+    assert.equals('D:\\workspace\\app', util.to_server_path('D:\\workspace\\app'))
+    assert.equals('/mnt/c/Users/me/repo', util.to_local_path('/mnt/c/Users/me/repo'))
   end)
 end)
 

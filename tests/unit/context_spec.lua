@@ -1,5 +1,6 @@
 local context = require('opencode.context')
 local state = require('opencode.state')
+local config = require('opencode.config')
 local assert = require('luassert')
 
 describe('extract_from_opencode_message', function()
@@ -51,6 +52,7 @@ end)
 describe('format_message', function()
   local original_delta_context
   local original_get_context
+  local original_runtime
   local mock_context
 
   before_each(function()
@@ -65,6 +67,7 @@ describe('format_message', function()
 
     original_delta_context = context.delta_context
     original_get_context = context.get_context
+    original_runtime = vim.deepcopy(config.runtime)
 
     context.get_context = function()
       return mock_context
@@ -78,6 +81,7 @@ describe('format_message', function()
   after_each(function()
     context.delta_context = original_delta_context
     context.get_context = original_get_context
+    config.runtime = original_runtime
   end)
 
   it('returns a parts array with prompt as first part', function()
@@ -103,6 +107,78 @@ describe('format_message', function()
     end
     assert.is_true(found_file)
     assert.is_true(found_agent)
+  end)
+
+  it('maps mentioned file paths via runtime to_server transform in outbound file parts', function()
+    local ChatContext = require('opencode.context.chat_context')
+    config.runtime.path.to_server = function(path)
+      return path:gsub('^C:\\', '/mnt/c/'):gsub('\\', '/')
+    end
+    ChatContext.context.mentioned_files = { 'C:\\Users\\me\\repo\\foo.lua' }
+    ChatContext.context.mentioned_subagents = {}
+
+    local parts = context.format_message('prompt @foo.lua'):wait()
+    local file_part = nil
+    for _, part in ipairs(parts) do
+      if part.type == 'file' then
+        file_part = part
+        break
+      end
+    end
+
+    assert.is_not_nil(file_part)
+    assert.equals('file:///mnt/c/Users/me/repo/foo.lua', file_part.url)
+    assert.equals('/mnt/c/Users/me/repo/foo.lua', file_part.source.path)
+  end)
+
+  it('maps selection file paths via runtime to_server transform in outbound selection context', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+    local original_get_current_buf = BaseContext.get_current_buf
+
+    config.runtime.path.to_server = function(path)
+      return path:gsub('^C:\\', '/mnt/c/'):gsub('\\', '/')
+    end
+    ChatContext.context.mentioned_files = {}
+    ChatContext.context.mentioned_subagents = {}
+    ChatContext.context.selections = {
+      {
+        file = {
+          path = 'C:\\Users\\me\\repo\\foo.lua',
+          name = 'foo.lua',
+          extension = 'lua',
+        },
+        content = 'print(42)',
+        lines = '1-1',
+      },
+    }
+
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+
+    local parts = context
+      .format_message('prompt', {
+        selection = { enabled = true },
+        diagnostics = { enabled = false },
+        cursor_data = { enabled = false },
+        git_diff = { enabled = false },
+        buffer = { enabled = false },
+      })
+      :wait()
+    local selection_json = nil
+    for _, part in ipairs(parts) do
+      local json = context.decode_json_context(part.text or '', 'selection')
+      if json then
+        selection_json = json
+        break
+      end
+    end
+
+    assert.is_not_nil(selection_json)
+    assert.equals('/mnt/c/Users/me/repo/foo.lua', selection_json.file.path)
+
+    BaseContext.get_current_buf = original_get_current_buf
   end)
 
   it('includes selection even when current_file context is disabled', function()

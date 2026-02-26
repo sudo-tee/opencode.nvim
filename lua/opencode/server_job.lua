@@ -136,19 +136,23 @@ end
 --- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
 function M.ensure_server()
   local promise = Promise.new()
+
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
   end
 
   state.opencode_server = opencode_server.new()
 
+  local cwd = vim.fn.getcwd()
   state.opencode_server:spawn({
+    cwd = cwd,
     on_ready = function(_, base_url)
       promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
-      log.error('Error starting opencode server: ' .. vim.inspect(err))
-      vim.notify('Failed to start opencode server', vim.log.levels.ERROR)
+      local err_msg = type(err) == 'string' and err or vim.inspect(err)
+      log.error('Error starting opencode server: ' .. err_msg)
+      vim.notify('Failed to start opencode server: ' .. err_msg, vim.log.levels.ERROR)
       promise:reject(err)
     end,
     on_exit = function(exit_opts)

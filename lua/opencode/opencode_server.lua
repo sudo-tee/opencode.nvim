@@ -12,6 +12,66 @@ local config = require('opencode.config')
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
+local function normalize_server_url(url)
+  if type(url) ~= 'string' then
+    return url
+  end
+
+  if url:match('^%d+%.%d+%.%d+%.%d+:%d+$') or url:match('^localhost:%d+$') then
+    url = 'http://' .. url
+  end
+
+  url = url:gsub('/$', '')
+  url = url:gsub('://0%.0%.0%.0', '://127.0.0.1')
+  return url
+end
+
+local function extract_server_url(data)
+  if type(data) ~= 'string' or data == '' then
+    return nil
+  end
+
+  local url = data:match('opencode server listening on%s+([^%s]+)')
+    or data:match('server listening at%s+([^%s]+)')
+    or data:match('listening on%s+([^%s]+)')
+    or data:match('listening at%s+([^%s]+)')
+
+  if not url then
+    url = data:match('(https?://127%.0%.0%.1:%d+)')
+      or data:match('(https?://0%.0%.0%.0:%d+)')
+      or data:match('(https?://localhost:%d+)')
+      or data:match('(127%.0%.0%.1:%d+)')
+      or data:match('(0%.0%.0%.0:%d+)')
+      or data:match('(localhost:%d+)')
+  end
+
+  if not url then
+    local lower = data:lower()
+    if lower:find('listen', 1, true) then
+      url = data:match('(https?://[^%s%]"\']+)')
+    end
+  end
+
+  if url then
+    url = url:gsub('[,;%.%)]$', '')
+  end
+
+  return url
+end
+
+local function append_chunk(buffer, chunk)
+  if type(chunk) ~= 'string' or chunk == '' then
+    return buffer
+  end
+
+  local next_buffer = buffer .. chunk
+  if #next_buffer > 8192 then
+    next_buffer = next_buffer:sub(-8192)
+  end
+
+  return next_buffer
+end
+
 local vim_leave_setup = false
 local function ensure_vim_leave_autocmd()
   if vim_leave_setup then
@@ -100,46 +160,87 @@ end
 function OpencodeServer:spawn(opts)
   opts = opts or {}
   local log = require('opencode.log')
+  local ready = false
+  local stdout_buf = ''
+  local stderr_buf = ''
 
-  self.job = vim.system({
-    config.opencode_executable,
-    'serve',
-  }, {
+  local function mark_ready(url, from_stderr)
+    if ready then
+      return
+    end
+    ready = true
+    self.url = normalize_server_url(url)
+    self.spawn_promise:resolve(self)
+    safe_call(opts.on_ready, self.job, self.url)
+
+    if from_stderr then
+      log.debug('spawn: server ready at url=%s (detected from stderr)', self.url)
+    else
+      log.debug('spawn: server ready at url=%s', self.url)
+    end
+  end
+
+  local cmd = util.get_runtime_serve_command()
+  local system_opts = {
     cwd = opts.cwd,
+  }
+
+  self.job = vim.system(cmd, vim.tbl_extend('force', system_opts, {
     stdout = function(err, data)
       if err then
+        if not ready then
+          self.spawn_promise:reject(err)
+        end
         safe_call(opts.on_error, err)
         return
       end
+
       if data then
-        local url = data:match('opencode server listening on ([^%s]+)')
+        stdout_buf = append_chunk(stdout_buf, data)
+        local url = extract_server_url(stdout_buf)
         if url then
-          self.url = url
-          self.spawn_promise:resolve(self)
-          safe_call(opts.on_ready, self.job, url)
-          log.debug('spawn: server ready at url=%s', url)
+          mark_ready(url, false)
         end
       end
     end,
     stderr = function(err, data)
       if err then
-        self.spawn_promise:reject(err)
+        if not ready then
+          self.spawn_promise:reject(err)
+        end
         safe_call(opts.on_error, err)
         return
       end
+
       if data then
+        stderr_buf = append_chunk(stderr_buf, data)
+        local url = extract_server_url(stderr_buf)
+        if url then
+          mark_ready(url, true)
+          return
+        end
+
         -- Filter out INFO/WARN/DEBUG log lines (not actual errors)
         local log_level = data:match('^%s*(%u+)%s')
         if log_level and (log_level == 'INFO' or log_level == 'WARN' or log_level == 'DEBUG') then
-          -- Ignore log lines, don't reject
+          -- Ignore log lines
           return
         end
-        -- Only reject on actual errors
-        self.spawn_promise:reject(data)
-        safe_call(opts.on_error, data)
+
+        -- Some environments write non-fatal shell output to stderr during startup.
+        -- Wait for either a ready URL from stdout or process exit before failing startup.
+        if self.url then
+          log.debug('spawn: stderr after ready: %s', vim.trim(data))
+        else
+          log.debug('spawn: stderr before ready: %s', vim.trim(data))
+        end
       end
     end,
-  }, function(exit_opts)
+  }), function(exit_opts)
+    if not ready then
+      self.spawn_promise:reject(string.format('opencode server exited before ready (code=%s signal=%s)', tostring(exit_opts.code), tostring(exit_opts.signal)))
+    end
+
     -- Clear fields if not already cleared by shutdown()
     self.job = nil
     self.url = nil
@@ -149,6 +250,31 @@ function OpencodeServer:spawn(opts)
   end)
 
   self.handle = self.job and self.job.pid
+
+  local startup_timeout_ms = tonumber(config.runtime and config.runtime.startup_timeout_ms) or 15000
+  vim.defer_fn(function()
+    if ready then
+      return
+    end
+
+    ready = true
+
+    if self.job and self.job.kill then
+      pcall(self.job.kill, self.job, 15)
+      pcall(self.job.kill, self.job, 9)
+    end
+
+    local err = string.format(
+      'Timed out waiting for opencode server startup after %dms. command=%s stdout=%s stderr=%s',
+      startup_timeout_ms,
+      vim.inspect(cmd),
+      vim.inspect(vim.trim(stdout_buf)),
+      vim.inspect(vim.trim(stderr_buf))
+    )
+
+    self.spawn_promise:reject(err)
+    safe_call(opts.on_error, err)
+  end, startup_timeout_ms)
 
   log.debug('spawn: started job with pid=%s', tostring(self.job and self.job.pid))
   return self.spawn_promise

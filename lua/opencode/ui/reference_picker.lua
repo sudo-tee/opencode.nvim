@@ -1,6 +1,7 @@
 -- Code reference picker for navigating to file references in LLM responses
 local state = require('opencode.state')
 local config = require('opencode.config')
+local util = require('opencode.util')
 local base_picker = require('opencode.ui.base_picker')
 local icons = require('opencode.ui.icons')
 
@@ -18,7 +19,14 @@ local function is_valid_file_reference(path, context)
     return false
   end
 
-  return (path:match('%.[%w]+$') and vim.fn.filereadable(path) == 1) or false
+  local local_path = util.to_local_path(path) or path
+  return (local_path:match('%.[%w]+$') and vim.fn.filereadable(local_path) == 1) or false
+end
+
+---@param path string
+---@return boolean
+local function is_windows_absolute_path(path)
+  return type(path) == 'string' and path:match('^%a:[/\\]') ~= nil
 end
 
 ---@class CodeReference
@@ -36,7 +44,7 @@ end
 ---@param path string
 ---@return string
 local function make_absolute_path(path)
-  if not vim.startswith(path, '/') then
+  if not vim.startswith(path, '/') and not is_windows_absolute_path(path) then
     return vim.fn.getcwd() .. '/' .. path
   end
   return path
@@ -52,10 +60,11 @@ end
 ---@param match_end number
 ---@return CodeReference
 local function create_code_reference(path, line, column, end_line, message_id, match_start, match_end)
-  local abs_path = make_absolute_path(path)
+  local local_path = util.to_local_path(path) or path
+  local abs_path = make_absolute_path(local_path)
 
   return {
-    file_path = path,
+    file_path = local_path,
     line = line,
     column = column,
     message_id = message_id,
@@ -207,8 +216,9 @@ function M._parse_message_references(msg)
 
     if part.type == 'tool' then
       local file_path = vim.tbl_get(part, 'state', 'input', 'filePath')
-      if file_path and vim.fn.filereadable(file_path) == 1 then
-        local relative_path = vim.fn.fnamemodify(file_path, ':~:.')
+      local local_path = util.to_local_path(file_path)
+      if local_path and vim.fn.filereadable(local_path) == 1 then
+        local relative_path = vim.fn.fnamemodify(local_path, ':~:.')
         local ref = create_code_reference(relative_path, nil, nil, nil, message_id, 0, 0)
         table.insert(refs, ref)
       end

@@ -16,6 +16,9 @@ describe('server_job', function()
   after_each(function()
     curl.request = original_curl_request
     opencode_server.new = original_new
+
+    local state = require('opencode.state')
+    state.opencode_server = nil
   end)
 
   it('exposes expected public functions', function()
@@ -81,6 +84,7 @@ describe('server_job', function()
 
   it('ensure_server spawns a new opencode server only once', function()
     local spawn_count = 0
+    local captured_cwd
     local fake = {
       url = 'http://127.0.0.1:4000',
       is_running = function()
@@ -88,6 +92,7 @@ describe('server_job', function()
       end,
       spawn = function(self, opts)
         spawn_count = spawn_count + 1
+        captured_cwd = opts.cwd
         vim.schedule(function()
           opts.on_ready({}, self.url)
         end)
@@ -103,5 +108,7 @@ describe('server_job', function()
     local second = server_job.ensure_server():wait()
     assert.same(fake, second._value or second)
     assert.equal(1, spawn_count)
+    assert.equals(vim.fn.getcwd(), captured_cwd)
   end)
+
 end)

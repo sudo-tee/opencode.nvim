@@ -119,7 +119,16 @@ require('opencode').setup({
   default_mode = 'build', -- 'build' or 'plan' or any custom configured. @see [OpenCode Agents](https://opencode.ai/docs/modes/)
   default_system_prompt = nil, -- Custom system prompt to use for all sessions. If nil, uses the default built-in system prompt
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
-  opencode_executable = 'opencode', -- Name of your opencode binary
+  runtime = {
+    command = { 'opencode' }, -- Base runtime command, array-only
+    serve_args = { 'serve' }, -- Optional, defaults to {'serve'}
+    version_args = { '--version' }, -- Optional, defaults to {'--version'}
+    startup_timeout_ms = 15000, -- Optional startup timeout before failing with an error
+    path = {
+      to_server = nil, -- Optional fun(path) -> server path
+      to_local = nil, -- Optional fun(path) -> local path
+    },
+  },
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened
@@ -332,6 +341,83 @@ require('opencode').setup({
     default_model = nil,   -- works better with a fast model like gpt-4.1
     default_agent = 'plan', -- plan ensure no file modifications by default
     instructions = nil, -- Use built-in instructions if nil
+  },
+})
+```
+
+### Runtime Examples
+
+`runtime.command` is array-only and is passed directly to `vim.system(...)`.
+
+#### WSL (Windows host)
+
+```lua
+require('opencode').setup({
+  runtime = {
+    command = { 'wsl.exe', '-e', 'opencode' },
+    serve_args = { 'serve', '--hostname', '127.0.0.1', '--port', '0' },
+    version_args = { '--version' },
+    startup_timeout_ms = 8000,
+    path = {
+      to_server = function(path)
+        local normalized = path:gsub('\\', '/')
+        local drive, rest = normalized:match('^(%a):(/.*)$')
+        if drive then
+          return string.format('/mnt/%s%s', drive:lower(), rest)
+        end
+        return normalized
+      end,
+      to_local = function(path)
+        local drive, rest = path:match('^/mnt/([a-zA-Z])/?(.*)$')
+        if not drive then
+          return path
+        end
+        local win_rest = rest:gsub('/', '\\')
+        if win_rest ~= '' then
+          return string.format('%s:\\%s', drive:upper(), win_rest)
+        end
+        return string.format('%s:\\', drive:upper())
+      end,
+    },
+  },
+})
+```
+
+If `wsl.exe -e opencode --version` fails but `wsl.exe -e bash -ilc "opencode --version"` works,
+your PATH is only configured in interactive shell startup files (commonly `.bashrc` with nvm).
+Use this command wrapper so runtime args are forwarded correctly:
+
+```lua
+runtime = {
+  command = { 'wsl.exe', '-e', 'bash', '-ilc', 'opencode "$@"', 'opencode' },
+  serve_args = { 'serve', '--hostname', '127.0.0.1', '--port', '0' },
+  version_args = { '--version' },
+}
+```
+
+Hint: `-l` loads login startup files, `-i` loads interactive startup files (`.bashrc`).
+If your opencode PATH comes from `.bashrc`, use `-ilc`.
+
+#### Docker
+
+```lua
+require('opencode').setup({
+  runtime = {
+    command = {
+      'docker',
+      'run',
+      '--rm',
+      '-i',
+      '--network=host',
+      '-v',
+      vim.fn.getcwd() .. ':' .. vim.fn.getcwd(),
+      '-w',
+      vim.fn.getcwd(),
+      'ghcr.io/sst/opencode:latest',
+      'opencode',
+    },
+    serve_args = { 'serve' },
+    version_args = { '--version' },
   },
 })
 ```

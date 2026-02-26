@@ -61,12 +61,18 @@ describe('opencode.ui.reference_picker', function()
     package.loaded['opencode.state'] = mock_state
 
     mock_config = {
+      runtime = {
+        path = {
+          to_local = nil,
+        },
+      },
       ui = {
         picker_width = 100,
         picker = {},
       },
     }
     package.loaded['opencode.config'] = mock_config
+    package.loaded['opencode.util'] = nil
 
     mock_base_picker = {
       pick = function()
@@ -100,6 +106,7 @@ describe('opencode.ui.reference_picker', function()
     package.loaded['opencode.ui.reference_picker'] = nil
     package.loaded['opencode.state'] = nil
     package.loaded['opencode.config'] = nil
+    package.loaded['opencode.util'] = nil
     package.loaded['opencode.ui.base_picker'] = nil
     package.loaded['opencode.ui.icons'] = nil
   end)
@@ -265,6 +272,33 @@ describe('opencode.ui.reference_picker', function()
 
       assert.equal(1, #refs)
       assert.equal('/absolute/path/file.lua', refs[1].file)
+    end)
+
+    it('maps /mnt paths via runtime to_local transform', function()
+      mock_config.runtime.path.to_local = function(path)
+        local drive, rest = path:match('^/mnt/([a-zA-Z])/?(.*)$')
+        if not drive then
+          return path
+        end
+        local win_rest = rest:gsub('/', '\\')
+        if win_rest ~= '' then
+          return string.format('%s:\\%s', drive:upper(), win_rest)
+        end
+        return string.format('%s:\\', drive:upper())
+      end
+      vim.fn.filereadable = function(path)
+        if path == 'C:\\Users\\me\\repo\\main.lua' then
+          return 1
+        end
+        return 0
+      end
+
+      local text = 'Check `/mnt/c/Users/me/repo/main.lua:12` for details.'
+      local refs = reference_picker.parse_references(text, 'msg1')
+
+      assert.equal(1, #refs)
+      assert.equal('C:\\Users\\me\\repo\\main.lua', refs[1].file_path)
+      assert.equal(12, refs[1].line)
     end)
 
     it('creates correct pos array for Snacks picker', function()
@@ -713,6 +747,52 @@ describe('opencode.ui.reference_picker', function()
             state = {
               input = {
                 filePath = '/test/project/tool_file.lua',
+              },
+            },
+          },
+        },
+      }
+
+      local refs = reference_picker._parse_message_references(msg)
+
+      assert.equal(1, #refs)
+      assert.equal('tool_file.lua', refs[1].file_path)
+    end)
+
+    it('maps tool part /mnt paths via runtime to_local transform', function()
+      mock_config.runtime.path.to_local = function(path)
+        local drive, rest = path:match('^/mnt/([a-zA-Z])/?(.*)$')
+        if not drive then
+          return path
+        end
+        local win_rest = rest:gsub('/', '\\')
+        if win_rest ~= '' then
+          return string.format('%s:\\%s', drive:upper(), win_rest)
+        end
+        return string.format('%s:\\', drive:upper())
+      end
+      vim.fn.filereadable = function(path)
+        if path == 'C:\\Users\\me\\repo\\tool_file.lua' then
+          return 1
+        end
+        return 0
+      end
+
+      vim.fn.fnamemodify = function(path, modifier)
+        if modifier == ':~:.' and path == 'C:\\Users\\me\\repo\\tool_file.lua' then
+          return 'tool_file.lua'
+        end
+        return path
+      end
+
+      local msg = {
+        info = { id = 'msg1' },
+        parts = {
+          {
+            type = 'tool',
+            state = {
+              input = {
+                filePath = '/mnt/c/Users/me/repo/tool_file.lua',
               },
             },
           },

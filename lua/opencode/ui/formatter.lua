@@ -506,8 +506,9 @@ end
 function M._format_file_tool(output, tool_type, input, metadata, duration_text)
   local file_name = ''
   if input and input.filePath then
+    local local_path = util.to_local_path(input.filePath) or input.filePath
     local cwd = vim.fn.getcwd()
-    local absolute = vim.fn.fnamemodify(input.filePath, ':p')
+    local absolute = vim.fn.fnamemodify(local_path, ':p')
 
     if vim.startswith(absolute, cwd .. '/') then
       file_name = absolute:sub(#cwd + 2)

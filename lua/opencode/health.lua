@@ -1,7 +1,6 @@
 local M = {}
 
 local health = vim.health or require('health')
-local config = require('opencode.config')
 local util = require('opencode.util')
 
 local function command_exists(cmd)
@@ -9,11 +8,14 @@ local function command_exists(cmd)
 end
 
 local function get_opencode_version()
-  if not command_exists(config.opencode_executable) then
-    return nil, 'opencode command not found'
+  local runtime_cmd = util.get_runtime_command()
+  if not command_exists(runtime_cmd[1]) then
+    return nil, 'opencode runtime command not found: ' .. tostring(runtime_cmd[1])
   end
 
-  local result = vim.system({ config.opencode_executable, '--version' }):wait()
+  local cmd = util.get_runtime_version_command()
+
+  local result = vim.system(cmd):wait()
   if result.code ~= 0 then
     return nil, 'Failed to get opencode version: ' .. (result.stderr or 'unknown error')
   end
@@ -29,15 +31,16 @@ local function check_opencode_cli()
   local state = require('opencode.state')
   local required_version = state.required_version
 
-  if not command_exists(config.opencode_executable) then
-    health.error('opencode command not found', {
+  local runtime_cmd = util.get_runtime_command()
+  if not command_exists(runtime_cmd[1]) then
+    health.error('opencode runtime command not found', {
       'Install opencode CLI from: https://docs.opencode.com/installation',
-      'Ensure opencode is in your PATH',
+      string.format('Ensure %s is in your PATH', tostring(runtime_cmd[1])),
     })
     return
+  else
+    health.ok(string.format('opencode runtime command found: %s', tostring(runtime_cmd[1])))
   end
-
-  health.ok('opencode command found')
 
   local version, err = get_opencode_version()
   if not version then
@@ -58,6 +61,7 @@ end
 
 local function check_opencode_server()
   health.start('OpenCode Server')
+
   local opencode_server = require('opencode.opencode_server').new()
   local server = opencode_server:spawn():wait() --[[@as OpencodeServer]]
   if server and server.url then

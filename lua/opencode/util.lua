@@ -1,4 +1,5 @@
 local Path = require('plenary.path')
+local config = require('opencode.config')
 local M = {}
 
 function M.uid()
@@ -442,6 +443,121 @@ function M.pcall_trace(fn, ...)
   return xpcall(fn, function(err)
     return debug.traceback(err, 2)
   end, ...)
+end
+
+local function append_args(base, extra)
+  if type(extra) ~= 'table' then
+    return base
+  end
+
+  for _, arg in ipairs(extra) do
+    table.insert(base, tostring(arg))
+  end
+
+  return base
+end
+
+---@return string[]
+function M.get_runtime_command()
+  local runtime = config.runtime or {}
+  local cmd = runtime.command
+
+  if type(cmd) ~= 'table' or #cmd == 0 then
+    return { 'opencode' }
+  end
+
+  local result = {}
+  for _, arg in ipairs(cmd) do
+    table.insert(result, tostring(arg))
+  end
+  return result
+end
+
+---@return string[]
+function M.get_runtime_serve_command()
+  local runtime = config.runtime or {}
+  return append_args(M.get_runtime_command(), runtime.serve_args or { 'serve' })
+end
+
+---@return string[]
+function M.get_runtime_version_command()
+  local runtime = config.runtime or {}
+  return append_args(M.get_runtime_command(), runtime.version_args or { '--version' })
+end
+
+local function get_path_transform(direction)
+  local runtime = config.runtime
+  if type(runtime) ~= 'table' then
+    return nil
+  end
+
+  local path_cfg = runtime.path
+  if type(path_cfg) ~= 'table' then
+    return nil
+  end
+
+  local transform = path_cfg[direction]
+  if type(transform) ~= 'function' then
+    return nil
+  end
+
+  return transform
+end
+
+---Convert a Windows path (C:\foo\bar) to a WSL mount path (/mnt/c/foo/bar).
+---Returns normalized forward-slash path for non-drive paths.
+---@param path string
+---@return string|nil
+function M.to_wsl_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local normalized = path:gsub('\\', '/')
+  local drive, rest = normalized:match('^(%a):(/.*)$')
+  if drive then
+    return string.format('/mnt/%s%s', drive:lower(), rest)
+  end
+
+  return normalized
+end
+
+---Map a local path into the format expected by the opencode server.
+---@param path string
+---@return string|nil
+function M.to_server_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local transform = get_path_transform('to_server')
+  if transform then
+    local ok, transformed = pcall(transform, path)
+    if ok and transformed ~= nil then
+      return transformed
+    end
+  end
+
+  return path
+end
+
+---Map a server path into the local path format used by Neovim.
+---@param path string
+---@return string|nil
+function M.to_local_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local transform = get_path_transform('to_local')
+  if transform then
+    local ok, transformed = pcall(transform, path)
+    if ok and transformed ~= nil then
+      return transformed
+    end
+  end
+
+  return path
 end
 
 function M.is_path_in_cwd(path)

@@ -33,7 +33,7 @@ local function build_curl_args(opts)
 
   if opts.timeout then
     table.insert(args, '--max-time')
-    table.insert(args, tostring(math.ceil(opts.timeout / 1000))) -- Convert ms to seconds
+    table.insert(args, tostring(math.ceil(opts.timeout / 1000)))
   end
 
   table.insert(args, opts.url)

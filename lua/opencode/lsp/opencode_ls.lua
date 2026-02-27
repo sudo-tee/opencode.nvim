@@ -228,7 +228,6 @@ function M.start(bufnr)
     group = augroup,
     buffer = bufnr,
     callback = function()
-      M._completion_done_handled = true
       local completed_item = vim.v.completed_item
       if completed_item and completed_item.user_data then
         local data = vim.tbl_get(completed_item, 'user_data', 'nvim', 'lsp', 'completion_item', 'data')
@@ -237,6 +236,7 @@ function M.start(bufnr)
         local item = data and data._opencode_item
 
         if item then
+          M._completion_done_handled = true
           require('opencode.ui.completion').on_completion_done(item)
         end
       end

@@ -59,7 +59,7 @@ end
 
 --- Fire-and-forget graceful shutdown request to a server with no clients.
 --- Also force-kills the process if server_pid is available.
---- Uses async operations to avoid blocking Neovim shutdown.
+--- Uses direct process signals via vim.uv.kill which works cross-platform.
 --- @param port number
 --- @param server_pid number|nil
 local function kill_orphaned_server(port, server_pid)
@@ -88,33 +88,24 @@ local function kill_orphaned_server(port, server_pid)
     })
   end)
   
-  -- If we have a server PID, force kill it using async timers to avoid blocking
+  -- If we have a server PID, kill it directly using vim.uv.kill (cross-platform)
   if server_pid then
-    -- Schedule async kill sequence without blocking
-    vim.defer_fn(function()
-      -- Check for and kill child processes first
-      local ok, children = pcall(vim.api.nvim_get_proc_children, server_pid)
-      if ok and children and #children > 0 then
-        log.debug('port_mapping: server pid=%d has %d children, killing them', server_pid, #children)
-        for _, child_pid in ipairs(children) do
-          pcall(vim.uv.kill, child_pid, 15) -- SIGTERM
-          -- Schedule SIGKILL for stubborn children
-          vim.defer_fn(function()
-            pcall(vim.uv.kill, child_pid, 9)
-          end, 100)
-        end
+    -- Kill child processes first
+    local ok, children = pcall(vim.api.nvim_get_proc_children, server_pid)
+    if ok and children and #children > 0 then
+      log.debug('port_mapping: server pid=%d has %d children, killing them', server_pid, #children)
+      for _, child_pid in ipairs(children) do
+        pcall(vim.uv.kill, child_pid, 9) -- SIGKILL children immediately
       end
-      
-      -- Kill the main server process
-      local ok, err = pcall(vim.uv.kill, server_pid, 15) -- SIGTERM
-      log.debug('port_mapping: SIGTERM server pid=%d ok=%s err=%s', server_pid, tostring(ok), tostring(err))
-      
-      -- Schedule SIGKILL for stubborn processes
-      vim.defer_fn(function()
-        local ok, err = pcall(vim.uv.kill, server_pid, 9) -- SIGKILL
-        log.debug('port_mapping: SIGKILL server pid=%d ok=%s err=%s', server_pid, tostring(ok), tostring(err))
-      end, 100)
-    end, 500)
+    end
+    
+    -- Kill the main server process with SIGTERM first, then SIGKILL
+    pcall(vim.uv.kill, server_pid, 15) -- SIGTERM
+    log.debug('port_mapping: sent SIGTERM to server pid=%d', server_pid)
+    
+    -- SIGKILL as backup - can't use vim.defer_fn during shutdown, so just send it immediately
+    pcall(vim.uv.kill, server_pid, 9) -- SIGKILL
+    log.debug('port_mapping: sent SIGKILL to server pid=%d', server_pid)
   else
     log.debug('port_mapping: no server PID available, relying on graceful shutdown only')
   end
@@ -292,6 +283,12 @@ function M.unregister(port, server)
   if server then
     if server.mode == 'attach' or should_shutdown then
       log.debug('port_mapping.unregister: shutting down server for port %d', port)
+      -- Pass the server_pid to shutdown so it can kill the process even for custom servers
+      if should_shutdown and mapping.server_pid and not server.job then
+        -- Custom server (no job) but we have tracked PID - kill it directly
+        log.debug('port_mapping.unregister: custom server with tracked PID, killing orphaned server')
+        kill_orphaned_server(port, mapping.server_pid)
+      end
       server:shutdown()
     end
   elseif should_shutdown then

@@ -664,7 +664,6 @@ describe('opencode LSP completion', function()
 
     describe('CompleteDonePre autocmd', function()
       local completion
-      local augroup_id
 
       before_each(function()
         package.loaded['opencode.ui.completion'] = nil
@@ -674,62 +673,30 @@ describe('opencode LSP completion', function()
         package.loaded['opencode.lsp.opencode_ls'] = nil
         ls = require('opencode.lsp.opencode_ls')
 
-        -- Use a scratch buffer so CompleteDonePre autocmds don't accumulate on buffer 0
-        augroup_id = vim.api.nvim_create_augroup('test_completedone', { clear = true })
+        ls.start(0)
       end)
 
       after_each(function()
-        -- Clear the autocmds registered by ls.start to avoid cross-test pollution
         vim.api.nvim_clear_autocmds({ event = 'CompleteDonePre', buffer = 0 })
-        vim.api.nvim_del_augroup_by_id(augroup_id)
       end)
 
-      -- Fire CompleteDonePre with a nested user_data table.
-      -- vim.v.completed_item only accepts a dict value, so we build it via nvim_input
-      -- simulation: set via a temporary vimscript assignment.
-      local function fire_complete_done_pre_with_data(user_data)
-        -- We can't directly assign a nested Lua table to vim.v.completed_item because
-        -- Neovim validates the type. Instead we invoke the autocmd callback directly
-        -- by temporarily patching vim.v.completed_item through nvim_exec.
-        vim.api.nvim_exec2('let v:completed_item = {}', { output = false })
-        -- Trigger the autocmd so the registered callback reads vim.v.completed_item.
-        -- To pass user_data we call the callback stored in the module directly.
-        local autocmds = vim.api.nvim_get_autocmds({ event = 'CompleteDonePre', buffer = 0 })
-        for _, au in ipairs(autocmds) do
-          if au.callback then
-            -- Temporarily make completed_item look like it has user_data by monkeypatching
-            local orig = vim.v.completed_item
-            -- We simulate the callback environment
-            local saved = vim.v
-            -- Instead of fighting vim.v, call the callback with a fake environment:
-            -- patch the module's read of vim.v.completed_item
-            local real_completed_item = vim.v.completed_item
-            -- We patch getters at the module level isn't possible, so we call the
-            -- callback directly after storing data into a local and overriding access.
-            au.callback()
-          end
-        end
-      end
-
-      -- Invoke the CompleteDonePre callback directly, bypassing vim.v assignment restrictions.
-      -- We reach into the registered autocmd and call its Lua callback after patching
-      -- vim.v.completed_item to the simplest valid value (empty dict), then override the
-      -- module's behavior by injecting the item through the module's internal state.
-      local function invoke_autocmd_callback()
-        local autocmds = vim.api.nvim_get_autocmds({ event = 'CompleteDonePre', buffer = 0 })
-        for _, au in ipairs(autocmds) do
-          if au.callback then
-            au.callback()
-          end
-        end
+      local function fire_autocmd(user_data)
+        vim.v.completed_item = { user_data = user_data }
+        vim.api.nvim_exec_autocmds('CompleteDonePre', { buffer = 0 })
       end
 
       it('sets _completion_done_handled to true when fired', function()
-        ls.start(0)
         ls._completion_done_handled = false
 
-        -- Fire the autocmd with an empty completed_item (no user_data)
-        vim.api.nvim_exec_autocmds('CompleteDonePre', { buffer = 0 })
+        fire_autocmd({
+          nvim = {
+            lsp = {
+              completion_item = {
+                data = { _opencode_item = { source_name = 'test', label = 'test', data = {} } },
+              },
+            },
+          },
+        })
 
         assert.is_true(ls._completion_done_handled)
       end)
@@ -737,6 +704,7 @@ describe('opencode LSP completion', function()
       it('calls on_completion_done via nvim lsp user_data path', function()
         local on_complete_called = false
         local received_item = nil
+        local original_item = { label = 'AutoItem', source_name = 'autocmd_source', data = {} }
 
         completion.register_source({
           name = 'autocmd_source',
@@ -748,14 +716,7 @@ describe('opencode LSP completion', function()
           end,
         })
 
-        -- Directly invoke the CompleteDonePre logic by calling the module's internal
-        -- handler with simulated completed_item data, since vim.v.completed_item
-        -- cannot hold a nested Lua table. We test the handler function directly.
-        local original_item = { label = 'AutoItem', source_name = 'autocmd_source', data = {} }
-
-        -- Simulate what the autocmd callback does when user_data is present:
-        -- (mirrors the logic in opencode_ls.lua lines 232-238)
-        local fake_user_data = {
+        fire_autocmd({
           nvim = {
             lsp = {
               completion_item = {
@@ -763,13 +724,7 @@ describe('opencode LSP completion', function()
               },
             },
           },
-        }
-        local data = vim.tbl_get(fake_user_data, 'nvim', 'lsp', 'completion_item', 'data')
-          or vim.tbl_get(fake_user_data, 'lsp', 'item', 'data')
-        local item = data and data._opencode_item
-        if item then
-          completion.on_completion_done(item)
-        end
+        })
 
         assert.is_true(on_complete_called)
         assert.are.same(original_item, received_item)
@@ -778,6 +733,7 @@ describe('opencode LSP completion', function()
       it('calls on_completion_done via lsp.item user_data path', function()
         local on_complete_called = false
         local received_item = nil
+        local original_item = { label = 'AutoItem2', source_name = 'autocmd_source2', data = {} }
 
         completion.register_source({
           name = 'autocmd_source2',
@@ -789,22 +745,13 @@ describe('opencode LSP completion', function()
           end,
         })
 
-        local original_item = { label = 'AutoItem2', source_name = 'autocmd_source2', data = {} }
-
-        -- Simulate the autocmd handler using the lsp.item path
-        local fake_user_data = {
+        fire_autocmd({
           lsp = {
             item = {
               data = { _opencode_item = original_item },
             },
           },
-        }
-        local data = vim.tbl_get(fake_user_data, 'nvim', 'lsp', 'completion_item', 'data')
-          or vim.tbl_get(fake_user_data, 'lsp', 'item', 'data')
-        local item = data and data._opencode_item
-        if item then
-          completion.on_completion_done(item)
-        end
+        })
 
         assert.is_true(on_complete_called)
         assert.are.same(original_item, received_item)
@@ -812,27 +759,19 @@ describe('opencode LSP completion', function()
 
       it('does not error when user_data has no _opencode_item', function()
         assert.has_no.errors(function()
-          local fake_user_data = { nvim = { lsp = { completion_item = { data = {} } } } }
-          local data = vim.tbl_get(fake_user_data, 'nvim', 'lsp', 'completion_item', 'data')
-            or vim.tbl_get(fake_user_data, 'lsp', 'item', 'data')
-          local item = data and data._opencode_item
-          if item then
-            completion.on_completion_done(item)
-          end
+          fire_autocmd({ nvim = { lsp = { completion_item = { data = {} } } } })
         end)
       end)
 
       it('does not error when completed_item has no user_data', function()
-        ls.start(0)
-
         assert.has_no.errors(function()
-          -- Fire the autocmd; vim.v.completed_item defaults to {} with no user_data key
           vim.api.nvim_exec_autocmds('CompleteDonePre', { buffer = 0 })
         end)
       end)
 
       it('prevents executeCommand from firing on_completion_done a second time', function()
         local call_count = 0
+        local original_item = { label = 'DedupItem', source_name = 'dedup_autocmd', data = {} }
 
         completion.register_source({
           name = 'dedup_autocmd',
@@ -843,17 +782,21 @@ describe('opencode LSP completion', function()
           end,
         })
 
-        -- Simulate CompleteDonePre path: set the flag and call on_completion_done once
-        local original_item = { label = 'DedupItem', source_name = 'dedup_autocmd', data = {} }
-        ls._completion_done_handled = false
-        ls._completion_done_handled = true
-        completion.on_completion_done(original_item)
+        -- Fire CompleteDonePre; this sets _completion_done_handled and calls on_complete once
+        fire_autocmd({
+          nvim = {
+            lsp = {
+              completion_item = {
+                data = { _opencode_item = original_item },
+              },
+            },
+          },
+        })
 
         assert.are.equal(1, call_count)
 
-        -- Simulate the completion engine then sending workspace/executeCommand
-        -- Because _completion_done_handled is true, it should skip the second call
-        ls.start(0)
+        -- Simulate the completion engine then sending workspace/executeCommand.
+        -- Because _completion_done_handled is true, it should skip the second call.
         local config_obj = ls.create_config()
         local server = config_obj.cmd({}, {})
         server.request('workspace/executeCommand', {

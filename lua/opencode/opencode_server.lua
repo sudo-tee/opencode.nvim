@@ -128,13 +128,12 @@ function OpencodeServer:shutdown()
   if self.job.pid then
     ---@cast self.job vim.SystemObj
     local pid = self.job.pid
-    
-    -- Try graceful shutdown first via API
+
     if self.url then
       local curl = require('opencode.curl')
       local shutdown_url = self.url .. '/global/shutdown'
       log.debug('shutdown: attempting graceful shutdown via API: %s', shutdown_url)
-      
+
       pcall(function()
         curl.request({
           url = shutdown_url,
@@ -145,12 +144,10 @@ function OpencodeServer:shutdown()
           on_error = function() end,
         })
       end)
-      
-      -- Give it a moment to shut down gracefully
+
       vim.uv.sleep(500)
     end
-    
-    -- Force kill if still running
+
     local children = vim.api.nvim_get_proc_children(pid)
 
     if #children > 0 then
@@ -196,12 +193,12 @@ function OpencodeServer:spawn(opts)
     config.opencode_executable,
     'serve',
   }
-  
+
   if opts.port then
     table.insert(cmd, '--port')
     table.insert(cmd, tostring(opts.port))
   end
-  
+
   if opts.hostname then
     table.insert(cmd, '--hostname')
     table.insert(cmd, opts.hostname)

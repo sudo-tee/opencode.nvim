@@ -56,10 +56,12 @@ local function kill_orphaned_server(port, started_by_nvim)
     return
   end
 
-  log.info('clean_stale_pids: killing orphaned server on port %d (no connected clients)', port)
-  
-  local base_url = string.format('http://127.0.0.1:%d', port)
+  local server_url = config.server.url or '127.0.0.1'
+  local normalized_url = util.normalize_url_protocol(server_url)
+  local base_url = string.format('%s:%d', normalized_url, port)
   local shutdown_url = base_url .. '/global/shutdown'
+  
+  log.info('clean_stale_pids: killing orphaned server at %s (no connected clients)', base_url)
   
   curl.request({
     url = shutdown_url,
@@ -68,18 +70,15 @@ local function kill_orphaned_server(port, started_by_nvim)
     proxy = '',
     callback = function(response)
       if response and response.status >= 200 and response.status < 300 then
-        log.debug('clean_stale_pids: graceful shutdown successful for port %d', port)
+        log.debug('clean_stale_pids: graceful shutdown successful for %s', base_url)
       else
-        log.debug('clean_stale_pids: graceful shutdown failed for port %d, will let OS clean up', port)
+        log.debug('clean_stale_pids: graceful shutdown failed for %s, will let OS clean up', base_url)
       end
     end,
     on_error = function(err)
-      log.debug('clean_stale_pids: shutdown request failed for port %d: %s', port, vim.inspect(err))
+      log.debug('clean_stale_pids: shutdown request failed for %s: %s', base_url, vim.inspect(err))
     end,
   })
-  
-  -- Note: We don't forcefully kill processes as they may be Docker containers
-  -- or other managed processes. The graceful shutdown should handle it.
 end
 
 --- Remove stale nvim PIDs from all port mappings and kill orphaned servers

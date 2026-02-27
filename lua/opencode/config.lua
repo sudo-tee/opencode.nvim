@@ -18,10 +18,13 @@ M.defaults = {
     url = nil,
     port = nil,
     timeout = 5,
+    retry_delay = 2000,
     spawn_command = nil,
     kill_command = nil,
     auto_kill = true,
-    path_map = nil,
+    path_map = function(path)
+      return path
+    end,
   },
   keymap = {
     editor = {

@@ -51,4 +51,18 @@ function M.get_path()
   return log_path
 end
 
+--- Emit a user-visible notification and write the same message to the log.
+--- @param msg string
+--- @param level integer vim.log.levels.*
+function M.notify(msg, level)
+  if level == vim.log.levels.ERROR then
+    M.error(msg)
+  elseif level == vim.log.levels.WARN then
+    M.warn(msg)
+  else
+    M.info(msg)
+  end
+  vim.notify('[opencode.nvim] ' .. msg, level)
+end
+
 return M

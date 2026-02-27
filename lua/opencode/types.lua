@@ -115,7 +115,8 @@
 ---@field url string | nil -- URL/hostname of custom opencode server (e.g., "http://192.168.1.100" or "localhost")
 ---@field port number | 'auto' | nil -- Port number, 'auto' for random, or nil for default (4096)
 ---@field timeout number -- Timeout in seconds for health check (default: 5)
----@field spawn_command fun(port: number, url: string): nil | nil -- Optional function to start the server
+---@field retry_delay number -- Delay in milliseconds between health check retries (default: 2000)
+---@field spawn_command fun(port: number, url: string): number | nil | nil -- Optional function to start the server, may return server PID
 ---@field kill_command fun(port: number, url: string): nil | nil -- Optional function to stop the server when auto_kill is true
 ---@field auto_kill boolean -- Kill spawned servers when nvim exits (default: true)
 ---@field path_map string | fun(host_path: string): string | nil -- Map host paths to server paths

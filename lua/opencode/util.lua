@@ -118,10 +118,6 @@ function M.apply_path_map(path)
   local config = require('opencode.config')
   local path_map = config.server.path_map
   
-  if not path_map then
-    return path
-  end
-  
   if type(path_map) == 'function' then
     local ok, result = pcall(path_map, path)
     if ok and result then
@@ -321,6 +317,19 @@ function M.safe_call(fn, ...)
   return fn and vim.schedule(function()
     fn(unpack(arg))
   end)
+end
+
+--- Call fn(...), notifying the user if it throws. Useful for protecting
+--- callbacks where a thrown error would be silently swallowed.
+--- @param fn function
+--- @param ... any
+function M.safe_pcall(fn, ...)
+  local ok, err = pcall(fn, ...)
+  if not ok then
+    vim.schedule(function()
+      vim.notify('[opencode.nvim] Unexpected error: ' .. vim.inspect(err))
+    end)
+  end
 end
 
 ---@param version string

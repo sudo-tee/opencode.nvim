@@ -138,6 +138,9 @@ M.defaults = {
       },
       always_scroll_to_bottom = false,
     },
+    questions = {
+      use_vim_ui_select = false, -- If true, render questions with vim.ui.select instead of in the output buffer
+    },
     input = {
       min_height = 0.10,
       max_height = 0.25,

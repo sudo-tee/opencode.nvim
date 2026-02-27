@@ -215,6 +215,9 @@ require('opencode').setup({
       preset = 'nerdfonts', -- 'nerdfonts' | 'text'. Choose UI icon style (default: 'nerdfonts')
       overrides = {}, -- Optional per-key overrides, see section below
     },
+    questions = {
+      use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
+    },
     output = {
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)

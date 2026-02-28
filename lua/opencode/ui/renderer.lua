@@ -998,10 +998,6 @@ function M.on_question_asked(properties)
     return
   end
 
-  if not state.active_session or properties.sessionID ~= state.active_session.id then
-    return
-  end
-
   local question_window = require('opencode.ui.question_window')
   question_window.show_question(properties)
 end

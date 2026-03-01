@@ -423,4 +423,33 @@ describe('opencode.opencode_server', function()
     assert.is_true(called.on_error)
     assert.is_true(called.killed)
   end)
+
+  it('fails startup when startup_timeout_ms is invalid', function()
+    local server = OpencodeServer.new()
+    local called = { on_error = false }
+    config.runtime.startup_timeout_ms = 0
+
+    vim.system = function()
+      return {
+        pid = 45,
+        kill = function() end,
+      }
+    end
+
+    server:spawn({
+      cwd = '.',
+      on_ready = function() end,
+      on_error = function(err)
+        called.on_error = true
+        assert.is_truthy(tostring(err):find('runtime.startup_timeout_ms', 1, true))
+      end,
+      on_exit = function() end,
+    })
+
+    vim.wait(100, function()
+      return called.on_error
+    end)
+
+    assert.is_true(called.on_error)
+  end)
 end)

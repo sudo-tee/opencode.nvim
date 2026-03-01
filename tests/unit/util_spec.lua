@@ -1,5 +1,6 @@
 local util = require('opencode.util')
 local config = require('opencode.config')
+local stub = require('luassert.stub')
 
 describe('util.parse_dot_args', function()
   it('parses flat booleans', function()
@@ -163,6 +164,87 @@ describe('util path mapping', function()
 
     assert.equals('D:\\workspace\\app', util.to_server_path('D:\\workspace\\app'))
     assert.equals('/mnt/c/Users/me/repo', util.to_local_path('/mnt/c/Users/me/repo'))
+  end)
+
+  it('falls back and warns when path transforms return non-string values', function()
+    local notify_stub = stub(vim, 'notify')
+
+    config.runtime.path.to_server = function()
+      return { bad = true }
+    end
+    config.runtime.path.to_local = function()
+      return false
+    end
+
+    assert.equals('D:\\workspace\\app', util.to_server_path('D:\\workspace\\app'))
+    assert.equals('/mnt/c/Users/me/repo', util.to_local_path('/mnt/c/Users/me/repo'))
+    assert.stub(notify_stub).was_called(2)
+
+    notify_stub:revert()
+  end)
+end)
+
+describe('util runtime config validation', function()
+  local original_runtime
+
+  before_each(function()
+    original_runtime = vim.deepcopy(config.runtime)
+  end)
+
+  after_each(function()
+    config.runtime = original_runtime
+  end)
+
+  it('validates runtime connection values', function()
+    config.runtime.connection = 'remote'
+    local connection, err = util.get_runtime_connection()
+    assert.equals('remote', connection)
+    assert.is_nil(err)
+
+    config.runtime.connection = 'invalid'
+    connection, err = util.get_runtime_connection()
+    assert.is_nil(connection)
+    assert.matches("runtime.connection must be 'spawn' or 'remote'", err)
+  end)
+
+  it('normalizes host and port remote urls', function()
+    local normalized, err = util.normalize_remote_url('localhost:4096/')
+    assert.equals('http://localhost:4096', normalized)
+    assert.is_nil(err)
+  end)
+
+  it('rejects malformed remote urls', function()
+    local normalized, err = util.normalize_remote_url('   ')
+    assert.is_nil(normalized)
+    assert.is_truthy(err)
+
+    normalized, err = util.normalize_remote_url('ftp://127.0.0.1:4096')
+    assert.is_nil(normalized)
+    assert.is_truthy(err)
+  end)
+
+  it('validates runtime command arrays', function()
+    config.runtime.command = 'opencode'
+    local cmd, err = util.get_runtime_command()
+    assert.is_nil(cmd)
+    assert.matches('runtime.command', err)
+
+    config.runtime.command = { 'opencode', '--foo' }
+    cmd, err = util.get_runtime_command()
+    assert.are.same({ 'opencode', '--foo' }, cmd)
+    assert.is_nil(err)
+  end)
+
+  it('validates startup timeout values', function()
+    config.runtime.startup_timeout_ms = -1
+    local timeout, err = util.get_runtime_startup_timeout_ms()
+    assert.is_nil(timeout)
+    assert.matches('greater than 0', err)
+
+    config.runtime.startup_timeout_ms = 1234
+    timeout, err = util.get_runtime_startup_timeout_ms()
+    assert.equals(1234, timeout)
+    assert.is_nil(err)
   end)
 end)
 

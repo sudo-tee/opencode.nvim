@@ -123,7 +123,7 @@ describe('server_job', function()
 
   it('ensure_server connects to remote url without spawning', function()
     config.runtime.connection = 'remote'
-    config.runtime.remote_url = 'http://127.0.0.1:4096'
+    config.runtime.remote_url = '127.0.0.1:4096/'
 
     local spawn_called = false
     local connect_called = false
@@ -164,6 +164,27 @@ describe('server_job', function()
   it('ensure_server rejects in remote mode when remote_url is missing', function()
     config.runtime.connection = 'remote'
     config.runtime.remote_url = nil
+
+    local ok = pcall(function()
+      server_job.ensure_server():wait()
+    end)
+
+    assert.is_false(ok)
+  end)
+
+  it('ensure_server rejects for invalid runtime.connection', function()
+    config.runtime.connection = 'invalid'
+
+    local ok = pcall(function()
+      server_job.ensure_server():wait()
+    end)
+
+    assert.is_false(ok)
+  end)
+
+  it('ensure_server rejects in remote mode when remote_url is malformed', function()
+    config.runtime.connection = 'remote'
+    config.runtime.remote_url = '   '
 
     local ok = pcall(function()
       server_job.ensure_server():wait()

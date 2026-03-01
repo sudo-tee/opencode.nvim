@@ -139,7 +139,13 @@ end
 function M.ensure_server()
   local promise = Promise.new()
   local runtime = config.runtime or {}
-  local connection = runtime.connection or 'spawn'
+  local connection, connection_err = util.get_runtime_connection()
+
+  if not connection then
+    log.error(connection_err)
+    vim.notify(connection_err, vim.log.levels.ERROR)
+    return promise:reject(connection_err)
+  end
 
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
@@ -147,13 +153,20 @@ function M.ensure_server()
 
   state.opencode_server = opencode_server.new()
   local cwd = vim.fn.getcwd()
-  local pre_start_command = util.get_runtime_pre_start_command()
+  local pre_start_command, pre_start_command_err = util.get_runtime_pre_start_command()
+
+  if pre_start_command_err then
+    log.error(pre_start_command_err)
+    vim.notify(pre_start_command_err, vim.log.levels.ERROR)
+    state.opencode_server = nil
+    return promise:reject(pre_start_command_err)
+  end
 
   local function continue_startup()
     if connection == 'remote' then
-      local remote_url = runtime.remote_url
-      if type(remote_url) ~= 'string' or remote_url == '' then
-        local err = 'runtime.remote_url must be set when runtime.connection is "remote"'
+      local remote_url, remote_url_err = util.normalize_remote_url(runtime.remote_url)
+      if not remote_url then
+        local err = remote_url_err
         log.error(err)
         vim.notify(err, vim.log.levels.ERROR)
         state.opencode_server = nil

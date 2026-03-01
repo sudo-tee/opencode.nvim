@@ -430,18 +430,27 @@ end)
 
 M.opencode_ok = Promise.async(function()
   local runtime = config.runtime or {}
-  local connection = runtime.connection or 'spawn'
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    vim.notify(connection_err, vim.log.levels.ERROR)
+    return false
+  end
 
   if connection == 'remote' then
-    local remote_url = runtime.remote_url
-    if type(remote_url) ~= 'string' or remote_url == '' then
-      vim.notify('runtime.remote_url is required when runtime.connection is "remote"', vim.log.levels.ERROR)
+    local _, remote_url_err = util.normalize_remote_url(runtime.remote_url)
+    if remote_url_err then
+      vim.notify(remote_url_err, vim.log.levels.ERROR)
       return false
     end
     return true
   end
 
-  local runtime_cmd = util.get_runtime_command()
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    vim.notify(runtime_cmd_err, vim.log.levels.ERROR)
+    return false
+  end
+
   if vim.fn.executable(runtime_cmd[1]) == 0 then
     vim.notify(
       string.format(
@@ -454,7 +463,11 @@ M.opencode_ok = Promise.async(function()
   end
 
   if not state.opencode_cli_version or state.opencode_cli_version == '' then
-    local cmd = util.get_runtime_version_command()
+    local cmd, cmd_err = util.get_runtime_version_command()
+    if not cmd then
+      vim.notify(cmd_err, vim.log.levels.ERROR)
+      return false
+    end
     local result = Promise.system(cmd):await()
     local out = (result and result.stdout or ''):gsub('%s+$', '')
     state.opencode_cli_version = out:match('(%d+%%.%d+%%.%d+)') or out

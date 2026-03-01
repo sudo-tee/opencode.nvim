@@ -2,6 +2,12 @@ local server_job = require('opencode.server_job')
 local state = require('opencode.state')
 local util = require('opencode.util')
 
+local function encode_query_value(value)
+	return tostring(value):gsub('([^%w%-_%.~])', function(ch)
+		return string.format('%%%02X', string.byte(ch))
+	end)
+end
+
 --- @class OpencodeApiClient
 --- @field base_url string The base URL of the opencode server
 local OpencodeApiClient = {}
@@ -80,7 +86,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
 
 		for k, v in pairs(normalized_query) do
 			if v ~= nil then
-				table.insert(params, k .. '=' .. tostring(v))
+				table.insert(params, k .. '=' .. encode_query_value(v))
 			end
 		end
 
@@ -443,7 +449,7 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
 	local url = self.base_url .. '/event'
 	directory = util.to_server_path(directory)
 	if directory then
-		url = url .. '?directory=' .. directory
+		url = url .. '?directory=' .. encode_query_value(directory)
 	end
 
 	return server_job.stream_api(url, 'GET', nil, function(chunk)

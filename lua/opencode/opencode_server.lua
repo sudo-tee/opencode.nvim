@@ -1,7 +1,6 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
 local Promise = require('opencode.promise')
-local config = require('opencode.config')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -198,7 +197,12 @@ function OpencodeServer:spawn(opts)
     end
   end
 
-  local cmd = util.get_runtime_serve_command()
+  local cmd, cmd_err = util.get_runtime_serve_command()
+  if not cmd then
+    self.spawn_promise:reject(cmd_err)
+    safe_call(opts.on_error, cmd_err)
+    return self.spawn_promise
+  end
   local system_opts = {
     cwd = opts.cwd,
   }
@@ -270,7 +274,13 @@ function OpencodeServer:spawn(opts)
 
   self.handle = self.job and self.job.pid
 
-  local startup_timeout_ms = tonumber(config.runtime and config.runtime.startup_timeout_ms) or 15000
+  local startup_timeout_ms, timeout_err = util.get_runtime_startup_timeout_ms()
+  if not startup_timeout_ms then
+    self.spawn_promise:reject(timeout_err)
+    safe_call(opts.on_error, timeout_err)
+    return self.spawn_promise
+  end
+
   vim.defer_fn(function()
     if ready then
       return

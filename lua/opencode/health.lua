@@ -8,12 +8,19 @@ local function command_exists(cmd)
 end
 
 local function get_opencode_version()
-  local runtime_cmd = util.get_runtime_command()
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    return nil, runtime_cmd_err
+  end
+
   if not command_exists(runtime_cmd[1]) then
     return nil, 'opencode runtime command not found: ' .. tostring(runtime_cmd[1])
   end
 
-  local cmd = util.get_runtime_version_command()
+  local cmd, cmd_err = util.get_runtime_version_command()
+  if not cmd then
+    return nil, cmd_err
+  end
 
   local result = vim.system(cmd):wait()
   if result.code ~= 0 then
@@ -29,8 +36,11 @@ local function check_opencode_cli()
   health.start('OpenCode CLI')
 
   local config = require('opencode.config')
-  local runtime = config.runtime or {}
-  local connection = runtime.connection or 'spawn'
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    health.error(connection_err)
+    return
+  end
 
   if connection == 'remote' then
     health.info('CLI executable checks are skipped in remote runtime mode')
@@ -40,7 +50,12 @@ local function check_opencode_cli()
   local state = require('opencode.state')
   local required_version = state.required_version
 
-  local runtime_cmd = util.get_runtime_command()
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    health.error(runtime_cmd_err)
+    return
+  end
+
   if not command_exists(runtime_cmd[1]) then
     health.error('opencode runtime command not found', {
       'Install opencode CLI from: https://docs.opencode.com/installation',
@@ -73,20 +88,18 @@ local function check_opencode_server()
 
   local config = require('opencode.config')
   local runtime = config.runtime or {}
-  local connection = runtime.connection or 'spawn'
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    health.error(connection_err)
+    return
+  end
 
   if connection == 'remote' then
-    local remote_url = runtime.remote_url
-    if type(remote_url) ~= 'string' or remote_url == '' then
-      health.error('runtime.remote_url is required when runtime.connection is "remote"')
+    local normalized_remote_url, remote_url_err = util.normalize_remote_url(runtime.remote_url)
+    if not normalized_remote_url then
+      health.error(remote_url_err)
       return
     end
-
-    local normalized_remote_url = remote_url
-    if normalized_remote_url:match('^%d+%.%d+%.%d+%.%d+:%d+$') or normalized_remote_url:match('^localhost:%d+$') then
-      normalized_remote_url = 'http://' .. normalized_remote_url
-    end
-    normalized_remote_url = normalized_remote_url:gsub('/$', '')
 
     local server_job = require('opencode.server_job')
     local ok, result = pcall(function()

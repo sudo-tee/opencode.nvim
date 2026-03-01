@@ -509,6 +509,19 @@ describe('opencode.core', function()
       assert.is_false(core.opencode_ok():await())
     end)
 
+    it('returns false when runtime connection is invalid', function()
+      config.runtime.connection = 'invalid'
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
+    it('returns false in remote mode when remote_url is malformed', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = 'ftp://127.0.0.1:4096'
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
     it('returns true when runtime command is configured and executable exists', function()
       config.runtime.command = { 'wsl.exe', '-e', 'opencode' }
       vim.fn.executable = function(cmd)

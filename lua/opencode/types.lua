@@ -196,13 +196,27 @@
 ---@field level 'debug' | 'info' | 'warn' | 'error'
 ---@field outfile string|nil
 
+---@class OpencodeRuntimePathConfig
+---@field to_server? fun(path: string): string|nil
+---@field to_local? fun(path: string): string|nil
+
+---@class OpencodeRuntimeConfig
+---@field connection? 'spawn'|'remote' Runtime connection mode. 'spawn' launches a local process, 'remote' connects to an existing server URL
+---@field remote_url? string Remote server URL used when connection='remote'
+---@field pre_start_command? string[] Optional command executed before starting/connecting to the server
+---@field command string[] Base command used to run opencode
+---@field serve_args? string[] Arguments appended when starting the server (defaults to {'serve'})
+---@field version_args? string[] Arguments appended when checking CLI version (defaults to {'--version'})
+---@field startup_timeout_ms? integer Time to wait for server ready URL before failing startup (defaults to 15000)
+---@field path? OpencodeRuntimePathConfig
+
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
 ---@field default_global_keymaps boolean
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field default_system_prompt string | nil
 ---@field keymap_prefix string
----@field opencode_executable 'opencode' | string -- Command run for calling opencode
+---@field runtime OpencodeRuntimeConfig
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig
 ---@field context OpencodeContextConfig

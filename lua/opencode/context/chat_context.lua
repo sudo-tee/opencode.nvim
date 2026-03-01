@@ -19,6 +19,7 @@ M.context = {
 ---@return OpencodeMessagePart
 local function format_file_part(path, prompt)
   local rel_path = vim.fn.fnamemodify(path, ':~:.')
+  local server_path = util.to_server_path(path)
   local mention = '@' .. rel_path
   local pos = prompt and prompt:find(mention)
   pos = pos and pos - 1 or 0 -- convert to 0-based index
@@ -35,10 +36,10 @@ local function format_file_part(path, prompt)
     mime_type = 'image/webp'
   end
 
-  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }
+  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. server_path }
   if prompt then
     file_part.source = {
-      path = path,
+      path = server_path,
       type = 'file',
       text = { start = pos, value = mention, ['end'] = pos + #mention },
     }
@@ -50,6 +51,10 @@ end
 ---@return OpencodeMessagePart
 local function format_selection_part(selection)
   local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
+  local selection_file = selection.file and vim.deepcopy(selection.file) or nil
+  if selection_file and selection_file.path then
+    selection_file.path = util.to_server_path(selection_file.path)
+  end
 
   return {
     type = 'text',
@@ -58,7 +63,7 @@ local function format_selection_part(selection)
     },
     text = vim.json.encode({
       context_type = 'selection',
-      file = selection.file,
+      file = selection_file,
       content = string.format('`````%s\n%s\n`````', lang, selection.content),
       lines = selection.lines,
     }),

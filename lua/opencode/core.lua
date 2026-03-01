@@ -429,16 +429,46 @@ M.cancel = Promise.async(function()
 end)
 
 M.opencode_ok = Promise.async(function()
-  if vim.fn.executable(config.opencode_executable) == 0 then
+  local runtime = config.runtime or {}
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    vim.notify(connection_err, vim.log.levels.ERROR)
+    return false
+  end
+
+  if connection == 'remote' then
+    local _, remote_url_err = util.normalize_remote_url(runtime.remote_url)
+    if remote_url_err then
+      vim.notify(remote_url_err, vim.log.levels.ERROR)
+      return false
+    end
+    return true
+  end
+
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    vim.notify(runtime_cmd_err, vim.log.levels.ERROR)
+    return false
+  end
+
+  if vim.fn.executable(runtime_cmd[1]) == 0 then
     vim.notify(
-      'opencode command not found - please install and configure opencode before using this plugin',
+      string.format(
+        "opencode runtime command not found: %s - please install and configure opencode before using this plugin",
+        tostring(runtime_cmd[1])
+      ),
       vim.log.levels.ERROR
     )
     return false
   end
 
   if not state.opencode_cli_version or state.opencode_cli_version == '' then
-    local result = Promise.system({ config.opencode_executable, '--version' }):await()
+    local cmd, cmd_err = util.get_runtime_version_command()
+    if not cmd then
+      vim.notify(cmd_err, vim.log.levels.ERROR)
+      return false
+    end
+    local result = Promise.system(cmd):await()
     local out = (result and result.stdout or ''):gsub('%s+$', '')
     state.opencode_cli_version = out:match('(%d+%%.%d+%%.%d+)') or out
   end

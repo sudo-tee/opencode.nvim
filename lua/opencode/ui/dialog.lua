@@ -311,7 +311,9 @@ function Dialog:_setup_keymaps()
       if key and key ~= '' then
         vim.keymap.set('n', key, function()
           self:navigate(-1)
-        end, keymap_opts)
+        end, vim.tbl_extend('force', keymap_opts, {
+          desc = 'Dialog: navigate up',
+        }))
         table.insert(self._keymaps, key)
       end
     end
@@ -322,7 +324,9 @@ function Dialog:_setup_keymaps()
       if key and key ~= '' then
         vim.keymap.set('n', key, function()
           self:navigate(1)
-        end, keymap_opts)
+        end, vim.tbl_extend('force', keymap_opts, {
+          desc = 'Dialog: navigate down',
+        }))
         table.insert(self._keymaps, key)
       end
     end
@@ -331,14 +335,18 @@ function Dialog:_setup_keymaps()
   if keymaps.select and keymaps.select ~= '' then
     vim.keymap.set('n', keymaps.select, function()
       self:select()
-    end, keymap_opts)
+    end, vim.tbl_extend('force', keymap_opts, {
+      desc = 'Dialog: select option',
+    }))
     table.insert(self._keymaps, keymaps.select)
   end
 
   if keymaps.dismiss and keymaps.dismiss ~= '' then
     vim.keymap.set('n', keymaps.dismiss, function()
       self:dismiss()
-    end, keymap_opts)
+    end, vim.tbl_extend('force', keymap_opts, {
+      desc = 'Dialog: dismiss',
+    }))
     table.insert(self._keymaps, keymaps.dismiss)
   end
 
@@ -353,7 +361,9 @@ function Dialog:_setup_keymaps()
         end
         self._selected_index = i
         self._config.on_select(i)
-      end, number_keymap_opts)
+      end, vim.tbl_extend('force', number_keymap_opts, {
+        desc = 'Dialog: select option ' .. key,
+      }))
       table.insert(self._keymaps, key)
     end
   end

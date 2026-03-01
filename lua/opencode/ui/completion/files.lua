@@ -1,4 +1,5 @@
 local config = require('opencode.config')
+local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
 local M = {}
@@ -21,13 +22,21 @@ local function run_systemlist(cmd)
   return ok and vim.v.shell_error == 0 and result or nil
 end
 
+---@param paths string[]
+---@return string[]
+local function normalize_paths(paths)
+  return vim.tbl_map(function(path)
+    return util.to_local_path(path) or path
+  end, paths)
+end
+
 local function try_tool(tool, args, pattern, max, ignore_patterns)
   if type(args) == 'function' then
     local promise = args(pattern, max)
     local result = promise and promise.and_then and promise:wait()
 
     if result and type(result) == 'table' then
-      return vim.tbl_filter(should_keep(ignore_patterns), result)
+      return vim.tbl_filter(should_keep(ignore_patterns), normalize_paths(result))
     end
   end
 
@@ -35,7 +44,7 @@ local function try_tool(tool, args, pattern, max, ignore_patterns)
     pattern = vim.fn.shellescape(pattern) or '.'
     local result = run_systemlist(tool .. string.format(args, pattern, max))
     if result then
-      return vim.tbl_filter(should_keep(ignore_patterns), result)
+      return vim.tbl_filter(should_keep(ignore_patterns), normalize_paths(result))
     end
   end
   return nil
@@ -166,7 +175,8 @@ M.get_recent_files = Promise.async(function()
   if result then
     for _, file in ipairs(result) do
       local suffix = table.concat({ file.added and '+' .. file.added, file.removed and '-' .. file.removed }, ' ')
-      table.insert(recent_files, create_file_item(file.path, ' ' .. suffix, 20))
+      local local_path = util.to_local_path(file.path) or file.path
+      table.insert(recent_files, create_file_item(local_path, ' ' .. suffix, 20))
     end
   end
   return recent_files

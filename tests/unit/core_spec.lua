@@ -1,5 +1,6 @@
 local core = require('opencode.core')
 local config_file = require('opencode.config_file')
+local config = require('opencode.config')
 local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local session = require('opencode.session')
@@ -452,6 +453,7 @@ describe('opencode.core', function()
   describe('opencode_ok (version checks)', function()
     local original_system
     local original_executable
+    local original_runtime
     local saved_cli
 
     local function mock_vim_system(result)
@@ -472,6 +474,7 @@ describe('opencode.core', function()
     before_each(function()
       original_system = vim.system
       original_executable = vim.fn.executable
+      original_runtime = vim.deepcopy(config.runtime)
       saved_cli = state.opencode_cli_version
     end)
 
@@ -479,6 +482,7 @@ describe('opencode.core', function()
       vim.system = original_system
       vim.fn.executable = original_executable
       state.opencode_cli_version = saved_cli
+      config.runtime = original_runtime
     end)
 
     it('returns false when opencode executable is missing', function()
@@ -486,6 +490,69 @@ describe('opencode.core', function()
         return 0
       end
       assert.is_false(core.opencode_ok():await())
+    end)
+
+    it('returns true in remote runtime mode without local executable', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = 'http://127.0.0.1:4096'
+      vim.fn.executable = function(_)
+        return 0
+      end
+
+      assert.is_true(core.opencode_ok():await())
+    end)
+
+    it('returns false in remote runtime mode when remote_url is missing', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = nil
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
+    it('returns false when runtime connection is invalid', function()
+      config.runtime.connection = 'invalid'
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
+    it('returns false in remote mode when remote_url is malformed', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = 'ftp://127.0.0.1:4096'
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
+    it('returns true when runtime command is configured and executable exists', function()
+      config.runtime.command = { 'wsl.exe', '-e', 'opencode' }
+      vim.fn.executable = function(cmd)
+        if cmd == 'wsl.exe' then
+          return 1
+        end
+        return 0
+      end
+      vim.system = mock_vim_system({ stdout = 'opencode 0.6.3' })
+      state.opencode_cli_version = nil
+      state.required_version = '0.6.3'
+      assert.is_true(core.opencode_ok():await())
+    end)
+
+    it('checks the first runtime command token for executability', function()
+      config.runtime.command = { 'custom-opencode' }
+      local checked = {}
+      vim.fn.executable = function(cmd)
+        checked[cmd] = true
+        if cmd == config.runtime.command[1] then
+          return 1
+        end
+        return 0
+      end
+
+      vim.system = mock_vim_system({ stdout = 'opencode 0.6.3' })
+      state.opencode_cli_version = nil
+      state.required_version = '0.6.3'
+
+      assert.is_true(core.opencode_ok():await())
+      assert.is_true(checked[config.runtime.command[1]] == true)
     end)
 
     it('returns false when version is below required', function()

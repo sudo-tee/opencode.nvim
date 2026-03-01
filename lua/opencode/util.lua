@@ -1,4 +1,5 @@
 local Path = require('plenary.path')
+local config = require('opencode.config')
 local M = {}
 
 function M.uid()
@@ -442,6 +443,276 @@ function M.pcall_trace(fn, ...)
   return xpcall(fn, function(err)
     return debug.traceback(err, 2)
   end, ...)
+end
+
+local function append_args(base, extra)
+  if type(extra) ~= 'table' then
+    return base
+  end
+
+  for _, arg in ipairs(extra) do
+    table.insert(base, tostring(arg))
+  end
+
+  return base
+end
+
+local function normalize_string_array(value, name, opts)
+  opts = opts or {}
+
+  if value == nil then
+    if opts.default then
+      return vim.deepcopy(opts.default), nil
+    end
+    return nil, nil
+  end
+
+  if type(value) ~= 'table' then
+    return nil, string.format('%s must be an array of strings', name)
+  end
+
+  if #value == 0 then
+    if opts.allow_empty then
+      return {}, nil
+    end
+    return nil, string.format('%s must be a non-empty array of strings', name)
+  end
+
+  local result = {}
+  for i, arg in ipairs(value) do
+    if type(arg) ~= 'string' then
+      return nil, string.format('%s[%d] must be a string', name, i)
+    end
+
+    local trimmed = vim.trim(arg)
+    if trimmed == '' then
+      return nil, string.format('%s[%d] cannot be empty', name, i)
+    end
+
+    table.insert(result, trimmed)
+  end
+
+  return result, nil
+end
+
+---@return 'spawn'|'remote'|nil, string|nil
+function M.get_runtime_connection()
+  local runtime = config.runtime or {}
+  local connection = runtime.connection
+
+  if connection == nil then
+    return 'spawn', nil
+  end
+
+  if type(connection) ~= 'string' then
+    return nil, "runtime.connection must be 'spawn' or 'remote'"
+  end
+
+  connection = vim.trim(connection)
+  if connection ~= 'spawn' and connection ~= 'remote' then
+    return nil, "runtime.connection must be 'spawn' or 'remote'"
+  end
+
+  return connection, nil
+end
+
+---@param remote_url any
+---@return string|nil normalized_url
+---@return string|nil err
+function M.normalize_remote_url(remote_url)
+  if type(remote_url) ~= 'string' then
+    return nil, 'runtime.remote_url must be a non-empty string when runtime.connection is "remote"'
+  end
+
+  local normalized = vim.trim(remote_url)
+  if normalized == '' then
+    return nil, 'runtime.remote_url must be a non-empty string when runtime.connection is "remote"'
+  end
+
+  normalized = normalized:gsub('/+$', '')
+
+  if normalized:match('^%d+%.%d+%.%d+%.%d+:%d+$') or normalized:match('^localhost:%d+$') then
+    normalized = 'http://' .. normalized
+  end
+
+  normalized = normalized:gsub('/$', '')
+
+  if normalized:find('%s') then
+    return nil, 'runtime.remote_url cannot contain whitespace'
+  end
+
+  if not normalized:match('^https?://[^/%s]+') then
+    return nil, 'runtime.remote_url must be a valid http(s) URL (example: http://127.0.0.1:4096)'
+  end
+
+  return normalized, nil
+end
+
+---@return string[]
+function M.get_runtime_command()
+  local runtime = config.runtime or {}
+  local cmd, err = normalize_string_array(runtime.command, 'runtime.command', {
+    default = { 'opencode' },
+    allow_empty = false,
+  })
+  return cmd, err
+end
+
+---@return string[]|nil
+---@return string|nil
+function M.get_runtime_serve_command()
+  local runtime = config.runtime or {}
+  local base, base_err = M.get_runtime_command()
+  if not base then
+    return nil, base_err
+  end
+
+  local args, args_err = normalize_string_array(runtime.serve_args, 'runtime.serve_args', {
+    default = { 'serve' },
+    allow_empty = true,
+  })
+  if not args then
+    return nil, args_err
+  end
+
+  return append_args(base, args), nil
+end
+
+---@return string[]|nil
+---@return string|nil
+function M.get_runtime_version_command()
+  local runtime = config.runtime or {}
+  local base, base_err = M.get_runtime_command()
+  if not base then
+    return nil, base_err
+  end
+
+  local args, args_err = normalize_string_array(runtime.version_args, 'runtime.version_args', {
+    default = { '--version' },
+    allow_empty = true,
+  })
+  if not args then
+    return nil, args_err
+  end
+
+  return append_args(base, args), nil
+end
+
+---@return string[]|nil
+---@return string|nil
+function M.get_runtime_pre_start_command()
+  local runtime = config.runtime or {}
+  local cmd, err = normalize_string_array(runtime.pre_start_command, 'runtime.pre_start_command', {
+    allow_empty = true,
+  })
+
+  if not cmd or #cmd == 0 then
+    return nil, err
+  end
+
+  return cmd, nil
+end
+
+---@return integer|nil
+---@return string|nil
+function M.get_runtime_startup_timeout_ms()
+  local runtime = config.runtime or {}
+  local value = runtime.startup_timeout_ms
+
+  if value == nil then
+    return 15000, nil
+  end
+
+  if type(value) ~= 'number' then
+    return nil, 'runtime.startup_timeout_ms must be a positive integer'
+  end
+
+  if value <= 0 then
+    return nil, 'runtime.startup_timeout_ms must be greater than 0'
+  end
+
+  return math.floor(value), nil
+end
+
+local function get_path_transform(direction)
+  local runtime = config.runtime
+  if type(runtime) ~= 'table' then
+    return nil
+  end
+
+  local path_cfg = runtime.path
+  if type(path_cfg) ~= 'table' then
+    return nil
+  end
+
+  local transform = path_cfg[direction]
+  if type(transform) ~= 'function' then
+    return nil
+  end
+
+  return transform
+end
+
+---Convert a Windows path (C:\foo\bar) to a WSL mount path (/mnt/c/foo/bar).
+---Returns normalized forward-slash path for non-drive paths.
+---@param path string
+---@return string|nil
+function M.to_wsl_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local normalized = path:gsub('\\', '/')
+  local drive, rest = normalized:match('^(%a):(/.*)$')
+  if drive then
+    return string.format('/mnt/%s%s', drive:lower(), rest)
+  end
+
+  return normalized
+end
+
+---Map a local path into the format expected by the opencode server.
+---@param path string
+---@return string|nil
+function M.to_server_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local transform = get_path_transform('to_server')
+  if transform then
+    local ok, transformed = pcall(transform, path)
+    if ok and transformed ~= nil then
+      if type(transformed) == 'string' then
+        return transformed
+      end
+      vim.notify('runtime.path.to_server must return a string path', vim.log.levels.WARN)
+    end
+  end
+
+  return path
+end
+
+---Map a server path into the local path format used by Neovim.
+---@param path string
+---@return string|nil
+function M.to_local_path(path)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+
+  local transform = get_path_transform('to_local')
+  if transform then
+    local ok, transformed = pcall(transform, path)
+    if ok and transformed ~= nil then
+      if type(transformed) == 'string' then
+        return transformed
+      end
+      vim.notify('runtime.path.to_local must return a string path', vim.log.levels.WARN)
+    end
+  end
+
+  return path
 end
 
 function M.is_path_in_cwd(path)

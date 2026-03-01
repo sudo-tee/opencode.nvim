@@ -1,7 +1,6 @@
 local M = {}
 
 local health = vim.health or require('health')
-local config = require('opencode.config')
 local util = require('opencode.util')
 
 local function command_exists(cmd)
@@ -9,11 +8,21 @@ local function command_exists(cmd)
 end
 
 local function get_opencode_version()
-  if not command_exists(config.opencode_executable) then
-    return nil, 'opencode command not found'
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    return nil, runtime_cmd_err
   end
 
-  local result = vim.system({ config.opencode_executable, '--version' }):wait()
+  if not command_exists(runtime_cmd[1]) then
+    return nil, 'opencode runtime command not found: ' .. tostring(runtime_cmd[1])
+  end
+
+  local cmd, cmd_err = util.get_runtime_version_command()
+  if not cmd then
+    return nil, cmd_err
+  end
+
+  local result = vim.system(cmd):wait()
   if result.code ~= 0 then
     return nil, 'Failed to get opencode version: ' .. (result.stderr or 'unknown error')
   end
@@ -26,18 +35,36 @@ end
 local function check_opencode_cli()
   health.start('OpenCode CLI')
 
-  local state = require('opencode.state')
-  local required_version = state.required_version
-
-  if not command_exists(config.opencode_executable) then
-    health.error('opencode command not found', {
-      'Install opencode CLI from: https://docs.opencode.com/installation',
-      'Ensure opencode is in your PATH',
-    })
+  local config = require('opencode.config')
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    health.error(connection_err)
     return
   end
 
-  health.ok('opencode command found')
+  if connection == 'remote' then
+    health.info('CLI executable checks are skipped in remote runtime mode')
+    return
+  end
+
+  local state = require('opencode.state')
+  local required_version = state.required_version
+
+  local runtime_cmd, runtime_cmd_err = util.get_runtime_command()
+  if not runtime_cmd then
+    health.error(runtime_cmd_err)
+    return
+  end
+
+  if not command_exists(runtime_cmd[1]) then
+    health.error('opencode runtime command not found', {
+      'Install opencode CLI from: https://docs.opencode.com/installation',
+      string.format('Ensure %s is in your PATH', tostring(runtime_cmd[1])),
+    })
+    return
+  else
+    health.ok(string.format('opencode runtime command found: %s', tostring(runtime_cmd[1])))
+  end
 
   local version, err = get_opencode_version()
   if not version then
@@ -58,6 +85,41 @@ end
 
 local function check_opencode_server()
   health.start('OpenCode Server')
+
+  local config = require('opencode.config')
+  local runtime = config.runtime or {}
+  local connection, connection_err = util.get_runtime_connection()
+  if not connection then
+    health.error(connection_err)
+    return
+  end
+
+  if connection == 'remote' then
+    local normalized_remote_url, remote_url_err = util.normalize_remote_url(runtime.remote_url)
+    if not normalized_remote_url then
+      health.error(remote_url_err)
+      return
+    end
+
+    local server_job = require('opencode.server_job')
+    local ok, result = pcall(function()
+      return server_job.call_api(normalized_remote_url .. '/config', 'GET', nil):wait()
+    end)
+
+    if not ok then
+      health.error('Failed to connect to remote opencode server: ' .. tostring(result))
+      return
+    end
+
+    health.ok('Remote opencode server is reachable at ' .. normalized_remote_url)
+    if result and result['$schema'] then
+      health.ok('opencode server configuration available')
+    else
+      health.warn('opencode server responded but configuration schema was not detected')
+    end
+    return
+  end
+
   local opencode_server = require('opencode.opencode_server').new()
   local server = opencode_server:spawn():wait() --[[@as OpencodeServer]]
   if server and server.url then

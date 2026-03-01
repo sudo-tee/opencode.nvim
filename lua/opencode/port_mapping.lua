@@ -1,7 +1,7 @@
-local curl = require('opencode.curl')
 local log = require('opencode.log')
 local config = require('opencode.config')
 local util = require('opencode.util')
+local OpencodeServer = require('opencode.opencode_server')
 
 local M = {}
 
@@ -59,53 +59,19 @@ end
 
 --- Fire-and-forget graceful shutdown request to a server with no clients.
 --- Also force-kills the process if server_pid is available.
---- Uses direct process signals via vim.uv.kill which works cross-platform.
 --- @param port number
 --- @param server_pid number|nil
 local function kill_orphaned_server(port, server_pid)
   local server_url = config.server.url or '127.0.0.1'
   local normalized_url = util.normalize_url_protocol(server_url)
   local base_url = string.format('%s:%d', normalized_url, port)
-  local shutdown_url = base_url .. '/global/shutdown'
-  
+
   log.info('port_mapping: sending shutdown to orphaned server at %s (server_pid=%s)', base_url, tostring(server_pid))
-  
-  -- First attempt graceful shutdown via API (already async via curl.request)
-  pcall(function()
-    curl.request({
-      url = shutdown_url,
-      method = 'POST',
-      timeout = 1000,
-      proxy = '',
-      callback = function(response)
-        if response and response.status >= 200 and response.status < 300 then
-          log.debug('port_mapping: graceful shutdown successful for %s', base_url)
-        end
-      end,
-      on_error = function(err)
-        log.debug('port_mapping: shutdown request failed for %s: %s', base_url, vim.inspect(err))
-      end,
-    })
-  end)
-  
-  -- If we have a server PID, kill it directly using vim.uv.kill (cross-platform)
+
+  OpencodeServer.request_graceful_shutdown(base_url)
+
   if server_pid then
-    -- Kill child processes first
-    local ok, children = pcall(vim.api.nvim_get_proc_children, server_pid)
-    if ok and children and #children > 0 then
-      log.debug('port_mapping: server pid=%d has %d children, killing them', server_pid, #children)
-      for _, child_pid in ipairs(children) do
-        pcall(vim.uv.kill, child_pid, 9) -- SIGKILL children immediately
-      end
-    end
-    
-    -- Kill the main server process with SIGTERM first, then SIGKILL
-    pcall(vim.uv.kill, server_pid, 15) -- SIGTERM
-    log.debug('port_mapping: sent SIGTERM to server pid=%d', server_pid)
-    
-    -- SIGKILL as backup - can't use vim.defer_fn during shutdown, so just send it immediately
-    pcall(vim.uv.kill, server_pid, 9) -- SIGKILL
-    log.debug('port_mapping: sent SIGKILL to server pid=%d', server_pid)
+    OpencodeServer.kill_pid(server_pid)
   else
     log.debug('port_mapping: no server PID available, relying on graceful shutdown only')
   end
@@ -281,19 +247,24 @@ function M.unregister(port, server)
   local should_shutdown = #remaining == 0 and mapping.started_by_nvim and mapping.auto_kill
 
   if server then
-    if server.mode == 'attach' or should_shutdown then
-      log.debug('port_mapping.unregister: shutting down server for port %d', port)
-      -- Pass the server_pid to shutdown so it can kill the process even for custom servers
-      if should_shutdown and mapping.server_pid and not server.job then
-        -- Custom server (no job) but we have tracked PID - kill it directly
-        log.debug('port_mapping.unregister: custom server with tracked PID, killing orphaned server')
+    local is_last_client = #remaining == 0 and mapping.started_by_nvim
+    if server.mode == 'attach' then
+      if is_last_client then
+        log.debug('port_mapping.unregister: last attached client for port %d, killing server', port)
+        if mapping.server_pid then
+          kill_orphaned_server(port, mapping.server_pid)
+        end
+      end
+    elseif is_last_client then
+      log.debug('port_mapping.unregister: last nvim instance for port %d, killing orphaned server', port)
+      if server.job then
+        server:shutdown()
+      elseif mapping.server_pid then
         kill_orphaned_server(port, mapping.server_pid)
       end
-      server:shutdown()
     end
   elseif should_shutdown then
-    -- No server object available, kill directly using tracked PID
-    log.debug('port_mapping.unregister: last nvim instance for port %d, killing orphaned server', port)
+    log.debug('port_mapping.unregister: no server object, killing orphaned server for port %d', port)
     kill_orphaned_server(port, mapping.server_pid)
   end
 
@@ -319,7 +290,7 @@ end
 function M.find_any_existing_port()
   clean_stale()
   local mappings = load()
-  
+
   for port_key, mapping in pairs(mappings) do
     if mapping.nvim_pids and #mapping.nvim_pids > 0 then
       local port = tonumber(port_key)
@@ -328,7 +299,7 @@ function M.find_any_existing_port()
       end
     end
   end
-  
+
   return nil
 end
 

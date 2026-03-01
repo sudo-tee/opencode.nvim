@@ -2,6 +2,7 @@ local util = require('opencode.util')
 local safe_call = util.safe_call
 local Promise = require('opencode.promise')
 local config = require('opencode.config')
+local curl = require('opencode.curl')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -89,88 +90,113 @@ local function kill_process(pid, signal, desc)
   return ok, err
 end
 
-function OpencodeServer:shutdown()
+local function shutdown_custom_server(server)
   local log = require('opencode.log')
+  if config.server.kill_command and config.server.auto_kill and server.port then
+    log.debug('shutdown: custom server, executing kill_command for port %d (auto_kill=true)', server.port)
+    local ok, result = pcall(config.server.kill_command, server.port, config.server.url or '127.0.0.1')
+    if not ok then
+      log.error('shutdown: kill_command failed: %s', vim.inspect(result))
+      vim.schedule(function()
+        vim.notify(
+          string.format('[opencode.nvim] Failed to execute kill_command: %s', tostring(result)),
+          vim.log.levels.WARN
+        )
+      end)
+    else
+      log.debug('shutdown: kill_command executed successfully for port %d', server.port)
+    end
+  else
+    if config.server.kill_command and not config.server.auto_kill then
+      log.debug('shutdown: custom server, skipping kill_command (auto_kill=false)')
+    else
+      log.debug('shutdown: custom server, clearing URL only (no kill_command configured)')
+    end
+  end
+
+  server.url = nil
+  server.handle = nil
+  server.shutdown_promise:resolve(true)
+end
+
+--- Kill a process tree by PID (children first, then parent).
+--- SIGTERM is sent first, then SIGKILL immediately after as a backup.
+--- @param pid number
+function OpencodeServer.kill_pid(pid)
+  local log = require('opencode.log')
+
+  local ok, children = pcall(vim.api.nvim_get_proc_children, pid)
+  if ok and children and #children > 0 then
+    log.debug('kill_pid: pid=%d has %d children (%s)', pid, #children, vim.inspect(children))
+    for _, cid in ipairs(children) do
+      kill_process(cid, 15, 'SIGTERM child')
+      vim.uv.sleep(100)
+      kill_process(cid, 9, 'SIGKILL child')
+    end
+  end
+
+  kill_process(pid, 15, 'SIGTERM')
+  vim.uv.sleep(100)
+  kill_process(pid, 9, 'SIGKILL')
+end
+
+--- Fire-and-forget POST to /global/shutdown on the given base URL.
+--- @param base_url string e.g. "http://127.0.0.1:3000"
+function OpencodeServer.request_graceful_shutdown(base_url)
+  local log = require('opencode.log')
+  local shutdown_url = base_url .. '/global/shutdown'
+  log.info('request_graceful_shutdown: POST %s', shutdown_url)
+  pcall(function()
+    curl.request({
+      url = shutdown_url,
+      method = 'POST',
+      timeout = 1000,
+      proxy = '',
+      callback = function(response)
+        if response and response.status >= 200 and response.status < 300 then
+          log.debug('request_graceful_shutdown: success for %s', base_url)
+        end
+      end,
+      on_error = function(err)
+        log.debug('request_graceful_shutdown: failed for %s: %s', base_url, vim.inspect(err))
+      end,
+    })
+  end)
+end
+
+local function shutdown_local_server(server)
+  local log = require('opencode.log')
+  if not server.job.pid then
+    log.debug('shutdown: no job running')
+    server.job = nil
+    server.url = nil
+    server.handle = nil
+    server.shutdown_promise:resolve(true)
+    return
+  end
+
+  ---@cast server.job vim.SystemObj
+  OpencodeServer.kill_pid(server.job.pid)
+
+  server.job = nil
+  server.url = nil
+  server.handle = nil
+  server.shutdown_promise:resolve(true)
+end
+
+function OpencodeServer:shutdown()
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
   end
 
+  local config = require('opencode.config')
+
   if not self.job then
-    local config = require('opencode.config')
-    if config.server.kill_command and config.server.auto_kill and self.port then
-      log.debug('shutdown: custom server, executing kill_command for port %d (auto_kill=true)', self.port)
-      local ok, result = pcall(config.server.kill_command, self.port, config.server.url or '127.0.0.1')
-      if not ok then
-        log.error('shutdown: kill_command failed: %s', vim.inspect(result))
-        vim.schedule(function()
-          vim.notify(
-            string.format('[opencode.nvim] Failed to execute kill_command: %s', tostring(result)),
-            vim.log.levels.WARN
-          )
-        end)
-      else
-        log.debug('shutdown: kill_command executed successfully for port %d', self.port)
-      end
-    else
-      if config.server.kill_command and not config.server.auto_kill then
-        log.debug('shutdown: custom server, skipping kill_command (auto_kill=false)')
-      else
-        log.debug('shutdown: custom server, clearing URL only (no kill_command configured)')
-      end
-    end
-
-    self.url = nil
-    self.handle = nil
-    self.shutdown_promise:resolve(true)
-    return self.shutdown_promise
-  end
-
-  if self.job.pid then
-    ---@cast self.job vim.SystemObj
-    local pid = self.job.pid
-
-    if self.url then
-      local curl = require('opencode.curl')
-      local shutdown_url = self.url .. '/global/shutdown'
-      log.debug('shutdown: attempting graceful shutdown via API: %s', shutdown_url)
-
-      pcall(function()
-        curl.request({
-          url = shutdown_url,
-          method = 'POST',
-          timeout = 1000,
-          proxy = '',
-          callback = function() end,
-          on_error = function() end,
-        })
-      end)
-
-      vim.uv.sleep(500)
-    end
-
-    local children = vim.api.nvim_get_proc_children(pid)
-
-    if #children > 0 then
-      log.debug('shutdown: process pid=%d has %d children (%s)', pid, #children, vim.inspect(children))
-
-      for _, cid in ipairs(children) do
-        kill_process(cid, 15, 'SIGTERM child')
-        vim.uv.sleep(100)
-        kill_process(cid, 9, 'SIGKILL child')
-      end
-    end
-
-    kill_process(pid, 15, 'SIGTERM')
-    vim.uv.sleep(100)
-    kill_process(pid, 9, 'SIGKILL')
+    shutdown_custom_server(self, config)
   else
-    log.debug('shutdown: no job running')
+    shutdown_local_server(self)
   end
 
-  self.job = nil
-  self.url = nil
-  self.handle = nil
-  self.shutdown_promise:resolve(true)
   return self.shutdown_promise
 end
 

@@ -1,13 +1,17 @@
 local OpencodeServer = require('opencode.opencode_server')
+local curl = require('opencode.curl')
 local assert = require('luassert')
 
 describe('opencode.opencode_server', function()
   local original_system
+  local original_curl_request
   before_each(function()
     original_system = vim.system
+    original_curl_request = curl.request
   end)
   after_each(function()
     vim.system = original_system
+    curl.request = original_curl_request
   end)
   -- Tests for server lifecycle behavior
 
@@ -233,6 +237,84 @@ describe('opencode.opencode_server', function()
       assert.is_nil(server.url)
       assert.is_nil(server.handle)
       assert.is_nil(server.job) -- Should remain nil, no process was killed
+    end)
+  end)
+
+  describe('kill_pid', function()
+    it('sends SIGTERM then SIGKILL to the given pid', function()
+      local killed = {}
+      local original_kill = vim.uv.kill
+      vim.uv.kill = function(pid, signal)
+        table.insert(killed, { pid = pid, signal = signal })
+        return true
+      end
+      local original_children = vim.api.nvim_get_proc_children
+      vim.api.nvim_get_proc_children = function(_)
+        return {}
+      end
+
+      OpencodeServer.kill_pid(42)
+
+      vim.uv.kill = original_kill
+      vim.api.nvim_get_proc_children = original_children
+
+      assert.equals(2, #killed)
+      assert.same({ pid = 42, signal = 15 }, killed[1])
+      assert.same({ pid = 42, signal = 9 }, killed[2])
+    end)
+
+    it('kills children before the parent', function()
+      local kill_order = {}
+      local original_kill = vim.uv.kill
+      vim.uv.kill = function(pid, signal)
+        table.insert(kill_order, { pid = pid, signal = signal })
+        return true
+      end
+      local original_children = vim.api.nvim_get_proc_children
+      vim.api.nvim_get_proc_children = function(_)
+        return { 10, 11 }
+      end
+
+      OpencodeServer.kill_pid(99)
+
+      vim.uv.kill = original_kill
+      vim.api.nvim_get_proc_children = original_children
+
+      -- children (SIGTERM+SIGKILL each) then parent (SIGTERM+SIGKILL)
+      assert.equals(6, #kill_order)
+      assert.same({ pid = 10, signal = 15 }, kill_order[1])
+      assert.same({ pid = 10, signal = 9 }, kill_order[2])
+      assert.same({ pid = 11, signal = 15 }, kill_order[3])
+      assert.same({ pid = 11, signal = 9 }, kill_order[4])
+      assert.same({ pid = 99, signal = 15 }, kill_order[5])
+      assert.same({ pid = 99, signal = 9 }, kill_order[6])
+    end)
+  end)
+
+  describe('request_graceful_shutdown', function()
+    it('POSTs to /global/shutdown on the given base URL', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.is_not_nil(captured)
+      assert.equals('http://127.0.0.1:3000/global/shutdown', captured.url)
+      assert.equals('POST', captured.method)
+    end)
+
+    it('sets a short timeout and empty proxy', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.equals(1000, captured.timeout)
+      assert.equals('', captured.proxy)
     end)
   end)
 end)

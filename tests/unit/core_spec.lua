@@ -492,6 +492,23 @@ describe('opencode.core', function()
       assert.is_false(core.opencode_ok():await())
     end)
 
+    it('returns true in remote runtime mode without local executable', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = 'http://127.0.0.1:4096'
+      vim.fn.executable = function(_)
+        return 0
+      end
+
+      assert.is_true(core.opencode_ok():await())
+    end)
+
+    it('returns false in remote runtime mode when remote_url is missing', function()
+      config.runtime.connection = 'remote'
+      config.runtime.remote_url = nil
+
+      assert.is_false(core.opencode_ok():await())
+    end)
+
     it('returns true when runtime command is configured and executable exists', function()
       config.runtime.command = { 'wsl.exe', '-e', 'opencode' }
       vim.fn.executable = function(cmd)

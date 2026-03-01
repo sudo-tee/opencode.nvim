@@ -3,6 +3,8 @@ local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 local log = require('opencode.log')
+local config = require('opencode.config')
+local util = require('opencode.util')
 
 local M = {}
 M.requests = {}
@@ -136,29 +138,76 @@ end
 --- @return Promise<OpencodeServer> promise A promise that resolves with the server instance
 function M.ensure_server()
   local promise = Promise.new()
+  local runtime = config.runtime or {}
+  local connection = runtime.connection or 'spawn'
 
   if state.opencode_server and state.opencode_server:is_running() then
     return promise:resolve(state.opencode_server)
   end
 
   state.opencode_server = opencode_server.new()
-
   local cwd = vim.fn.getcwd()
-  state.opencode_server:spawn({
-    cwd = cwd,
-    on_ready = function(_, base_url)
-      promise:resolve(state.opencode_server)
-    end,
-    on_error = function(err)
-      local err_msg = type(err) == 'string' and err or vim.inspect(err)
-      log.error('Error starting opencode server: ' .. err_msg)
-      vim.notify('Failed to start opencode server: ' .. err_msg, vim.log.levels.ERROR)
+  local pre_start_command = util.get_runtime_pre_start_command()
+
+  local function continue_startup()
+    if connection == 'remote' then
+      local remote_url = runtime.remote_url
+      if type(remote_url) ~= 'string' or remote_url == '' then
+        local err = 'runtime.remote_url must be set when runtime.connection is "remote"'
+        log.error(err)
+        vim.notify(err, vim.log.levels.ERROR)
+        state.opencode_server = nil
+        return promise:reject(err)
+      end
+
+      state.opencode_server:connect(remote_url)
+
+      M.call_api(state.opencode_server.url .. '/config', 'GET', nil)
+        :and_then(function()
+          promise:resolve(state.opencode_server)
+        end)
+        :catch(function(err)
+          local err_msg = type(err) == 'string' and err or vim.inspect(err)
+          log.error('Error connecting to remote opencode server: ' .. err_msg)
+          vim.notify('Failed to connect to remote opencode server: ' .. err_msg, vim.log.levels.ERROR)
+          state.opencode_server = nil
+          promise:reject(err)
+        end)
+
+      return
+    end
+
+    state.opencode_server:spawn({
+      cwd = cwd,
+      on_ready = function(_, base_url)
+        promise:resolve(state.opencode_server)
+      end,
+      on_error = function(err)
+        local err_msg = type(err) == 'string' and err or vim.inspect(err)
+        log.error('Error starting opencode server: ' .. err_msg)
+        vim.notify('Failed to start opencode server: ' .. err_msg, vim.log.levels.ERROR)
+        promise:reject(err)
+      end,
+      on_exit = function(exit_opts)
+        promise:reject('Server exited')
+      end,
+    })
+  end
+
+  if pre_start_command then
+    Promise.system(pre_start_command, { cwd = cwd }):and_then(function()
+      continue_startup()
+    end):catch(function(err)
+      local err_msg = (type(err) == 'table' and (err.stderr or err.stdout)) or tostring(err)
+      log.error('Error running runtime.pre_start_command: ' .. tostring(err_msg))
+      vim.notify('Failed to run runtime.pre_start_command: ' .. tostring(err_msg), vim.log.levels.ERROR)
+      state.opencode_server = nil
       promise:reject(err)
-    end,
-    on_exit = function(exit_opts)
-      promise:reject('Server exited')
-    end,
-  })
+    end)
+    return promise
+  end
+
+  continue_startup()
 
   return promise
 end

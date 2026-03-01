@@ -120,6 +120,9 @@ require('opencode').setup({
   default_system_prompt = nil, -- Custom system prompt to use for all sessions. If nil, uses the default built-in system prompt
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
   runtime = {
+    connection = 'spawn', -- 'spawn' (default) or 'remote'
+    remote_url = nil, -- Required when connection='remote' (example: 'http://127.0.0.1:4096')
+    pre_start_command = nil, -- Optional command run before spawn/remote connect (for example: {'docker', 'compose', 'up', '-d'})
     command = { 'opencode' }, -- Base runtime command, array-only
     serve_args = { 'serve' }, -- Optional, defaults to {'serve'}
     version_args = { '--version' }, -- Optional, defaults to {'--version'}
@@ -348,6 +351,32 @@ require('opencode').setup({
 ### Runtime Examples
 
 `runtime.command` is array-only and is passed directly to `vim.system(...)`.
+`runtime.pre_start_command` follows the same rule.
+
+To use shell chaining (`&&`, pipes, redirects), wrap with a shell command, for example:
+
+```lua
+runtime = {
+  pre_start_command = { 'bash', '-lc', 'docker compose up -d && docker compose ps' },
+}
+```
+
+#### Remote server (no local spawn)
+
+```lua
+require('opencode').setup({
+  runtime = {
+    connection = 'remote',
+    remote_url = 'http://127.0.0.1:4096',
+    path = {
+      to_server = nil,
+      to_local = nil,
+    },
+  },
+})
+```
+
+In this mode, opencode.nvim does not start a local server process and connects directly to `runtime.remote_url`.
 
 #### WSL (Windows host)
 
@@ -400,24 +429,67 @@ If your opencode PATH comes from `.bashrc`, use `-ilc`.
 
 #### Docker
 
+**Docker Compose Example**
+
+```yml
+services:
+  opencode:
+    image: ghcr.io/anomalyco/opencode
+    stdin_open: true
+    tty: false
+    command:
+      - serve
+      - --hostname
+      - "0.0.0.0"
+      - --port
+      - "4096"
+    ports:
+      - "127.0.0.1:4096:4096"
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    restart: no
+```
+
+**Config Example**
+
 ```lua
+local host_cwd = vim.fn.getcwd()
+local host_cwd_norm = host_cwd:gsub('\\', '/')
 require('opencode').setup({
   runtime = {
-    command = {
-      'docker',
-      'run',
-      '--rm',
-      '-i',
-      '--network=host',
-      '-v',
-      vim.fn.getcwd() .. ':' .. vim.fn.getcwd(),
-      '-w',
-      vim.fn.getcwd(),
-      'ghcr.io/sst/opencode:latest',
-      'opencode',
+    pre_start_command = {'docker-compose', 'up', '-d' },
+	command = {'docker-compose', 'logs', '-f', 'opencode' },
+    serve_args = {},
+    path = {
+        to_server = function(path)
+            local normalized = path:gsub('\\', '/')
+            if normalized == host_cwd_norm then
+                return '/workspace'
+            end
+
+            if normalized:sub(1, #host_cwd_norm + 1) == host_cwd_norm .. '/' then
+                return '/workspace' .. normalized:sub(#host_cwd_norm + 1)
+            end
+
+            return normalized
+        end,
+        to_local = function(path)
+            if path == '/workspace' then
+                return host_cwd
+            end
+
+            if path:sub(1, 11) == '/workspace/' then
+                local rel = path:sub(12):gsub('/', '\\')
+                if rel == '' then
+                    return host_cwd
+                end
+                return host_cwd .. '\\' .. rel
+            end
+
+            return path
+        end,
     },
-    serve_args = { 'serve' },
-    version_args = { '--version' },
   },
 })
 ```

@@ -429,6 +429,18 @@ M.cancel = Promise.async(function()
 end)
 
 M.opencode_ok = Promise.async(function()
+  local runtime = config.runtime or {}
+  local connection = runtime.connection or 'spawn'
+
+  if connection == 'remote' then
+    local remote_url = runtime.remote_url
+    if type(remote_url) ~= 'string' or remote_url == '' then
+      vim.notify('runtime.remote_url is required when runtime.connection is "remote"', vim.log.levels.ERROR)
+      return false
+    end
+    return true
+  end
+
   local runtime_cmd = util.get_runtime_command()
   if vim.fn.executable(runtime_cmd[1]) == 0 then
     vim.notify(

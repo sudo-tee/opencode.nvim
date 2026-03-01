@@ -485,6 +485,23 @@ function M.get_runtime_version_command()
   return append_args(M.get_runtime_command(), runtime.version_args or { '--version' })
 end
 
+---@return string[]|nil
+function M.get_runtime_pre_start_command()
+  local runtime = config.runtime or {}
+  local cmd = runtime.pre_start_command
+
+  if type(cmd) ~= 'table' or #cmd == 0 then
+    return nil
+  end
+
+  local result = {}
+  for _, arg in ipairs(cmd) do
+    table.insert(result, tostring(arg))
+  end
+
+  return result
+end
+
 local function get_path_transform(direction)
   local runtime = config.runtime
   if type(runtime) ~= 'table' then

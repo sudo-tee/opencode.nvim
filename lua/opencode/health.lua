@@ -28,6 +28,15 @@ end
 local function check_opencode_cli()
   health.start('OpenCode CLI')
 
+  local config = require('opencode.config')
+  local runtime = config.runtime or {}
+  local connection = runtime.connection or 'spawn'
+
+  if connection == 'remote' then
+    health.info('CLI executable checks are skipped in remote runtime mode')
+    return
+  end
+
   local state = require('opencode.state')
   local required_version = state.required_version
 
@@ -61,6 +70,42 @@ end
 
 local function check_opencode_server()
   health.start('OpenCode Server')
+
+  local config = require('opencode.config')
+  local runtime = config.runtime or {}
+  local connection = runtime.connection or 'spawn'
+
+  if connection == 'remote' then
+    local remote_url = runtime.remote_url
+    if type(remote_url) ~= 'string' or remote_url == '' then
+      health.error('runtime.remote_url is required when runtime.connection is "remote"')
+      return
+    end
+
+    local normalized_remote_url = remote_url
+    if normalized_remote_url:match('^%d+%.%d+%.%d+%.%d+:%d+$') or normalized_remote_url:match('^localhost:%d+$') then
+      normalized_remote_url = 'http://' .. normalized_remote_url
+    end
+    normalized_remote_url = normalized_remote_url:gsub('/$', '')
+
+    local server_job = require('opencode.server_job')
+    local ok, result = pcall(function()
+      return server_job.call_api(normalized_remote_url .. '/config', 'GET', nil):wait()
+    end)
+
+    if not ok then
+      health.error('Failed to connect to remote opencode server: ' .. tostring(result))
+      return
+    end
+
+    health.ok('Remote opencode server is reachable at ' .. normalized_remote_url)
+    if result and result['$schema'] then
+      health.ok('opencode server configuration available')
+    else
+      health.warn('opencode server responded but configuration schema was not detected')
+    end
+    return
+  end
 
   local opencode_server = require('opencode.opencode_server').new()
   local server = opencode_server:spawn():wait() --[[@as OpencodeServer]]

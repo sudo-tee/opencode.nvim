@@ -9,6 +9,7 @@ local config = require('opencode.config')
 --- @field handle any Compatibility property for job.stop interface
 --- @field spawn_promise Promise<OpencodeServer>
 --- @field shutdown_promise Promise<boolean>
+--- @field connected boolean True when attached to a remote server URL
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -102,11 +103,26 @@ function OpencodeServer.new()
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
+    connected = false,
   }, OpencodeServer)
 end
 
 function OpencodeServer:is_running()
+  if self.connected and self.url then
+    return true
+  end
+
   return self.job and self.job.pid ~= nil
+end
+
+---Attach to an already-running opencode server.
+---@param url string
+---@return Promise<OpencodeServer>
+function OpencodeServer:connect(url)
+  self.url = normalize_server_url(url)
+  self.connected = self.url ~= nil and self.url ~= ''
+  self.spawn_promise:resolve(self)
+  return self.spawn_promise
 end
 
 local function kill_process(pid, signal, desc)
@@ -144,6 +160,7 @@ function OpencodeServer:shutdown()
   self.job = nil
   self.url = nil
   self.handle = nil
+  self.connected = false
   self.shutdown_promise:resolve(true)
   return self.shutdown_promise
 end
@@ -170,6 +187,7 @@ function OpencodeServer:spawn(opts)
     end
     ready = true
     self.url = normalize_server_url(url)
+    self.connected = true
     self.spawn_promise:resolve(self)
     safe_call(opts.on_ready, self.job, self.url)
 
@@ -245,6 +263,7 @@ function OpencodeServer:spawn(opts)
     self.job = nil
     self.url = nil
     self.handle = nil
+    self.connected = false
     safe_call(opts.on_exit, exit_opts)
     self.shutdown_promise:resolve(true)
   end)

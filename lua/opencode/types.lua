@@ -201,6 +201,9 @@
 ---@field to_local? fun(path: string): string|nil
 
 ---@class OpencodeRuntimeConfig
+---@field connection? 'spawn'|'remote' Runtime connection mode. 'spawn' launches a local process, 'remote' connects to an existing server URL
+---@field remote_url? string Remote server URL used when connection='remote'
+---@field pre_start_command? string[] Optional command executed before starting/connecting to the server
 ---@field command string[] Base command used to run opencode
 ---@field serve_args? string[] Arguments appended when starting the server (defaults to {'serve'})
 ---@field version_args? string[] Arguments appended when checking CLI version (defaults to {'--version'})

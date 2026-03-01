@@ -23,6 +23,17 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.job)
     assert.is_nil(server.url)
     assert.is_nil(server.handle)
+    assert.is_false(server.connected)
+  end)
+
+  it('connect attaches to remote server and resolves spawn promise', function()
+    local server = OpencodeServer.new()
+    local connected = server:connect('http://127.0.0.1:9090')
+
+    assert.same(server, connected:wait())
+    assert.equals('http://127.0.0.1:9090', server.url)
+    assert.is_true(server.connected)
+    assert.is_true(server:is_running())
   end)
 
   it('spawn promise resolves when stdout emits server URL', function()

@@ -125,6 +125,10 @@ function M.handle_submit()
     return false
   end
   ---@cast windows { input_buf: integer }
+  local completion = require('opencode.ui.completion')
+  if completion.is_completion_visible() then
+    return false
+  end
 
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})

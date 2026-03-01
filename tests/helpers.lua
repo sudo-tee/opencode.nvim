@@ -219,10 +219,7 @@ function M.load_session_from_events(events)
           break
         end
       end
-    elseif event.type == 'message.part.delta'
-      and properties.partID
-      and properties.messageID
-      and properties.field then
+    elseif event.type == 'message.part.delta' and properties.partID and properties.messageID and properties.field then
       local part = parts_by_id[properties.partID]
 
       if not part then

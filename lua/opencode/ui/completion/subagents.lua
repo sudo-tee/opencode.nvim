@@ -3,14 +3,17 @@ local Promise = require('opencode.promise')
 
 local M = {}
 
+local custom_kind = require('opencode.ui.completion.kind')
+
 ---@type CompletionSource
 local subagent_source = {
   name = 'subagents',
   priority = 1,
+  custom_kind = custom_kind.register('subagents', icons.get('agent')),
   complete = Promise.async(function(context)
     local subagents = require('opencode.config_file').get_subagents():await()
     local config = require('opencode.config')
-    local expected_trigger = config.get_key_for_function('input_window', 'mention')
+    local expected_trigger = config.get_key_for_function('input_window', 'mention') or '@'
     if context.trigger_char ~= expected_trigger then
       return {}
     end
@@ -50,6 +53,10 @@ local subagent_source = {
     local mention = require('opencode.ui.mention')
     mention.highlight_all_mentions(state.windows.input_buf)
     context.add_subagent(item.data.name)
+  end,
+  get_trigger_character = function()
+    local config = require('opencode.config')
+    return config.get_key_for_function('input_window', 'mention')
   end,
 }
 

@@ -1,8 +1,7 @@
 local M = {}
 
 local function is_completion_visible()
-  local ok, completion = pcall(require, 'opencode.ui.completion')
-  return ok and completion.is_visible()
+  return require('opencode.ui.completion').is_completion_visible()
 end
 
 local function wrap_with_completion_check(key_binding, callback)

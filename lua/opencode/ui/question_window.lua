@@ -2,6 +2,8 @@ local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 local Dialog = require('opencode.ui.dialog')
 
+local config = require('opencode.config')
+
 local M = {}
 
 M._current_question = nil
@@ -27,8 +29,13 @@ function M.show_question(question_request)
   M._current_question = question_request
   M._current_question_index = 1
   M._collected_answers = {}
-  M._setup_dialog()
-  render_question()
+
+  if config.ui.questions and config.ui.questions.use_vim_ui_select then
+    M._show_question_with_vim_ui_select()
+  else
+    M._setup_dialog()
+    render_question()
+  end
 end
 
 function M.clear_question()
@@ -245,6 +252,60 @@ function M._clear_dialog()
     M._dialog:teardown()
     M._dialog = nil
   end
+end
+
+---Show question using vim.ui.select
+function M._show_question_with_vim_ui_select()
+  if not M.has_question() then
+    return
+  end
+
+  local question_info = M.get_current_question_info()
+  if not question_info or not question_info.options then
+    return
+  end
+
+  local options_to_display = add_other_if_missing(question_info.options)
+  local progress = ''
+  if M._current_question and #M._current_question.questions > 1 then
+    progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
+  end
+
+  local prompt = question_info.question .. progress
+  local choices = {}
+  for i, option in ipairs(options_to_display) do
+    table.insert(choices, option.label)
+  end
+
+  vim.ui.select(choices, {
+    prompt = prompt,
+    format_item = function(item)
+      return item
+    end,
+  }, function(choice)
+    if not choice then
+      -- User cancelled
+      if M._current_question and M._current_question.id then
+        M._send_reject(M._current_question.id)
+      end
+      M.clear_question()
+      return
+    end
+
+    -- Find the selected option index
+    local selected_index = nil
+    for i, option in ipairs(options_to_display) do
+      if option.label == choice then
+        selected_index = i
+        break
+      end
+    end
+
+    if selected_index then
+      M._answering = true
+      M._answer_with_option(selected_index)
+    end
+  end)
 end
 
 ---@param request_id string

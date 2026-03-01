@@ -201,6 +201,16 @@ function M.render_permissions_display()
 end
 
 function M.clear_question_display()
+  local config_module = require('opencode.config')
+  local use_vim_ui = config_module.ui.questions and config_module.ui.questions.use_vim_ui_select
+
+  if use_vim_ui then
+    -- When using vim.ui.select, there's nothing to clear from the buffer
+    local question_window = require('opencode.ui.question_window')
+    question_window.clear_question()
+    return
+  end
+
   local question_window = require('opencode.ui.question_window')
   question_window.clear_question()
   M._remove_part_from_buffer('question-display-part')
@@ -209,6 +219,14 @@ end
 
 ---Render question display as a fake part
 function M.render_question_display()
+  local config_module = require('opencode.config')
+  local use_vim_ui = config_module.ui.questions and config_module.ui.questions.use_vim_ui_select
+
+  if use_vim_ui then
+    -- When using vim.ui.select, we don't render anything in the buffer
+    return
+  end
+
   local question_window = require('opencode.ui.question_window')
 
   local current_question = question_window._current_question

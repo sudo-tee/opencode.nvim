@@ -291,11 +291,14 @@ end
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
   state.opencode_server = opencode_server.new()
-  log.notify(string.format('Starting local server at %s on port %d.', hostname, port), vim.log.levels.INFO)
 
   local spawn_opts = {
     on_ready = function(job, base_url)
       local url_port = base_url:match(':(%d+)')
+      log.notify(
+        string.format('Started local server at %s on port %s.', base_url, tostring(url_port)),
+        vim.log.levels.INFO
+      )
       if url_port then
         local port_num = tonumber(url_port)
         state.opencode_server.port = port_num

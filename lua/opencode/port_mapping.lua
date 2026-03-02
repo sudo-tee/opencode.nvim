@@ -5,6 +5,9 @@ local OpencodeServer = require('opencode.opencode_server')
 
 local M = {}
 
+-- Signal 0 only checks if a process exists, doesn't actually signal it
+local SIG_PID_EXISTS = 0
+
 --- @class PortMappingEntry
 --- @field pid number
 --- @field directory string
@@ -90,7 +93,7 @@ local function clean_stale()
     local alive = {}
     for _, raw in ipairs(mapping.nvim_pids) do
       local entry = normalize(raw, mapping.directory)
-      local is_alive = vim.fn.getpid() == entry.pid or vim.uv.kill(entry.pid, 0)
+      local is_alive = vim.fn.getpid() == entry.pid or vim.uv.kill(entry.pid, SIG_PID_EXISTS)
       if is_alive then
         table.insert(alive, entry)
       end

@@ -96,12 +96,8 @@ local function shutdown_custom_server(server)
     log.debug('shutdown: custom server, executing kill_command for port %d (auto_kill=true)', server.port)
     local ok, result = pcall(config.server.kill_command, server.port, config.server.url or '127.0.0.1')
     if not ok then
-      log.error('shutdown: kill_command failed: %s', vim.inspect(result))
       vim.schedule(function()
-        vim.notify(
-          string.format('[opencode.nvim] Failed to execute kill_command: %s', tostring(result)),
-          vim.log.levels.WARN
-        )
+        log.notify(string.format('Failed to execute kill_command: %s', tostring(result)), vim.log.levels.WARN)
       end)
     else
       log.debug('shutdown: kill_command executed successfully for port %d', server.port)
@@ -188,8 +184,6 @@ function OpencodeServer:shutdown()
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
   end
-
-  local config = require('opencode.config')
 
   if not self.job then
     shutdown_custom_server(self, config)

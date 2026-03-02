@@ -50,14 +50,10 @@ local function save(mappings)
   file:close()
 end
 
---- @param raw number|PortMappingEntry
---- @param fallback_dir string
---- @return PortMappingEntry
-local function normalize(raw, fallback_dir)
-  if type(raw) == 'number' then
-    return { pid = raw, directory = fallback_dir, mode = 'serve' }
-  end
-  return raw
+--- @param entry PortMappingEntry
+--- @return boolean
+local function pid_alive(entry)
+  return vim.fn.getpid() == entry.pid or vim.uv.kill(entry.pid, SIG_PID_EXISTS) == 0
 end
 
 --- Fire-and-forget graceful shutdown request to a server with no clients.
@@ -86,34 +82,23 @@ local function clean_stale()
   local changed = false
 
   for port_key, mapping in pairs(mappings) do
-    if not mapping.nvim_pids then
-      goto continue
+    mapping.nvim_pids = mapping.nvim_pids or {}
+    local before = #mapping.nvim_pids
+
+    mapping.nvim_pids = vim.tbl_filter(pid_alive, mapping.nvim_pids)
+
+    if #mapping.nvim_pids < before then
+      changed = true
     end
 
-    local alive = {}
-    for _, raw in ipairs(mapping.nvim_pids) do
-      local entry = normalize(raw, mapping.directory)
-      local is_alive = vim.fn.getpid() == entry.pid or vim.uv.kill(entry.pid, SIG_PID_EXISTS)
-      if is_alive then
-        table.insert(alive, entry)
-      end
-      if type(raw) == 'number' or not is_alive then
-        changed = true
-      end
-    end
-    mapping.nvim_pids = alive
-
-    if #alive == 0 then
+    if #mapping.nvim_pids == 0 then
       local port = tonumber(port_key)
       if port and mapping.started_by_nvim then
         kill_orphaned_server(port, mapping.server_pid)
       end
       log.debug('port_mapping: removing port %s (no connected clients)', port_key)
       mappings[port_key] = nil
-      changed = true
     end
-
-    ::continue::
   end
 
   if changed then
@@ -192,8 +177,7 @@ function M.register(port, directory, started_by_nvim, mode, url, server_pid)
 
   local pid_exists = false
   local updated = {}
-  for _, raw in ipairs(mapping.nvim_pids) do
-    local entry = normalize(raw, mapping.directory)
+  for _, entry in ipairs(mapping.nvim_pids) do
     table.insert(updated, entry)
     if entry.pid == current_pid then
       pid_exists = true
@@ -239,8 +223,7 @@ function M.unregister(port, server)
 
   local current_pid = vim.fn.getpid()
   local remaining = {}
-  for _, raw in ipairs(mapping.nvim_pids or {}) do
-    local entry = normalize(raw, mapping.directory)
+  for _, entry in ipairs(mapping.nvim_pids or {}) do
     if entry.pid ~= current_pid then
       table.insert(remaining, entry)
     end

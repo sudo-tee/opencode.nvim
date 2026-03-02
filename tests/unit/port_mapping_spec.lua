@@ -79,7 +79,7 @@ describe('port_mapping', function()
   local function make_pids_alive(alive_set)
     vim.uv.kill = function(pid, signal)
       if signal == 0 then
-        return alive_set[pid] and true or false
+        return alive_set[pid] and 0 or nil
       end
       return original_uv_kill(pid, signal)
     end

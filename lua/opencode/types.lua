@@ -214,13 +214,32 @@
 ---@field quick_chat OpencodeQuickChatConfig
 
 ---@class MessagePartState
----@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput|QuestionToolInput Input data for the tool
+---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput|QuestionToolInput|ApplyPatchToolInput Input data for the tool
 ---@field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata|QuestionToolMetadata Metadata about the tool execution
 ---@field time { start: number, end: number } Timestamps for tool use
 ---@field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
 ---@field title string Title of the tool use
 ---@field output string Output of the tool use, if applicable
 ---@field error? string Error message if the part failed
+
+---@class ApplyPatchToolInput
+---@field patchText string The patch content in unified diff format
+
+---@class ApplyPatchFileResult
+---@field filePath string Absolute path to the file
+---@field relativePath string Relative path to the file
+---@field before string File contents before the patch
+---@field after string File contents after the patch
+---@field additions number Number of lines added
+---@field deletions number Number of lines deleted
+---@field type 'add'|'edit'|'delete' Type of file operation
+---@field diff string Unified diff for this file
+
+---@class ApplyPatchToolMetadata: ToolMetadataBase
+---@field truncated boolean Whether the output was truncated
+---@field diagnostics table<string, any> Diagnostic information keyed by file path
+---@field files ApplyPatchFileResult[] Per-file results
+---@field diff string Combined unified diff for all files
 
 ---@class ToolMetadataBase
 ---@field error boolean|nil Whether the tool execution resulted in an error

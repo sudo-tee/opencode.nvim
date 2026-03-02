@@ -533,6 +533,18 @@ function M._format_file_tool(output, tool_type, input, metadata, duration_text)
 end
 
 ---@param output Output Output object to write to
+---@param metadata ApplyPatchToolMetadata Metadata for the tool use
+---@param duration_text? string
+function M._format_apply_patch_tool(output, metadata, duration_text)
+  for _, file in ipairs(metadata.files or {}) do
+    M.format_action(output, icons.get('edit') .. ' apply patch', file.relativePath or file.filePath, duration_text)
+    if config.ui.output.tools.show_output and file.diff then
+      M.format_diff(output, file.diff, '')
+    end
+  end
+end
+
+---@param output Output Output object to write to
 ---@param title string
 ---@param input TodoToolInput
 ---@param duration_text? string
@@ -685,6 +697,8 @@ function M._format_tool(output, part)
     M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]], duration_text)
   elseif tool == 'glob' then
     M._format_glob_tool(output, input --[[@as GlobToolInput]], metadata --[[@as GlobToolMetadata]], duration_text)
+  elseif tool == 'apply_patch' then
+    M._format_apply_patch_tool(output, metadata --[[@as ApplyPatchToolMetadata]], duration_text)
   elseif tool == 'list' then
     M._format_list_tool(
       output,

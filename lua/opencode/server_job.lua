@@ -180,6 +180,22 @@ function M.stream_api(url, method, body, on_chunk)
   return curl.request(opts) --[[@as table]]
 end
 
+--- @param custom_url string
+--- @return number|nil port, or nil if we should spawn local instead
+local function resolve_port(custom_url)
+  local custom_port = config.server.port or 'auto'
+  if custom_port ~= 'auto' then
+    return custom_port
+  end
+
+  if not config.server.spawn_command then
+    return port_mapping.find_any_existing_port()
+  end
+
+  local existing = port_mapping.find_port_for_directory(vim.fn.getcwd())
+  return existing or math.random(1024, 65535)
+end
+
 --- Ensure the opencode server is running, starting it if necessary.
 --- @return Promise<OpencodeServer>
 function M.ensure_server()
@@ -196,37 +212,9 @@ function M.ensure_server()
     return promise
   end
 
-  local custom_port = config.server.port or 'auto'
-  if custom_port == 'auto' then
-    if not config.server.spawn_command then
-      local existing_port = port_mapping.find_any_existing_port()
+  local custom_port = resolve_port(custom_url)
+  local base_url = string.format('%s:%d', util.normalize_url_protocol(custom_url), custom_port)
 
-      if existing_port then
-        log.debug('ensure_server: found existing server on port %d, reusing for new directory', existing_port)
-        custom_port = existing_port
-      else
-        log.debug('ensure_server: port=auto with no spawn_command, spawning new local server')
-        M.spawn_local_server(promise, nil, custom_url)
-        return promise
-      end
-    else
-      local current_dir = vim.fn.getcwd()
-      local existing_port = port_mapping.find_port_for_directory(current_dir)
-
-      if existing_port then
-        custom_port = existing_port
-        log.debug('ensure_server: found existing server for directory on port %d, reusing it', existing_port)
-      else
-        custom_port = math.random(1024, 65535)
-        log.debug('ensure_server: using auto-generated port %d', custom_port)
-      end
-    end
-  else
-    log.debug('ensure_server: using configured port %d', custom_port)
-  end
-
-  local normalized_url = util.normalize_url_protocol(custom_url)
-  local base_url = string.format('%s:%d', normalized_url, custom_port)
   local timeout = config.server.timeout or 5
 
   log.debug('ensure_server: trying custom server at %s (timeout=%ds)', base_url, timeout)
@@ -236,128 +224,63 @@ function M.ensure_server()
   return promise
 end
 
---- @param base_url string
---- @param timeout number
---- @param promise Promise<OpencodeServer>
---- @param custom_port number|nil
---- @param custom_url string|nil
+local function retry_connect(base_url, timeout, max_retries, on_success, on_failure)
+  local function attempt(retry_count)
+    vim.defer_fn(function()
+      try_custom_server(base_url, timeout):and_then(on_success):catch(function(err)
+        if retry_count < max_retries then
+          attempt(retry_count + 1)
+        else
+          log.error('try_connect_to_custom_server: exhausted %d retries: %s', max_retries, vim.inspect(err))
+          on_failure(err)
+        end
+      end)
+    end, retry_count * 2000)
+  end
+  attempt(1)
+end
+
+local function spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)
+  local ok, result = pcall(config.server.spawn_command, custom_port, custom_url)
+  if not ok then
+    log.error('spawn_command failed: %s', vim.inspect(result))
+    promise:reject(string.format('Failed to spawn custom server on port %d', custom_port))
+    return
+  end
+
+  local server_pid = type(result) == 'number' and result or nil
+
+  retry_connect(base_url, timeout, 3, function(url)
+    port_mapping.register(custom_port, vim.fn.getcwd(), true, 'custom', url, server_pid)
+    state.opencode_server = opencode_server.from_custom(url, custom_port)
+    promise:resolve(state.opencode_server)
+  end, function(_err)
+    if config.server.port == 'auto' then
+      log.notify('Failed to connect after spawning, falling back to local server', vim.log.levels.WARN)
+      M.spawn_local_server(promise, custom_port, custom_url)
+    else
+      promise:reject(string.format('Failed to connect to custom server after spawning on port %d', custom_port))
+    end
+  end)
+end
+
 function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
   try_custom_server(base_url, timeout)
-    :and_then(function(custom_server_url)
-      log.debug('try_connect_to_custom_server: connected to custom server at %s', custom_server_url)
-
-      local current_dir = vim.fn.getcwd()
+    :and_then(function(url)
       local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
-
-      port_mapping.register(custom_port, current_dir, existing_started_by_nvim, 'custom', custom_server_url, nil)
-
-      state.opencode_server = opencode_server.from_custom(custom_server_url, custom_port)
+      port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, 'custom', url, nil)
+      state.opencode_server = opencode_server.from_custom(url, custom_port)
+      log.notify(
+        string.format('Connected to remote server at %s on port %d.', base_url, custom_port),
+        vim.log.levels.INFO
+      )
       promise:resolve(state.opencode_server)
     end)
     :catch(function(err)
-      log.warn('try_connect_to_custom_server: failed to connect to custom server: %s', vim.inspect(err))
-
+      log.warn('failed to connect to %s: %s', base_url, vim.inspect(err))
       if config.server.spawn_command and custom_port and custom_url then
-        log.debug('try_connect_to_custom_server: server not running, executing server.spawn_command')
-        vim.notify(
-          string.format('[opencode.nvim] Custom server not found at %s, attempting to start it...', base_url),
-          vim.log.levels.INFO
-        )
-
-        local ok, result = pcall(config.server.spawn_command, custom_port, custom_url)
-        if not ok then
-          log.error('try_connect_to_custom_server: server.spawn_command failed: %s', vim.inspect(result))
-          vim.notify(
-            string.format('[opencode.nvim] Failed to execute server.spawn_command: %s', tostring(result)),
-            vim.log.levels.ERROR
-          )
-          promise:reject(string.format('Failed to spawn custom server on port %d', custom_port))
-          return
-        end
-
-        local server_pid = nil
-        if type(result) == 'number' then
-          server_pid = result
-          log.debug('try_connect_to_custom_server: spawn_command returned server PID: %d', server_pid)
-        end
-
-        local max_retries = 3
-        local retry_count = 0
-
-        local function retry_connection()
-          retry_count = retry_count + 1
-          local delay = retry_count * 2000 -- 2s, 4s, 6s
-
-          log.debug('try_connect_to_custom_server: scheduling retry %d/%d after %dms', retry_count, max_retries, delay)
-
-          vim.defer_fn(function()
-            try_custom_server(base_url, timeout)
-              :and_then(function(custom_server_url)
-                log.debug(
-                  'try_connect_to_custom_server: connected to custom server after starting at %s (attempt %d)',
-                  custom_server_url,
-                  retry_count
-                )
-                port_mapping.register(custom_port, vim.fn.getcwd(), true, 'custom', custom_server_url, server_pid)
-                state.opencode_server = opencode_server.from_custom(custom_server_url, custom_port)
-                promise:resolve(state.opencode_server)
-              end)
-              :catch(function(retry_err)
-                if retry_count < max_retries then
-                  log.debug(
-                    'try_connect_to_custom_server: retry %d failed, will retry again: %s',
-                    retry_count,
-                    vim.inspect(retry_err)
-                  )
-                  retry_connection()
-                else
-                  log.error(
-                    'try_connect_to_custom_server: failed to connect after %d retries: %s',
-                    max_retries,
-                    vim.inspect(retry_err)
-                  )
-                  if config.server.port == 'auto' then
-                    vim.notify(
-                      string.format(
-                        '[opencode.nvim] Failed to connect to custom opencode server at %s after starting. Falling back to local server.',
-                        base_url
-                      ),
-                      vim.log.levels.WARN
-                    )
-                    M.spawn_local_server(promise, custom_port, custom_url)
-                  else
-                    vim.notify(
-                      string.format(
-                        '[opencode.nvim] Failed to connect to custom opencode server at %s on port %d after starting.',
-                        base_url,
-                        custom_port
-                      ),
-                      vim.log.levels.ERROR
-                    )
-                    promise:reject(
-                      string.format('Failed to connect to custom server after spawning on port %d', custom_port)
-                    )
-                  end
-                end
-              end)
-          end, delay)
-        end
-
-        retry_connection()
+        spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)
       else
-        log.debug(
-          'try_connect_to_custom_server: no spawn_command, falling back to local server with port=%s hostname=%s',
-          custom_port,
-          custom_url
-        )
-        vim.notify(
-          string.format(
-            '[opencode.nvim] Custom server not found at %s on port %d. Starting local opencode server on this port...',
-            base_url,
-            custom_port
-          ),
-          vim.log.levels.INFO
-        )
         M.spawn_local_server(promise, custom_port, custom_url)
       end
     end)
@@ -368,6 +291,7 @@ end
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
   state.opencode_server = opencode_server.new()
+  log.notify(string.format('Starting local server at %s on port %d.', hostname, port), vim.log.levels.INFO)
 
   local spawn_opts = {
     on_ready = function(job, base_url)

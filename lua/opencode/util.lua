@@ -368,6 +368,8 @@ function M.get_markdown_filetype(filename)
   local file_type_overrides = {
     javascriptreact = 'jsx',
     typescriptreact = 'tsx',
+    typescript = 'ts',
+    javascipt = 'js',
     sh = 'bash',
     yaml = 'yml',
     text = 'txt', -- nvim 0.12-nightly returns text as the type which breaks our unit tests

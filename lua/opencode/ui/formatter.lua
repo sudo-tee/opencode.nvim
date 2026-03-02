@@ -539,7 +539,8 @@ function M._format_apply_patch_tool(output, metadata, duration_text)
   for _, file in ipairs(metadata.files or {}) do
     M.format_action(output, icons.get('edit') .. ' apply patch', file.relativePath or file.filePath, duration_text)
     if config.ui.output.tools.show_output and file.diff then
-      M.format_diff(output, file.diff, '')
+      local file_type = file and util.get_markdown_filetype(file.filePath) or ''
+      M.format_diff(output, file.diff, file_type)
     end
   end
 end

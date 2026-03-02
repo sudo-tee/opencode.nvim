@@ -43,6 +43,12 @@ M.get_all_workspace_sessions = Promise.async(function()
     return nil
   end
 
+  -- Validate that sessions is actually a table/array, not an error string
+  if type(sessions) ~= 'table' then
+    vim.notify('Error: list_sessions returned invalid data: ' .. tostring(sessions), vim.log.levels.ERROR)
+    return nil
+  end
+
   table.sort(sessions, function(a, b)
     return a.time.updated > b.time.updated
   end)

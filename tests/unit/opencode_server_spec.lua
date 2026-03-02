@@ -1,13 +1,17 @@
 local OpencodeServer = require('opencode.opencode_server')
+local curl = require('opencode.curl')
 local assert = require('luassert')
 
 describe('opencode.opencode_server', function()
   local original_system
+  local original_curl_request
   before_each(function()
     original_system = vim.system
+    original_curl_request = curl.request
   end)
   after_each(function()
     vim.system = original_system
+    curl.request = original_curl_request
   end)
   -- Tests for server lifecycle behavior
 
@@ -47,13 +51,13 @@ describe('opencode.opencode_server', function()
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
     local exit_callback
-    
+
     -- Mock vim.system to capture the exit callback
     vim.system = function(cmd, opts, on_exit)
       exit_callback = on_exit
       return { pid = 2, kill = function() end }
     end
-    
+
     -- Spawn the server so the exit callback is set up
     server:spawn({
       cwd = '.',
@@ -61,24 +65,24 @@ describe('opencode.opencode_server', function()
       on_error = function() end,
       on_exit = function() end,
     })
-    
+
     local resolved = false
     server:get_shutdown_promise():and_then(function()
       resolved = true
     end)
-    
+
     -- Call shutdown (sends SIGTERM)
     server:shutdown()
-    
+
     -- Simulate the process exiting by calling the exit callback
     vim.schedule(function()
       exit_callback({ code = 0, signal = 0 })
     end)
-    
+
     vim.wait(100, function()
       return resolved
     end)
-    
+
     assert.is_true(resolved)
     assert.is_nil(server.job)
     assert.is_nil(server.url)
@@ -183,5 +187,134 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.job)
     assert.is_nil(server.url)
     assert.is_nil(server.handle)
+  end)
+
+  describe('custom server support', function()
+    it('creates a custom server instance with from_custom', function()
+      local server = OpencodeServer.from_custom('http://192.168.1.100:8080')
+      assert.is_table(server)
+      assert.is_nil(server.job) -- No local job
+      assert.equals('http://192.168.1.100:8080', server.url)
+      assert.is_nil(server.handle)
+
+      -- Spawn promise should already be resolved
+      local resolved = false
+      server:get_spawn_promise():and_then(function()
+        resolved = true
+      end)
+      vim.wait(10, function()
+        return resolved
+      end)
+      assert.is_true(resolved)
+    end)
+
+    it('is_running returns true for custom server with URL', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
+      assert.is_true(server:is_running())
+    end)
+
+    it('is_running returns false for custom server without URL', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
+      server.url = nil
+      assert.is_false(server:is_running())
+    end)
+
+    it('shutdown clears custom server without killing process', function()
+      local server = OpencodeServer.from_custom('http://localhost:8080')
+      local resolved = false
+
+      server:get_shutdown_promise():and_then(function()
+        resolved = true
+      end)
+
+      server:shutdown()
+
+      vim.wait(10, function()
+        return resolved
+      end)
+
+      assert.is_true(resolved)
+      assert.is_nil(server.url)
+      assert.is_nil(server.handle)
+      assert.is_nil(server.job) -- Should remain nil, no process was killed
+    end)
+  end)
+
+  describe('kill_pid', function()
+    it('sends SIGTERM then SIGKILL to the given pid', function()
+      local killed = {}
+      local original_kill = vim.uv.kill
+      vim.uv.kill = function(pid, signal)
+        table.insert(killed, { pid = pid, signal = signal })
+        return true
+      end
+      local original_children = vim.api.nvim_get_proc_children
+      vim.api.nvim_get_proc_children = function(_)
+        return {}
+      end
+
+      OpencodeServer.kill_pid(42)
+
+      vim.uv.kill = original_kill
+      vim.api.nvim_get_proc_children = original_children
+
+      assert.equals(2, #killed)
+      assert.same({ pid = 42, signal = 15 }, killed[1])
+      assert.same({ pid = 42, signal = 9 }, killed[2])
+    end)
+
+    it('kills children before the parent', function()
+      local kill_order = {}
+      local original_kill = vim.uv.kill
+      vim.uv.kill = function(pid, signal)
+        table.insert(kill_order, { pid = pid, signal = signal })
+        return true
+      end
+      local original_children = vim.api.nvim_get_proc_children
+      vim.api.nvim_get_proc_children = function(_)
+        return { 10, 11 }
+      end
+
+      OpencodeServer.kill_pid(99)
+
+      vim.uv.kill = original_kill
+      vim.api.nvim_get_proc_children = original_children
+
+      -- children (SIGTERM+SIGKILL each) then parent (SIGTERM+SIGKILL)
+      assert.equals(6, #kill_order)
+      assert.same({ pid = 10, signal = 15 }, kill_order[1])
+      assert.same({ pid = 10, signal = 9 }, kill_order[2])
+      assert.same({ pid = 11, signal = 15 }, kill_order[3])
+      assert.same({ pid = 11, signal = 9 }, kill_order[4])
+      assert.same({ pid = 99, signal = 15 }, kill_order[5])
+      assert.same({ pid = 99, signal = 9 }, kill_order[6])
+    end)
+  end)
+
+  describe('request_graceful_shutdown', function()
+    it('POSTs to /global/shutdown on the given base URL', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.is_not_nil(captured)
+      assert.equals('http://127.0.0.1:3000/global/shutdown', captured.url)
+      assert.equals('POST', captured.method)
+    end)
+
+    it('sets a short timeout and empty proxy', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.equals(1000, captured.timeout)
+      assert.equals('', captured.proxy)
+    end)
   end)
 end)

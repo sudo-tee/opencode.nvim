@@ -49,15 +49,19 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Installation](#-installation)
 - [Configuration](#️-configuration)
 - [Usage](#-usage)
+- [Permissions](#-permissions)
 - [Context](#-context)
 - [Agents](#-agents)
-- [User Commands](#user-commands)
+- [Custom/External Server Configuration](#-customexternal-server-configuration)
+- [User Commands and Slash Commands](#user-commands-and-slash-commands)
 - [Contextual Actions for Snapshots](#-contextual-actions-for-snapshots)
-- [Prompt Guard](#-prompt-guard)
+- [Contextual Restore points](#-contextual-restore-points)
+- [Highlight Groups](#highlight-groups)
+- [Prompt Guard](#️-prompt-guard)
 - [Custom user hooks](#-custom-user-hooks)
 - [Server-Sent Events (SSE) autocmds](#-server-sent-events-sse-autocmds)
-- [Quick Chat](#-quick-chat)
-- [Setting up opencode](#-setting-up-opencode)
+- [Quick Chat](#quick-chat)
+- [Setting up Opencode](#-setting-up-opencode)
 
 ## ⚠️Caution
 
@@ -120,6 +124,17 @@ require('opencode').setup({
   default_system_prompt = nil, -- Custom system prompt to use for all sessions. If nil, uses the default built-in system prompt
   keymap_prefix = '<leader>o', -- Default keymap prefix for global keymaps change to your preferred prefix and it will be applied to all keymaps starting with <leader>o
   opencode_executable = 'opencode', -- Name of your opencode binary
+
+  -- Server configuration for custom/external opencode servers
+  server = {
+    url = nil,             -- URL/hostname (e.g., 'http://192.168.1.100', 'localhost', 'https://myserver.com')
+    port = nil,            -- Port number (e.g., 8080), 'auto' for random port, or nil for default (4096)
+    timeout = 5,           -- Health check timeout in seconds when connecting
+    spawn_command = nil,   -- Optional function to start the server: function(port, url) ... end
+    auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true)
+    path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
+  },
+
   keymap = {
     editor = {
       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened
@@ -756,6 +771,136 @@ You can create custom agents through your opencode config file. Each agent can h
 - And more
 
 See [Opencode Agents Documentation](https://opencode.ai/docs/agents/) for full configuration options.
+
+## 🔌 Custom/External Server Configuration
+
+By default, opencode.nvim spawns a local `opencode serve` process. You can instead connect to an external or containerized opencode server by configuring the `server` table.
+
+### Basic Connection
+
+Connect to an existing server:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',     -- or 'http://192.168.1.100'
+    port = 8080,
+    timeout = 5,
+  },
+})
+```
+
+### Auto-Spawning with Docker
+
+Use `spawn_command` to automatically start your server and `kill_command` to stop it:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 'auto',  -- Random port for project isolation
+    -- Path mapping: translate host paths to container paths
+    path_map = function(host_path)
+      local cwd = vim.fn.getcwd()
+      -- Replace host project directory with container mount point
+      return host_path:gsub(vim.pesc(cwd), '/app')
+    end,
+    -- Spawn command: start Docker container with opencode server
+    spawn_command = function(port, url)
+      local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+      local cwd = vim.fn.getcwd()
+      local container_name = string.format('opencode-%s', dir_name)
+
+      -- Check if container is already running
+      local check_cmd = string.format('docker ps --filter "name=%s" --format "{{.Names}}"', container_name)
+      local handle = io.popen(check_cmd)
+      local result = handle:read("*a")
+      handle:close()
+
+      if result and result:match(container_name) then
+        print(string.format("[opencode.nvim] Container %s is already running, skipping start", container_name))
+        return true
+      end
+
+      -- First, try to stop any existing container with the same name
+      os.execute(string.format('docker stop %s 2>/dev/null || true', container_name))
+
+      local cmd = string.format([[
+docker run -d --rm \
+--name %s \
+-p %d:4096 \
+-v ~/.local/state/opencode:/home/node/.local/state/opencode \
+-v ~/.local/share/opencode:/home/node/.local/share/opencode \
+-v ~/.config/opencode:/home/node/.config/opencode \
+-v "%s":/app:rw \
+opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
+        container_name,
+        port,
+        cwd
+      )
+
+      print(string.format("[opencode.nvim] Starting OpenCode container: %s on port %d", container_name, port))
+      return os.execute(cmd)
+    end,
+    -- Kill command: stop Docker container when auto_kill is triggered
+    kill_command = function(port, url)
+      local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
+      local container_name = string.format('opencode-%s', dir_name)
+      
+      print(string.format("[opencode.nvim] Stopping OpenCode container: %s", container_name))
+      return os.execute(string.format('docker stop %s 2>/dev/null', container_name))
+    end,
+    auto_kill = true,  -- Enable automatic cleanup when last nvim exits
+  },
+})
+```
+
+### Path Mapping for Containers/WSL
+
+When paths on the server differ from your host (e.g., `/app` in container vs `/home/user/project` on host):
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    path_map = '/app',  -- Simple string replacement
+  },
+})
+```
+
+For WSL or complex mappings, use a function:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    path_map = function(host_path)
+      -- Convert Windows path to WSL path
+      local wsl_path = host_path:gsub('^C:', '/mnt/c')
+      return wsl_path
+    end,
+  },
+})
+```
+
+### Configuration Options
+
+- `url` (string | nil): Server hostname/URL (e.g., 'localhost', 'http://192.168.1.100')
+- `port` (number | 'auto' | nil): Port number, `'auto'` for random port, or nil for default (4096)
+- `timeout` (number): Health check timeout in seconds (default: 5)
+- `spawn_command` (function | nil): Optional function to start server: `function(port, url) ... end`
+- `kill_command` (function | nil): Optional function to stop server when `auto_kill` triggers: `function(port, url) ... end`
+- `auto_kill` (boolean): Kill spawned servers when last nvim instance exits (default: true)
+- `path_map` (string | function | nil): Transform host paths to server paths
+
+### Multi-Instance Support
+
+When `port = 'auto'` is used, opencode.nvim:
+- Tracks which nvim instances are using each port
+- Only kills the server when the last nvim instance exits (if `auto_kill = true`)
+- Warns if connecting to a server configured for a different directory
 
 ## User Commands and Slash Commands
 

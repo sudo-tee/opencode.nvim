@@ -79,14 +79,14 @@ describe('api_client', function()
 
     local client = api_client.new('http://localhost:8080')
 
-    -- Test without query params
+    -- Test without query params - directory should be URL-encoded
     client:list_projects()
-    assert.are.equal('http://localhost:8080/project?directory=/current/directory', captured_calls[1].url)
+    assert.are.equal('http://localhost:8080/project?directory=%2Fcurrent%2Fdirectory', captured_calls[1].url)
     assert.are.equal('GET', captured_calls[1].method)
 
-    -- Test with query params
+    -- Test with query params - directory should be URL-encoded
     client:list_projects('/some/directory')
-    assert.are.equal('http://localhost:8080/project?directory=/some/directory', captured_calls[2].url)
+    assert.are.equal('http://localhost:8080/project?directory=%2Fsome%2Fdirectory', captured_calls[2].url)
 
     -- Test with multiple query params
     client:list_tools('anthropic', 'claude-3', '/some/dir')
@@ -98,7 +98,7 @@ describe('api_client', function()
     -- Check that all expected parameters are present (order doesn't matter)
     assert.is_not_nil(actual_url:find('provider=anthropic'))
     assert.is_not_nil(actual_url:find('model=claude%-3')) -- Escape the dash
-    assert.is_not_nil(actual_url:find('directory=/some/dir'))
+    assert.is_not_nil(actual_url:find('directory=%%2Fsome%%2Fdir')) -- URL-encoded path
 
     -- Restore original function
     server_job.call_api = original_call_api

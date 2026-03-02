@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local ThrottlingEmitter = require('opencode.throttling_emitter')
 local util = require('opencode.util')
+local log = require('opencode.log')
 
 --- @class EventInstallationUpdated
 --- @field type "installation.updated"
@@ -166,6 +167,7 @@ local util = require('opencode.util')
 --- @field events table<string, function[]> Event listener registry
 --- @field server_subscription table|nil Subscription to server events
 --- @field state_server_listener function|nil Listener for state.opencode_server updates
+--- @field state_cwd_listener function|nil Listener for state.current_cwd updates
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
@@ -179,6 +181,7 @@ function EventManager.new()
     events = {},
     server_subscription = nil,
     state_server_listener = nil,
+    state_cwd_listener = nil,
     is_started = false,
     captured_events = {},
     _parts_by_id = {},
@@ -361,7 +364,11 @@ function EventManager:_on_drained_events(events)
 
   if not config.ui.output.rendering.event_collapsing then
     for _, event in ipairs(normalized_events) do
-      self:emit(event.type, event.properties)
+      if event and event.type then
+        self:emit(event.type, event.properties)
+      else
+        log.warn('Received event with missing type: %s', vim.inspect(event))
+      end
     end
     self:emit('custom.emit_events.finished', {})
     return
@@ -381,10 +388,10 @@ function EventManager:_on_drained_events(events)
         -- permission.updated/permission.asked sits between the two updates.
         local has_intervening_permission_event = false
         for j = previous_index + 1, i - 1 do
-          if normalized_events[j] and (
-            normalized_events[j].type == 'permission.updated'
-            or normalized_events[j].type == 'permission.asked'
-          ) then
+          if
+            normalized_events[j]
+            and (normalized_events[j].type == 'permission.updated' or normalized_events[j].type == 'permission.asked')
+          then
             has_intervening_permission_event = true
             break
           end
@@ -409,8 +416,10 @@ function EventManager:_on_drained_events(events)
 
   for i = 1, #normalized_events do
     local event = collapsed_events[i]
-    if event then
+    if event and event.type then
       self:emit(event.type, event.properties)
+    elseif event then
+      log.warn('Received collapsed event with missing type: %s', vim.inspect(event))
     end
   end
 
@@ -480,10 +489,20 @@ function EventManager:start()
     end
   end
 
-  state.subscribe(
-    'opencode_server',
-    self.state_server_listener
-  )
+  state.subscribe('opencode_server', self.state_server_listener)
+
+  if self.state_cwd_listener then
+    state.unsubscribe('current_cwd', self.state_cwd_listener)
+  end
+
+  self.state_cwd_listener = function(key, new_cwd, old_cwd)
+    if new_cwd ~= old_cwd and state.opencode_server and state.opencode_server.url then
+      log.debug('Directory changed from %s to %s, re-subscribing to server events', old_cwd, new_cwd)
+      self:_subscribe_to_server_events(state.opencode_server)
+    end
+  end
+
+  state.subscribe('current_cwd', self.state_cwd_listener)
 end
 
 function EventManager:stop()
@@ -495,6 +514,10 @@ function EventManager:stop()
   if self.state_server_listener then
     state.unsubscribe('opencode_server', self.state_server_listener)
     self.state_server_listener = nil
+  end
+  if self.state_cwd_listener then
+    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    self.state_cwd_listener = nil
   end
   self:_cleanup_server_subscription()
 
@@ -518,7 +541,9 @@ function EventManager:_subscribe_to_server_events(server)
     self.throttling_emitter:enqueue(event)
   end
 
-  self.server_subscription = api_client:subscribe_to_events(nil, emitter)
+  local directory = state.current_cwd or vim.fn.getcwd()
+  log.debug('Subscribing to server events for directory: %s', directory)
+  self.server_subscription = api_client:subscribe_to_events(directory, emitter)
 end
 
 function EventManager:_cleanup_server_subscription()

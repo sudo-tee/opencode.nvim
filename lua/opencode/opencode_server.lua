@@ -96,9 +96,7 @@ local function shutdown_custom_server(server)
     log.debug('shutdown: custom server, executing kill_command for port %d (auto_kill=true)', server.port)
     local ok, result = pcall(config.server.kill_command, server.port, config.server.url or '127.0.0.1')
     if not ok then
-      vim.schedule(function()
-        log.notify(string.format('Failed to execute kill_command: %s', tostring(result)), vim.log.levels.WARN)
-      end)
+      log.notify(string.format('Failed to execute kill_command: %s', tostring(result)), vim.log.levels.WARN)
     else
       log.debug('shutdown: kill_command executed successfully for port %d', server.port)
     end

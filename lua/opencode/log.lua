@@ -62,7 +62,9 @@ function M.notify(msg, level)
   else
     M.info(msg)
   end
-  vim.notify('[opencode.nvim] ' .. msg, level)
+  vim.schedule(function()
+    vim.notify('[opencode.nvim] ' .. msg, level)
+  end)
 end
 
 return M

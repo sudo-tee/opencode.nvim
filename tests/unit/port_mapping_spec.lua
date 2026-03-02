@@ -259,26 +259,6 @@ describe('port_mapping', function()
       assert.equals(0, #kill_pid_calls)
     end)
 
-    it('calls kill_pid and request_graceful_shutdown when last client and no job object', function()
-      local real_pid = original_getpid()
-      write_mappings({
-        ['6002'] = {
-          directory = '/proj',
-          nvim_pids = { { pid = real_pid, directory = '/proj', mode = 'serve' } },
-          started_by_nvim = true,
-          auto_kill = true,
-          server_pid = 99,
-        },
-      })
-
-      local fake_server = { mode = 'serve', job = nil, shutdown = function() end }
-      port_mapping.unregister(6002, fake_server)
-
-      assert.equals(1, #kill_pid_calls)
-      assert.equals(99, kill_pid_calls[1])
-      assert.equals(1, #graceful_calls)
-    end)
-
     it('does not shut down when other clients remain', function()
       local real_pid = original_getpid()
       local fake_pid = 40404

@@ -103,18 +103,14 @@ function M.call_api(url, method, body)
             call_promise:reject(err)
           end)
           if not ok then
-            vim.schedule(function()
-              vim.notify('[opencode.nvim] Error while handling API error response: ' .. vim.inspect(pcall_err))
-            end)
+            log.notify('Error while handling API error response: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
           end
         else
           local ok, pcall_err = pcall(function()
             call_promise:resolve(result)
           end)
           if not ok then
-            vim.schedule(function()
-              vim.notify('[opencode.nvim] Error while handling API response: ' .. vim.inspect(pcall_err))
-            end)
+            log.notify('Error while handling API response: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
           end
         end
       end)
@@ -125,9 +121,7 @@ function M.call_api(url, method, body)
         call_promise:reject(err)
       end)
       if not ok then
-        vim.schedule(function()
-          vim.notify('[opencode.nvim] Error while handling API on_error: ' .. vim.inspect(pcall_err))
-        end)
+        log.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
       end
     end,
   }
@@ -160,15 +154,11 @@ function M.stream_api(url, method, body, on_chunk)
       if err.message:match('exit_code=nil') then
         return
       end
-      vim.schedule(function()
-        vim.notify('[opencode.nvim] Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
-      end)
+      log.notify('Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
     end,
     on_exit = function(code, signal)
       if code ~= 0 then
-        vim.schedule(function()
-          vim.notify('[opencode.nvim] Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
-        end)
+        log.notify('Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
       end
     end,
   }
@@ -180,9 +170,8 @@ function M.stream_api(url, method, body, on_chunk)
   return curl.request(opts) --[[@as table]]
 end
 
---- @param custom_url string
 --- @return number|nil port, or nil if we should spawn local instead
-local function resolve_port(custom_url)
+local function resolve_port()
   local custom_port = config.server.port or 'auto'
   if custom_port ~= 'auto' then
     return custom_port
@@ -300,10 +289,7 @@ function M.spawn_local_server(promise, port, hostname)
   local spawn_opts = {
     on_ready = function(job, base_url)
       local url_port = base_url:match(':(%d+)')
-      log.notify(
-        string.format('Started local server at %s on port %s.', base_url, tostring(url_port)),
-        vim.log.levels.INFO
-      )
+      log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
       if url_port then
         local port_num = tonumber(url_port)
         state.opencode_server.port = port_num
@@ -318,10 +304,7 @@ function M.spawn_local_server(promise, port, hostname)
       promise:resolve(state.opencode_server)
     end,
     on_error = function(err)
-      log.error('Error starting opencode server: ' .. vim.inspect(err))
-      vim.schedule(function()
-        vim.notify('[opencode.nvim] Failed to start opencode server', vim.log.levels.ERROR)
-      end)
+      log.notify(' Failed to start opencode server' .. vim.inspect(err), vim.log.levels.ERROR)
       promise:reject(err)
     end,
     on_exit = function(exit_opts)

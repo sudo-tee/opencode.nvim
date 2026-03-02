@@ -213,6 +213,11 @@ function M.ensure_server()
   end
 
   local custom_port = resolve_port(custom_url)
+  if not custom_port then
+    M.spawn_local_server(promise)
+    return promise
+  end
+
   local base_url = string.format('%s:%d', util.normalize_url_protocol(custom_url), custom_port)
 
   local timeout = config.server.timeout or 5

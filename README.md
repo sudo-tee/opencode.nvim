@@ -869,18 +869,57 @@ require('opencode').setup({
 })
 ```
 
-For WSL or complex mappings, use a function:
+### Auto-Spawning with WSL
+
+Run opencode server inside WSL while using Neovim on Windows:
 
 ```lua
 require('opencode').setup({
   server = {
     url = 'localhost',
-    port = 8080,
-    path_map = function(host_path)
-      -- Convert Windows path to WSL path
-      local wsl_path = host_path:gsub('^C:', '/mnt/c')
-      return wsl_path
+    port = 'auto',  -- Random port for project isolation
+    
+    -- Spawn opencode server inside WSL
+    spawn_command = function(port, url)
+      local cmd = string.format(
+        'wsl.exe -e bash -c "opencode serve --hostname 127.0.0.1 --port %d"',
+        port
+      )
+      print(string.format('[opencode.nvim] Starting WSL server on port %d', port))
+      return vim.fn.jobstart(cmd, { detach = 1 })
     end,
+    
+    -- Kill WSL opencode process
+    kill_command = function(port, url)
+      print(string.format('[opencode.nvim] Stopping WSL server on port %d', port))
+      vim.fn.jobstart('wsl.exe -e pkill -f "opencode serve.*--port ' .. port .. '"')
+    end,
+    
+    -- Windows → WSL path translation (for requests)
+    path_map = function(host_path)
+      if vim.fn.has('win32') == 1 then
+        -- Convert C:\Users\... → /mnt/c/Users/...
+        local drive, rest = host_path:match('^([A-Za-z]):(.*)$')
+        if drive then
+          local wsl_path = '/mnt/' .. drive:lower() .. rest:gsub('\\', '/')
+          return wsl_path
+        end
+      end
+      return host_path
+    end,
+    
+    -- WSL → Windows path translation (for responses)
+    reverse_path_map = function(server_path)
+      -- Convert /mnt/c/Users/... → C:\Users\...
+      local drive, rest = server_path:match('^/mnt/([a-z])(.*)$')
+      if drive then
+        local windows_path = drive:upper() .. ':' .. rest:gsub('/', '\\')
+        return windows_path
+      end
+      return server_path
+    end,
+    
+    auto_kill = true,  -- Kill server when last nvim instance exits
   },
 })
 ```
@@ -893,7 +932,8 @@ require('opencode').setup({
 - `spawn_command` (function | nil): Optional function to start server: `function(port, url) ... end`
 - `kill_command` (function | nil): Optional function to stop server when `auto_kill` triggers: `function(port, url) ... end`
 - `auto_kill` (boolean): Kill spawned servers when last nvim instance exits (default: true)
-- `path_map` (string | function | nil): Transform host paths to server paths
+- `path_map` (string | function | nil): Transform host paths to server paths (for outgoing requests)
+- `reverse_path_map` (function | nil): Transform server paths back to host paths (for incoming responses/events)
 
 ### Multi-Instance Support
 

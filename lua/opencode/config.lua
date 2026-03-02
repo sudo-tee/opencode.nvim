@@ -25,6 +25,9 @@ M.defaults = {
     path_map = function(path)
       return path
     end,
+    reverse_path_map = function(path)
+      return path
+    end,
   },
   keymap = {
     editor = {

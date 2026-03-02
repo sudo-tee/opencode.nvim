@@ -3,6 +3,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local url_encode = require('opencode.util').url_encode
 local apply_path_map = require('opencode.util').apply_path_map
+local reverse_transform_paths_recursive = require('opencode.util').reverse_transform_paths_recursive
 
 --- Transform file paths in API payloads using configured path_map
 --- @param data any The data to transform (table, string, or other)
@@ -110,7 +111,10 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     body = transform_paths_recursive(body)
   end
 
-  return server_job.call_api(url, method, body)
+  local Promise = require('opencode.promise')
+  return server_job.call_api(url, method, body):and_then(function(result)
+    return reverse_transform_paths_recursive(result)
+  end)
 end
 
 -- Project endpoints
@@ -471,7 +475,8 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     chunk = chunk:gsub('^data:%s*', '')
     local ok, event = pcall(vim.json.decode, vim.trim(chunk))
     if ok and event then
-      on_event(event --[[@as table]])
+      local transformed_event = reverse_transform_paths_recursive(event)
+      on_event(transformed_event --[[@as table]])
     end
   end)
 end

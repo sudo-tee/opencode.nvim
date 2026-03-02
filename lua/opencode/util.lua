@@ -138,6 +138,52 @@ function M.apply_path_map(path)
   return path
 end
 
+function M.apply_reverse_path_map(path)
+  if not path then
+    return path
+  end
+  
+  local config = require('opencode.config')
+  local reverse_path_map = config.server.reverse_path_map
+  
+  if type(reverse_path_map) == 'function' then
+    local ok, result = pcall(reverse_path_map, path)
+    if ok and result then
+      return result
+    end
+    return path
+  end
+  
+  return path
+end
+
+function M.reverse_transform_paths_recursive(data)
+  if type(data) ~= 'table' then
+    return data
+  end
+
+  local result = {}
+  for key, value in pairs(data) do
+    if type(value) == 'string' and (
+      key == 'filePath' or 
+      key == 'path' or 
+      key == 'file' or
+      key == 'directory' or
+      key == 'cwd' or
+      key == 'root'
+    ) then
+      result[key] = M.apply_reverse_path_map(value)
+    elseif type(value) == 'table' and (key == 'files' or key == 'deleted_files') then
+      result[key] = vim.tbl_map(M.apply_reverse_path_map, value)
+    elseif type(value) == 'table' then
+      result[key] = M.reverse_transform_paths_recursive(value)
+    else
+      result[key] = value
+    end
+  end
+  return result
+end
+
 --- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string

@@ -120,6 +120,7 @@
 ---@field kill_command fun(port: number, url: string): nil | nil -- Optional function to stop the server when auto_kill is true
 ---@field auto_kill boolean -- Kill spawned servers when nvim exits (default: true)
 ---@field path_map string | fun(host_path: string): string | nil -- Map host paths to server paths
+---@field reverse_path_map fun(server_path: string): string | nil -- Map server paths back to host paths
 
 ---@class OpencodeUIConfig
 ---@field enable_treesitter_markdown boolean

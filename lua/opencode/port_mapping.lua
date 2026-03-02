@@ -243,10 +243,10 @@ function M.unregister(port, server)
       end
     elseif is_last_client then
       log.debug('port_mapping.unregister: last nvim instance for port %d, killing orphaned server', port)
-      if server.job then
+      if config.server.kill_command and config.server.auto_kill then
         server:shutdown()
-      elseif mapping.server_pid then
-        kill_orphaned_server(port, mapping.server_pid)
+      elseif server.job then
+        server:shutdown()
       end
     end
   elseif should_shutdown then

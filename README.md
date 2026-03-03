@@ -131,7 +131,7 @@ require('opencode').setup({
     port = nil,            -- Port number (e.g., 8080), 'auto' for random port
     timeout = 5,           -- Health check timeout in seconds when connecting
     spawn_command = nil,   -- Optional function to start the server: function(port, url) ... end
-    auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true)
+    auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true) Only applies to servers spawned by the plugin with spawn_command/kill_command
     path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
   },
 

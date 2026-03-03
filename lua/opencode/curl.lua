@@ -26,9 +26,6 @@ local function build_curl_args(opts)
   if opts.proxy and opts.proxy ~= '' then
     table.insert(args, '--proxy')
     table.insert(args, opts.proxy)
-  elseif opts.proxy == '' then
-    table.insert(args, '--noproxy')
-    table.insert(args, '*')
   end
 
   if opts.timeout then

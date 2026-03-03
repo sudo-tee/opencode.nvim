@@ -9,6 +9,7 @@ local curl = require('opencode.curl')
 --- @field url string|nil The server URL once ready
 --- @field port number|nil The port this server is using (for custom servers)
 --- @field handle any Compatibility property for job.stop interface
+--- @field mode? 'serve'|'custom'|'attach' The mode of this server instance
 --- @field spawn_promise Promise<OpencodeServer>
 --- @field shutdown_promise Promise<boolean>
 local OpencodeServer = {}
@@ -26,7 +27,6 @@ local function ensure_vim_leave_autocmd()
     callback = function()
       local state = require('opencode.state')
       local server_job = require('opencode.server_job')
-      local log = require('opencode.log')
       if state.opencode_server then
         if state.opencode_server.port then
           server_job.unregister_port_usage(state.opencode_server.port)
@@ -48,6 +48,7 @@ function OpencodeServer.new()
     url = nil,
     port = nil,
     handle = nil,
+    mode = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
   }, OpencodeServer)
@@ -56,14 +57,16 @@ end
 --- Create a server instance that connects to a custom server
 --- @param url string The custom server URL
 --- @param port number|nil The port number (for PID tracking)
+--- @param mode? 'custom'|'attach' The mode of this server instance (default: 'custom')
 --- @return OpencodeServer
-function OpencodeServer.from_custom(url, port)
+function OpencodeServer.from_custom(url, port, mode)
   ensure_vim_leave_autocmd()
 
   local instance = setmetatable({
     job = nil,
     url = url,
     port = port,
+    mode = mode or 'custom',
     handle = nil,
     spawn_promise = Promise.new(),
     shutdown_promise = Promise.new(),
@@ -224,6 +227,7 @@ function OpencodeServer:spawn(opts)
 
   log.debug('spawn: starting opencode server with command: %s', vim.inspect(cmd))
 
+  self.mode = 'serve'
   self.job = vim.system(cmd, {
     cwd = opts.cwd,
     stdout = function(err, data)

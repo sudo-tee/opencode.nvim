@@ -246,7 +246,7 @@ local function spawn_and_retry(base_url, custom_port, custom_url, promise, timeo
 
   retry_connect(base_url, timeout, 3, function(url)
     port_mapping.register(custom_port, vim.fn.getcwd(), true, 'custom', url, server_pid)
-    state.opencode_server = opencode_server.from_custom(url, custom_port)
+    state.opencode_server = opencode_server.from_custom(url, custom_port, 'custom')
     promise:resolve(state.opencode_server)
   end, function(_err)
     if config.server.port == 'auto' then
@@ -262,8 +262,9 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
   try_custom_server(base_url, timeout)
     :and_then(function(url)
       local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
-      port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, 'custom', url, nil)
-      state.opencode_server = opencode_server.from_custom(url, custom_port)
+      local mode = config.server.spawn_command and 'custom' or 'attach'
+      port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, mode, url, nil)
+      state.opencode_server = opencode_server.from_custom(url, custom_port, mode)
       log.notify(
         string.format('Connected to remote server at %s on port %d.', base_url, custom_port),
         vim.log.levels.INFO

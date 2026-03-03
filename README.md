@@ -940,8 +940,8 @@ require('opencode').setup({
 When `port = 'auto'` is used, opencode.nvim:
 
 - Tracks which nvim instances are using each port
-- Only kills the server when the last nvim instance exits (if `auto_kill = true`)
-- Warns if connecting to a server configured for a different directory
+- Only kills the server when the last nvim instance exits (if `auto_kill = true`). Only applies to servers spawned by the plugin with `spawn_command`/`kill_command`.
+- Locally spawned servers will be killed automatically regardless of the auto_kill setting if they are the last nvim instance using them
 
 ## User Commands and Slash Commands
 

@@ -128,7 +128,7 @@ require('opencode').setup({
   -- Server configuration for custom/external opencode servers
   server = {
     url = nil,             -- URL/hostname (e.g., 'http://192.168.1.100', 'localhost', 'https://myserver.com')
-    port = nil,            -- Port number (e.g., 8080), 'auto' for random port, or nil for default (4096)
+    port = nil,            -- Port number (e.g., 8080), 'auto' for random port
     timeout = 5,           -- Health check timeout in seconds when connecting
     spawn_command = nil,   -- Optional function to start the server: function(port, url) ... end
     auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true)
@@ -846,7 +846,7 @@ opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
     kill_command = function(port, url)
       local dir_name = string.lower(vim.fn.fnamemodify(vim.fn.getcwd(), ":t"))
       local container_name = string.format('opencode-%s', dir_name)
-      
+
       print(string.format("[opencode.nvim] Stopping OpenCode container: %s", container_name))
       return os.execute(string.format('docker stop %s 2>/dev/null', container_name))
     end,
@@ -878,7 +878,7 @@ require('opencode').setup({
   server = {
     url = 'localhost',
     port = 'auto',  -- Random port for project isolation
-    
+
     -- Spawn opencode server inside WSL
     spawn_command = function(port, url)
       local cmd = string.format(
@@ -888,13 +888,13 @@ require('opencode').setup({
       print(string.format('[opencode.nvim] Starting WSL server on port %d', port))
       return vim.fn.jobstart(cmd, { detach = 1 })
     end,
-    
+
     -- Kill WSL opencode process
     kill_command = function(port, url)
       print(string.format('[opencode.nvim] Stopping WSL server on port %d', port))
       vim.fn.jobstart('wsl.exe -e pkill -f "opencode serve.*--port ' .. port .. '"')
     end,
-    
+
     -- Windows → WSL path translation (for requests)
     path_map = function(host_path)
       if vim.fn.has('win32') == 1 then
@@ -907,7 +907,7 @@ require('opencode').setup({
       end
       return host_path
     end,
-    
+
     -- WSL → Windows path translation (for responses)
     reverse_path_map = function(server_path)
       -- Convert /mnt/c/Users/... → C:\Users\...
@@ -918,7 +918,7 @@ require('opencode').setup({
       end
       return server_path
     end,
-    
+
     auto_kill = true,  -- Kill server when last nvim instance exits
   },
 })
@@ -938,6 +938,7 @@ require('opencode').setup({
 ### Multi-Instance Support
 
 When `port = 'auto'` is used, opencode.nvim:
+
 - Tracks which nvim instances are using each port
 - Only kills the server when the last nvim instance exits (if `auto_kill = true`)
 - Warns if connecting to a server configured for a different directory

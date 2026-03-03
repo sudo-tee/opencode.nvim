@@ -207,7 +207,7 @@ end
 --- Shuts the server down when it was the last client and auto_kill is set.
 --- Also shuts down attach-mode processes unconditionally.
 --- @param port number|nil
---- @param server any OpencodeServer instance (state.opencode_server)
+--- @param server OpencodeServer instance (state.opencode_server)
 function M.unregister(port, server)
   if not port then
     return
@@ -243,9 +243,9 @@ function M.unregister(port, server)
       end
     elseif is_last_client then
       log.debug('port_mapping.unregister: last nvim instance for port %d, killing orphaned server', port)
-      if config.server.kill_command and config.server.auto_kill then
-        server:shutdown()
-      elseif server.job then
+      local auto_kill_custom_server = config.server.auto_kill and config.server.kill_command
+      local server_is_owned = server.job
+      if auto_kill_custom_server or server_is_owned then
         server:shutdown()
       end
     end

@@ -87,6 +87,7 @@ function M.select(cb)
   base_picker.pick({
     title = 'Select model',
     items = models,
+    layout_opts = config.ui.picker,
     format_fn = function(item, width)
       local icon = item.icon or ''
       local item_width = width or vim.api.nvim_win_get_width(0)

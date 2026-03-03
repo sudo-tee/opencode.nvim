@@ -178,6 +178,7 @@ function M.pick(callback)
     callback = default_callback,
     title = 'MCP Servers',
     width = 65,
+    layout_opts = config.ui.picker,
   })
 end
 

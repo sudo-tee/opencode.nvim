@@ -321,6 +321,66 @@ describe('context static API with config override', function()
   end)
 end)
 
+describe('context toggle API', function()
+  local original_context_config
+  local original_load
+
+  before_each(function()
+    original_context_config = vim.deepcopy(state.current_context_config)
+    original_load = context.load
+  end)
+
+  after_each(function()
+    state.current_context_config = original_context_config
+    context.load = original_load
+  end)
+
+  it('set_context updates state config for a supported key', function()
+    local load_called = false
+    context.load = function()
+      load_called = true
+    end
+
+    local enabled = context.set_context('current_file', false)
+
+    assert.is_false(enabled)
+    assert.is_false(state.current_context_config.current_file.enabled)
+    assert.is_true(load_called)
+  end)
+
+  it('toggle_context inverts the current value', function()
+    context.load = function() end
+    state.current_context_config = {
+      current_file = { enabled = false },
+    }
+
+    local enabled = context.toggle_context('current_file')
+
+    assert.is_true(enabled)
+    assert.is_true(state.current_context_config.current_file.enabled)
+  end)
+
+  it('set_context supports buffer and git_diff keys', function()
+    context.load = function() end
+
+    local enabled_buffer = context.set_context('buffer', true)
+    local enabled_git_diff = context.set_context('git_diff', true)
+
+    assert.is_true(enabled_buffer)
+    assert.is_true(enabled_git_diff)
+    assert.is_true(state.current_context_config.buffer.enabled)
+    assert.is_true(state.current_context_config.git_diff.enabled)
+  end)
+
+  it('returns error for unsupported keys', function()
+    context.load = function() end
+
+    local enabled = context.toggle_context('files')
+
+    assert.is_nil(enabled)
+  end)
+end)
+
 describe('get_diagnostics with chat context selections', function()
   local ChatContext
 

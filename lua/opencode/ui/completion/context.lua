@@ -1,6 +1,5 @@
 local config = require('opencode.config')
 local context = require('opencode.context')
-local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
 
@@ -267,17 +266,7 @@ local context_source = {
     end
 
     local type = item.data.type
-    local context_cfg = vim.deepcopy(state.current_context_config or {})
-    if not context_cfg or not context_cfg[type] then
-      context_cfg[type] = vim.deepcopy(config.context[type])
-    end
-
-    if vim.tbl_contains({ 'current_file', 'selection', 'diagnostics', 'cursor_data' }, type) then
-      context_cfg[type] = context_cfg[type] or {}
-      context_cfg[type].enabled = not item.data.available
-    end
-
-    state.current_context_config = context_cfg
+    context.toggle_context(type)
 
     if type == 'mentioned_file' then
       local file_path = item.data.additional_data and item.data.additional_data.file_path or item.data.name

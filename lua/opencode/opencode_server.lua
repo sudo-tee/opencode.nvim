@@ -127,13 +127,11 @@ function OpencodeServer.kill_pid(pid)
     log.debug('kill_pid: pid=%d has %d children (%s)', pid, #children, vim.inspect(children))
     for _, cid in ipairs(children) do
       kill_process(cid, 15, 'SIGTERM child')
-      vim.uv.sleep(100)
       kill_process(cid, 9, 'SIGKILL child')
     end
   end
 
   kill_process(pid, 15, 'SIGTERM')
-  vim.uv.sleep(100)
   kill_process(pid, 9, 'SIGKILL')
 end
 

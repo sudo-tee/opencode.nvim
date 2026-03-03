@@ -1,6 +1,7 @@
 local M = {}
 local base_picker = require('opencode.ui.base_picker')
 local state = require('opencode.state')
+local config = require('opencode.config')
 local config_file = require('opencode.config_file')
 local model_state = require('opencode.model_state')
 local util = require('opencode.util')
@@ -64,6 +65,7 @@ function M.select(callback)
   base_picker.pick({
     title = 'Select variant',
     items = variants,
+    layout_opts = config.ui.picker,
     format_fn = function(item, width)
       local item_width = width or vim.api.nvim_win_get_width(0)
       local is_current = state.current_variant == item.name

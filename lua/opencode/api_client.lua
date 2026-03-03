@@ -110,7 +110,6 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     body = transform_paths_recursive(body)
   end
 
-  local Promise = require('opencode.promise')
   return server_job.call_api(url, method, body):and_then(function(result)
     return reverse_transform_paths_recursive(result)
   end)

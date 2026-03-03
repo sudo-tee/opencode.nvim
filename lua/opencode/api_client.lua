@@ -1,6 +1,5 @@
 local server_job = require('opencode.server_job')
 local state = require('opencode.state')
-local config = require('opencode.config')
 local url_encode = require('opencode.util').url_encode
 local apply_path_map = require('opencode.util').apply_path_map
 local reverse_transform_paths_recursive = require('opencode.util').reverse_transform_paths_recursive

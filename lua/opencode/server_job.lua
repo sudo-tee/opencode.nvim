@@ -229,7 +229,7 @@ local function retry_connect(base_url, timeout, max_retries, on_success, on_fail
           on_failure(err)
         end
       end)
-    end, retry_count * 2000)
+    end, retry_count * (config.server.retry_delay or 2000))
   end
   attempt(1)
 end

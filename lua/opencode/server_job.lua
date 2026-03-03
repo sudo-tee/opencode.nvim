@@ -316,6 +316,8 @@ function M.spawn_local_server(promise, port, hostname)
     spawn_opts.port = port
   end
   if hostname then
+    hostname = hostname:gsub('^%a[%w+%.%-]*://', '')
+    hostname = hostname:match('^[^/]+') or hostname
     spawn_opts.hostname = hostname
   end
 

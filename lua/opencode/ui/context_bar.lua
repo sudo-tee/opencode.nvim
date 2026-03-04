@@ -171,7 +171,7 @@ end
 
 function M.setup()
   state.subscribe(
-    { 'current_context_config', 'current_code_buf', 'opencode_focused', 'context_updated_at', 'user_message_count' },
+    { 'current_context_config', 'current_code_buf', 'is_opencode_focused', 'context_updated_at', 'user_message_count' },
     function()
       M.render()
     end

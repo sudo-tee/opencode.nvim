@@ -299,7 +299,8 @@ describe('opencode.ui.context_bar', function()
       assert.is_true(subscription_called)
       assert.is_table(captured_keys)
 
-      local expected_keys = { 'current_context_config', 'current_code_buf', 'opencode_focused', 'context_updated_at' }
+      local expected_keys =
+        { 'current_context_config', 'current_code_buf', 'is_opencode_focused', 'context_updated_at' }
       for _, expected_key in ipairs(expected_keys) do
         local found = false
         for _, key in ipairs(captured_keys) do

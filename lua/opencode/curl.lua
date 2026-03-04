@@ -28,6 +28,11 @@ local function build_curl_args(opts)
     table.insert(args, opts.proxy)
   end
 
+  if opts.timeout then
+    table.insert(args, '--max-time')
+    table.insert(args, tostring(math.ceil(opts.timeout / 1000)))
+  end
+
   table.insert(args, opts.url)
 
   return args
@@ -75,6 +80,9 @@ end
 --- @return table|nil job Job object for streaming requests, nil for regular requests
 function M.request(opts)
   local args = build_curl_args(opts)
+
+  local log = require('opencode.log')
+  log.debug('curl.request: executing command: %s', table.concat(args, ' '))
 
   if opts.stream then
     local buffer = ''
@@ -157,7 +165,8 @@ function M.request(opts)
     vim.system(args, job_opts, function(result)
       if result.code ~= 0 then
         if opts.on_error then
-          opts.on_error({ message = result.stderr or 'curl failed' })
+          local err_msg = (result.stderr and result.stderr ~= '') and result.stderr or 'curl failed'
+          opts.on_error({ message = err_msg })
         end
         return
       end

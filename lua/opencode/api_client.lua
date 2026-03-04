@@ -1,5 +1,29 @@
 local server_job = require('opencode.server_job')
 local state = require('opencode.state')
+local url_encode = require('opencode.util').url_encode
+local apply_path_map = require('opencode.util').apply_path_map
+local reverse_transform_paths_recursive = require('opencode.util').reverse_transform_paths_recursive
+
+--- Transform file paths in API payloads using configured path_map
+--- @param data any The data to transform (table, string, or other)
+--- @return any transformed_data The data with paths transformed
+local function transform_paths_recursive(data)
+  if type(data) ~= 'table' then
+    return data
+  end
+
+  local result = {}
+  for key, value in pairs(data) do
+    if type(value) == 'string' and (key == 'filePath' or key == 'path' or key == 'directory') then
+      result[key] = apply_path_map(value)
+    elseif type(value) == 'table' then
+      result[key] = transform_paths_recursive(value)
+    else
+      result[key] = value
+    end
+  end
+  return result
+end
 
 --- @class OpencodeApiClient
 --- @field base_url string The base URL of the opencode server
@@ -67,11 +91,13 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
       query.directory = state.current_cwd or vim.fn.getcwd()
     end
 
+    query = transform_paths_recursive(query)
+
     local params = {}
 
     for k, v in pairs(query) do
       if v ~= nil then
-        table.insert(params, k .. '=' .. tostring(v))
+        table.insert(params, url_encode(k) .. '=' .. url_encode(v))
       end
     end
 
@@ -80,7 +106,13 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
     end
   end
 
-  return server_job.call_api(url, method, body)
+  if body and type(body) == 'table' then
+    body = transform_paths_recursive(body)
+  end
+
+  return server_job.call_api(url, method, body):and_then(function(result)
+    return reverse_transform_paths_recursive(result)
+  end)
 end
 
 -- Project endpoints
@@ -433,15 +465,16 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
   self:_ensure_base_url()
   local url = self.base_url .. '/event'
   if directory then
-    url = url .. '?directory=' .. directory
+    local mapped_directory = apply_path_map(directory)
+    url = url .. '?directory=' .. url_encode(mapped_directory)
   end
 
   return server_job.stream_api(url, 'GET', nil, function(chunk)
-    -- strip data: prefix if present
     chunk = chunk:gsub('^data:%s*', '')
     local ok, event = pcall(vim.json.decode, vim.trim(chunk))
     if ok and event then
-      on_event(event --[[@as table]])
+      local transformed_event = reverse_transform_paths_recursive(event)
+      on_event(transformed_event --[[@as table]])
     end
   end)
 end

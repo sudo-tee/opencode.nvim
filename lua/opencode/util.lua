@@ -84,6 +84,106 @@ function M.sanitize_lines(lines)
   return stripped_lines
 end
 
+--- Normalize a URL by prepending http:// if no protocol is specified
+--- @param url string The URL to normalize
+--- @return string normalized_url The normalized URL
+function M.normalize_url_protocol(url)
+  if not url:match('^https?://') then
+    return 'http://' .. url
+  end
+  return url
+end
+
+--- URL encode a string for use in query parameters
+--- @param str string The string to encode
+--- @return string encoded_string The URL-encoded string
+function M.url_encode(str)
+  if not str then return '' end
+  str = tostring(str)
+  str = string.gsub(str, '\n', '\r\n')
+  str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
+    return string.format('%%%02X', string.byte(c))
+  end)
+  return str
+end
+
+--- Apply path mapping transformation if configured
+--- @param path string The path to transform
+--- @return string transformed_path The transformed path (or original if no mapping)
+function M.apply_path_map(path)
+  if not path then
+    return path
+  end
+  
+  local config = require('opencode.config')
+  local path_map = config.server.path_map
+  
+  if type(path_map) == 'function' then
+    local ok, result = pcall(path_map, path)
+    if ok and result then
+      return result
+    end
+    return path
+  elseif type(path_map) == 'string' then
+    local host_cwd = vim.fn.getcwd()
+    if vim.startswith(path, host_cwd) then
+      local relative_path = path:sub(#host_cwd + 1)
+      if relative_path == '' then
+        return path_map
+      end
+      return path_map .. relative_path
+    end
+  end
+  
+  return path
+end
+
+function M.apply_reverse_path_map(path)
+  if not path then
+    return path
+  end
+  
+  local config = require('opencode.config')
+  local reverse_path_map = config.server.reverse_path_map
+  
+  if type(reverse_path_map) == 'function' then
+    local ok, result = pcall(reverse_path_map, path)
+    if ok and result then
+      return result
+    end
+    return path
+  end
+  
+  return path
+end
+
+function M.reverse_transform_paths_recursive(data)
+  if type(data) ~= 'table' then
+    return data
+  end
+
+  local result = {}
+  for key, value in pairs(data) do
+    if type(value) == 'string' and (
+      key == 'filePath' or 
+      key == 'path' or 
+      key == 'file' or
+      key == 'directory' or
+      key == 'cwd' or
+      key == 'root'
+    ) then
+      result[key] = M.apply_reverse_path_map(value)
+    elseif type(value) == 'table' and (key == 'files' or key == 'deleted_files') then
+      result[key] = vim.tbl_map(M.apply_reverse_path_map, value)
+    elseif type(value) == 'table' then
+      result[key] = M.reverse_transform_paths_recursive(value)
+    else
+      result[key] = value
+    end
+  end
+  return result
+end
+
 --- Format a timestamp as time (e.g., "10:23 AM",  "13 Oct 03:32 PM"  "13 Oct 2025 03:32 PM")
 --- @param timestamp number
 --- @return string: Formatted time string
@@ -263,6 +363,19 @@ function M.safe_call(fn, ...)
   return fn and vim.schedule(function()
     fn(unpack(arg))
   end)
+end
+
+--- Call fn(...), notifying the user if it throws. Useful for protecting
+--- callbacks where a thrown error would be silently swallowed.
+--- @param fn function
+--- @param ... any
+function M.safe_pcall(fn, ...)
+  local ok, err = pcall(fn, ...)
+  if not ok then
+    vim.schedule(function()
+      vim.notify('[opencode.nvim] Unexpected error: ' .. vim.inspect(err))
+    end)
+  end
 end
 
 ---@param version string

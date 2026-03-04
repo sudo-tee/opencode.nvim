@@ -104,4 +104,163 @@ describe('server_job', function()
     assert.same(fake, second._value or second)
     assert.equal(1, spawn_count)
   end)
+
+  describe('ensure_server with config.server.url set', function()
+    local config
+    local state
+    local port_mapping
+    local original_port
+    local original_url
+    local original_spawn_command
+    local original_opencode_server
+    local original_find_any_existing_port
+    local original_find_port_for_directory
+    local original_started_by_nvim
+    local original_register
+
+    before_each(function()
+      config = require('opencode.config')
+      state = require('opencode.state')
+      port_mapping = require('opencode.port_mapping')
+
+      original_port = config.values.server.port
+      original_url = config.values.server.url
+      original_spawn_command = config.values.server.spawn_command
+      original_opencode_server = state.opencode_server
+
+      original_find_any_existing_port = port_mapping.find_any_existing_port
+      original_find_port_for_directory = port_mapping.find_port_for_directory
+      original_started_by_nvim = port_mapping.started_by_nvim
+      original_register = port_mapping.register
+
+      port_mapping.register = function() end
+      port_mapping.started_by_nvim = function()
+        return false
+      end
+
+      state.opencode_server = nil
+    end)
+
+    after_each(function()
+      config.values.server.port = original_port
+      config.values.server.url = original_url
+      config.values.server.spawn_command = original_spawn_command
+      state.opencode_server = original_opencode_server
+
+      port_mapping.find_any_existing_port = original_find_any_existing_port
+      port_mapping.find_port_for_directory = original_find_port_for_directory
+      port_mapping.started_by_nvim = original_started_by_nvim
+      port_mapping.register = original_register
+    end)
+
+    it('attaches to custom server when health check succeeds', function()
+      config.values.server.url = 'http://192.168.1.100'
+      config.values.server.port = 4321
+      config.values.server.spawn_command = nil
+
+      curl.request = function(opts)
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '{"ok":true}' })
+        end)
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.is_not_nil(result)
+      assert.equal('http://192.168.1.100:4321', result.url)
+      assert.equal(4321, result.port)
+    end)
+
+    it('resolves url with default port from find_any_existing_port when port is nil', function()
+      config.values.server.url = 'http://127.0.0.1'
+      config.values.server.port = nil
+      config.values.server.spawn_command = nil
+
+      port_mapping.find_any_existing_port = function()
+        return 9999
+      end
+
+      curl.request = function(opts)
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '{"ok":true}' })
+        end)
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.is_not_nil(result)
+      assert.equal('http://127.0.0.1:9999', result.url)
+    end)
+
+    it('falls back to local spawn when resolve_port returns nil', function()
+      config.values.server.url = 'http://127.0.0.1'
+      config.values.server.port = nil
+      config.values.server.spawn_command = nil
+
+      -- no existing port → resolve_port() returns nil
+      port_mapping.find_any_existing_port = function()
+        return nil
+      end
+
+      local spawn_count = 0
+      local fake_local = {
+        url = 'http://127.0.0.1:5000',
+        port = nil,
+        is_running = function(self)
+          return spawn_count > 0
+        end,
+        spawn = function(self, opts)
+          spawn_count = spawn_count + 1
+          vim.schedule(function()
+            opts.on_ready({}, self.url)
+          end)
+        end,
+        shutdown = function() end,
+      }
+      opencode_server.new = function()
+        return fake_local
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.equal(1, spawn_count)
+      assert.same(fake_local, result._value or result)
+    end)
+
+    it('falls back to local spawn when health check fails and no spawn_command', function()
+      config.values.server.url = 'http://192.168.1.100'
+      config.values.server.port = 7777
+      config.values.server.spawn_command = nil
+
+      curl.request = function(opts)
+        vim.schedule(function()
+          if opts.callback then
+            opts.callback({ status = 503, body = '{}' })
+          elseif opts.on_error then
+            opts.on_error({ message = 'connection refused' })
+          end
+        end)
+      end
+
+      local spawn_count = 0
+      local fake_local = {
+        url = 'http://127.0.0.1:8080',
+        port = nil,
+        is_running = function(self)
+          return spawn_count > 0
+        end,
+        spawn = function(self, opts)
+          spawn_count = spawn_count + 1
+          vim.schedule(function()
+            opts.on_ready({}, self.url)
+          end)
+        end,
+        shutdown = function() end,
+      }
+      opencode_server.new = function()
+        return fake_local
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.equal(1, spawn_count)
+      assert.same(fake_local, result._value or result)
+    end)
+  end)
 end)

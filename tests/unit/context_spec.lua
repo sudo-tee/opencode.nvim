@@ -154,6 +154,92 @@ describe('format_message', function()
     BaseContext.get_current_selection = original_get_current_selection
     BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
   end)
+
+  it('does not include current_file when disabled even if stale current_file exists', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_diagnostics = BaseContext.get_diagnostics
+
+    ChatContext.context.current_file = {
+      path = '/tmp/foo.lua',
+      name = 'foo.lua',
+      extension = 'lua',
+      sent_at = nil,
+      sent_at_mtime = nil,
+    }
+
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_diagnostics = function()
+      return {}
+    end
+
+    local parts = context
+      .format_message('follow-up prompt', {
+        current_file = { enabled = false },
+        selection = { enabled = false },
+        diagnostics = { enabled = false },
+        cursor_data = { enabled = false },
+        buffer = { enabled = false },
+        git_diff = { enabled = false },
+      })
+      :wait()
+
+    local has_file_part = false
+    for _, part in ipairs(parts) do
+      if part.type == 'file' then
+        has_file_part = true
+        break
+      end
+    end
+
+    assert.is_false(has_file_part)
+    assert.is_nil(ChatContext.context.current_file.sent_at)
+
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+end)
+
+describe('context update notifications', function()
+  local ChatContext
+  local original_now
+
+  before_each(function()
+    ChatContext = require('opencode.context.chat_context')
+    ChatContext.context.mentioned_files = { '/tmp/a.lua' }
+    ChatContext.context.selections = { { file = { path = '/tmp/a.lua' }, lines = '1, 1', content = 'x' } }
+    ChatContext.context.mentioned_subagents = { 'agent1' }
+
+    state.context_updated_at = 0
+    local tick = 0
+    original_now = vim.uv.now
+    vim.uv.now = function()
+      tick = tick + 1
+      return tick
+    end
+  end)
+
+  after_each(function()
+    vim.uv.now = original_now
+  end)
+
+  it('updates context_updated_at for clear operations and unload_attachments', function()
+    ChatContext.clear_files()
+    assert.equal(1, state.context_updated_at)
+
+    ChatContext.clear_selections()
+    assert.equal(2, state.context_updated_at)
+
+    ChatContext.clear_subagents()
+    assert.equal(3, state.context_updated_at)
+
+    context.unload_attachments()
+    assert.equal(4, state.context_updated_at)
+  end)
 end)
 
 describe('delta_context', function()
@@ -750,6 +836,53 @@ describe('ChatContext.load() preserves selections on file switch', function()
     BaseContext.is_context_enabled = original_is_context_enabled
     BaseContext.get_current_selection = original_get_current_selection
     BaseContext.new_selection = original_new_selection
+    ChatContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('should clear stale current_file when current_file context is disabled', function()
+    ChatContext.context.current_file = {
+      path = '/tmp/stale.lua',
+      name = 'stale.lua',
+      extension = 'lua',
+      sent_at = nil,
+      sent_at_mtime = nil,
+    }
+
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_file = BaseContext.get_current_file
+    local original_get_current_cursor_data = BaseContext.get_current_cursor_data
+    local original_is_context_enabled = BaseContext.is_context_enabled
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_diagnostics = ChatContext.get_diagnostics
+
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_current_file = function()
+      return nil
+    end
+    BaseContext.get_current_cursor_data = function()
+      return nil
+    end
+    BaseContext.is_context_enabled = function()
+      return false
+    end
+    BaseContext.get_current_selection = function()
+      return nil
+    end
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    ChatContext.load()
+
+    assert.is_nil(ChatContext.context.current_file)
+
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_file = original_get_current_file
+    BaseContext.get_current_cursor_data = original_get_current_cursor_data
+    BaseContext.is_context_enabled = original_is_context_enabled
+    BaseContext.get_current_selection = original_get_current_selection
     ChatContext.get_diagnostics = original_get_diagnostics
   end)
 end)

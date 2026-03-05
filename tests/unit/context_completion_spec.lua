@@ -53,6 +53,15 @@ describe('context completion', function()
       remove_file = function() end,
       remove_subagent = function() end,
       remove_selection = function() end,
+      toggle_context = function(type)
+        if not vim.tbl_contains({ 'current_file', 'selection', 'diagnostics', 'cursor_data', 'buffer', 'git_diff' }, type) then
+          return nil
+        end
+        mock_state.current_context_config = mock_state.current_context_config or {}
+        mock_state.current_context_config[type] = mock_state.current_context_config[type] or {}
+        mock_state.current_context_config[type].enabled = not mock_context.is_context_enabled(type)
+        return true
+      end,
       get_context = function()
         return {
           current_file = { extension = 'lua', name = 'test.lua', path = '/test/test.lua' },
@@ -300,6 +309,7 @@ describe('context completion', function()
     end)
 
     it('should toggle context enabled state for toggleable items', function()
+      local toggle_called = false
       local item = {
         label = 'Current File',
         data = {
@@ -309,13 +319,16 @@ describe('context completion', function()
         },
       }
 
+      local context_module = require('opencode.context')
+      context_module.toggle_context = function(type)
+        toggle_called = true
+        assert.are.equal('current_file', type)
+        return true
+      end
+
       source.on_complete(item)
 
-      local state_module = require('opencode.state')
-
-      assert.is_not_nil(state_module.current_context_config)
-      assert.is_not_nil(state_module.current_context_config.current_file)
-      assert.is_false(state_module.current_context_config.current_file.enabled)
+      assert.is_true(toggle_called)
     end)
 
     it('should remove mentioned file when selected', function()

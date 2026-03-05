@@ -9,6 +9,26 @@ local BaseContext = require('opencode.context.base_context')
 
 local M = {}
 
+---@type table<OpencodeToggleableContextKey, boolean>
+local toggleable_context_keys = {
+  current_file = true,
+  selection = true,
+  diagnostics = true,
+  cursor_data = true,
+  buffer = true,
+  git_diff = true,
+}
+
+---@param context_key OpencodeToggleableContextKey
+---@return table
+local function ensure_context_state(context_key)
+  state.current_context_config = state.current_context_config or {}
+  local current = state.current_context_config[context_key]
+  local defaults = vim.tbl_get(config, 'context', context_key) or {}
+  state.current_context_config[context_key] = vim.tbl_deep_extend('force', {}, defaults, current or {})
+  return state.current_context_config[context_key]
+end
+
 M.ChatContext = ChatContext
 M.QuickChatContext = QuickChatContext
 
@@ -45,6 +65,33 @@ end
 
 function M.is_context_enabled(context_key, context_config)
   return BaseContext.is_context_enabled(context_key, context_config)
+end
+
+---@param context_key OpencodeToggleableContextKey
+---@param enabled boolean
+---@return boolean|nil enabled
+function M.set_context(context_key, enabled)
+  if not toggleable_context_keys[context_key] then
+    return nil
+  end
+
+  local context_state = ensure_context_state(context_key)
+  context_state.enabled = enabled
+
+  M.load()
+
+  return enabled
+end
+
+---@param context_key OpencodeToggleableContextKey
+---@return boolean|nil enabled
+function M.toggle_context(context_key)
+  if not toggleable_context_keys[context_key] then
+    return nil
+  end
+
+  local enabled = not M.is_context_enabled(context_key)
+  return M.set_context(context_key, enabled)
 end
 
 function M.get_diagnostics(buf, context_config, range)

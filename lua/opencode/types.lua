@@ -176,6 +176,14 @@
 ---@field buffer { enabled: boolean }
 ---@field git_diff { enabled: boolean }
 
+---@alias OpencodeToggleableContextKey
+---| 'current_file'
+---| 'selection'
+---| 'diagnostics'
+---| 'cursor_data'
+---| 'buffer'
+---| 'git_diff'
+
 ---@class OpencodeDebugConfig
 ---@field enabled boolean
 ---@field capture_streamed_events boolean

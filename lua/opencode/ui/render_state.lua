@@ -38,7 +38,41 @@ function RenderState:reset()
     line_to_part = {},
     line_to_message = {},
   }
+  self._child_session_parts = {}
   self._line_index_valid = false
+end
+
+---Get parts for a child session
+---@param session_id string
+---@return OpencodeMessagePart[]?|nil
+function RenderState:get_child_session_parts(session_id)
+  if not session_id then
+    return nil
+  end
+  return self._child_session_parts and self._child_session_parts[session_id]
+end
+
+---Upsert a part associated with a child session
+---@param session_id string
+---@param part OpencodeMessagePart
+function RenderState:upsert_child_session_part(session_id, part)
+  if not session_id or not part or not part.id then
+    return
+  end
+  self._child_session_parts = self._child_session_parts or {}
+  local session_parts = self._child_session_parts[session_id] or {}
+  local found = false
+  for i, existing in ipairs(session_parts) do
+    if existing.id == part.id then
+      session_parts[i] = part
+      found = true
+      break
+    end
+  end
+  if not found then
+    table.insert(session_parts, part)
+  end
+  self._child_session_parts[session_id] = session_parts
 end
 
 ---Get message render data by ID

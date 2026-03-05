@@ -386,7 +386,11 @@ function M.start(opts)
       or event.partID
       or event.messageID
       or ''
-    vim.notify('Event ' .. index .. '/' .. count .. ': ' .. type .. ' ' .. id, vim.log.levels.INFO)
+    vim.notify(
+      'Event ' .. index .. '/' .. count .. ': ' .. type .. ' ' .. id,
+      vim.log.levels.INFO,
+      { id = 'replay_event_log' }
+    )
   end
 
   local events = {

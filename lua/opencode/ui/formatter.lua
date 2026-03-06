@@ -668,7 +668,7 @@ function M._format_question_tool(output, input, metadata, status, duration_text)
 end
 
 function M._resolve_file_name(file_path)
-  if not file_path then
+  if not file_path or file_path == '' then
     return ''
   end
   local cwd = vim.fn.getcwd()
@@ -773,44 +773,44 @@ end
 
 local tool_summary_handlers = {
   bash = function(_, input)
-    return 'run', input.description or ''
+    return 'run', 'run', input.description or ''
   end,
   read = function(_, input)
-    return 'read', M._resolve_file_name(input.filePath)
+    return 'read', 'read', M._resolve_file_name(input.filePath)
   end,
   edit = function(_, input)
-    return 'edit', M._resolve_file_name(input.filePath)
+    return 'edit', 'edit', M._resolve_file_name(input.filePath)
   end,
   write = function(_, input)
-    return 'write', M._resolve_file_name(input.filePath)
+    return 'write', 'write', M._resolve_file_name(input.filePath)
   end,
   apply_patch = function(_, metadata)
     local file = metadata.files and metadata.files[1]
     local others_count = metadata.files and #metadata.files - 1 or 0
     local suffix = others_count > 0 and string.format(' (+%d more)', others_count) or ''
 
-    return 'write', file and M._resolve_file_name(file.filePath) .. suffix or ''
+    return 'edit', 'apply patch', file and M._resolve_file_name(file.filePath) .. suffix or ''
   end,
   todowrite = function(part, _)
-    return 'plan', part.state and part.state.title or ''
+    return 'plan', 'plan', part.state and part.state.title or ''
   end,
   glob = function(_, input)
-    return 'search', input.pattern or ''
+    return 'search', 'glob', input.pattern or ''
   end,
   webfetch = function(_, input)
-    return 'web', input.url or ''
+    return 'web', 'fetch', input.url or ''
   end,
   list = function(_, input)
-    return 'list', input.path or ''
+    return 'list', 'list', input.path or ''
   end,
   task = function(_, input)
-    return 'task', input.description or ''
+    return 'task', 'task', input.description or ''
   end,
   grep = function(_, input)
-    return 'search', M._resolve_grep_string(input)
+    return 'search', 'grep', M._resolve_grep_string(input)
   end,
   tool = function(_, input)
-    return 'tool', input.description or ''
+    return 'tool', 'tool', input.description or ''
   end,
 }
 
@@ -823,12 +823,12 @@ function M._tool_action_line(part, status)
   local tool = part.tool
   local input = part.state and part.state.input or {}
   local handler = tool_summary_handlers[tool] or tool_summary_handlers['tool']
-  local icon_name, tool_value = handler(part, input)
+  local icon_name, tool_label, tool_value = handler(part, input)
   if status ~= 'completed' then
     icon_name = status
   end
 
-  return M._build_action_line(icon_name, tool or 'tool', tool_value)
+  return M._build_action_line(icon_name, tool_label or tool or 'tool', tool_value)
 end
 
 ---@param output Output Output object to write to

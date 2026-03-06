@@ -513,9 +513,11 @@ end
 ---@param tool_type string Tool type (e.g., 'read', 'edit', 'write')
 ---@param input FileToolInput data for the tool
 ---@param metadata FileToolMetadata Metadata for the tool use
+---@param tool_output? string Tool output payload for detecting directory reads
 ---@param duration_text? string
-function M._format_file_tool(output, tool_type, input, metadata, duration_text)
-  local file_name = M._resolve_file_name(input and input.filePath or '')
+function M._format_file_tool(output, tool_type, input, metadata, tool_output, duration_text)
+  local file_name = tool_type == 'read' and M._resolve_display_file_name(input and input.filePath or '', tool_output)
+    or M._resolve_file_name(input and input.filePath or '')
 
   local file_type = input and util.get_markdown_filetype(input.filePath) or ''
 
@@ -679,6 +681,34 @@ function M._resolve_file_name(file_path)
   return absolute
 end
 
+---@param file_path string
+---@param tool_output? string
+---@return boolean
+function M._is_directory_path(file_path, tool_output)
+  if not file_path or file_path == '' then
+    return false
+  end
+
+  if vim.endswith(file_path, '/') then
+    return true
+  end
+
+  return type(tool_output) == 'string' and tool_output:match('<type>directory</type>') ~= nil
+end
+
+---@param file_path string
+---@param tool_output? string
+---@return string
+function M._resolve_display_file_name(file_path, tool_output)
+  local resolved = M._resolve_file_name(file_path)
+
+  if resolved ~= '' and M._is_directory_path(file_path, tool_output) and not vim.endswith(resolved, '/') then
+    resolved = resolved .. '/'
+  end
+
+  return resolved
+end
+
 function M._resolve_grep_string(input)
   if not input then
     return ''
@@ -714,7 +744,14 @@ function M._format_tool(output, part, get_child_parts)
   if tool == 'bash' then
     M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]], duration_text)
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
-    M._format_file_tool(output, tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]], duration_text)
+    M._format_file_tool(
+      output,
+      tool,
+      input --[[@as FileToolInput]],
+      metadata --[[@as FileToolMetadata]],
+      tool_output,
+      duration_text
+    )
   elseif tool == 'todowrite' then
     M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]], duration_text)
   elseif tool == 'glob' then
@@ -775,8 +812,9 @@ local tool_summary_handlers = {
   bash = function(_, input)
     return 'run', 'run', input.description or ''
   end,
-  read = function(_, input)
-    return 'read', 'read', M._resolve_file_name(input.filePath)
+  read = function(part, input)
+    local tool_output = part.state and part.state.output or nil
+    return 'read', 'read', M._resolve_display_file_name(input.filePath, tool_output)
   end,
   edit = function(_, input)
     return 'edit', 'edit', M._resolve_file_name(input.filePath)

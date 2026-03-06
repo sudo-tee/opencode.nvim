@@ -817,7 +817,7 @@ local tool_summary_handlers = {
 ---Build the action line string for a part (icon + meaningful value, no duration)
 ---Used to show per-tool icon+label in child session activity lists.
 ---@param part OpencodeMessagePart
----@param status string Optional icon name to use for the status (e.g., 'running', 'completed', 'error'). If not provided, will use the default icon for the tool.
+---@param status string icon name to use for the status (e.g., 'running', 'completed', 'error'). If not provided, will use the default icon for the tool.
 ---@return string
 function M._tool_action_line(part, status)
   local tool = part.tool

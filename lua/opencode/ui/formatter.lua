@@ -972,7 +972,7 @@ local function parse_diff_line_numbers(lines)
     end
   end
 
-  return numbered_lines, #tostring(max_line_number)
+  return numbered_lines, math.max(#tostring(max_line_number), 4)
 end
 
 local function build_diff_gutter(line_numbers, width)

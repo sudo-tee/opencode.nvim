@@ -728,6 +728,13 @@ You can quiclkly see the current context items in the context bar at the top of 
   <img src="https://i.imgur.com/vGgu6br.png" alt="Opencode.nvim context bar" width="90%" />
 </div>
 
+For `Current file`, the color indicates whether it will be sent with the next prompt:
+
+- Regular highlight: file is pending and will be included.
+- Dimmed/gray highlight: file was already sent and has not changed, so it will be skipped (delta behavior).
+
+If the file content changes, it becomes pending again and will be sent on the next prompt.
+
 ### Context Items Completion
 
 You can quickly reference available context items by typing `#` in the input window. This will show a completion menu with all available context items:

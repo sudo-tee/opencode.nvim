@@ -195,6 +195,7 @@ end
 
 function M.clear_selections()
   M.context.selections = {}
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.add_file(file)
@@ -230,6 +231,7 @@ end
 
 function M.clear_files()
   M.context.mentioned_files = {}
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.add_subagent(subagent)
@@ -261,11 +263,13 @@ end
 
 function M.clear_subagents()
   M.context.mentioned_subagents = {}
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.unload_attachments()
   M.context.mentioned_files = {}
   M.context.selections = {}
+  state.context_updated_at = vim.uv.now()
 end
 
 function M.get_mentioned_files()
@@ -336,7 +340,7 @@ function M.should_update_current_file(current_file)
   end
 
   if not current_file then
-    return false, false
+    return true, false
   end
 
   -- Different file name means update needed
@@ -373,6 +377,10 @@ function M.load()
     return
   end
 
+  local prev_current_file = vim.deepcopy(M.context.current_file)
+  local prev_cursor_data = vim.deepcopy(M.context.cursor_data)
+  local prev_linter_errors = vim.deepcopy(M.context.linter_errors)
+
   local current_file = base_context.get_current_file(buf)
   local cursor_data = base_context.get_current_cursor_data(buf, win)
 
@@ -388,6 +396,14 @@ function M.load()
 
   M.context.cursor_data = cursor_data
   M.context.linter_errors = M.get_diagnostics(buf, nil, nil)
+
+  if
+    not vim.deep_equal(prev_current_file, M.context.current_file)
+    or not vim.deep_equal(prev_cursor_data, M.context.cursor_data)
+    or not vim.deep_equal(prev_linter_errors, M.context.linter_errors)
+  then
+    state.context_updated_at = vim.uv.now()
+  end
 
   -- Handle current selection
   if base_context.is_context_enabled('selection') then
@@ -484,7 +500,11 @@ M.format_message = Promise.async(function(prompt, opts)
     return { parts = parts }
   end
 
-  if M.context.current_file and not M.context.current_file.sent_at then
+  if
+    base_context.is_context_enabled('current_file', context_config)
+    and M.context.current_file
+    and not M.context.current_file.sent_at
+  then
     table.insert(parts, format_file_part(M.context.current_file.path))
     set_file_sent_timestamps(M.context.current_file)
   end

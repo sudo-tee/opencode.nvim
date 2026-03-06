@@ -208,8 +208,7 @@ function M.clear_subagents()
 end
 
 function M.unload_attachments()
-  ChatContext.clear_files()
-  ChatContext.clear_selections()
+  ChatContext.unload_attachments()
 end
 
 function M.load()

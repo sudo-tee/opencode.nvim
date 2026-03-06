@@ -1136,23 +1136,12 @@ end
 ---Find and re-render the task tool part in the active session that owns a given child session
 ---@param child_session_id string The child session ID to look up
 function M._rerender_task_tool_for_child_session(child_session_id)
-  if not state.messages then
+  local part_id = M._render_state:get_task_part_by_child_session(child_session_id)
+  if not part_id then
     return
   end
 
-  for _, message in ipairs(state.messages) do
-    for _, part in ipairs(message.parts or {}) do
-      if
-        part.tool == 'task'
-        and part.state
-        and part.state.metadata
-        and part.state.metadata.sessionId == child_session_id
-      then
-        M._rerender_part(part.id)
-        return
-      end
-    end
-  end
+  M._rerender_part(part_id)
 end
 
 ---Re-render existing part with current state

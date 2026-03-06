@@ -103,6 +103,23 @@ describe('RenderState', function()
       assert.is_table(result.actions)
       assert.equals(0, #result.actions)
     end)
+
+    it('indexes task parts by child session ID', function()
+      local part = {
+        id = 'part1',
+        messageID = 'msg1',
+        tool = 'task',
+        state = {
+          metadata = {
+            sessionId = 'child-1',
+          },
+        },
+      }
+
+      render_state:set_part(part, 1, 2)
+
+      assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
+    end)
   end)
 
   describe('get_part_at_line', function()
@@ -332,6 +349,25 @@ describe('RenderState', function()
       local success = render_state:remove_part('nonexistent')
       assert.is_false(success)
     end)
+
+    it('clears child session index when removing unrendered task parts', function()
+      local part = {
+        id = 'part1',
+        messageID = 'msg1',
+        tool = 'task',
+        state = {
+          metadata = {
+            sessionId = 'child-1',
+          },
+        },
+      }
+
+      render_state:set_part(part)
+      local success = render_state:remove_part('part1')
+
+      assert.is_true(success)
+      assert.is_nil(render_state:get_task_part_by_child_session('child-1'))
+    end)
   end)
 
   describe('remove_message', function()
@@ -486,6 +522,37 @@ describe('RenderState', function()
 
     it('does nothing for non-existent part', function()
       render_state:update_part_data({ id = 'nonexistent' })
+    end)
+
+    it('updates child session index when task metadata changes', function()
+      local original = {
+        id = 'part1',
+        content = 'original',
+        messageID = 'msg1',
+        tool = 'task',
+        state = {
+          metadata = {
+            sessionId = 'child-1',
+          },
+        },
+      }
+      local updated = {
+        id = 'part1',
+        content = 'updated',
+        messageID = 'msg1',
+        tool = 'task',
+        state = {
+          metadata = {
+            sessionId = 'child-2',
+          },
+        },
+      }
+
+      render_state:set_part(original, 10, 15)
+      render_state:update_part_data(updated)
+
+      assert.is_nil(render_state:get_task_part_by_child_session('child-1'))
+      assert.equals('part1', render_state:get_task_part_by_child_session('child-2'))
     end)
   end)
 end)

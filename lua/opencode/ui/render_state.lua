@@ -39,7 +39,50 @@ function RenderState:reset()
     line_to_message = {},
   }
   self._child_session_parts = {}
+  self._child_session_task_parts = {}
+  self._task_part_child_sessions = {}
   self._line_index_valid = false
+end
+
+---@param part OpencodeMessagePart?
+---@return string?
+local function get_child_session_id_for_task_part(part)
+  if not part or part.tool ~= 'task' then
+    return nil
+  end
+
+  local part_state = part.state
+  local metadata = part_state and part_state.metadata
+
+  return metadata and metadata.sessionId or nil
+end
+
+---@param part_id string
+function RenderState:_clear_task_part_child_session(part_id)
+  local child_session_id = self._task_part_child_sessions[part_id]
+  if not child_session_id then
+    return
+  end
+
+  if self._child_session_task_parts[child_session_id] == part_id then
+    self._child_session_task_parts[child_session_id] = nil
+  end
+
+  self._task_part_child_sessions[part_id] = nil
+end
+
+---@param part_id string
+---@param part OpencodeMessagePart
+function RenderState:_index_task_part_child_session(part_id, part)
+  self:_clear_task_part_child_session(part_id)
+
+  local child_session_id = get_child_session_id_for_task_part(part)
+  if not child_session_id then
+    return
+  end
+
+  self._child_session_task_parts[child_session_id] = part_id
+  self._task_part_child_sessions[part_id] = child_session_id
 end
 
 ---Get parts for a child session
@@ -50,6 +93,17 @@ function RenderState:get_child_session_parts(session_id)
     return nil
   end
   return self._child_session_parts and self._child_session_parts[session_id]
+end
+
+---Get the owning task part for a child session
+---@param session_id string
+---@return string?
+function RenderState:get_task_part_by_child_session(session_id)
+  if not session_id then
+    return nil
+  end
+
+  return self._child_session_task_parts and self._child_session_task_parts[session_id]
 end
 
 ---Upsert a part associated with a child session
@@ -246,6 +300,8 @@ function RenderState:set_part(part, line_start, line_end)
   if line_start and line_end then
     self._line_index_valid = false
   end
+
+  self:_index_task_part_child_session(part_id, part)
 end
 
 ---Update part line positions and shift subsequent content
@@ -290,6 +346,7 @@ function RenderState:update_part_data(part_ref)
   end
 
   rendered_part.part = part_ref
+  self:_index_task_part_child_session(part_ref.id, part_ref)
   return rendered_part
 end
 
@@ -356,8 +413,15 @@ end
 ---@return boolean success
 function RenderState:remove_part(part_id)
   local part_data = self._parts[part_id]
-  if not part_data or not part_data.line_start or not part_data.line_end then
+  if not part_data then
     return false
+  end
+
+  self:_clear_task_part_child_session(part_id)
+
+  if not part_data.line_start or not part_data.line_end then
+    self._parts[part_id] = nil
+    return true
   end
 
   local line_count = part_data.line_end - part_data.line_start + 1

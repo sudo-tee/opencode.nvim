@@ -1,1 +1,1296 @@
-{"extmarks":[[1,1,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":false,"virt_text":[["▌󰭻 ","OpencodeMessageRoleUser"],[" "],["USER","OpencodeMessageRoleUser"],["","OpencodeHint"],[" [msg_cbe0c07af001FqFiaeygb5fC3O]","OpencodeHint"]],"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10,"ns_id":3}],[2,1,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" 2026-03-05 12:49:45","OpencodeHint"]],"virt_text_pos":"right_align","virt_text_hide":false,"priority":9,"ns_id":3}],[3,2,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096,"ns_id":3}],[4,3,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096,"ns_id":3}],[5,6,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" claude-sonnet-4.6","OpencodeHint"],[" [msg_cbe0c07c80010ERhOWZYJtLMGJ]","OpencodeHint"]],"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10,"ns_id":3}],[6,6,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" 2026-03-05 12:49:45","OpencodeHint"]],"virt_text_pos":"right_align","virt_text_hide":false,"priority":9,"ns_id":3}],[7,8,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[8,9,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[9,10,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[10,11,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[11,12,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[12,13,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[13,14,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[14,15,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[15,16,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[16,17,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[17,18,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[18,19,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[19,20,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[20,21,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[21,22,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[22,23,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[23,24,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[24,25,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[25,26,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[26,27,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[27,28,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[28,29,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[29,30,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[30,31,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[31,32,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[32,33,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[33,34,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[34,35,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[35,36,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[36,37,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[37,38,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[38,39,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[39,40,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[40,41,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[41,42,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[42,43,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[43,44,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[44,45,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[45,46,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[46,47,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[47,48,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[48,49,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[49,50,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[50,51,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[51,52,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[52,53,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[53,54,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[54,55,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[55,56,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[56,57,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[57,58,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[58,59,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[59,60,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[60,61,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[61,62,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[62,63,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[63,64,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[64,65,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[65,66,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[66,67,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[67,68,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[68,69,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[69,70,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[70,71,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[71,72,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[72,73,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[73,74,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[74,75,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[75,76,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[76,77,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096,"ns_id":3}],[77,79,0,{"right_gravity":true,"virt_text_hide":false,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" claude-sonnet-4.6","OpencodeHint"],[" [msg_cbe0d01950013Y9CVnC8K3Yyef]","OpencodeHint"]],"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10,"ns_id":3}],[78,79,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" 2026-03-05 12:50:49","OpencodeHint"]],"virt_text_pos":"right_align","virt_text_hide":false,"priority":9,"ns_id":3}]],"actions":[{"args":[],"display_line":9,"type":"select_child_session","text":"[S]elect Child Session","range":{"from":10,"to":79},"key":"S"}],"lines":["----","","","can you explore the code base to find where the task tool is rendered","","----","","","**  task** `Find task tool rendering (@explore)` 60s",""," **  read** `/home/francis/Projects/_nvim/opencode.nvim/`"," **  glob** `**/*.lua`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua task`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/output.lua`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/types.lua`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/icons.lua`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua format_tool_part\\|_format_task_tool\\|format_action`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua _format_tool\\b`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests _format_task\\|task_tool\\|TaskTool`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/unit/formatter_spec.lua`"," **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/replay/renderer_spec.lua`"," **  glob** `**/*.json`"," **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests/data task`","","task_id: ses_341f3e676ffez6WUF6zpok7dUZ (for resuming to continue this task if needed)","","","That's enough to form a complete picture. Here is a comprehensive summary of all the relevant files and line numbers:","","---","","## Task Tool Rendering — Relevant Files and Line Numbers","","### 1. Primary rendering logic","","**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`**","","This is the main file where task tool rendering happens.","","| Lines | What it does |","|-------|-------------|","| **665–735** | `M._format_tool(output, part)` — the central tool dispatch function that reads `part.tool` and routes each tool name to its specific formatter. The `'task'` branch is at **lines 700–707**. |","| **700–707** | `elseif tool == 'task'` dispatch — calls `M._format_task_tool(...)` with the output object, input, metadata, tool output string, and duration text. |","| **737–801** | `M._format_task_tool(output, input, metadata, tool_output, duration_text)` — the full task-tool renderer. Key internal steps: |","| **742–752** | Extracts `input.description` and `input.subagent_type`, formats the action header line using `icons.get('task') .. ' task'`. |","| **754–790** | Conditionally (when `config.ui.output.tools.show_output` is true) renders the `metadata.summary` list (each sub-tool with a status icon) and the cleaned `tool_output` text (stripping `<task_metadata>…</task_metadata>` tags). |","| **793–800** | Attaches a `select_child_session` contextual action (`[S]elect Child Session`) covering the rendered task block. |","| **919** | `M._format_tool(output, part)` is called from `format_part` when `part.type == 'tool'` for assistant messages. |","","---","","### 2. Type definitions","","**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/types.lua`**","","| Lines | What it defines |","|-------|----------------|","| **228–235** | `MessagePartState` — the state shape consumed by `_format_tool`, listing `TaskToolInput` and `TaskToolMetadata` as union types. |","| **241–243** | `TaskToolMetadata` — has a `summary: TaskToolSummaryItem[]` field and optional `sessionId`. |","| **300–303** | `TaskToolInput` — has `prompt`, `description`, and `subagent_type` fields. |","| **305–308** | `TaskToolSummaryItem` — each summary entry has `id`, `tool`, and `state { status, title? }`. |","","---","","### 3. Icon definitions","","**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/icons.lua`**","","| Lines | What it defines |","|-------|----------------|","| **13** | `task = ' '` — the nerdfonts preset icon for the task tool. |","| **55** | `task = '::'` — the plain-text preset icon. |","","----","","","The task tool is rendered primarily in  `lua/opencode/ui/formatter.lua`:","","- **Lines 665–735** — `M._format_tool()`: the central dispatch function that routes tool names to their specific formatters. The `'task'` branch is at **lines 700–707**.","- **Lines 737–801** — `M._format_task_tool()`: the full task tool renderer, which:","  - Extracts `input.description` and `input.subagent_type` and formats the action header (line 742–752)","  - Renders the `metadata.summary` list (sub-tools with status icons) and cleaned `tool_output` when `config.ui.output.tools.show_output` is true (lines 754–790)","  - Attaches a `select_child_session` contextual action (lines 793–800)","","Supporting files:","- ` lua/opencode/types.lua:228–308` — type definitions for `TaskToolInput`, `TaskToolMetadata`, and `TaskToolSummaryItem`","- ` lua/opencode/ui/icons.lua:13,55` — icon definitions for the task tool","",""],"timestamp":1772733545}
+{
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" [msg_cbe0c07af001FqFiaeygb5fC3O]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "priority": 10,
+        "ns_id": 3
+      }
+    ],
+    [
+      2,
+      1,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2026-03-05 12:49:45", "OpencodeHint"]],
+        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "priority": 9,
+        "ns_id": 3
+      }
+    ],
+    [
+      3,
+      2,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      4,
+      3,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      5,
+      6,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" claude-sonnet-4.6", "OpencodeHint"],
+          [" [msg_cbe0c07c80010ERhOWZYJtLMGJ]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "priority": 10,
+        "ns_id": 3
+      }
+    ],
+    [
+      6,
+      6,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2026-03-05 12:49:45", "OpencodeHint"]],
+        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "priority": 9,
+        "ns_id": 3
+      }
+    ],
+    [
+      7,
+      8,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      8,
+      9,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      9,
+      10,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      10,
+      11,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      11,
+      12,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      12,
+      13,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      13,
+      14,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      14,
+      15,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      15,
+      16,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      16,
+      17,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      17,
+      18,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      18,
+      19,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      19,
+      20,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      20,
+      21,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      21,
+      22,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      22,
+      23,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      23,
+      24,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      24,
+      25,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      25,
+      26,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      26,
+      27,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      27,
+      28,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      28,
+      29,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      29,
+      30,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      30,
+      31,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      31,
+      32,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      32,
+      33,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      33,
+      34,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      34,
+      35,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      35,
+      36,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      36,
+      37,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      37,
+      38,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      38,
+      39,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      39,
+      40,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      40,
+      41,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      41,
+      42,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      42,
+      43,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      43,
+      44,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      44,
+      45,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      45,
+      46,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      46,
+      47,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      47,
+      48,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      48,
+      49,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      49,
+      50,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      50,
+      51,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      51,
+      52,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      52,
+      53,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      53,
+      54,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      54,
+      55,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      55,
+      56,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      56,
+      57,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      57,
+      58,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      58,
+      59,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      59,
+      60,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      60,
+      61,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      61,
+      62,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      62,
+      63,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      63,
+      64,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      64,
+      65,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      65,
+      66,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      66,
+      67,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      67,
+      68,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      68,
+      69,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      69,
+      70,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      70,
+      71,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      71,
+      72,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      72,
+      73,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      73,
+      74,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      74,
+      75,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      75,
+      76,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      76,
+      77,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -1,
+        "priority": 4096,
+        "ns_id": 3
+      }
+    ],
+    [
+      77,
+      79,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" claude-sonnet-4.6", "OpencodeHint"],
+          [" [msg_cbe0d01950013Y9CVnC8K3Yyef]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "priority": 10,
+        "ns_id": 3
+      }
+    ],
+    [
+      78,
+      79,
+      0,
+      {
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2026-03-05 12:50:49", "OpencodeHint"]],
+        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "priority": 9,
+        "ns_id": 3
+      }
+    ]
+  ],
+  "actions": [
+    {
+      "args": [],
+      "display_line": 9,
+      "type": "select_child_session",
+      "text": "[S]elect Child Session",
+      "range": { "from": 10, "to": 79 },
+      "key": "S"
+    }
+  ],
+  "lines": [
+    "----",
+    "",
+    "",
+    "can you explore the code base to find where the task tool is rendered",
+    "",
+    "----",
+    "",
+    "",
+    "**  task** `Find task tool rendering (@explore)` 60s",
+    "",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/`",
+    " **  glob** `**/*.lua`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua task`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/output.lua`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/types.lua`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/icons.lua`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua format_tool_part\\|_format_task_tool\\|format_action`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua _format_tool\\b`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests _format_task\\|task_tool\\|TaskTool`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/unit/formatter_spec.lua`",
+    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/replay/renderer_spec.lua`",
+    " **  glob** `**/*.json`",
+    " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests/data task`",
+    "",
+    "task_id: ses_341f3e676ffez6WUF6zpok7dUZ (for resuming to continue this task if needed)",
+    "",
+    "",
+    "That's enough to form a complete picture. Here is a comprehensive summary of all the relevant files and line numbers:",
+    "",
+    "---",
+    "",
+    "## Task Tool Rendering — Relevant Files and Line Numbers",
+    "",
+    "### 1. Primary rendering logic",
+    "",
+    "**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`**",
+    "",
+    "This is the main file where task tool rendering happens.",
+    "",
+    "| Lines | What it does |",
+    "|-------|-------------|",
+    "| **665–735** | `M._format_tool(output, part)` — the central tool dispatch function that reads `part.tool` and routes each tool name to its specific formatter. The `'task'` branch is at **lines 700–707**. |",
+    "| **700–707** | `elseif tool == 'task'` dispatch — calls `M._format_task_tool(...)` with the output object, input, metadata, tool output string, and duration text. |",
+    "| **737–801** | `M._format_task_tool(output, input, metadata, tool_output, duration_text)` — the full task-tool renderer. Key internal steps: |",
+    "| **742–752** | Extracts `input.description` and `input.subagent_type`, formats the action header line using `icons.get('task') .. ' task'`. |",
+    "| **754–790** | Conditionally (when `config.ui.output.tools.show_output` is true) renders the `metadata.summary` list (each sub-tool with a status icon) and the cleaned `tool_output` text (stripping `<task_metadata>…</task_metadata>` tags). |",
+    "| **793–800** | Attaches a `select_child_session` contextual action (`[S]elect Child Session`) covering the rendered task block. |",
+    "| **919** | `M._format_tool(output, part)` is called from `format_part` when `part.type == 'tool'` for assistant messages. |",
+    "",
+    "---",
+    "",
+    "### 2. Type definitions",
+    "",
+    "**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/types.lua`**",
+    "",
+    "| Lines | What it defines |",
+    "|-------|----------------|",
+    "| **228–235** | `MessagePartState` — the state shape consumed by `_format_tool`, listing `TaskToolInput` and `TaskToolMetadata` as union types. |",
+    "| **241–243** | `TaskToolMetadata` — has a `summary: TaskToolSummaryItem[]` field and optional `sessionId`. |",
+    "| **300–303** | `TaskToolInput` — has `prompt`, `description`, and `subagent_type` fields. |",
+    "| **305–308** | `TaskToolSummaryItem` — each summary entry has `id`, `tool`, and `state { status, title? }`. |",
+    "",
+    "---",
+    "",
+    "### 3. Icon definitions",
+    "",
+    "**`/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/icons.lua`**",
+    "",
+    "| Lines | What it defines |",
+    "|-------|----------------|",
+    "| **13** | `task = ' '` — the nerdfonts preset icon for the task tool. |",
+    "| **55** | `task = '::'` — the plain-text preset icon. |",
+    "",
+    "----",
+    "",
+    "",
+    "The task tool is rendered primarily in  `lua/opencode/ui/formatter.lua`:",
+    "",
+    "- **Lines 665–735** — `M._format_tool()`: the central dispatch function that routes tool names to their specific formatters. The `'task'` branch is at **lines 700–707**.",
+    "- **Lines 737–801** — `M._format_task_tool()`: the full task tool renderer, which:",
+    "  - Extracts `input.description` and `input.subagent_type` and formats the action header (line 742–752)",
+    "  - Renders the `metadata.summary` list (sub-tools with status icons) and cleaned `tool_output` when `config.ui.output.tools.show_output` is true (lines 754–790)",
+    "  - Attaches a `select_child_session` contextual action (lines 793–800)",
+    "",
+    "Supporting files:",
+    "- ` lua/opencode/types.lua:228–308` — type definitions for `TaskToolInput`, `TaskToolMetadata`, and `TaskToolSummaryItem`",
+    "- ` lua/opencode/ui/icons.lua:13,55` — icon definitions for the task tool",
+    "",
+    ""
+  ],
+  "timestamp": 1772733545
+}

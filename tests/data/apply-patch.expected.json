@@ -6,20 +6,20 @@
       1,
       0,
       {
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "virt_text_repeat_linebreak": false,
         "virt_text": [
           ["▌󰭻 ", "OpencodeMessageRoleUser"],
           [" "],
           ["USER", "OpencodeMessageRoleUser"],
           ["", "OpencodeHint"],
           [" [msg_user001]", "OpencodeHint"]
-        ],
-        "ns_id": 3,
-        "virt_text_win_col": -3,
-        "right_gravity": true,
-        "priority": 10,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        ]
       }
     ],
     [
@@ -27,20 +27,20 @@
       4,
       0,
       {
+        "ns_id": 3,
+        "virt_text_hide": false,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text_pos": "win_col",
+        "virt_text_win_col": -3,
+        "virt_text_repeat_linebreak": false,
         "virt_text": [
           [" ", "OpencodeMessageRoleAssistant"],
           [" "],
           ["BUILD", "OpencodeMessageRoleAssistant"],
           ["", "OpencodeHint"],
           [" [msg_asst001]", "OpencodeHint"]
-        ],
-        "ns_id": 3,
-        "virt_text_win_col": -3,
-        "right_gravity": true,
-        "priority": 10,
-        "virt_text_repeat_linebreak": false,
-        "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        ]
       }
     ],
     [
@@ -48,14 +48,14 @@
       6,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -63,14 +63,14 @@
       7,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -78,14 +78,14 @@
       8,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -93,22 +93,22 @@
       9,
       0,
       {
+        "end_col": 0,
+        "hl_group": "OpencodeDiffAdd",
+        "right_gravity": true,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "ns_id": 3,
+        "end_row": 10,
+        "end_right_gravity": false,
+        "virt_text_hide": false,
         "virt_text": [
-          ["1   ", "OpencodeDiffAddGutter"],
+          ["1", "OpencodeDiffAddGutter"],
           ["+", "OpencodeDiffAddGutter"],
           [" ", "OpencodeDiffAddGutter"]
         ],
-        "virt_text_pos": "overlay",
-        "priority": 5000,
-        "end_col": 0,
-        "end_row": 10,
-        "ns_id": 3,
-        "end_right_gravity": false,
-        "right_gravity": true,
-        "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "hl_eol": true,
-        "hl_group": "OpencodeDiffAdd"
+        "hl_eol": true
       }
     ],
     [
@@ -116,14 +116,14 @@
       9,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -131,22 +131,22 @@
       10,
       0,
       {
+        "end_col": 0,
+        "hl_group": "OpencodeDiffAdd",
+        "right_gravity": true,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "ns_id": 3,
+        "end_row": 11,
+        "end_right_gravity": false,
+        "virt_text_hide": false,
         "virt_text": [
-          ["2   ", "OpencodeDiffAddGutter"],
+          ["2", "OpencodeDiffAddGutter"],
           ["+", "OpencodeDiffAddGutter"],
           [" ", "OpencodeDiffAddGutter"]
         ],
-        "virt_text_pos": "overlay",
-        "priority": 5000,
-        "end_col": 0,
-        "end_row": 11,
-        "ns_id": 3,
-        "end_right_gravity": false,
-        "right_gravity": true,
-        "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "hl_eol": true,
-        "hl_group": "OpencodeDiffAdd"
+        "hl_eol": true
       }
     ],
     [
@@ -154,14 +154,14 @@
       10,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -169,14 +169,14 @@
       11,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ],
     [
@@ -184,14 +184,14 @@
       12,
       0,
       {
-        "virt_text": [["▌", "OpencodeToolBorder"]],
         "ns_id": 3,
-        "virt_text_win_col": -1,
-        "right_gravity": true,
+        "virt_text_hide": false,
         "priority": 4096,
-        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
         "virt_text_pos": "win_col",
-        "virt_text_hide": false
+        "virt_text_win_col": -1,
+        "virt_text_repeat_linebreak": true,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
       }
     ]
   ],
@@ -205,12 +205,12 @@
     "**  apply patch** `src/app/features/auth/__tests__/LoginForm.test.tsx` 4s",
     "",
     "`````tsx",
-    "      import React from 'react'",
-    "      // minimal diff for testing",
+    "   import React from 'react'",
+    "   // minimal diff for testing",
     "",
     "`````",
     "",
     ""
   ],
-  "timestamp": 1772801240
+  "timestamp": 1772803135
 }

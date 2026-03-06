@@ -96,32 +96,36 @@ describe('formatter', function()
   it('renders diff line numbers as extmarks', function()
     local output = Output.new()
 
-    formatter.format_diff(output, table.concat({
-      'diff --git a/lua/foo.lua b/lua/foo.lua',
-      'index 1111111..2222222 100644',
-      '--- a/lua/foo.lua',
-      '+++ b/lua/foo.lua',
-      '@@ -10,3 +10,3 @@',
-      '-alpha',
-      ' gamma',
-      '+beta',
-    }, '\n'), 'lua')
+    formatter.format_diff(
+      output,
+      table.concat({
+        'diff --git a/lua/foo.lua b/lua/foo.lua',
+        'index 1111111..2222222 100644',
+        '--- a/lua/foo.lua',
+        '+++ b/lua/foo.lua',
+        '@@ -10,3 +10,3 @@',
+        '-alpha',
+        ' gamma',
+        '+beta',
+      }, '\n'),
+      'lua'
+    )
 
-    assert.are.equal('      alpha', output.lines[3])
-    assert.are.equal('      gamma', output.lines[4])
-    assert.are.equal('      beta', output.lines[5])
+    assert.are.equal('    alpha', output.lines[3])
+    assert.are.equal('    gamma', output.lines[4])
+    assert.are.equal('    beta', output.lines[5])
 
     local delete_mark = output.extmarks[2][1]
-    assert.are.equal('10  ', delete_mark.virt_text[1][1])
+    assert.are.equal('10', delete_mark.virt_text[1][1])
     assert.are.equal('-', delete_mark.virt_text[2][1])
     assert.are.equal('OpencodeDiffDeleteGutter', delete_mark.virt_text[1][2])
 
     local context_mark = output.extmarks[3][1]
-    assert.are.equal('10  ', context_mark.virt_text[1][1])
+    assert.are.equal('10', context_mark.virt_text[1][1])
     assert.are.equal('OpencodeDiffGutter', context_mark.virt_text[1][2])
 
     local add_mark = output.extmarks[4][1]
-    assert.are.equal('11  ', add_mark.virt_text[1][1])
+    assert.are.equal('11', add_mark.virt_text[1][1])
     assert.are.equal('+', add_mark.virt_text[2][1])
     assert.are.equal('OpencodeDiffAddGutter', add_mark.virt_text[1][2])
   end)

@@ -960,11 +960,11 @@ local function parse_diff_line_numbers(lines)
         max_line_number = math.max(max_line_number, old_line, new_line)
         old_line = old_line + 1
         new_line = new_line + 1
-      elseif first_char == '+' and not line:match('^%+%+%+') then
+      elseif first_char == '+' and not line:match('^%+%+%+%s') then
         numbered_lines[idx] = { old = nil, new = new_line }
         max_line_number = math.max(max_line_number, new_line)
         new_line = new_line + 1
-      elseif first_char == '-' and not line:match('^%-%-%-') then
+      elseif first_char == '-' and not line:match('^%-%-%-%s') then
         numbered_lines[idx] = { old = old_line, new = nil }
         max_line_number = math.max(max_line_number, old_line)
         old_line = old_line + 1
@@ -972,7 +972,7 @@ local function parse_diff_line_numbers(lines)
     end
   end
 
-  return numbered_lines, math.max(#tostring(max_line_number), 4)
+  return numbered_lines, #tostring(max_line_number)
 end
 
 local function build_diff_gutter(line_numbers, width)

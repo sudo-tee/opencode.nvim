@@ -1,79 +1,24 @@
 {
-  "actions": [
-    {
-      "args": [
-        "1f593f7ed419c95d3995f8ef4b98d4e571c3a492"
-      ],
-      "display_line": 18,
-      "key": "R",
-      "range": {
-        "from": 18,
-        "to": 18
-      },
-      "text": "[R]evert file",
-      "type": "diff_revert_selected_file"
-    },
-    {
-      "args": [
-        "1f593f7ed419c95d3995f8ef4b98d4e571c3a492"
-      ],
-      "display_line": 18,
-      "key": "A",
-      "range": {
-        "from": 18,
-        "to": 18
-      },
-      "text": "Revert [A]ll",
-      "type": "diff_revert_all"
-    },
-    {
-      "args": [
-        "1f593f7ed419c95d3995f8ef4b98d4e571c3a492"
-      ],
-      "display_line": 18,
-      "key": "D",
-      "range": {
-        "from": 18,
-        "to": 18
-      },
-      "text": "[D]iff",
-      "type": "diff_open"
-    }
-  ],
   "extmarks": [
     [
       1,
       1,
       0,
       {
-        "ns_id": 3,
         "priority": 10,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌󰭻 ",
-            "OpencodeMessageRoleUser"
-          ],
-          [
-            " "
-          ],
-          [
-            "USER",
-            "OpencodeMessageRoleUser"
-          ],
-          [
-            "",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_9d7287269001C5gRusYfX7A1w1]",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" [msg_9d7287269001C5gRusYfX7A1w1]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -81,18 +26,13 @@
       1,
       0,
       {
-        "ns_id": 3,
         "priority": 9,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " 2025-10-12 06:42:56",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
         "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2025-10-12 06:42:56", "OpencodeHint"]],
         "virt_text_pos": "right_align",
-        "virt_text_repeat_linebreak": false
+        "right_gravity": true
       }
     ],
     [
@@ -100,19 +40,14 @@
       2,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -120,19 +55,14 @@
       3,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -140,13 +70,13 @@
       3,
       39,
       {
-        "end_col": 53,
+        "priority": 1000,
+        "ns_id": 3,
         "end_right_gravity": false,
+        "end_col": 53,
+        "hl_group": "OpencodeMention",
         "end_row": 3,
         "hl_eol": false,
-        "hl_group": "OpencodeMention",
-        "ns_id": 3,
-        "priority": 1000,
         "right_gravity": true
       }
     ],
@@ -155,19 +85,14 @@
       4,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -175,19 +100,14 @@
       5,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -195,34 +115,20 @@
       8,
       0,
       {
-        "ns_id": 3,
         "priority": 10,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " claude-sonnet-4.5",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_9d7287287001HVwpPaH7WkRVdN]",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" claude-sonnet-4.5", "OpencodeHint"],
+          [" [msg_9d7287287001HVwpPaH7WkRVdN]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -230,18 +136,13 @@
       8,
       0,
       {
-        "ns_id": 3,
         "priority": 9,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " 2025-10-12 06:42:56",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
         "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2025-10-12 06:42:56", "OpencodeHint"]],
         "virt_text_pos": "right_align",
-        "virt_text_repeat_linebreak": false
+        "right_gravity": true
       }
     ],
     [
@@ -249,19 +150,14 @@
       10,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -269,19 +165,14 @@
       11,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -289,19 +180,14 @@
       12,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -309,23 +195,22 @@
       13,
       0,
       {
-        "end_col": 0,
-        "end_right_gravity": false,
         "end_row": 14,
-        "hl_eol": true,
-        "hl_group": "OpencodeDiffDelete",
-        "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "-",
-            "OpencodeDiffDelete"
-          ]
-        ],
+        "end_right_gravity": false,
         "virt_text_hide": false,
+        "hl_group": "OpencodeDiffDelete",
+        "virt_text": [
+          ["1", "OpencodeDiffDeleteGutter"],
+          ["-", "OpencodeDiffDeleteGutter"],
+          [" ", "OpencodeDiffDeleteGutter"]
+        ],
+        "hl_eol": true,
+        "priority": 5000,
+        "ns_id": 3,
+        "end_col": 0,
         "virt_text_pos": "overlay",
-        "virt_text_repeat_linebreak": false
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true
       }
     ],
     [
@@ -333,19 +218,14 @@
       13,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -353,23 +233,22 @@
       14,
       0,
       {
-        "end_col": 0,
-        "end_right_gravity": false,
         "end_row": 15,
-        "hl_eol": true,
-        "hl_group": "OpencodeDiffAdd",
-        "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "+",
-            "OpencodeDiffAdd"
-          ]
-        ],
+        "end_right_gravity": false,
         "virt_text_hide": false,
+        "hl_group": "OpencodeDiffAdd",
+        "virt_text": [
+          ["1", "OpencodeDiffAddGutter"],
+          ["+", "OpencodeDiffAddGutter"],
+          [" ", "OpencodeDiffAddGutter"]
+        ],
+        "hl_eol": true,
+        "priority": 5000,
+        "ns_id": 3,
+        "end_col": 0,
         "virt_text_pos": "overlay",
-        "virt_text_repeat_linebreak": false
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true
       }
     ],
     [
@@ -377,19 +256,14 @@
       14,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -397,19 +271,14 @@
       15,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -417,19 +286,14 @@
       16,
       0,
       {
-        "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -1,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -437,34 +301,20 @@
       21,
       0,
       {
-        "ns_id": 3,
         "priority": 10,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " claude-sonnet-4.5",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_9d7288f2f001hW6NqqhtBc72UU]",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
+        "virt_text_win_col": -3,
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" claude-sonnet-4.5", "OpencodeHint"],
+          [" [msg_9d7288f2f001hW6NqqhtBc72UU]", "OpencodeHint"]
+        ],
+        "virt_text_pos": "win_col",
+        "right_gravity": true
       }
     ],
     [
@@ -472,20 +322,41 @@
       21,
       0,
       {
-        "ns_id": 3,
         "priority": 9,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " 2025-10-12 06:43:03",
-            "OpencodeHint"
-          ]
-        ],
+        "ns_id": 3,
         "virt_text_hide": false,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [[" 2025-10-12 06:43:03", "OpencodeHint"]],
         "virt_text_pos": "right_align",
-        "virt_text_repeat_linebreak": false
+        "right_gravity": true
       }
     ]
+  ],
+  "actions": [
+    {
+      "key": "R",
+      "args": ["1f593f7ed419c95d3995f8ef4b98d4e571c3a492"],
+      "type": "diff_revert_selected_file",
+      "range": { "from": 18, "to": 18 },
+      "display_line": 18,
+      "text": "[R]evert file"
+    },
+    {
+      "key": "A",
+      "args": ["1f593f7ed419c95d3995f8ef4b98d4e571c3a492"],
+      "type": "diff_revert_all",
+      "range": { "from": 18, "to": 18 },
+      "display_line": 18,
+      "text": "Revert [A]ll"
+    },
+    {
+      "key": "D",
+      "args": ["1f593f7ed419c95d3995f8ef4b98d4e571c3a492"],
+      "type": "diff_open",
+      "range": { "from": 18, "to": 18 },
+      "display_line": 18,
+      "text": "[D]iff"
+    }
   ],
   "lines": [
     "----",
@@ -501,8 +372,8 @@
     "**  edit** `/Users/cam/tmp/a/diff-test.txt` 5s",
     "",
     "`````txt",
-    " this is a string",
-    " this is a great string",
+    "   this is a string",
+    "   this is a great string",
     "",
     "`````",
     "",
@@ -513,5 +384,5 @@
     "",
     ""
   ],
-  "timestamp": 1770935235
+  "timestamp": 1772803137
 }

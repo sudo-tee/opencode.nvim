@@ -939,40 +939,98 @@ function M._format_code(output, lines, language)
   output:add_line('`````')
 end
 
----@param output Output Output object to write to
----@param code string
----@param file_type string
+---@param lines string[]
+local function parse_diff_line_numbers(lines)
+  local numbered_lines = {}
+  local old_line
+  local new_line
+  local max_line_number = 0
+
+  for idx, line in ipairs(lines) do
+    local old_start, new_start = line:match('^@@ %-(%d+),?%d* %+(%d+),?%d* @@')
+
+    if old_start and new_start then
+      old_line = tonumber(old_start)
+      new_line = tonumber(new_start)
+    elseif old_line and new_line then
+      local first_char = line:sub(1, 1)
+
+      if first_char == ' ' then
+        numbered_lines[idx] = { old = old_line, new = new_line }
+        max_line_number = math.max(max_line_number, old_line, new_line)
+        old_line = old_line + 1
+        new_line = new_line + 1
+      elseif first_char == '+' and not line:match('^%+%+%+%s') then
+        numbered_lines[idx] = { old = nil, new = new_line }
+        max_line_number = math.max(max_line_number, new_line)
+        new_line = new_line + 1
+      elseif first_char == '-' and not line:match('^%-%-%-%s') then
+        numbered_lines[idx] = { old = old_line, new = nil }
+        max_line_number = math.max(max_line_number, old_line)
+        old_line = old_line + 1
+      end
+    end
+  end
+
+  return numbered_lines, #tostring(max_line_number)
+end
+
+local function build_diff_gutter(line_numbers, width)
+  local line_number = line_numbers.new or line_numbers.old
+  return string.format('%-' .. width .. 's', line_number and tostring(line_number) or '')
+end
+
+local function add_diff_line(output, line, line_numbers, width)
+  local first_char = line:sub(1, 1)
+  local line_hl = first_char == '+' and 'OpencodeDiffAdd' or first_char == '-' and 'OpencodeDiffDelete' or nil
+  local gutter_hl = first_char == '+' and 'OpencodeDiffAddGutter'
+    or first_char == '-' and 'OpencodeDiffDeleteGutter'
+    or 'OpencodeDiffGutter'
+  local sign_hl = gutter_hl
+  local gutter = build_diff_gutter(line_numbers, width)
+  local gutter_width = #gutter + 2
+
+  output:add_line(string.rep(' ', gutter_width) .. line:sub(2))
+
+  local line_idx = output:get_line_count()
+  local extmark = {
+    end_col = 0,
+    end_row = line_idx,
+    virt_text = {
+      { gutter, gutter_hl },
+      { first_char, sign_hl },
+      { ' ', gutter_hl },
+    },
+    priority = 5000,
+    right_gravity = true,
+    end_right_gravity = false,
+    virt_text_hide = false,
+    virt_text_pos = 'overlay',
+    virt_text_repeat_linebreak = false,
+  }
+
+  if line_hl then
+    extmark.hl_group = line_hl
+    extmark.hl_eol = true
+  end
+
+  output:add_extmark(line_idx - 1, extmark --[[@as OutputExtmark]])
+end
+
 function M.format_diff(output, code, file_type)
   output:add_empty_line()
 
   --- NOTE: use longer code fence because code could contain ```
   output:add_line('`````' .. file_type)
-  local lines = vim.split(code, '\n')
-  if #lines > 5 then
-    lines = vim.list_slice(lines, 6)
-  end
+  local full_lines = vim.split(code, '\n')
+  local numbered_lines, line_number_width = parse_diff_line_numbers(full_lines)
+  local first_visible_line = #full_lines > 5 and 6 or 1
+  local lines = first_visible_line > 1 and vim.list_slice(full_lines, first_visible_line) or full_lines
 
-  for _, line in ipairs(lines) do
-    local first_char = line:sub(1, 1)
-    if first_char == '+' or first_char == '-' then
-      local hl_group = first_char == '+' and 'OpencodeDiffAdd' or 'OpencodeDiffDelete'
-      output:add_line(' ' .. line:sub(2))
-      local line_idx = output:get_line_count()
-      output:add_extmark(line_idx - 1, function()
-        return {
-          end_col = 0,
-          end_row = line_idx,
-          virt_text = { { first_char, hl_group } },
-          hl_group = hl_group,
-          hl_eol = true,
-          priority = 5000,
-          right_gravity = true,
-          end_right_gravity = false,
-          virt_text_hide = false,
-          virt_text_pos = 'overlay',
-          virt_text_repeat_linebreak = false,
-        }
-      end)
+  for idx, line in ipairs(lines) do
+    local source_idx = first_visible_line + idx - 1
+    if numbered_lines[source_idx] then
+      add_diff_line(output, line, numbered_lines[source_idx], line_number_width)
     else
       output:add_line(line)
     end

@@ -45,6 +45,9 @@ local presets = {
     bash = ' ',
     preferred = ' ',
     last_used = '󰃰 ',
+    completed = '󰄳 ',
+    pending = '󰅐 ',
+    running = ' ',
   },
   text = {
     -- headers
@@ -86,6 +89,9 @@ local presets = {
     bash = '$ ',
     preferred = '* ',
     last_used = '~ ',
+    completed = 'X ',
+    pending = '- ',
+    running = '> ',
   },
 }
 

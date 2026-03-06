@@ -10,6 +10,8 @@ local permission_window = require('opencode.ui.permission_window')
 
 local M = {}
 
+---@note child-session parts are requested from the renderer at format time
+
 M.separator = {
   '----',
   '',
@@ -31,7 +33,7 @@ function M._format_reasoning(output, part)
     end
   end
 
-  M.format_action(output, icons.get('reasoning') .. ' ' .. title, '')
+  M.format_action(output, 'reasoning', title, '')
 
   if config.ui.output.tools.show_reasoning_output and text ~= '' then
     output:add_empty_line()
@@ -173,7 +175,7 @@ function M._format_patch(output, part)
   end
 
   local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
-  M.format_action(output, icons.get('snapshot') .. ' Created Snapshot', vim.trim(part.hash:sub(1, 8)))
+  M.format_action(output, 'snapshot', 'Created Snapshot', vim.trim(part.hash:sub(1, 8)))
 
   -- Anchor all snapshot-level actions to the snapshot header line
   add_action(output, '[R]evert file', 'diff_revert_selected_file', { part.hash }, 'R')
@@ -465,19 +467,28 @@ function M._format_assistant_message(output, text)
   output:add_lines(vim.split(result, '\n'))
 end
 
+---Build the formatted action line string without writing to output
+---@param icon_name string Name of the icon to fetch with `icons.get`
+---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
+---@param value string Value associated with the action (e.g., filename, command)
+---@param duration_text? string
+---@return string
+function M._build_action_line(icon_name, tool_type, value, duration_text)
+  local icon = icons.get(icon_name)
+  local detail = value and #value > 0 and ('`' .. value .. '`') or ''
+  local duration_suffix = duration_text and (' ' .. duration_text) or ''
+  return string.format('**%s %s** %s%s', icon, tool_type, detail, duration_suffix)
+end
+
 ---@param output Output Output object to write to
 ---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)
 ---@param duration_text? string
-function M.format_action(output, tool_type, value, duration_text)
-  if not tool_type or not value then
+function M.format_action(output, icon_name, tool_type, value, duration_text)
+  if not icon_name or not tool_type then
     return
   end
-  local detail = value and #value > 0 and ('`' .. value .. '`') or ''
-  local duration_suffix = duration_text and (' ' .. duration_text) or ''
-  local line = string.format('**%s** %s%s', tool_type, detail, duration_suffix)
-
-  output:add_line(line)
+  output:add_line(M._build_action_line(icon_name, tool_type, value, duration_text))
 end
 
 ---@param output Output Output object to write to
@@ -485,7 +496,7 @@ end
 ---@param metadata BashToolMetadata Metadata for the tool use
 ---@param duration_text? string
 function M._format_bash_tool(output, input, metadata, duration_text)
-  M.format_action(output, icons.get('run') .. ' run', input and input.description, duration_text)
+  M.format_action(output, 'run', 'run', input and input.description, duration_text)
 
   if not config.ui.output.tools.show_output then
     return
@@ -502,24 +513,15 @@ end
 ---@param tool_type string Tool type (e.g., 'read', 'edit', 'write')
 ---@param input FileToolInput data for the tool
 ---@param metadata FileToolMetadata Metadata for the tool use
+---@param tool_output? string Tool output payload for detecting directory reads
 ---@param duration_text? string
-function M._format_file_tool(output, tool_type, input, metadata, duration_text)
-  local file_name = ''
-  if input and input.filePath then
-    local cwd = vim.fn.getcwd()
-    local absolute = vim.fn.fnamemodify(input.filePath, ':p')
-
-    if vim.startswith(absolute, cwd .. '/') then
-      file_name = absolute:sub(#cwd + 2)
-    else
-      file_name = absolute
-    end
-  end
+function M._format_file_tool(output, tool_type, input, metadata, tool_output, duration_text)
+  local file_name = tool_type == 'read' and M._resolve_display_file_name(input and input.filePath or '', tool_output)
+    or M._resolve_file_name(input and input.filePath or '')
 
   local file_type = input and util.get_markdown_filetype(input.filePath) or ''
-  local tool_action_icons = { read = icons.get('read'), edit = icons.get('edit'), write = icons.get('write') }
 
-  M.format_action(output, tool_action_icons[tool_type] .. ' ' .. tool_type, file_name, duration_text)
+  M.format_action(output, tool_type, tool_type, file_name, duration_text)
 
   if not config.ui.output.tools.show_output then
     return
@@ -537,7 +539,7 @@ end
 ---@param duration_text? string
 function M._format_apply_patch_tool(output, metadata, duration_text)
   for _, file in ipairs(metadata.files or {}) do
-    M.format_action(output, icons.get('edit') .. ' apply patch', file.relativePath or file.filePath, duration_text)
+    M.format_action(output, 'edit', 'apply patch', file.relativePath or file.filePath, duration_text)
     if config.ui.output.tools.show_output and file.diff then
       local file_type = file and util.get_markdown_filetype(file.filePath) or ''
       M.format_diff(output, file.diff, file_type)
@@ -550,7 +552,7 @@ end
 ---@param input TodoToolInput
 ---@param duration_text? string
 function M._format_todo_tool(output, title, input, duration_text)
-  M.format_action(output, icons.get('plan') .. ' plan', (title or ''), duration_text)
+  M.format_action(output, 'plan', 'plan', (title or ''), duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -568,7 +570,7 @@ end
 ---@param metadata GlobToolMetadata Metadata for the tool use
 ---@param duration_text? string
 function M._format_glob_tool(output, input, metadata, duration_text)
-  M.format_action(output, icons.get('search') .. ' glob', input and input.pattern, duration_text)
+  M.format_action(output, 'search', 'glob', input and input.pattern, duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -581,14 +583,8 @@ end
 ---@param metadata GrepToolMetadata Metadata for the tool use
 ---@param duration_text? string
 function M._format_grep_tool(output, input, metadata, duration_text)
-  local grep_str = table.concat(
-    vim.tbl_filter(function(part)
-      return part ~= nil
-    end, { input.path or input.include, input.pattern }),
-    '` `'
-  )
-
-  M.format_action(output, icons.get('search') .. ' grep', grep_str, duration_text)
+  local grep_str = M._resolve_grep_string(input)
+  M.format_action(output, 'search', 'grep', grep_str, duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -602,7 +598,7 @@ end
 ---@param input WebFetchToolInput data for the tool
 ---@param duration_text? string
 function M._format_webfetch_tool(output, input, duration_text)
-  M.format_action(output, icons.get('web') .. ' fetch', input and input.url, duration_text)
+  M.format_action(output, 'web', 'fetch', input and input.url, duration_text)
 end
 
 ---@param output Output Output object to write to
@@ -611,7 +607,7 @@ end
 ---@param tool_output string
 ---@param duration_text? string
 function M._format_list_tool(output, input, metadata, tool_output, duration_text)
-  M.format_action(output, icons.get('list') .. ' list', input and input.path or '', duration_text)
+  M.format_action(output, 'list', 'list', input and input.path or '', duration_text)
   if not config.ui.output.tools.show_output then
     return
   end
@@ -640,7 +636,7 @@ end
 ---@param status string Status of the tool execution
 ---@param duration_text? string
 function M._format_question_tool(output, input, metadata, status, duration_text)
-  M.format_action(output, icons.get('question') .. ' question', '', duration_text)
+  M.format_action(output, 'question', 'question', '', duration_text)
   output:add_empty_line()
   if not config.ui.output.tools.show_output or status ~= 'completed' then
     return
@@ -673,9 +669,64 @@ function M._format_question_tool(output, input, metadata, status, duration_text)
   end
 end
 
+function M._resolve_file_name(file_path)
+  if not file_path or file_path == '' then
+    return ''
+  end
+  local cwd = vim.fn.getcwd()
+  local absolute = vim.fn.fnamemodify(file_path, ':p')
+  if vim.startswith(absolute, cwd .. '/') then
+    return absolute:sub(#cwd + 2)
+  end
+  return absolute
+end
+
+---@param file_path string
+---@param tool_output? string
+---@return boolean
+function M._is_directory_path(file_path, tool_output)
+  if not file_path or file_path == '' then
+    return false
+  end
+
+  if vim.endswith(file_path, '/') then
+    return true
+  end
+
+  return type(tool_output) == 'string' and tool_output:match('<type>directory</type>') ~= nil
+end
+
+---@param file_path string
+---@param tool_output? string
+---@return string
+function M._resolve_display_file_name(file_path, tool_output)
+  local resolved = M._resolve_file_name(file_path)
+
+  if resolved ~= '' and M._is_directory_path(file_path, tool_output) and not vim.endswith(resolved, '/') then
+    resolved = resolved .. '/'
+  end
+
+  return resolved
+end
+
+function M._resolve_grep_string(input)
+  if not input then
+    return ''
+  end
+  local path_part = input.path or input.include or ''
+  local pattern_part = input.pattern or ''
+  return table.concat(
+    vim.tbl_filter(function(p)
+      return p ~= nil and p ~= ''
+    end, { path_part, pattern_part }),
+    ' '
+  )
+end
+
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
-function M._format_tool(output, part)
+---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+function M._format_tool(output, part, get_child_parts)
   local tool = part.tool
   if not tool or not part.state then
     return
@@ -693,7 +744,14 @@ function M._format_tool(output, part)
   if tool == 'bash' then
     M._format_bash_tool(output, input --[[@as BashToolInput]], metadata --[[@as BashToolMetadata]], duration_text)
   elseif tool == 'read' or tool == 'edit' or tool == 'write' then
-    M._format_file_tool(output, tool, input --[[@as FileToolInput]], metadata --[[@as FileToolMetadata]], duration_text)
+    M._format_file_tool(
+      output,
+      tool,
+      input --[[@as FileToolInput]],
+      metadata --[[@as FileToolMetadata]],
+      tool_output,
+      duration_text
+    )
   elseif tool == 'todowrite' then
     M._format_todo_tool(output, part.state.title, input --[[@as TodoToolInput]], duration_text)
   elseif tool == 'glob' then
@@ -718,7 +776,8 @@ function M._format_tool(output, part)
       input --[[@as TaskToolInput]],
       metadata --[[@as TaskToolMetadata]],
       tool_output,
-      duration_text
+      duration_text,
+      get_child_parts
     )
   elseif tool == 'question' then
     M._format_question_tool(
@@ -729,7 +788,7 @@ function M._format_tool(output, part)
       duration_text
     )
   else
-    M.format_action(output, icons.get('tool') .. ' tool', tool, duration_text)
+    M.format_action(output, 'tool', 'tool', tool, duration_text)
   end
 
   if part.state.status == 'error' and part.state.error then
@@ -749,12 +808,74 @@ function M._format_tool(output, part)
   end
 end
 
+local tool_summary_handlers = {
+  bash = function(_, input)
+    return 'run', 'run', input.description or ''
+  end,
+  read = function(part, input)
+    local tool_output = part.state and part.state.output or nil
+    return 'read', 'read', M._resolve_display_file_name(input.filePath, tool_output)
+  end,
+  edit = function(_, input)
+    return 'edit', 'edit', M._resolve_file_name(input.filePath)
+  end,
+  write = function(_, input)
+    return 'write', 'write', M._resolve_file_name(input.filePath)
+  end,
+  apply_patch = function(_, metadata)
+    local file = metadata.files and metadata.files[1]
+    local others_count = metadata.files and #metadata.files - 1 or 0
+    local suffix = others_count > 0 and string.format(' (+%d more)', others_count) or ''
+
+    return 'edit', 'apply patch', file and M._resolve_file_name(file.filePath) .. suffix or ''
+  end,
+  todowrite = function(part, _)
+    return 'plan', 'plan', part.state and part.state.title or ''
+  end,
+  glob = function(_, input)
+    return 'search', 'glob', input.pattern or ''
+  end,
+  webfetch = function(_, input)
+    return 'web', 'fetch', input.url or ''
+  end,
+  list = function(_, input)
+    return 'list', 'list', input.path or ''
+  end,
+  task = function(_, input)
+    return 'task', 'task', input.description or ''
+  end,
+  grep = function(_, input)
+    return 'search', 'grep', M._resolve_grep_string(input)
+  end,
+  tool = function(_, input)
+    return 'tool', 'tool', input.description or ''
+  end,
+}
+
+---Build the action line string for a part (icon + meaningful value, no duration)
+---Used to show per-tool icon+label in child session activity lists.
+---@param part OpencodeMessagePart
+---@param status string icon name to use for the status (e.g., 'running', 'completed', 'error'). If not provided, will use the default icon for the tool.
+---@return string
+function M._tool_action_line(part, status)
+  local tool = part.tool
+  local input = part.state and part.state.input or {}
+  local handler = tool_summary_handlers[tool] or tool_summary_handlers['tool']
+  local icon_name, tool_label, tool_value = handler(part, input)
+  if status ~= 'completed' then
+    icon_name = status
+  end
+
+  return M._build_action_line(icon_name, tool_label or tool or 'tool', tool_value)
+end
+
 ---@param output Output Output object to write to
 ---@param input TaskToolInput data for the tool
 ---@param metadata TaskToolMetadata Metadata for the tool use
 ---@param tool_output string
 ---@param duration_text? string
-function M._format_task_tool(output, input, metadata, tool_output, duration_text)
+---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+function M._format_task_tool(output, input, metadata, tool_output, duration_text, get_child_parts)
   local start_line = output:get_line_count() + 1
 
   -- Show agent type if available
@@ -764,28 +885,20 @@ function M._format_task_tool(output, input, metadata, tool_output, duration_text
     description = string.format('%s (@%s)', description, agent_type)
   end
 
-  M.format_action(output, icons.get('task') .. ' task', description, duration_text)
+  M.format_action(output, 'task', 'task', description, duration_text)
 
   if config.ui.output.tools.show_output then
-    -- Show task summary from metadata
-    -- The summary contains items with structure: {id, tool, state: {status, title}}
-    if metadata and metadata.summary and type(metadata.summary) == 'table' and #metadata.summary > 0 then
+    -- Show live tool activity from the child session
+    local child_session_id = metadata and metadata.sessionId
+    local child_parts = child_session_id and get_child_parts and get_child_parts(child_session_id)
+
+    if child_parts and #child_parts > 0 then
       output:add_empty_line()
 
-      local status_icons = {
-        completed = icons.get('status_on') or '+',
-        running = icons.get('run') or '>',
-        pending = icons.get('status_off') or '-',
-        error = icons.get('error') or 'x',
-      }
-
-      for _, item in ipairs(metadata.summary) do
+      for _, item in ipairs(child_parts) do
         if item.tool then
           local status = item.state and item.state.status or 'pending'
-          local title = item.state and item.state.title or item.tool
-          local icon = status_icons[status] or status_icons.pending
-
-          output:add_line(string.format('  %s %s', icon, title))
+          output:add_line(' ' .. M._tool_action_line(item, status))
         end
       end
 
@@ -794,8 +907,8 @@ function M._format_task_tool(output, input, metadata, tool_output, duration_text
 
     -- Show tool output text (usually the final summary from the subagent)
     if tool_output and tool_output ~= '' then
-      -- Strip task_metadata tags from output for cleaner display
-      local clean_output = tool_output:gsub('<task_metadata>.-</task_metadata>', ''):gsub('%s+$', '')
+      -- remove the task_result tag, only get the inner content, since the tool output is already visually separated and the tag doesn't add much value in that case
+      local clean_output = tool_output:gsub('<task_result>', ''):gsub('</task_result>', '')
       if clean_output ~= '' then
         output:add_empty_line()
         output:add_lines(vim.split(clean_output, '\n'))
@@ -895,8 +1008,9 @@ end
 ---@param part OpencodeMessagePart The part to format
 ---@param message? OpencodeMessage Optional message object to extract role and mentions from
 ---@param is_last_part? boolean Whether this is the last part in the message, used to show an error if there is one
+---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
 ---@return Output
-function M.format_part(part, message, is_last_part)
+function M.format_part(part, message, is_last_part, get_child_parts)
   local output = Output.new()
 
   if not message or not message.info or not message.info.role then
@@ -931,7 +1045,7 @@ function M.format_part(part, message, is_last_part)
       M._format_reasoning(output, part)
       content_added = true
     elseif part.type == 'tool' then
-      M._format_tool(output, part)
+      M._format_tool(output, part, get_child_parts)
       content_added = true
     elseif part.type == 'patch' and part.hash then
       M._format_patch(output, part)

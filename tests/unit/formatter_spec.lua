@@ -58,4 +58,37 @@ describe('formatter', function()
     assert.are.equal('**A1:** First line', output.lines[4])
     assert.are.equal('Second line', output.lines[5])
   end)
+
+  it('renders directory reads with trailing slash', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_1',
+      type = 'tool',
+      tool = 'read',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          filePath = '/tmp/project',
+        },
+        output = '<path>/tmp/project</path>\n<type>directory</type>\n<entries>\nfoo\n</entries>',
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true)
+    assert.are.equal('**  read** `/tmp/project/` 1s', output.lines[1])
+  end)
 end)

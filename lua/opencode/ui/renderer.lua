@@ -721,8 +721,11 @@ function M.on_part_updated(properties, revert_index)
   end
 
   if state.active_session.id ~= part.sessionID then
-    ---@TODO This is probably a child session part, handle differently?
-    -- vim.notify('Session id does not match, discarding part: ' .. vim.inspect(part), vim.log.levels.WARN)
+    if part.tool or part.type == 'tool' then
+      M._render_state:upsert_child_session_part(part.sessionID, part)
+
+      M._rerender_task_tool_for_child_session(part.sessionID)
+    end
     return
   end
 
@@ -769,7 +772,9 @@ function M.on_part_updated(properties, revert_index)
     end
   end
 
-  local formatted = formatter.format_part(part, message, is_last_part)
+  local formatted = formatter.format_part(part, message, is_last_part, function(session_id)
+    return M._render_state:get_child_session_parts(session_id)
+  end)
 
   if part.callID and state.pending_permissions then
     for _, permission in ipairs(state.pending_permissions) do
@@ -1128,6 +1133,17 @@ function M._get_insertion_point_for_part(part_id, message_id)
   return insertion_line
 end
 
+---Find and re-render the task tool part in the active session that owns a given child session
+---@param child_session_id string The child session ID to look up
+function M._rerender_task_tool_for_child_session(child_session_id)
+  local part_id = M._render_state:get_task_part_by_child_session(child_session_id)
+  if not part_id then
+    return
+  end
+
+  M._rerender_part(part_id)
+end
+
 ---Re-render existing part with current state
 ---Used for permission updates and other dynamic changes
 ---@param part_id string Part ID to re-render
@@ -1146,7 +1162,9 @@ function M._rerender_part(part_id)
   local message = rendered_message.message
   local last_part_id = M._get_last_part_for_message(message)
   local is_last_part = (last_part_id == part_id)
-  local formatted = formatter.format_part(part, message, is_last_part)
+  local formatted = formatter.format_part(part, message, is_last_part, function(session_id)
+    return M._render_state:get_child_session_parts(session_id)
+  end)
 
   M._replace_part_in_buffer(part_id, formatted)
 end

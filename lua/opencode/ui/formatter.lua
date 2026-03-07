@@ -8,11 +8,9 @@ local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
 local permission_window = require('opencode.ui.permission_window')
 local tool_formatters = require('opencode.ui.formatter.tools')
-local tool_helpers = require('opencode.ui.formatter.tools.helpers')
+local format_utils = require('opencode.ui.formatter.utils')
 
 local M = {}
-
----@note child-session parts are requested from the renderer at format time
 
 M.separator = {
   '----',
@@ -35,7 +33,7 @@ function M._format_reasoning(output, part)
     end
   end
 
-  M.format_action(output, 'reasoning', title, '')
+  format_utils.format_action(output, icons.get('reasoning'), title, '')
 
   if config.ui.output.tools.show_reasoning_output and text ~= '' then
     output:add_empty_line()
@@ -53,69 +51,13 @@ function M._format_reasoning(output, part)
   end
 end
 
----Calculate statistics for reverted messages and tool calls
----@param messages {info: MessageInfo, parts: OpencodeMessagePart[]}[] All messages in the session
----@param revert_index number Index of the message where revert occurred
----@param revert_info SessionRevertInfo Revert information
----@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
-function M._calculate_revert_stats(messages, revert_index, revert_info)
-  local stats = {
-    messages = 0,
-    tool_calls = 0,
-    files = {}, -- { [filename] = { additions = n, deletions = m } }
-  }
-
-  for i = revert_index, #messages do
-    local msg = messages[i]
-    if msg.info.role == 'user' then
-      stats.messages = stats.messages + 1
-    end
-    if msg.parts then
-      for _, part in ipairs(msg.parts) do
-        if part.type == 'tool' then
-          stats.tool_calls = stats.tool_calls + 1
-        end
-      end
-    end
-  end
-
-  if revert_info.diff then
-    local current_file = nil
-    for line in revert_info.diff:gmatch('[^\r\n]+') do
-      local file_a = line:match('^%-%-%- ([ab]/.+)')
-      local file_b = line:match('^%+%+%+ ([ab]/.+)')
-      if file_b then
-        current_file = file_b:gsub('^[ab]/', '')
-        if not stats.files[current_file] then
-          stats.files[current_file] = { additions = 0, deletions = 0 }
-        end
-      elseif file_a then
-        current_file = file_a:gsub('^[ab]/', '')
-        if not stats.files[current_file] then
-          stats.files[current_file] = { additions = 0, deletions = 0 }
-        end
-      elseif line:sub(1, 1) == '+' and not line:match('^%+%+%+') then
-        if current_file then
-          stats.files[current_file].additions = stats.files[current_file].additions + 1
-        end
-      elseif line:sub(1, 1) == '-' and not line:match('^%-%-%-') then
-        if current_file then
-          stats.files[current_file].deletions = stats.files[current_file].deletions + 1
-        end
-      end
-    end
-  end
-
-  return stats
-end
-
 ---Format the revert callout with statistics
 ---@param session_data OpencodeMessage[] All messages in the session
 ---@param start_idx number Index of the message where revert occurred
 ---@return Output output object representing the lines, extmarks, and actions
 function M._format_revert_message(session_data, start_idx)
   local output = Output.new()
-  local stats = M._calculate_revert_stats(session_data, start_idx, state.active_session.revert)
+  local stats = format_utils.calculate_revert_stats(session_data, start_idx, state.active_session.revert)
   local message_text = stats.messages == 1 and 'message' or 'messages'
   local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
 
@@ -177,7 +119,7 @@ function M._format_patch(output, part)
   end
 
   local restore_points = snapshot.get_restore_points_by_parent(part.hash) or {}
-  M.format_action(output, 'snapshot', 'Created Snapshot', vim.trim(part.hash:sub(1, 8)))
+  format_utils.format_action(output, icons.get('snapshot'), 'Created Snapshot', vim.trim(part.hash:sub(1, 8)))
 
   -- Anchor all snapshot-level actions to the snapshot header line
   add_action(output, '[R]evert file', 'diff_revert_selected_file', { part.hash }, 'R')
@@ -469,88 +411,19 @@ function M._format_assistant_message(output, text)
   output:add_lines(vim.split(result, '\n'))
 end
 
----Build the formatted action line string without writing to output
----@param icon_name string Name of the icon to fetch with `icons.get`
----@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
----@param value string Value associated with the action (e.g., filename, command)
----@param duration_text? string
----@return string
-function M._build_action_line(icon_name, tool_type, value, duration_text)
-  local icon = icons.get(icon_name)
-  local detail = value and #value > 0 and ('`' .. value .. '`') or ''
-  local duration_suffix = duration_text and (' ' .. duration_text) or ''
-  return string.format('**%s %s** %s%s', icon, tool_type, detail, duration_suffix)
-end
-
----@param output Output Output object to write to
----@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
----@param value string Value associated with the action (e.g., filename, command)
----@param duration_text? string
-function M.format_action(output, icon_name, tool_type, value, duration_text)
-  if not icon_name or not tool_type then
-    return
-  end
-  output:add_line(M._build_action_line(icon_name, tool_type, value, duration_text))
-end
-
-function M._resolve_file_name(file_path)
-  return tool_helpers.resolve_file_name(file_path)
-end
-
----@param file_path string
----@param tool_output? string
----@return boolean
-function M._is_directory_path(file_path, tool_output)
-  return tool_helpers.is_directory_path(file_path, tool_output)
-end
-
----@param file_path string
----@param tool_output? string
----@return string
-function M._resolve_display_file_name(file_path, tool_output)
-  return tool_helpers.resolve_display_file_name(file_path, tool_output)
-end
-
-function M._resolve_grep_string(input)
-  return tool_helpers.resolve_grep_string(input)
-end
-
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
 ---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
-function M._format_tool(output, part, get_child_parts)
+function M.format_tool(output, part, get_child_parts)
   local tool = part.tool
   if not tool or not part.state then
     return
   end
 
   local start_line = output:get_line_count() + 1
-  local input = part.state.input or {}
-  local metadata = part.state.metadata or {}
-  local tool_output = part.state.output or ''
-  local tool_time = part.state.time or {}
-  local tool_status = part.state.status
-  local should_show_duration = tool ~= 'question' and tool_status ~= 'pending'
-  local duration_text = should_show_duration and util.format_duration_seconds(tool_time.start, tool_time['end']) or nil
 
   local formatter = tool_formatters[tool] or tool_formatters.tool
-  formatter.format({
-    output = output,
-    tool_type = tool,
-    input = input,
-    metadata = metadata,
-    tool_output = tool_output,
-    title = part.state.title,
-    status = part.state.status,
-    duration_text = duration_text,
-    config = config,
-    format_action = M.format_action,
-    format_diff = M.format_diff,
-    format_code = M._format_code,
-    build_action_line = M._build_action_line,
-    get_child_parts = get_child_parts,
-    tool_summary_handlers = M._tool_summary_handlers,
-  })
+  formatter.format(output, part, get_child_parts)
 
   if part.state.status == 'error' and part.state.error then
     output:add_line('')
@@ -567,155 +440,6 @@ function M._format_tool(output, part, get_child_parts)
   if end_line - start_line > 1 then
     M.add_vertical_border(output, start_line, end_line, 'OpencodeToolBorder', -1)
   end
-end
-
-M._tool_summary_handlers = {
-  bash = function(part, input, metadata)
-    return tool_formatters.bash.summary(part, input, metadata)
-  end,
-  read = function(part, input, metadata)
-    return tool_formatters.read.summary(part, input, metadata)
-  end,
-  edit = function(part, input, metadata)
-    return tool_formatters.edit.summary(part, input, metadata)
-  end,
-  write = function(part, input, metadata)
-    return tool_formatters.write.summary(part, input, metadata)
-  end,
-  apply_patch = function(part, input, metadata)
-    return tool_formatters.apply_patch.summary(part, input, metadata)
-  end,
-  todowrite = function(part, input, metadata)
-    return tool_formatters.todowrite.summary(part, input, metadata)
-  end,
-  glob = function(part, input, metadata)
-    return tool_formatters.glob.summary(part, input, metadata)
-  end,
-  webfetch = function(part, input, metadata)
-    return tool_formatters.webfetch.summary(part, input, metadata)
-  end,
-  list = function(part, input, metadata)
-    return tool_formatters.list.summary(part, input, metadata)
-  end,
-  task = function(part, input, metadata)
-    return tool_formatters.task.summary(part, input, metadata)
-  end,
-  grep = function(part, input, metadata)
-    return tool_formatters.grep.summary(part, input, metadata)
-  end,
-  tool = function(part, input, metadata)
-    return tool_formatters.tool.summary(part, input, metadata)
-  end,
-}
-
----@param output Output Output object to write to
----@param lines string[]
----@param language string
-function M._format_code(output, lines, language)
-  output:add_empty_line()
-  --- NOTE: use longer code fence because lines could contain ```
-  output:add_line('`````' .. (language or ''))
-  output:add_lines(util.sanitize_lines(lines))
-  output:add_line('`````')
-end
-
----@param lines string[]
-local function parse_diff_line_numbers(lines)
-  local numbered_lines = {}
-  local old_line
-  local new_line
-  local max_line_number = 0
-
-  for idx, line in ipairs(lines) do
-    local old_start, new_start = line:match('^@@ %-(%d+),?%d* %+(%d+),?%d* @@')
-
-    if old_start and new_start then
-      old_line = tonumber(old_start)
-      new_line = tonumber(new_start)
-    elseif old_line and new_line then
-      local first_char = line:sub(1, 1)
-
-      if first_char == ' ' then
-        numbered_lines[idx] = { old = old_line, new = new_line }
-        max_line_number = math.max(max_line_number, old_line, new_line)
-        old_line = old_line + 1
-        new_line = new_line + 1
-      elseif first_char == '+' and not line:match('^%+%+%+%s') then
-        numbered_lines[idx] = { old = nil, new = new_line }
-        max_line_number = math.max(max_line_number, new_line)
-        new_line = new_line + 1
-      elseif first_char == '-' and not line:match('^%-%-%-%s') then
-        numbered_lines[idx] = { old = old_line, new = nil }
-        max_line_number = math.max(max_line_number, old_line)
-        old_line = old_line + 1
-      end
-    end
-  end
-
-  return numbered_lines, math.max(#tostring(max_line_number), 4)
-end
-
-local function build_diff_gutter(line_numbers, width)
-  local line_number = line_numbers.new or line_numbers.old
-  return string.format('%-' .. width .. 's', line_number and tostring(line_number) or '')
-end
-
-local function add_diff_line(output, line, line_numbers, width)
-  local first_char = line:sub(1, 1)
-  local line_hl = first_char == '+' and 'OpencodeDiffAdd' or first_char == '-' and 'OpencodeDiffDelete' or nil
-  local gutter_hl = first_char == '+' and 'OpencodeDiffAddGutter'
-    or first_char == '-' and 'OpencodeDiffDeleteGutter'
-    or 'OpencodeDiffGutter'
-  local sign_hl = gutter_hl
-  local gutter = build_diff_gutter(line_numbers, width)
-  local gutter_width = #gutter + 2
-
-  output:add_line(string.rep(' ', gutter_width) .. line:sub(2))
-
-  local line_idx = output:get_line_count()
-  local extmark = {
-    end_col = 0,
-    end_row = line_idx,
-    virt_text = {
-      { gutter, gutter_hl },
-      { first_char, sign_hl },
-      { ' ', gutter_hl },
-    },
-    priority = 5000,
-    right_gravity = true,
-    end_right_gravity = false,
-    virt_text_hide = false,
-    virt_text_pos = 'overlay',
-    virt_text_repeat_linebreak = false,
-  }
-
-  if line_hl then
-    extmark.hl_group = line_hl
-    extmark.hl_eol = true
-  end
-
-  output:add_extmark(line_idx - 1, extmark --[[@as OutputExtmark]])
-end
-
-function M.format_diff(output, code, file_type)
-  output:add_empty_line()
-
-  --- NOTE: use longer code fence because code could contain ```
-  output:add_line('`````' .. file_type)
-  local full_lines = vim.split(code, '\n')
-  local numbered_lines, line_number_width = parse_diff_line_numbers(full_lines)
-  local first_visible_line = #full_lines > 5 and 6 or 1
-  local lines = first_visible_line > 1 and vim.list_slice(full_lines, first_visible_line) or full_lines
-
-  for idx, line in ipairs(lines) do
-    local source_idx = first_visible_line + idx - 1
-    if numbered_lines[source_idx] then
-      add_diff_line(output, line, numbered_lines[source_idx], line_number_width)
-    else
-      output:add_line(line)
-    end
-  end
-  output:add_line('`````')
 end
 
 ---@param output Output Output object to write to
@@ -783,7 +507,7 @@ function M.format_part(part, message, is_last_part, get_child_parts)
       M._format_reasoning(output, part)
       content_added = true
     elseif part.type == 'tool' then
-      M._format_tool(output, part, get_child_parts)
+      M.format_tool(output, part, get_child_parts)
       content_added = true
     elseif part.type == 'patch' and part.hash then
       M._format_patch(output, part)

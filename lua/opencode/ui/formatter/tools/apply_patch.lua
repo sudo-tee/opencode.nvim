@@ -1,16 +1,41 @@
 local util = require('opencode.util')
-local helpers = require('opencode.ui.formatter.tools.helpers')
 
 local M = {}
 
----@param ctx table
-function M.format(ctx)
-  local metadata = ctx.metadata or {}
+---@param file_path string
+---@return string
+local function resolve_file_name(file_path)
+  if not file_path or file_path == '' then
+    return ''
+  end
+
+  local cwd = vim.fn.getcwd()
+  local absolute = vim.fn.fnamemodify(file_path, ':p')
+  if vim.startswith(absolute, cwd .. '/') then
+    return absolute:sub(#cwd + 2)
+  end
+  return absolute
+end
+
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local metadata = part.state and part.state.metadata or {}
   for _, file in ipairs(metadata.files or {}) do
-    ctx.format_action(ctx.output, 'edit', 'apply patch', file.relativePath or file.filePath, ctx.duration_text)
-    if ctx.config.ui.output.tools.show_output and file.diff then
+    local utils = require('opencode.ui.formatter.utils')
+    local config = require('opencode.config')
+
+    local icons = require('opencode.ui.icons')
+    utils.format_action(
+      output,
+      icons.get('edit'),
+      'apply patch',
+      file.relativePath or file.filePath,
+      utils.get_duration_text(part)
+    )
+    if config.ui.output.tools.show_output and file.diff then
       local file_type = file and util.get_markdown_filetype(file.filePath) or ''
-      ctx.format_diff(ctx.output, file.diff, file_type)
+      utils.format_diff(output, file.diff, file_type)
     end
   end
 end
@@ -23,7 +48,7 @@ function M.summary(_, _, metadata)
   local file = metadata.files and metadata.files[1]
   local others_count = metadata.files and #metadata.files - 1 or 0
   local suffix = others_count > 0 and string.format(' (+%d more)', others_count) or ''
-  return 'edit', 'apply patch', file and helpers.resolve_file_name(file.filePath) .. suffix or ''
+  return 'edit', 'apply patch', file and resolve_file_name(file.filePath) .. suffix or ''
 end
 
 return M

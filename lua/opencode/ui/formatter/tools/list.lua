@@ -1,32 +1,37 @@
 local M = {}
 
----@param ctx table
-function M.format(ctx)
-  local input = ctx.input or {}
-  local metadata = ctx.metadata or {}
-  local tool_output = ctx.tool_output
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local input = part.state and part.state.input or {}
+  local metadata = part.state and part.state.metadata or {}
+  local tool_output = part.state and part.state.output or ''
 
-  ctx.format_action(ctx.output, 'list', 'list', input.path or '', ctx.duration_text)
-  if not ctx.config.ui.output.tools.show_output then
+  local utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
+
+  local icons = require('opencode.ui.icons')
+  utils.format_action(output, icons.get('list'), 'list', input.path or '', utils.get_duration_text(part))
+  if not config.ui.output.tools.show_output then
     return
   end
 
-  local lines = vim.split(vim.trim(tool_output or ''), '\n')
+  local lines = vim.split(vim.trim(tool_output), '\n')
   if #lines < 1 or metadata.count == 0 then
-    ctx.output:add_line('No files found.')
+    output:add_line('No files found.')
     return
   end
   if #lines > 1 then
-    ctx.output:add_line('Files:')
+    output:add_line('Files:')
     for i = 2, #lines do
       local file = vim.trim(lines[i])
       if file ~= '' then
-        ctx.output:add_line('  • ' .. file)
+        output:add_line('  • ' .. file)
       end
     end
   end
   if metadata.truncated then
-    ctx.output:add_line(string.format('Results truncated, showing first %d files', metadata.count or '?'))
+    output:add_line(string.format('Results truncated, showing first %d files', metadata.count or '?'))
   end
 end
 

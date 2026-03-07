@@ -1,13 +1,19 @@
 local M = {}
 
----@param ctx table
-function M.format(ctx)
-  local input = ctx.input or {}
-  local metadata = ctx.metadata or {}
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local input = part.state and part.state.input or {}
+  local metadata = part.state and part.state.metadata or {}
 
-  ctx.format_action(ctx.output, 'question', 'question', '', ctx.duration_text)
-  ctx.output:add_empty_line()
-  if not ctx.config.ui.output.tools.show_output or ctx.status ~= 'completed' then
+  local utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
+
+  -- question tool never shows duration
+  local icons = require('opencode.ui.icons')
+  utils.format_action(output, icons.get('question'), 'question', '', nil)
+  output:add_empty_line()
+  if not config.ui.output.tools.show_output or (part.state and part.state.status) ~= 'completed' then
     return
   end
 
@@ -17,23 +23,23 @@ function M.format(ctx)
   for i, question in ipairs(questions) do
     local question_lines = vim.split(question.question, '\n')
     if #question_lines > 1 then
-      ctx.output:add_line(string.format('**Q%d:** %s', i, question.header))
+      output:add_line(string.format('**Q%d:** %s', i, question.header))
       for _, line in ipairs(question_lines) do
-        ctx.output:add_line(line)
+        output:add_line(line)
       end
     else
-      ctx.output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
+      output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
     end
 
     local answer = answers[i] and answers[i][1] or 'No answer'
     local answer_lines = vim.split(answer, '\n', { plain = true })
-    ctx.output:add_line(string.format('**A%d:** %s', i, answer_lines[1]))
+    output:add_line(string.format('**A%d:** %s', i, answer_lines[1]))
     for line_idx = 2, #answer_lines do
-      ctx.output:add_line(answer_lines[line_idx])
+      output:add_line(answer_lines[line_idx])
     end
 
     if i < #questions then
-      ctx.output:add_line('')
+      output:add_line('')
     end
   end
 end

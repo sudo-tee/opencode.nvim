@@ -1,8 +1,11 @@
 local M = {}
+local utils = require('opencode.ui.formatter.utils')
 
----@param ctx table
-function M.format(ctx)
-  ctx.format_action(ctx.output, 'tool', 'tool', ctx.tool_type, ctx.duration_text)
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local icons = require('opencode.ui.icons')
+  utils.format_action(output, icons.get('tool'), 'tool', part.tool, utils.get_duration_text(part))
 end
 
 ---@param _ OpencodeMessagePart

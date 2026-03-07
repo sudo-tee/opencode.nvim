@@ -1,29 +1,35 @@
 local M = {}
+local icons = require('opencode.ui.icons')
 
 ---@param part OpencodeMessagePart
 ---@param status string
----@param build_action_line fun(icon_name: string, tool_type: string, value: string, duration_text?: string): string
----@param handlers table<string, fun(part: OpencodeMessagePart, input: table, metadata?: table): string, string, string>
+---@param utils table
 ---@return string
-function M.tool_action_line(part, status, build_action_line, handlers)
+function M.tool_action_line(part, status, utils)
+  local tool_formatters = require('opencode.ui.formatter.tools')
   local tool = part.tool
   local input = part.state and part.state.input or {}
   local metadata = part.state and part.state.metadata or {}
-  local handler = handlers[tool] or handlers.tool
-  local icon_name, tool_label, tool_value = handler(part, input, metadata)
+  local formatter = tool_formatters[tool] or tool_formatters.tool
+  local summary = formatter.summary or tool_formatters.tool.summary
+  local icon_name, tool_label, tool_value = summary(part, input, metadata)
   if status ~= 'completed' then
     icon_name = status
   end
 
-  return build_action_line(icon_name, tool_label or tool or 'tool', tool_value)
+  local icon = icons.get(icon_name)
+  return utils.build_action_line(icon, tool_label or tool or 'tool', tool_value)
 end
 
----@param ctx table
-function M.format(ctx)
-  local input = ctx.input or {}
-  local metadata = ctx.metadata or {}
+---@param output Output
+---@param part OpencodeMessagePart
+---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+function M.format(output, part, get_child_parts)
+  local input = part.state and part.state.input or {}
+  local metadata = part.state and part.state.metadata or {}
+  local tool_output = part.state and part.state.output or ''
 
-  local start_line = ctx.output:get_line_count() + 1
+  local start_line = output:get_line_count() + 1
 
   local description = input.description or ''
   local agent_type = input.subagent_type
@@ -31,37 +37,40 @@ function M.format(ctx)
     description = string.format('%s (@%s)', description, agent_type)
   end
 
-  ctx.format_action(ctx.output, 'task', 'task', description, ctx.duration_text)
+  local utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
 
-  if ctx.config.ui.output.tools.show_output then
+  utils.format_action(output, icons.get('task'), 'task', description, utils.get_duration_text(part))
+
+  if config.ui.output.tools.show_output then
     local child_session_id = metadata.sessionId
-    local child_parts = child_session_id and ctx.get_child_parts and ctx.get_child_parts(child_session_id)
+    local child_parts = child_session_id and get_child_parts and get_child_parts(child_session_id)
 
     if child_parts and #child_parts > 0 then
-      ctx.output:add_empty_line()
+      output:add_empty_line()
 
       for _, item in ipairs(child_parts) do
         if item.tool then
           local status = item.state and item.state.status or 'pending'
-          ctx.output:add_line(' ' .. M.tool_action_line(item, status, ctx.build_action_line, ctx.tool_summary_handlers))
+          output:add_line(' ' .. M.tool_action_line(item, status, utils))
         end
       end
 
-      ctx.output:add_empty_line()
+      output:add_empty_line()
     end
 
-    if ctx.tool_output and ctx.tool_output ~= '' then
-      local clean_output = ctx.tool_output:gsub('<task_result>', ''):gsub('</task_result>', '')
+    if tool_output ~= '' then
+      local clean_output = tool_output:gsub('<task_result>', ''):gsub('</task_result>', '')
       if clean_output ~= '' then
-        ctx.output:add_empty_line()
-        ctx.output:add_lines(vim.split(clean_output, '\n'))
-        ctx.output:add_empty_line()
+        output:add_empty_line()
+        output:add_lines(vim.split(clean_output, '\n'))
+        output:add_empty_line()
       end
     end
   end
 
-  local end_line = ctx.output:get_line_count()
-  ctx.output:add_action({
+  local end_line = output:get_line_count()
+  output:add_action({
     text = '[S]elect Child Session',
     type = 'select_child_session',
     args = {},

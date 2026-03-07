@@ -114,7 +114,7 @@ function M.format_display(output)
   end
 
   local icons = require('opencode.ui.icons')
-  local formatter = require('opencode.ui.formatter')
+  local formatter_utils = require('opencode.ui.formatter.utils')
 
   local progress = ''
   if #M._permission_queue > 1 then
@@ -166,7 +166,7 @@ function M.format_display(output)
       out:add_line('')
 
       local file_type = permission.metadata.filepath and vim.fn.fnamemodify(permission.metadata.filepath, ':e') or ''
-      formatter.format_diff(out, permission.metadata.diff, file_type)
+      formatter_utils.format_diff(out, permission.metadata.diff, file_type)
     end
   end
 

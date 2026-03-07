@@ -1,17 +1,22 @@
 local M = {}
 
----@param ctx table
-function M.format(ctx)
-  local input = ctx.input or {}
-  local metadata = ctx.metadata or {}
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local input = part.state and part.state.input or {}
+  local metadata = part.state and part.state.metadata or {}
 
-  ctx.format_action(ctx.output, 'search', 'glob', input.pattern, ctx.duration_text)
-  if not ctx.config.ui.output.tools.show_output then
+  local utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
+
+  local icons = require('opencode.ui.icons')
+  utils.format_action(output, icons.get('search'), 'glob', input.pattern, utils.get_duration_text(part))
+  if not config.ui.output.tools.show_output then
     return
   end
 
   local prefix = metadata.truncated and ' more than' or ''
-  ctx.output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
+  output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
 end
 
 ---@param _ OpencodeMessagePart

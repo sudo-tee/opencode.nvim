@@ -60,6 +60,75 @@ describe('formatter', function()
     assert.are.equal('Second line', output.lines[5])
   end)
 
+  it('renders task child question tools with generic summary fallback', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_1',
+      type = 'tool',
+      tool = 'task',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          description = 'review changes',
+          subagent_type = 'explore',
+        },
+        metadata = {
+          sessionId = 'ses_child',
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local child_parts = {
+      {
+        id = 'prt_child_1',
+        type = 'tool',
+        tool = 'question',
+        messageID = 'msg_child_1',
+        sessionID = 'ses_child',
+        state = {
+          status = 'completed',
+          input = {
+            questions = {
+              {
+                question = 'What should we do?',
+                header = 'Question',
+                options = {},
+              },
+            },
+          },
+          metadata = {
+            answers = {
+              { 'Ship it' },
+            },
+          },
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true, function(session_id)
+      if session_id == 'ses_child' then
+        return child_parts
+      end
+      return nil
+    end)
+
+    assert.are.equal(' **  tool** ', output.lines[3])
+  end)
+
   it('renders directory reads with trailing slash', function()
     local message = {
       info = {
@@ -96,7 +165,8 @@ describe('formatter', function()
   it('renders diff line numbers as extmarks', function()
     local output = Output.new()
 
-    formatter.format_diff(
+    local formatter_utils = require('opencode.ui.formatter.utils')
+    formatter_utils.format_diff(
       output,
       table.concat({
         'diff --git a/lua/foo.lua b/lua/foo.lua',

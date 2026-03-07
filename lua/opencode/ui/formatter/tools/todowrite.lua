@@ -1,16 +1,21 @@
 local M = {}
 
----@param ctx table
-function M.format(ctx)
-  ctx.format_action(ctx.output, 'plan', 'plan', (ctx.title or ''), ctx.duration_text)
-  if not ctx.config.ui.output.tools.show_output then
+---@param output Output
+---@param part OpencodeMessagePart
+function M.format(output, part)
+  local utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
+
+  local icons = require('opencode.ui.icons')
+  utils.format_action(output, icons.get('plan'), 'plan', (part.state and part.state.title or ''), utils.get_duration_text(part))
+  if not config.ui.output.tools.show_output then
     return
   end
 
-  local todos = ctx.input and ctx.input.todos or {}
+  local todos = part.state and part.state.input and part.state.input.todos or {}
   for _, item in ipairs(todos) do
     local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
-    ctx.output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
+    output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
   end
 end
 

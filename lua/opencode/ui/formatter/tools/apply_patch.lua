@@ -20,6 +20,10 @@ end
 ---@param output Output
 ---@param part OpencodeMessagePart
 function M.format(output, part)
+  if part.tool ~= 'apply_patch' then
+    return
+  end
+
   local metadata = part.state and part.state.metadata or {}
   for _, file in ipairs(metadata.files or {}) do
     local utils = require('opencode.ui.formatter.utils')
@@ -48,7 +52,7 @@ function M.summary(_, _, metadata)
   local file = metadata.files and metadata.files[1]
   local others_count = metadata.files and #metadata.files - 1 or 0
   local suffix = others_count > 0 and string.format(' (+%d more)', others_count) or ''
-  return 'edit', 'apply patch', file and resolve_file_name(file.filePath) .. suffix or ''
+  return icons.get('edit'), 'apply patch', file and resolve_file_name(file.filePath) .. suffix or ''
 end
 
 return M

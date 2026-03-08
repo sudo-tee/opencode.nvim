@@ -12,12 +12,12 @@ function M.tool_action_line(part, status, utils)
   local metadata = part.state and part.state.metadata or {}
   local formatter = tool_formatters[tool] or tool_formatters.tool
   local summary = formatter.summary or tool_formatters.tool.summary
-  local icon_name, tool_label, tool_value = summary(part, input, metadata)
+  local icon, tool_label, tool_value = summary(part, input, metadata)
+
   if status ~= 'completed' then
-    icon_name = status
+    icon = icons.get(status)
   end
 
-  local icon = icons.get(icon_name)
   return utils.build_action_line(icon, tool_label or tool or 'tool', tool_value)
 end
 
@@ -25,6 +25,10 @@ end
 ---@param part OpencodeMessagePart
 ---@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
 function M.format(output, part, get_child_parts)
+  if part.tool ~= 'task' then
+    return
+  end
+
   local input = part.state and part.state.input or {}
   local metadata = part.state and part.state.metadata or {}
   local tool_output = part.state and part.state.output or ''
@@ -84,7 +88,7 @@ end
 ---@param input TaskToolInput
 ---@return string, string, string
 function M.summary(_, input)
-  return 'task', 'task', input.description or ''
+  return icons.get('task'), 'task', input.description or ''
 end
 
 return M

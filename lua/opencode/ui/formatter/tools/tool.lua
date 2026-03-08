@@ -1,5 +1,6 @@
-local M = {}
 local utils = require('opencode.ui.formatter.utils')
+local icons = require('opencode.ui.icons')
+local M = {}
 
 ---@param output Output
 ---@param part OpencodeMessagePart
@@ -12,7 +13,7 @@ end
 ---@param input table
 ---@return string, string, string
 function M.summary(_, input)
-  return 'tool', 'tool', input.description or ''
+  return icons.get('tool'), 'tool', input.description or ''
 end
 
 return M

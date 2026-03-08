@@ -3,6 +3,10 @@ local M = {}
 ---@param output Output
 ---@param part OpencodeMessagePart
 function M.format(output, part)
+  if part.tool ~= 'question' then
+    return
+  end
+
   local input = part.state and part.state.input or {}
   local metadata = part.state and part.state.metadata or {}
 

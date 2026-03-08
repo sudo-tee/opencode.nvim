@@ -3,6 +3,9 @@ local M = {}
 ---@param output Output
 ---@param part OpencodeMessagePart
 function M.format(output, part)
+  if part.tool ~= 'list' then
+    return
+  end
   local input = part.state and part.state.input or {}
   local metadata = part.state and part.state.metadata or {}
   local tool_output = part.state and part.state.output or ''
@@ -39,7 +42,7 @@ end
 ---@param input ListToolInput
 ---@return string, string, string
 function M.summary(_, input)
-  return 'list', 'list', input.path or ''
+  return icons.get('list'), 'list', input.path or ''
 end
 
 return M

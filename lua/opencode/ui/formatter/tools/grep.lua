@@ -1,3 +1,4 @@
+local icons = require('opencode.ui.icons')
 local M = {}
 
 ---@param input GrepToolInput|nil
@@ -19,6 +20,10 @@ end
 ---@param output Output
 ---@param part OpencodeMessagePart
 function M.format(output, part)
+  if part.tool ~= 'grep' then
+    return
+  end
+
   local metadata = part.state and part.state.metadata or {}
   local input = part.state and part.state.input or nil
 
@@ -41,7 +46,7 @@ end
 ---@param input GrepToolInput
 ---@return string, string, string
 function M.summary(_, input)
-  return 'search', 'grep', resolve_grep_string(input)
+  return icons.get('search'), 'grep', resolve_grep_string(input)
 end
 
 return M

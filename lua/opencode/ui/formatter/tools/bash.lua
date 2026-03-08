@@ -1,3 +1,4 @@
+local icons = require('opencode.ui.icons')
 local M = {}
 
 ---@param output Output
@@ -34,7 +35,7 @@ end
 ---@param input BashToolInput
 ---@return string, string, string
 function M.summary(_, input)
-  return 'run', 'run', input.description or ''
+  return icons.get('run'), 'run', input.description or ''
 end
 
 return M

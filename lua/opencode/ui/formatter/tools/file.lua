@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local icons = require('opencode.ui.icons')
 
 local M = {}
 
@@ -82,9 +83,9 @@ function M.summary(part, input)
   local tool = part.tool
   if tool == 'read' then
     local tool_output = part.state and part.state.output or nil
-    return 'read', 'read', resolve_display_file_name(input.filePath, tool_output)
+    return icons.get('read'), 'read', resolve_display_file_name(input.filePath, tool_output)
   end
-  return tool, tool, resolve_file_name(input.filePath)
+  return icons.get(tool), tool, resolve_file_name(input.filePath)
 end
 
 return M

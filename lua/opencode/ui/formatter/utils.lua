@@ -86,7 +86,7 @@ end
 
 local function build_diff_gutter(line_numbers, width)
   local line_number = line_numbers.new or line_numbers.old
-  return string.format('%-' .. width .. 's', line_number and tostring(line_number) or '')
+  return string.format('%' .. width .. 's', line_number and tostring(line_number) or '')
 end
 
 local function add_diff_line(output, line, line_numbers, width)

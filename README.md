@@ -112,8 +112,6 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 
 ## ⚙️ Configuration
 
-> **Note**: The keymap configuration structure has been updated. Old keymaps (`keymap.global` and `keymap.window`) will be mapped to the new format (`keymap.editor`, `keymap.input_window`, `keymap.output_window`) but you should update your config to the new format. See [Keymap Configuration](#keymap-configuration) below for details.
-
 ```lua
 -- Default configuration with all available options
 require('opencode').setup({
@@ -298,7 +296,7 @@ require('opencode').setup({
     },
     diagnostics = {
       info = false, -- Include diagnostics info in the context (default to false
-      warn = true, -- Include diagnostics warnings in the context
+      warning = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
       only_closest = false, -- If true, only diagnostics for cursor/selection
     },
@@ -345,7 +343,7 @@ require('opencode').setup({
   },
   quick_chat = {
     default_model = nil,   -- works better with a fast model like gpt-4.1
-    default_agent = 'plan', -- plan ensure no file modifications by default
+    default_agent = nil, -- Uses the current mode when nil
     instructions = nil, -- Use built-in instructions if nil
   },
 })
@@ -360,7 +358,7 @@ The keymap configuration has been restructured for better organization and clari
 - **`output_window`**: Keymaps specific to the output window
 - **`permission`**: Special keymaps for responding to permission requests (available in input/output windows when there's a pending permission)
 
-**Backward Compatibility**: The plugin automatically maps configurations that use `keymap.global` and `keymap.window` to the new structure. A deprecation warning will be shown during migration. Update your configuration to use the new structure to remove the warning.
+Configure keymaps with the current nested tables directly: `keymap.editor`, `keymap.input_window`, and `keymap.output_window`.
 
 Each keymap entry is a table consising of:
 
@@ -670,7 +668,7 @@ You can pass additional options when running a prompt via command or API:
   - `current_file`
   - `selection`
   - `diagnostics.info`
-  - `diagnostics.warn`
+  - `diagnostics.warning`
   - `diagnostics.error`
   - `cursor_data`
 
@@ -680,7 +678,7 @@ Run a prompt in a new session using the Plan agent and disabling current file co
 
 ```vim
 :Opencode run new_session "Please help me plan a new feature" agent=plan context.current_file.enabled=false
-:Opencode run "Fix the bug in the current file" model=github-copilot/claude-sonned-4
+:Opencode run "Fix the bug in the current file" model=github-copilot/claude-sonnet-4
 ```
 
 ## 👮 Permissions
@@ -694,8 +692,8 @@ Opencode can issue permission requests for potentially destructive operations (f
 
 ### Responding to Permission Requests
 
-- **Respond via keys:** In the input window press `a` to accept once, `A` to accept and remember (accept all), or `d` to deny. These window keys are configurable in `ui.keymap.window.permission_*`.
-- **Global keymaps:** There are also global keymaps to respond outside the input window: `<leader>opa` (accept once), `<leader>opA` (accept all), `<leader>opd` (deny). These are configurable in `keymap.global.permission_*`.
+- **Respond via the dialog:** Focus the Opencode window, move with `j`/`k` or arrow keys, then confirm with `<CR>`. Number shortcuts `1-3` also work for the visible options.
+- **Command:** Use `:Opencode permission accept`, `:Opencode permission accept_all`, or `:Opencode permission deny`. You can pass an index to target a specific queued permission.
 - **API:** Programmatic responses are available: `require('opencode.api').permission_accept()`, `require('opencode.api').permission_accept_all()`, `require('opencode.api').permission_deny()` which map to responses `"once"`, `"always"`, and `"reject"` respectively.
 - **Behavior:** `accept once` allows the single requested action, `accept all` grants persistent permission for similar requests in the current session, and `deny` rejects the request.
 
@@ -722,7 +720,7 @@ Supported pickers include [`fzf-lua`](https://github.com/ibhagwan/fzf-lua), [`te
 
 ### Context bar
 
-You can quiclkly see the current context items in the context bar at the top of the input window:
+You can quickly see the current context items in the context bar at the top of the input window:
 
 <div align="center">
   <img src="https://i.imgur.com/vGgu6br.png" alt="Opencode.nvim context bar" width="90%" />
@@ -772,7 +770,7 @@ Press `<M-m>` (Alt+M) in the input window to switch between agents during a sess
 
 You can create custom agents through your opencode config file. Each agent can have its own:
 
-- Agentl configuration
+- Agent configuration
 - Custom prompt
 - Enabled/disabled tools
 - And more

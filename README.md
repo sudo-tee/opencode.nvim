@@ -173,7 +173,6 @@ require('opencode').setup({
       ['/'] = { 'slash_commands', mode = 'i' }, -- Pick a command to run in the input window
       ['#'] = { 'context_items', mode = 'i' }, -- Manage context items (current file, selection, diagnostics, mentioned files)
       ['<M-v>'] = { 'paste_image', mode = 'i' }, -- Paste image from clipboard as attachment
-      ['<C-i>'] = { 'focus_input', mode = { 'n', 'i' } }, -- Focus on input window and enter insert mode at the end of the input from the output window
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
       ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history
       ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } }, -- Navigate to next prompt in history

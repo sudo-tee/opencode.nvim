@@ -29,10 +29,12 @@ describe('opencode.config', function()
       return 'custom'
     end
     config.setup({
-      command_callback = custom_callback,
+      hooks = {
+        on_done_thinking = custom_callback,
+      },
     })
 
-    assert.equal(custom_callback, config.values.command_callback)
+    assert.equal(custom_callback, config.values.hooks.on_done_thinking)
     assert.same(config.defaults.keymap, config.values.keymap)
   end)
 

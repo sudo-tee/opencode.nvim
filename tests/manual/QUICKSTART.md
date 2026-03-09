@@ -3,7 +3,7 @@
 ## Run the visual replay test
 
 ```bash
-cd /Users/cam/Dev/neovim-dev/opencode.nvim
+# from the repository root
 ./tests/manual/run_replay.sh
 ```
 

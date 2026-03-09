@@ -82,10 +82,15 @@ describe('opencode.nvim plugin', function()
     local opencode = require('opencode')
 
     opencode.setup({
-      keymap = { prompt = '<leader>test' },
+      default_global_keymaps = false,
+      keymap = {
+        editor = {
+          ['<leader>test'] = { 'toggle' },
+        },
+      },
     })
 
     local config = require('opencode.config')
-    assert.equal('<leader>test', config.keymap.prompt)
+    assert.same({ 'toggle' }, config.keymap.editor['<leader>test'])
   end)
 end)

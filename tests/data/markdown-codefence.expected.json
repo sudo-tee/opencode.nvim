@@ -1,27 +1,42 @@
 {
   "actions": [
     {
-      "args": ["c64ddee834f1b802020a8f880eafa689f0b99406"],
+      "args": [
+        "c64ddee834f1b802020a8f880eafa689f0b99406"
+      ],
       "type": "diff_revert_selected_file",
       "text": "[R]evert file",
       "key": "R",
-      "range": { "from": 23, "to": 23 },
+      "range": {
+        "from": 23,
+        "to": 23
+      },
       "display_line": 23
     },
     {
-      "args": ["c64ddee834f1b802020a8f880eafa689f0b99406"],
+      "args": [
+        "c64ddee834f1b802020a8f880eafa689f0b99406"
+      ],
       "type": "diff_revert_all",
       "text": "Revert [A]ll",
       "key": "A",
-      "range": { "from": 23, "to": 23 },
+      "range": {
+        "from": 23,
+        "to": 23
+      },
       "display_line": 23
     },
     {
-      "args": ["c64ddee834f1b802020a8f880eafa689f0b99406"],
+      "args": [
+        "c64ddee834f1b802020a8f880eafa689f0b99406"
+      ],
       "type": "diff_open",
       "text": "[D]iff",
       "key": "D",
-      "range": { "from": 23, "to": 23 },
+      "range": {
+        "from": 23,
+        "to": 23
+      },
       "display_line": 23
     }
   ],
@@ -33,11 +48,25 @@
       {
         "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4.5", "OpencodeHint"],
-          [" [msg_a2cd04588001P9plKmrFnsNH3M]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4.5",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a2cd04588001P9plKmrFnsNH3M]",
+            "OpencodeHint"
+          ]
         ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
@@ -58,7 +87,12 @@
         "priority": 9,
         "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "virt_text": [[" 2025-10-28 21:53:58", "OpencodeHint"]]
+        "virt_text": [
+          [
+            " 2025-10-28 21:53:58",
+            "OpencodeHint"
+          ]
+        ]
       }
     ],
     [
@@ -67,7 +101,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -82,7 +121,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -97,7 +141,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -117,9 +166,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["382", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "382",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -133,7 +191,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -153,9 +216,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["383", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "383",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -169,7 +241,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -189,9 +266,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["384", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "384",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -205,7 +291,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -225,9 +316,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["385", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "385",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -241,7 +341,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -263,9 +368,18 @@
         "hl_eol": true,
         "hl_group": "OpencodeDiffDelete",
         "virt_text": [
-          ["386", "OpencodeDiffDeleteGutter"],
-          ["-", "OpencodeDiffDeleteGutter"],
-          [" ", "OpencodeDiffDeleteGutter"]
+          [
+            "386",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            "-",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffDeleteGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -279,7 +393,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -301,9 +420,18 @@
         "hl_eol": true,
         "hl_group": "OpencodeDiffDelete",
         "virt_text": [
-          ["387", "OpencodeDiffDeleteGutter"],
-          ["-", "OpencodeDiffDeleteGutter"],
-          [" ", "OpencodeDiffDeleteGutter"]
+          [
+            "387",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            "-",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffDeleteGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -317,7 +445,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -339,9 +472,18 @@
         "hl_eol": true,
         "hl_group": "OpencodeDiffAdd",
         "virt_text": [
-          ["386", "OpencodeDiffAddGutter"],
-          ["+", "OpencodeDiffAddGutter"],
-          [" ", "OpencodeDiffAddGutter"]
+          [
+            "386",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            "+",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffAddGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -355,7 +497,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -377,9 +524,18 @@
         "hl_eol": true,
         "hl_group": "OpencodeDiffAdd",
         "virt_text": [
-          ["387", "OpencodeDiffAddGutter"],
-          ["+", "OpencodeDiffAddGutter"],
-          [" ", "OpencodeDiffAddGutter"]
+          [
+            "387",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            "+",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffAddGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -393,7 +549,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -413,9 +574,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["388", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "388",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -429,7 +599,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -449,9 +624,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["389", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "389",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -465,7 +649,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -485,9 +674,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["390", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "390",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -501,7 +699,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -521,9 +724,18 @@
         "right_gravity": true,
         "virt_text_repeat_linebreak": false,
         "virt_text": [
-          ["391", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
+          [
+            "391",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
         ],
         "virt_text_pos": "overlay",
         "end_col": 0,
@@ -537,7 +749,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -552,7 +769,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -567,7 +789,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeToolBorder"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -1,
         "priority": 4096,
@@ -583,11 +810,25 @@
       {
         "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" claude-sonnet-4.5", "OpencodeHint"],
-          [" [msg_a2cd062fb001UA0ZzR6JxgLxDQ]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " claude-sonnet-4.5",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a2cd062fb001UA0ZzR6JxgLxDQ]",
+            "OpencodeHint"
+          ]
         ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
@@ -608,7 +849,12 @@
         "priority": 9,
         "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "virt_text": [[" 2025-10-28 21:54:05", "OpencodeHint"]]
+        "virt_text": [
+          [
+            " 2025-10-28 21:54:05",
+            "OpencodeHint"
+          ]
+        ]
       }
     ],
     [
@@ -618,11 +864,25 @@
       {
         "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" [msg_a2cf5ce65001YLvVsYxIboFcP4]", "OpencodeHint"]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a2cf5ce65001YLvVsYxIboFcP4]",
+            "OpencodeHint"
+          ]
         ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
@@ -643,7 +903,12 @@
         "priority": 9,
         "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "virt_text": [[" 2025-10-28 22:34:58", "OpencodeHint"]]
+        "virt_text": [
+          [
+            " 2025-10-28 22:34:58",
+            "OpencodeHint"
+          ]
+        ]
       }
     ],
     [
@@ -652,7 +917,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
         "priority": 4096,
@@ -667,7 +937,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
         "priority": 4096,
@@ -682,7 +957,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
         "priority": 4096,
@@ -697,7 +977,12 @@
       0,
       {
         "right_gravity": true,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
         "priority": 4096,
@@ -713,11 +998,25 @@
       {
         "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["PLAN", "OpencodeMessageRoleAssistant"],
-          [" gpt-4.1", "OpencodeHint"],
-          [" [msg_a2cf5cf0f002oBAjmnGIMGXjez]", "OpencodeHint"]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "PLAN",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-4.1",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a2cf5cf0f002oBAjmnGIMGXjez]",
+            "OpencodeHint"
+          ]
         ],
         "virt_text_pos": "win_col",
         "virt_text_win_col": -3,
@@ -738,7 +1037,12 @@
         "priority": 9,
         "virt_text_hide": false,
         "virt_text_repeat_linebreak": false,
-        "virt_text": [[" 2025-10-28 22:34:58", "OpencodeHint"]]
+        "virt_text": [
+          [
+            " 2025-10-28 22:34:58",
+            "OpencodeHint"
+          ]
+        ]
       }
     ]
   ],

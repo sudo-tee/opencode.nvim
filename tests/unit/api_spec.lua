@@ -68,51 +68,12 @@ describe('opencode.api', function()
   end)
 
   describe('setup', function()
-    it('registers the main Opencode command and legacy commands', function()
+    it('registers the main Opencode command', function()
       api.setup()
 
-      local main_cmd_found = false
-      local legacy_cmd_count = 0
-
-      for i, cmd in ipairs(created_commands) do
-        if cmd.name == 'Opencode' then
-          main_cmd_found = true
-          assert.equal('Opencode.nvim main command with nested subcommands', cmd.opts.desc)
-        else
-          legacy_cmd_count = legacy_cmd_count + 1
-          assert.truthy(string.match(cmd.opts.desc, 'deprecated'), 'Legacy command should be marked as deprecated')
-        end
-      end
-
-      assert.truthy(main_cmd_found, 'Main Opencode command should be registered')
-      assert.truthy(legacy_cmd_count > 0, 'Legacy commands should be registered')
-    end)
-
-    it('sets up legacy command functions that route to main command', function()
-      local stored_fns = {}
-      local cmd_stub
-
-      vim.api.nvim_create_user_command = function(name, fn, _)
-        stored_fns[name] = fn
-      end
-
-      cmd_stub = stub(vim, 'cmd')
-
-      api.setup()
-
-      stored_fns['OpencodeOpenInput']()
-      assert.stub(cmd_stub).was_called()
-      assert.stub(cmd_stub).was_called_with('Opencode open input')
-
-      cmd_stub:clear()
-      stored_fns['OpencodeStop']()
-      assert.stub(cmd_stub).was_called_with('Opencode cancel')
-
-      cmd_stub:clear()
-      stored_fns['OpencodeClose']()
-      assert.stub(cmd_stub).was_called_with('Opencode close')
-
-      cmd_stub:revert()
+      assert.equal(1, #created_commands)
+      assert.equal('Opencode', created_commands[1].name)
+      assert.equal('Opencode.nvim main command with nested subcommands', created_commands[1].opts.desc)
     end)
   end)
 

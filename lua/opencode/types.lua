@@ -230,7 +230,6 @@
 ---@field debug OpencodeDebugConfig
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
 ---@field hooks OpencodeHooks
----@field legacy_commands boolean
 ---@field quick_chat OpencodeQuickChatConfig
 
 ---@class MessagePartState

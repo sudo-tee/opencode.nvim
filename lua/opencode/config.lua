@@ -11,7 +11,6 @@ M.defaults = {
   default_global_keymaps = true,
   default_mode = 'build',
   default_system_prompt = nil,
-  legacy_commands = true,
   keymap_prefix = '<leader>o',
   opencode_executable = 'opencode',
   server = {

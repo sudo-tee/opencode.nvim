@@ -587,8 +587,6 @@ There's 3 main ways on how to change the snacks picker layout
 
 The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:
 
-> **Note:** Commands have been restructured into a single `:Opencode` command with subcommands. Legacy `Opencode*` commands (e.g., `:OpencodeOpenInput`) are still available by default but will be removed in a future version. Update your scripts and workflows to use the new nested syntax.
-
 | Action                                                      | Default keymap                        | Command                                     | API Function                                                           |
 | ----------------------------------------------------------- | ------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | Open opencode. Close if opened                              | `<leader>og`                          | `:Opencode`                                 | `require('opencode.api').toggle()`                                     |

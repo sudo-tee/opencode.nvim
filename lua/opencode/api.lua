@@ -1487,53 +1487,6 @@ M.slash_commands_map = {
   },
 }
 
-M.legacy_command_map = {
-  OpencodeSwapPosition = 'swap',
-  OpencodeToggleFocus = 'toggle_focus',
-  OpencodeOpenInput = 'open input',
-  OpencodeOpenInputNewSession = 'session new',
-  OpencodeOpenOutput = 'open output',
-  OpencodeCreateNewSession = 'session new',
-  OpencodeClose = 'close',
-  OpencodeStop = 'cancel',
-  OpencodeSelectSession = 'session select',
-  OpencodeSelectChildSession = 'session child',
-  OpencodeTogglePane = 'toggle_pane',
-  OpencodeConfigureProvider = 'models',
-  OpencodeConfigureVariant = 'variant',
-  OpencodeRun = 'run',
-  OpencodeRunNewSession = 'run_new',
-  OpencodeDiff = 'diff open',
-  OpencodeDiffNext = 'diff next',
-  OpencodeDiffPrev = 'diff prev',
-  OpencodeDiffClose = 'diff close',
-  OpencodeRevertAllLastPrompt = 'revert all prompt',
-  OpencodeRevertThisLastPrompt = 'revert this prompt',
-  OpencodeRevertAllSession = 'revert all session',
-  OpencodeRevertThisSession = 'revert this session',
-  OpencodeRevertAllToSnapshot = 'revert all',
-  OpencodeRevertThisToSnapshot = 'revert this',
-  OpencodeRestoreSnapshotFile = 'restore file',
-  OpencodeRestoreSnapshotAll = 'restore all',
-  OpencodeSetReviewBreakpoint = 'breakpoint',
-  OpencodeInit = 'session agents_init',
-  OpencodeHelp = 'help',
-  OpencodeMCP = 'mcp',
-  OpencodeAgentPlan = 'agent plan',
-  OpencodeAgentBuild = 'agent build',
-  OpencodeAgentSelect = 'agent select',
-  OpencodeRunUserCommand = 'command',
-  OpencodeCompactSession = 'session compact',
-  OpencodeShareSession = 'session share',
-  OpencodeUnshareSession = 'session unshare',
-  OpencodeUndo = 'undo',
-  OpencodeRedo = 'redo',
-  OpencodePermissionAccept = 'permission accept',
-  OpencodePermissionAcceptAll = 'permission accept_all',
-  OpencodePermissionDeny = 'permission deny',
-  OpencodePasteImage = 'paste_image',
-}
-
 function M.route_command(opts)
   local args = vim.split(opts.args or '', '%s+', { trimempty = true })
   ---@type OpencodeSelectionRange|nil
@@ -1599,25 +1552,6 @@ function M.complete_command(arg_lead, cmd_line, cursor_pos)
   return {}
 end
 
-function M.setup_legacy_commands()
-  if not config.legacy_commands then
-    return
-  end
-
-  for legacy_name, new_route in pairs(M.legacy_command_map) do
-    vim.api.nvim_create_user_command(legacy_name, function(opts)
-      vim.notify(
-        string.format(':%s is deprecated. Use `:Opencode %s` instead', legacy_name, new_route),
-        vim.log.levels.WARN
-      )
-      vim.cmd('Opencode ' .. new_route)
-    end, {
-      desc = 'deprecated',
-      nargs = '*',
-    })
-  end
-end
-
 M.get_slash_commands = Promise.async(function()
   local result = {}
   for slash_cmd, def in pairs(M.slash_commands_map) do
@@ -1653,8 +1587,6 @@ function M.setup()
     range = true, -- Enable range support
     complete = M.complete_command,
   })
-
-  M.setup_legacy_commands()
 end
 
 return M

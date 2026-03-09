@@ -3,27 +3,7 @@ local state = require('opencode.state')
 local url_encode = require('opencode.util').url_encode
 local apply_path_map = require('opencode.util').apply_path_map
 local reverse_transform_paths_recursive = require('opencode.util').reverse_transform_paths_recursive
-
---- Transform file paths in API payloads using configured path_map
---- @param data any The data to transform (table, string, or other)
---- @return any transformed_data The data with paths transformed
-local function transform_paths_recursive(data)
-  if type(data) ~= 'table' then
-    return data
-  end
-
-  local result = {}
-  for key, value in pairs(data) do
-    if type(value) == 'string' and (key == 'filePath' or key == 'path' or key == 'directory') then
-      result[key] = apply_path_map(value)
-    elseif type(value) == 'table' then
-      result[key] = transform_paths_recursive(value)
-    else
-      result[key] = value
-    end
-  end
-  return result
-end
+local transform_paths_recursive = require('opencode.util').transform_paths_recursive
 
 --- @class OpencodeApiClient
 --- @field base_url string The base URL of the opencode server
@@ -51,8 +31,6 @@ function OpencodeApiClient:_ensure_base_url()
   if self.base_url then
     return true
   end
-
-  local state = require('opencode.state')
 
   if not state.opencode_server then
     -- this is last resort - try to start the server and could be blocking

@@ -98,7 +98,9 @@ end
 --- @param str string The string to encode
 --- @return string encoded_string The URL-encoded string
 function M.url_encode(str)
-  if not str then return '' end
+  if not str then
+    return ''
+  end
   str = tostring(str)
   str = string.gsub(str, '\n', '\r\n')
   str = string.gsub(str, '([^%w%-%.%_%~])', function(c)
@@ -114,10 +116,10 @@ function M.apply_path_map(path)
   if not path then
     return path
   end
-  
+
   local config = require('opencode.config')
   local path_map = config.server.path_map
-  
+
   if type(path_map) == 'function' then
     local ok, result = pcall(path_map, path)
     if ok and result then
@@ -134,7 +136,7 @@ function M.apply_path_map(path)
       return path_map .. relative_path
     end
   end
-  
+
   return path
 end
 
@@ -142,10 +144,10 @@ function M.apply_reverse_path_map(path)
   if not path then
     return path
   end
-  
+
   local config = require('opencode.config')
   local reverse_path_map = config.server.reverse_path_map
-  
+
   if type(reverse_path_map) == 'function' then
     local ok, result = pcall(reverse_path_map, path)
     if ok and result then
@@ -153,30 +155,59 @@ function M.apply_reverse_path_map(path)
     end
     return path
   end
-  
+
   return path
 end
 
 function M.reverse_transform_paths_recursive(data)
+  local config = require('opencode.config')
+  local reverse_path_map = config.server.reverse_path_map
+  if not reverse_path_map or type(reverse_path_map) ~= 'function' then
+    return data
+  end
+
   if type(data) ~= 'table' then
     return data
   end
 
   local result = {}
   for key, value in pairs(data) do
-    if type(value) == 'string' and (
-      key == 'filePath' or 
-      key == 'path' or 
-      key == 'file' or
-      key == 'directory' or
-      key == 'cwd' or
-      key == 'root'
-    ) then
+    if
+      type(value) == 'string'
+      and (key == 'filePath' or key == 'path' or key == 'file' or key == 'directory' or key == 'cwd' or key == 'root')
+    then
       result[key] = M.apply_reverse_path_map(value)
     elseif type(value) == 'table' and (key == 'files' or key == 'deleted_files') then
       result[key] = vim.tbl_map(M.apply_reverse_path_map, value)
     elseif type(value) == 'table' then
       result[key] = M.reverse_transform_paths_recursive(value)
+    else
+      result[key] = value
+    end
+  end
+  return result
+end
+
+--- Transform file paths in API payloads using configured path_map
+--- @param data any The data to transform (table, string, or other)
+--- @return any transformed_data The data with paths transformed
+function M.transform_paths_recursive(data)
+  local config = require('opencode.config')
+  local path_map = config.server.path_map
+  if not path_map or type(path_map) ~= 'function' then
+    return data
+  end
+
+  if type(data) ~= 'table' then
+    return data
+  end
+
+  local result = {}
+  for key, value in pairs(data) do
+    if type(value) == 'string' and (key == 'filePath' or key == 'path' or key == 'directory') then
+      result[key] = M.apply_path_map(value)
+    elseif type(value) == 'table' then
+      result[key] = M.transform_paths_recursive(value)
     else
       result[key] = value
     end

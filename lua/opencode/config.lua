@@ -21,12 +21,8 @@ M.defaults = {
     spawn_command = nil,
     kill_command = nil,
     auto_kill = true,
-    path_map = function(path)
-      return path
-    end,
-    reverse_path_map = function(path)
-      return path
-    end,
+    path_map = nil,
+    reverse_path_map = nil,
   },
   keymap = {
     editor = {

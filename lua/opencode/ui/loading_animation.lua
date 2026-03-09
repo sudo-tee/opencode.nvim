@@ -7,12 +7,114 @@ local M = {}
 M._animation = {
   frames = nil,
   text = 'Thinking... ',
+  status_data = nil,
   current_frame = 1,
   timer = nil,
   fps = 10,
   extmark_id = nil,
   ns_id = vim.api.nvim_create_namespace('opencode_loading_animation'),
+  status_event_manager = nil,
 }
+
+---@param status table|nil
+---@return string|nil
+function M._format_status_text(status)
+  if type(status) ~= 'table' then
+    return nil
+  end
+
+  local status_type = status.type
+
+  if status_type == 'busy' then
+    return M._animation.text
+  end
+
+  if status_type == 'idle' then
+    return nil
+  end
+
+  if status_type == 'retry' then
+    local message = status.message or 'Retrying request'
+    local details = {}
+
+    if type(status.attempt) == 'number' then
+      table.insert(details, 'retry ' .. status.attempt)
+    end
+
+    if type(status.next) == 'number' then
+      local now_ms = os.time() * 1000
+      local seconds = math.max(0, math.ceil((status.next - now_ms) / 1000))
+      table.insert(details, 'in ' .. seconds .. 's')
+    end
+
+    if #details > 0 then
+      return string.format('%s (%s)... ', message, table.concat(details, ', '))
+    end
+
+    return message .. '... '
+  end
+
+  if type(status.message) == 'string' and status.message ~= '' then
+    return status.message .. '... '
+  end
+
+  return M._animation.text
+end
+
+local function unsubscribe_session_status_event(manager)
+  if manager and M._animation.status_event_manager == manager then
+    manager:unsubscribe('session.status', M.on_session_status)
+    M._animation.status_event_manager = nil
+  end
+end
+
+local function subscribe_session_status_event(manager)
+  if not manager then
+    return
+  end
+
+  if M._animation.status_event_manager and M._animation.status_event_manager ~= manager then
+    unsubscribe_session_status_event(M._animation.status_event_manager)
+  end
+
+  if M._animation.status_event_manager == manager then
+    return
+  end
+
+  manager:subscribe('session.status', M.on_session_status)
+  M._animation.status_event_manager = manager
+end
+
+function M.on_session_status(properties)
+  if not properties or type(properties) ~= 'table' then
+    return
+  end
+
+  local active_session = state.active_session
+  if active_session and active_session.id and properties.sessionID ~= active_session.id then
+    return
+  end
+
+  M._animation.status_data = properties.status
+  M.render(state.windows)
+end
+
+local function on_active_session_change(_, new_session, old_session)
+  local new_id = new_session and new_session.id
+  local old_id = old_session and old_session.id
+  if new_id ~= old_id then
+    M._animation.status_data = nil
+  end
+end
+
+local function on_event_manager_change(_, new_manager, old_manager)
+  unsubscribe_session_status_event(old_manager)
+  subscribe_session_status_event(new_manager)
+end
+
+function M._get_display_text()
+  return M._format_status_text(M._animation.status_data) or M._animation.text
+end
 
 function M._get_frames()
   if M._animation.frames then
@@ -41,7 +143,7 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
-  local loading_text = M._animation.text .. M._get_frames()[M._animation.current_frame]
+  local loading_text = M._get_display_text() .. M._get_frames()[M._animation.current_frame]
 
   M._animation.extmark_id = vim.api.nvim_buf_set_extmark(windows.footer_buf, M._animation.ns_id, 0, 0, {
     id = M._animation.extmark_id or nil,
@@ -97,6 +199,7 @@ end
 function M.stop()
   M._clear_animation_timer()
   M._animation.current_frame = 1
+  M._animation.status_data = nil
   if state.windows and state.windows.footer_buf and vim.api.nvim_buf_is_valid(state.windows.footer_buf) then
     pcall(vim.api.nvim_buf_clear_namespace, state.windows.footer_buf, M._animation.ns_id, 0, -1)
   end
@@ -120,10 +223,17 @@ end
 
 function M.setup()
   state.subscribe('job_count', on_running_change)
+  state.subscribe('active_session', on_active_session_change)
+  state.subscribe('event_manager', on_event_manager_change)
+  subscribe_session_status_event(state.event_manager)
 end
 
 function M.teardown()
   state.unsubscribe('job_count', on_running_change)
+  state.unsubscribe('active_session', on_active_session_change)
+  state.unsubscribe('event_manager', on_event_manager_change)
+  unsubscribe_session_status_event(M._animation.status_event_manager)
+  M._animation.status_data = nil
 end
 
 return M

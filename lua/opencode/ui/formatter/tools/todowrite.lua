@@ -22,9 +22,9 @@ function M.format(output, part)
     return
   end
 
+  local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
   local todos = part.state and part.state.input and part.state.input.todos or {}
   for _, item in ipairs(todos) do
-    local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
     output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
   end
 end

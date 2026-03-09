@@ -23,23 +23,22 @@ function M.format(output, part)
   if part.tool ~= 'apply_patch' then
     return
   end
+  local formatter_utils = require('opencode.ui.formatter.utils')
+  local config = require('opencode.config')
+  local icons = require('opencode.ui.icons')
 
   local metadata = part.state and part.state.metadata or {}
   for _, file in ipairs(metadata.files or {}) do
-    local utils = require('opencode.ui.formatter.utils')
-    local config = require('opencode.config')
-
-    local icons = require('opencode.ui.icons')
-    utils.format_action(
+    formatter_utils.format_action(
       output,
       icons.get('edit'),
       'apply patch',
       file.relativePath or file.filePath,
-      utils.get_duration_text(part)
+      formatter_utils.get_duration_text(part)
     )
     if config.ui.output.tools.show_output and file.diff then
       local file_type = file and util.get_markdown_filetype(file.filePath) or ''
-      utils.format_diff(output, file.diff, file_type)
+      formatter_utils.format_diff(output, file.diff, file_type)
     end
   end
 end

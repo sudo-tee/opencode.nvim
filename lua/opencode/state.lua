@@ -23,6 +23,61 @@
 ---@class OpencodeToggleDecision
 ---@field action 'open'|'close'|'hide'|'close_hidden'|'restore_hidden'|'migrate'
 
+---@class OpencodeSessionStateMutations
+---@field set_active fun(session: Session|nil)
+---@field clear_active fun()
+---@field set_restore_points fun(points: RestorePoint[])
+---@field reset_restore_points fun()
+
+---@class OpencodeProtectedStateSetOptions
+---@field source? 'helper'|'raw'
+
+---@alias OpencodeProtectedStateKey
+---| 'active_session'
+---| 'restore_points'
+---| 'job_count'
+---| 'opencode_server'
+---| 'windows'
+---| 'is_opening'
+---| 'is_opencode_focused'
+---| 'last_focused_opencode_window'
+---| 'last_code_win_before_opencode'
+---| 'current_code_buf'
+---| 'display_route'
+---| 'current_mode'
+---| 'current_model'
+---| 'current_model_info'
+---| 'current_variant'
+---| 'user_mode_model_map'
+
+---@class OpencodeJobStateMutations
+---@field increment_count fun(delta?: integer)
+---@field set_count fun(count: integer)
+---@field set_server fun(server: OpencodeServer|nil)
+---@field clear_server fun()
+
+---@class OpencodeUiStateMutations
+---@field set_windows fun(windows: OpencodeWindowState|nil)
+---@field clear_windows fun()
+---@field set_opening fun(is_opening: boolean)
+---@field set_panel_focused fun(is_focused: boolean)
+---@field set_last_focused_window fun(win_type: 'input'|'output'|nil)
+---@field set_display_route fun(route: any)
+---@field clear_display_route fun()
+---@field set_last_code_window fun(win_id: integer|nil)
+---@field set_current_code_buf fun(bufnr: integer|nil)
+
+---@class OpencodeModelStateMutations
+---@field set_mode fun(mode: string|nil)
+---@field clear_mode fun()
+---@field set_model fun(model: string|nil)
+---@field clear_model fun()
+---@field set_model_info fun(info: table|nil)
+---@field set_variant fun(variant: string|nil)
+---@field clear_variant fun()
+---@field set_mode_model_map fun(mode_map: table<string, string>)
+---@field set_mode_model_override fun(mode: string, model: string)
+
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
 ---@field is_opening boolean
@@ -83,6 +138,10 @@
 ---@field resolve_toggle_decision fun(persist_state: boolean, has_display_route: boolean): OpencodeToggleDecision
 ---@field resolve_open_windows_action fun(): 'reuse_visible'|'restore_hidden'|'create_fresh'
 ---@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
+---@field session OpencodeSessionStateMutations
+---@field jobs OpencodeJobStateMutations
+---@field ui OpencodeUiStateMutations
+---@field model OpencodeModelStateMutations
 
 local M = {}
 
@@ -140,6 +199,204 @@ local _state = {
 -- Listener registry: { [key] = {cb1, cb2, ...}, ['*'] = {cb1, ...} }
 local _listeners = {}
 
+local PROTECTED_KEYS = {
+  active_session = true,
+  restore_points = true,
+  job_count = true,
+  opencode_server = true,
+  windows = true,
+  is_opening = true,
+  is_opencode_focused = true,
+  last_focused_opencode_window = true,
+  last_code_win_before_opencode = true,
+  current_code_buf = true,
+  display_route = true,
+  current_mode = true,
+  current_model = true,
+  current_model_info = true,
+  current_variant = true,
+  user_mode_model_map = true,
+}
+
+local _protected_write_warnings = {}
+
+---@param key string
+---@param value any
+---@param opts? OpencodeProtectedStateSetOptions
+local function set_state(key, value, opts)
+  local old = _state[key]
+  opts = opts or { source = 'helper' }
+
+  if opts.source == 'raw' then
+    warn_on_protected_raw_write(key)
+  end
+
+  _state[key] = value
+  if not vim.deep_equal(old, value) then
+    M.notify(key, value, old)
+  end
+end
+
+---@generic T
+---@param key string
+---@param updater fun(current: T): T
+---@return T
+local function update_state(key, updater)
+  local next_value = updater(_state[key])
+  set_state(key, next_value)
+  return next_value
+end
+
+M.session = {}
+
+---@param session Session|nil
+function M.session.set_active(session)
+  set_state('active_session', session)
+end
+
+function M.session.clear_active()
+  set_state('active_session', nil)
+end
+
+---@param points RestorePoint[]
+function M.session.set_restore_points(points)
+  set_state('restore_points', points)
+end
+
+function M.session.reset_restore_points()
+  set_state('restore_points', {})
+end
+
+M.jobs = {}
+
+---@param delta integer|nil
+function M.jobs.increment_count(delta)
+  update_state('job_count', function(current)
+    return (current or 0) + (delta or 1)
+  end)
+end
+
+---@param count integer
+function M.jobs.set_count(count)
+  set_state('job_count', count)
+end
+
+---@param server OpencodeServer|nil
+function M.jobs.set_server(server)
+  set_state('opencode_server', server)
+end
+
+function M.jobs.clear_server()
+  set_state('opencode_server', nil)
+end
+
+M.ui = {}
+
+---@param windows OpencodeWindowState|nil
+function M.ui.set_windows(windows)
+  set_state('windows', windows)
+end
+
+function M.ui.clear_windows()
+  set_state('windows', nil)
+end
+
+---@param is_opening boolean
+function M.ui.set_opening(is_opening)
+  set_state('is_opening', is_opening)
+end
+
+---@param is_focused boolean
+function M.ui.set_panel_focused(is_focused)
+  set_state('is_opencode_focused', is_focused)
+end
+
+---@param win_type 'input'|'output'|nil
+function M.ui.set_last_focused_window(win_type)
+  set_state('last_focused_opencode_window', win_type)
+end
+
+---@param route any
+function M.ui.set_display_route(route)
+  set_state('display_route', route)
+end
+
+function M.ui.clear_display_route()
+  set_state('display_route', nil)
+end
+
+---@param win_id integer|nil
+function M.ui.set_last_code_window(win_id)
+  set_state('last_code_win_before_opencode', win_id)
+end
+
+---@param bufnr integer|nil
+function M.ui.set_current_code_buf(bufnr)
+  set_state('current_code_buf', bufnr)
+end
+
+M.model = {}
+
+---@param mode string|nil
+function M.model.set_mode(mode)
+  set_state('current_mode', mode)
+end
+
+function M.model.clear_mode()
+  set_state('current_mode', nil)
+end
+
+---@param model string|nil
+function M.model.set_model(model)
+  set_state('current_model', model)
+end
+
+function M.model.clear_model()
+  set_state('current_model', nil)
+end
+
+---@param info table|nil
+function M.model.set_model_info(info)
+  set_state('current_model_info', info)
+end
+
+---@param variant string|nil
+function M.model.set_variant(variant)
+  set_state('current_variant', variant)
+end
+
+function M.model.clear_variant()
+  set_state('current_variant', nil)
+end
+
+---@param mode_map table<string, string>
+function M.model.set_mode_model_map(mode_map)
+  set_state('user_mode_model_map', mode_map)
+end
+
+---@param mode string
+---@param model string
+function M.model.set_mode_model_override(mode, model)
+  local mode_map = vim.deepcopy(_state.user_mode_model_map)
+  mode_map[mode] = model
+  set_state('user_mode_model_map', mode_map)
+end
+
+---@param key string
+local function warn_on_protected_raw_write(key)
+  if not PROTECTED_KEYS[key] or _protected_write_warnings[key] then
+    return
+  end
+
+  _protected_write_warnings[key] = true
+  vim.schedule(function()
+    vim.notify(
+      string.format('Direct write to protected state key `%s`; prefer state domain helpers', key),
+      vim.log.levels.WARN
+    )
+  end)
+end
+
 --- Subscribe to changes for a key (or all keys with '*').
 ---@param key string|string[]|nil If nil or '*', listens to all keys
 ---@param cb fun(key:string, new_val:any, old_val:any)
@@ -186,7 +443,7 @@ function M.unsubscribe(key, cb)
 end
 
 -- Notify listeners
-local function _notify(key, new_val, old_val)
+function M.notify(key, new_val, old_val)
   -- schedule notification to make sure we're not in a fast event
   -- context
   vim.schedule(function()
@@ -219,7 +476,7 @@ function M.append(key, value)
 
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.insert(_state[key] --[[@as table]], value)
-  _notify(key, _state[key], old)
+  M.notify(key, _state[key], old)
 end
 
 function M.remove(key, idx)
@@ -232,7 +489,7 @@ function M.remove(key, idx)
 
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.remove(_state[key] --[[@as table]], idx)
-  _notify(key, _state[key], old)
+  M.notify(key, _state[key], old)
 end
 
 ---
@@ -260,8 +517,7 @@ function M.are_windows_in_current_tab()
     return false
   end
 
-  return M.is_window_in_current_tab(_state.windows.input_win)
-    or M.is_window_in_current_tab(_state.windows.output_win)
+  return M.is_window_in_current_tab(_state.windows.input_win) or M.is_window_in_current_tab(_state.windows.output_win)
 end
 
 ---@return boolean
@@ -341,7 +597,7 @@ local TOGGLE_ACTION_RULES = {
 ---@param in_tab boolean
 ---@param persist_state boolean
 ---@param has_display_route boolean
----@return string
+---@return 'open'|'close'|'hide'|'close_hidden'|'restore_hidden'|'migrate'
 local function lookup_toggle_action(status, in_tab, persist_state, has_display_route)
   local ctx = {
     status = status,
@@ -440,11 +696,19 @@ end
 ---@param hidden OpencodeHiddenBuffers|nil
 ---@return OpencodeHiddenBuffers|nil
 local function normalize_hidden_buffers(hidden)
-  if type(hidden) ~= 'table' then return nil end
+  if type(hidden) ~= 'table' then
+    return nil
+  end
 
-  local function valid_buf(b) return type(b) == 'number' and vim.api.nvim_buf_is_valid(b) end
-  if not valid_buf(hidden.input_buf) or not valid_buf(hidden.output_buf) then return nil end
-  if type(hidden.input_hidden) ~= 'boolean' then return nil end
+  local function valid_buf(b)
+    return type(b) == 'number' and vim.api.nvim_buf_is_valid(b)
+  end
+  if not valid_buf(hidden.input_buf) or not valid_buf(hidden.output_buf) then
+    return nil
+  end
+  if type(hidden.input_hidden) ~= 'boolean' then
+    return nil
+  end
 
   local fw = hidden.focused_window
   return {
@@ -538,28 +802,38 @@ local function is_visible_in_tab()
   end
   local input_valid = w.input_win and vim.api.nvim_win_is_valid(w.input_win)
   local output_valid = w.output_win and vim.api.nvim_win_is_valid(w.output_win)
-  return (input_valid or output_valid) and M.are_windows_in_current_tab()
+  return ((input_valid or output_valid) and M.are_windows_in_current_tab()) == true
 end
 
 -- STATUS_DETECTION rules for get_window_state (evaluated in order)
 local STATUS_DETECTION = {
   {
     name = 'hidden_snapshot',
-    test = function() return M.has_hidden_buffers() and M.is_hidden_snapshot_in_current_tab() end,
+    test = function()
+      return M.has_hidden_buffers() and M.is_hidden_snapshot_in_current_tab()
+    end,
     status = 'hidden',
-    get_windows = function() return nil end,
+    get_windows = function()
+      return nil
+    end,
   },
   {
     name = 'visible_in_tab',
     test = is_visible_in_tab,
     status = 'visible',
-    get_windows = function() return _state.windows end,
+    get_windows = function()
+      return _state.windows
+    end,
   },
   {
     name = 'closed',
-    test = function() return true end,
+    test = function()
+      return true
+    end,
     status = 'closed',
-    get_windows = function() return nil end,
+    get_windows = function()
+      return nil
+    end,
   },
 }
 
@@ -598,11 +872,7 @@ return setmetatable(M, {
     return _state[k]
   end,
   __newindex = function(_, k, v)
-    local old = _state[k]
-    _state[k] = v
-    if not vim.deep_equal(old, v) then
-      _notify(k, v, old)
-    end
+    set_state(k, v, { source = 'raw' })
   end,
   __pairs = function()
     return pairs(_state)

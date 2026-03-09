@@ -375,7 +375,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   end
 
   if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
-    state.active_session = quick_chat_session
+    state.session.set_active(quick_chat_session)
   end
 
   running_sessions[quick_chat_session.id] = {

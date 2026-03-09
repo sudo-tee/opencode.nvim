@@ -95,7 +95,7 @@ local function prepare_window_close()
     M.return_to_last_code_win()
   end
   if state.display_route then
-    state.display_route = nil
+    state.ui.clear_display_route()
   end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -184,7 +184,7 @@ function M.teardown_visible_windows(windows)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   if state.windows == windows then
-    state.windows = nil
+    state.ui.clear_windows()
   end
   state.clear_hidden_window_state()
 end
@@ -226,7 +226,7 @@ function M.restore_hidden_windows()
   local windows = state.windows
   if not windows then
     windows = {}
-    state.windows = windows
+    state.ui.set_windows(windows)
   end
   windows.input_buf = hidden.input_buf
   windows.output_buf = hidden.output_buf
@@ -347,8 +347,8 @@ function M.create_windows()
   local autocmds = require('opencode.ui.autocmds')
 
   if not require('opencode.ui.ui').is_opencode_focused() then
-    state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
-    state.current_code_buf = vim.api.nvim_get_current_buf()
+    state.ui.set_last_code_window(vim.api.nvim_get_current_win())
+    state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
   end
 
   -- Create new windows from scratch

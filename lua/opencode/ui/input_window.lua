@@ -479,7 +479,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       M.refresh_placeholder(windows)
-      state.last_focused_opencode_window = 'input'
+      state.ui.set_last_focused_window('input')
       require('opencode.ui.context_bar').render()
     end,
   })

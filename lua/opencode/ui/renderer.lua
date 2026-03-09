@@ -300,9 +300,9 @@ function M._set_model_and_mode_from_messages()
 
     if message and message.info then
       if message.info.modelID and message.info.providerID then
-        state.current_model = message.info.providerID .. '/' .. message.info.modelID
+        state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
         if message.info.mode then
-          state.current_mode = message.info.mode
+          state.model.set_mode(message.info.mode)
         end
         return
       end
@@ -1205,7 +1205,7 @@ end
 ---@param message OpencodeMessage
 function M._update_stats_from_message(message)
   if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
-    state.current_model = message.info.providerID .. '/' .. message.info.modelID
+    state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
   end
 
   local tokens = message.info.tokens

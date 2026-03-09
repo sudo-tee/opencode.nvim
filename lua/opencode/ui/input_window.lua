@@ -522,9 +522,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.input_buf,
     callback = function()
-      local pos = state.get_window_cursor(windows.input_win)
+      local pos = state.ui.get_window_cursor(windows.input_win)
       if pos then
-        state.set_cursor_position('input', pos)
+        state.ui.set_cursor_position('input', pos)
       end
     end,
   })

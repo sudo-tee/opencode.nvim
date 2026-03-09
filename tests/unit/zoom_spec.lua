@@ -281,7 +281,7 @@ describe('ui zoom state', function()
     it('does not save width in dialog mode (position=current)', function()
       local original_position = config.ui.position
       config.ui.position = 'current'
-      state.last_window_width_ratio = nil
+      state.ui.clear_last_window_width_ratio()
 
       ui.hide_visible_windows(windows)
       assert.is_nil(state.last_window_width_ratio)

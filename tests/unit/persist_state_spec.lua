@@ -39,12 +39,24 @@ local stub = require('luassert.stub')
 
 local function mock_api_client()
   return {
-    create_message = function() return Promise.new():resolve({}) end,
-    get_config = function() return Promise.new():resolve({}) end,
-    list_sessions = function() return Promise.new():resolve({}) end,
-    get_session = function() return Promise.new():resolve({}) end,
-    create_session = function() return Promise.new():resolve({}) end,
-    list_messages = function() return Promise.new():resolve({}) end,
+    create_message = function()
+      return Promise.new():resolve({})
+    end,
+    get_config = function()
+      return Promise.new():resolve({})
+    end,
+    list_sessions = function()
+      return Promise.new():resolve({})
+    end,
+    get_session = function()
+      return Promise.new():resolve({})
+    end,
+    create_session = function()
+      return Promise.new():resolve({})
+    end,
+    list_messages = function()
+      return Promise.new():resolve({})
+    end,
   }
 end
 
@@ -131,7 +143,7 @@ describe('persist_state', function()
       end
     end
 
-    state.clear_hidden_window_state()
+    state.ui.clear_hidden_window_state()
   end
 
   local function cleanup_windows()
@@ -169,7 +181,7 @@ describe('persist_state', function()
     state.api_client = mock_api_client()
     state.event_manager = EventManager.new()
     state.windows = nil
-    state.clear_hidden_window_state()
+    state.ui.clear_hidden_window_state()
     state.current_code_view = nil
     state.current_code_buf = nil
     state.last_code_win_before_opencode = nil
@@ -181,11 +193,19 @@ describe('persist_state', function()
     original_opencode_server_new = opencode_server.new
     local mock_server = {
       url = 'http://127.0.0.1:4000',
-      is_running = function() return true end,
+      is_running = function()
+        return true
+      end,
       spawn = function() end,
-      shutdown = function() return Promise.new():resolve(true) end,
-      get_spawn_promise = function() return Promise.new():resolve(mock_server) end,
-      get_shutdown_promise = function() return Promise.new():resolve(true) end,
+      shutdown = function()
+        return Promise.new():resolve(true)
+      end,
+      get_spawn_promise = function()
+        return Promise.new():resolve(mock_server)
+      end,
+      get_shutdown_promise = function()
+        return Promise.new():resolve(true)
+      end,
     }
     opencode_server.new = function()
       return mock_server
@@ -222,7 +242,7 @@ describe('persist_state', function()
     state.current_code_view = nil
     state.current_code_buf = nil
     state.last_code_win_before_opencode = nil
-    state.clear_hidden_window_state()
+    state.ui.clear_hidden_window_state()
 
     -- Restore mocked opencode_server
     if original_opencode_server_new then
@@ -510,7 +530,12 @@ describe('persist_state', function()
             write_lines(state.windows.output_buf, output_lines)
             vim.api.nvim_set_current_win(state.windows.output_win)
             vim.api.nvim_win_set_cursor(state.windows.output_win, { 40, 0 })
-            return { expected_win_fn = function() return state.windows.output_win end, expected_cursor = { 40, 0 } }
+            return {
+              expected_win_fn = function()
+                return state.windows.output_win
+              end,
+              expected_cursor = { 40, 0 },
+            }
           end,
           assert_after = function(ctx)
             assert.equals(ctx.expected_win_fn(), vim.api.nvim_get_current_win())
@@ -529,7 +554,12 @@ describe('persist_state', function()
             vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { 'i1', 'i2', 'i3' })
             vim.api.nvim_set_current_win(state.windows.input_win)
             vim.api.nvim_win_set_cursor(state.windows.input_win, { 2, 1 })
-            return { expected_win_fn = function() return state.windows.input_win end, expected_cursor = { 2, 1 } }
+            return {
+              expected_win_fn = function()
+                return state.windows.input_win
+              end,
+              expected_cursor = { 2, 1 },
+            }
           end,
           assert_after = function(ctx)
             assert.equals(ctx.expected_win_fn(), vim.api.nvim_get_current_win())

@@ -98,7 +98,7 @@ local function build_toggle_open_context(restore_hidden)
 end
 
 M.toggle = Promise.async(function(new_session)
-  local decision = state.resolve_toggle_decision(config.ui.persist_state, state.display_route ~= nil)
+  local decision = state.ui.resolve_toggle_decision(config.ui.persist_state, state.display_route ~= nil)
   local action = decision.action
   local is_new_session = new_session == true
 

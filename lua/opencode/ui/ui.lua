@@ -139,10 +139,10 @@ function M.hide_visible_windows(windows)
   if config.ui.position ~= 'current' then
     local total_cols = vim.o.columns
     local current_width = vim.api.nvim_win_get_width(windows.output_win)
-    state.last_window_width_ratio = current_width / total_cols
+    state.ui.set_last_window_width_ratio(current_width / total_cols)
   end
 
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 
   prepare_window_close()
   footer.close(true)
@@ -186,7 +186,7 @@ function M.teardown_visible_windows(windows)
   if state.windows == windows then
     state.ui.clear_windows()
   end
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
 function M.drop_hidden_snapshot()
@@ -202,7 +202,7 @@ function M.drop_hidden_snapshot()
   end
 
   input_window._hidden = false
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
 ---Restore windows using preserved buffers
@@ -221,7 +221,7 @@ function M.restore_hidden_windows()
 
   local win_ids = M.create_split_windows(hidden.input_buf, hidden.output_buf)
 
-  state.consume_hidden_buffers()
+  state.ui.consume_hidden_buffers()
 
   local windows = state.windows
   if not windows then
@@ -237,8 +237,8 @@ function M.restore_hidden_windows()
   windows.output_was_at_bottom = hidden.output_was_at_bottom == true
   windows.saved_width_ratio = state.last_window_width_ratio
 
-  state.set_cursor_position('input', hidden.input_cursor)
-  state.set_cursor_position('output', hidden.output_cursor)
+  state.ui.set_cursor_position('input', hidden.input_cursor)
+  state.ui.set_cursor_position('output', hidden.output_cursor)
 
   input_window.setup(windows)
   output_window.setup(windows)
@@ -284,7 +284,7 @@ end
 ---Check if we have valid hidden buffers
 ---@return boolean
 function M.has_hidden_buffers()
-  return state.has_hidden_buffers()
+  return state.ui.has_hidden_buffers()
 end
 
 function M.return_to_last_code_win()

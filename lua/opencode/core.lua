@@ -103,7 +103,7 @@ M.open = Promise.async(function(opts)
     if restoring_hidden then
       local restored = ui.restore_hidden_windows()
       if not restored then
-        state.clear_hidden_window_state()
+        state.ui.clear_hidden_window_state()
         restoring_hidden = false
         state.ui.set_windows(ui.create_windows())
       end

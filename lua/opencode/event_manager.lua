@@ -58,6 +58,18 @@ local log = require('opencode.log')
 --- @field type "session.error"
 --- @field properties {sessionID: string, error: table}
 
+--- @class EventSessionStatus
+--- @field type "session.status"
+--- @field properties {
+---   sessionID: string,
+---   status: {
+---     type: string,
+---     message?: string,
+---     attempt?: number,
+---     next?: number
+---   }
+--- }
+
 --- @class OpencodePermission
 --- @field id string
 --- @field type string
@@ -146,6 +158,7 @@ local log = require('opencode.log')
 --- | "session.updated"
 --- | "session.deleted"
 --- | "session.error"
+--- | "session.status"
 --- | "permission.updated"
 --- | "permission.asked"
 --- | "permission.replied"
@@ -208,6 +221,7 @@ end
 --- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.status", callback: fun(data: EventSessionStatus['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited['properties']): nil)
@@ -249,6 +263,7 @@ end
 --- @overload fun(self: EventManager, event_name: "session.updated", callback: fun(data: EventSessionUpdated['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "session.deleted", callback: fun(data: EventSessionDeleted['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "session.error", callback: fun(data: EventSessionError['properties']): nil)
+--- @overload fun(self: EventManager, event_name: "session.status", callback: fun(data: EventSessionStatus['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "permission.updated", callback: fun(data: EventPermissionUpdated['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "permission.replied", callback: fun(data: EventPermissionReplied['properties']): nil)
 --- @overload fun(self: EventManager, event_name: "file.edited", callback: fun(data: EventFileEdited['properties']): nil)

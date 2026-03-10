@@ -62,6 +62,7 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Server-Sent Events (SSE) autocmds](#-server-sent-events-sse-autocmds)
 - [Quick Chat](#quick-chat)
 - [Setting up Opencode](#-setting-up-opencode)
+- [Recipes](./docs/recipes)
 
 ## ⚠️Caution
 

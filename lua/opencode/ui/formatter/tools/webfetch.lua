@@ -1,4 +1,5 @@
 local M = {}
+local icons = require('opencode.ui.icons')
 local utils = require('opencode.ui.formatter.utils')
 
 ---@param output Output
@@ -8,7 +9,6 @@ function M.format(output, part)
     return
   end
 
-  local icons = require('opencode.ui.icons')
   utils.format_action(
     output,
     icons.get('web'),

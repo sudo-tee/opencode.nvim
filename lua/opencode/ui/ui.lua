@@ -134,6 +134,14 @@ function M.hide_visible_windows(windows)
   end
 
   local snapshot = capture_hidden_snapshot(windows)
+
+  -- Only save width ratio for split modes (not dialog/current mode)
+  if config.ui.position ~= 'current' then
+    local total_cols = vim.o.columns
+    local current_width = vim.api.nvim_win_get_width(windows.output_win)
+    state.last_window_width_ratio = current_width / total_cols
+  end
+
   state.clear_hidden_window_state()
 
   prepare_window_close()
@@ -227,6 +235,7 @@ function M.restore_hidden_windows()
   windows.output_win = win_ids.output_win
   windows.footer_win = nil
   windows.output_was_at_bottom = hidden.output_was_at_bottom == true
+  windows.saved_width_ratio = state.last_window_width_ratio
 
   state.set_cursor_position('input', hidden.input_cursor)
   state.set_cursor_position('output', hidden.output_cursor)
@@ -349,6 +358,7 @@ function M.create_windows()
 
   windows.input_win = win_ids.input_win
   windows.output_win = win_ids.output_win
+  windows.saved_width_ratio = state.last_window_width_ratio
 
   input_window.setup(windows)
   output_window.setup(windows)

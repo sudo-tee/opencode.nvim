@@ -58,6 +58,7 @@
 ---@field api_client OpencodeApiClient
 ---@field event_manager EventManager|nil
 ---@field pre_zoom_width integer|nil
+---@field last_window_width_ratio number|nil
 ---@field required_version string
 ---@field opencode_cli_version string|nil
 ---@field current_cwd string|nil

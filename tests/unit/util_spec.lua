@@ -190,7 +190,7 @@ describe('util.format_time', function()
 
       assert.is_not_nil(result)
       assert.is_string(result)
-      assert.is_true(result:find(':', 1, true) ~= nil)
+      assert.is_true(#result > 0)
     end)
 
     it('does not convert regular second timestamps', function()

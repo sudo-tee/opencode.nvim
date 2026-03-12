@@ -99,24 +99,23 @@ describe('ui zoom state', function()
   end)
 
   describe('input_window.update_dimensions', function()
-    it('uses default window_width when not zoomed', function()
+    it('does not change input window width', function()
+      local original_width = vim.api.nvim_win_get_width(windows.input_win)
+      
       input_window.update_dimensions(windows)
 
-      local expected_width = math.floor(config.ui.window_width * vim.o.columns)
       local actual_width = vim.api.nvim_win_get_width(windows.input_win)
-
-      assert.equals(expected_width, actual_width)
+      assert.equals(original_width, actual_width)
     end)
 
-    it('uses zoom_width when zoomed', function()
+    it('does not change input window width when zoomed', function()
       state.pre_zoom_width = 80
+      local original_width = vim.api.nvim_win_get_width(windows.input_win)
 
       input_window.update_dimensions(windows)
 
-      local expected_width = math.floor(config.ui.zoom_width * vim.o.columns)
       local actual_width = vim.api.nvim_win_get_width(windows.input_win)
-
-      assert.equals(expected_width, actual_width)
+      assert.equals(original_width, actual_width)
     end)
 
     it('preserves zoom state after update_dimensions', function()
@@ -265,6 +264,53 @@ describe('ui zoom state', function()
       ui.toggle_zoom()
 
       assert.is_nil(state.pre_zoom_width)
+    end)
+  end)
+
+  describe('window width persistence', function()
+    it('saves width ratio when hiding windows', function()
+      local custom_width = 100
+      vim.api.nvim_win_set_width(windows.output_win, custom_width)
+      ui.hide_visible_windows(windows)
+
+      local expected_ratio = custom_width / vim.o.columns
+      assert.is_not_nil(state.last_window_width_ratio)
+      assert.near(expected_ratio, state.last_window_width_ratio, 0.001)
+    end)
+
+    it('does not save width in dialog mode (position=current)', function()
+      local original_position = config.ui.position
+      config.ui.position = 'current'
+      state.last_window_width_ratio = nil
+
+      ui.hide_visible_windows(windows)
+      assert.is_nil(state.last_window_width_ratio)
+
+      config.ui.position = original_position
+    end)
+
+    it('uses saved width ratio in output_window.update_dimensions', function()
+      local saved_ratio = 0.6
+      windows.saved_width_ratio = saved_ratio
+
+      output_window.update_dimensions(windows)
+
+      local expected_width = math.floor(saved_ratio * vim.o.columns)
+      local actual_width = vim.api.nvim_win_get_width(windows.output_win)
+      assert.equals(expected_width, actual_width)
+      assert.is_nil(windows.saved_width_ratio)
+    end)
+
+    it('prefers saved width over zoom width', function()
+      state.pre_zoom_width = 80
+      local saved_ratio = 0.5
+      windows.saved_width_ratio = saved_ratio
+
+      output_window.update_dimensions(windows)
+
+      local expected_width = math.floor(saved_ratio * vim.o.columns)
+      local actual_width = vim.api.nvim_win_get_width(windows.output_win)
+      assert.equals(expected_width, actual_width)
     end)
   end)
 end)

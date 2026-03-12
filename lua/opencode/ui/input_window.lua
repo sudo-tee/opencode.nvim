@@ -58,11 +58,7 @@ local function apply_dimensions(windows, height)
     return
   end
 
-  local total_width = vim.api.nvim_get_option_value('columns', {})
-  local width_ratio = state.pre_zoom_width and config.ui.zoom_width or config.ui.window_width
-  local width = math.floor(total_width * width_ratio)
-
-  pcall(vim.api.nvim_win_set_config, windows.input_win, { width = width, height = height })
+  pcall(vim.api.nvim_win_set_config, windows.input_win, { height = height })
 end
 
 function M.create_buf()

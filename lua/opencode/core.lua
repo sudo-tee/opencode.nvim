@@ -518,10 +518,10 @@ M.ensure_current_mode = Promise.async(function()
 
     -- Try to use the configured default mode if it's available
     if default_mode and vim.tbl_contains(available_agents, default_mode) then
-      state.current_mode = default_mode
+      return M.switch_to_mode(default_mode):await()
     else
       -- Fallback to first available agent
-      state.current_mode = available_agents[1]
+      return M.switch_to_mode(available_agents[1]):await()
     end
   end
   return true

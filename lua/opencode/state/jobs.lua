@@ -1,5 +1,15 @@
 local store = require('opencode.state.store')
 
+---@class OpencodeJobStateMutations
+---@field increment_count fun(delta?: integer, opts?: OpencodeProtectedStateSetOptions)
+---@field decrement_count fun(delta?: integer, opts?: OpencodeProtectedStateSetOptions)
+---@field set_count fun(count: integer, opts?: OpencodeProtectedStateSetOptions)
+---@field set_server fun(server: OpencodeServer|nil, opts?: OpencodeProtectedStateSetOptions)
+---@field clear_server fun(opts?: OpencodeProtectedStateSetOptions)
+---@field set_api_client fun(client: OpencodeApiClient|nil)
+---@field set_event_manager fun(manager: EventManager|nil)
+---@field set_opencode_cli_version fun(version: string|nil)
+
 local M = {}
 
 ---@param delta integer|nil

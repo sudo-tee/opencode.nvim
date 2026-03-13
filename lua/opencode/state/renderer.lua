@@ -1,4 +1,13 @@
+
 local store = require('opencode.state.store')
+
+---@class OpencodeRendererStateMutations
+---@field set_messages fun(messages: OpencodeMessage[]|nil)
+---@field set_current_message fun(message: OpencodeMessage|nil)
+---@field set_last_user_message fun(message: OpencodeMessage|nil)
+---@field set_pending_permissions fun(permissions: OpencodePermission[])
+---@field set_cost fun(cost: number)
+---@field set_tokens_count fun(count: number)
 
 local M = {}
 

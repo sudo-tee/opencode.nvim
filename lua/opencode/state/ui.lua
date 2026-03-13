@@ -1,5 +1,21 @@
 local store = require('opencode.state.store')
 
+---@class OpencodeUiStateMutations
+---@field set_windows fun(windows: OpencodeWindowState|nil)
+---@field clear_windows fun()
+---@field set_opening fun(is_opening: boolean)
+---@field set_panel_focused fun(is_focused: boolean)
+---@field set_last_focused_window fun(win_type: 'input'|'output'|nil)
+---@field set_display_route fun(route: any)
+---@field clear_display_route fun()
+---@field set_last_code_window fun(win_id: integer|nil)
+---@field set_current_code_buf fun(bufnr: integer|nil)
+---@field set_last_window_width_ratio fun(ratio: number|nil)
+---@field clear_last_window_width_ratio fun()
+---@field set_input_content fun(lines: table)
+---@field set_saved_window_options fun(opts: table|nil)
+---@field set_pre_zoom_width fun(width: integer|nil)
+
 local M = {}
 
 local _state = store.state()

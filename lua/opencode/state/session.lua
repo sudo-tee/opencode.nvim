@@ -1,5 +1,13 @@
 local store = require('opencode.state.store')
 
+---@class OpencodeSessionStateMutations
+---@field set_active fun(session: Session|nil, opts?: OpencodeProtectedStateSetOptions)
+---@field clear_active fun(opts?: OpencodeProtectedStateSetOptions)
+---@field set_restore_points fun(points: RestorePoint[], opts?: OpencodeProtectedStateSetOptions)
+---@field reset_restore_points fun(opts?: OpencodeProtectedStateSetOptions)
+---@field set_last_sent_context fun(context: OpencodeContext|nil)
+---@field set_user_message_count fun(count: table<string, number>)
+
 local M = {}
 
 ---@param session Session|nil

@@ -480,7 +480,7 @@ function M.check_prompt_allowed(guard_callback, mentioned_files)
     return true, nil -- No guard = always allowed
   end
 
-  if not type(guard_callback) == 'function' then
+  if type(guard_callback) ~= 'function' then
     return false, 'prompt_guard must be a function'
   end
 

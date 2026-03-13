@@ -1,4 +1,3 @@
--- This file was written by an automated tool.
 local state = require('opencode.state')
 local context = require('opencode.context')
 local session = require('opencode.session')

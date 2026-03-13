@@ -48,7 +48,7 @@ function M.reset()
   state.tokens_count = 0
 
   local permissions = state.pending_permissions or {}
-  if #permissions and state.api_client then
+  if #permissions > 0 and state.api_client then
     for _, permission in ipairs(permissions) do
       require('opencode.api').permission_deny(permission)
     end

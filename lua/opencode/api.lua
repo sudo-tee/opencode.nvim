@@ -89,9 +89,7 @@ local function build_toggle_open_context(restore_hidden)
     }
   end
 
-  local focus = config.ui.input.auto_hide and 'input'
-    or state.last_focused_opencode_window
-    or 'input'
+  local focus = config.ui.input.auto_hide and 'input' or state.last_focused_opencode_window or 'input'
 
   return {
     focus = focus,
@@ -100,21 +98,20 @@ local function build_toggle_open_context(restore_hidden)
 end
 
 M.toggle = Promise.async(function(new_session)
-  local decision = state.resolve_toggle_decision(
-    config.ui.persist_state,
-    state.display_route ~= nil
-  )
+  local decision = state.resolve_toggle_decision(config.ui.persist_state, state.display_route ~= nil)
   local action = decision.action
   local is_new_session = new_session == true
 
   local function open_windows(restore_hidden)
     local ctx = build_toggle_open_context(restore_hidden == true)
-    return core.open({
-      new_session = is_new_session,
-      focus = ctx.focus,
-      start_insert = false,
-      open_action = ctx.open_action,
-    }):await()
+    return core
+      .open({
+        new_session = is_new_session,
+        focus = ctx.focus,
+        start_insert = false,
+        open_action = ctx.open_action,
+      })
+      :await()
   end
 
   local function open_fresh_windows()
@@ -535,7 +532,7 @@ M.switch_mode = Promise.async(function()
 end)
 
 function M.with_header(lines, show_welcome)
-  show_welcome = show_welcome or show_welcome
+  show_welcome = show_welcome or false
   state.display_route = '/header'
 
   local msg = {
@@ -582,7 +579,7 @@ function M.help()
     return
   end
 
-  local max_desc_length = math.min(90, vim.api.nvim_win_get_width(state.windows.output_win) - 30)
+  local max_desc_length = math.min(90, vim.api.nvim_win_get_width(state.windows.output_win) - 35)
 
   local sorted_commands = vim.tbl_keys(M.commands)
   table.sort(sorted_commands)
@@ -889,7 +886,7 @@ end)
 -- Returns the ID of the next user message after the current undo point
 -- This is a port of the opencode tui logic
 -- https://github.com/sst/opencode/blob/dev/packages/tui/internal/components/chat/messages.go#L1199
-function find_next_message_for_redo()
+local function find_next_message_for_redo()
   if not state.active_session then
     return nil
   end
@@ -1163,7 +1160,7 @@ M.commands = {
   },
 
   review = {
-    desc = 'Review changes [commit|branch|pr], defaults to uncommitted changes',
+    desc = 'Review changes (commit/branch/pr), defaults to uncommitted changes',
     fn = function(args)
       M.review(args)
     end,

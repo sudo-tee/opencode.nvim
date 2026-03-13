@@ -241,7 +241,7 @@ function M.focus_output(should_stop_insert)
 end
 
 function M.close()
-  if M.mounted() then
+  if not M.mounted() then
     return
   end
   ---@cast state.windows { output_win: integer, output_buf: integer }

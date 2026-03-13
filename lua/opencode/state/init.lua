@@ -93,7 +93,7 @@ local M = {
   context = context,
   subscribe = store.subscribe,
   unsubscribe = store.unsubscribe,
-  notify = store.notify,
+  emit = store.emit,
   append = store.append,
   remove = store.remove,
 }

@@ -82,7 +82,7 @@ function M.set(key, value, opts)
 
   _state[key] = value
   if not vim.deep_equal(old, value) then
-    M.notify(key, value, old)
+    M.emit(key, value, old)
   end
 
   return value
@@ -148,7 +148,7 @@ function M.unsubscribe(key, cb)
   end
 end
 
-function M.notify(key, new_val, old_val)
+function M.emit(key, new_val, old_val)
   vim.schedule(function()
     if _listeners[key] then
       for _, cb in ipairs(_listeners[key]) do
@@ -182,7 +182,7 @@ function M.append(key, value)
 
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.insert(_state[key] --[[@as table]], value)
-  M.notify(key, _state[key], old)
+  M.emit(key, _state[key], old)
 end
 
 ---@param key string
@@ -197,7 +197,7 @@ function M.remove(key, idx)
 
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.remove(_state[key] --[[@as table]], idx)
-  M.notify(key, _state[key], old)
+  M.emit(key, _state[key], old)
 end
 
 return M

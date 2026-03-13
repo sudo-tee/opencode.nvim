@@ -43,7 +43,7 @@ describe('snapshot.restore', function()
       return p
     end
 
-    state.active_session = { snapshot_path = '/mock/gitdir' }
+    state.session.set_active({ snapshot_path = '/mock/gitdir' })
     vim.g._last_notify = nil
     vim.g._last_system = nil
   end)
@@ -53,7 +53,7 @@ describe('snapshot.restore', function()
     vim.system = orig_system
     vim.fn.getcwd = orig_getcwd
     config_file.get_workspace_snapshot_path = orig_get_workspace_snapshot_path
-    state.active_session = nil
+    state.session.clear_active()
     vim.g._last_notify = nil
     vim.g._last_system = nil
     system_calls = {}
@@ -77,7 +77,7 @@ describe('snapshot.restore', function()
   end)
 
   it('notifies error if no active session', function()
-    state.active_session = nil
+    state.session.clear_active()
     -- When there's no active session, the promise still resolves but snapshot_git will fail
     config_file.get_workspace_snapshot_path = function()
       local p = Promise.new()

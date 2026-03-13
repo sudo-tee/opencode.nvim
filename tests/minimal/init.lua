@@ -33,7 +33,6 @@ _G.test_plugin_root = plugin_root
 vim.opt.termguicolors = true
 
 require('opencode')
-require('opencode.state.test_helpers').allow_raw_writes_for_tests()
 
 if vim.treesitter and vim.treesitter.start then
   vim.treesitter.start = function() end

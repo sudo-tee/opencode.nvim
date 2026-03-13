@@ -24,4 +24,14 @@ function M.reset_restore_points(opts)
   return store.set('restore_points', {}, opts)
 end
 
+---@param context OpencodeContext|nil
+function M.set_last_sent_context(context)
+  return store.set('last_sent_context', context)
+end
+
+---@param count table<string, number>
+function M.set_user_message_count(count)
+  return store.set('user_message_count', count)
+end
+
 return M

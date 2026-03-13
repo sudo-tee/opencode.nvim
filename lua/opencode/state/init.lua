@@ -28,6 +28,8 @@
 ---@field clear_active fun(opts?: OpencodeProtectedStateSetOptions)
 ---@field set_restore_points fun(points: RestorePoint[], opts?: OpencodeProtectedStateSetOptions)
 ---@field reset_restore_points fun(opts?: OpencodeProtectedStateSetOptions)
+---@field set_last_sent_context fun(context: OpencodeContext|nil)
+---@field set_user_message_count fun(count: table<string, number>)
 
 ---@class OpencodeJobStateMutations
 ---@field increment_count fun(delta?: integer, opts?: OpencodeProtectedStateSetOptions)
@@ -35,6 +37,9 @@
 ---@field set_count fun(count: integer, opts?: OpencodeProtectedStateSetOptions)
 ---@field set_server fun(server: OpencodeServer|nil, opts?: OpencodeProtectedStateSetOptions)
 ---@field clear_server fun(opts?: OpencodeProtectedStateSetOptions)
+---@field set_api_client fun(client: OpencodeApiClient|nil)
+---@field set_event_manager fun(manager: EventManager|nil)
+---@field set_opencode_cli_version fun(version: string|nil)
 
 ---@class OpencodeUiStateMutations
 ---@field set_windows fun(windows: OpencodeWindowState|nil)
@@ -48,6 +53,9 @@
 ---@field set_current_code_buf fun(bufnr: integer|nil)
 ---@field set_last_window_width_ratio fun(ratio: number|nil)
 ---@field clear_last_window_width_ratio fun()
+---@field set_input_content fun(lines: table)
+---@field set_saved_window_options fun(opts: table|nil)
+---@field set_pre_zoom_width fun(width: integer|nil)
 
 ---@class OpencodeModelStateMutations
 ---@field set_mode fun(mode: string|nil)
@@ -59,6 +67,19 @@
 ---@field clear_variant fun()
 ---@field set_mode_model_map fun(mode_map: table<string, string>)
 ---@field set_mode_model_override fun(mode: string, model: string)
+
+---@class OpencodeRendererStateMutations
+---@field set_messages fun(messages: OpencodeMessage[]|nil)
+---@field set_current_message fun(message: OpencodeMessage|nil)
+---@field set_last_user_message fun(message: OpencodeMessage|nil)
+---@field set_pending_permissions fun(permissions: OpencodePermission[])
+---@field set_cost fun(cost: number)
+---@field set_tokens_count fun(count: number)
+
+---@class OpencodeContextStateMutations
+---@field set_current_context_config fun(config: OpencodeContextConfig|nil)
+---@field set_context_updated_at fun(timestamp: number|nil)
+---@field set_current_cwd fun(cwd: string|nil)
 
 ---@class OpencodeState
 ---@field windows OpencodeWindowState|nil
@@ -109,13 +130,16 @@
 ---@field jobs OpencodeJobStateMutations
 ---@field ui OpencodeUiStateMutations
 ---@field model OpencodeModelStateMutations
+---@field renderer OpencodeRendererStateMutations
+---@field context OpencodeContextStateMutations
 
 local store = require('opencode.state.store')
 local session = require('opencode.state.session')
 local jobs = require('opencode.state.jobs')
 local ui = require('opencode.state.ui')
 local model = require('opencode.state.model')
-local test_helpers = require('opencode.state.test_helpers')
+local renderer = require('opencode.state.renderer')
+local context = require('opencode.state.context')
 
 local M = {
   store = store,
@@ -123,15 +147,13 @@ local M = {
   jobs = jobs,
   ui = ui,
   model = model,
-  test_helpers = test_helpers,
+  renderer = renderer,
+  context = context,
   subscribe = store.subscribe,
   unsubscribe = store.unsubscribe,
   notify = store.notify,
   append = store.append,
   remove = store.remove,
-  set_raw = store.set_raw,
-  allow_raw_writes_for_tests = test_helpers.allow_raw_writes_for_tests,
-  silence_protected_writes = test_helpers.silence_protected_writes,
 }
 
 function M.is_running()
@@ -142,8 +164,8 @@ return setmetatable(M, {
   __index = function(_, key)
     return store.get(key)
   end,
-  __newindex = function(_, key, value)
-    store.set(key, value, { source = 'raw' })
+  __newindex = function(_, key, _value)
+    error(string.format('Direct write to state key `%s` is not allowed; use a state domain setter', key), 2)
   end,
   __pairs = function()
     return pairs(store.state())

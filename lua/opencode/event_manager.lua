@@ -593,8 +593,9 @@ function EventManager:get_subscriber_count(event_name)
 end
 
 function EventManager.setup()
-  state.event_manager = EventManager.new()
-  state.event_manager:start()
+  local manager = EventManager.new()
+  state.jobs.set_event_manager(manager)
+  manager:start()
 end
 
 return EventManager

@@ -116,7 +116,7 @@ local function close_or_restore_output_window(windows)
         for opt, value in pairs(state.saved_window_options) do
           pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
         end
-        state.saved_window_options = nil
+        state.ui.set_saved_window_options(nil)
       end
     end
     return
@@ -157,7 +157,7 @@ function M.hide_visible_windows(windows)
   if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
     local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
     if ok then
-      state.input_content = lines
+      state.ui.set_input_content(lines)
     end
   end
   state.ui.stash_hidden_buffers(snapshot)
@@ -531,9 +531,9 @@ function M.toggle_zoom()
 
   if state.pre_zoom_width then
     width = state.pre_zoom_width
-    state.pre_zoom_width = nil
+    state.ui.set_pre_zoom_width(nil)
   else
-    state.pre_zoom_width = vim.api.nvim_win_get_width(windows.output_win)
+    state.ui.set_pre_zoom_width(vim.api.nvim_win_get_width(windows.output_win))
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 

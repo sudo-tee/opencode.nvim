@@ -7,9 +7,9 @@ describe('permission_integration', function()
   local captured_calls
 
   before_each(function()
-    state.messages = {}
-    state.pending_permissions = {}
-    state.active_session = { id = 'session_123' }
+    state.renderer.set_messages({})
+    state.renderer.set_pending_permissions({})
+    state.session.set_active({ id = 'session_123' })
 
     permission_window._permission_queue = {}
     permission_window._dialog = nil
@@ -32,7 +32,7 @@ describe('permission_integration', function()
 
   describe('on_part_updated permission correlation', function()
     it('correlates part with pending permission by callID and messageID', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_test_123',
           permission = 'bash',
@@ -41,7 +41,7 @@ describe('permission_integration', function()
             callID = 'call_xyz',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_abc', sessionID = 'session_123' },
@@ -72,14 +72,14 @@ describe('permission_integration', function()
     end)
 
     it('supports backward compatibility with root-level callID/messageID', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_legacy_456',
           permission = 'bash',
           messageID = 'msg_legacy',
           callID = 'call_legacy',
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_legacy', sessionID = 'session_123' },
@@ -108,7 +108,7 @@ describe('permission_integration', function()
     end)
 
     it('does not call update_permission_from_part when callID does not match', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_test_123',
           permission = 'bash',
@@ -117,7 +117,7 @@ describe('permission_integration', function()
             callID = 'call_xyz',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_abc', sessionID = 'session_123' },
@@ -145,7 +145,7 @@ describe('permission_integration', function()
     end)
 
     it('does not call update_permission_from_part when messageID does not match', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_test_123',
           permission = 'bash',
@@ -154,7 +154,7 @@ describe('permission_integration', function()
             callID = 'call_xyz',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_different', sessionID = 'session_123' },
@@ -182,7 +182,7 @@ describe('permission_integration', function()
     end)
 
     it('skips correlation when part has no callID', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_test_123',
           permission = 'bash',
@@ -191,7 +191,7 @@ describe('permission_integration', function()
             callID = 'call_xyz',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_abc', sessionID = 'session_123' },
@@ -214,7 +214,7 @@ describe('permission_integration', function()
     end)
 
     it('skips iteration when no pending permissions', function()
-      state.pending_permissions = {}
+      state.renderer.set_pending_permissions({})
 
       local message = {
         info = { id = 'msg_abc', sessionID = 'session_123' },
@@ -242,7 +242,7 @@ describe('permission_integration', function()
     end)
 
     it('matches correct permission when multiple pending permissions exist', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_first',
           permission = 'bash',
@@ -267,7 +267,7 @@ describe('permission_integration', function()
             callID = 'call_third',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_second', sessionID = 'session_123' },
@@ -296,7 +296,7 @@ describe('permission_integration', function()
     end)
 
     it('breaks after first match to avoid duplicate updates', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_first',
           permission = 'bash',
@@ -313,7 +313,7 @@ describe('permission_integration', function()
             callID = 'call_xyz',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'msg_abc', sessionID = 'session_123' },
@@ -342,7 +342,7 @@ describe('permission_integration', function()
     end)
 
     it('prefers tool.callID over root callID when both present', function()
-      state.pending_permissions = {
+      state.renderer.set_pending_permissions({
         {
           id = 'per_test_123',
           permission = 'bash',
@@ -353,7 +353,7 @@ describe('permission_integration', function()
             callID = 'tool_call_id',
           },
         },
-      }
+      })
 
       local message = {
         info = { id = 'tool_msg_id', sessionID = 'session_123' },

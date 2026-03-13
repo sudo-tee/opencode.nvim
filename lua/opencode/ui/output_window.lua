@@ -81,7 +81,7 @@ local function set_win_option(opt_name, value, win)
   -- Save original value if using position = 'current'
   if config.ui.position == 'current' then
     if not state.saved_window_options then
-      state.saved_window_options = {}
+      state.ui.set_saved_window_options({})
     end
     -- Only save if not already saved (in case this function is called multiple times)
     if state.saved_window_options[opt_name] == nil then

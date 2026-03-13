@@ -56,6 +56,21 @@ function M.clear_last_window_width_ratio()
   return store.set('last_window_width_ratio', nil)
 end
 
+---@param lines table
+function M.set_input_content(lines)
+  return store.set('input_content', lines)
+end
+
+---@param opts table|nil
+function M.set_saved_window_options(opts)
+  return store.set('saved_window_options', opts)
+end
+
+---@param width integer|nil
+function M.set_pre_zoom_width(width)
+  return store.set('pre_zoom_width', width)
+end
+
 ---@param win_id integer|nil
 ---@return boolean
 function M.is_window_in_current_tab(win_id)
@@ -214,9 +229,9 @@ end
 function M.set_cursor_position(win_type, pos)
   local normalized = normalize_cursor(pos)
   if win_type == 'input' then
-    _state.last_input_window_position = normalized
+    store.set('last_input_window_position', normalized)
   elseif win_type == 'output' then
-    _state.last_output_window_position = normalized
+    store.set('last_output_window_position', normalized)
   end
 end
 
@@ -298,11 +313,11 @@ end
 ---@param hidden OpencodeHiddenBuffers|nil
 function M.stash_hidden_buffers(hidden)
   if hidden == nil then
-    _state._hidden_buffers = nil
+    store.set('_hidden_buffers', nil)
     return
   end
 
-  _state._hidden_buffers = normalize_hidden_buffers(hidden)
+  store.set('_hidden_buffers', normalize_hidden_buffers(hidden))
 end
 
 ---@return OpencodeHiddenBuffers|nil
@@ -311,9 +326,9 @@ function M.inspect_hidden_buffers()
 end
 
 function M.clear_hidden_window_state()
-  _state._hidden_buffers = nil
+  store.set('_hidden_buffers', nil)
   if _state.windows and not _state.windows.input_win and not _state.windows.output_win then
-    _state.windows = nil
+    store.set('windows', nil)
   end
 end
 
@@ -325,7 +340,7 @@ end
 ---@return OpencodeHiddenBuffers|nil
 function M.consume_hidden_buffers()
   local hidden = M.inspect_hidden_buffers()
-  _state._hidden_buffers = nil
+  store.set('_hidden_buffers', nil)
   return hidden
 end
 

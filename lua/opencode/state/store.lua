@@ -48,47 +48,14 @@ local _state = {
 
 local _listeners = {}
 
-local PROTECTED_KEYS = {
-  active_session = true,
-  restore_points = true,
-  job_count = true,
-  opencode_server = true,
-  windows = true,
-  is_opening = true,
-  is_opencode_focused = true,
-  last_focused_opencode_window = true,
-  last_code_win_before_opencode = true,
-  current_code_buf = true,
-  display_route = true,
-  last_window_width_ratio = true,
-  current_mode = true,
-  current_model = true,
-  current_model_info = true,
-  current_variant = true,
-  user_mode_model_map = true,
-}
-
-local _protected_write_warnings = {}
-local _silence_protected_writes = false
-
 ---@param key string
 ---@param opts? OpencodeProtectedStateSetOptions
-local function warn_on_protected_raw_write(key, opts)
-  if not PROTECTED_KEYS[key] or _protected_write_warnings[key] then
+local function error_on_raw_write(key, opts)
+  if opts and opts.silent then
     return
   end
 
-  if _silence_protected_writes or (opts and opts.silent) then
-    return
-  end
-
-  _protected_write_warnings[key] = true
-  vim.schedule(function()
-    vim.notify(
-      string.format('Direct write to protected state key `%s`; prefer state domain helpers', key),
-      vim.log.levels.WARN
-    )
-  end)
+  error(string.format('Direct write to state key `%s` is not allowed; use a state domain setter', key), 3)
 end
 
 function M.state()
@@ -110,7 +77,7 @@ function M.set(key, value, opts)
   opts = opts or { source = 'helper' }
 
   if opts.source == 'raw' then
-    warn_on_protected_raw_write(key, opts)
+    error_on_raw_write(key, opts)
   end
 
   _state[key] = value
@@ -231,26 +198,6 @@ function M.remove(key, idx)
   local old = vim.deepcopy(_state[key] --[[@as table]])
   table.remove(_state[key] --[[@as table]], idx)
   M.notify(key, _state[key], old)
-end
-
----@param enabled boolean
-function M.set_protected_writes_silenced(enabled)
-  _silence_protected_writes = enabled == true
-end
-
----@return boolean
-function M.are_protected_writes_silenced()
-  return _silence_protected_writes
-end
-
-function M.reset_protected_write_warnings()
-  _protected_write_warnings = {}
-end
-
----@param key string
----@return boolean
-function M.is_protected_key(key)
-  return PROTECTED_KEYS[key] == true
 end
 
 return M

@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local store = require('opencode.state.store')
 local config = require('opencode.config')
 local api = require('opencode.api')
 local ui = require('opencode.ui.ui')
@@ -149,7 +150,7 @@ describe('persist_state', function()
   local function cleanup_windows()
     if state.windows then
       ui.close_windows(state.windows, false)
-      state.windows = nil
+      state.ui.set_windows(nil)
     end
   end
 
@@ -178,15 +179,15 @@ describe('persist_state', function()
     original_api_client = state.api_client
     original_event_manager = state.event_manager
 
-    state.api_client = mock_api_client()
-    state.event_manager = EventManager.new()
-    state.windows = nil
+    state.jobs.set_api_client(mock_api_client())
+    state.jobs.set_event_manager(EventManager.new())
+    state.ui.set_windows(nil)
     state.ui.clear_hidden_window_state()
-    state.current_code_view = nil
-    state.current_code_buf = nil
-    state.last_code_win_before_opencode = nil
-    state.active_session = nil
-    state.messages = {}
+    store.set('current_code_view', nil)
+    store.set('current_code_buf', nil)
+    store.set('last_code_win_before_opencode', nil)
+    state.session.set_active(nil)
+    state.renderer.set_messages({})
 
     -- Mock opencode_server to prevent spawning real process in CI
     local opencode_server = require('opencode.opencode_server')
@@ -211,7 +212,7 @@ describe('persist_state', function()
       return mock_server
     end
     -- Pre-set the server to skip ensure_server
-    state.opencode_server = mock_server
+    store.set('opencode_server', mock_server)
   end)
 
   after_each(function()
@@ -236,12 +237,12 @@ describe('persist_state', function()
       end)
     end
 
-    state.event_manager = original_event_manager
-    state.api_client = original_api_client
+    state.jobs.set_event_manager(original_event_manager)
+    state.jobs.set_api_client(original_api_client)
     config.values = original_config
-    state.current_code_view = nil
-    state.current_code_buf = nil
-    state.last_code_win_before_opencode = nil
+    store.set('current_code_view', nil)
+    store.set('current_code_buf', nil)
+    store.set('last_code_win_before_opencode', nil)
     state.ui.clear_hidden_window_state()
 
     -- Restore mocked opencode_server
@@ -431,7 +432,7 @@ describe('persist_state', function()
           name = 'invalid_state_settles',
           run = function()
             cleanup_windows()
-            state.windows = { input_win = 99999 }
+            state.ui.set_windows({ input_win = 99999 })
 
             local settled = false
             local p = api.toggle(false)
@@ -446,7 +447,7 @@ describe('persist_state', function()
             end, 50)
 
             assert.is_true(settled)
-            state.windows = nil
+            state.ui.set_windows(nil)
           end,
         },
       }
@@ -651,8 +652,8 @@ describe('persist_state', function()
 
       local event_manager = state.event_manager
       local output_buf = state.windows.output_buf
-      state.active_session = { id = 'test-session' }
-      state.messages = {}
+      state.session.set_active({ id = 'test-session' })
+      state.renderer.set_messages({})
 
       toggle_wait('hidden')
       assert.equals('test-session', state.active_session.id)

@@ -2,27 +2,28 @@
 -- Tests for the observable state module
 
 local state = require('opencode.state')
+local store = require('opencode.state.store')
 
 describe('opencode.state (observable)', function()
   it('notifies listeners on key change', function()
     local called = false
     local changed_key, new_val, old_val
-    state.subscribe('test_key', function(key, newv, oldv)
+    state.subscribe('messages', function(key, newv, oldv)
       called = true
       changed_key = key
       new_val = newv
       old_val = oldv
     end)
-    state.test_key = 123
+    state.renderer.set_messages({ { id = 'test' } })
     vim.wait(50, function()
       return called == true
     end)
     assert.is_true(called)
-    assert.equals('test_key', changed_key)
-    assert.equals(123, new_val)
-    assert.is_nil(old_val)
+    assert.equals('messages', changed_key)
+    assert.same({ { id = 'test' } }, new_val)
     -- Clean up
-    state.test_key = nil
+    state.renderer.set_messages(nil)
+    state.unsubscribe('messages', nil)
   end)
 
   it('notifies wildcard listeners on any key change', function()
@@ -34,16 +35,16 @@ describe('opencode.state (observable)', function()
       new_val = newv
       old_val = oldv
     end)
-    state.another_key = 'abc'
+    state.renderer.set_cost(99)
     vim.wait(50, function()
       return called == true
     end)
     assert.is_true(called)
-    assert.equals('another_key', changed_key)
-    assert.equals('abc', new_val)
-    assert.is_nil(old_val)
+    assert.equals('cost', changed_key)
+    assert.equals(99, new_val)
     -- Clean up
-    state.another_key = nil
+    state.renderer.set_cost(0)
+    state.unsubscribe('*', nil)
   end)
 
   it('can unregister listeners', function()
@@ -51,17 +52,17 @@ describe('opencode.state (observable)', function()
     local cb = function()
       called = called + 1
     end
-    state.subscribe('foo', cb)
-    state.foo = 1
+    state.subscribe('tokens_count', cb)
+    state.renderer.set_tokens_count(1)
     vim.wait(50, function()
       return called == 1
     end)
-    state.unsubscribe('foo', cb)
-    state.foo = 2
+    state.unsubscribe('tokens_count', cb)
+    state.renderer.set_tokens_count(2)
     vim.wait(50)
     assert.equals(1, called)
     -- Clean up
-    state.foo = nil
+    state.renderer.set_tokens_count(0)
   end)
 
   it('does not register duplicate listeners for the same callback', function()
@@ -70,34 +71,41 @@ describe('opencode.state (observable)', function()
       called = called + 1
     end
 
-    state.subscribe('dup_key', cb)
-    state.subscribe('dup_key', cb)
+    state.subscribe('cost', cb)
+    state.subscribe('cost', cb)
 
-    state.dup_key = 'value'
+    state.renderer.set_cost(1)
     vim.wait(50, function()
       return called > 0
     end)
 
     assert.equals(1, called)
 
-    state.unsubscribe('dup_key', cb)
-    state.dup_key = nil
+    state.unsubscribe('cost', cb)
+    state.renderer.set_cost(0)
   end)
 
   it('does not notify if value is unchanged', function()
     local called = false
-    state.subscribe('bar', function()
+    state.subscribe('tokens_count', function()
       called = true
     end)
-    state.bar = 42
+    state.renderer.set_tokens_count(42)
     vim.wait(50, function()
       return called == true
     end)
     called = false
-    state.bar = 42
+    state.renderer.set_tokens_count(42)
     vim.wait(50)
     assert.is_false(called)
     -- Clean up
-    state.bar = nil
+    state.renderer.set_tokens_count(0)
+    state.unsubscribe('tokens_count', nil)
+  end)
+
+  it('errors on direct state write', function()
+    assert.has_error(function()
+      state.messages = {}
+    end)
   end)
 end)

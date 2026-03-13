@@ -43,9 +43,9 @@ function M.reset()
 
   output_window.clear()
 
-  state.messages = {}
-  state.last_user_message = nil
-  state.tokens_count = 0
+  state.renderer.set_messages({})
+  state.renderer.set_last_user_message(nil)
+  state.renderer.set_tokens_count(0)
 
   local permissions = state.pending_permissions or {}
   if #permissions > 0 and state.api_client then
@@ -54,7 +54,7 @@ function M.reset()
     end
   end
   permission_window.clear_all()
-  state.pending_permissions = {}
+  state.renderer.set_pending_permissions({})
 
   trigger_on_data_rendered()
 end
@@ -118,7 +118,7 @@ local function fetch_session()
     return Promise.new():resolve(nil)
   end
 
-  state.last_user_message = nil
+  state.renderer.set_last_user_message(nil)
   return require('opencode.session').get_messages(session)
 end
 
@@ -697,9 +697,9 @@ function M.on_message_updated(message, revert_index)
 
     M._add_message_to_buffer(msg)
 
-    state.current_message = msg
+    state.renderer.set_current_message(msg)
     if message.info.role == 'user' then
-      state.last_user_message = msg
+      state.renderer.set_last_user_message(msg)
     end
   end
 
@@ -964,7 +964,7 @@ function M.on_permission_updated(permission)
 
   -- Add permission to pending queue
   if not state.pending_permissions then
-    state.pending_permissions = {}
+    state.renderer.set_pending_permissions({})
   end
 
   -- Check if permission already exists in queue
@@ -982,7 +982,7 @@ function M.on_permission_updated(permission)
   else
     table.insert(permissions, permission)
   end
-  state.pending_permissions = permissions
+  state.renderer.set_pending_permissions(permissions)
 
   permission_window.add_permission(permission)
 
@@ -1004,7 +1004,7 @@ function M.on_permission_replied(properties)
 
   if permission_id then
     permission_window.remove_permission(permission_id)
-    state.pending_permissions = vim.deepcopy(permission_window.get_all_permissions())
+    state.renderer.set_pending_permissions(vim.deepcopy(permission_window.get_all_permissions()))
     if #state.pending_permissions == 0 then
       M._remove_part_from_buffer('permission-display-part')
       M._remove_message_from_buffer('permission-display-message')
@@ -1210,11 +1210,11 @@ function M._update_stats_from_message(message)
 
   local tokens = message.info.tokens
   if tokens and tokens.input > 0 then
-    state.tokens_count = tokens.input + tokens.output + tokens.cache.read + tokens.cache.write
+    state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
   end
 
   if message.info.cost and type(message.info.cost) == 'number' then
-    state.cost = message.info.cost
+    state.renderer.set_cost(message.info.cost)
   end
 end
 

@@ -511,7 +511,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
-      state.input_content = input_lines
+      state.ui.set_input_content(input_lines)
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
       M.schedule_resize(windows)

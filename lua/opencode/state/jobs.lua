@@ -35,4 +35,19 @@ function M.clear_server(opts)
   return store.set('opencode_server', nil, opts)
 end
 
+---@param client OpencodeApiClient|nil
+function M.set_api_client(client)
+  return store.set('api_client', client)
+end
+
+---@param manager EventManager|nil
+function M.set_event_manager(manager)
+  return store.set('event_manager', manager)
+end
+
+---@param version string|nil
+function M.set_opencode_cli_version(version)
+  return store.set('opencode_cli_version', version)
+end
+
 return M

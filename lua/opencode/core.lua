@@ -72,7 +72,7 @@ M.check_cwd = function()
       'CWD changed since last check, resetting session and context',
       { current_cwd = state.current_cwd, new_cwd = vim.fn.getcwd() }
     )
-    state.current_cwd = vim.fn.getcwd()
+    state.context.set_current_cwd(vim.fn.getcwd())
     state.session.clear_active()
     context.unload_attachments()
   end
@@ -130,7 +130,7 @@ M.open = Promise.async(function(opts)
   local ok, err = pcall(function()
     if opts.new_session then
       state.session.clear_active()
-      state.last_sent_context = nil
+      state.session.set_last_sent_context(nil)
       context.unload_attachments()
 
       M.ensure_current_mode():await()
@@ -187,7 +187,7 @@ M.send_message = Promise.async(function(prompt, opts)
   opts = opts or {}
 
   opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
-  state.current_context_config = opts.context
+  state.context.set_current_context_config(opts.context)
   context.load()
   opts.model = opts.model or M.initialize_current_model():await()
   opts.agent = opts.agent or state.current_mode or config.default_mode
@@ -223,7 +223,7 @@ M.send_message = Promise.async(function(prompt, opts)
     local sent_message_count = vim.deepcopy(state.user_message_count)
     local new_value = (sent_message_count[session_id] or 0) + num
     sent_message_count[session_id] = new_value >= 0 and new_value or 0
-    state.user_message_count = sent_message_count
+    state.session.set_user_message_count(sent_message_count)
   end
 
   update_sent_message_count(1)
@@ -267,7 +267,7 @@ end)
 ---@param prompt string
 function M.after_run(prompt)
   context.unload_attachments()
-  state.last_sent_context = vim.deepcopy(context.get_context())
+  state.session.set_last_sent_context(vim.deepcopy(context.get_context()))
   context.delta_context()
   require('opencode.history').write(prompt)
   M._abort_count = 0
@@ -437,7 +437,7 @@ M.opencode_ok = Promise.async(function()
   if not state.opencode_cli_version or state.opencode_cli_version == '' then
     local result = Promise.system({ config.opencode_executable, '--version' }):await()
     local out = (result and result.stdout or ''):gsub('%s+$', '')
-    state.opencode_cli_version = out:match('(%d+%%.%d+%%.%d+)') or out
+    state.jobs.set_opencode_cli_version(out:match('(%d+%%.%d+%%.%d+)') or out)
   end
 
   local required = state.required_version
@@ -581,7 +581,7 @@ M.handle_directory_change = Promise.async(function()
   vim.notify('Loading last session for new working dir [' .. cwd .. ']', vim.log.levels.INFO)
 
   state.session.clear_active()
-  state.last_sent_context = nil
+  state.session.set_last_sent_context(nil)
   context.unload_attachments()
 
   state.session.set_active(session.get_last_workspace_session():await() or M.create_new_session():await())
@@ -615,7 +615,7 @@ function M.setup()
     M.opencode_ok()
   end)
   local OpencodeApiClient = require('opencode.api_client')
-  state.api_client = OpencodeApiClient.create()
+  state.jobs.set_api_client(OpencodeApiClient.create())
 end
 
 return M

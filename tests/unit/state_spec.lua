@@ -2,18 +2,18 @@
 -- Tests for the observable state module
 
 local state = require('opencode.state')
-local store = require('opencode.state.store')
 
 describe('opencode.state (observable)', function()
   it('notifies listeners on key change', function()
     local called = false
     local changed_key, new_val, old_val
-    state.subscribe('messages', function(key, newv, oldv)
+    local cb = function(key, newv, oldv)
       called = true
       changed_key = key
       new_val = newv
       old_val = oldv
-    end)
+    end
+    state.subscribe('messages', cb)
     state.renderer.set_messages({ { id = 'test' } })
     vim.wait(50, function()
       return called == true
@@ -23,18 +23,19 @@ describe('opencode.state (observable)', function()
     assert.same({ { id = 'test' } }, new_val)
     -- Clean up
     state.renderer.set_messages(nil)
-    state.unsubscribe('messages', nil)
+    state.unsubscribe('messages', cb)
   end)
 
   it('notifies wildcard listeners on any key change', function()
     local called = false
     local changed_key, new_val, old_val
-    state.subscribe('*', function(key, newv, oldv)
+    local cb = function(key, newv, oldv)
       called = true
       changed_key = key
       new_val = newv
       old_val = oldv
-    end)
+    end
+    state.subscribe('*', cb)
     state.renderer.set_cost(99)
     vim.wait(50, function()
       return called == true
@@ -44,7 +45,7 @@ describe('opencode.state (observable)', function()
     assert.equals(99, new_val)
     -- Clean up
     state.renderer.set_cost(0)
-    state.unsubscribe('*', nil)
+    state.unsubscribe('*', cb)
   end)
 
   it('can unregister listeners', function()
@@ -87,9 +88,10 @@ describe('opencode.state (observable)', function()
 
   it('does not notify if value is unchanged', function()
     local called = false
-    state.subscribe('tokens_count', function()
+    local cb = function()
       called = true
-    end)
+    end
+    state.subscribe('tokens_count', cb)
     state.renderer.set_tokens_count(42)
     vim.wait(50, function()
       return called == true
@@ -100,7 +102,7 @@ describe('opencode.state (observable)', function()
     assert.is_false(called)
     -- Clean up
     state.renderer.set_tokens_count(0)
-    state.unsubscribe('tokens_count', nil)
+    state.unsubscribe('tokens_count', cb)
   end)
 
   it('errors on direct state write', function()

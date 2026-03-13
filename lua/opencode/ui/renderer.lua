@@ -43,9 +43,9 @@ function M.reset()
 
   output_window.clear()
 
-  state.messages = {}
-  state.last_user_message = nil
-  state.tokens_count = 0
+  state.renderer.set_messages({})
+  state.renderer.set_last_user_message(nil)
+  state.renderer.set_tokens_count(0)
 
   local permissions = state.pending_permissions or {}
   if #permissions > 0 and state.api_client then
@@ -54,7 +54,7 @@ function M.reset()
     end
   end
   permission_window.clear_all()
-  state.pending_permissions = {}
+  state.renderer.set_pending_permissions({})
 
   trigger_on_data_rendered()
 end
@@ -118,7 +118,7 @@ local function fetch_session()
     return Promise.new():resolve(nil)
   end
 
-  state.last_user_message = nil
+  state.renderer.set_last_user_message(nil)
   return require('opencode.session').get_messages(session)
 end
 
@@ -300,9 +300,9 @@ function M._set_model_and_mode_from_messages()
 
     if message and message.info then
       if message.info.modelID and message.info.providerID then
-        state.current_model = message.info.providerID .. '/' .. message.info.modelID
+        state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
         if message.info.mode then
-          state.current_mode = message.info.mode
+          state.model.set_mode(message.info.mode)
         end
         return
       end
@@ -697,9 +697,9 @@ function M.on_message_updated(message, revert_index)
 
     M._add_message_to_buffer(msg)
 
-    state.current_message = msg
+    state.renderer.set_current_message(msg)
     if message.info.role == 'user' then
-      state.last_user_message = msg
+      state.renderer.set_last_user_message(msg)
     end
   end
 
@@ -914,6 +914,7 @@ function M.on_session_updated(properties)
   local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
   local previous_title = current_session.title
 
+  -- NOTE: we mutate the existing session object rather than replacing it because it will cause the whole panel to re-render
   if not vim.deep_equal(current_session, updated_session) then
     for key in pairs(current_session) do
       if updated_session[key] == nil then
@@ -964,7 +965,7 @@ function M.on_permission_updated(permission)
 
   -- Add permission to pending queue
   if not state.pending_permissions then
-    state.pending_permissions = {}
+    state.renderer.set_pending_permissions({})
   end
 
   -- Check if permission already exists in queue
@@ -982,7 +983,7 @@ function M.on_permission_updated(permission)
   else
     table.insert(permissions, permission)
   end
-  state.pending_permissions = permissions
+  state.renderer.set_pending_permissions(permissions)
 
   permission_window.add_permission(permission)
 
@@ -1004,7 +1005,7 @@ function M.on_permission_replied(properties)
 
   if permission_id then
     permission_window.remove_permission(permission_id)
-    state.pending_permissions = vim.deepcopy(permission_window.get_all_permissions())
+    state.renderer.set_pending_permissions(vim.deepcopy(permission_window.get_all_permissions()))
     if #state.pending_permissions == 0 then
       M._remove_part_from_buffer('permission-display-part')
       M._remove_message_from_buffer('permission-display-message')
@@ -1205,16 +1206,16 @@ end
 ---@param message OpencodeMessage
 function M._update_stats_from_message(message)
   if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
-    state.current_model = message.info.providerID .. '/' .. message.info.modelID
+    state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
   end
 
   local tokens = message.info.tokens
   if tokens and tokens.input > 0 then
-    state.tokens_count = tokens.input + tokens.output + tokens.cache.read + tokens.cache.write
+    state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
   end
 
   if message.info.cost and type(message.info.cost) == 'number' then
-    state.cost = message.info.cost
+    state.renderer.set_cost(message.info.cost)
   end
 end
 

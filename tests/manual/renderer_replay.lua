@@ -37,7 +37,7 @@ function M.load_events(file_path)
   vim.notify('Loaded ' .. #M.events .. ' events from ' .. data_file, vim.log.levels.INFO)
 
   ---@diagnostic disable-next-line: missing-fields
-  state.active_session = helpers.get_session_from_events(M.events)
+  state.session.set_active(helpers.get_session_from_events(M.events))
 
   return true
 end
@@ -95,7 +95,7 @@ function M.replay_all(delay_ms)
     return
   end
 
-  state.job_count = 1
+  state.jobs.set_count(1)
 
   -- This defer loop will fill the event manager throttling emitter and that
   -- emitter will drain the events through event manager, which
@@ -103,7 +103,7 @@ function M.replay_all(delay_ms)
   local function tick()
     M.replay_next()
     if M.event_index >= #M.events or M.stop then
-      state.job_count = 0
+      state.jobs.set_count(0)
 
       if M.headless_mode then
         M.dump_buffer_and_quit()
@@ -222,11 +222,11 @@ function M.replay_full_session()
     return false
   end
 
-  state.active_session = helpers.get_session_from_events(M.events, true)
+  state.session.set_active(helpers.get_session_from_events(M.events, true))
   local session_data = helpers.load_session_from_events(M.events)
 
   renderer._render_full_session_data(session_data)
-  state.job_count = 0
+  state.jobs.set_count(0)
 
   vim.notify('Rendered full session from loaded events', vim.log.levels.INFO)
   return true

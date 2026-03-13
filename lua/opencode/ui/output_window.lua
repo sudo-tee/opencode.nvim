@@ -81,7 +81,7 @@ local function set_win_option(opt_name, value, win)
   -- Save original value if using position = 'current'
   if config.ui.position == 'current' then
     if not state.saved_window_options then
-      state.saved_window_options = {}
+      state.ui.set_saved_window_options({})
     end
     -- Only save if not already saved (in case this function is called multiple times)
     if state.saved_window_options[opt_name] == nil then
@@ -261,7 +261,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       local input_window = require('opencode.ui.input_window')
-      state.last_focused_opencode_window = 'output'
+      state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
       vim.cmd('stopinsert')
@@ -273,7 +273,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       local input_window = require('opencode.ui.input_window')
-      state.last_focused_opencode_window = 'output'
+      state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
       vim.cmd('stopinsert')
@@ -284,9 +284,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      local pos = state.get_window_cursor(windows.output_win)
+      local pos = state.ui.get_window_cursor(windows.output_win)
       if pos then
-        state.set_cursor_position('output', pos)
+        state.ui.set_cursor_position('output', pos)
       end
     end,
   })
@@ -318,9 +318,9 @@ function M.setup_autocmds(windows, group)
 
           if visible_bottom < line_count then
             pcall(vim.api.nvim_win_set_cursor, windows.output_win, { visible_bottom, 0 })
-            local pos = state.get_window_cursor(windows.output_win)
+            local pos = state.ui.get_window_cursor(windows.output_win)
             if pos then
-              state.set_cursor_position('output', pos)
+              state.ui.set_cursor_position('output', pos)
             end
           end
         end

@@ -377,11 +377,11 @@ describe('opencode.api', function()
         end
 
         local original_active_session = state.active_session
-        state.active_session = { id = 'test-session' }
+        state.session.set_active({ id = 'test-session' })
 
         local original_api_client = state.api_client
         local send_command_calls = {}
-        state.api_client = {
+        state.jobs.set_api_client({
           send_command = function(self, session_id, command_data)
             table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
             return {
@@ -390,7 +390,7 @@ describe('opencode.api', function()
               end,
             }
           end,
-        }
+        })
 
         local slash_commands = api.get_slash_commands():wait()
 
@@ -427,8 +427,8 @@ describe('opencode.api', function()
         assert.equal('tester', send_command_calls[1].command_data.agent)
 
         config_file.get_user_commands = original_get_user_commands
-        state.active_session = original_active_session
-        state.api_client = original_api_client
+        state.session.set_active(original_active_session)
+        state.jobs.set_api_client(original_api_client)
       end)
     end)
 
@@ -494,17 +494,17 @@ describe('opencode.api', function()
   describe('current_model', function()
     it('returns the current model from state', function()
       local original_model = state.current_model
-      state.current_model = 'testmodel'
+      state.model.set_model('testmodel')
 
       local model = api.current_model():wait()
       assert.equal('testmodel', model)
 
-      state.current_model = original_model
+      state.model.set_model(original_model)
     end)
 
     it('falls back to config file model when state.current_model is nil', function()
       local original_model = state.current_model
-      state.current_model = nil
+      state.model.clear_model()
 
       local config_file = require('opencode.config_file')
       local original_get_opencode_config = config_file.get_opencode_config
@@ -520,7 +520,7 @@ describe('opencode.api', function()
       assert.equal('testmodel', model)
 
       config_file.get_opencode_config = original_get_opencode_config
-      state.current_model = original_model
+      state.model.set_model(original_model)
     end)
   end)
 

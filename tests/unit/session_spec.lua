@@ -145,7 +145,7 @@ describe('opencode.session', function()
     end
 
     -- Mock the api_client to return session data
-    state.api_client = {
+    state.jobs.set_api_client({
       list_sessions = function()
         local sessions = {}
         local session_source = mock_data.session_list or session_list_mock
@@ -191,7 +191,7 @@ describe('opencode.session', function()
         end
         return promise
       end,
-    }
+    })
   end)
 
   -- Clean up after each test
@@ -205,7 +205,7 @@ describe('opencode.session', function()
     vim.fn.json_decode = original_json_decode
     util.is_git_project = original_is_git_project
     config_file.get_opencode_project = original_get_opencode_project
-    state.api_client = original_api_client
+    state.jobs.set_api_client(original_api_client)
     mock_data = {}
   end)
 

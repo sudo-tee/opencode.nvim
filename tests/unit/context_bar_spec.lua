@@ -98,7 +98,7 @@ describe('opencode.ui.context_bar', function()
     vim.wo = {}
 
     -- Reset state
-    state.windows = nil
+    state.ui.set_windows(nil)
   end)
 
   after_each(function()
@@ -120,7 +120,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2001
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -136,7 +136,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2002
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -153,7 +153,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2002
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -172,7 +172,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2003
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -195,7 +195,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2004
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -218,7 +218,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2004
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -240,7 +240,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2005
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -255,7 +255,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2006
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)

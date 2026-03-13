@@ -59,7 +59,7 @@ function M.pick(sessions, callback)
         for _, session in ipairs(sessions_to_delete) do
           if state.active_session and state.active_session.id == session.id then
             vim.notify('deleting current session, creating new session')
-            state.active_session = require('opencode.core').create_new_session():await()
+            state.session.set_active(require('opencode.core').create_new_session():await())
           end
 
           state.api_client:delete_session(session.id):catch(function(err)

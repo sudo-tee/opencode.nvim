@@ -1,4 +1,5 @@
 local state = require('opencode.state')
+local store = require('opencode.state.store')
 local config = require('opencode.config')
 local api = require('opencode.api')
 local ui = require('opencode.ui.ui')
@@ -39,12 +40,24 @@ local stub = require('luassert.stub')
 
 local function mock_api_client()
   return {
-    create_message = function() return Promise.new():resolve({}) end,
-    get_config = function() return Promise.new():resolve({}) end,
-    list_sessions = function() return Promise.new():resolve({}) end,
-    get_session = function() return Promise.new():resolve({}) end,
-    create_session = function() return Promise.new():resolve({}) end,
-    list_messages = function() return Promise.new():resolve({}) end,
+    create_message = function()
+      return Promise.new():resolve({})
+    end,
+    get_config = function()
+      return Promise.new():resolve({})
+    end,
+    list_sessions = function()
+      return Promise.new():resolve({})
+    end,
+    get_session = function()
+      return Promise.new():resolve({})
+    end,
+    create_session = function()
+      return Promise.new():resolve({})
+    end,
+    list_messages = function()
+      return Promise.new():resolve({})
+    end,
   }
 end
 
@@ -120,7 +133,7 @@ describe('persist_state', function()
   end
 
   local function cleanup_hidden_buffers()
-    local hb = state.inspect_hidden_buffers()
+    local hb = state.ui.inspect_hidden_buffers()
     if not hb then
       return
     end
@@ -131,13 +144,13 @@ describe('persist_state', function()
       end
     end
 
-    state.clear_hidden_window_state()
+    state.ui.clear_hidden_window_state()
   end
 
   local function cleanup_windows()
     if state.windows then
       ui.close_windows(state.windows, false)
-      state.windows = nil
+      state.ui.set_windows(nil)
     end
   end
 
@@ -166,32 +179,40 @@ describe('persist_state', function()
     original_api_client = state.api_client
     original_event_manager = state.event_manager
 
-    state.api_client = mock_api_client()
-    state.event_manager = EventManager.new()
-    state.windows = nil
-    state.clear_hidden_window_state()
-    state.current_code_view = nil
-    state.current_code_buf = nil
-    state.last_code_win_before_opencode = nil
-    state.active_session = nil
-    state.messages = {}
+    state.jobs.set_api_client(mock_api_client())
+    state.jobs.set_event_manager(EventManager.new())
+    state.ui.set_windows(nil)
+    state.ui.clear_hidden_window_state()
+    store.set('current_code_view', nil)
+    store.set('current_code_buf', nil)
+    store.set('last_code_win_before_opencode', nil)
+    state.session.set_active(nil)
+    state.renderer.set_messages({})
 
     -- Mock opencode_server to prevent spawning real process in CI
     local opencode_server = require('opencode.opencode_server')
     original_opencode_server_new = opencode_server.new
     local mock_server = {
       url = 'http://127.0.0.1:4000',
-      is_running = function() return true end,
+      is_running = function()
+        return true
+      end,
       spawn = function() end,
-      shutdown = function() return Promise.new():resolve(true) end,
-      get_spawn_promise = function() return Promise.new():resolve(mock_server) end,
-      get_shutdown_promise = function() return Promise.new():resolve(true) end,
+      shutdown = function()
+        return Promise.new():resolve(true)
+      end,
+      get_spawn_promise = function()
+        return Promise.new():resolve(mock_server)
+      end,
+      get_shutdown_promise = function()
+        return Promise.new():resolve(true)
+      end,
     }
     opencode_server.new = function()
       return mock_server
     end
     -- Pre-set the server to skip ensure_server
-    state.opencode_server = mock_server
+    store.set('opencode_server', mock_server)
   end)
 
   after_each(function()
@@ -216,13 +237,13 @@ describe('persist_state', function()
       end)
     end
 
-    state.event_manager = original_event_manager
-    state.api_client = original_api_client
+    state.jobs.set_event_manager(original_event_manager)
+    state.jobs.set_api_client(original_api_client)
     config.values = original_config
-    state.current_code_view = nil
-    state.current_code_buf = nil
-    state.last_code_win_before_opencode = nil
-    state.clear_hidden_window_state()
+    store.set('current_code_view', nil)
+    store.set('current_code_buf', nil)
+    store.set('last_code_win_before_opencode', nil)
+    state.ui.clear_hidden_window_state()
 
     -- Restore mocked opencode_server
     if original_opencode_server_new then
@@ -259,7 +280,7 @@ describe('persist_state', function()
 
       assert.is_function(ui.has_hidden_buffers)
       assert.is_true(ui.has_hidden_buffers())
-      local hidden = state.inspect_hidden_buffers()
+      local hidden = state.ui.inspect_hidden_buffers()
       assert.is_not_nil(hidden)
       assert.equals(footer_buf, hidden.footer_buf)
       assert.is_true(vim.api.nvim_buf_is_valid(input_buf))
@@ -282,7 +303,7 @@ describe('persist_state', function()
       ui.close_windows(windows, true)
       assert.is_true(ui.has_hidden_buffers())
 
-      local hidden = state.inspect_hidden_buffers()
+      local hidden = state.ui.inspect_hidden_buffers()
       local invalid_buf = hidden and hidden.input_buf
       if invalid_buf and vim.api.nvim_buf_is_valid(invalid_buf) then
         vim.api.nvim_buf_delete(invalid_buf, { force = true })
@@ -411,7 +432,7 @@ describe('persist_state', function()
           name = 'invalid_state_settles',
           run = function()
             cleanup_windows()
-            state.windows = { input_win = 99999 }
+            state.ui.set_windows({ input_win = 99999 })
 
             local settled = false
             local p = api.toggle(false)
@@ -426,7 +447,7 @@ describe('persist_state', function()
             end, 50)
 
             assert.is_true(settled)
-            state.windows = nil
+            state.ui.set_windows(nil)
           end,
         },
       }
@@ -510,7 +531,12 @@ describe('persist_state', function()
             write_lines(state.windows.output_buf, output_lines)
             vim.api.nvim_set_current_win(state.windows.output_win)
             vim.api.nvim_win_set_cursor(state.windows.output_win, { 40, 0 })
-            return { expected_win_fn = function() return state.windows.output_win end, expected_cursor = { 40, 0 } }
+            return {
+              expected_win_fn = function()
+                return state.windows.output_win
+              end,
+              expected_cursor = { 40, 0 },
+            }
           end,
           assert_after = function(ctx)
             assert.equals(ctx.expected_win_fn(), vim.api.nvim_get_current_win())
@@ -529,7 +555,12 @@ describe('persist_state', function()
             vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { 'i1', 'i2', 'i3' })
             vim.api.nvim_set_current_win(state.windows.input_win)
             vim.api.nvim_win_set_cursor(state.windows.input_win, { 2, 1 })
-            return { expected_win_fn = function() return state.windows.input_win end, expected_cursor = { 2, 1 } }
+            return {
+              expected_win_fn = function()
+                return state.windows.input_win
+              end,
+              expected_cursor = { 2, 1 },
+            }
           end,
           assert_after = function(ctx)
             assert.equals(ctx.expected_win_fn(), vim.api.nvim_get_current_win())
@@ -621,8 +652,8 @@ describe('persist_state', function()
 
       local event_manager = state.event_manager
       local output_buf = state.windows.output_buf
-      state.active_session = { id = 'test-session' }
-      state.messages = {}
+      state.session.set_active({ id = 'test-session' })
+      state.renderer.set_messages({})
 
       toggle_wait('hidden')
       assert.equals('test-session', state.active_session.id)

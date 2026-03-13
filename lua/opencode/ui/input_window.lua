@@ -479,7 +479,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       M.refresh_placeholder(windows)
-      state.last_focused_opencode_window = 'input'
+      state.ui.set_last_focused_window('input')
       require('opencode.ui.context_bar').render()
     end,
   })
@@ -511,7 +511,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
-      state.input_content = input_lines
+      state.ui.set_input_content(input_lines)
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
       M.schedule_resize(windows)
@@ -522,9 +522,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.input_buf,
     callback = function()
-      local pos = state.get_window_cursor(windows.input_win)
+      local pos = state.ui.get_window_cursor(windows.input_win)
       if pos then
-        state.set_cursor_position('input', pos)
+        state.ui.set_cursor_position('input', pos)
       end
     end,
   })
@@ -559,9 +559,9 @@ function M._hide()
   M._hidden = true
   M._toggling = true
 
-  local pos = state.get_window_cursor(windows.input_win)
+  local pos = state.ui.get_window_cursor(windows.input_win)
   if pos then
-    state.set_cursor_position('input', pos)
+    state.ui.set_cursor_position('input', pos)
   end
 
   pcall(vim.api.nvim_win_close, windows.input_win, false)

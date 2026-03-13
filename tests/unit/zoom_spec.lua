@@ -43,13 +43,13 @@ describe('ui zoom state', function()
       output_buf = output_buf,
       output_win = output_win,
     }
-    state.windows = windows
-    state.pre_zoom_width = nil
+    state.ui.set_windows(windows)
+    state.ui.set_pre_zoom_width(nil)
   end)
 
   after_each(function()
     vim.o.columns = original_columns
-    state.pre_zoom_width = nil
+    state.ui.set_pre_zoom_width(nil)
 
     if windows then
       pcall(vim.api.nvim_win_close, windows.input_win, true)
@@ -57,7 +57,7 @@ describe('ui zoom state', function()
       pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
     end
-    state.windows = nil
+    state.ui.clear_windows()
   end)
 
   describe('toggle_zoom', function()
@@ -109,7 +109,7 @@ describe('ui zoom state', function()
     end)
 
     it('does not change input window width when zoomed', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
       local original_width = vim.api.nvim_win_get_width(windows.input_win)
 
       input_window.update_dimensions(windows)
@@ -119,7 +119,7 @@ describe('ui zoom state', function()
     end)
 
     it('preserves zoom state after update_dimensions', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       input_window.update_dimensions(windows)
 
@@ -211,7 +211,7 @@ describe('ui zoom state', function()
     end)
 
     it('uses zoom_width when zoomed', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       output_window.update_dimensions(windows)
 
@@ -222,7 +222,7 @@ describe('ui zoom state', function()
     end)
 
     it('preserves zoom state after update_dimensions', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       output_window.update_dimensions(windows)
 
@@ -281,7 +281,7 @@ describe('ui zoom state', function()
     it('does not save width in dialog mode (position=current)', function()
       local original_position = config.ui.position
       config.ui.position = 'current'
-      state.last_window_width_ratio = nil
+      state.ui.clear_last_window_width_ratio()
 
       ui.hide_visible_windows(windows)
       assert.is_nil(state.last_window_width_ratio)
@@ -302,7 +302,7 @@ describe('ui zoom state', function()
     end)
 
     it('prefers saved width over zoom width', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
       local saved_ratio = 0.5
       windows.saved_width_ratio = saved_ratio
 

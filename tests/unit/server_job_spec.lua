@@ -138,14 +138,14 @@ describe('server_job', function()
         return false
       end
 
-      state.opencode_server = nil
+      state.jobs.clear_server()
     end)
 
     after_each(function()
       config.values.server.port = original_port
       config.values.server.url = original_url
       config.values.server.spawn_command = original_spawn_command
-      state.opencode_server = original_opencode_server
+      state.jobs.set_server(original_opencode_server)
 
       port_mapping.find_any_existing_port = original_find_any_existing_port
       port_mapping.find_port_for_directory = original_find_port_for_directory

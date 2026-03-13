@@ -24,10 +24,12 @@ local toggleable_context_keys = {
 local function ensure_context_state(context_key)
   local current_config = state.current_context_config or {}
   local current = current_config[context_key]
+  local new_config = vim.deepcopy(current_config)
   local defaults = vim.tbl_get(config, 'context', context_key) or {}
-  current_config[context_key] = vim.tbl_deep_extend('force', {}, defaults, current or {})
-  state.context.set_current_context_config(current_config)
-  return current_config[context_key]
+
+  new_config[context_key] = vim.tbl_deep_extend('force', {}, defaults, current or {})
+  state.context.set_current_context_config(new_config)
+  return new_config[context_key]
 end
 
 M.ChatContext = ChatContext

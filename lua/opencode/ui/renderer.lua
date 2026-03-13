@@ -914,6 +914,7 @@ function M.on_session_updated(properties)
   local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
   local previous_title = current_session.title
 
+  -- NOTE: we mutate the existing session object rather than replacing it because it will cause the whole panel to re-render
   if not vim.deep_equal(current_session, updated_session) then
     for key in pairs(current_session) do
       if updated_session[key] == nil then

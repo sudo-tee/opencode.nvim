@@ -12,7 +12,7 @@ local store = require('opencode.state.store')
 ---@field set_current_code_buf fun(bufnr: integer|nil)
 ---@field set_last_window_width_ratio fun(ratio: number|nil)
 ---@field clear_last_window_width_ratio fun()
----@field set_input_content fun(lines: table)
+---@field set_input_content fun(lines: table|nil)
 ---@field set_saved_window_options fun(opts: table|nil)
 ---@field set_pre_zoom_width fun(width: integer|nil)
 
@@ -72,7 +72,7 @@ function M.clear_last_window_width_ratio()
   return store.set('last_window_width_ratio', nil)
 end
 
----@param lines table
+---@param lines table<string>|nil
 function M.set_input_content(lines)
   return store.set('input_content', lines)
 end

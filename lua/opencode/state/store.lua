@@ -2,8 +2,6 @@
 ---@field source? 'helper'|'raw'
 ---@field silent? boolean
 
----@alias StateValue<K> K extends keyof OpencodeState and StateValue<K> or never
-
 local M = {}
 
 ---@type OpencodeState
@@ -72,13 +70,11 @@ function M.get(key)
   return _state[key]
 end
 
-local c = M.get('user_message_counte')
-
 ---@generic K extends keyof OpencodeState
 ---@param key K
----@param value StateValue<K>
+---@param value OpencodeState[K]
 ---@param opts? OpencodeProtectedStateSetOptions
----@return StateValue<K>
+---@return OpencodeState[K]
 function M.set(key, value, opts)
   local old = _state[key]
   opts = opts or { source = 'helper' }
@@ -97,9 +93,9 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K
----@param value StateValue<K>
+---@param value OpencodeState[K]
 ---@param opts? OpencodeProtectedStateSetOptions
----@return StateValue<K>
+---@return OpencodeState[K]
 function M.set_raw(key, value, opts)
   local next_opts = vim.tbl_extend('force', { source = 'raw' }, opts or {})
   return M.set(key, value, next_opts)
@@ -107,9 +103,9 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K
----@param updater fun(current: StateValue<K>): StateValue<K>
+---@param updater fun(current: OpencodeState[K]): OpencodeState[K]
 ---@param opts? OpencodeProtectedStateSetOptions
----@return StateValue<K>
+---@return OpencodeState[K]
 function M.update(key, updater, opts)
   local next_value = updater(_state[key])
   M.set(key, next_value, opts)
@@ -118,7 +114,7 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K|K[]|nil
----@param cb fun(key:K, new_val:StateValue<K>, old_val:StateValue<K>)
+---@param cb fun(key:K, new_val:OpencodeState[K], old_val:OpencodeState[K])
 function M.subscribe(key, cb)
   if type(key) == 'table' then
     for _, current_key in ipairs(key) do
@@ -143,7 +139,7 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K|nil
----@param cb fun(key:K, new_val:StateValue<K>, old_val:StateValue<K>)
+---@param cb fun(key:K, new_val:OpencodeState[K], old_val:OpencodeState[K])
 function M.unsubscribe(key, cb)
   key = key or '*'
   local list = _listeners[key]
@@ -160,8 +156,8 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K
----@param new_val StateValue<K>
----@param old_val StateValue<K>
+---@param new_val OpencodeState[K]
+---@param old_val OpencodeState[K]
 function M.emit(key, new_val, old_val)
   vim.schedule(function()
     if _listeners[key] then
@@ -183,7 +179,7 @@ end
 
 ---@generic K extends keyof OpencodeState
 ---@param key K
----@param value StateValue<K> extends any[] and StateValue<K>[integer] or never
+---@param value OpencodeState[K] extends any[] and OpencodeState[K][integer] or never
 function M.append(key, value)
   if type(value) ~= 'table' then
     error('Value must be a table to append')

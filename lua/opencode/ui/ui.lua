@@ -13,8 +13,8 @@ local M = {}
 ---@return {input: integer[]|nil, output: integer[]|nil}
 local function capture_cursors_position(windows)
   return {
-    input = state.get_window_cursor(windows.input_win),
-    output = state.get_window_cursor(windows.output_win),
+    input = state.ui.get_window_cursor(windows.input_win),
+    output = state.ui.get_window_cursor(windows.output_win),
   }
 end
 
@@ -76,7 +76,7 @@ local function capture_hidden_snapshot(windows)
     output_view = ok and type(view) == 'table' and view or nil,
     focused_window = focused,
     position = config.ui.position,
-    owner_tab = state.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
+    owner_tab = state.ui.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
   }
 end
 
@@ -160,7 +160,7 @@ function M.hide_visible_windows(windows)
       state.input_content = lines
     end
   end
-  state.stash_hidden_buffers(snapshot)
+  state.ui.stash_hidden_buffers(snapshot)
   if state.windows == windows then
     state.windows.input_win = nil
     state.windows.output_win = nil
@@ -192,7 +192,7 @@ end
 function M.drop_hidden_snapshot()
   renderer.teardown()
 
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if hidden then
     for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf }) do
       if buf and vim.api.nvim_buf_is_valid(buf) then
@@ -208,7 +208,7 @@ end
 ---Restore windows using preserved buffers
 ---@return boolean success
 function M.restore_hidden_windows()
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if not hidden then
     return false
   end
@@ -263,7 +263,7 @@ function M.restore_hidden_windows()
     if hidden.output_was_at_bottom then
       renderer.scroll_to_bottom(true)
     else
-      restore_window_cursor(w.output_win, w.output_buf, state.get_cursor_position('output'))
+      restore_window_cursor(w.output_win, w.output_buf, state.ui.get_cursor_position('output'))
       if type(hidden.output_view) == 'table' then
         pcall(vim.api.nvim_win_call, w.output_win, function()
           vim.fn.winrestview(hidden.output_view)
@@ -272,7 +272,7 @@ function M.restore_hidden_windows()
     end
 
     if not hidden.input_hidden then
-      restore_window_cursor(w.input_win, w.input_buf, state.get_cursor_position('input'))
+      restore_window_cursor(w.input_win, w.input_buf, state.ui.get_cursor_position('input'))
     end
   end)
 

@@ -25,7 +25,7 @@ M.select_session = Promise.async(function(parent_id)
 
   ui.select_session(filtered_sessions, function(selected_session)
     if not selected_session then
-      if state.is_visible() then
+      if state.ui.is_visible() then
         ui.focus_input()
       end
       return
@@ -43,7 +43,7 @@ M.switch_session = Promise.async(function(session_id)
 
   state.session.set_active(selected_session)
   state.session.reset_restore_points()
-  if state.is_visible() then
+  if state.ui.is_visible() then
     ui.focus_input()
   else
     M.open()
@@ -52,7 +52,7 @@ end)
 
 ---@param opts? OpenOpts
 M.open_if_closed = Promise.async(function(opts)
-  if not state.is_visible() then
+  if not state.ui.is_visible() then
     M.open(opts):await()
   end
 end)
@@ -88,7 +88,7 @@ M.open = Promise.async(function(opts)
     require('opencode.context').load()
   end
 
-  local open_windows_action = opts.open_action or state.resolve_open_windows_action()
+  local open_windows_action = opts.open_action or state.ui.resolve_open_windows_action()
   local are_windows_closed = open_windows_action ~= 'reuse_visible'
   local restoring_hidden = open_windows_action == 'restore_hidden'
 
@@ -286,7 +286,7 @@ end
 function M.configure_provider()
   require('opencode.model_picker').select(function(selection)
     if not selection then
-      if state.is_visible() then
+      if state.ui.is_visible() then
         ui.focus_input()
       end
       return
@@ -298,7 +298,7 @@ function M.configure_provider()
       state.model.set_mode_model_override(state.current_mode, model_str)
     end
 
-    if state.is_visible() then
+    if state.ui.is_visible() then
       ui.focus_input()
     else
       vim.notify('Changed provider to ' .. model_str, vim.log.levels.INFO)
@@ -309,7 +309,7 @@ end
 function M.configure_variant()
   require('opencode.variant_picker').select(function(selection)
     if not selection then
-      if state.is_visible() then
+      if state.ui.is_visible() then
         ui.focus_input()
       end
       return
@@ -317,7 +317,7 @@ function M.configure_variant()
 
     state.model.set_variant(selection.name)
 
-    if state.is_visible() then
+    if state.ui.is_visible() then
       ui.focus_input()
     else
       vim.notify('Changed variant to ' .. selection.name, vim.log.levels.INFO)
@@ -417,7 +417,7 @@ M.cancel = Promise.async(function()
     end
   end
 
-  if state.is_visible() then
+  if state.ui.is_visible() then
     require('opencode.ui.footer').clear()
     input_window.set_content('')
     require('opencode.history').index = nil

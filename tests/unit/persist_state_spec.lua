@@ -132,7 +132,7 @@ describe('persist_state', function()
   end
 
   local function cleanup_hidden_buffers()
-    local hb = state.inspect_hidden_buffers()
+    local hb = state.ui.inspect_hidden_buffers()
     if not hb then
       return
     end
@@ -279,7 +279,7 @@ describe('persist_state', function()
 
       assert.is_function(ui.has_hidden_buffers)
       assert.is_true(ui.has_hidden_buffers())
-      local hidden = state.inspect_hidden_buffers()
+      local hidden = state.ui.inspect_hidden_buffers()
       assert.is_not_nil(hidden)
       assert.equals(footer_buf, hidden.footer_buf)
       assert.is_true(vim.api.nvim_buf_is_valid(input_buf))
@@ -302,7 +302,7 @@ describe('persist_state', function()
       ui.close_windows(windows, true)
       assert.is_true(ui.has_hidden_buffers())
 
-      local hidden = state.inspect_hidden_buffers()
+      local hidden = state.ui.inspect_hidden_buffers()
       local invalid_buf = hidden and hidden.input_buf
       if invalid_buf and vim.api.nvim_buf_is_valid(invalid_buf) then
         vim.api.nvim_buf_delete(invalid_buf, { force = true })

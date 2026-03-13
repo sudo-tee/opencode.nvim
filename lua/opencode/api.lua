@@ -61,7 +61,7 @@ end
 
 ---@return {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
 function M.get_window_state()
-  return state.get_window_state()
+  return state.ui.get_window_state()
 end
 
 ---@param hidden OpencodeHiddenBuffers|nil
@@ -82,7 +82,7 @@ end
 ---@return {focus: 'input'|'output', open_action: 'reuse_visible'|'restore_hidden'|'create_fresh'}
 local function build_toggle_open_context(restore_hidden)
   if restore_hidden then
-    local hidden = state.inspect_hidden_buffers()
+    local hidden = state.ui.inspect_hidden_buffers()
     return {
       focus = resolve_hidden_focus(hidden),
       open_action = 'restore_hidden',
@@ -329,7 +329,7 @@ function M.set_review_breakpoint()
 end
 
 function M.prev_history()
-  if not state.is_visible() then
+  if not state.ui.is_visible() then
     return
   end
   local prev_prompt = history.prev()
@@ -340,7 +340,7 @@ function M.prev_history()
 end
 
 function M.next_history()
-  if not state.is_visible() then
+  if not state.ui.is_visible() then
     return
   end
   local next_prompt = history.next()
@@ -575,7 +575,7 @@ function M.help()
     '|--------------|-------------|',
   }, false)
 
-  if not state.is_visible() or not state.windows.output_win then
+  if not state.ui.is_visible() or not state.windows.output_win then
     return
   end
 

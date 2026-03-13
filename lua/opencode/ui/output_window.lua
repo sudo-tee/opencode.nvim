@@ -318,9 +318,9 @@ function M.setup_autocmds(windows, group)
 
           if visible_bottom < line_count then
             pcall(vim.api.nvim_win_set_cursor, windows.output_win, { visible_bottom, 0 })
-            local pos = state.get_window_cursor(windows.output_win)
+            local pos = state.ui.get_window_cursor(windows.output_win)
             if pos then
-              state.set_cursor_position('output', pos)
+              state.ui.set_cursor_position('output', pos)
             end
           end
         end

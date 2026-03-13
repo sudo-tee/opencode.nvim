@@ -105,21 +105,6 @@
 ---@field subscribe fun(key:string|string[]|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field unsubscribe fun(key:string|nil, cb:fun(key:string, new_val:any, old_val:any))
 ---@field is_running fun():boolean
----@field get_window_state fun(): {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
----@field is_window_in_current_tab fun(win_id: integer|nil): boolean
----@field are_windows_in_current_tab fun(): boolean
----@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
----@field set_cursor_position fun(win_type: 'input'|'output', pos: integer[]|nil)
----@field get_cursor_position fun(win_type: 'input'|'output'): integer[]|nil
----@field stash_hidden_buffers fun(hidden: OpencodeHiddenBuffers|nil)
----@field inspect_hidden_buffers fun(): OpencodeHiddenBuffers|nil
----@field is_hidden_snapshot_in_current_tab fun(): boolean
----@field clear_hidden_window_state fun()
----@field has_hidden_buffers fun(): boolean
----@field consume_hidden_buffers fun(): OpencodeHiddenBuffers|nil
----@field resolve_toggle_decision fun(persist_state: boolean, has_display_route: boolean): OpencodeToggleDecision
----@field resolve_open_windows_action fun(): 'reuse_visible'|'restore_hidden'|'create_fresh'
----@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
 ---@field session OpencodeSessionStateMutations
 ---@field jobs OpencodeJobStateMutations
 ---@field ui OpencodeUiStateMutations
@@ -139,21 +124,6 @@ local M = {
   ui = ui,
   model = model,
   test_helpers = test_helpers,
-  is_window_in_current_tab = ui.is_window_in_current_tab,
-  are_windows_in_current_tab = ui.are_windows_in_current_tab,
-  is_visible = ui.is_visible,
-  get_window_state = ui.get_window_state,
-  get_window_cursor = ui.get_window_cursor,
-  set_cursor_position = ui.set_cursor_position,
-  get_cursor_position = ui.get_cursor_position,
-  stash_hidden_buffers = ui.stash_hidden_buffers,
-  inspect_hidden_buffers = ui.inspect_hidden_buffers,
-  is_hidden_snapshot_in_current_tab = ui.is_hidden_snapshot_in_current_tab,
-  clear_hidden_window_state = ui.clear_hidden_window_state,
-  has_hidden_buffers = ui.has_hidden_buffers,
-  consume_hidden_buffers = ui.consume_hidden_buffers,
-  resolve_toggle_decision = ui.resolve_toggle_decision,
-  resolve_open_windows_action = ui.resolve_open_windows_action,
   subscribe = store.subscribe,
   unsubscribe = store.unsubscribe,
   notify = store.notify,

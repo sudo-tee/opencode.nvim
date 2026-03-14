@@ -7,11 +7,11 @@ function M.setup_autocmds(windows)
   input_window.setup_autocmds(windows, group)
   output_window.setup_autocmds(windows, group)
 
-  -- Only keep shared autocmds here (e.g., WinClosed, WinLeave for all windows)
-  local wins = { windows.input_win, windows.output_win, windows.footer_win }
+  -- Use a global WinClosed handler that does live lookups to handle
+  -- the case where input_win is recreated (new ID) after a hide/show cycle.
   vim.api.nvim_create_autocmd('WinClosed', {
     group = group,
-    pattern = table.concat(wins, ','),
+    pattern = '*',
     callback = function(opts)
       -- Don't close everything if we're just toggling the input window
       if input_window._toggling then
@@ -19,11 +19,25 @@ function M.setup_autocmds(windows)
       end
 
       local closed_win = tonumber(opts.match)
-      if vim.tbl_contains(wins, closed_win) then
-        vim.schedule(function()
-          require('opencode.ui.ui').teardown_visible_windows(windows)
-        end)
+
+      -- Live lookup: get the current opencode window IDs at the time of the event
+      local is_output_win = closed_win == windows.output_win
+      local is_input_win = windows.input_win ~= nil and closed_win == windows.input_win
+      local is_footer_win = windows.footer_win ~= nil and closed_win == windows.footer_win
+
+      if not is_output_win and not is_input_win and not is_footer_win then
+        return
       end
+
+      -- If a non-output opencode window was closed (e.g. input/footer via <C-w>o),
+      -- and the output window is still valid, don't tear down the whole UI.
+      if not is_output_win and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
+        return
+      end
+
+      vim.schedule(function()
+        require('opencode.ui.ui').teardown_visible_windows(windows)
+      end)
     end,
   })
 

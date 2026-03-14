@@ -27,6 +27,37 @@ function M.toggle_input()
   input_window.toggle()
 end
 
+---Close all windows except the opencode output and input windows (like <C-w>o but opencode-aware).
+---If input is hidden it will be shown after closing other windows.
+function M.only_opencode()
+  local windows = state.windows
+  if not windows or not windows.output_win then
+    return
+  end
+
+  -- Collect all windows in the current tabpage that are NOT opencode windows
+  local tabpage = vim.api.nvim_get_current_tabpage()
+  local all_wins = vim.api.nvim_tabpage_list_wins(tabpage)
+  for _, win in ipairs(all_wins) do
+    if win ~= windows.output_win
+      and win ~= windows.input_win
+      and win ~= windows.footer_win
+      and vim.api.nvim_win_is_valid(win)
+    then
+      local cfg = vim.api.nvim_win_get_config(win)
+      -- Skip floating windows that don't belong to opencode
+      if cfg.relative == '' then
+        pcall(vim.api.nvim_win_close, win, false)
+      end
+    end
+  end
+
+  -- If input was hidden, show it
+  if input_window.is_hidden() then
+    input_window._show()
+  end
+end
+
 function M.open_input()
   return core.open({ new_session = false, focus = 'input', start_insert = true })
 end
@@ -1106,6 +1137,13 @@ M.commands = {
     desc = 'Close opencode windows',
     fn = function(args)
       M.close()
+    end,
+  },
+
+  only_opencode = {
+    desc = 'Close all non-opencode windows (keep output + input)',
+    fn = function()
+      M.only_opencode()
     end,
   },
 

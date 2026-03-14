@@ -268,10 +268,13 @@ function M.setup(windows)
 
   set_buf_option('filetype', 'opencode', windows)
   set_win_option('winhighlight', config.ui.window_highlight, windows)
-  set_win_option('signcolumn', 'yes', windows)
-  set_win_option('cursorline', false, windows)
-  set_win_option('number', false, windows)
-  set_win_option('relativenumber', false, windows)
+
+  -- Apply user-configurable window options
+  local win_opts = config.ui.input.win_options or {}
+  for opt, value in pairs(win_opts) do
+    pcall(set_win_option, opt, value, windows)
+  end
+
   set_buf_option('buftype', 'nofile', windows)
   set_buf_option('bufhidden', 'hide', windows)
   set_buf_option('buflisted', false, windows)

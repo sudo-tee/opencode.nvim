@@ -160,6 +160,16 @@ M.defaults = {
       },
       -- Auto-hide input window when prompt is submitted or focus switches to output window
       auto_hide = false,
+      -- Window-local options applied to the input window.
+      -- Any valid Neovim window option can be added here.
+      -- Users can override these and add any extra option, e.g.:
+      --   win_options = { signcolumn = 'no', cursorline = true, conceallevel = 2 }
+      win_options = {
+        signcolumn = 'yes',
+        cursorline = false,
+        number = false,
+        relativenumber = false,
+      },
     },
     picker = {
       snacks_layout = nil,

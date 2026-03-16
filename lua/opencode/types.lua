@@ -142,11 +142,28 @@
 ---@field highlights? OpencodeHighlightConfig
 ---@field picker OpencodeUIPickerConfig
 
+---Window-local options applied to the input window.
+---Any valid Neovim window-local option (`:h window-variable`) can be set here.
+---Common examples:
+---  signcolumn = 'no'
+---  cursorline = true
+---  number = true
+---  relativenumber = true
+---  foldcolumn = '0'
+---  statuscolumn = ''
+---  conceallevel = 2
+---@class OpencodeUIInputWinOptions : table<string, any>
+---@field signcolumn? string # Value for 'signcolumn' (e.g. 'yes', 'no', 'auto')
+---@field cursorline? boolean
+---@field number? boolean
+---@field relativenumber? boolean
+
 ---@class OpencodeUIInputConfig
 ---@field text { wrap: boolean }
 ---@field min_height number
 ---@field max_height number
 ---@field auto_hide boolean
+---@field win_options? OpencodeUIInputWinOptions # Window-local options applied to the input window. Any valid Neovim window option is accepted.
 
 ---@class OpencodeHighlightConfig
 ---@field vertical_borders? { tool?: { fg?: string, bg?: string }, user?: { fg?: string, bg?: string }, assistant?: { fg?: string, bg?: string } }

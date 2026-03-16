@@ -1,5 +1,30 @@
 local store = require('opencode.state.store')
 
+---@class OpencodeToggleDecision
+---@field action 'open'|'close'|'hide'|'close_hidden'|'restore_hidden'|'migrate'
+
+---@class OpencodeHiddenBuffers
+---@field input_buf integer
+---@field output_buf integer
+---@field footer_buf integer|nil
+---@field output_was_at_bottom boolean
+---@field input_hidden boolean
+---@field input_cursor integer[]|nil
+---@field output_cursor integer[]|nil
+---@field output_view table|nil
+---@field focused_window 'input'|'output'|nil
+---@field position 'right'|'left'|'current'|nil
+---@field owner_tab integer|nil
+
+---@class OpencodeWindowState
+---@field input_win integer|nil
+---@field output_win integer|nil
+---@field footer_win integer|nil
+---@field footer_buf integer|nil
+---@field input_buf integer|nil
+---@field output_buf integer|nil
+---@field output_was_at_bottom boolean|nil
+
 ---@class OpencodeUiStateMutations
 ---@field set_windows fun(windows: OpencodeWindowState|nil)
 ---@field clear_windows fun()

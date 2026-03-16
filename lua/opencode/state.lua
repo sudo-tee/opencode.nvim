@@ -1,1 +1,1 @@
-return require('opencode.state.init')
+return require('opencode.state.init') --[[@as OpencodeStateModule]]

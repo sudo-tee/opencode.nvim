@@ -4,7 +4,49 @@
 
 local M = {}
 
----@type OpencodeState
+---@class OpencodeStateData
+---@field windows OpencodeWindowState|nil
+---@field is_opening boolean
+---@field input_content table
+---@field is_opencode_focused boolean
+---@field last_focused_opencode_window string|nil
+---@field last_input_window_position integer[]|nil
+---@field last_output_window_position integer[]|nil
+---@field last_code_win_before_opencode integer|nil
+---@field current_code_buf number|nil
+---@field current_code_view table|nil
+---@field saved_window_options table|nil
+---@field display_route string|nil
+---@field current_mode string|nil
+---@field last_output number
+---@field last_sent_context OpencodeContext|nil
+---@field current_context_config OpencodeContextConfig|nil
+---@field context_updated_at number|nil
+---@field active_session Session|nil
+---@field restore_points RestorePoint[]
+---@field current_model string|nil
+---@field user_mode_model_map table<string, string>
+---@field current_model_info table|nil
+---@field current_variant string|nil
+---@field messages OpencodeMessage[]|nil
+---@field current_message OpencodeMessage|nil
+---@field last_user_message OpencodeMessage|nil
+---@field pending_permissions OpencodePermission[]
+---@field cost number
+---@field tokens_count number
+---@field job_count number
+---@field user_message_count table<string, number>
+---@field opencode_server OpencodeServer|nil
+---@field api_client OpencodeApiClient|nil
+---@field event_manager EventManager|nil
+---@field pre_zoom_width integer|nil
+---@field last_window_width_ratio number|nil
+---@field required_version string
+---@field opencode_cli_version string|nil
+---@field current_cwd string|nil
+---@field _hidden_buffers OpencodeHiddenBuffers|nil
+
+---@type OpencodeStateData
 local _state = {
   windows = nil,
   is_opening = false,
@@ -49,7 +91,7 @@ local _state = {
 
 local _listeners = {}
 
----@param key string
+---@param key keyof OpencodeStateData
 ---@param opts? OpencodeProtectedStateSetOptions
 local function error_on_raw_write(key, opts)
   if opts and opts.silent then
@@ -63,18 +105,18 @@ function M.state()
   return _state
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@return OpencodeState[K]
+---@return std.RawGet<OpencodeStateData, K>
 function M.get(key)
   return _state[key]
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@param value OpencodeState[K]
+---@param value std.RawGet<OpencodeStateData, K>
 ---@param opts? OpencodeProtectedStateSetOptions
----@return OpencodeState[K]
+---@return std.RawGet<OpencodeStateData, K>
 function M.set(key, value, opts)
   local old = _state[key]
   opts = opts or { source = 'helper' }
@@ -91,30 +133,30 @@ function M.set(key, value, opts)
   return value
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@param value OpencodeState[K]
+---@param value std.RawGet<OpencodeStateData, K>
 ---@param opts? OpencodeProtectedStateSetOptions
----@return OpencodeState[K]
+---@return std.RawGet<OpencodeStateData, K>
 function M.set_raw(key, value, opts)
   local next_opts = vim.tbl_extend('force', { source = 'raw' }, opts or {})
   return M.set(key, value, next_opts)
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@param updater fun(current: OpencodeState[K]): OpencodeState[K]
+---@param updater fun(current: std.RawGet<OpencodeStateData, K>): std.RawGet<OpencodeStateData, K>
 ---@param opts? OpencodeProtectedStateSetOptions
----@return OpencodeState[K]
+---@return std.RawGet<OpencodeStateData, K>
 function M.update(key, updater, opts)
   local next_value = updater(_state[key])
   M.set(key, next_value, opts)
   return next_value
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K|K[]|nil
----@param cb fun(key:K, new_val:OpencodeState[K], old_val:OpencodeState[K])
+---@param cb fun(key:K, new_val:std.RawGet<OpencodeStateData, K>, old_val:std.RawGet<OpencodeStateData, K>)
 function M.subscribe(key, cb)
   if type(key) == 'table' then
     for _, current_key in ipairs(key) do
@@ -137,9 +179,9 @@ function M.subscribe(key, cb)
   table.insert(_listeners[key], cb)
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K|nil
----@param cb fun(key:K, new_val:OpencodeState[K], old_val:OpencodeState[K])
+---@param cb fun(key:K, new_val:std.RawGet<OpencodeStateData, K>, old_val:std.RawGet<OpencodeStateData, K>)
 function M.unsubscribe(key, cb)
   key = key or '*'
   local list = _listeners[key]
@@ -154,10 +196,10 @@ function M.unsubscribe(key, cb)
   end
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@param new_val OpencodeState[K]
----@param old_val OpencodeState[K]
+---@param new_val std.RawGet<OpencodeStateData, K>
+---@param old_val std.RawGet<OpencodeStateData, K>
 function M.emit(key, new_val, old_val)
   vim.schedule(function()
     if _listeners[key] then
@@ -177,9 +219,9 @@ function M.emit(key, new_val, old_val)
   end)
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
----@param value OpencodeState[K] extends any[] and OpencodeState[K][integer] or never
+---@param value std.RawGet<OpencodeStateData, K> extends any[] and std.RawGet<OpencodeStateData, K>[integer] or never
 function M.append(key, value)
   if type(value) ~= 'table' then
     error('Value must be a table to append')
@@ -196,7 +238,7 @@ function M.append(key, value)
   M.emit(key, _state[key], old)
 end
 
----@generic K extends keyof OpencodeState
+---@generic K extends keyof OpencodeStateData
 ---@param key K
 ---@param idx integer
 function M.remove(key, idx)

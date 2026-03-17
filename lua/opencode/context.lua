@@ -168,7 +168,7 @@ end
 --- Captures the current visual selection and returns the text to be inserted inline
 --- into the opencode input buffer, in the form:
 ---
----   Here is some code from <file-path>:
+---   **`path/to/file`**
 ---
 ---   ```<filetype>
 ---   <selected text>
@@ -198,7 +198,7 @@ function M.build_inline_selection_text(range)
 
   local filetype = vim.bo[buf].filetype or ''
   local text = string.format(
-    'Here is some code from %s:\n\n```%s\n%s\n```',
+    '**`%s`**\n\n```%s\n%s\n```',
     file.path,
     filetype,
     current_selection.text

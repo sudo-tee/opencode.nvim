@@ -116,9 +116,9 @@ function M.setup(windows)
   set_buf_option('buflisted', false, windows.output_buf)
   set_buf_option('swapfile', false, windows.output_buf)
 
-  if config.ui.position ~= 'current' then
-    set_win_option('winfixbuf', true, windows.output_win)
-  end
+  require('opencode.ui.buf_fix_win').fix_to_win(windows.output_buf, function()
+    return state.windows and state.windows.output_win
+  end)
   set_win_option('winfixheight', true, windows.output_win)
   set_win_option('winfixwidth', true, windows.output_win)
   set_win_option('signcolumn', 'yes', windows.output_win)

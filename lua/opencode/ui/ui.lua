@@ -108,7 +108,6 @@ end
 local function close_or_restore_output_window(windows)
   if config.ui.position == 'current' then
     if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
-      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
       if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
         pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
       end
@@ -135,7 +134,6 @@ function M.hide_visible_windows(windows)
 
   local snapshot = capture_hidden_snapshot(windows)
 
-  -- Only save width ratio for split modes (not dialog/current mode)
   if config.ui.position ~= 'current' then
     local total_cols = vim.o.columns
     local current_width = vim.api.nvim_win_get_width(windows.output_win)
@@ -328,10 +326,6 @@ function M.create_split_windows(input_buf, output_buf)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')
   local output_win = main_win
-
-  if ui_conf.position == 'current' then
-    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
-  end
 
   vim.api.nvim_win_set_buf(input_win, input_buf)
   vim.api.nvim_win_set_buf(output_win, output_buf)

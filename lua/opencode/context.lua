@@ -165,6 +165,48 @@ function M.add_visual_selection(range)
   return true
 end
 
+--- Captures the current visual selection and returns the text to be inserted inline
+--- into the opencode input buffer, in the form:
+---
+---   Here is some code from <file-path>:
+---
+---   ```<filetype>
+---   <selected text>
+---   ```
+---
+---@param range? OpencodeSelectionRange
+---@return string|nil text The formatted text to insert, or nil on failure
+function M.build_inline_selection_text(range)
+  local buf = vim.api.nvim_get_current_buf()
+
+  if not util.is_buf_a_file(buf) then
+    vim.notify('Cannot add selection: not a file buffer', vim.log.levels.WARN)
+    return nil
+  end
+
+  local current_selection = BaseContext.get_current_selection(nil, range)
+  if not current_selection then
+    vim.notify('No visual selection found', vim.log.levels.WARN)
+    return nil
+  end
+
+  local file = BaseContext.get_current_file_for_selection(buf)
+  if not file then
+    vim.notify('Cannot determine file for selection', vim.log.levels.WARN)
+    return nil
+  end
+
+  local filetype = vim.bo[buf].filetype or ''
+  local text = string.format(
+    'Here is some code from %s:\n\n```%s\n%s\n```',
+    file.path,
+    filetype,
+    current_selection.text
+  )
+
+  return text
+end
+
 function M.add_file(file)
   local is_file = vim.fn.filereadable(file) == 1
   local is_dir = vim.fn.isdirectory(file) == 1

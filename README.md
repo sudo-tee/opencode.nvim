@@ -148,6 +148,7 @@ require('opencode').setup({
       ['<leader>op'] = { 'configure_provider' }, -- Quick provider and model switch from predefined list
       ['<leader>oV'] = { 'configure_variant' }, -- Switch model variant for the current model
       ['<leader>oy'] = { 'add_visual_selection', mode = {'v'} },
+      ['<leader>oY'] = { 'add_visual_selection_inline', mode = {'v'} }, -- Insert visual selection as inline code block in the input buffer
       ['<leader>oz'] = { 'toggle_zoom' }, -- Zoom in/out on the Opencode windows
       ['<leader>ov'] = { 'paste_image'}, -- Paste image from clipboard into current session
       ['<leader>od'] = { 'diff_open' }, -- Opens a diff tab of a modified file since the last opencode prompt
@@ -232,6 +233,7 @@ require('opencode').setup({
       use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
     },
     output = {
+      filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
@@ -645,6 +647,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Toggle reasoning output (thinking steps)                    | `<leader>otr`                         | `:Opencode toggle_reasoning_output`         | `require('opencode.api').toggle_reasoning_output()`                    |
 | Open a quick chat input with selection/current line context | `<leader>o/`                          | `:Opencode quick_chat`                      | `require('opencode.api').quick_chat()`                                 |
 | Add visual selection to context                             | `<leader>oy`                          | `:Opencode add_visual_selection`            | `require('opencode.api').add_visual_selection(opts?)`                  |
+| Insert visual selection inline into input                   | `<leader>oY`                          | `:Opencode add_visual_selection_inline`     | `require('opencode.api').add_visual_selection_inline(opts?)`           |
 
 **add_visual_selection opts:**
 
@@ -653,8 +656,20 @@ The plugin provides the following actions that can be triggered via keymaps, com
 Example keymap for silent add:
 
 ```lua
-['<leader>oY'] = { 'add_visual_selection', { open_input = false }, mode = {'v'} }
+['<leader>oy'] = { 'add_visual_selection', { open_input = false }, mode = {'v'} }
 ```
+
+**add_visual_selection_inline** inserts the visually selected code directly into the input buffer as a Markdown code block, prefixed with the file path:
+
+```
+**`path/to/file.lua`**
+
+```lua
+<selected text>
+```
+```
+
+The cursor is left in normal mode in the input buffer so you can type your prompt around the inserted snippet.
 
 ### Run opts
 

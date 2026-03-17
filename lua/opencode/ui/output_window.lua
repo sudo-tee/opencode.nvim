@@ -6,7 +6,8 @@ M.namespace = vim.api.nvim_create_namespace('opencode_output')
 
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_set_option_value('filetype', 'opencode_output', { buf = output_buf })
+  local filetype = config.ui.output.filetype or 'opencode_output'
+  vim.api.nvim_set_option_value('filetype', filetype, { buf = output_buf })
 
   local buffixwin = require('opencode.ui.buf_fix_win')
   buffixwin.fix_to_win(output_buf, function()

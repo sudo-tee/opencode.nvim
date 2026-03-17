@@ -1085,6 +1085,29 @@ M.add_visual_selection = Promise.async(
   end
 )
 
+M.add_visual_selection_inline = Promise.async(
+  ---@param opts? {open_input?: boolean}
+  ---@param range OpencodeSelectionRange
+  function(opts, range)
+    opts = vim.tbl_extend('force', { open_input = true }, opts or {})
+    local context = require('opencode.context')
+    local text = context.build_inline_selection_text(range)
+
+    if not text then
+      return
+    end
+
+    M.open_input():await()
+    local input_window = require('opencode.ui.input_window')
+    input_window._append_to_input(text)
+    vim.schedule(function()
+      if vim.fn.mode() ~= 'n' then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
+      end
+    end)
+  end
+)
+
 ---@type table<string, OpencodeUICommand>
 M.commands = {
   open = {
@@ -1452,6 +1475,11 @@ M.commands = {
   add_visual_selection = {
     desc = 'Add current visual selection to context',
     fn = M.add_visual_selection,
+  },
+
+  add_visual_selection_inline = {
+    desc = 'Insert visual selection as inline code block in the input buffer',
+    fn = M.add_visual_selection_inline,
   },
 }
 

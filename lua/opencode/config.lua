@@ -40,6 +40,7 @@ M.defaults = {
       ['<leader>op'] =  { 'configure_provider',                                desc = 'Configure provider' },
       ['<leader>oV'] =  { 'configure_variant',                                 desc = 'Configure model variant' },
       ['<leader>oy'] =  { 'add_visual_selection',         mode = { 'v' },      desc = 'Add visual selection to context' },
+      ['<leader>oY'] =  { 'add_visual_selection_inline',  mode = { 'v' },      desc = 'Insert visual selection inline into input' },
       ['<leader>oz'] =  { 'toggle_zoom',                                       desc = 'Toggle zoom' },
       ['<leader>ov'] =  { 'paste_image',                                       desc = 'Paste image from clipboard' },
       ['<leader>od'] =  { 'diff_open',                                         desc = 'Open diff view' },
@@ -137,6 +138,7 @@ M.defaults = {
       frames = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' },
     },
     output = {
+      filetype = 'opencode_output',
       rendering = {
         markdown_debounce_ms = 250,
         on_data_rendered = nil,

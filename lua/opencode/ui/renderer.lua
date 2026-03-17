@@ -731,7 +731,6 @@ function M.on_part_updated(properties, revert_index)
 
   local rendered_message = M._render_state:get_message(part.messageID)
   if not rendered_message or not rendered_message.message then
-    vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
     return
   end
 

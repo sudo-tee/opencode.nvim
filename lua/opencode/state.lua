@@ -80,7 +80,8 @@
 ---@field clear_hidden_window_state fun()
 ---@field has_hidden_buffers fun(): boolean
 ---@field consume_hidden_buffers fun(): OpencodeHiddenBuffers|nil
----@field resolve_toggle_decision fun(persist_state: boolean, has_display_route: boolean): OpencodeToggleDecision
+  ---@field are_opencode_only_windows fun(): boolean
+  ---@field resolve_toggle_decision fun(persist_state: boolean, has_display_route: boolean): OpencodeToggleDecision
 ---@field resolve_open_windows_action fun(): 'reuse_visible'|'restore_hidden'|'create_fresh'
 ---@field get_window_cursor fun(win_id: integer|nil): integer[]|nil
 
@@ -264,6 +265,43 @@ function M.are_windows_in_current_tab()
     or M.is_window_in_current_tab(_state.windows.output_win)
 end
 
+--- Returns true when every normal (non-floating) window in the current tab
+--- belongs to opencode (i.e. there are no code windows open alongside it).
+---@return boolean
+function M.are_opencode_only_windows()
+  local w = _state.windows
+  if not w then
+    return false
+  end
+
+  local opencode_wins = {}
+  if w.input_win and vim.api.nvim_win_is_valid(w.input_win) then
+    opencode_wins[w.input_win] = true
+  end
+  if w.output_win and vim.api.nvim_win_is_valid(w.output_win) then
+    opencode_wins[w.output_win] = true
+  end
+  if w.footer_win and vim.api.nvim_win_is_valid(w.footer_win) then
+    opencode_wins[w.footer_win] = true
+  end
+
+  -- No opencode windows tracked → not an only-opencode situation
+  if vim.tbl_isempty(opencode_wins) then
+    return false
+  end
+
+  local current_tab = vim.api.nvim_get_current_tabpage()
+  for _, win_id in ipairs(vim.api.nvim_tabpage_list_wins(current_tab)) do
+    local cfg = vim.api.nvim_win_get_config(win_id)
+    -- Skip floating windows
+    if cfg.relative == '' and not opencode_wins[win_id] then
+      return false
+    end
+  end
+
+  return true
+end
+
 ---@return boolean
 function M.is_visible()
   return M.get_window_state().status == 'visible'
@@ -274,6 +312,7 @@ end
 ---@field in_tab boolean
 ---@field persist_state boolean
 ---@field has_display_route boolean
+---@field only_windows boolean
 
 ---@generic T
 ---@param rules T[]
@@ -326,6 +365,12 @@ local TOGGLE_ACTION_RULES = {
   {
     action = 'hide',
     when = function(ctx)
+      return ctx.status == 'visible' and ctx.in_tab and ctx.only_windows and not ctx.has_display_route
+    end,
+  },
+  {
+    action = 'hide',
+    when = function(ctx)
       return ctx.status == 'visible' and ctx.in_tab and ctx.persist_state and not ctx.has_display_route
     end,
   },
@@ -348,6 +393,7 @@ local function lookup_toggle_action(status, in_tab, persist_state, has_display_r
     in_tab = in_tab,
     persist_state = persist_state,
     has_display_route = has_display_route,
+    only_windows = M.are_opencode_only_windows(),
   }
 
   local matched_rule = first_matching_rule(TOGGLE_ACTION_RULES, function(rule)

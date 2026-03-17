@@ -1182,7 +1182,7 @@ describe('build_inline_selection_text', function()
     local text = context.build_inline_selection_text()
 
     assert.is_not_nil(text)
-    assert.is_not_nil(text:match('Here is some code from /tmp/test%.lua:'))
+    assert.is_not_nil(text:match('%*%*`/tmp/test%.lua`%*%*'))
     assert.is_not_nil(text:match('```lua'))
     assert.is_not_nil(text:match('function foo%(%)'))
     assert.is_not_nil(text:match('```$'))

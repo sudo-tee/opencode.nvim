@@ -138,6 +138,7 @@ M.defaults = {
       frames = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' },
     },
     output = {
+      filetype = 'opencode_output',
       rendering = {
         markdown_debounce_ms = 250,
         on_data_rendered = nil,

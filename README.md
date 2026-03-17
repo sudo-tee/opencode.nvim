@@ -233,6 +233,7 @@ require('opencode').setup({
       use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
     },
     output = {
+      filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)

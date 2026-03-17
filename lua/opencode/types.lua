@@ -178,6 +178,7 @@
 ---@field tools { show_output: boolean, show_reasoning_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field always_scroll_to_bottom boolean
+---@field filetype string
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config

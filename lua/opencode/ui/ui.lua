@@ -134,6 +134,12 @@ function M.hide_visible_windows(windows)
 
   local snapshot = capture_hidden_snapshot(windows)
 
+  if config.ui.position ~= 'current' then
+    local total_cols = vim.o.columns
+    local current_width = vim.api.nvim_win_get_width(windows.output_win)
+    state.last_window_width_ratio = current_width / total_cols
+  end
+
   state.clear_hidden_window_state()
 
   prepare_window_close()

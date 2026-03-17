@@ -1140,3 +1140,158 @@ describe('add_visual_selection API', function()
     vim.notify = original_notify
   end)
 end)
+
+describe('build_inline_selection_text', function()
+  local context
+  local BaseContext
+  local util
+
+  before_each(function()
+    context = require('opencode.context')
+    BaseContext = require('opencode.context.base_context')
+    util = require('opencode.util')
+  end)
+
+  it('should return formatted inline text for a visual selection', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function()
+      return { text = 'function foo()\n  return 42\nend', lines = '10, 12' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return { path = '/tmp/test.lua', name = 'test.lua', extension = 'lua' }
+    end
+    vim.api.nvim_get_current_buf = function()
+      return 5
+    end
+
+    -- Mock vim.bo to return a filetype
+    local original_bo = vim.bo
+    vim.bo = setmetatable({}, {
+      __index = function(_, buf)
+        return { filetype = 'lua' }
+      end,
+    })
+
+    local text = context.build_inline_selection_text()
+
+    assert.is_not_nil(text)
+    assert.is_not_nil(text:match('%*%*`/tmp/test%.lua`%*%*'))
+    assert.is_not_nil(text:match('```lua'))
+    assert.is_not_nil(text:match('function foo%(%)'))
+    assert.is_not_nil(text:match('```$'))
+
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.bo = original_bo
+  end)
+
+  it('should return nil and notify when not a file buffer', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+
+    util.is_buf_a_file = function()
+      return false
+    end
+    vim.api.nvim_get_current_buf = function()
+      return 10
+    end
+
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    local text = context.build_inline_selection_text()
+
+    assert.is_nil(text)
+    assert.equal(1, #notifications)
+    assert.equal('Cannot add selection: not a file buffer', notifications[1].msg)
+    assert.equal(vim.log.levels.WARN, notifications[1].level)
+
+    util.is_buf_a_file = original_is_buf_a_file
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
+  end)
+
+  it('should return nil and notify when no visual selection found', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function()
+      return nil
+    end
+    vim.api.nvim_get_current_buf = function()
+      return 11
+    end
+
+    local original_notify = vim.notify
+    local notifications = {}
+    vim.notify = function(msg, level)
+      table.insert(notifications, { msg = msg, level = level })
+    end
+
+    local text = context.build_inline_selection_text()
+
+    assert.is_nil(text)
+    assert.equal(1, #notifications)
+    assert.equal('No visual selection found', notifications[1].msg)
+    assert.equal(vim.log.levels.WARN, notifications[1].level)
+
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.notify = original_notify
+  end)
+
+  it('should include the filetype in the code fence', function()
+    local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
+    local original_get_current_buf = vim.api.nvim_get_current_buf
+
+    util.is_buf_a_file = function()
+      return true
+    end
+    BaseContext.get_current_selection = function()
+      return { text = 'const x = 1', lines = '1, 1' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return { path = '/tmp/app.ts', name = 'app.ts', extension = 'ts' }
+    end
+    vim.api.nvim_get_current_buf = function()
+      return 6
+    end
+
+    local original_bo = vim.bo
+    vim.bo = setmetatable({}, {
+      __index = function(_, buf)
+        return { filetype = 'typescript' }
+      end,
+    })
+
+    local text = context.build_inline_selection_text()
+
+    assert.is_not_nil(text)
+    assert.is_not_nil(text:match('```typescript'))
+
+    util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
+    vim.api.nvim_get_current_buf = original_get_current_buf
+    vim.bo = original_bo
+  end)
+end)

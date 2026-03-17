@@ -13,7 +13,7 @@ describe('opencode.state (observable)', function()
       new_val = newv
       old_val = oldv
     end
-    state.subscribe('messages', cb)
+    state.store.subscribe('messages', cb)
     state.renderer.set_messages({ { id = 'test' } })
     vim.wait(50, function()
       return called == true
@@ -23,7 +23,7 @@ describe('opencode.state (observable)', function()
     assert.same({ { id = 'test' } }, new_val)
     -- Clean up
     state.renderer.set_messages(nil)
-    state.unsubscribe('messages', cb)
+    state.store.unsubscribe('messages', cb)
   end)
 
   it('notifies wildcard listeners on any key change', function()
@@ -35,7 +35,7 @@ describe('opencode.state (observable)', function()
       new_val = newv
       old_val = oldv
     end
-    state.subscribe('*', cb)
+    state.store.subscribe('*', cb)
     state.renderer.set_cost(99)
     vim.wait(50, function()
       return called == true
@@ -45,7 +45,7 @@ describe('opencode.state (observable)', function()
     assert.equals(99, new_val)
     -- Clean up
     state.renderer.set_cost(0)
-    state.unsubscribe('*', cb)
+    state.store.unsubscribe('*', cb)
   end)
 
   it('can unregister listeners', function()
@@ -53,12 +53,12 @@ describe('opencode.state (observable)', function()
     local cb = function()
       called = called + 1
     end
-    state.subscribe('tokens_count', cb)
+    state.store.subscribe('tokens_count', cb)
     state.renderer.set_tokens_count(1)
     vim.wait(50, function()
       return called == 1
     end)
-    state.unsubscribe('tokens_count', cb)
+    state.store.unsubscribe('tokens_count', cb)
     state.renderer.set_tokens_count(2)
     vim.wait(50)
     assert.equals(1, called)
@@ -72,8 +72,8 @@ describe('opencode.state (observable)', function()
       called = called + 1
     end
 
-    state.subscribe('cost', cb)
-    state.subscribe('cost', cb)
+    state.store.subscribe('cost', cb)
+    state.store.subscribe('cost', cb)
 
     state.renderer.set_cost(1)
     vim.wait(50, function()
@@ -82,7 +82,7 @@ describe('opencode.state (observable)', function()
 
     assert.equals(1, called)
 
-    state.unsubscribe('cost', cb)
+    state.store.unsubscribe('cost', cb)
     state.renderer.set_cost(0)
   end)
 
@@ -91,7 +91,7 @@ describe('opencode.state (observable)', function()
     local cb = function()
       called = true
     end
-    state.subscribe('tokens_count', cb)
+    state.store.subscribe('tokens_count', cb)
     state.renderer.set_tokens_count(42)
     vim.wait(50, function()
       return called == true
@@ -102,7 +102,7 @@ describe('opencode.state (observable)', function()
     assert.is_false(called)
     -- Clean up
     state.renderer.set_tokens_count(0)
-    state.unsubscribe('tokens_count', cb)
+    state.store.unsubscribe('tokens_count', cb)
   end)
 
   it('errors on direct state write', function()

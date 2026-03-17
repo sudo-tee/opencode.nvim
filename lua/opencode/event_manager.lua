@@ -480,7 +480,7 @@ function EventManager:start()
   self.is_started = true
 
   if self.state_server_listener then
-    state.unsubscribe('opencode_server', self.state_server_listener)
+    state.store.unsubscribe('opencode_server', self.state_server_listener)
   end
 
   self.state_server_listener = function(key, current, prev)
@@ -504,10 +504,10 @@ function EventManager:start()
     end
   end
 
-  state.subscribe('opencode_server', self.state_server_listener)
+  state.store.subscribe('opencode_server', self.state_server_listener)
 
   if self.state_cwd_listener then
-    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    state.store.unsubscribe('current_cwd', self.state_cwd_listener)
   end
 
   self.state_cwd_listener = function(key, new_cwd, old_cwd)
@@ -517,7 +517,7 @@ function EventManager:start()
     end
   end
 
-  state.subscribe('current_cwd', self.state_cwd_listener)
+  state.store.subscribe('current_cwd', self.state_cwd_listener)
 end
 
 function EventManager:stop()
@@ -527,11 +527,11 @@ function EventManager:stop()
 
   self.is_started = false
   if self.state_server_listener then
-    state.unsubscribe('opencode_server', self.state_server_listener)
+    state.store.unsubscribe('opencode_server', self.state_server_listener)
     self.state_server_listener = nil
   end
   if self.state_cwd_listener then
-    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    state.store.unsubscribe('current_cwd', self.state_cwd_listener)
     self.state_cwd_listener = nil
   end
   self:_cleanup_server_subscription()

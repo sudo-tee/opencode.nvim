@@ -9,6 +9,7 @@ local store = require('opencode.state.store')
 ---@field set_api_client fun(client: OpencodeApiClient|nil)
 ---@field set_event_manager fun(manager: EventManager|nil)
 ---@field set_opencode_cli_version fun(version: string|nil)
+---@field is_running fun():boolean
 
 local M = {}
 
@@ -53,6 +54,10 @@ end
 ---@param version string|nil
 function M.set_opencode_cli_version(version)
   return store.set('opencode_cli_version', version)
+end
+
+function M.is_running()
+  return (store.get('job_count') or 0) > 0
 end
 
 return M

@@ -138,7 +138,7 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
-  if not state.is_running() then
+  if not state.jobs.is_running() then
     M.stop()
     return false
   end
@@ -168,7 +168,7 @@ function M._start_animation_timer(windows)
     on_tick = function()
       M._animation.current_frame = M._next_frame()
       M.render(state.windows)
-      if state.is_running() then
+      if state.jobs.is_running() then
         return true
       else
         M.stop()
@@ -222,16 +222,16 @@ local function on_running_change(_, new_value)
 end
 
 function M.setup()
-  state.subscribe('job_count', on_running_change)
-  state.subscribe('active_session', on_active_session_change)
-  state.subscribe('event_manager', on_event_manager_change)
+  state.store.subscribe('job_count', on_running_change)
+  state.store.subscribe('active_session', on_active_session_change)
+  state.store.subscribe('event_manager', on_event_manager_change)
   subscribe_session_status_event(state.event_manager)
 end
 
 function M.teardown()
-  state.unsubscribe('job_count', on_running_change)
-  state.unsubscribe('active_session', on_active_session_change)
-  state.unsubscribe('event_manager', on_event_manager_change)
+  state.store.unsubscribe('job_count', on_running_change)
+  state.store.unsubscribe('active_session', on_active_session_change)
+  state.store.unsubscribe('event_manager', on_event_manager_change)
   unsubscribe_session_status_event(M._animation.status_event_manager)
   M._animation.status_data = nil
 end

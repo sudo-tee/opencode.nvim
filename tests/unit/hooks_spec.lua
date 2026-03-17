@@ -132,7 +132,7 @@ describe('hooks', function()
         return promise
       end
 
-      state.subscribe('user_message_count', core._on_user_message_count_change)
+      state.store.subscribe('user_message_count', core._on_user_message_count_change)
 
       -- Simulate job count change from 1 to 0 (done thinking) for a specific session
       state.session.set_active({ id = 'test-session', title = 'Test' })
@@ -146,7 +146,7 @@ describe('hooks', function()
 
       -- Restore original function
       session_module.get_all_workspace_sessions = original_get_all
-      state.unsubscribe('user_message_count', core._on_user_message_count_change)
+      state.store.unsubscribe('user_message_count', core._on_user_message_count_change)
 
       assert.is_true(called)
       assert.are.equal(called_session.id, 'test-session')
@@ -194,7 +194,7 @@ describe('hooks', function()
       end
 
       -- Set up the subscription manually
-      state.subscribe('pending_permissions', core._on_current_permission_change)
+      state.store.subscribe('pending_permissions', core._on_current_permission_change)
 
       -- Simulate permission change from nil to a value
       state.session.set_active({ id = 'test-session', title = 'Test' })
@@ -207,7 +207,7 @@ describe('hooks', function()
 
       -- Restore original function
       session_module.get_by_id = original_get_by_id
-      state.unsubscribe('pending_permissions', core._on_current_permission_change)
+      state.store.unsubscribe('pending_permissions', core._on_current_permission_change)
 
       assert.is_true(called)
       assert.are.equal(called_session.id, 'test-session')

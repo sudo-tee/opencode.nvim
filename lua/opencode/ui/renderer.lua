@@ -65,11 +65,11 @@ function M.setup_subscriptions(subscribe)
   subscribe = subscribe == nil and true or subscribe
 
   if subscribe then
-    state.subscribe('is_opencode_focused', M.on_focus_changed)
-    state.subscribe('active_session', M.on_session_changed)
+    state.store.subscribe('is_opencode_focused', M.on_focus_changed)
+    state.store.subscribe('active_session', M.on_session_changed)
   else
-    state.unsubscribe('is_opencode_focused', M.on_focus_changed)
-    state.unsubscribe('active_session', M.on_session_changed)
+    state.store.unsubscribe('is_opencode_focused', M.on_focus_changed)
+    state.store.unsubscribe('active_session', M.on_session_changed)
   end
 
   if not state.event_manager then
@@ -1023,7 +1023,7 @@ end
 
 ---@param properties RestorePointCreatedEvent
 function M.on_restore_points(properties)
-  state.append('restore_points', properties.restore_point)
+  state.store.append('restore_points', properties.restore_point)
   if not properties or not properties.restore_point or not properties.restore_point.from_snapshot_id then
     return
   end

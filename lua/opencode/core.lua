@@ -381,7 +381,7 @@ M.cycle_variant = Promise.async(function()
 end)
 
 M.cancel = Promise.async(function()
-  if state.active_session and state.is_running() then
+  if state.active_session and state.jobs.is_running() then
     M._abort_count = M._abort_count + 1
 
     local permissions = state.pending_permissions or {}
@@ -588,10 +588,10 @@ M.handle_directory_change = Promise.async(function()
 end)
 
 function M.setup()
-  state.subscribe('opencode_server', on_opencode_server)
-  state.subscribe('user_message_count', M._on_user_message_count_change)
-  state.subscribe('pending_permissions', M._on_current_permission_change)
-  state.subscribe('current_model', function(key, new_val, old_val)
+  state.store.subscribe('opencode_server', on_opencode_server)
+  state.store.subscribe('user_message_count', M._on_user_message_count_change)
+  state.store.subscribe('pending_permissions', M._on_current_permission_change)
+  state.store.subscribe('current_model', function(key, new_val, old_val)
     if new_val ~= old_val then
       state.model.clear_variant()
 

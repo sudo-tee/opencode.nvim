@@ -14,7 +14,6 @@ local context = require('opencode.state.context')
 ---@field model OpencodeModelStateMutations
 ---@field renderer OpencodeRendererStateMutations
 ---@field context OpencodeContextStateMutations
----@field is_running fun():boolean
 
 ---@alias OpencodeState OpencodeStateModule & OpencodeStateData
 ---@type OpencodeState
@@ -26,16 +25,7 @@ local M = {
   model = model,
   renderer = renderer,
   context = context,
-  subscribe = store.subscribe,
-  unsubscribe = store.unsubscribe,
-  emit = store.emit,
-  append = store.append,
-  remove = store.remove,
 }
-
-function M.is_running()
-  return M.job_count > 0
-end
 
 return setmetatable(M, {
   __index = function(_, key)

@@ -532,7 +532,7 @@ local function create_client(base_url)
     end
   end
 
-  state.subscribe('opencode_server', on_server_change)
+  state.store.subscribe('opencode_server', on_server_change)
 
   return api_client
 end

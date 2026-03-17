@@ -56,7 +56,9 @@ describe('opencode.ui.reference_picker', function()
       event_manager = {
         subscribe = function() end,
       },
-      subscribe = function() end,
+      store = {
+        subscribe = function() end,
+      },
     }
     package.loaded['opencode.state'] = mock_state
 
@@ -653,7 +655,7 @@ describe('opencode.ui.reference_picker', function()
 
     it('subscribes to messages state changes', function()
       local subscriptions = {}
-      mock_state.subscribe = function(key, handler)
+      mock_state.store.subscribe = function(key, handler)
         table.insert(subscriptions, { key = key, handler = handler })
       end
 

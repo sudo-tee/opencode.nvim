@@ -914,21 +914,9 @@ function M.on_session_updated(properties)
   local revert_changed = not vim.deep_equal(current_session.revert, updated_session.revert)
   local previous_title = current_session.title
 
-  -- NOTE: we mutate the existing session object rather than replacing it because it will cause the whole panel to re-render
   if not vim.deep_equal(current_session, updated_session) then
-    for key in pairs(current_session) do
-      if updated_session[key] == nil then
-        current_session[key] = nil
-      end
-    end
-
-    for key, value in pairs(updated_session) do
-      current_session[key] = value
-    end
-
-    if updated_session.title and updated_session.title ~= previous_title then
-      require('opencode.ui.topbar').render()
-    end
+    -- NOTE: we set the session without emitting a change event because we don't want to trigger another rerender.
+    state.store.set_raw('active_session', updated_session)
   end
 
   if revert_changed then

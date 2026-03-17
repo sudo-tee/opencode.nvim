@@ -1,11 +1,11 @@
 local store = require('opencode.state.store')
 
 ---@class OpencodeJobStateMutations
----@field increment_count fun(delta?: integer, opts?: OpencodeProtectedStateSetOptions)
----@field decrement_count fun(delta?: integer, opts?: OpencodeProtectedStateSetOptions)
----@field set_count fun(count: integer, opts?: OpencodeProtectedStateSetOptions)
----@field set_server fun(server: OpencodeServer|nil, opts?: OpencodeProtectedStateSetOptions)
----@field clear_server fun(opts?: OpencodeProtectedStateSetOptions)
+---@field increment_count fun(delta?: integer)
+---@field decrement_count fun(delta?: integer)
+---@field set_count fun(count: integer)
+---@field set_server fun(server: OpencodeServer|nil)
+---@field clear_server fun()
 ---@field set_api_client fun(client: OpencodeApiClient|nil)
 ---@field set_event_manager fun(manager: EventManager|nil)
 ---@field set_opencode_cli_version fun(version: string|nil)
@@ -13,36 +13,31 @@ local store = require('opencode.state.store')
 local M = {}
 
 ---@param delta integer|nil
----@param opts? OpencodeProtectedStateSetOptions
-function M.increment_count(delta, opts)
+function M.increment_count(delta)
   return store.update('job_count', function(current)
     return (current or 0) + (delta or 1)
-  end, opts)
+  end)
 end
 
 ---@param delta integer|nil
----@param opts? OpencodeProtectedStateSetOptions
-function M.decrement_count(delta, opts)
+function M.decrement_count(delta)
   return store.update('job_count', function(current)
     return math.max(0, (current or 0) - (delta or 1))
-  end, opts)
+  end)
 end
 
 ---@param count integer
----@param opts? OpencodeProtectedStateSetOptions
-function M.set_count(count, opts)
-  return store.set('job_count', count, opts)
+function M.set_count(count)
+  return store.set('job_count', count)
 end
 
 ---@param server OpencodeServer|nil
----@param opts? OpencodeProtectedStateSetOptions
-function M.set_server(server, opts)
-  return store.set('opencode_server', server, opts)
+function M.set_server(server)
+  return store.set('opencode_server', server)
 end
 
----@param opts? OpencodeProtectedStateSetOptions
-function M.clear_server(opts)
-  return store.set('opencode_server', nil, opts)
+function M.clear_server()
+  return store.set('opencode_server', nil)
 end
 
 ---@param client OpencodeApiClient|nil

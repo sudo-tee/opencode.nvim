@@ -7,7 +7,7 @@ local renderer = require('opencode.state.renderer')
 local context = require('opencode.state.context')
 
 ---@class OpencodeStateModule
----@field store OpencodeStateStore<OpencodeStateData>
+---@field store OpencodeStateStore
 ---@field session OpencodeSessionStateMutations
 ---@field jobs OpencodeJobStateMutations
 ---@field ui OpencodeUiStateMutations

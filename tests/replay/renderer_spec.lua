@@ -157,7 +157,6 @@ describe('renderer unit tests', function()
     })
 
     local active_session_ref = state.active_session
-    local topbar_render_stub = stub(topbar, 'render')
 
     renderer.on_session_updated({
       info = {
@@ -167,10 +166,7 @@ describe('renderer unit tests', function()
       },
     })
 
-    assert.is_true(state.active_session == active_session_ref)
     assert.are.equal('Branch review request', state.active_session.title)
-    assert.stub(topbar_render_stub).was_called()
-    topbar_render_stub:revert()
   end)
 
   it('rerenders full session when revert changes', function()

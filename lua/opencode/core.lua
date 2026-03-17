@@ -130,7 +130,6 @@ M.open = Promise.async(function(opts)
   local ok, err = pcall(function()
     if opts.new_session then
       state.session.clear_active()
-      state.session.set_last_sent_context(nil)
       context.unload_attachments()
 
       M.ensure_current_mode():await()
@@ -581,7 +580,6 @@ M.handle_directory_change = Promise.async(function()
   vim.notify('Loading last session for new working dir [' .. cwd .. ']', vim.log.levels.INFO)
 
   state.session.clear_active()
-  state.session.set_last_sent_context(nil)
   context.unload_attachments()
 
   state.session.set_active(session.get_last_workspace_session():await() or M.create_new_session():await())

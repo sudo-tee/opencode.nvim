@@ -1,7 +1,4 @@
----@class OpencodeProtectedStateSetOptions
----@field source? 'helper'|'raw'
----@field silent? boolean
-
+---@class OpencodeStateStore
 local M = {}
 
 ---@class OpencodeStateData
@@ -91,16 +88,6 @@ local _state = {
 
 local _listeners = {}
 
----@param key keyof OpencodeStateData
----@param opts? OpencodeProtectedStateSetOptions
-local function error_on_raw_write(key, opts)
-  if opts and opts.silent then
-    return
-  end
-
-  error(string.format('Direct write to state key `%s` is not allowed; use a state domain setter', key), 3)
-end
-
 function M.state()
   return _state
 end
@@ -115,15 +102,9 @@ end
 ---@generic K extends keyof OpencodeStateData
 ---@param key K
 ---@param value std.RawGet<OpencodeStateData, K>
----@param opts? OpencodeProtectedStateSetOptions
 ---@return std.RawGet<OpencodeStateData, K>
-function M.set(key, value, opts)
+function M.set(key, value)
   local old = _state[key]
-  opts = opts or { source = 'helper' }
-
-  if opts.source == 'raw' then
-    error_on_raw_write(key, opts)
-  end
 
   _state[key] = value
   if not vim.deep_equal(old, value) then
@@ -136,21 +117,18 @@ end
 ---@generic K extends keyof OpencodeStateData
 ---@param key K
 ---@param value std.RawGet<OpencodeStateData, K>
----@param opts? OpencodeProtectedStateSetOptions
 ---@return std.RawGet<OpencodeStateData, K>
-function M.set_raw(key, value, opts)
-  local next_opts = vim.tbl_extend('force', { source = 'raw' }, opts or {})
-  return M.set(key, value, next_opts)
+function M.set_raw(key, value)
+  return M.set(key, value)
 end
 
 ---@generic K extends keyof OpencodeStateData
 ---@param key K
 ---@param updater fun(current: std.RawGet<OpencodeStateData, K>): std.RawGet<OpencodeStateData, K>
----@param opts? OpencodeProtectedStateSetOptions
 ---@return std.RawGet<OpencodeStateData, K>
-function M.update(key, updater, opts)
+function M.update(key, updater)
   local next_value = updater(_state[key])
-  M.set(key, next_value, opts)
+  M.set(key, next_value)
   return next_value
 end
 

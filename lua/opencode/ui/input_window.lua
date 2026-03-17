@@ -280,9 +280,9 @@ function M.setup(windows)
   set_buf_option('buflisted', false, windows)
   set_buf_option('swapfile', false, windows)
 
-  if config.ui.position ~= 'current' then
-    set_win_option('winfixbuf', true, windows)
-  end
+  require('opencode.ui.buf_fix_win').fix_to_win(windows.input_buf, function()
+    return state.windows and state.windows.input_win
+  end)
   set_win_option('winfixwidth', true, windows)
 
   M.update_dimensions(windows)

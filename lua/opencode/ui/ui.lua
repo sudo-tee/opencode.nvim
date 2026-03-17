@@ -108,7 +108,6 @@ end
 local function close_or_restore_output_window(windows)
   if config.ui.position == 'current' then
     if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
-      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
       if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
         pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
       end
@@ -120,31 +119,6 @@ local function close_or_restore_output_window(windows)
       end
     end
     return
-  end
-
-  -- Count non-floating windows still open in the current tab.
-  -- If output_win is the only one left (e.g. after <C-w>o + toggle), we cannot
-  -- close it (Neovim forbids closing the last window). Instead swap its buffer
-  -- to a new empty scratch buffer so the opencode buffer goes into hiding while
-  -- the window stays alive showing a blank slate.
-  if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
-    local current_tab = vim.api.nvim_get_current_tabpage()
-    local normal_wins = 0
-    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(current_tab)) do
-      if vim.api.nvim_win_get_config(w).relative == '' then
-        normal_wins = normal_wins + 1
-      end
-    end
-
-    if normal_wins <= 1 then
-      -- Last window: swap buffer instead of closing
-      local scratch = vim.api.nvim_create_buf(false, true)
-      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
-      pcall(vim.api.nvim_set_option_value, 'winfixwidth', false, { win = windows.output_win })
-      pcall(vim.api.nvim_set_option_value, 'winfixheight', false, { win = windows.output_win })
-      pcall(vim.api.nvim_win_set_buf, windows.output_win, scratch)
-      return
-    end
   end
 
   pcall(vim.api.nvim_win_close, windows.output_win, true)
@@ -346,10 +320,6 @@ function M.create_split_windows(input_buf, output_buf)
 
   local input_win = open_split(ui_conf.input_position, 'horizontal')
   local output_win = main_win
-
-  if ui_conf.position == 'current' then
-    pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
-  end
 
   vim.api.nvim_win_set_buf(input_win, input_buf)
   vim.api.nvim_win_set_buf(output_win, output_buf)

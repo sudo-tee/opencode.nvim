@@ -23,7 +23,7 @@ function M.set_pending_permissions(permissions)
   return store.set('pending_permissions', permissions)
 end
 
----@param mutator fun(current_permissions: OpencodePermission[]): OpencodePermission[]
+---@param mutator fun(current_permissions: OpencodePermission[]): nil
 function M.update_pending_permissions(mutator)
   return store.mutate('pending_permissions', mutator)
 end

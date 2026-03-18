@@ -239,7 +239,7 @@ function M.setup()
     end)
   end
 
-  state.subscribe('messages', function()
+  state.store.subscribe('messages', function()
     M._parse_session_messages()
   end)
 end

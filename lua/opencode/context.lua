@@ -116,12 +116,10 @@ end
 -- Delegate global state management to ChatContext
 function M.add_selection(selection)
   ChatContext.add_selection(selection)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_selection(selection)
   ChatContext.remove_selection(selection)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_selections()
@@ -216,13 +214,11 @@ function M.add_file(file)
 
   file = vim.fn.fnamemodify(file, ':p')
   ChatContext.add_file(file)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_file(file)
   file = vim.fn.fnamemodify(file, ':p')
   ChatContext.remove_file(file)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_files()
@@ -231,12 +227,10 @@ end
 
 function M.add_subagent(subagent)
   ChatContext.add_subagent(subagent)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_subagent(subagent)
   ChatContext.remove_subagent(subagent)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_subagents()
@@ -249,7 +243,6 @@ end
 
 function M.load()
   ChatContext.load()
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 -- Context creation with delta logic (delegates to ChatContext)

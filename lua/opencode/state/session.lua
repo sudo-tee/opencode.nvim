@@ -41,4 +41,22 @@ function M.set_user_message_count(count)
   return store.set('user_message_count', count)
 end
 
+---Increment/decrement the message count for a session, clamped to >= 0
+---@param session_id string
+---@param delta integer
+function M.increment_user_message_count(session_id, delta)
+  store.mutate('user_message_count', function(counts)
+    local new_value = (counts[session_id] or 0) + delta
+    counts[session_id] = new_value >= 0 and new_value or 0
+  end)
+end
+
+---Update active_session without emitting a change event, used when a silent
+---in-place update is needed (e.g. session metadata refresh that must not
+---trigger a re-render)
+---@param session Session
+function M.update_silently(session)
+  store.set_raw('active_session', session)
+end
+
 return M

@@ -31,6 +31,13 @@ function M.clear_server()
   return store.set('opencode_server', nil)
 end
 
+---@param port integer
+function M.set_server_port(port)
+  store.mutate('opencode_server', function(server)
+    server.port = port
+  end)
+end
+
 ---@param client OpencodeApiClient|nil
 function M.set_api_client(client)
   return store.set('api_client', client)

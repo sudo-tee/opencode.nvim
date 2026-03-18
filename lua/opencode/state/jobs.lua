@@ -33,8 +33,13 @@ end
 
 ---@param port integer
 function M.set_server_port(port)
-  store.mutate('opencode_server', function(server)
-    server.port = port
+  local server = store.get('opencode_server')
+  if not server then
+    error('Opencode server is not set; cannot set port')
+  end
+
+  store.mutate('opencode_server', function(s)
+    s.port = port
   end)
 end
 

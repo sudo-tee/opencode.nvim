@@ -210,7 +210,7 @@ function M.mutate(key, mutator)
   end
 
   local current = _state[key]
-  local old = vim.tbl_extend('force', {}, current)
+  local old = vim.deepcopy(current)
   mutator(current)
   queue_emit(key, current, old)
   return current

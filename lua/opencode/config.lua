@@ -266,6 +266,7 @@ M.defaults = {
     on_session_loaded = nil,
     on_done_thinking = nil,
     on_permission_requested = nil,
+    on_question_asked = nil,
   },
   quick_chat = {
     default_model = nil,

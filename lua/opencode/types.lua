@@ -213,6 +213,7 @@
 ---@field on_session_loaded? fun(session: Session): nil
 ---@field on_done_thinking? fun(session: Session): nil
 ---@field on_permission_requested? fun(session: Session): nil
+---@field on_question_asked? fun(session: Session, question_request: OpencodeQuestionRequest): nil
 
 ---@class OpencodeProviders
 ---@field [string] string[]

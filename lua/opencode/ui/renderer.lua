@@ -1021,6 +1021,11 @@ function M.on_question_asked(properties)
     return
   end
 
+  if config.hooks and config.hooks.on_question_asked then
+    local session = state.active_session or {}
+    pcall(config.hooks.on_question_asked, session, properties)
+  end
+
   local question_window = require('opencode.ui.question_window')
   question_window.show_question(properties)
 end

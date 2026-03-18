@@ -43,10 +43,6 @@ function M.reset()
 
   output_window.clear()
 
-  state.renderer.set_messages({})
-  state.renderer.set_last_user_message(nil)
-  state.renderer.set_tokens_count(0)
-
   local permissions = state.pending_permissions or {}
   if #permissions > 0 and state.api_client then
     for _, permission in ipairs(permissions) do
@@ -54,7 +50,7 @@ function M.reset()
     end
   end
   permission_window.clear_all()
-  state.renderer.set_pending_permissions({})
+  state.renderer.reset()
 
   trigger_on_data_rendered()
 end
@@ -1198,11 +1194,14 @@ function M._update_stats_from_message(message)
   end
 
   local tokens = message.info.tokens
-  if tokens and tokens.input > 0 then
+  if tokens and tokens.input > 0 and message.info.cost and type(message.info.cost) == 'number' then
+    state.renderer.set_stats(
+      tokens.input + tokens.output + tokens.cache.read + tokens.cache.write,
+      message.info.cost
+    )
+  elseif tokens and tokens.input > 0 then
     state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
-  end
-
-  if message.info.cost and type(message.info.cost) == 'number' then
+  elseif message.info.cost and type(message.info.cost) == 'number' then
     state.renderer.set_cost(message.info.cost)
   end
 end

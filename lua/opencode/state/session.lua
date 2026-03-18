@@ -12,7 +12,9 @@ local M = {}
 
 ---@param session Session|nil
 function M.set_active(session)
-  M.clear_active()
+  store.set('restore_points', {})
+  store.set('last_sent_context', nil)
+  store.set('user_message_count', {})
   return store.set('active_session', session)
 end
 

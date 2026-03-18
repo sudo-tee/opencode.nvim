@@ -37,12 +37,10 @@ end)
 M.switch_session = Promise.async(function(session_id)
   local selected_session = session.get_by_id(session_id):await()
 
-  state.model.clear_model()
-  state.model.clear_mode()
+  state.model.clear()
   M.ensure_current_mode():await()
 
   state.session.set_active(selected_session)
-  state.session.reset_restore_points()
   if state.ui.is_visible() then
     ui.focus_input()
   else

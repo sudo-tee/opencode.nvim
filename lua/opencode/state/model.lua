@@ -1,5 +1,17 @@
 local store = require('opencode.state.store')
 
+---@class OpencodeModelStateMutations
+---@field set_mode fun(mode: string|nil)
+---@field clear_mode fun()
+---@field set_model fun(model: string|nil)
+---@field clear_model fun()
+---@field clear fun()
+---@field set_model_info fun(info: table|nil)
+---@field set_variant fun(variant: string|nil)
+---@field clear_variant fun()
+---@field set_mode_model_map fun(mode_map: table<string, string>)
+---@field set_mode_model_override fun(mode: string, model: string)
+
 local M = {}
 
 ---@param mode string|nil
@@ -18,6 +30,12 @@ end
 
 function M.clear_model()
   return store.set('current_model', nil)
+end
+
+function M.clear()
+  store.set('current_model', nil)
+  store.set('current_mode', nil)
+  store.set('current_variant', nil)
 end
 
 ---@param info table|nil
@@ -42,10 +60,11 @@ end
 ---@param mode string
 ---@param model string
 function M.set_mode_model_override(mode, model)
-  local state = store.state()
-  local mode_map = vim.deepcopy(state.user_mode_model_map)
-  mode_map[mode] = model
-  return store.set('user_mode_model_map', mode_map)
+  return store.update('user_mode_model_map', function(current)
+    local updated = vim.deepcopy(current)
+    updated[mode] = model
+    return updated
+  end)
 end
 
 return M

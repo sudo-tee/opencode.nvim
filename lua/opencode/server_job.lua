@@ -293,7 +293,7 @@ function M.spawn_local_server(promise, port, hostname)
       log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
       if url_port then
         local port_num = tonumber(url_port)
-        state.opencode_server.port = port_num
+        state.jobs.set_server_port(port_num)
         local server_pid = job and job.pid
         port_mapping.register(port_num, vim.fn.getcwd(), true, 'serve', nil, server_pid)
         log.debug(

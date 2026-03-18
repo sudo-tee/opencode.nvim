@@ -162,10 +162,7 @@ function M.hide_visible_windows(windows)
   end
   state.ui.stash_hidden_buffers(snapshot)
   if state.windows == windows then
-    state.windows.input_win = nil
-    state.windows.output_win = nil
-    state.windows.footer_win = nil
-    state.windows.output_was_at_bottom = snapshot.output_was_at_bottom
+    state.ui.mark_windows_hidden(snapshot.output_was_at_bottom)
   end
 end
 
@@ -223,19 +220,17 @@ function M.restore_hidden_windows()
 
   state.ui.consume_hidden_buffers()
 
+  state.ui.set_windows({
+    input_buf = hidden.input_buf,
+    output_buf = hidden.output_buf,
+    footer_buf = footer_buf,
+    input_win = win_ids.input_win,
+    output_win = win_ids.output_win,
+    footer_win = nil,
+    output_was_at_bottom = hidden.output_was_at_bottom == true,
+    saved_width_ratio = state.last_window_width_ratio,
+  })
   local windows = state.windows
-  if not windows then
-    windows = {}
-    state.ui.set_windows(windows)
-  end
-  windows.input_buf = hidden.input_buf
-  windows.output_buf = hidden.output_buf
-  windows.footer_buf = footer_buf
-  windows.input_win = win_ids.input_win
-  windows.output_win = win_ids.output_win
-  windows.footer_win = nil
-  windows.output_was_at_bottom = hidden.output_was_at_bottom == true
-  windows.saved_width_ratio = state.last_window_width_ratio
 
   state.ui.set_cursor_position('input', hidden.input_cursor)
   state.ui.set_cursor_position('output', hidden.output_cursor)
@@ -347,8 +342,7 @@ function M.create_windows()
   local autocmds = require('opencode.ui.autocmds')
 
   if not require('opencode.ui.ui').is_opencode_focused() then
-    state.ui.set_last_code_window(vim.api.nvim_get_current_win())
-    state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
+    state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
   end
 
   -- Create new windows from scratch

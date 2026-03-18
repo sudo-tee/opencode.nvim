@@ -110,4 +110,65 @@ describe('opencode.state (observable)', function()
       state.messages = {}
     end)
   end)
+
+  it('batches notifications until commit', function()
+    local calls = {}
+    local messages_cb = function(key, newv, oldv)
+      table.insert(calls, { key = key, newv = newv, oldv = oldv })
+    end
+    local cost_cb = function(key, newv, oldv)
+      table.insert(calls, { key = key, newv = newv, oldv = oldv })
+    end
+
+    state.store.subscribe('messages', messages_cb)
+    state.store.subscribe('cost', cost_cb)
+
+    state.store.batch(function(store)
+      store.set('messages', { { id = 'batched' } })
+      store.set('cost', 12)
+      assert.same({ { id = 'batched' } }, state.messages)
+      assert.equals(12, state.cost)
+      assert.equals(0, #calls)
+    end)
+
+    vim.wait(50, function()
+      return #calls == 2
+    end)
+
+    assert.same('messages', calls[1].key)
+    assert.same({ { id = 'batched' } }, calls[1].newv)
+    assert.same('cost', calls[2].key)
+    assert.equals(12, calls[2].newv)
+
+    state.renderer.set_messages(nil)
+    state.renderer.set_cost(0)
+    state.store.unsubscribe('messages', messages_cb)
+    state.store.unsubscribe('cost', cost_cb)
+  end)
+
+  it('emits after mutating table state in place', function()
+    local called = false
+    local received
+    local cb = function(_, newv)
+      called = true
+      received = newv
+    end
+
+    state.renderer.set_messages({})
+    state.store.subscribe('messages', cb)
+
+    state.store.mutate('messages', function(messages)
+      table.insert(messages, { id = 'mutated' })
+    end)
+
+    vim.wait(50, function()
+      return called
+    end)
+
+    assert.is_true(called)
+    assert.same({ { id = 'mutated' } }, received)
+
+    state.renderer.set_messages(nil)
+    state.store.unsubscribe('messages', cb)
+  end)
 end)

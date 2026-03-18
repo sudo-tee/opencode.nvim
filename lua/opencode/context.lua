@@ -22,14 +22,10 @@ local toggleable_context_keys = {
 ---@param context_key OpencodeToggleableContextKey
 ---@return table
 local function ensure_context_state(context_key)
-  local current_config = state.current_context_config or {}
-  local current = current_config[context_key]
-  local new_config = vim.deepcopy(current_config)
   local defaults = vim.tbl_get(config, 'context', context_key) or {}
-
-  new_config[context_key] = vim.tbl_deep_extend('force', {}, defaults, current or {})
-  state.context.set_current_context_config(new_config)
-  return new_config[context_key]
+  return state.context.update_current_context_config(function(current_config)
+    current_config[context_key] = vim.tbl_deep_extend('force', {}, defaults, current_config[context_key] or {})
+  end)[context_key]
 end
 
 M.ChatContext = ChatContext
@@ -120,12 +116,10 @@ end
 -- Delegate global state management to ChatContext
 function M.add_selection(selection)
   ChatContext.add_selection(selection)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_selection(selection)
   ChatContext.remove_selection(selection)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_selections()
@@ -200,12 +194,7 @@ function M.build_inline_selection_text(range)
   end
 
   local filetype = vim.bo[buf].filetype or ''
-  local text = string.format(
-    '**`%s`**\n\n```%s\n%s\n```',
-    file.path,
-    filetype,
-    current_selection.text
-  )
+  local text = string.format('**`%s`**\n\n```%s\n%s\n```', file.path, filetype, current_selection.text)
 
   return text
 end
@@ -225,13 +214,11 @@ function M.add_file(file)
 
   file = vim.fn.fnamemodify(file, ':p')
   ChatContext.add_file(file)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_file(file)
   file = vim.fn.fnamemodify(file, ':p')
   ChatContext.remove_file(file)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_files()
@@ -240,12 +227,10 @@ end
 
 function M.add_subagent(subagent)
   ChatContext.add_subagent(subagent)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_subagent(subagent)
   ChatContext.remove_subagent(subagent)
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_subagents()
@@ -258,7 +243,6 @@ end
 
 function M.load()
   ChatContext.load()
-  state.context.set_context_updated_at(vim.uv.now())
 end
 
 -- Context creation with delta logic (delegates to ChatContext)

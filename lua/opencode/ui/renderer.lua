@@ -43,10 +43,6 @@ function M.reset()
 
   output_window.clear()
 
-  state.renderer.set_messages({})
-  state.renderer.set_last_user_message(nil)
-  state.renderer.set_tokens_count(0)
-
   local permissions = state.pending_permissions or {}
   if #permissions > 0 and state.api_client then
     for _, permission in ipairs(permissions) do
@@ -54,7 +50,7 @@ function M.reset()
     end
   end
   permission_window.clear_all()
-  state.renderer.set_pending_permissions({})
+  state.renderer.reset()
 
   trigger_on_data_rendered()
 end
@@ -219,8 +215,7 @@ end
 
 ---Render question display as a fake part
 function M.render_question_display()
-  local config_module = require('opencode.config')
-  local use_vim_ui = config_module.ui.questions and config_module.ui.questions.use_vim_ui_select
+  local use_vim_ui = config.ui.questions and config.ui.questions.use_vim_ui_select
 
   if use_vim_ui then
     -- When using vim.ui.select, we don't render anything in the buffer
@@ -965,13 +960,13 @@ function M.on_permission_updated(permission)
     end
   end
 
-  local permissions = vim.deepcopy(state.pending_permissions)
-  if existing_index then
-    permissions[existing_index] = permission
-  else
-    table.insert(permissions, permission)
-  end
-  state.renderer.set_pending_permissions(permissions)
+  state.renderer.update_pending_permissions(function(permissions)
+    if existing_index then
+      permissions[existing_index] = permission
+    else
+      table.insert(permissions, permission)
+    end
+  end)
 
   permission_window.add_permission(permission)
 
@@ -1198,11 +1193,11 @@ function M._update_stats_from_message(message)
   end
 
   local tokens = message.info.tokens
-  if tokens and tokens.input > 0 then
+  if tokens and tokens.input > 0 and message.info.cost and type(message.info.cost) == 'number' then
+    state.renderer.set_stats(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write, message.info.cost)
+  elseif tokens and tokens.input > 0 then
     state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
-  end
-
-  if message.info.cost and type(message.info.cost) == 'number' then
+  elseif message.info.cost and type(message.info.cost) == 'number' then
     state.renderer.set_cost(message.info.cost)
   end
 end

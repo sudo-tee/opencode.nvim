@@ -1,26 +1,25 @@
 local store = require('opencode.state.store')
 
 ---@class OpencodeSessionStateMutations
----@field set_active fun(session: Session|nil)
----@field clear_active fun()
----@field set_restore_points fun(points: RestorePoint[])
----@field reset_restore_points fun()
----@field set_last_sent_context fun(context: OpencodeContext|nil)
----@field set_user_message_count fun(count: table<string, number>)
-
 local M = {}
 
 ---@param session Session|nil
 function M.set_active(session)
-  M.clear_active()
-  return store.set('active_session', session)
+  return store.batch(function()
+    store.set('restore_points', {})
+    store.set('last_sent_context', nil)
+    store.set('user_message_count', {})
+    return store.set('active_session', session)
+  end)
 end
 
 function M.clear_active()
-  M.reset_restore_points()
-  M.set_last_sent_context()
-  M.set_user_message_count({})
-  return store.set('active_session', nil)
+  return store.batch(function()
+    store.set('restore_points', {})
+    store.set('last_sent_context', nil)
+    store.set('user_message_count', {})
+    return store.set('active_session', nil)
+  end)
 end
 
 ---@param points RestorePoint[]
@@ -40,6 +39,24 @@ end
 ---@param count table<string, number>
 function M.set_user_message_count(count)
   return store.set('user_message_count', count)
+end
+
+---Increment/decrement the message count for a session, clamped to >= 0
+---@param session_id string
+---@param delta integer
+function M.increment_user_message_count(session_id, delta)
+  store.mutate('user_message_count', function(counts)
+    local new_value = (counts[session_id] or 0) + delta
+    counts[session_id] = new_value >= 0 and new_value or 0
+  end)
+end
+
+---Update active_session without emitting a change event, used when a silent
+---in-place update is needed (e.g. session metadata refresh that must not
+---trigger a re-render)
+---@param session Session
+function M.update_silently(session)
+  store.set_raw('active_session', session)
 end
 
 return M

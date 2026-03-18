@@ -171,13 +171,13 @@ describe('EventManager', function()
       end,
     }
 
-    state.opencode_server = nil
+    state.jobs.clear_server()
 
     event_manager:start()
     event_manager:stop()
     event_manager:start()
 
-    state.opencode_server = fake_server
+    state.jobs.set_server(fake_server)
 
     vim.wait(200, function()
       return subscribe_calls > 0
@@ -185,7 +185,7 @@ describe('EventManager', function()
 
     assert.are.equal(1, subscribe_calls)
 
-    state.opencode_server = nil
+    state.jobs.clear_server()
     event_manager._subscribe_to_server_events = original_subscribe_to_server_events
     vim.defer_fn = original_defer_fn
   end)

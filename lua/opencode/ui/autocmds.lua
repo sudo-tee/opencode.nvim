@@ -35,8 +35,8 @@ function M.setup_autocmds(windows)
         return
       end
       local state = require('opencode.state')
-      state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
-      state.current_code_buf = vim.api.nvim_get_current_buf()
+      state.ui.set_last_code_window(vim.api.nvim_get_current_win())
+      state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
     end,
   })
 
@@ -44,7 +44,7 @@ function M.setup_autocmds(windows)
     group = group,
     pattern = '*',
     callback = function()
-      require('opencode.state').is_opencode_focused = require('opencode.ui.ui').is_opencode_focused()
+      require('opencode.state').ui.set_panel_focused(require('opencode.ui.ui').is_opencode_focused())
     end,
   })
 
@@ -82,7 +82,7 @@ function M.setup_autocmds(windows)
         end
       end
 
-      state.current_cwd = event.file
+      state.context.set_current_cwd(event.file)
       local core = require('opencode.core')
       core.handle_directory_change()
     end,

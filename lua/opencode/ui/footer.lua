@@ -35,14 +35,14 @@ end
 local function build_right_segments()
   local segments = {}
 
-  if state.is_running() and not state.is_opening then
+  if state.jobs.is_running() and not state.is_opening then
     local cancel_keymap = config.get_key_for_function('input_window', 'cancel') or '<C-c>'
     table.insert(segments, { string.format('%s ', cancel_keymap), 'OpencodeInputLegend' })
     table.insert(segments, { 'to cancel', 'OpencodeHint' })
     table.insert(segments, { ' ' })
   end
 
-  if not state.is_running() and state.current_model and config.ui.display_model then
+  if not state.jobs.is_running() and state.current_model and config.ui.display_model then
     table.insert(segments, { state.current_model, 'OpencodeHint' })
     if state.current_variant then
       table.insert(segments, { '·', 'OpencodeHint' })
@@ -151,13 +151,13 @@ function M.setup(windows)
   vim.api.nvim_set_option_value('winhl', 'Normal:OpencodeHint', { win = windows.footer_win })
 
   -- for model changes
-  state.subscribe('current_model', on_change)
-  state.subscribe('current_mode', on_change)
-  state.subscribe('current_variant', on_change)
-  state.subscribe('active_session', on_change)
+  state.store.subscribe('current_model', on_change)
+  state.store.subscribe('current_mode', on_change)
+  state.store.subscribe('current_variant', on_change)
+  state.store.subscribe('active_session', on_change)
   -- to show C-c message
-  state.subscribe('job_count', on_job_count_changed)
-  state.subscribe('restore_points', on_change)
+  state.store.subscribe('job_count', on_job_count_changed)
+  state.store.subscribe('restore_points', on_change)
 
   vim.api.nvim_create_autocmd({ 'VimResized', 'WinResized' }, {
     group = vim.api.nvim_create_augroup('OpencodeFooterResize', { clear = true }),
@@ -180,12 +180,12 @@ function M.close(preserve_buffer)
     end
   end
 
-  state.unsubscribe('current_model', on_change)
-  state.unsubscribe('current_mode', on_change)
-  state.unsubscribe('current_variant', on_change)
-  state.unsubscribe('active_session', on_change)
-  state.unsubscribe('job_count', on_job_count_changed)
-  state.unsubscribe('restore_points', on_change)
+  state.store.unsubscribe('current_model', on_change)
+  state.store.unsubscribe('current_mode', on_change)
+  state.store.unsubscribe('current_variant', on_change)
+  state.store.unsubscribe('active_session', on_change)
+  state.store.unsubscribe('job_count', on_job_count_changed)
+  state.store.unsubscribe('restore_points', on_change)
 
   loading_animation.teardown()
 end

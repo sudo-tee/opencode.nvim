@@ -170,7 +170,7 @@ local function update_winbar_highlights(win_id)
 end
 
 function M.setup()
-  state.subscribe(
+  state.store.subscribe(
     { 'current_context_config', 'current_code_buf', 'is_opencode_focused', 'context_updated_at', 'user_message_count' },
     function()
       M.render()

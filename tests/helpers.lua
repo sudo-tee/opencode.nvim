@@ -22,12 +22,12 @@ function M.replay_setup()
     return nil
   end
 
-  state.current_mode = 'build' -- default mode for tests
+  state.model.set_mode('build') -- default mode for tests
 
   -- we use the event manager to dispatch events, have to setup before ui.create_windows
   require('opencode.event_manager').setup()
 
-  state.windows = ui.create_windows()
+  state.ui.set_windows(ui.create_windows())
 
   -- disable fetching session and rendering it (we'll handle it at a lower level)
   renderer.render_full_session = function()

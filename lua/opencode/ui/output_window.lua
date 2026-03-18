@@ -82,7 +82,7 @@ local function set_win_option(opt_name, value, win)
   -- Save original value if using position = 'current'
   if config.ui.position == 'current' then
     if not state.saved_window_options then
-      state.saved_window_options = {}
+      state.ui.set_saved_window_options({})
     end
     -- Only save if not already saved (in case this function is called multiple times)
     if state.saved_window_options[opt_name] == nil then
@@ -133,6 +133,11 @@ function M.update_dimensions(windows)
   if config.ui.position == 'current' then
     return
   end
+
+  if not windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+    return
+  end
+
   local total_width = vim.api.nvim_get_option_value('columns', {})
 
   local width_ratio
@@ -146,8 +151,17 @@ function M.update_dimensions(windows)
   end
 
   local width = math.floor(total_width * width_ratio)
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, windows.output_win)
+  if not ok then
+    return
+  end
 
-  vim.api.nvim_win_set_config(windows.output_win, { width = width })
+  if win_config.relative == '' then
+    pcall(vim.api.nvim_win_set_width, windows.output_win, width)
+    return
+  end
+
+  pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
 end
 
 function M.get_buf_line_count()
@@ -262,7 +276,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       local input_window = require('opencode.ui.input_window')
-      state.last_focused_opencode_window = 'output'
+      state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
       vim.cmd('stopinsert')
@@ -274,7 +288,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       local input_window = require('opencode.ui.input_window')
-      state.last_focused_opencode_window = 'output'
+      state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
       vim.cmd('stopinsert')
@@ -285,9 +299,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      local pos = state.get_window_cursor(windows.output_win)
+      local pos = state.ui.get_window_cursor(windows.output_win)
       if pos then
-        state.set_cursor_position('output', pos)
+        state.ui.set_cursor_position('output', pos)
       end
     end,
   })
@@ -319,9 +333,9 @@ function M.setup_autocmds(windows, group)
 
           if visible_bottom < line_count then
             pcall(vim.api.nvim_win_set_cursor, windows.output_win, { visible_bottom, 0 })
-            local pos = state.get_window_cursor(windows.output_win)
+            local pos = state.ui.get_window_cursor(windows.output_win)
             if pos then
-              state.set_cursor_position('output', pos)
+              state.ui.set_cursor_position('output', pos)
             end
           end
         end

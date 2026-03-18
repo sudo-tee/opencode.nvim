@@ -1,11 +1,12 @@
 local state = require('opencode.state')
+local store = require('opencode.state.store')
 local config = require('opencode.config')
 local ui = require('opencode.ui.ui')
 
 describe('cursor persistence (state)', function()
   before_each(function()
-    state.set_cursor_position('input', nil)
-    state.set_cursor_position('output', nil)
+    state.ui.set_cursor_position('input', nil)
+    state.ui.set_cursor_position('output', nil)
   end)
 
   describe('renderer.scroll_to_bottom', function()
@@ -38,7 +39,7 @@ describe('cursor persistence (state)', function()
         col = 0,
       })
 
-      state.windows = { output_win = win, output_buf = buf }
+      state.ui.set_windows({ output_win = win, output_buf = buf })
       vim.api.nvim_set_current_win(win)
       vim.api.nvim_win_set_cursor(win, { 10, 0 })
     end)
@@ -47,7 +48,7 @@ describe('cursor persistence (state)', function()
       renderer.reset()
       pcall(vim.api.nvim_win_close, win, true)
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
-      state.windows = nil
+      state.ui.set_windows(nil)
     end)
 
     it('auto-scrolls when cursor was at previous bottom and buffer grows', function()
@@ -93,73 +94,73 @@ describe('cursor persistence (state)', function()
 
   describe('set/get round-trip', function()
     it('stores and retrieves input cursor', function()
-      state.set_cursor_position('input', { 5, 3 })
-      assert.same({ 5, 3 }, state.get_cursor_position('input'))
+      state.ui.set_cursor_position('input', { 5, 3 })
+      assert.same({ 5, 3 }, state.ui.get_cursor_position('input'))
     end)
 
     it('stores and retrieves output cursor', function()
-      state.set_cursor_position('output', { 10, 0 })
-      assert.same({ 10, 0 }, state.get_cursor_position('output'))
+      state.ui.set_cursor_position('output', { 10, 0 })
+      assert.same({ 10, 0 }, state.ui.get_cursor_position('output'))
     end)
 
     it('input and output are independent', function()
-      state.set_cursor_position('input', { 1, 0 })
-      state.set_cursor_position('output', { 99, 5 })
-      assert.same({ 1, 0 }, state.get_cursor_position('input'))
-      assert.same({ 99, 5 }, state.get_cursor_position('output'))
+      state.ui.set_cursor_position('input', { 1, 0 })
+      state.ui.set_cursor_position('output', { 99, 5 })
+      assert.same({ 1, 0 }, state.ui.get_cursor_position('input'))
+      assert.same({ 99, 5 }, state.ui.get_cursor_position('output'))
     end)
 
     it('returns nil for unknown win_type', function()
-      assert.is_nil(state.get_cursor_position('footer'))
+      assert.is_nil(state.ui.get_cursor_position('footer'))
     end)
   end)
 
   describe('normalize_cursor edge cases', function()
     it('clamps negative line to 1', function()
-      state.set_cursor_position('input', { -5, 3 })
-      local pos = state.get_cursor_position('input')
+      state.ui.set_cursor_position('input', { -5, 3 })
+      local pos = state.ui.get_cursor_position('input')
       assert.equals(1, pos[1])
     end)
 
     it('clamps negative col to 0', function()
-      state.set_cursor_position('input', { 1, -1 })
-      local pos = state.get_cursor_position('input')
+      state.ui.set_cursor_position('input', { 1, -1 })
+      local pos = state.ui.get_cursor_position('input')
       assert.equals(0, pos[2])
     end)
 
     it('floors fractional values', function()
-      state.set_cursor_position('input', { 3.7, 2.9 })
-      local pos = state.get_cursor_position('input')
+      state.ui.set_cursor_position('input', { 3.7, 2.9 })
+      local pos = state.ui.get_cursor_position('input')
       assert.equals(3, pos[1])
       assert.equals(2, pos[2])
     end)
 
     it('rejects non-table input', function()
-      state.set_cursor_position('input', 'bad')
-      assert.is_nil(state.get_cursor_position('input'))
+      state.ui.set_cursor_position('input', 'bad')
+      assert.is_nil(state.ui.get_cursor_position('input'))
     end)
 
     it('rejects table with fewer than 2 elements', function()
-      state.set_cursor_position('input', { 1 })
-      assert.is_nil(state.get_cursor_position('input'))
+      state.ui.set_cursor_position('input', { 1 })
+      assert.is_nil(state.ui.get_cursor_position('input'))
     end)
 
     it('rejects non-numeric elements', function()
-      state.set_cursor_position('input', { 'a', 'b' })
-      assert.is_nil(state.get_cursor_position('input'))
+      state.ui.set_cursor_position('input', { 'a', 'b' })
+      assert.is_nil(state.ui.get_cursor_position('input'))
     end)
 
     it('clears position when set to nil', function()
-      state.set_cursor_position('input', { 5, 3 })
-      state.set_cursor_position('input', nil)
-      assert.is_nil(state.get_cursor_position('input'))
+      state.ui.set_cursor_position('input', { 5, 3 })
+      state.ui.set_cursor_position('input', nil)
+      assert.is_nil(state.ui.get_cursor_position('input'))
     end)
   end)
 
   describe('get_window_cursor', function()
     it('returns nil for invalid window', function()
-      assert.is_nil(state.get_window_cursor(nil))
-      assert.is_nil(state.get_window_cursor(999999))
+      assert.is_nil(state.ui.get_window_cursor(nil))
+      assert.is_nil(state.ui.get_window_cursor(999999))
     end)
 
     it('gets cursor from a real window', function()
@@ -174,12 +175,12 @@ describe('cursor persistence (state)', function()
       })
       vim.api.nvim_win_set_cursor(win, { 2, 3 })
 
-      local pos = state.get_window_cursor(win)
+      local pos = state.ui.get_window_cursor(win)
       assert.same({ 2, 3 }, pos)
 
       -- Manually save to verify persistence path
-      state.set_cursor_position('output', pos)
-      assert.same({ 2, 3 }, state.get_cursor_position('output'))
+      state.ui.set_cursor_position('output', pos)
+      assert.same({ 2, 3 }, state.ui.get_cursor_position('output'))
 
       pcall(vim.api.nvim_win_close, win, true)
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
@@ -208,13 +209,13 @@ describe('output_window.is_at_bottom', function()
       col = 0,
     })
 
-    state.windows = { output_win = win, output_buf = buf }
+    state.ui.set_windows({ output_win = win, output_buf = buf })
   end)
 
   after_each(function()
     pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    state.windows = nil
+    state.ui.set_windows(nil)
   end)
 
   it('returns true when cursor is on last line', function()
@@ -249,7 +250,7 @@ describe('output_window.is_at_bottom', function()
   end)
 
   it('returns true when no windows in state', function()
-    state.windows = nil
+    state.ui.set_windows(nil)
     assert.is_true(output_window.is_at_bottom(win))
   end)
 
@@ -262,7 +263,7 @@ describe('output_window.is_at_bottom', function()
       row = 0,
       col = 0,
     })
-    state.windows = { output_win = empty_win, output_buf = empty_buf }
+    state.ui.set_windows({ output_win = empty_win, output_buf = empty_buf })
 
     assert.is_true(output_window.is_at_bottom(empty_win))
 
@@ -307,14 +308,14 @@ describe('renderer.scroll_to_bottom', function()
       col = 0,
     })
 
-    state.windows = { output_win = win, output_buf = buf }
+    state.ui.set_windows({ output_win = win, output_buf = buf })
     renderer._prev_line_count = 50
   end)
 
   after_each(function()
     pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    state.windows = nil
+    state.ui.set_windows(nil)
     renderer._prev_line_count = 0
     output_window.viewport_at_bottom = nil
   end)
@@ -367,13 +368,13 @@ describe('ui.focus_input', function()
       col = 0,
     })
 
-    state.windows = {
+    state.ui.set_windows({
       input_win = input_win,
       output_win = output_win,
       input_buf = input_buf,
       output_buf = output_buf,
-    }
-    state.last_input_window_position = { 1, 4 }
+    })
+    store.set('last_input_window_position', { 1, 4 })
   end)
 
   after_each(function()
@@ -381,8 +382,8 @@ describe('ui.focus_input', function()
     pcall(vim.api.nvim_win_close, output_win, true)
     pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
     pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
-    state.windows = nil
-    state.last_input_window_position = nil
+    state.ui.set_windows(nil)
+    store.set('last_input_window_position', nil)
   end)
 
   it('does not restore cursor when already focused in input window', function()
@@ -414,9 +415,9 @@ describe('renderer._add_message_to_buffer scrolling', function()
       col = 0,
     })
 
-    state.windows = { output_win = win, output_buf = buf }
-    state.active_session = { id = 'test-session' }
-    state.messages = {}
+    state.ui.set_windows({ output_win = win, output_buf = buf })
+    state.session.set_active({ id = 'test-session' })
+    state.renderer.set_messages({})
     renderer._prev_line_count = 1
     renderer._render_state:reset()
   end)
@@ -424,9 +425,9 @@ describe('renderer._add_message_to_buffer scrolling', function()
   after_each(function()
     pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    state.windows = nil
-    state.active_session = nil
-    state.messages = nil
+    state.ui.set_windows(nil)
+    state.session.set_active(nil)
+    state.renderer.set_messages(nil)
     renderer._prev_line_count = 0
     renderer._render_state:reset()
   end)

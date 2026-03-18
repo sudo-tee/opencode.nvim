@@ -6,11 +6,11 @@ describe('RenderState', function()
 
   before_each(function()
     render_state = RenderState.new()
-    state.messages = {}
+    state.renderer.set_messages({})
   end)
 
   after_each(function()
-    state.messages = {}
+    state.renderer.set_messages({})
   end)
 
   describe('new and reset', function()
@@ -251,7 +251,7 @@ describe('RenderState', function()
 
   describe('update_part_lines', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -259,7 +259,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('updates part line positions', function()
@@ -308,7 +308,7 @@ describe('RenderState', function()
 
   describe('remove_part', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -316,7 +316,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('removes part and shifts subsequent content', function()
@@ -372,14 +372,14 @@ describe('RenderState', function()
 
   describe('remove_message', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
         },
         {
           info = { id = 'msg2' },
         },
-      }
+      })
     end)
 
     it('removes message and shifts subsequent content', function()
@@ -416,7 +416,7 @@ describe('RenderState', function()
 
   describe('shift_all', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -424,7 +424,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('does nothing when delta is 0', function()

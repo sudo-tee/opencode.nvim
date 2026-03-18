@@ -13,8 +13,8 @@ local M = {}
 ---@return {input: integer[]|nil, output: integer[]|nil}
 local function capture_cursors_position(windows)
   return {
-    input = state.get_window_cursor(windows.input_win),
-    output = state.get_window_cursor(windows.output_win),
+    input = state.ui.get_window_cursor(windows.input_win),
+    output = state.ui.get_window_cursor(windows.output_win),
   }
 end
 
@@ -76,7 +76,7 @@ local function capture_hidden_snapshot(windows)
     output_view = ok and type(view) == 'table' and view or nil,
     focused_window = focused,
     position = config.ui.position,
-    owner_tab = state.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
+    owner_tab = state.ui.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
   }
 end
 
@@ -95,7 +95,7 @@ local function prepare_window_close()
     M.return_to_last_code_win()
   end
   if state.display_route then
-    state.display_route = nil
+    state.ui.clear_display_route()
   end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -116,7 +116,7 @@ local function close_or_restore_output_window(windows)
         for opt, value in pairs(state.saved_window_options) do
           pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
         end
-        state.saved_window_options = nil
+        state.ui.set_saved_window_options(nil)
       end
     end
     return
@@ -139,10 +139,10 @@ function M.hide_visible_windows(windows)
   if config.ui.position ~= 'current' then
     local total_cols = vim.o.columns
     local current_width = vim.api.nvim_win_get_width(windows.output_win)
-    state.last_window_width_ratio = current_width / total_cols
+    state.ui.set_last_window_width_ratio(current_width / total_cols)
   end
 
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 
   prepare_window_close()
   footer.close(true)
@@ -157,10 +157,10 @@ function M.hide_visible_windows(windows)
   if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
     local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
     if ok then
-      state.input_content = lines
+      state.ui.set_input_content(lines)
     end
   end
-  state.stash_hidden_buffers(snapshot)
+  state.ui.stash_hidden_buffers(snapshot)
   if state.windows == windows then
     state.windows.input_win = nil
     state.windows.output_win = nil
@@ -184,15 +184,15 @@ function M.teardown_visible_windows(windows)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   if state.windows == windows then
-    state.windows = nil
+    state.ui.clear_windows()
   end
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
 function M.drop_hidden_snapshot()
   renderer.teardown()
 
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if hidden then
     for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf }) do
       if buf and vim.api.nvim_buf_is_valid(buf) then
@@ -202,13 +202,13 @@ function M.drop_hidden_snapshot()
   end
 
   input_window._hidden = false
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
 ---Restore windows using preserved buffers
 ---@return boolean success
 function M.restore_hidden_windows()
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if not hidden then
     return false
   end
@@ -221,12 +221,12 @@ function M.restore_hidden_windows()
 
   local win_ids = M.create_split_windows(hidden.input_buf, hidden.output_buf)
 
-  state.consume_hidden_buffers()
+  state.ui.consume_hidden_buffers()
 
   local windows = state.windows
   if not windows then
     windows = {}
-    state.windows = windows
+    state.ui.set_windows(windows)
   end
   windows.input_buf = hidden.input_buf
   windows.output_buf = hidden.output_buf
@@ -237,8 +237,8 @@ function M.restore_hidden_windows()
   windows.output_was_at_bottom = hidden.output_was_at_bottom == true
   windows.saved_width_ratio = state.last_window_width_ratio
 
-  state.set_cursor_position('input', hidden.input_cursor)
-  state.set_cursor_position('output', hidden.output_cursor)
+  state.ui.set_cursor_position('input', hidden.input_cursor)
+  state.ui.set_cursor_position('output', hidden.output_cursor)
 
   input_window.setup(windows)
   output_window.setup(windows)
@@ -263,7 +263,7 @@ function M.restore_hidden_windows()
     if hidden.output_was_at_bottom then
       renderer.scroll_to_bottom(true)
     else
-      restore_window_cursor(w.output_win, w.output_buf, state.get_cursor_position('output'))
+      restore_window_cursor(w.output_win, w.output_buf, state.ui.get_cursor_position('output'))
       if type(hidden.output_view) == 'table' then
         pcall(vim.api.nvim_win_call, w.output_win, function()
           vim.fn.winrestview(hidden.output_view)
@@ -272,7 +272,7 @@ function M.restore_hidden_windows()
     end
 
     if not hidden.input_hidden then
-      restore_window_cursor(w.input_win, w.input_buf, state.get_cursor_position('input'))
+      restore_window_cursor(w.input_win, w.input_buf, state.ui.get_cursor_position('input'))
     end
   end)
 
@@ -284,7 +284,7 @@ end
 ---Check if we have valid hidden buffers
 ---@return boolean
 function M.has_hidden_buffers()
-  return state.has_hidden_buffers()
+  return state.ui.has_hidden_buffers()
 end
 
 function M.return_to_last_code_win()
@@ -347,8 +347,8 @@ function M.create_windows()
   local autocmds = require('opencode.ui.autocmds')
 
   if not require('opencode.ui.ui').is_opencode_focused() then
-    state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
-    state.current_code_buf = vim.api.nvim_get_current_buf()
+    state.ui.set_last_code_window(vim.api.nvim_get_current_win())
+    state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
   end
 
   -- Create new windows from scratch
@@ -531,9 +531,9 @@ function M.toggle_zoom()
 
   if state.pre_zoom_width then
     width = state.pre_zoom_width
-    state.pre_zoom_width = nil
+    state.ui.set_pre_zoom_width(nil)
   else
-    state.pre_zoom_width = vim.api.nvim_win_get_width(windows.output_win)
+    state.ui.set_pre_zoom_width(vim.api.nvim_win_get_width(windows.output_win))
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 

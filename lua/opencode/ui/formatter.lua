@@ -375,9 +375,10 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
-function M._format_assistant_message(output, text)
+---@param message_id string|nil Optional message ID for reference parsing
+function M._format_assistant_message(output, text, message_id)
   local reference_picker = require('opencode.ui.reference_picker')
-  local references = reference_picker.parse_references(text, '')
+  local references = reference_picker.parse_references(text, message_id)
 
   -- If no references, just add the text as-is
   if #references == 0 then
@@ -501,7 +502,7 @@ function M.format_part(part, message, is_last_part, get_child_parts)
     end
   elseif role == 'assistant' then
     if part.type == 'text' and part.text then
-      M._format_assistant_message(output, vim.trim(part.text))
+      M._format_assistant_message(output, vim.trim(part.text), part.messageID)
       content_added = true
     elseif part.type == 'reasoning' then
       M._format_reasoning(output, part)

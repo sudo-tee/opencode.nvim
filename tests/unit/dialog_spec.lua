@@ -28,12 +28,12 @@ describe('Dialog', function()
       col = 0,
     })
 
-    state.windows = {
+    state.ui.set_windows({
       input_buf = input_buf,
       input_win = input_win,
       output_buf = output_buf,
       output_win = output_win,
-    }
+    })
 
     -- Mock input_window module
     package.loaded['opencode.ui.input_window'] = nil
@@ -49,7 +49,7 @@ describe('Dialog', function()
     pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
     pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
 
-    state.windows = nil
+    state.ui.clear_windows()
     package.loaded['opencode.ui.input_window'] = nil
   end)
 

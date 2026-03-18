@@ -132,6 +132,11 @@ function M.update_dimensions(windows)
   if config.ui.position == 'current' then
     return
   end
+
+  if not windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+    return
+  end
+
   local total_width = vim.api.nvim_get_option_value('columns', {})
 
   local width_ratio
@@ -145,8 +150,17 @@ function M.update_dimensions(windows)
   end
 
   local width = math.floor(total_width * width_ratio)
+  local ok, win_config = pcall(vim.api.nvim_win_get_config, windows.output_win)
+  if not ok then
+    return
+  end
 
-  vim.api.nvim_win_set_config(windows.output_win, { width = width })
+  if win_config.relative == '' then
+    pcall(vim.api.nvim_win_set_width, windows.output_win, width)
+    return
+  end
+
+  pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
 end
 
 function M.get_buf_line_count()

@@ -35,8 +35,7 @@ function M.setup_autocmds(windows)
         return
       end
       local state = require('opencode.state')
-      state.ui.set_last_code_window(vim.api.nvim_get_current_win())
-      state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
+      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
     end,
   })
 

@@ -87,6 +87,54 @@ local _state = {
 }
 
 local _listeners = {}
+local _batch_depth = 0
+local _batched_changes = {}
+local _batched_order = {}
+
+---@generic K extends keyof OpencodeStateData
+---@param key K
+---@param new_val std.RawGet<OpencodeStateData, K>
+---@param old_val std.RawGet<OpencodeStateData, K>
+local function queue_emit(key, new_val, old_val)
+  if vim.deep_equal(old_val, new_val) then
+    return false
+  end
+
+  if _batch_depth == 0 then
+    M.emit(key, new_val, old_val)
+    return true
+  end
+
+  if not _batched_changes[key] then
+    _batched_changes[key] = {
+      old_val = old_val,
+      new_val = new_val,
+    }
+    table.insert(_batched_order, key)
+    return true
+  end
+
+  _batched_changes[key].new_val = new_val
+  return true
+end
+
+local function flush_batched_emits()
+  if _batch_depth > 0 or #_batched_order == 0 then
+    return
+  end
+
+  local pending_changes = _batched_changes
+  local pending_order = _batched_order
+  _batched_changes = {}
+  _batched_order = {}
+
+  for _, key in ipairs(pending_order) do
+    local change = pending_changes[key]
+    if change then
+      M.emit(key, change.new_val, change.old_val)
+    end
+  end
+end
 
 function M.state()
   return _state
@@ -107,9 +155,7 @@ function M.set(key, value)
   local old = _state[key]
 
   _state[key] = value
-  if not vim.deep_equal(old, value) then
-    M.emit(key, value, old)
-  end
+  queue_emit(key, value, old)
 
   return value
 end
@@ -119,7 +165,8 @@ end
 ---@param value std.RawGet<OpencodeStateData, K>
 ---@return std.RawGet<OpencodeStateData, K>
 function M.set_raw(key, value)
-  return M.set(key, value)
+  _state[key] = value
+  return value
 end
 
 ---@generic K extends keyof OpencodeStateData
@@ -130,6 +177,43 @@ function M.update(key, updater)
   local next_value = updater(_state[key])
   M.set(key, next_value)
   return next_value
+end
+
+---@param callback fun(store: OpencodeStateStore)
+function M.batch(callback)
+  _batch_depth = _batch_depth + 1
+  local ok, result = pcall(callback, M)
+  _batch_depth = _batch_depth - 1
+
+  if _batch_depth == 0 then
+    flush_batched_emits()
+  end
+
+  if not ok then
+    error(result, 0)
+  end
+
+  return result
+end
+
+---@generic K extends keyof OpencodeStateData
+---@param key K
+---@param mutator fun(current: std.RawGet<OpencodeStateData, K>):nil
+---@return std.RawGet<OpencodeStateData, K>
+function M.mutate(key, mutator)
+  if _state[key] == nil then
+    _state[key] = {} --[[@as std.RawGet<OpencodeStateData, K>]]
+  end
+
+  if type(_state[key]) ~= 'table' then
+    error('State key is not a table: ' .. key)
+  end
+
+  local current = _state[key]
+  local old = vim.tbl_extend('force', {}, current)
+  mutator(current)
+  queue_emit(key, current, old)
+  return current
 end
 
 ---@generic K extends keyof OpencodeStateData
@@ -204,16 +288,10 @@ function M.append(key, value)
   if type(value) ~= 'table' then
     error('Value must be a table to append')
   end
-  if not _state[key] then
-    _state[key] = {}
-  end
-  if type(_state[key]) ~= 'table' then
-    error('State key is not a table: ' .. key)
-  end
 
-  local old = vim.deepcopy(_state[key] --[[@as table]])
-  table.insert(_state[key] --[[@as table]], value)
-  M.emit(key, _state[key], old)
+  M.mutate(key, function(current)
+    table.insert(current --[[@as table]], value)
+  end)
 end
 
 ---@generic K extends keyof OpencodeStateData
@@ -223,13 +301,10 @@ function M.remove(key, idx)
   if not _state[key] then
     return
   end
-  if type(_state[key]) ~= 'table' then
-    error('State key is not a table: ' .. key)
-  end
 
-  local old = vim.deepcopy(_state[key] --[[@as table]])
-  table.remove(_state[key] --[[@as table]], idx)
-  M.emit(key, _state[key], old)
+  M.mutate(key, function(current)
+    table.remove(current --[[@as table]], idx)
+  end)
 end
 
 return M

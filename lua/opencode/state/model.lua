@@ -1,17 +1,6 @@
 local store = require('opencode.state.store')
 
 ---@class OpencodeModelStateMutations
----@field set_mode fun(mode: string|nil)
----@field clear_mode fun()
----@field set_model fun(model: string|nil)
----@field clear_model fun()
----@field clear fun()
----@field set_model_info fun(info: table|nil)
----@field set_variant fun(variant: string|nil)
----@field clear_variant fun()
----@field set_mode_model_map fun(mode_map: table<string, string>)
----@field set_mode_model_override fun(mode: string, model: string)
-
 local M = {}
 
 ---@param mode string|nil
@@ -33,9 +22,11 @@ function M.clear_model()
 end
 
 function M.clear()
-  store.set('current_model', nil)
-  store.set('current_mode', nil)
-  store.set('current_variant', nil)
+  return store.batch(function()
+    store.set('current_model', nil)
+    store.set('current_mode', nil)
+    store.set('current_variant', nil)
+  end)
 end
 
 ---@param info table|nil

@@ -26,21 +26,6 @@ local store = require('opencode.state.store')
 ---@field output_was_at_bottom boolean|nil
 
 ---@class OpencodeUiStateMutations
----@field set_windows fun(windows: OpencodeWindowState|nil)
----@field clear_windows fun()
----@field set_opening fun(is_opening: boolean)
----@field set_panel_focused fun(is_focused: boolean)
----@field set_last_focused_window fun(win_type: 'input'|'output'|nil)
----@field set_display_route fun(route: any)
----@field clear_display_route fun()
----@field set_last_code_window fun(win_id: integer|nil)
----@field set_current_code_buf fun(bufnr: integer|nil)
----@field set_last_window_width_ratio fun(ratio: number|nil)
----@field clear_last_window_width_ratio fun()
----@field set_input_content fun(lines: table|nil)
----@field set_saved_window_options fun(opts: table|nil)
----@field set_pre_zoom_width fun(width: integer|nil)
-
 local M = {}
 
 local _state = store.state()
@@ -86,6 +71,26 @@ end
 ---@param bufnr integer|nil
 function M.set_current_code_buf(bufnr)
   return store.set('current_code_buf', bufnr)
+end
+
+---@param win_id integer|nil
+---@param bufnr integer|nil
+function M.set_code_context(win_id, bufnr)
+  store.batch(function()
+    store.set('last_code_win_before_opencode', win_id)
+    store.set('current_code_buf', bufnr)
+  end)
+end
+
+---Clear window IDs while keeping buffer references, used when hiding windows
+---@param output_was_at_bottom boolean
+function M.mark_windows_hidden(output_was_at_bottom)
+  store.mutate('windows', function(win)
+    win.input_win = nil
+    win.output_win = nil
+    win.footer_win = nil
+    win.output_was_at_bottom = output_was_at_bottom
+  end)
 end
 
 ---@param ratio number|nil
@@ -367,10 +372,12 @@ function M.inspect_hidden_buffers()
 end
 
 function M.clear_hidden_window_state()
-  store.set('_hidden_buffers', nil)
-  if _state.windows and not _state.windows.input_win and not _state.windows.output_win then
-    store.set('windows', nil)
-  end
+  return store.batch(function()
+    store.set('_hidden_buffers', nil)
+    if _state.windows and not _state.windows.input_win and not _state.windows.output_win then
+      store.set('windows', nil)
+    end
+  end)
 end
 
 ---@return boolean

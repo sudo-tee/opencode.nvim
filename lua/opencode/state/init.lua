@@ -16,6 +16,7 @@ local context = require('opencode.state.context')
 ---@field context OpencodeContextStateMutations
 
 ---@alias OpencodeState OpencodeStateModule & OpencodeStateData
+
 ---@type OpencodeState
 local M = {
   store = store,

@@ -1,16 +1,15 @@
-
 local store = require('opencode.state.store')
 
 ---@class OpencodeContextStateMutations
----@field set_current_context_config fun(config: OpencodeContextConfig|nil)
----@field set_context_updated_at fun(timestamp: number|nil)
----@field set_current_cwd fun(cwd: string|nil)
-
 local M = {}
 
 ---@param config OpencodeContextConfig|nil
 function M.set_current_context_config(config)
   return store.set('current_context_config', config)
+end
+
+function M.update_current_context_config(mutator)
+  return store.mutate('current_context_config', mutator)
 end
 
 ---@param timestamp number|nil

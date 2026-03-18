@@ -92,8 +92,7 @@ M.open = Promise.async(function(opts)
 
   if are_windows_closed then
     if not ui.is_opencode_focused() then
-      state.ui.set_last_code_window(vim.api.nvim_get_current_win())
-      state.ui.set_current_code_buf(vim.api.nvim_get_current_buf())
+      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
     end
 
     M.is_prompting_allowed()

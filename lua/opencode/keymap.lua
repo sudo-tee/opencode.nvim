@@ -1,9 +1,12 @@
+local config = require('opencode.config')
 local M = {}
 
 local function is_completion_visible()
   return require('opencode.ui.completion').is_completion_visible()
 end
 
+---@param key_binding string The key binding to feed if completion is visible
+---@param callback function The callback to execute if completion is not visible
 local function wrap_with_completion_check(key_binding, callback)
   return function()
     if is_completion_visible() then
@@ -13,11 +16,10 @@ local function wrap_with_completion_check(key_binding, callback)
   end
 end
 
----@param keymap_config table The keymap configuration table
+---@param keymap_config table<string, OpencodeKeymapEntry> The keymap configuration table
 ---@param default_modes table Default modes for these keymaps
 ---@param base_opts table Base options to use for all keymaps
----@param defer_to_completion boolean? Whether to defer to completion engine when visible
-local function process_keymap_entry(keymap_config, default_modes, base_opts, defer_to_completion)
+local function process_keymap_entry(keymap_config, default_modes, base_opts)
   local api = require('opencode.api')
   local cmds = api.commands
 
@@ -41,7 +43,7 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, def
       opts.desc = config_entry.desc or cmds[func_name] and cmds[func_name].desc
 
       if callback then
-        if defer_to_completion then
+        if config_entry.defer_to_completion then
           callback = wrap_with_completion_check(key_binding, callback)
         end
         vim.keymap.set(modes, key_binding, callback, opts)
@@ -61,13 +63,12 @@ end
 
 ---@param keymap_config table Window keymap configuration
 ---@param buf_id integer Buffer ID to set keymaps for
----@param defer_to_completion boolean? Whether to defer to completion engine when visible (default: false)
-function M.setup_window_keymaps(keymap_config, buf_id, defer_to_completion)
+function M.setup_window_keymaps(keymap_config, buf_id)
   if not vim.api.nvim_buf_is_valid(buf_id) then
     return
   end
 
-  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id }, defer_to_completion)
+  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id })
 end
 
 return M

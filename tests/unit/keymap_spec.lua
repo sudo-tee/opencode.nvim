@@ -15,11 +15,18 @@ describe('opencode.keymap', function()
   local mock_api
   local keymap
 
+  -- Mock completion module state (controlled per test)
+  local mock_completion
+  local original_nvim_feedkeys
+  local feedkeys_calls = {}
+
   before_each(function()
     set_keymaps = {}
     cmd_calls = {}
+    feedkeys_calls = {}
     original_keymap_set = vim.keymap.set
     original_vim_cmd = vim.cmd
+    original_nvim_feedkeys = vim.api.nvim_feedkeys
 
     -- Mock the functions to capture calls
     vim.keymap.set = function(modes, key, callback, opts)
@@ -33,6 +40,10 @@ describe('opencode.keymap', function()
 
     vim.cmd = function(command)
       table.insert(cmd_calls, command)
+    end
+
+    vim.api.nvim_feedkeys = function(keys, mode, escape_ks)
+      table.insert(feedkeys_calls, { keys = keys, mode = mode, escape_ks = escape_ks })
     end
 
     -- Mock the API module before requiring keymap
@@ -61,6 +72,14 @@ describe('opencode.keymap', function()
     local mock_config = {}
     package.loaded['opencode.config'] = mock_config
 
+    -- Mock the completion module (visible = false by default)
+    mock_completion = {
+      is_completion_visible = function()
+        return false
+      end,
+    }
+    package.loaded['opencode.ui.completion'] = mock_completion
+
     -- Now require the keymap module
     keymap = require('opencode.keymap')
   end)
@@ -69,12 +88,14 @@ describe('opencode.keymap', function()
     -- Restore original functions
     vim.keymap.set = original_keymap_set
     vim.cmd = original_vim_cmd
+    vim.api.nvim_feedkeys = original_nvim_feedkeys
 
     -- Clean up package loading
     package.loaded['opencode.keymap'] = nil
     package.loaded['opencode.api'] = nil
     package.loaded['opencode.state'] = nil
     package.loaded['opencode.config'] = nil
+    package.loaded['opencode.ui.completion'] = nil
   end)
 
   describe('normalize_keymap', function()
@@ -224,6 +245,90 @@ describe('opencode.keymap', function()
 
       -- Cleanup
       vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  describe('defer_to_completion', function()
+    it('calls the callback directly when completion is not visible', function()
+      local callback_called = false
+      local test_keymap = {
+        editor = {
+          ['<tab>'] = {
+            function()
+              callback_called = true
+            end,
+            defer_to_completion = true,
+            desc = 'Tab with completion defer',
+          },
+        },
+      }
+
+      keymap.setup(test_keymap)
+
+      assert.equal(1, #set_keymaps, 'Should register one keymap')
+      local registered = set_keymaps[1]
+
+      registered.callback()
+
+      assert.is_true(callback_called, 'Callback should be called when completion is not visible')
+      assert.equal(0, #feedkeys_calls, 'Should not feed keys when completion is not visible')
+    end)
+
+    it('feeds the key binding when completion is visible instead of calling the callback', function()
+      mock_completion.is_completion_visible = function()
+        return true
+      end
+
+      local callback_called = false
+      local test_keymap = {
+        editor = {
+          ['<tab>'] = {
+            function()
+              callback_called = true
+            end,
+            defer_to_completion = true,
+            desc = 'Tab with completion defer',
+          },
+        },
+      }
+
+      keymap.setup(test_keymap)
+
+      assert.equal(1, #set_keymaps, 'Should register one keymap')
+      local registered = set_keymaps[1]
+
+      registered.callback()
+
+      assert.is_false(callback_called, 'Callback should NOT be called when completion is visible')
+      assert.equal(1, #feedkeys_calls, 'Should feed the key binding to the completion engine')
+    end)
+
+    it('does not wrap with completion check when defer_to_completion is not set', function()
+      local callback_called = false
+      local test_keymap = {
+        editor = {
+          ['<tab>'] = {
+            function()
+              callback_called = true
+            end,
+            desc = 'Tab without defer',
+          },
+        },
+      }
+
+      mock_completion.is_completion_visible = function()
+        return true
+      end
+
+      keymap.setup(test_keymap)
+
+      assert.equal(1, #set_keymaps, 'Should register one keymap')
+      local registered = set_keymaps[1]
+
+      registered.callback()
+
+      assert.is_true(callback_called, 'Callback should be called directly without completion check')
+      assert.equal(0, #feedkeys_calls, 'Should not feed keys when defer_to_completion is not set')
     end)
   end)
 end)

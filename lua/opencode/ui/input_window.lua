@@ -121,10 +121,6 @@ function M.handle_submit()
     return false
   end
   ---@cast windows { input_buf: integer }
-  local completion = require('opencode.ui.completion')
-  if completion.is_completion_visible() then
-    return false
-  end
 
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
@@ -473,7 +469,7 @@ function M.setup_keymaps(windows)
   keymaps_set_for_buf[windows.input_buf] = true
 
   local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf, true)
+  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
 end
 
 function M.setup_autocmds(windows, group)

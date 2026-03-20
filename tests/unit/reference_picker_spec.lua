@@ -556,6 +556,25 @@ describe('opencode.ui.reference_picker', function()
       assert.equal('src/file.lua', items[1].file_path)
     end)
 
+    it('deduplicates matching text refs and tool-part refs', function()
+      local items = pick_items({
+        {
+          id = 'msg1',
+          text = 'Check `src/file.lua` for details.',
+          parts = {
+            {
+              type = 'tool',
+              state = { input = { filePath = '/test/project/src/file.lua' } },
+            },
+          },
+        },
+      })
+
+      assert.is_not_nil(items)
+      assert.equal(1, #items)
+      assert.equal('src/file.lua', items[1].file_path)
+    end)
+
     it('ignores non-existent files in tool parts', function()
       local notify_calls = {}
       local original_notify = vim.notify

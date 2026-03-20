@@ -70,6 +70,10 @@ local function make_ref(path, line_str, col_str, abs_start, abs_end)
   }
 end
 
+local function picker_ref_key(path, line)
+  return make_absolute_path(path) .. ':' .. (line or 0)
+end
+
 ---@param text string
 ---@param message_id string
 ---@return CodeReference[]
@@ -164,7 +168,7 @@ local function collect_picker_refs()
       local c = cache[message_id]
       if c then
         for _, ref in ipairs(c.refs) do
-          local key = ref.file_path .. ':' .. (ref.line or 0)
+          local key = picker_ref_key(ref.file_path, ref.line)
           if not seen[key] then
             seen[key] = true
             table.insert(refs, ref)
@@ -177,10 +181,10 @@ local function collect_picker_refs()
           if part.type == 'tool' then
             local file_path = vim.tbl_get(part, 'state', 'input', 'filePath')
             if file_path and vim.fn.filereadable(file_path) == 1 then
-              local key = file_path .. ':0'
+              local rel = vim.fn.fnamemodify(file_path, ':~:.')
+              local key = picker_ref_key(rel, nil)
               if not seen[key] then
                 seen[key] = true
-                local rel = vim.fn.fnamemodify(file_path, ':~:.')
                 table.insert(refs, make_ref(rel, '', '', 0, 0))
               end
             end

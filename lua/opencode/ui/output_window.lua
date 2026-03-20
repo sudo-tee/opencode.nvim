@@ -357,10 +357,10 @@ function M.get_buf()
   return state.windows and state.windows.output_buf
 end
 
----Trigger a re-render by calling the renderer
+---Trigger a full session re-render.
 function M.render()
   local renderer = require('opencode.ui.renderer')
-  renderer._render_all_messages()
+  renderer.render_full_session()
 end
 
 return M

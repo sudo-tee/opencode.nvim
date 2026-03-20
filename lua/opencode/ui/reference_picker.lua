@@ -242,7 +242,7 @@ end
 ---Should be called once during plugin initialization
 function M.setup()
   state.store.subscribe('messages', function()
-    cache = {}
+    M.clear_all()
   end)
 end
 

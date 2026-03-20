@@ -194,7 +194,7 @@ function M.save_output(filename)
   local snapshot = {
     lines = lines,
     extmarks = M.normalize_namespace_ids(extmarks),
-    actions = vim.deepcopy(renderer._render_state:get_all_actions()),
+    actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
     timestamp = os.time(),
   }
 

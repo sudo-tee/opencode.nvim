@@ -288,6 +288,7 @@ end)
 
 describe('renderer.scroll_to_bottom', function()
   local renderer = require('opencode.ui.renderer')
+  local ctx = require('opencode.ui.renderer.ctx')
   local output_window = require('opencode.ui.output_window')
   local buf, win
 
@@ -309,14 +310,14 @@ describe('renderer.scroll_to_bottom', function()
     })
 
     state.ui.set_windows({ output_win = win, output_buf = buf })
-    renderer._prev_line_count = 50
+    ctx.prev_line_count = 50
   end)
 
   after_each(function()
     pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
     state.ui.set_windows(nil)
-    renderer._prev_line_count = 0
+    ctx.prev_line_count = 0
     output_window.viewport_at_bottom = nil
   end)
 
@@ -398,7 +399,8 @@ end)
 
 describe('renderer._add_message_to_buffer scrolling', function()
   local renderer = require('opencode.ui.renderer')
-  local formatter = require('opencode.ui.formatter')
+  local events = require('opencode.ui.renderer.events')
+  local ctx = require('opencode.ui.renderer.ctx')
   local stub = require('luassert.stub')
   local buf, win
 
@@ -418,8 +420,8 @@ describe('renderer._add_message_to_buffer scrolling', function()
     state.ui.set_windows({ output_win = win, output_buf = buf })
     state.session.set_active({ id = 'test-session' })
     state.renderer.set_messages({})
-    renderer._prev_line_count = 1
-    renderer._render_state:reset()
+    ctx.prev_line_count = 1
+    ctx.render_state:reset()
   end)
 
   after_each(function()
@@ -428,8 +430,8 @@ describe('renderer._add_message_to_buffer scrolling', function()
     state.ui.set_windows(nil)
     state.session.set_active(nil)
     state.renderer.set_messages(nil)
-    renderer._prev_line_count = 0
-    renderer._render_state:reset()
+    ctx.prev_line_count = 0
+    ctx.render_state:reset()
   end)
 
   it('scrolls to bottom when user message is added', function()
@@ -449,7 +451,7 @@ describe('renderer._add_message_to_buffer scrolling', function()
       scroll_called_with_force = force == true
     end)
 
-    renderer._add_message_to_buffer(user_message)
+    events.on_message_updated(user_message)
 
     assert.is_true(scroll_called_with_force)
     assert.stub(renderer.scroll_to_bottom).was_called_with(true)
@@ -471,7 +473,7 @@ describe('renderer._add_message_to_buffer scrolling', function()
 
     stub(renderer, 'scroll_to_bottom')
 
-    renderer._add_message_to_buffer(assistant_message)
+    events.on_message_updated(assistant_message)
 
     assert.stub(renderer.scroll_to_bottom).was_not_called()
 
@@ -492,7 +494,7 @@ describe('renderer._add_message_to_buffer scrolling', function()
 
     stub(renderer, 'scroll_to_bottom')
 
-    renderer._add_message_to_buffer(system_message)
+    events.on_message_updated(system_message)
 
     assert.stub(renderer.scroll_to_bottom).was_not_called()
 

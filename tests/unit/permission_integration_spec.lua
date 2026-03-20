@@ -1,6 +1,7 @@
-local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local permission_window = require('opencode.ui.permission_window')
+local events = require('opencode.ui.renderer.events')
+local ctx = require('opencode.ui.renderer.ctx')
 
 describe('permission_integration', function()
   local mock_update_permission_from_part
@@ -15,8 +16,8 @@ describe('permission_integration', function()
     permission_window._dialog = nil
     permission_window._processing = false
 
-    renderer._render_state:reset()
-    renderer._prev_line_count = 0
+    ctx.render_state:reset()
+    ctx.prev_line_count = 0
 
     captured_calls = {}
     mock_update_permission_from_part = permission_window.update_permission_from_part
@@ -47,7 +48,7 @@ describe('permission_integration', function()
         info = { id = 'msg_abc', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -64,7 +65,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(1, #captured_calls)
       assert.are.equal('per_test_123', captured_calls[1].permission_id)
@@ -85,7 +86,7 @@ describe('permission_integration', function()
         info = { id = 'msg_legacy', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -101,7 +102,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(1, #captured_calls)
       assert.are.equal('per_legacy_456', captured_calls[1].permission_id)
@@ -123,7 +124,7 @@ describe('permission_integration', function()
         info = { id = 'msg_abc', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -139,7 +140,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(0, #captured_calls)
     end)
@@ -160,7 +161,7 @@ describe('permission_integration', function()
         info = { id = 'msg_different', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -176,7 +177,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(0, #captured_calls)
     end)
@@ -197,7 +198,7 @@ describe('permission_integration', function()
         info = { id = 'msg_abc', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -208,7 +209,7 @@ describe('permission_integration', function()
         content = 'Some text content',
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(0, #captured_calls)
     end)
@@ -220,7 +221,7 @@ describe('permission_integration', function()
         info = { id = 'msg_abc', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -236,7 +237,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(0, #captured_calls)
     end)
@@ -273,7 +274,7 @@ describe('permission_integration', function()
         info = { id = 'msg_second', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -289,7 +290,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(1, #captured_calls)
       assert.are.equal('per_second', captured_calls[1].permission_id)
@@ -319,7 +320,7 @@ describe('permission_integration', function()
         info = { id = 'msg_abc', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -335,7 +336,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(1, #captured_calls)
       assert.are.equal('per_first', captured_calls[1].permission_id)
@@ -359,7 +360,7 @@ describe('permission_integration', function()
         info = { id = 'tool_msg_id', sessionID = 'session_123' },
         parts = {},
       }
-      renderer._render_state:set_message(message, 1, 1)
+      ctx.render_state:set_message(message, 1, 1)
       table.insert(state.messages, message)
 
       local part = {
@@ -375,7 +376,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part })
+      events.on_part_updated({ part = part })
 
       assert.are.equal(1, #captured_calls)
       assert.are.equal('per_test_123', captured_calls[1].permission_id)
@@ -395,7 +396,7 @@ describe('permission_integration', function()
         },
       }
 
-      renderer.on_part_updated({ part = part_root })
+      events.on_part_updated({ part = part_root })
 
       assert.are.equal(0, #captured_calls)
     end)

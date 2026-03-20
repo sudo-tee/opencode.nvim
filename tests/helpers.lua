@@ -323,11 +323,10 @@ function M.normalize_namespace_ids(extmarks)
 end
 
 function M.capture_output(output_buf, namespace)
-  local renderer = require('opencode.ui.renderer')
   return {
     lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false) or {},
     extmarks = vim.api.nvim_buf_get_extmarks(output_buf, namespace, 0, -1, { details = true }) or {},
-    actions = vim.deepcopy(renderer._render_state:get_all_actions()),
+    actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
   }
 end
 

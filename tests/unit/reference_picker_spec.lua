@@ -244,6 +244,17 @@ describe('opencode.ui.reference_picker', function()
       assert.equal('src/main.lua', refs[1].file_path)
     end)
 
+    it('keeps later top-level references with the same basename', function()
+      local text = 'See `src/main.lua:10` first, then check main.lua:42 too.'
+      local refs = reference_picker.parse_references(text, 'msg1')
+
+      assert.equal(2, #refs)
+      assert.equal('src/main.lua', refs[1].file_path)
+      assert.equal(10, refs[1].line)
+      assert.equal('main.lua', refs[2].file_path)
+      assert.equal(42, refs[2].line)
+    end)
+
     it('ref struct contains file_path, line, col, match_start, match_end', function()
       local text = 'See `src/test.lua:5:3` for details.'
       local refs = reference_picker.parse_references(text, 'msg1')

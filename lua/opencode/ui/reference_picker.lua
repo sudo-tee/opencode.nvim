@@ -81,7 +81,6 @@ function M.parse_references(text, message_id)
       refs = {},
       ranges = {},
       seen_paths = {},
-      seen_basenames = {},
     }
     cache[message_id] = c
   end
@@ -107,18 +106,14 @@ function M.parse_references(text, message_id)
         local abs_ms = ms + abs_offset
         local abs_me = me + abs_offset
         local path_key = path .. ':' .. (l or '') .. ':' .. (col or '')
-        local basename = path:match('[^/]+$') or path
-        local shadowed = entry.check_exists and c.seen_basenames[basename]
 
         if
-          not shadowed
-          and not is_url_path(path, chunk, ms)
+          not is_url_path(path, chunk, ms)
           and not c.seen_paths[path_key]
           and not overlaps(c.ranges, abs_ms, abs_me)
           and (not entry.check_exists or file_exists(path))
         then
           c.seen_paths[path_key] = true
-          c.seen_basenames[basename] = true
           table.insert(c.ranges, { abs_ms, abs_me })
           table.insert(c.refs, make_ref(path, l or '', col or '', abs_ms, abs_me))
         end

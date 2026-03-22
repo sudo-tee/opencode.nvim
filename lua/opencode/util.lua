@@ -592,6 +592,14 @@ end
 
 function M.is_path_in_cwd(path)
   local cwd = vim.fn.getcwd()
+  -- For relative paths, build the logical absolute path without resolving symlinks
+  -- so that files inside symlinked directories within cwd are accepted.
+  if path:sub(1, 1) ~= '/' then
+    local logical = vim.fn.simplify(cwd .. '/' .. path)
+    if logical:sub(1, #cwd) == cwd then
+      return true
+    end
+  end
   local abs_path = vim.fn.fnamemodify(path, ':p')
   return abs_path:sub(1, #cwd) == cwd
 end

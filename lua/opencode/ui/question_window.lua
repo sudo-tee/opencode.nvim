@@ -13,11 +13,11 @@ M._answering = false
 M._dialog = nil
 
 local function render_question()
-  require('opencode.ui.renderer').render_question_display()
+  require('opencode.ui.renderer.events').render_question_display()
 end
 
 local function clear_question()
-  require('opencode.ui.renderer').clear_question_display()
+  require('opencode.ui.renderer.events').clear_question_display()
 end
 
 ---@param question_request OpencodeQuestionRequest

@@ -4,6 +4,37 @@ local config = require('opencode.config')
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
 
+local _update_depth = 0
+local _update_buf = nil
+
+---Begin a batch of buffer writes — toggle modifiable once for the whole batch.
+---Returns true if the batch was opened (buffer is valid). Must be paired with end_update().
+---@return boolean
+function M.begin_update()
+  local windows = state.windows
+  if not windows or not windows.output_buf then
+    return false
+  end
+  if _update_depth == 0 then
+    _update_buf = windows.output_buf
+    vim.api.nvim_set_option_value('modifiable', true, { buf = _update_buf })
+  end
+  _update_depth = _update_depth + 1
+  return true
+end
+
+---End a batch started by begin_update().
+function M.end_update()
+  if _update_depth == 0 then
+    return
+  end
+  _update_depth = _update_depth - 1
+  if _update_depth == 0 and _update_buf then
+    pcall(vim.api.nvim_set_option_value, 'modifiable', false, { buf = _update_buf })
+    _update_buf = nil
+  end
+end
+
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
   local filetype = config.ui.output.filetype or 'opencode_output'
@@ -165,12 +196,11 @@ function M.update_dimensions(windows)
 end
 
 function M.get_buf_line_count()
-  if not M.buffer_valid() then
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
     return 0
   end
-  ---@cast state.windows { output_buf: integer }
-
-  return vim.api.nvim_buf_line_count(state.windows.output_buf)
+  return vim.api.nvim_buf_line_count(windows.output_buf)
 end
 
 ---Set the output buffer contents
@@ -178,17 +208,22 @@ end
 ---@param start_line? integer The starting line to set, defaults to 0
 ---@param end_line? integer The last line to set, defaults to -1
 function M.set_lines(lines, start_line, end_line)
-  if not M.buffer_valid() then
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
     return
   end
-  ---@cast state.windows { output_buf: integer }
 
+  local buf = windows.output_buf
   start_line = start_line or 0
   end_line = end_line or -1
 
-  vim.api.nvim_set_option_value('modifiable', true, { buf = state.windows.output_buf })
-  vim.api.nvim_buf_set_lines(state.windows.output_buf, start_line, end_line, false, lines)
-  vim.api.nvim_set_option_value('modifiable', false, { buf = state.windows.output_buf })
+  if _update_depth == 0 then
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
+    vim.api.nvim_buf_set_lines(buf, start_line, end_line, false, lines)
+    vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+  else
+    vim.api.nvim_buf_set_lines(buf, start_line, end_line, false, lines)
+  end
 end
 
 ---Clear output buf extmarks
@@ -196,35 +231,32 @@ end
 ---@param end_line? integer Line to clear until, defaults to -1
 ---@param clear_all? boolean If true, clears all extmarks in the buffer
 function M.clear_extmarks(start_line, end_line, clear_all)
-  if not M.buffer_valid() then
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
     return
   end
-  ---@cast state.windows { output_buf: integer }
 
   start_line = start_line or 0
   end_line = end_line or -1
 
-  pcall(
-    vim.api.nvim_buf_clear_namespace,
-    state.windows.output_buf,
-    clear_all and -1 or M.namespace,
-    start_line,
-    end_line
-  )
+  pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
 end
 
 ---Apply extmarks to the output buffer
 ---@param extmarks table<number, OutputExtmark[]> Extmarks indexed by line
 ---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
 function M.set_extmarks(extmarks, line_offset)
-  if not M.buffer_valid() or not extmarks or type(extmarks) ~= 'table' then
+  if not extmarks or type(extmarks) ~= 'table' then
     return
   end
-  ---@cast state.windows { output_buf: integer }
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+    return
+  end
 
   line_offset = line_offset or 0
 
-  local output_buf = state.windows.output_buf
+  local output_buf = windows.output_buf
 
   for line_idx, marks in pairs(extmarks) do
     for _, mark in ipairs(marks) do

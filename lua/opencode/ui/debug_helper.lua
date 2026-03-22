@@ -29,7 +29,7 @@ function M.debug_output()
 end
 
 function M.debug_message()
-  local renderer = require('opencode.ui.renderer')
+  local render_state = require('opencode.ui.renderer.ctx').render_state
   if not state.windows or not state.windows.output_win then
     vim.notify('Output window not available', vim.log.levels.WARN)
     return
@@ -38,7 +38,7 @@ function M.debug_message()
 
   -- Search backwards from current line to find nearest message
   for line = current_line, 1, -1 do
-    local message_data = renderer._render_state:get_message_at_line(line)
+    local message_data = render_state:get_message_at_line(line)
     if message_data and message_data.message then
       M.open_json_file(message_data.message)
       return

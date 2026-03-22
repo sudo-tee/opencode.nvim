@@ -2,6 +2,7 @@ local renderer = require('opencode.ui.renderer')
 local config = require('opencode.config')
 local state = require('opencode.state')
 local core = require('opencode.core')
+local events = require('opencode.ui.renderer.events')
 local helpers = require('tests.helpers')
 local ui = require('opencode.ui.ui')
 
@@ -39,7 +40,7 @@ describe('hooks', function()
       end
 
       local test_event = { file = '/test/file.lua' }
-      renderer.on_file_edited(test_event)
+      events.on_file_edited(test_event)
 
       assert.is_true(called)
       assert.are.equal('/test/file.lua', file_path)
@@ -50,7 +51,7 @@ describe('hooks', function()
 
       local test_event = { file = '/test/file.lua' }
       assert.has_no.errors(function()
-        renderer.on_file_edited(test_event)
+        events.on_file_edited(test_event)
       end)
     end)
 
@@ -61,7 +62,7 @@ describe('hooks', function()
 
       local test_event = { file = '/test/file.lua' }
       assert.has_no.errors(function()
-        renderer.on_file_edited(test_event)
+        events.on_file_edited(test_event)
       end)
     end)
   end)

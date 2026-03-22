@@ -216,7 +216,7 @@ function M._setup_dialog()
     end
 
     M._processing = true
-    require('opencode.ui.renderer').render_permissions_display()
+    require('opencode.ui.renderer.events').render_permissions_display()
     M._clear_dialog()
 
     local api = require('opencode.api')
@@ -236,7 +236,7 @@ function M._setup_dialog()
   end
 
   local function on_navigate()
-    require('opencode.ui.renderer').render_permissions_display()
+    require('opencode.ui.renderer.events').render_permissions_display()
   end
 
   local function get_option_count()

@@ -30,7 +30,7 @@ function M.end_update()
   end
   _update_depth = _update_depth - 1
   if _update_depth == 0 and _update_buf then
-    vim.api.nvim_set_option_value('modifiable', false, { buf = _update_buf })
+    pcall(vim.api.nvim_set_option_value, 'modifiable', false, { buf = _update_buf })
     _update_buf = nil
   end
 end

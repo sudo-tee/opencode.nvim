@@ -410,7 +410,6 @@ function M.on_permission_updated(permission)
 
   permission_window.add_permission(permission)
   M.render_permissions_display()
-  buf.rerender_part('permission-display-part')
   scroll(true)
 end
 
@@ -432,9 +431,9 @@ function M.on_permission_replied(properties)
   if #state.pending_permissions == 0 then
     buf.remove_part('permission-display-part')
     buf.remove_message('permission-display-message')
+  else
+    M.render_permissions_display()
   end
-
-  buf.rerender_part('permission-display-part')
 end
 
 ---Handle question.asked — show the question picker UI

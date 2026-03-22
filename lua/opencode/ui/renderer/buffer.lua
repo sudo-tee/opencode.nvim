@@ -145,12 +145,11 @@ function M.write_formatted_data(formatted_data, part_id, start_line)
   if is_insertion then
     output_window.set_lines(new_lines, target_line, target_line)
   else
-    -- Append: temporarily add a separating blank line in-place to avoid an
-    -- O(n) copy, then restore. set_lines is synchronous so this is safe.
+    -- Append: overlap the last buffer line  with our lines
     target_line = target_line - 1
-    new_lines[#new_lines + 1] = ''
-    output_window.set_lines(new_lines, target_line)
-    new_lines[#new_lines] = nil
+    local append_lines = table.move(new_lines, 1, #new_lines, 1, {})
+    append_lines[#append_lines + 1] = ''
+    output_window.set_lines(append_lines, target_line)
   end
 
   if part_id and formatted_data.actions then
@@ -300,8 +299,8 @@ function M.remove_part(part_id)
     return
   end
   output_window.begin_update()
-  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
-  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
+  output_window.set_lines({}, cached.line_start, cached.line_end + 1)
   output_window.end_update()
   ctx.render_state:remove_part(part_id)
 end
@@ -362,8 +361,8 @@ function M.remove_message(message_id)
     return
   end
   output_window.begin_update()
-  output_window.clear_extmarks(cached.line_start - 1, cached.line_end)
-  output_window.set_lines({}, cached.line_start - 1, cached.line_end)
+  output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
+  output_window.set_lines({}, cached.line_start, cached.line_end + 1)
   output_window.end_update()
   ctx.render_state:remove_message(message_id)
 end

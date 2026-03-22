@@ -517,6 +517,26 @@ local function shift_action(action, delta)
   end
 end
 
+--- Binary-search sorted ranges for the first entry whose line_start >= from_line.
+--- Returns the index, or #ranges + 1 if none qualify.
+---@param ranges {[1]: integer, [2]: integer, [3]: string}[]
+---@param from_line integer
+---@return integer
+local function first_range_at_or_after(ranges, from_line)
+  local lo, hi = 1, #ranges
+  local result = #ranges + 1
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    if ranges[mid][1] >= from_line then
+      result = mid
+      hi = mid - 1
+    else
+      lo = mid + 1
+    end
+  end
+  return result
+end
+
 function RenderState:shift_all(from_line, delta)
   if delta == 0 then
     return
@@ -526,18 +546,28 @@ function RenderState:shift_all(from_line, delta)
     return
   end
 
+  -- Build fresh sorted ranges so we can search for the first entry at
+  -- or after from_line, then iterate only the suffix that needs shifting.
+  self:_rebuild_ranges()
+
   local shifted = false
 
-  for _, msg_data in pairs(self._messages) do
-    if msg_data.line_start and msg_data.line_start >= from_line then
+  local msg_ranges = self._message_ranges
+  local first_msg = first_range_at_or_after(msg_ranges, from_line)
+  for i = first_msg, #msg_ranges do
+    local msg_data = self._messages[msg_ranges[i][3]]
+    if msg_data then
       msg_data.line_start = msg_data.line_start + delta
       msg_data.line_end = msg_data.line_end + delta
       shifted = true
     end
   end
 
-  for _, part_data in pairs(self._parts) do
-    if part_data.line_start and part_data.line_start >= from_line then
+  local part_ranges = self._part_ranges
+  local first_part = first_range_at_or_after(part_ranges, from_line)
+  for i = first_part, #part_ranges do
+    local part_data = self._parts[part_ranges[i][3]]
+    if part_data then
       part_data.line_start = part_data.line_start + delta
       part_data.line_end = part_data.line_end + delta
       shifted = true

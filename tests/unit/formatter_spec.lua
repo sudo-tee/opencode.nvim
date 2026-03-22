@@ -129,6 +129,76 @@ describe('formatter', function()
     assert.are.equal(' **  tool** ', output.lines[3])
   end)
 
+  it('renders task child apply_patch tools without formatter errors', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_1',
+      type = 'tool',
+      tool = 'task',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          description = 'apply changes',
+          subagent_type = 'coder',
+        },
+        metadata = {
+          sessionId = 'ses_child',
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local child_parts = {
+      {
+        id = 'prt_child_1',
+        type = 'tool',
+        tool = 'apply_patch',
+        messageID = 'msg_child_1',
+        sessionID = 'ses_child',
+        state = {
+          status = 'completed',
+          metadata = {
+            files = {
+              {
+                filePath = '/tmp/project/lua/foo.lua',
+              },
+            },
+          },
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true, function(session_id)
+      if session_id == 'ses_child' then
+        return child_parts
+      end
+      return nil
+    end)
+
+    local found = false
+    for _, line in ipairs(output.lines) do
+      if line:find('apply patch', 1, true) then
+        found = true
+        break
+      end
+    end
+
+    assert.is_true(found)
+  end)
+
   it('renders directory reads with trailing slash', function()
     local message = {
       info = {

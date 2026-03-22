@@ -2,8 +2,7 @@ local Promise = require('opencode.promise')
 local M = {}
 
 local get_available_commands = Promise.async(function()
-  local api = require('opencode.api')
-  local commands = api.get_slash_commands():await()
+  local commands = require('opencode.commands.slash').get_commands():await()
 
   local results = {}
   for key, cmd_info in ipairs(commands) do

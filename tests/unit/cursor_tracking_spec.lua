@@ -343,6 +343,25 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(51, cursor[1])
     config.values.ui.output.always_scroll_to_bottom = false
   end)
+
+  it('moves to the visual end when the last wrapped line grows', function()
+    local long_line = string.rep('x', 120)
+    local longer_line = string.rep('x', 180)
+
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', long_line })
+    ctx.prev_line_count = 3
+    vim.api.nvim_win_set_cursor(win, { 3, 0 })
+
+    renderer.scroll_to_bottom()
+    vim.api.nvim_buf_set_lines(buf, 2, 3, false, { longer_line })
+    renderer.scroll_to_bottom()
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(3, cursor[1])
+    assert.equals(#longer_line - 1, cursor[2])
+  end)
 end)
 
 describe('ui.focus_input', function()

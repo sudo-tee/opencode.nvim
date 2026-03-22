@@ -229,7 +229,8 @@ function M.scroll_to_bottom(force)
        end)()
 
   if should_scroll then
-    vim.api.nvim_win_set_cursor(output_win, { line_count, 0 })
+    local last_line = vim.api.nvim_buf_get_lines(output_buf, line_count - 1, line_count, false)[1] or ''
+    vim.api.nvim_win_set_cursor(output_win, { line_count, #last_line })
     vim.api.nvim_win_call(output_win, function()
       vim.cmd('normal! zb')
     end)

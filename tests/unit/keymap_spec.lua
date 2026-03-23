@@ -124,6 +124,17 @@ describe('opencode.keymap', function()
       assert.equal('Toggle opencode windows', set_keymaps[1].opts.desc)
     end)
 
+    it('falls back to empty description for function actions without desc', function()
+      keymap.setup({
+        editor = {
+          ['<leader>fn'] = { function() end },
+        },
+      })
+
+      assert.equal(1, #set_keymaps)
+      assert.equal('', set_keymaps[1].opts.desc)
+    end)
+
     it('routes command-like keymaps through execute_command_opts', function()
       keymap.setup({ editor = { ['<leader>test'] = { 'toggle' } } })
 
@@ -141,7 +152,7 @@ describe('opencode.keymap', function()
       assert.equal(0, #set_keymaps)
       assert.equal(1, #notify_calls)
       assert.equal(vim.log.levels.ERROR, notify_calls[1].level)
-      assert.matches('Unroutable string keymap action: ad_hoc_action', notify_calls[1].message)
+      assert.matches('Cannot find keymap action: ad_hoc_action', notify_calls[1].message)
     end)
   end)
 

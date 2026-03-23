@@ -33,7 +33,7 @@ local function resolve_callback(func_name, func_args)
       end
     end
 
-    vim.notify('Unroutable string keymap action: ' .. func_name, vim.log.levels.ERROR)
+    vim.notify('Cannot find keymap action: ' .. func_name, vim.log.levels.ERROR)
     return nil
   end
 
@@ -56,8 +56,7 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts)
 
       local modes = config_entry.mode or default_modes
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
-      opts.desc = config_entry.desc
-        or type(func_name) == 'string' and command_defs[func_name] and command_defs[func_name].desc
+      opts.desc = config_entry.desc or vim.tbl_get(command_defs, func_name, 'desc') or ''
 
       if callback then
         if config_entry.defer_to_completion then

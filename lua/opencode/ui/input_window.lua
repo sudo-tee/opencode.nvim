@@ -1,6 +1,8 @@
+local M = {}
+
 local state = require('opencode.state')
 local config = require('opencode.config')
-local M = {}
+local window_options = require('opencode.ui.window_options')
 
 -- Track hidden state
 M._hidden = false
@@ -246,40 +248,30 @@ M._execute_slash_command = function(command)
   end
 end
 
-local function set_win_option(option, value, windows)
-  windows = windows or state.windows
-  vim.api.nvim_set_option_value(option, value, { win = windows.input_win, scope = 'local' })
-end
-
-local function set_buf_option(option, value, windows)
-  windows = windows or state.windows
-  vim.api.nvim_set_option_value(option, value, { buf = windows.input_buf })
-end
-
 function M.setup(windows)
   if config.ui.input.text.wrap then
-    set_win_option('wrap', true, windows)
-    set_win_option('linebreak', true, windows)
+    window_options.set_window_option('wrap', true, windows.input_win)
+    window_options.set_window_option('linebreak', true, windows.input_win)
   end
 
-  set_buf_option('filetype', 'opencode', windows)
-  set_win_option('winhighlight', config.ui.window_highlight, windows)
+  window_options.set_buffer_option('filetype', 'opencode', windows.input_buf)
+  window_options.set_window_option('winhighlight', config.ui.window_highlight, windows.input_win)
 
   -- Apply user-configurable window options
   local win_opts = config.ui.input.win_options or {}
   for opt, value in pairs(win_opts) do
-    pcall(set_win_option, opt, value, windows)
+    pcall(window_options.set_window_option, opt, value, windows.input_win)
   end
 
-  set_buf_option('buftype', 'nofile', windows)
-  set_buf_option('bufhidden', 'hide', windows)
-  set_buf_option('buflisted', false, windows)
-  set_buf_option('swapfile', false, windows)
+  window_options.set_buffer_option('buftype', 'nofile', windows.input_buf)
+  window_options.set_buffer_option('bufhidden', 'hide', windows.input_buf)
+  window_options.set_buffer_option('buflisted', false, windows.input_buf)
+  window_options.set_buffer_option('swapfile', false, windows.input_buf)
 
   if config.ui.position ~= 'current' then
-    set_win_option('winfixbuf', true, windows)
+    window_options.set_window_option('winfixbuf', true, windows.input_win)
   end
-  set_win_option('winfixwidth', true, windows)
+  window_options.set_window_option('winfixwidth', true, windows.input_win)
 
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)

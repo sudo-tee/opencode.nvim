@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
+local window_options = require('opencode.ui.window_options')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
@@ -105,56 +106,26 @@ function M.is_at_bottom(win)
   return cursor[1] >= line_count
 end
 
----Helper to set window option and save original value for position='current'
----@param opt_name string The option name
----@param value any The value to set
----@param win integer The window ID
-local function set_win_option(opt_name, value, win)
-  -- Save original value if using position = 'current'
-  if config.ui.position == 'current' then
-    if not state.saved_window_options then
-      state.ui.set_saved_window_options({})
-    end
-    -- Only save if not already saved (in case this function is called multiple times)
-    if state.saved_window_options[opt_name] == nil then
-      local ok, original = pcall(vim.api.nvim_get_option_value, opt_name, { win = win })
-      if ok then
-        state.saved_window_options[opt_name] = original
-      end
-    end
-  end
-
-  vim.api.nvim_set_option_value(opt_name, value, { win = win, scope = 'local' })
-end
-
----Helper to set buffer option (no saving needed)
----@param opt_name string The option name
----@param value any The value to set
----@param buf integer The buffer ID
-local function set_buf_option(opt_name, value, buf)
-  vim.api.nvim_set_option_value(opt_name, value, { buf = buf })
-end
-
 function M.setup(windows)
-  set_win_option('winhighlight', config.ui.window_highlight, windows.output_win)
-  set_win_option('wrap', true, windows.output_win)
-  set_win_option('linebreak', true, windows.output_win)
-  set_win_option('number', false, windows.output_win)
-  set_win_option('relativenumber', false, windows.output_win)
-  set_buf_option('modifiable', false, windows.output_buf)
-  set_buf_option('buftype', 'nofile', windows.output_buf)
-  set_buf_option('bufhidden', 'hide', windows.output_buf)
-  set_buf_option('buflisted', false, windows.output_buf)
-  set_buf_option('swapfile', false, windows.output_buf)
+  window_options.set_window_option('winhighlight', config.ui.window_highlight, windows.output_win, { save_original = true })
+  window_options.set_window_option('wrap', true, windows.output_win, { save_original = true })
+  window_options.set_window_option('linebreak', true, windows.output_win, { save_original = true })
+  window_options.set_window_option('number', false, windows.output_win, { save_original = true })
+  window_options.set_window_option('relativenumber', false, windows.output_win, { save_original = true })
+  window_options.set_buffer_option('modifiable', false, windows.output_buf)
+  window_options.set_buffer_option('buftype', 'nofile', windows.output_buf)
+  window_options.set_buffer_option('bufhidden', 'hide', windows.output_buf)
+  window_options.set_buffer_option('buflisted', false, windows.output_buf)
+  window_options.set_buffer_option('swapfile', false, windows.output_buf)
 
   if config.ui.position ~= 'current' then
-    set_win_option('winfixbuf', true, windows.output_win)
+    window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
   end
-  set_win_option('winfixheight', true, windows.output_win)
-  set_win_option('winfixwidth', true, windows.output_win)
-  set_win_option('signcolumn', 'yes', windows.output_win)
-  set_win_option('list', false, windows.output_win)
-  set_win_option('statuscolumn', '', windows.output_win)
+  window_options.set_window_option('winfixheight', true, windows.output_win, { save_original = true })
+  window_options.set_window_option('winfixwidth', true, windows.output_win, { save_original = true })
+  window_options.set_window_option('signcolumn', 'yes', windows.output_win, { save_original = true })
+  window_options.set_window_option('list', false, windows.output_win, { save_original = true })
+  window_options.set_window_option('statuscolumn', '', windows.output_win, { save_original = true })
 
   M.update_dimensions(windows)
   M.setup_keymaps(windows)

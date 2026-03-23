@@ -402,8 +402,16 @@ describe('util.is_path_in_cwd', function()
     assert.is_true(util.is_path_in_cwd(test_cwd .. '/src/foo.lua'))
   end)
 
+  it('accepts an absolute path through a symlinked directory in cwd', function()
+    assert.is_true(util.is_path_in_cwd(test_cwd .. '/linked_folder/test.txt'))
+  end)
+
   it('rejects an absolute path outside cwd', function()
     assert.is_false(util.is_path_in_cwd('/tmp/outside/foo.lua'))
+  end)
+
+  it('rejects a path that only shares the cwd prefix', function()
+    assert.is_false(util.is_path_in_cwd('/tmp/test_project2/src/foo.lua'))
   end)
 
   it('rejects a relative path that escapes cwd via ..', function()

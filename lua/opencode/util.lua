@@ -591,17 +591,17 @@ function M.pcall_trace(fn, ...)
 end
 
 function M.is_path_in_cwd(path)
-  local cwd = vim.fn.getcwd()
-  -- For relative paths, build the logical absolute path without resolving symlinks
-  -- so that files inside symlinked directories within cwd are accepted.
-  if path:sub(1, 1) ~= '/' then
-    local logical = vim.fn.simplify(cwd .. '/' .. path)
-    if logical:sub(1, #cwd) == cwd then
-      return true
-    end
+  local cwd = vim.fn.simplify(vim.fn.getcwd())
+  local cwd_prefix = cwd == '/' and cwd or (cwd .. '/')
+
+  local logical_path
+  if path:sub(1, 1) == '/' then
+    logical_path = vim.fn.simplify(path)
+  else
+    logical_path = vim.fn.simplify(cwd .. '/' .. path)
   end
-  local abs_path = vim.fn.fnamemodify(path, ':p')
-  return abs_path:sub(1, #cwd) == cwd
+
+  return logical_path == cwd or logical_path:sub(1, #cwd_prefix) == cwd_prefix
 end
 
 --- Check if a given path is in the system temporary directory.

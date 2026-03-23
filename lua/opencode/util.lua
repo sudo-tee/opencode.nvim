@@ -591,9 +591,17 @@ function M.pcall_trace(fn, ...)
 end
 
 function M.is_path_in_cwd(path)
-  local cwd = vim.fn.getcwd()
-  local abs_path = vim.fn.fnamemodify(path, ':p')
-  return abs_path:sub(1, #cwd) == cwd
+  local cwd = vim.fn.simplify(vim.fn.getcwd())
+  local cwd_prefix = cwd == '/' and cwd or (cwd .. '/')
+
+  local logical_path
+  if path:sub(1, 1) == '/' then
+    logical_path = vim.fn.simplify(path)
+  else
+    logical_path = vim.fn.simplify(cwd .. '/' .. path)
+  end
+
+  return logical_path == cwd or logical_path:sub(1, #cwd_prefix) == cwd_prefix
 end
 
 --- Check if a given path is in the system temporary directory.

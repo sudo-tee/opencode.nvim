@@ -47,6 +47,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeQuestionOption', { link = 'Normal', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeQuestionBorder', { fg = '#E3F2FD', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeQuestionTitle', { link = '@label', bold = true, default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeChangedLines', { bg = '#FFF3BF', default = true })
   else
     vim.api.nvim_set_hl(0, 'OpencodeBorder', { fg = '#616161', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeBackground', { link = 'Normal', default = true })
@@ -90,6 +91,7 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeQuestionOption', { link = 'Normal', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeQuestionBorder', { fg = '#2B3A5A', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeQuestionTitle', { link = '@label', bold = true, default = true })
+    vim.api.nvim_set_hl(0, 'OpencodeChangedLines', { bg = '#3D3520', default = true })
   end
 end
 

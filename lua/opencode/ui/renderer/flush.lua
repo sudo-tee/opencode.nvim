@@ -9,6 +9,25 @@ local append = require('opencode.ui.renderer.append')
 
 local M = {}
 
+local function is_markdown_render_deferred()
+  if not config.ui.output.rendering.markdown_on_idle then
+    return false
+  end
+
+  local active_session = state.active_session
+  local session_id = active_session and active_session.id
+  if not session_id then
+    return false
+  end
+
+  local pending = state.user_message_count or {}
+  local threshold = config.ui.output.rendering.markdown_on_idle_threshold
+  if type(threshold) == 'number' then
+    return (pending[session_id] or 0) > threshold
+  end
+  return (pending[session_id] or 0) > 0
+end
+
 local function enqueue_once(order, lookup, id)
   if lookup[id] then
     return
@@ -133,7 +152,61 @@ local function format_message(message_id)
     return nil
   end
 
+  local prev = ctx.formatted_messages[message_id]
   local formatted = formatter.format_message_header(message)
+
+  -- compare lines
+  local function lines_equal(a, b)
+    a = a or {}
+    b = b or {}
+    if #a ~= #b then
+      return false
+    end
+    for i = 1, #a do
+      if a[i] ~= b[i] then
+        return false
+      end
+    end
+    return true
+  end
+
+  local function extmarks_equal(a, b)
+    a = a or {}
+    b = b or {}
+    for k, va in pairs(a) do
+      local vb = b[k]
+      if not vb then
+        return false
+      end
+      if #va ~= #vb then
+        return false
+      end
+      for i = 1, #va do
+        local am = type(va[i]) == 'function' and va[i]() or va[i]
+        local bm = type(vb[i]) == 'function' and vb[i]() or vb[i]
+        if (am.virt_text and vim.inspect(am.virt_text) or nil) ~= (bm.virt_text and vim.inspect(bm.virt_text) or nil)
+          or (am.virt_text_pos or nil) ~= (bm.virt_text_pos or nil)
+          or (am.virt_text_win_col or nil) ~= (bm.virt_text_win_col or nil)
+          or (am.line_hl_group or nil) ~= (bm.line_hl_group or nil)
+          or (am.end_row or nil) ~= (bm.end_row or nil)
+        then
+          return false
+        end
+      end
+    end
+    for k, _ in pairs(b) do
+      if not a[k] then
+        return false
+      end
+    end
+    return true
+  end
+
+  if prev and lines_equal(prev.lines, formatted.lines) and extmarks_equal(prev.extmarks, formatted.extmarks) then
+    -- no visible change
+    return nil
+  end
+
   ctx.formatted_messages[message_id] = formatted
   return formatted
 end
@@ -159,11 +232,12 @@ local function format_part(part_id)
 end
 
 local function apply_message(message_id)
+  local previous = ctx.formatted_messages[message_id]
   local formatted = format_message(message_id)
   if not formatted then
     return
   end
-  buffer.upsert_message_now(message_id, formatted)
+  buffer.upsert_message_now(message_id, formatted, previous)
 end
 
 local function apply_part(part_id, message_id)
@@ -188,12 +262,13 @@ local function apply_part(part_id, message_id)
     buffer.append_part_now(
       part_id,
       append.tail_lines(previous.lines or {}, formatted.lines or {}),
-      append.tail_extmarks(#(previous.lines or {}), formatted.extmarks)
+      append.tail_extmarks(#(previous.lines or {}), formatted.extmarks),
+      previous
     )
     return
   end
 
-  buffer.upsert_part_now(part_id, message_id, formatted)
+  buffer.upsert_part_now(part_id, message_id, formatted, previous)
 end
 
 local function apply_pending(pending)
@@ -265,6 +340,7 @@ local function trigger_on_data_rendered()
   if not state.windows or not state.windows.output_buf or not state.windows.output_win then
     return
   end
+  vim.b[state.windows.output_buf].opencode_markdown_namespace = output_window.markdown_namespace
   if cb_type == 'function' then
     pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
   elseif vim.fn.exists(':RenderMarkdown') > 0 then
@@ -275,6 +351,25 @@ local function trigger_on_data_rendered()
 end
 
 M.trigger_on_data_rendered = require('opencode.util').debounce(trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
+
+function M.request_on_data_rendered(force)
+  if force or not is_markdown_render_deferred() then
+    ctx.markdown_render_scheduled = false
+    M.trigger_on_data_rendered()
+    return
+  end
+
+  ctx.markdown_render_scheduled = true
+end
+
+function M.flush_pending_on_data_rendered()
+  if not ctx.markdown_render_scheduled or is_markdown_render_deferred() then
+    return
+  end
+
+  ctx.markdown_render_scheduled = false
+  M.trigger_on_data_rendered()
+end
 
 function M.flush()
   local pending = snapshot_pending()
@@ -288,7 +383,7 @@ function M.flush()
         ctx.prev_line_count = line_count
       end
     end
-    M.trigger_on_data_rendered()
+    M.request_on_data_rendered()
   end
 end
 

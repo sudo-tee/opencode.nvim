@@ -1,5 +1,6 @@
 local config = require('opencode.config')
 local state = require('opencode.state')
+local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
@@ -11,29 +12,6 @@ function M.get_output_win()
     return nil
   end
   return win
-end
-
----@param win integer
----@param buf integer
----@return boolean
-local function is_at_bottom(win, buf)
-  if config.ui.output.always_scroll_to_bottom then
-    return true
-  end
-
-  local ok_count, line_count = pcall(vim.api.nvim_buf_line_count, buf)
-  if not ok_count or line_count == 0 then
-    return true
-  end
-
-  local ok_view, view = pcall(vim.api.nvim_win_call, win, vim.fn.winsaveview)
-  if not ok_view or type(view) ~= 'table' then
-    return false
-  end
-
-  local topline = view.topline or 1
-  local botline = view.botline or topline
-  return botline >= line_count or topline > line_count
 end
 
 ---@param buf integer|nil
@@ -50,7 +28,7 @@ function M.pre_flush(buf)
 
   return {
     win = win,
-    follow = is_at_bottom(win, buf),
+    follow = output_window.is_at_bottom(win),
   }
 end
 

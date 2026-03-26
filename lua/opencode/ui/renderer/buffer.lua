@@ -12,6 +12,59 @@ local function has_actions(actions)
   return type(actions) == 'table' and #actions > 0
 end
 
+local function unchanged_prefix_len(previous_formatted, formatted_data)
+  local previous_lines = previous_formatted and previous_formatted.lines or {}
+  local next_lines = formatted_data and formatted_data.lines or {}
+  local prefix_len = 0
+
+  for i = 1, math.min(#previous_lines, #next_lines) do
+    if previous_lines[i] ~= next_lines[i] then
+      break
+    end
+    prefix_len = i
+  end
+
+  return prefix_len
+end
+
+local function slice_lines(lines, start_idx)
+  local slice = {}
+  for i = start_idx, #(lines or {}) do
+    slice[#slice + 1] = lines[i]
+  end
+  return slice
+end
+
+local function slice_extmarks(extmarks, start_line)
+  local slice = {}
+  for line_idx, marks in pairs(extmarks or {}) do
+    if line_idx >= start_line + 1 then
+      slice[line_idx - start_line] = vim.deepcopy(marks)
+    end
+  end
+  return slice
+end
+
+local function highlight_written_lines(start_line, lines)
+  if #lines == 0 then
+    return
+  end
+  output_window.highlight_changed_lines(start_line, start_line + #lines - 1)
+end
+
+local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
+  local clear_start = line_start + prefix_len
+  local clear_end = math.max(old_line_end, new_line_end) + 1
+
+  output_window.clear_extmarks(clear_start, clear_end)
+
+  local extmarks = slice_extmarks(formatted_data.extmarks, prefix_len)
+  if has_extmarks(extmarks) then
+    output_window.set_extmarks(extmarks, clear_start)
+  end
+end
+
 local function get_message_insert_line(message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if rendered_message and rendered_message.line_start then
@@ -80,6 +133,7 @@ end
 
 local function write_at(lines, start_line, end_line)
   output_window.set_lines(lines, start_line, end_line)
+  highlight_written_lines(start_line, lines)
   return {
     line_start = start_line,
     line_end = start_line + #lines - 1,
@@ -100,13 +154,7 @@ local function apply_part_actions(part_id, formatted_data, line_start)
   end
 end
 
-local function apply_part_extmarks(part_id, formatted_data, line_start, line_end)
-  output_window.clear_extmarks(line_start - 1, line_end + 1)
-
-  if has_extmarks(formatted_data.extmarks) then
-    output_window.set_extmarks(formatted_data.extmarks, line_start)
-  end
-
+local function set_part_extmark_state(part_id, formatted_data)
   local part_data = ctx.render_state:get_part(part_id)
   if part_data then
     part_data.has_extmarks = has_extmarks(formatted_data.extmarks)
@@ -142,17 +190,19 @@ function M.find_part_by_call_id(call_id, message_id)
   return ctx.render_state:get_part_by_call_id(call_id, message_id)
 end
 
-function M.upsert_message_now(message_id, formatted_data)
+function M.upsert_message_now(message_id, formatted_data, previous_formatted)
   local cached = ctx.render_state:get_message(message_id)
   if cached and cached.line_start and cached.line_end then
-    output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
-    output_window.set_lines(formatted_data.lines, cached.line_start, cached.line_end + 1)
-    if has_extmarks(formatted_data.extmarks) then
-      output_window.set_extmarks(formatted_data.extmarks, cached.line_start)
-    end
-
     local old_line_end = cached.line_end
+    local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
+    local write_start = cached.line_start + prefix_len
+    local lines_to_write = slice_lines(formatted_data.lines, prefix_len + 1)
+
+    output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
+    highlight_written_lines(write_start, lines_to_write)
+
     local new_line_end = cached.line_start + #formatted_data.lines - 1
+    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
     ctx.render_state:set_message(cached.message, cached.line_start, new_line_end)
 
     local delta = new_line_end - old_line_end
@@ -178,10 +228,16 @@ function M.upsert_message_now(message_id, formatted_data)
   return false
 end
 
-function M.upsert_part_now(part_id, message_id, formatted_data)
+function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatted)
   local cached = ctx.render_state:get_part(part_id)
   if cached and cached.line_start and cached.line_end then
-    output_window.set_lines(formatted_data.lines, cached.line_start, cached.line_end + 1)
+    local old_line_end = cached.line_end
+    local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
+    local write_start = cached.line_start + prefix_len
+    local lines_to_write = slice_lines(formatted_data.lines, prefix_len + 1)
+
+    output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
+    highlight_written_lines(write_start, lines_to_write)
 
     local new_line_end = cached.line_start + #formatted_data.lines - 1
     apply_part_actions(part_id, formatted_data, cached.line_start)
@@ -189,7 +245,8 @@ function M.upsert_part_now(part_id, message_id, formatted_data)
     if new_line_end ~= cached.line_end then
       ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
     end
-    apply_part_extmarks(part_id, formatted_data, cached.line_start, new_line_end)
+    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
+    set_part_extmark_state(part_id, formatted_data)
     return true
   end
 
@@ -204,21 +261,26 @@ function M.upsert_part_now(part_id, message_id, formatted_data)
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     ctx.render_state:set_part(part_data.part, range.line_start, range.line_end)
     apply_part_actions(part_id, formatted_data, range.line_start)
-    apply_part_extmarks(part_id, formatted_data, range.line_start, range.line_end)
+    if has_extmarks(formatted_data.extmarks) then
+      output_window.set_extmarks(formatted_data.extmarks, range.line_start)
+    end
+    set_part_extmark_state(part_id, formatted_data)
     return true
   end
 
   return false
 end
 
-function M.append_part_now(part_id, extra_lines, extra_extmarks)
+function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_formatted)
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end or #extra_lines == 0 then
     return false
   end
 
   local insert_at = cached.line_end + 1
+  local old_line_end = cached.line_end
   output_window.set_lines(extra_lines, insert_at, insert_at)
+  highlight_written_lines(insert_at, extra_lines)
 
   local new_line_end = cached.line_end + #extra_lines
   ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
@@ -226,7 +288,8 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks)
   local formatted_data = ctx.formatted_parts[part_id]
   if formatted_data then
     apply_part_actions(part_id, formatted_data, cached.line_start)
-    apply_part_extmarks(part_id, formatted_data, cached.line_start, new_line_end)
+    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
+    set_part_extmark_state(part_id, formatted_data)
   elseif has_extmarks(extra_extmarks) then
     output_window.set_extmarks(extra_extmarks, insert_at)
   end

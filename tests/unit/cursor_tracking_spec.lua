@@ -284,6 +284,76 @@ describe('output_window.is_at_bottom', function()
     -- This is the key behavioral difference from viewport-based check
     assert.is_true(output_window.is_at_bottom(win))
   end)
+
+  it('reports the actual visible bottom line in wrapped windows', function()
+    local long_line = string.rep('x', 180)
+
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', long_line, 'line 4', 'line 5' })
+    vim.api.nvim_win_set_cursor(win, { 5, 0 })
+    pcall(vim.api.nvim_win_call, win, function()
+      vim.fn.winrestview({ topline = 1 })
+    end)
+
+    local visible_bottom = output_window.get_visible_bottom_line(win)
+    assert.equals(3, visible_bottom)
+  end)
+end)
+
+describe('output_window.sync_cursor_with_viewport', function()
+  local output_window = require('opencode.ui.output_window')
+  local buf, win
+
+  before_each(function()
+    config.setup({})
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+      'line 1',
+      'line 2',
+      string.rep('x', 180),
+      'line 4',
+      'line 5',
+    })
+
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor',
+      width = 20,
+      height = 5,
+      row = 0,
+      col = 0,
+    })
+
+    vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
+    state.ui.set_windows({ output_win = win, output_buf = buf })
+    output_window.reset_scroll_tracking(win)
+  end)
+
+  after_each(function()
+    output_window.reset_scroll_tracking(win)
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    state.ui.set_windows(nil)
+  end)
+
+  it('keeps the cursor aligned with the actual viewport bottom while scrolling', function()
+    vim.api.nvim_win_set_cursor(win, { 5, 0 })
+    pcall(vim.api.nvim_win_call, win, function()
+      vim.fn.winrestview({ topline = 1 })
+    end)
+    output_window.sync_cursor_with_viewport(win)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(3, cursor[1])
+  end)
+
+  it('does not move the cursor when the user is already reading earlier content', function()
+    vim.api.nvim_win_set_cursor(win, { 2, 0 })
+    output_window.sync_cursor_with_viewport(win)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(2, cursor[1])
+  end)
 end)
 
 describe('renderer.scroll_to_bottom', function()

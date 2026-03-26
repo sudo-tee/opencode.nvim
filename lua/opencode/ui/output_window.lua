@@ -6,6 +6,8 @@ local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
 M.debug_namespace = vim.api.nvim_create_namespace('opencode_output_debug')
 M.markdown_namespace = vim.api.nvim_create_namespace('opencode_output_markdown')
+M._last_visible_bottom_by_win = {}
+M._viewport_cursor_tracking_by_win = {}
 
 local _update_depth = 0
 local _update_buf = nil
@@ -108,6 +110,97 @@ function M.is_at_bottom(win)
   return cursor[1] >= line_count
 end
 
+---@param win? integer
+---@return integer|nil
+function M.get_visible_bottom_line(win)
+  win = win or (state.windows and state.windows.output_win)
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return nil
+  end
+
+  local buf = vim.api.nvim_win_get_buf(win)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return nil
+  end
+
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  if line_count == 0 then
+    return nil
+  end
+
+  local ok_view, view = pcall(vim.api.nvim_win_call, win, vim.fn.winsaveview)
+  if not ok_view or type(view) ~= 'table' then
+    return nil
+  end
+
+  local topline = math.max(1, view.topline or 1)
+  local remaining_height = vim.api.nvim_win_get_height(win)
+  for line = topline, line_count do
+    local ok_height, result = pcall(vim.api.nvim_win_text_height, win, {
+      start_row = line - 1,
+      end_row = line - 1,
+    })
+    local line_height = ok_height and result and result.all or 1
+    remaining_height = remaining_height - line_height
+    if remaining_height <= 0 then
+      return line
+    end
+  end
+
+  return line_count
+end
+
+---@param win? integer
+function M.reset_scroll_tracking(win)
+  if win then
+    M._last_visible_bottom_by_win[win] = nil
+    M._viewport_cursor_tracking_by_win[win] = nil
+    return
+  end
+
+  M._last_visible_bottom_by_win = {}
+  M._viewport_cursor_tracking_by_win = {}
+end
+
+---@param win? integer
+function M.sync_cursor_with_viewport(win)
+  win = win or (state.windows and state.windows.output_win)
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+
+  local windows = state.windows
+  local buf = windows and windows.output_buf
+  if not buf or not vim.api.nvim_buf_is_valid(buf) or vim.api.nvim_win_get_buf(win) ~= buf then
+    M.reset_scroll_tracking(win)
+    return
+  end
+
+  local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, win)
+  local ok_count, line_count = pcall(vim.api.nvim_buf_line_count, buf)
+  local visible_bottom = M.get_visible_bottom_line(win)
+  if not ok_cursor or not cursor or not ok_count or not line_count or line_count == 0 or not visible_bottom then
+    return
+  end
+
+  local last_visible_bottom = M._last_visible_bottom_by_win[win]
+  local tracking = M._viewport_cursor_tracking_by_win[win] == true
+  local anchored_to_viewport_bottom = tracking and last_visible_bottom and cursor[1] == last_visible_bottom
+
+  if cursor[1] > visible_bottom or (anchored_to_viewport_bottom and cursor[1] ~= visible_bottom) then
+    M._viewport_cursor_tracking_by_win[win] = true
+    pcall(vim.api.nvim_win_set_cursor, win, { math.min(visible_bottom, line_count), 0 })
+    local pos = state.ui.get_window_cursor(win)
+    if pos then
+      state.ui.set_cursor_position('output', pos)
+    end
+  elseif not anchored_to_viewport_bottom then
+    M._viewport_cursor_tracking_by_win[win] = false
+  end
+
+  M._last_visible_bottom_by_win[win] = visible_bottom
+end
+
 function M.setup(windows)
   window_options.set_window_option(
     'winhighlight',
@@ -137,6 +230,8 @@ function M.setup(windows)
   window_options.set_window_option('statuscolumn', '', windows.output_win, { save_original = true })
 
   M.update_dimensions(windows)
+  M.reset_scroll_tracking(windows.output_win)
+  M._last_visible_bottom_by_win[windows.output_win] = M.get_visible_bottom_line(windows.output_win)
   M.setup_keymaps(windows)
 end
 
@@ -329,6 +424,7 @@ function M.close()
   end
   ---@cast state.windows { output_win: integer, output_buf: integer }
 
+  M.reset_scroll_tracking(state.windows.output_win)
   pcall(vim.api.nvim_win_close, state.windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
 end
@@ -378,36 +474,7 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.output_buf,
     callback = function()
-      if not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
-        return
-      end
-
-      local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
-      if not ok then
-        return
-      end
-
-      local ok2, line_count = pcall(vim.api.nvim_buf_line_count, windows.output_buf)
-      if not ok2 or line_count == 0 then
-        return
-      end
-
-      if cursor[1] >= line_count then
-        local ok3, view = pcall(vim.api.nvim_win_call, windows.output_win, vim.fn.winsaveview)
-        if ok3 and type(view) == 'table' then
-          local topline = view.topline or 1
-          local win_height = vim.api.nvim_win_get_height(windows.output_win)
-          local visible_bottom = math.min(topline + win_height - 1, line_count)
-
-          if visible_bottom < line_count then
-            pcall(vim.api.nvim_win_set_cursor, windows.output_win, { visible_bottom, 0 })
-            local pos = state.ui.get_window_cursor(windows.output_win)
-            if pos then
-              state.ui.set_cursor_position('output', pos)
-            end
-          end
-        end
-      end
+      M.sync_cursor_with_viewport(windows.output_win)
     end,
   })
 end

@@ -38,7 +38,7 @@ end
 local function slice_extmarks(extmarks, start_line)
   local slice = {}
   for line_idx, marks in pairs(extmarks or {}) do
-    if line_idx >= start_line + 1 then
+    if line_idx >= start_line then
       slice[line_idx - start_line] = vim.deepcopy(marks)
     end
   end

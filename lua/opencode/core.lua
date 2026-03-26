@@ -537,6 +537,8 @@ M.initialize_current_model = Promise.async(function()
 end)
 
 M._on_user_message_count_change = Promise.async(function(_, new, old)
+  require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
+
   if config.hooks and config.hooks.on_done_thinking then
     local all_sessions = session.get_all_workspace_sessions():await()
     local done_sessions = vim.tbl_filter(function(s)

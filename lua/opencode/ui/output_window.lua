@@ -4,6 +4,8 @@ local window_options = require('opencode.ui.window_options')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
+M.debug_namespace = vim.api.nvim_create_namespace('opencode_output_debug')
+M.markdown_namespace = vim.api.nvim_create_namespace('opencode_output_markdown')
 
 local _update_depth = 0
 local _update_buf = nil
@@ -107,7 +109,12 @@ function M.is_at_bottom(win)
 end
 
 function M.setup(windows)
-  window_options.set_window_option('winhighlight', config.ui.window_highlight, windows.output_win, { save_original = true })
+  window_options.set_window_option(
+    'winhighlight',
+    config.ui.window_highlight,
+    windows.output_win,
+    { save_original = true }
+  )
   window_options.set_window_option('wrap', true, windows.output_win, { save_original = true })
   window_options.set_window_option('linebreak', true, windows.output_win, { save_original = true })
   window_options.set_window_option('number', false, windows.output_win, { save_original = true })
@@ -117,6 +124,8 @@ function M.setup(windows)
   window_options.set_buffer_option('bufhidden', 'hide', windows.output_buf)
   window_options.set_buffer_option('buflisted', false, windows.output_buf)
   window_options.set_buffer_option('swapfile', false, windows.output_buf)
+  window_options.set_buffer_option('undofile', false, windows.output_buf)
+  window_options.set_buffer_option('undolevels', -1, windows.output_buf)
 
   if config.ui.position ~= 'current' then
     window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
@@ -188,6 +197,28 @@ function M.set_lines(lines, start_line, end_line)
   start_line = start_line or 0
   end_line = end_line or -1
 
+  -- Avoid rewriting unchanged lines to prevent flashing/flicker when
+  -- re-rendering formatted parts (e.g. markdown). Compare the target range
+  -- with the existing buffer lines and skip the write when identical.
+  local ok, existing = pcall(vim.api.nvim_buf_get_lines, buf, start_line, end_line, false)
+  if ok and existing then
+    local same = true
+    if #existing ~= #lines then
+      same = false
+    else
+      for i = 1, #lines do
+        if existing[i] ~= lines[i] then
+          same = false
+          break
+        end
+      end
+    end
+
+    if same then
+      return
+    end
+  end
+
   if _update_depth == 0 then
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
     vim.api.nvim_buf_set_lines(buf, start_line, end_line, false, lines)
@@ -244,6 +275,40 @@ function M.set_extmarks(extmarks, line_offset)
       pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, actual_mark)
     end
   end
+end
+
+---@param start_line integer
+---@param end_line integer
+function M.highlight_changed_lines(start_line, end_line)
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+    return
+  end
+  if not config.debug.highlight_changed_lines then
+    return
+  end
+
+  local buf = windows.output_buf
+  local first = math.max(0, start_line)
+  if end_line < start_line then
+    return
+  end
+  local last = math.max(first, end_line)
+
+  vim.api.nvim_buf_clear_namespace(buf, M.debug_namespace, first, last + 1)
+  for line = first, last do
+    vim.api.nvim_buf_set_extmark(buf, M.debug_namespace, line, 0, {
+      line_hl_group = 'OpencodeChangedLines',
+      hl_eol = true,
+      priority = 250,
+    })
+  end
+
+  vim.defer_fn(function()
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_clear_namespace(buf, M.debug_namespace, first, last + 1)
+    end
+  end, config.debug.highlight_changed_lines_timeout_ms or 120)
 end
 
 function M.focus_output(should_stop_insert)

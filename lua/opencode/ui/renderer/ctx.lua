@@ -26,6 +26,7 @@ local ctx = {
     removed_messages = {},
   },
   flush_scheduled = false,
+  markdown_render_scheduled = false,
 }
 
 function ctx:reset()
@@ -46,6 +47,7 @@ function ctx:reset()
     removed_messages = {},
   }
   self.flush_scheduled = false
+  self.markdown_render_scheduled = false
 end
 
 return ctx

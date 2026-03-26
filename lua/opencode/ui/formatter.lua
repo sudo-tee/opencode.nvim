@@ -522,6 +522,12 @@ function M.format_part(part, message, is_last_part, get_child_parts)
       local question_window = require('opencode.ui.question_window')
       question_window.format_display(output)
       content_added = true
+    elseif part.type == 'revert-display' then
+      local revert_index = part.state and part.state.revert_index
+      if revert_index then
+        output = M._format_revert_message(state.messages or {}, revert_index)
+        content_added = output:get_line_count() > 0
+      end
     end
   end
 

@@ -1,9 +1,33 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
-local formatter = require('opencode.ui.formatter')
 local ctx = require('opencode.ui.renderer.ctx')
-local buf = require('opencode.ui.renderer.buffer')
 local permission_window = require('opencode.ui.permission_window')
+local flush = require('opencode.ui.renderer.flush')
+
+local function get_last_part_for_message(message)
+  if not message or not message.parts or #message.parts == 0 then
+    return nil
+  end
+  for i = #message.parts, 1, -1 do
+    local part = message.parts[i]
+    if part.type ~= 'step-start' and part.type ~= 'step-finish' and part.id then
+      return part.id
+    end
+  end
+  return nil
+end
+
+local function find_text_part_for_message(message)
+  if not message or not message.parts then
+    return nil
+  end
+  for _, part in ipairs(message.parts) do
+    if part.type == 'text' and not part.synthetic then
+      return part.id
+    end
+  end
+  return nil
+end
 
 -- Lazy require to avoid circular dependency: renderer.lua <-> events.lua
 local function scroll(force)
@@ -33,8 +57,8 @@ end
 function M.render_permissions_display()
   local permissions = permission_window.get_all_permissions()
   if not permissions or #permissions == 0 then
-    buf.remove_part('permission-display-part')
-    buf.remove_message('permission-display-message')
+    flush.queue_part_removal('permission-display-part')
+    flush.queue_message_removal('permission-display-message')
     return
   end
 
@@ -55,7 +79,6 @@ function M.render_permissions_display()
     type = 'permissions-display',
   }
   M.on_part_updated({ part = fake_part })
-  scroll(true)
 end
 
 ---Render the current question as a synthetic part at the end of the buffer
@@ -69,8 +92,8 @@ function M.render_question_display()
   local current_question = question_window._current_question
 
   if not question_window.has_question() or not current_question or not current_question.id then
-    buf.remove_part('question-display-part')
-    buf.remove_message('question-display-message')
+    flush.queue_part_removal('question-display-part')
+    flush.queue_message_removal('question-display-message')
     return
   end
 
@@ -101,8 +124,8 @@ function M.clear_question_display()
   question_window.clear_question()
 
   if not use_vim_ui then
-    buf.remove_part('question-display-part')
-    buf.remove_message('question-display-message')
+    flush.queue_part_removal('question-display-part')
+    flush.queue_message_removal('question-display-message')
   end
 end
 
@@ -142,17 +165,17 @@ function M.on_message_updated(message, revert_index)
     -- Re-render the last part (or the header if there are no parts) so the
     -- error appears in the right place.
     if error_changed then
-      local last_part_id = buf.get_last_part_for_message(found_msg)
+      local last_part_id = get_last_part_for_message(found_msg)
       if last_part_id then
-        buf.rerender_part(last_part_id)
+        flush.mark_part_dirty(last_part_id, msg.info.id)
       else
-        local header_data = formatter.format_message_header(found_msg)
-        buf.replace_message(msg.info.id, header_data)
+        flush.mark_message_dirty(msg.info.id)
       end
     end
   else
     table.insert(state.messages, msg)
-    buf.add_message(msg)
+    ctx.render_state:set_message(msg)
+    flush.mark_message_dirty(msg.info.id)
     state.renderer.set_current_message(msg)
     if message.info.role == 'user' then
       state.renderer.set_last_user_message(msg)
@@ -182,11 +205,11 @@ function M.on_message_removed(properties)
 
   for _, part in ipairs(rendered_message.message.parts or {}) do
     if part.id then
-      buf.remove_part(part.id)
+      flush.queue_part_removal(part.id)
     end
   end
 
-  buf.remove_message(message_id)
+  flush.queue_message_removal(message_id)
 
   for i, msg in ipairs(state.messages or {}) do
     if msg.info.id == message_id then
@@ -213,7 +236,10 @@ function M.on_part_updated(properties, revert_index)
   if state.active_session.id ~= part.sessionID then
     if part.tool or part.type == 'tool' then
       ctx.render_state:upsert_child_session_part(part.sessionID, part)
-      buf.rerender_task_tool_for_child_session(part.sessionID)
+      local task_part_id = ctx.render_state:get_task_part_by_child_session(part.sessionID)
+      if task_part_id then
+        flush.mark_part_dirty(task_part_id)
+      end
     end
     return
   end
@@ -230,8 +256,7 @@ function M.on_part_updated(properties, revert_index)
   local part_data = ctx.render_state:get_part(part.id)
   local is_new_part = not part_data
 
-  local prev_last_part_id = buf.get_last_part_for_message(message)
-  local is_last_part = is_new_part or (prev_last_part_id == part.id)
+  local prev_last_part_id = get_last_part_for_message(message)
 
   -- Update the part reference in the message
   if is_new_part then
@@ -277,32 +302,27 @@ function M.on_part_updated(properties, revert_index)
     return
   end
 
-  local formatted = formatter.format_part(part, message, is_last_part, function(session_id)
-    return ctx.render_state:get_child_session_parts(session_id)
-  end)
-
   if is_new_part then
-    buf.insert_part(part.id, formatted)
+    flush.mark_part_dirty(part.id, part.messageID)
 
     -- If there's already an error on this message, adjust adjacent parts so
     -- the error only appears after the last part.
     if message.info.error then
       if not prev_last_part_id then
-        local header_data = formatter.format_message_header(message)
-        buf.replace_message(part.messageID, header_data)
+        flush.mark_message_dirty(part.messageID)
       elseif prev_last_part_id ~= part.id then
-        buf.rerender_part(prev_last_part_id)
+        flush.mark_part_dirty(prev_last_part_id, part.messageID)
       end
     end
   else
-    buf.replace_part(part.id, formatted)
+    flush.mark_part_dirty(part.id, part.messageID)
   end
 
   -- File / agent mentions: re-render the text part to highlight them
   if (part.type == 'file' or part.type == 'agent') and part.source then
-    local text_part_id = buf.find_text_part_for_message(message)
+    local text_part_id = find_text_part_for_message(message)
     if text_part_id then
-      buf.rerender_part(text_part_id)
+      flush.mark_part_dirty(text_part_id, part.messageID)
     end
   end
 end
@@ -333,7 +353,7 @@ function M.on_part_removed(properties)
     end
   end
 
-  buf.remove_part(part_id)
+  flush.queue_part_removal(part_id)
 end
 
 ---Handle session.updated — re-render the full session if the revert state changed
@@ -429,8 +449,8 @@ function M.on_permission_replied(properties)
   state.renderer.set_pending_permissions(vim.deepcopy(permission_window.get_all_permissions()))
 
   if #state.pending_permissions == 0 then
-    buf.remove_part('permission-display-part')
-    buf.remove_message('permission-display-message')
+    flush.queue_part_removal('permission-display-part')
+    flush.queue_message_removal('permission-display-message')
   else
     M.render_permissions_display()
   end

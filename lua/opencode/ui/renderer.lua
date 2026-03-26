@@ -1,35 +1,17 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
-local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
 local permission_window = require('opencode.ui.permission_window')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
-local buf = require('opencode.ui.renderer.buffer')
 local events = require('opencode.ui.renderer.events')
+local flush = require('opencode.ui.renderer.flush')
 
 local M = {}
 
 -- Expose event handlers on M so tests can call them directly and subscriptions
 -- can be stubbed cleanly (e.g. stub(renderer, '_render_full_session_data'))
 M.on_session_updated = events.on_session_updated
-
-local trigger_on_data_rendered = require('opencode.util').debounce(function()
-  local cb_type = type(config.ui.output.rendering.on_data_rendered)
-  if cb_type == 'boolean' then
-    return
-  end
-  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
-    return
-  end
-  if cb_type == 'function' then
-    pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
-  elseif vim.fn.exists(':RenderMarkdown') > 0 then
-    vim.cmd(':RenderMarkdown')
-  elseif vim.fn.exists(':Markview') > 0 then
-    vim.cmd(':Markview render ' .. state.windows.output_buf)
-  end
-end, config.ui.output.rendering.markdown_debounce_ms or 250)
 
 ---Reset all renderer state and clear the output buffer
 function M.reset()
@@ -45,7 +27,7 @@ function M.reset()
   permission_window.clear_all()
   state.renderer.reset()
 
-  trigger_on_data_rendered()
+  flush.trigger_on_data_rendered()
 end
 
 ---Unsubscribe from all events and reset
@@ -152,8 +134,31 @@ function M._render_full_session_data(session_data)
   end
 
   if revert_index then
-    buf.write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
+    local revert_message = {
+      info = {
+        id = '__opencode_revert_message__',
+        sessionID = state.active_session.id,
+        role = 'system',
+      },
+      parts = {
+        {
+          id = '__opencode_revert_part__',
+          messageID = '__opencode_revert_message__',
+          sessionID = state.active_session.id,
+          type = 'revert-display',
+          state = {
+            revert_index = revert_index,
+          },
+        },
+      },
+    }
+
+    table.insert(state.messages, revert_message)
+    events.on_message_updated(revert_message)
+    events.on_part_updated({ part = revert_message.parts[1] })
   end
+
+  flush.flush()
 
   if set_mode_from_messages then
     set_model_and_mode_from_messages()
@@ -192,6 +197,7 @@ function M.render_output(output_data)
   output_window.set_lines(output_data.lines or {})
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
+  flush.trigger_on_data_rendered()
   M.scroll_to_bottom()
 end
 
@@ -218,15 +224,13 @@ function M.scroll_to_bottom(force)
   local prev_line_count = ctx.prev_line_count
   ctx.prev_line_count = line_count
 
-  trigger_on_data_rendered()
+  local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, output_win)
 
   local should_scroll = force
     or prev_line_count == 0
     or config.ui.output.always_scroll_to_bottom
-    or (function()
-         local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, output_win)
-         return ok_cursor and cursor and (cursor[1] >= prev_line_count or cursor[1] >= line_count)
-       end)()
+    or (ok_cursor and cursor and cursor[1] >= prev_line_count)
+    or output_window.is_at_bottom(output_win)
 
   if should_scroll then
     local last_line = vim.api.nvim_buf_get_lines(output_buf, line_count - 1, line_count, false)[1] or ''
@@ -242,8 +246,8 @@ function M.on_focus_changed()
   if not permission_window.get_all_permissions()[1] then
     return
   end
-  buf.rerender_part('permission-display-part')
-  trigger_on_data_rendered()
+  flush.mark_part_dirty('permission-display-part', 'permission-display-message')
+  flush.flush()
 end
 
 ---Re-render when the active session changes

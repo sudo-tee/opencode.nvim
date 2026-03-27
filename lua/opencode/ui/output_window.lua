@@ -292,25 +292,23 @@ function M.set_lines(lines, start_line, end_line)
   start_line = start_line or 0
   end_line = end_line or -1
 
-  -- Avoid rewriting unchanged lines to prevent flashing/flicker when
-  -- re-rendering formatted parts (e.g. markdown). Compare the target range
-  -- with the existing buffer lines and skip the write when identical.
-  local ok, existing = pcall(vim.api.nvim_buf_get_lines, buf, start_line, end_line, false)
-  if ok and existing then
-    local same = true
-    if #existing ~= #lines then
-      same = false
-    else
+  -- Skip identical content outside of batch mode to avoid unnecessary writes
+  -- that cause flicker (e.g. when a markdown plugin re-renders an unchanged part).
+  -- Inside begin_update/end_update the caller controls exactly what is written,
+  -- so the check would be redundant and expensive.
+  if _update_depth == 0 then
+    local ok, existing = pcall(vim.api.nvim_buf_get_lines, buf, start_line, end_line, false)
+    if ok and existing and #existing == #lines then
+      local same = true
       for i = 1, #lines do
         if existing[i] ~= lines[i] then
           same = false
           break
         end
       end
-    end
-
-    if same then
-      return
+      if same then
+        return
+      end
     end
   end
 
@@ -355,19 +353,34 @@ function M.set_extmarks(extmarks, line_offset)
 
   local output_buf = windows.output_buf
 
-  for line_idx, marks in pairs(extmarks) do
+  local line_indices = vim.tbl_keys(extmarks)
+  table.sort(line_indices)
+
+  for _, line_idx in ipairs(line_indices) do
+    local marks = extmarks[line_idx]
+    table.sort(marks, function(a, b)
+      local ma = type(a) == 'function' and a() or a
+      local mb = type(b) == 'function' and b() or b
+      return (ma.priority or 0) > (mb.priority or 0)
+    end)
+
     for _, mark in ipairs(marks) do
-      local actual_mark = type(mark) == 'function' and mark() or mark
+      local m = type(mark) == 'function' and mark() or mark
       local target_line = line_offset + line_idx --[[@as integer]]
-      if actual_mark.end_row then
-        actual_mark.end_row = actual_mark.end_row + line_offset
+      local start_col = m.start_col
+      -- Only deepcopy when we need to mutate: start_col must be removed from the
+      -- opts table, and end_row must be offset when line_offset is non-zero.
+      -- The vast majority of extmarks (border virt_text) have neither field, so
+      -- we avoid 100k+ deepcopy calls during a full session render.
+      if start_col ~= nil or (m.end_row ~= nil and line_offset ~= 0) then
+        m = vim.deepcopy(m)
+        m.start_col = nil
+        if m.end_row then
+          m.end_row = m.end_row + line_offset
+        end
       end
-      local start_col = actual_mark.start_col
-      if actual_mark.start_col then
-        actual_mark.start_col = nil
-      end
-      ---@cast actual_mark vim.api.keyset.set_extmark
-      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, actual_mark)
+      ---@cast m vim.api.keyset.set_extmark
+      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, m)
     end
   end
 end

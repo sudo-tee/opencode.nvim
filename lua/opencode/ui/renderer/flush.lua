@@ -9,6 +9,46 @@ local append = require('opencode.ui.renderer.append')
 
 local M = {}
 
+local function lines_equal(a, b)
+  a = a or {}
+  b = b or {}
+  if #a ~= #b then
+    return false
+  end
+  for i = 1, #a do
+    if a[i] ~= b[i] then
+      return false
+    end
+  end
+  return true
+end
+
+local function resolve_mark(m)
+  return type(m) == 'function' and m() or m
+end
+
+local function extmarks_equal(a, b)
+  a = a or {}
+  b = b or {}
+  for k, va in pairs(a) do
+    local vb = b[k]
+    if not vb or #va ~= #vb then
+      return false
+    end
+    for i = 1, #va do
+      if not vim.deep_equal(resolve_mark(va[i]), resolve_mark(vb[i])) then
+        return false
+      end
+    end
+  end
+  for k in pairs(b) do
+    if not a[k] then
+      return false
+    end
+  end
+  return true
+end
+
 local function is_markdown_render_deferred()
   if not config.ui.output.rendering.markdown_on_idle then
     return false
@@ -66,6 +106,8 @@ function M.mark_message_dirty(message_id)
   ctx.pending.removed_messages[message_id] = nil
   enqueue_once(ctx.pending.dirty_message_order, ctx.pending.dirty_messages, message_id)
   ctx.pending.dirty_messages[message_id] = true
+  -- Clear cached formatted data so the message gets fully re-rendered
+  ctx.formatted_messages[message_id] = nil
   M.schedule()
 end
 
@@ -155,53 +197,6 @@ local function format_message(message_id)
   local prev = ctx.formatted_messages[message_id]
   local formatted = formatter.format_message_header(message)
 
-  -- compare lines
-  local function lines_equal(a, b)
-    a = a or {}
-    b = b or {}
-    if #a ~= #b then
-      return false
-    end
-    for i = 1, #a do
-      if a[i] ~= b[i] then
-        return false
-      end
-    end
-    return true
-  end
-
-  local function extmarks_equal(a, b)
-    a = a or {}
-    b = b or {}
-    for k, va in pairs(a) do
-      local vb = b[k]
-      if not vb then
-        return false
-      end
-      if #va ~= #vb then
-        return false
-      end
-      for i = 1, #va do
-        local am = type(va[i]) == 'function' and va[i]() or va[i]
-        local bm = type(vb[i]) == 'function' and vb[i]() or vb[i]
-        if (am.virt_text and vim.inspect(am.virt_text) or nil) ~= (bm.virt_text and vim.inspect(bm.virt_text) or nil)
-          or (am.virt_text_pos or nil) ~= (bm.virt_text_pos or nil)
-          or (am.virt_text_win_col or nil) ~= (bm.virt_text_win_col or nil)
-          or (am.line_hl_group or nil) ~= (bm.line_hl_group or nil)
-          or (am.end_row or nil) ~= (bm.end_row or nil)
-        then
-          return false
-        end
-      end
-    end
-    for k, _ in pairs(b) do
-      if not a[k] then
-        return false
-      end
-    end
-    return true
-  end
-
   if prev and lines_equal(prev.lines, formatted.lines) and extmarks_equal(prev.extmarks, formatted.extmarks) then
     -- no visible change
     return nil
@@ -287,6 +282,8 @@ local function apply_pending(pending)
   end
 
   local scroll_snapshot = scroll.pre_flush(buf)
+  local saved_eventignore = vim.o.eventignore
+  vim.o.eventignore = 'all'
   output_window.begin_update()
 
   for _, part_id in ipairs(pending.removed_part_order) do
@@ -328,11 +325,12 @@ local function apply_pending(pending)
   end
 
   output_window.end_update()
+  vim.o.eventignore = saved_eventignore
   scroll.post_flush(scroll_snapshot, buf)
   return true
 end
 
-local function trigger_on_data_rendered()
+local function do_trigger_on_data_rendered()
   local cb_type = type(config.ui.output.rendering.on_data_rendered)
   if cb_type == 'boolean' then
     return
@@ -350,7 +348,7 @@ local function trigger_on_data_rendered()
   end
 end
 
-M.trigger_on_data_rendered = require('opencode.util').debounce(trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
+M.trigger_on_data_rendered = require('opencode.util').debounce(do_trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
 
 function M.request_on_data_rendered(force)
   if force or not is_markdown_render_deferred() then
@@ -371,6 +369,52 @@ function M.flush_pending_on_data_rendered()
   M.trigger_on_data_rendered()
 end
 
+function M.begin_bulk_mode()
+  ctx:bulk_reset()
+  ctx.bulk_mode = true
+end
+
+function M.end_bulk_mode()
+  if not ctx.bulk_mode then
+    return
+  end
+  ctx.bulk_mode = false
+  local lines = ctx.bulk_buffer_lines
+  if #lines == 0 then
+    ctx:bulk_reset()
+    return
+  end
+
+  -- Add trailing empty line to match non-bulk behavior
+  table.insert(lines, '')
+
+  local buf = state.windows and state.windows.output_buf
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    ctx:bulk_reset()
+    return
+  end
+
+  -- Write all lines at once. Suppress autocmds so render-markdown and similar
+  -- plugins don't fire mid-write; we trigger them explicitly via vim.schedule
+  -- below. begin_update/end_update handles the modifiable toggle.
+  local saved_eventignore = vim.o.eventignore
+  vim.o.eventignore = 'all'
+  output_window.begin_update()
+  output_window.set_lines(lines, 0, -1)
+  output_window.end_update()
+  vim.o.eventignore = saved_eventignore
+
+  if next(ctx.bulk_extmarks_by_line) then
+    output_window.set_extmarks(ctx.bulk_extmarks_by_line, 0)
+  end
+
+  ctx:bulk_reset()
+
+  vim.schedule(function()
+    M.request_on_data_rendered(true)
+  end)
+end
+
 function M.flush()
   local pending = snapshot_pending()
   local applied = apply_pending(pending)
@@ -383,7 +427,9 @@ function M.flush()
         ctx.prev_line_count = line_count
       end
     end
-    M.request_on_data_rendered()
+    if not ctx.bulk_mode then
+      M.request_on_data_rendered()
+    end
   end
 end
 

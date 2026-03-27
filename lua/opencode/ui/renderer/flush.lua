@@ -348,7 +348,8 @@ local function do_trigger_on_data_rendered()
   end
 end
 
-M.trigger_on_data_rendered = require('opencode.util').debounce(do_trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
+M.trigger_on_data_rendered =
+  require('opencode.util').debounce(do_trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
 
 function M.request_on_data_rendered(force)
   if force or not is_markdown_render_deferred() then

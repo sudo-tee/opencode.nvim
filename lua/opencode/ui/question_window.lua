@@ -12,6 +12,45 @@ M._collected_answers = {}
 M._answering = false
 M._dialog = nil
 
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+function M.matches_active_question(question_request)
+  return question_request ~= nil
+    and M._current_question ~= nil
+    and question_request.id ~= nil
+    and M._current_question.id == question_request.id
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+function M.belongs_to_active_session(question_request)
+  if not question_request then
+    return false
+  end
+
+  local active_session = state.active_session
+  if active_session and active_session.id and question_request.sessionID == active_session.id then
+    return true
+  end
+
+  local tool = question_request.tool
+  local tool_message_id = tool and tool.messageID
+  if tool_message_id and state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == tool_message_id then
+        return true
+      end
+    end
+  end
+
+  if question_request.sessionID and question_request.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    return render_state:get_task_part_by_child_session(question_request.sessionID) ~= nil
+  end
+
+  return false
+end
+
 local function render_question()
   require('opencode.ui.renderer.events').render_question_display()
 end
@@ -36,6 +75,40 @@ function M.show_question(question_request)
     M._setup_dialog()
     render_question()
   end
+end
+
+---@param session_id string|nil
+function M.restore_pending_question(session_id)
+  if not state.api_client or not session_id or session_id == '' then
+    return
+  end
+
+  if M.has_question() and M.belongs_to_active_session(M._current_question) then
+    return
+  end
+
+  state.api_client:list_questions()
+    :and_then(function(requests)
+      if not requests or type(requests) ~= 'table' then
+        return
+      end
+
+      for _, request in ipairs(requests) do
+        if request and request.questions and #request.questions > 0 and M.belongs_to_active_session(request) then
+          if M.matches_active_question(request) then
+            return
+          end
+
+          M.show_question(request)
+          return
+        end
+      end
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to restore pending question: ' .. vim.inspect(err), vim.log.levels.WARN)
+      end)
+    end)
 end
 
 function M.clear_question()
@@ -179,6 +252,7 @@ function M.format_display(output)
     title = icons.get('question') .. ' Question' .. progress,
     title_hl = 'OpencodeQuestionTitle',
     border_hl = 'OpencodeQuestionBorder',
+    extend_border_to_trailing_blank = true,
     content = vim.split(question_info.question, '\n'),
     options = options,
     unfocused_message = 'Focus Opencode window to answer question',

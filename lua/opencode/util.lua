@@ -526,9 +526,7 @@ function M.get_markdown_filetype(filename)
   end
 
   local file_type = vim.filetype.match({ filename = filename }) or ''
-  local result = _filetype_overrides[file_type]
-    or (file_type ~= '' and file_type)
-    or vim.fn.fnamemodify(filename, ':e')
+  local result = _filetype_overrides[file_type] or (file_type ~= '' and file_type) or vim.fn.fnamemodify(filename, ':e')
 
   _filetype_cache[filename] = result
   return result

@@ -277,30 +277,30 @@ describe('renderer functional tests', function()
           )
         end
 
-  if not vim.tbl_contains(skip_full_session, name) then
-    it('replays ' .. name .. ' correctly (session)', function()
-      local renderer = require('opencode.ui.renderer')
-      local flush = require('opencode.ui.renderer.flush')
-      local ctx = require('opencode.ui.renderer.ctx')
-      local events = helpers.load_test_data(filepath)
-      state.session.set_active(helpers.get_session_from_events(events, true))
-      local expected = helpers.load_test_data(expected_path)
+        if not vim.tbl_contains(skip_full_session, name) then
+          it('replays ' .. name .. ' correctly (session)', function()
+            local renderer = require('opencode.ui.renderer')
+            local flush = require('opencode.ui.renderer.flush')
+            local ctx = require('opencode.ui.renderer.ctx')
+            local events = helpers.load_test_data(filepath)
+            state.session.set_active(helpers.get_session_from_events(events, true))
+            local expected = helpers.load_test_data(expected_path)
 
-      local session_data = helpers.load_session_from_events(events)
-      renderer._render_full_session_data(session_data)
+            local session_data = helpers.load_session_from_events(events)
+            renderer._render_full_session_data(session_data)
 
-      -- If bulk mode is active (async writing), wait for it to complete
-      -- by forcing synchronous completion
-      if ctx.bulk_mode then
-        -- Force synchronous completion by calling end_bulk_mode directly
-        -- This ensures all content is written before we check
-        flush.end_bulk_mode()
-      end
+            -- If bulk mode is active (async writing), wait for it to complete
+            -- by forcing synchronous completion
+            if ctx.bulk_mode then
+              -- Force synchronous completion by calling end_bulk_mode directly
+              -- This ensures all content is written before we check
+              flush.end_bulk_mode()
+            end
 
-      local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
-      assert_output_matches(expected, actual, name)
-    end)
-  end
+            local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
+            assert_output_matches(expected, actual, name)
+          end)
+        end
       end
     end
   end

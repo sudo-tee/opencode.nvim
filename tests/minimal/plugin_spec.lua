@@ -12,7 +12,9 @@ describe('opencode.nvim plugin', function()
 
   before_each(function()
     original_schedule = vim.schedule
-    vim.schedule = function(fn) fn() end
+    vim.schedule = function(fn)
+      fn()
+    end
 
     -- Mock vim.system for opencode version check
     original_system = vim.system
@@ -34,7 +36,12 @@ describe('opencode.nvim plugin', function()
     local server_job = require('opencode.server_job')
     original_ensure_server = server_job.ensure_server
     server_job.ensure_server = function()
-      return { url = 'http://localhost:9000', is_running = function() return true end }
+      return {
+        url = 'http://localhost:9000',
+        is_running = function()
+          return true
+        end,
+      }
     end
 
     -- Stub api_client constructor to return mock with needed methods
@@ -55,7 +62,9 @@ describe('opencode.nvim plugin', function()
         create_message = function(_, _id, _params)
           return Promise.new():resolve({ id = 'm1' })
         end,
-        abort_session = function() return Promise.new():resolve(true) end,
+        abort_session = function()
+          return Promise.new():resolve(true)
+        end,
       }
     end
   end)

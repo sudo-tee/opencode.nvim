@@ -1,4 +1,5 @@
 local Dialog = require('opencode.ui.dialog')
+local Output = require('opencode.ui.output')
 local state = require('opencode.state')
 local config = require('opencode.config')
 
@@ -289,5 +290,38 @@ describe('Dialog', function()
       dialog:teardown()
       assert.is_true(show_called, 'input should be shown after answering question with auto_hide disabled')
     end)
+  end)
+end)
+
+describe('Dialog formatting', function()
+  it('places selection extmarks on the selected option line', function()
+    local dialog = Dialog.new({
+      buffer = 0,
+      on_select = function() end,
+      get_option_count = function()
+        return 3
+      end,
+    })
+
+    dialog:set_selection(2)
+
+    local output = Output.new()
+    dialog:format_options(output, {
+      { label = 'First' },
+      { label = 'Second' },
+      { label = 'Third' },
+    })
+
+    assert.are.same({
+      '    1. First',
+      '    2. Second ',
+      '    3. Third',
+    }, output:get_lines())
+
+    assert.is_nil(output.extmarks[0])
+    assert.is_not_nil(output.extmarks[1])
+    assert.is_nil(output.extmarks[2])
+    assert.are.equal('OpencodeDialogOptionHover', output.extmarks[1][1].line_hl_group)
+    assert.are.same({ { '› ', 'OpencodeDialogOptionHover' } }, output.extmarks[1][2].virt_text)
   end)
 end)

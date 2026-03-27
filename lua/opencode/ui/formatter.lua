@@ -173,13 +173,13 @@ function M.format_message_header(message)
   local display_name
   if role == 'assistant' then
     local mode = message.info.mode
-      if mode and mode ~= '' then
-        display_name = mode:upper()
-      elseif state.current_mode and state.current_mode ~= '' then
-        display_name = state.current_mode:upper()
-      else
-        display_name = 'ASSISTANT'
-      end
+    if mode and mode ~= '' then
+      display_name = mode:upper()
+    elseif state.current_mode and state.current_mode ~= '' then
+      display_name = state.current_mode:upper()
+    else
+      display_name = 'ASSISTANT'
+    end
   else
     display_name = role:upper()
   end
@@ -307,7 +307,10 @@ function M._format_selection_context(output, part)
           local has_selection = context_module.decode_json_context(previous_part.text or '', 'selection') ~= nil
           local has_cursor = context_module.decode_json_context(previous_part.text or '', 'cursor-data') ~= nil
           local diagnostics = context_module.decode_json_context(previous_part.text or '', 'diagnostics')
-          local has_diagnostics = diagnostics and diagnostics.content and type(diagnostics.content) == 'table' and #diagnostics.content > 0
+          local has_diagnostics = diagnostics
+            and diagnostics.content
+            and type(diagnostics.content) == 'table'
+            and #diagnostics.content > 0
 
           if has_selection or has_cursor or has_diagnostics then
             start_line = output:get_line_count()
@@ -548,6 +551,7 @@ function M.add_vertical_border(output, start_line, end_line, hl_group, win_col, 
     virt_text_repeat_linebreak = true,
     line_hl_group = text_hl_group or nil,
   }
+
   for line = start_line, end_line do
     output:add_extmark(line - 1, extmark_opts --[[@as OutputExtmark]])
   end

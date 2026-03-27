@@ -441,6 +441,47 @@ describe('opencode.core', function()
       assert.stub(flush_stub).was_called()
       flush_stub:revert()
     end)
+
+    it('restores a pending question after a full session render', function()
+      local renderer = require('opencode.ui.renderer')
+      local question_window = require('opencode.ui.question_window')
+
+      state.session.set_active({ id = 'sess1' })
+      state.ui.set_windows({ output_buf = 1, output_win = 2 })
+
+      local mounted_stub = stub(require('opencode.ui.output_window'), 'mounted').returns(true)
+      local fetch_stub = stub(session, 'get_messages').invokes(function()
+        return Promise.new():resolve({})
+      end)
+      local render_stub = stub(renderer, '_render_full_session_data')
+      local list_questions_stub = stub(state.api_client, 'list_questions').invokes(function()
+        return Promise.new():resolve({
+          {
+            id = 'q1',
+            sessionID = 'sess1',
+            questions = {
+              {
+                question = 'Pick one',
+                header = 'Test',
+                options = { { label = 'One', description = 'first' } },
+              },
+            },
+          },
+        })
+      end)
+      local show_stub = stub(question_window, 'show_question')
+
+      renderer.render_full_session():wait()
+
+      assert.stub(show_stub).was_called()
+
+      show_stub:revert()
+      list_questions_stub:revert()
+      render_stub:revert()
+      fetch_stub:revert()
+      mounted_stub:revert()
+      state.ui.set_windows(nil)
+    end)
   end)
 
   describe('markdown rendering metadata', function()

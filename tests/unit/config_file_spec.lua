@@ -72,7 +72,13 @@ describe('config_file.setup', function()
     Promise.spawn(function()
       state.jobs.set_api_client({
         get_config = function()
-          return Promise.new():resolve({ agent = { ['custom'] = { mode = 'primary' }, ['build'] = { disable = true }, ['plan'] = { disable = false } } })
+          return Promise.new():resolve({
+            agent = {
+              ['custom'] = { mode = 'primary' },
+              ['build'] = { disable = true },
+              ['plan'] = { disable = false },
+            },
+          })
         end,
         get_current_project = function()
           return Promise.new():resolve({ id = 'p1' })

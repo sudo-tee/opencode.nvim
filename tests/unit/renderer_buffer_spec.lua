@@ -49,4 +49,33 @@ describe('renderer.buffer extmarks', function()
       },
     }, 11)
   end)
+
+  it('reapplies extmarks at the correct line after unchanged leading lines', function()
+    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 20, 24)
+
+    buffer.upsert_part_now('part_1', 'msg_1', {
+      lines = { 'title', '', 'question', '    1. One', '    2. Two ' },
+      extmarks = {
+        [4] = {
+          { line_hl_group = 'OpencodeDialogOptionHover' },
+        },
+      },
+      actions = {},
+    }, {
+      lines = { 'title', '', 'question', '    1. One', '    2. Two' },
+      extmarks = {
+        [4] = {
+          { line_hl_group = 'OpencodeDialogOptionHover' },
+        },
+      },
+      actions = {},
+    })
+
+    assert.stub(clear_extmarks_stub).was_called_with(24, 25)
+    assert.stub(set_extmarks_stub).was_called_with({
+      [0] = {
+        { line_hl_group = 'OpencodeDialogOptionHover' },
+      },
+    }, 24)
+  end)
 end)

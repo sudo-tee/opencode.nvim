@@ -316,7 +316,7 @@ describe('opencode.session', function()
       if result then
         assert.equal('new-8', result.id)
       end
-      
+
       -- Restore
       if original_get_session then
         state.api_client.get_session = original_get_session

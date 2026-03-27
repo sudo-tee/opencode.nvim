@@ -66,4 +66,3 @@ describe('ID module', function()
     assert.is_true(#session_id >= 20) -- At least prefix + some content
   end)
 end)
-

@@ -181,7 +181,14 @@ function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
-  return fetch_session():and_then(M._render_full_session_data)
+  return fetch_session():and_then(function(session_data)
+    M._render_full_session_data(session_data)
+    local active_session = state.active_session
+    if active_session and active_session.id then
+      require('opencode.ui.question_window').restore_pending_question(active_session.id)
+    end
+    return session_data
+  end)
 end
 
 ---Replace the entire output buffer with the given lines

@@ -56,7 +56,9 @@ end
 local function slice_extmarks(extmarks, start_line)
   local slice = {}
   for line_idx, marks in pairs(extmarks or {}) do
-    if line_idx >= start_line then
+    if line_idx < 0 then
+      slice[line_idx] = vim.deepcopy(marks)
+    elseif line_idx >= start_line then
       slice[line_idx - start_line] = vim.deepcopy(marks)
     end
   end
@@ -85,13 +87,29 @@ local function marks_equal(a, b)
 end
 
 local function unchanged_extmark_prefix_len(previous_formatted, formatted_data)
+  local previous_extmarks = previous_formatted and previous_formatted.extmarks or {}
+  local next_extmarks = formatted_data and formatted_data.extmarks or {}
+
+  for line_idx, _ in pairs(previous_extmarks) do
+    if line_idx < 0 and not marks_equal(previous_extmarks[line_idx], next_extmarks[line_idx]) then
+      return 0
+    end
+  end
+
+  for line_idx, _ in pairs(next_extmarks) do
+    if line_idx < 0 and not marks_equal(previous_extmarks[line_idx], next_extmarks[line_idx]) then
+      return 0
+    end
+  end
+
   local previous_lines = previous_formatted and previous_formatted.lines or {}
   local next_lines = formatted_data and formatted_data.lines or {}
   local max_lines = math.max(#previous_lines, #next_lines)
   local prefix_len = 0
 
   for line_idx = 0, math.max(max_lines - 1, 0) do
-    local previous_marks = previous_formatted and previous_formatted.extmarks and previous_formatted.extmarks[line_idx] or nil
+    local previous_marks = previous_formatted and previous_formatted.extmarks and previous_formatted.extmarks[line_idx]
+      or nil
     local next_marks = formatted_data and formatted_data.extmarks and formatted_data.extmarks[line_idx] or nil
 
     if not marks_equal(previous_marks, next_marks) then
@@ -116,12 +134,44 @@ local function apply_extmarks(previous_formatted, formatted_data, line_start, ol
     unchanged_prefix_len(previous_formatted, formatted_data),
     unchanged_extmark_prefix_len(previous_formatted, formatted_data)
   )
+
+  local function min_extmark_line(formatted)
+    local min_line = nil
+    for line_idx in pairs(formatted and formatted.extmarks or {}) do
+      if min_line == nil or line_idx < min_line then
+        min_line = line_idx
+      end
+    end
+    return min_line
+  end
+
+  local function max_extmark_line(formatted, fallback)
+    local max_line = fallback
+    for line_idx in pairs(formatted and formatted.extmarks or {}) do
+      max_line = math.max(max_line, line_start + line_idx)
+    end
+    return max_line
+  end
+
   local clear_start = line_start + prefix_len
-  local clear_end = math.max(old_line_end, new_line_end) + 1
+  local previous_min_extmark = min_extmark_line(previous_formatted)
+  local next_min_extmark = min_extmark_line(formatted_data)
+  if previous_min_extmark ~= nil then
+    clear_start = math.min(clear_start, line_start + previous_min_extmark)
+  end
+  if next_min_extmark ~= nil then
+    clear_start = math.min(clear_start, line_start + next_min_extmark)
+  end
+  clear_start = math.max(0, clear_start)
+  local clear_end = math.max(
+    max_extmark_line(previous_formatted, old_line_end),
+    max_extmark_line(formatted_data, new_line_end)
+  ) + 1
 
   output_window.clear_extmarks(clear_start, clear_end)
 
-  local extmarks = slice_extmarks(formatted_data.extmarks, prefix_len)
+  local extmark_start_line = math.max(0, clear_start - line_start)
+  local extmarks = slice_extmarks(formatted_data.extmarks, extmark_start_line)
   if has_extmarks(extmarks) then
     output_window.set_extmarks(extmarks, clear_start)
   end

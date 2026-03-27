@@ -418,18 +418,8 @@ end
 function M.flush()
   local pending = snapshot_pending()
   local applied = apply_pending(pending)
-  if applied then
-    local windows = state.windows
-    local output_buf = windows and windows.output_buf
-    if output_buf and vim.api.nvim_buf_is_valid(output_buf) then
-      local ok, line_count = pcall(vim.api.nvim_buf_line_count, output_buf)
-      if ok then
-        ctx.prev_line_count = line_count
-      end
-    end
-    if not ctx.bulk_mode then
-      M.request_on_data_rendered()
-    end
+  if applied and not ctx.bulk_mode then
+    M.request_on_data_rendered()
   end
 end
 

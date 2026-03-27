@@ -341,8 +341,9 @@ function M.on_part_removed(properties)
 
   -- Remove the part from the in-memory message too
   local cached = ctx.render_state:get_part(part_id)
-  if cached and cached.message_id then
-    local rendered_message = ctx.render_state:get_message(cached.message_id)
+  local message_id = cached and cached.message_id
+  if message_id then
+    local rendered_message = ctx.render_state:get_message(message_id)
     if rendered_message and rendered_message.message and rendered_message.message.parts then
       for i, part in ipairs(rendered_message.message.parts) do
         if part.id == part_id then
@@ -354,6 +355,11 @@ function M.on_part_removed(properties)
   end
 
   flush.queue_part_removal(part_id)
+
+  -- Mark message dirty so header (timestamp, etc.) gets re-rendered
+  if message_id then
+    flush.mark_message_dirty(message_id)
+  end
 end
 
 ---Handle session.updated — re-render the full session if the revert state changed

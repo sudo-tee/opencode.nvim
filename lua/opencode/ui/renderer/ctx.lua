@@ -27,6 +27,9 @@ local ctx = {
   },
   flush_scheduled = false,
   markdown_render_scheduled = false,
+  bulk_mode = false,
+  bulk_buffer_lines = {},
+  bulk_extmarks_by_line = {},
 }
 
 function ctx:reset()
@@ -48,6 +51,13 @@ function ctx:reset()
   }
   self.flush_scheduled = false
   self.markdown_render_scheduled = false
+  self:bulk_reset()
+end
+
+function ctx:bulk_reset()
+  self.bulk_mode = false
+  self.bulk_buffer_lines = {}
+  self.bulk_extmarks_by_line = {}
 end
 
 return ctx

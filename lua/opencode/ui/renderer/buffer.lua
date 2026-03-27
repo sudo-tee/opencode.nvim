@@ -8,6 +8,24 @@ local function has_extmarks(extmarks)
   return type(extmarks) == 'table' and next(extmarks) ~= nil
 end
 
+local function accumulate_bulk_extmarks(extmarks, line_start)
+  for line_idx, marks in pairs(extmarks) do
+    local actual_line = line_start + line_idx
+    local bucket = ctx.bulk_extmarks_by_line[actual_line]
+    if not bucket then
+      bucket = {}
+      ctx.bulk_extmarks_by_line[actual_line] = bucket
+    end
+    for _, mark in ipairs(marks) do
+      local copy = vim.deepcopy(mark)
+      if copy.end_row then
+        copy.end_row = line_start + copy.end_row
+      end
+      bucket[#bucket + 1] = copy
+    end
+  end
+end
+
 local function has_actions(actions)
   return type(actions) == 'table' and #actions > 0
 end
@@ -45,6 +63,47 @@ local function slice_extmarks(extmarks, start_line)
   return slice
 end
 
+local function resolve_mark(mark)
+  return type(mark) == 'function' and mark() or mark
+end
+
+local function marks_equal(a, b)
+  a = a or {}
+  b = b or {}
+
+  if #a ~= #b then
+    return false
+  end
+
+  for i = 1, #a do
+    if not vim.deep_equal(resolve_mark(a[i]), resolve_mark(b[i])) then
+      return false
+    end
+  end
+
+  return true
+end
+
+local function unchanged_extmark_prefix_len(previous_formatted, formatted_data)
+  local previous_lines = previous_formatted and previous_formatted.lines or {}
+  local next_lines = formatted_data and formatted_data.lines or {}
+  local max_lines = math.max(#previous_lines, #next_lines)
+  local prefix_len = 0
+
+  for line_idx = 0, math.max(max_lines - 1, 0) do
+    local previous_marks = previous_formatted and previous_formatted.extmarks and previous_formatted.extmarks[line_idx] or nil
+    local next_marks = formatted_data and formatted_data.extmarks and formatted_data.extmarks[line_idx] or nil
+
+    if not marks_equal(previous_marks, next_marks) then
+      break
+    end
+
+    prefix_len = line_idx + 1
+  end
+
+  return prefix_len
+end
+
 local function highlight_written_lines(start_line, lines)
   if #lines == 0 then
     return
@@ -53,7 +112,10 @@ local function highlight_written_lines(start_line, lines)
 end
 
 local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
-  local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
+  local prefix_len = math.min(
+    unchanged_prefix_len(previous_formatted, formatted_data),
+    unchanged_extmark_prefix_len(previous_formatted, formatted_data)
+  )
   local clear_start = line_start + prefix_len
   local clear_end = math.max(old_line_end, new_line_end) + 1
 
@@ -71,6 +133,19 @@ local function get_message_insert_line(message_id)
     return rendered_message.line_start
   end
 
+  local line_count = output_window.get_buf_line_count()
+  local append_at = math.max(line_count - 1, 0)
+  if line_count == 1 then
+    local windows = state.windows
+    local output_buf = windows and windows.output_buf
+    if output_buf and vim.api.nvim_buf_is_valid(output_buf) then
+      local lines = vim.api.nvim_buf_get_lines(output_buf, 0, 1, false)
+      if lines[1] == '' then
+        return 0
+      end
+    end
+  end
+
   local messages = state.messages or {}
   local message_index = nil
   for i, message in ipairs(messages) do
@@ -81,7 +156,7 @@ local function get_message_insert_line(message_id)
   end
 
   if not message_index then
-    return output_window.get_buf_line_count()
+    return append_at
   end
 
   for i = message_index + 1, #messages do
@@ -94,7 +169,7 @@ local function get_message_insert_line(message_id)
     end
   end
 
-  return output_window.get_buf_line_count()
+  return append_at
 end
 
 local function get_part_insertion_line(part_id, message_id)
@@ -191,6 +266,25 @@ function M.find_part_by_call_id(call_id, message_id)
 end
 
 function M.upsert_message_now(message_id, formatted_data, previous_formatted)
+  if ctx.bulk_mode then
+    local line_start = #ctx.bulk_buffer_lines
+    local line_end = line_start + #formatted_data.lines - 1
+
+    for _, line in ipairs(formatted_data.lines) do
+      ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
+    end
+    if has_extmarks(formatted_data.extmarks) then
+      accumulate_bulk_extmarks(formatted_data.extmarks, line_start)
+    end
+
+    local message_data = ctx.render_state:get_message(message_id)
+    if message_data then
+      ctx.render_state:set_message(message_data.message, line_start, line_end)
+    end
+
+    return true
+  end
+
   local cached = ctx.render_state:get_message(message_id)
   if cached and cached.line_start and cached.line_end then
     local old_line_end = cached.line_end
@@ -229,6 +323,26 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
 end
 
 function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatted)
+  if ctx.bulk_mode then
+    local line_start = #ctx.bulk_buffer_lines
+    local line_end = line_start + #formatted_data.lines - 1
+
+    for _, line in ipairs(formatted_data.lines) do
+      ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
+    end
+    if has_extmarks(formatted_data.extmarks) then
+      accumulate_bulk_extmarks(formatted_data.extmarks, line_start)
+    end
+
+    local part_data = ctx.render_state:get_part(part_id)
+    if part_data then
+      ctx.render_state:set_part(part_data.part, line_start, line_end)
+      apply_part_actions(part_id, formatted_data, line_start)
+    end
+
+    return true
+  end
+
   local cached = ctx.render_state:get_part(part_id)
   if cached and cached.line_start and cached.line_end then
     local old_line_end = cached.line_end
@@ -297,29 +411,14 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
   return true
 end
 
-function M.write_formatted_data(formatted_data)
-  local new_lines = formatted_data.lines or {}
-  if #new_lines == 0 then
-    return nil
-  end
-
-  local target_line = output_window.get_buf_line_count()
-  target_line = target_line - 1
-  local append_lines = table.move(new_lines, 1, #new_lines, 1, {})
-  append_lines[#append_lines + 1] = ''
-  output_window.set_lines(append_lines, target_line)
-
-  if has_extmarks(formatted_data.extmarks) then
-    output_window.set_extmarks(formatted_data.extmarks, target_line)
-  end
-
-  return {
-    line_start = target_line,
-    line_end = target_line + #new_lines - 1,
-  }
-end
-
 function M.remove_part_now(part_id)
+  if ctx.bulk_mode then
+    -- In bulk mode, we don't actually remove from buffer since we're building fresh
+    -- Just track that this part should be excluded
+    ctx.render_state:remove_part(part_id)
+    return
+  end
+
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_part(part_id)
@@ -332,6 +431,13 @@ function M.remove_part_now(part_id)
 end
 
 function M.remove_message_now(message_id)
+  if ctx.bulk_mode then
+    -- In bulk mode, we don't actually remove from buffer since we're building fresh
+    -- Just track that this message should be excluded
+    ctx.render_state:remove_message(message_id)
+    return
+  end
+
   local cached = ctx.render_state:get_message(message_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_message(message_id)

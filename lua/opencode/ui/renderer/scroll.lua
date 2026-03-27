@@ -14,6 +14,21 @@ function M.get_output_win()
   return win
 end
 
+---Move the cursor in `win` to the last line of `buf` and scroll so it's visible.
+---@param win integer
+---@param buf integer
+function M.scroll_win_to_bottom(win, buf)
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  if line_count == 0 then
+    return
+  end
+  local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
+  vim.api.nvim_win_set_cursor(win, { line_count, #last_line })
+  vim.api.nvim_win_call(win, function()
+    vim.cmd('normal! zb')
+  end)
+end
+
 ---@param buf integer|nil
 ---@return { win: integer, follow: boolean }|nil
 function M.pre_flush(buf)
@@ -41,17 +56,7 @@ function M.post_flush(snapshot, buf)
   if not vim.api.nvim_win_is_valid(snapshot.win) or vim.api.nvim_win_get_buf(snapshot.win) ~= buf then
     return
   end
-
-  local line_count = vim.api.nvim_buf_line_count(buf)
-  if line_count == 0 then
-    return
-  end
-
-  local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1] or ''
-  vim.api.nvim_win_set_cursor(snapshot.win, { line_count, #last_line })
-  vim.api.nvim_win_call(snapshot.win, function()
-    vim.cmd('normal! zb')
-  end)
+  M.scroll_win_to_bottom(snapshot.win, buf)
 end
 
 return M

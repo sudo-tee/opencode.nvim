@@ -335,8 +335,14 @@ end
 
 function M.create_windows()
   if config.ui.enable_treesitter_markdown then
-    vim.treesitter.language.register('markdown', 'opencode_output')
-    vim.treesitter.language.register('markdown', 'opencode')
+    local ok, treesitter = pcall(function()
+      return vim.treesitter
+    end)
+
+    if ok and treesitter and treesitter.language and treesitter.language.register then
+      treesitter.language.register('markdown', 'opencode_output')
+      treesitter.language.register('markdown', 'opencode')
+    end
   end
 
   local autocmds = require('opencode.ui.autocmds')

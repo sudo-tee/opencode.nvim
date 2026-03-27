@@ -6,6 +6,7 @@ local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
 local events = require('opencode.ui.renderer.events')
 local flush = require('opencode.ui.renderer.flush')
+local scroll = require('opencode.ui.renderer.scroll')
 
 local M = {}
 
@@ -123,6 +124,8 @@ function M._render_full_session_data(session_data)
   local revert_index = nil
   local set_mode_from_messages = not state.current_model
 
+  flush.begin_bulk_mode()
+
   for i, msg in ipairs(session_data) do
     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
       revert_index = i
@@ -159,6 +162,7 @@ function M._render_full_session_data(session_data)
   end
 
   flush.flush()
+  flush.end_bulk_mode()
 
   if set_mode_from_messages then
     set_model_and_mode_from_messages()
@@ -216,28 +220,8 @@ function M.scroll_to_bottom(force)
     return
   end
 
-  local ok, line_count = pcall(vim.api.nvim_buf_line_count, output_buf)
-  if not ok or line_count == 0 then
-    return
-  end
-
-  local prev_line_count = ctx.prev_line_count
-  ctx.prev_line_count = line_count
-
-  local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, output_win)
-
-  local should_scroll = force
-    or prev_line_count == 0
-    or config.ui.output.always_scroll_to_bottom
-    or (ok_cursor and cursor and cursor[1] >= prev_line_count)
-    or output_window.is_at_bottom(output_win)
-
-  if should_scroll then
-    local last_line = vim.api.nvim_buf_get_lines(output_buf, line_count - 1, line_count, false)[1] or ''
-    vim.api.nvim_win_set_cursor(output_win, { line_count, #last_line })
-    vim.api.nvim_win_call(output_win, function()
-      vim.cmd('normal! zb')
-    end)
+  if force or config.ui.output.always_scroll_to_bottom or output_window.is_at_bottom(output_win) then
+    scroll.scroll_win_to_bottom(output_win, output_buf)
   end
 end
 

@@ -261,7 +261,11 @@ function Dialog:format_dialog(output, config)
   local end_line = output:get_line_count()
 
   if config.border_hl then
-    formatter.add_vertical_border(output, start_line + 1, end_line, config.border_hl, -2)
+    local border_end = end_line
+    if config.extend_border_to_trailing_blank then
+      border_end = border_end + 1
+    end
+    formatter.add_vertical_border(output, start_line + 1, border_end, config.border_hl, -2)
   end
 
   output:add_line('')

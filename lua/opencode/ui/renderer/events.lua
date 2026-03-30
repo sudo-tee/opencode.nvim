@@ -383,7 +383,10 @@ function M.on_session_updated(properties)
   end
 
   if revert_changed then
-    require('opencode.ui.renderer')._render_full_session_data(state.messages)
+    local real_messages = vim.tbl_filter(function(msg)
+      return not (msg.info and msg.info.id and msg.info.id:match('^__opencode_'))
+    end, state.messages or {})
+    require('opencode.ui.renderer')._render_full_session_data(real_messages)
   end
 end
 

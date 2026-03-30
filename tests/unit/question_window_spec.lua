@@ -10,7 +10,7 @@ describe('question_window', function()
     question_window._dialog = nil
   end)
 
-  it('extends the question border through the trailing spacer line', function()
+  it('adds the Other option when missing', function()
     local captured_opts = nil
     question_window._current_question = {
       id = 'q1',
@@ -32,7 +32,6 @@ describe('question_window', function()
     question_window.format_display(Output.new())
 
     assert.is_not_nil(captured_opts)
-    assert.is_true(captured_opts.extend_border_to_trailing_blank)
     assert.are.equal('On save', captured_opts.options[1].label)
     assert.are.equal('Other', captured_opts.options[2].label)
   end)

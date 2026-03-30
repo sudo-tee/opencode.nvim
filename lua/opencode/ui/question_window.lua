@@ -252,7 +252,6 @@ function M.format_display(output)
     title = icons.get('question') .. ' Question' .. progress,
     title_hl = 'OpencodeQuestionTitle',
     border_hl = 'OpencodeQuestionBorder',
-    extend_border_to_trailing_blank = true,
     content = vim.split(question_info.question, '\n'),
     options = options,
     unfocused_message = 'Focus Opencode window to answer question',

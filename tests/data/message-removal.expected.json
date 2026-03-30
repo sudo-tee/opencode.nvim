@@ -1,4 +1,5 @@
 {
+  "timestamp": 1774895738,
   "lines": [
     "----",
     "",
@@ -36,33 +37,19 @@
       0,
       {
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            "▌󰭻 ",
-            "OpencodeMessageRoleUser"
-          ],
-          [
-            " "
-          ],
-          [
-            "USER",
-            "OpencodeMessageRoleUser"
-          ],
-          [
-            "",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_001]",
-            "OpencodeHint"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 10,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" [msg_001]", "OpencodeHint"]
+        ],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 10
       }
     ],
     [
@@ -71,17 +58,12 @@
       0,
       {
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            " 2025-10-09 08:53:21",
-            "OpencodeHint"
-          ]
-        ],
         "right_gravity": true,
-        "priority": 9,
         "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-09 08:53:21", "OpencodeHint"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 9
       }
     ],
     [
@@ -90,18 +72,13 @@
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
@@ -110,18 +87,13 @@
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
@@ -130,18 +102,13 @@
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
@@ -150,113 +117,73 @@
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
       7,
+      6,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
+        "ns_id": 3,
+        "priority": 4096
+      }
+    ],
+    [
+      8,
       7,
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
-        "ns_id": 3,
-        "virt_text_hide": false
-      }
-    ],
-    [
-      8,
-      8,
-      0,
-      {
-        "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
         "right_gravity": true,
+        "virt_text_hide": false,
         "virt_text_win_col": -3,
-        "priority": 4096,
-        "virt_text_pos": "win_col",
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
       9,
-      9,
+      8,
       0,
       {
         "virt_text_repeat_linebreak": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 4096,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
       10,
-      12,
+      9,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            "",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_002]",
-            "OpencodeHint"
-          ]
-        ],
-        "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 10,
+        "virt_text_repeat_linebreak": true,
         "virt_text_pos": "win_col",
+        "right_gravity": true,
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 4096
       }
     ],
     [
@@ -265,52 +192,33 @@
       0,
       {
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            " 2025-10-09 08:53:22",
-            "OpencodeHint"
-          ]
-        ],
+        "virt_text_pos": "win_col",
         "right_gravity": true,
-        "priority": 9,
-        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          ["", "OpencodeHint"],
+          [" [msg_002]", "OpencodeHint"]
+        ],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 10
       }
     ],
     [
       12,
-      21,
+      12,
       0,
       {
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            "",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_004]",
-            "OpencodeHint"
-          ]
-        ],
         "right_gravity": true,
-        "virt_text_win_col": -3,
-        "priority": 10,
-        "virt_text_pos": "win_col",
+        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-09 08:53:22", "OpencodeHint"]],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 9
       }
     ],
     [
@@ -319,20 +227,35 @@
       0,
       {
         "virt_text_repeat_linebreak": false,
-        "virt_text": [
-          [
-            " 2025-10-09 08:53:24",
-            "OpencodeHint"
-          ]
-        ],
+        "virt_text_pos": "win_col",
         "right_gravity": true,
-        "priority": 9,
-        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "virt_text_win_col": -3,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          ["", "OpencodeHint"],
+          [" [msg_004]", "OpencodeHint"]
+        ],
         "ns_id": 3,
-        "virt_text_hide": false
+        "priority": 10
+      }
+    ],
+    [
+      14,
+      21,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_pos": "right_align",
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-09 08:53:24", "OpencodeHint"]],
+        "ns_id": 3,
+        "priority": 9
       }
     ]
   ],
-  "actions": [],
-  "timestamp": 1770935236
+  "actions": []
 }

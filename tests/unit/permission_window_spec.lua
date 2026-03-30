@@ -41,7 +41,6 @@ describe('permission_window', function()
       permission_window.format_display(output)
 
       assert.is_not_nil(captured_opts)
-      assert.is_true(captured_opts.extend_border_to_trailing_blank)
       assert.is_not_nil(captured_opts.content)
       assert.are.equal(7, #captured_opts.content)
       assert.is_true(captured_opts.content[1]:find('*bash*', 1, true) ~= nil)

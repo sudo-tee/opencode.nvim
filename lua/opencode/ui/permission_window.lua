@@ -174,7 +174,6 @@ function M.format_display(output)
     title = icons.get('warning') .. ' Permission Required' .. progress,
     title_hl = 'OpencodePermissionTitle',
     border_hl = 'OpencodePermissionBorder',
-    extend_border_to_trailing_blank = true,
     content = render_content and nil or content,
     render_content = render_content,
     options = options,

@@ -62,27 +62,17 @@ function M._format_status_text(status)
 end
 
 local function unsubscribe_session_status_event(manager)
-  if manager and M._animation.status_event_manager == manager then
-    manager:unsubscribe('session.status', M.on_session_status)
-    M._animation.status_event_manager = nil
-  end
+  -- No-op: disable session.status event subscription introduced recently.
+  -- Reverting session.status handling to avoid interfering with existing
+  -- behavior. This keeps the loading animation logic focused on job_count
+  -- and user_message_count as before.
+  return
 end
 
 local function subscribe_session_status_event(manager)
-  if not manager then
-    return
-  end
-
-  if M._animation.status_event_manager and M._animation.status_event_manager ~= manager then
-    unsubscribe_session_status_event(M._animation.status_event_manager)
-  end
-
-  if M._animation.status_event_manager == manager then
-    return
-  end
-
-  manager:subscribe('session.status', M.on_session_status)
-  M._animation.status_event_manager = manager
+  -- No-op: do not subscribe to session.status events. See note in
+  -- unsubscribe_session_status_event for rationale.
+  return
 end
 
 local function is_active_session_busy()
@@ -108,17 +98,10 @@ local function is_active_session_busy()
 end
 
 function M.on_session_status(properties)
-  if not properties or type(properties) ~= 'table' then
-    return
-  end
-
-  local active_session = state.active_session
-  if active_session and active_session.id and properties.sessionID ~= active_session.id then
-    return
-  end
-
-  M._animation.status_data = properties.status
-  M.render(state.windows)
+  -- Disabled: Ignore session.status updates to keep loading animation
+  -- behavior stable. Previously this updated status_data and triggered
+  -- a render which caused regressions in some environments.
+  return
 end
 
 local function on_active_session_change(_, new_session, old_session)
@@ -272,9 +255,6 @@ function M.setup()
   state.store.subscribe('job_count', on_running_change)
   state.store.subscribe('user_message_count', on_user_message_count_change)
   state.store.subscribe('active_session', on_active_session_change)
-  state.store.subscribe('event_manager', on_event_manager_change)
-  subscribe_session_status_event(state.event_manager)
-
   if is_active_session_busy() then
     M.start(state.windows)
   else
@@ -286,8 +266,6 @@ function M.teardown()
   state.store.unsubscribe('job_count', on_running_change)
   state.store.unsubscribe('user_message_count', on_user_message_count_change)
   state.store.unsubscribe('active_session', on_active_session_change)
-  state.store.unsubscribe('event_manager', on_event_manager_change)
-  unsubscribe_session_status_event(M._animation.status_event_manager)
   M._animation.status_data = nil
 end
 

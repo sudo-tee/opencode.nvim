@@ -23,6 +23,14 @@ M.select_session = Promise.async(function(parent_id)
     return s.title ~= '' and s ~= nil and s.parentID == parent_id
   end, all_sessions)
 
+  if #filtered_sessions == 0 then
+    vim.notify(parent_id and 'No child sessions found' or 'No sessions found', vim.log.levels.INFO)
+    if state.ui.is_visible() then
+      ui.focus_input()
+    end
+    return
+  end
+
   ui.select_session(filtered_sessions, function(selected_session)
     if not selected_session then
       if state.ui.is_visible() then

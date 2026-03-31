@@ -183,6 +183,7 @@ local log = require('opencode.log')
 --- @field state_cwd_listener function|nil Listener for state.current_cwd updates
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
+--- @field ignored_events string[] List of event types to ignore when capturing
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
 local EventManager = {}
 EventManager.__index = EventManager
@@ -197,6 +198,7 @@ function EventManager.new()
     state_cwd_listener = nil,
     is_started = false,
     captured_events = {},
+    ignored_events = { 'server.heartbeat' },
     _parts_by_id = {},
   }, EventManager)
 
@@ -553,6 +555,14 @@ function EventManager:_subscribe_to_server_events(server)
   local api_client = state.api_client
 
   local emitter = function(event)
+    if not event or not event.type then
+      log.warn('Received malformed event from server: %s', vim.inspect(event))
+      return
+    end
+    if self.ignored_events and vim.tbl_contains(self.ignored_events, event.type) then
+      log.debug('Ignoring event of type %s', event.type)
+      return
+    end
     self.throttling_emitter:enqueue(event)
   end
 

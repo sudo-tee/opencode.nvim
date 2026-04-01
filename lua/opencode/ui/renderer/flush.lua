@@ -12,17 +12,23 @@ local M = {}
 local function with_suppressed_output_autocmds(fn)
   local output_win = state.windows and state.windows.output_win
   local has_output_win = output_win and vim.api.nvim_win_is_valid(output_win)
-  local saved_eventignorewin = has_output_win and vim.api.nvim_get_option_value('eventignorewin', { win = output_win })
-    or nil
-
+  -- 'eventignorewin' is not available in all Neovim versions. Use pcall to
+  -- detect support and avoid throwing an error on older versions used in CI.
+  local supports_eventignorewin = false
+  local saved_eventignorewin = nil
   if has_output_win then
-    vim.api.nvim_set_option_value('eventignorewin', 'all', { win = output_win, scope = 'local' })
+    local ok, val = pcall(vim.api.nvim_get_option_value, 'eventignorewin', { win = output_win })
+    if ok then
+      supports_eventignorewin = true
+      saved_eventignorewin = val
+      pcall(vim.api.nvim_set_option_value, 'eventignorewin', 'all', { win = output_win, scope = 'local' })
+    end
   end
 
   local begin_ok, began_update = xpcall(output_window.begin_update, debug.traceback)
   if not begin_ok then
-    if has_output_win then
-      vim.api.nvim_set_option_value('eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
+    if has_output_win and supports_eventignorewin then
+      pcall(vim.api.nvim_set_option_value, 'eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
     end
     error(began_update)
   end
@@ -33,8 +39,8 @@ local function with_suppressed_output_autocmds(fn)
   if began_update then
     end_ok, end_err = xpcall(output_window.end_update, debug.traceback)
   end
-  if has_output_win then
-    vim.api.nvim_set_option_value('eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
+  if has_output_win and supports_eventignorewin then
+    pcall(vim.api.nvim_set_option_value, 'eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
   end
 
   if not ok then

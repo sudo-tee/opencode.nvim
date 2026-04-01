@@ -276,7 +276,7 @@ end
 local function apply_part_actions(part_id, formatted_data, line_start)
   if has_actions(formatted_data.actions) then
     ctx.render_state:clear_actions(part_id)
-    ctx.render_state:add_actions(part_id, vim.deepcopy(formatted_data.actions), line_start + 1)
+    ctx.render_state:add_actions(part_id, vim.deepcopy(formatted_data.actions), line_start)
   else
     ctx.render_state:clear_actions(part_id)
   end

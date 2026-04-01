@@ -156,7 +156,6 @@ function M._render_full_session_data(session_data)
       },
     }
 
-    table.insert(state.messages, revert_message)
     events.on_message_updated(revert_message)
     events.on_part_updated({ part = revert_message.parts[1] })
   end

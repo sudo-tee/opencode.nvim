@@ -62,46 +62,41 @@ function M._format_status_text(status)
 end
 
 local function unsubscribe_session_status_event(manager)
-  -- No-op: disable session.status event subscription introduced recently.
-  -- Reverting session.status handling to avoid interfering with existing
-  -- behavior. This keeps the loading animation logic focused on job_count
-  -- and user_message_count as before.
-  return
+  if manager and M._animation.status_event_manager == manager then
+    manager:unsubscribe('session.status', M.on_session_status)
+    M._animation.status_event_manager = nil
+  end
 end
 
 local function subscribe_session_status_event(manager)
-  -- No-op: do not subscribe to session.status events. See note in
-  -- unsubscribe_session_status_event for rationale.
-  return
-end
-
-local function is_active_session_busy()
-  local active_session = state.active_session
-  local session_id = active_session and active_session.id
-  if session_id and ((state.user_message_count or {})[session_id] or 0) > 0 then
-    return true
+  if not manager then
+    return
   end
 
-  local ok, question_window = pcall(require, 'opencode.ui.question_window')
-  if ok and question_window.has_question and question_window.belongs_to_active_session then
-    local current_question = question_window._current_question
-    if question_window.has_question() and question_window.belongs_to_active_session(current_question) then
-      return true
-    end
+  if M._animation.status_event_manager and M._animation.status_event_manager ~= manager then
+    unsubscribe_session_status_event(M._animation.status_event_manager)
   end
 
-  if M._animation.status_data and M._animation.status_data.type ~= 'idle' then
-    return true
+  if M._animation.status_event_manager == manager then
+    return
   end
 
-  return state.jobs.is_running()
+  manager:subscribe('session.status', M.on_session_status)
+  M._animation.status_event_manager = manager
 end
 
 function M.on_session_status(properties)
-  -- Disabled: Ignore session.status updates to keep loading animation
-  -- behavior stable. Previously this updated status_data and triggered
-  -- a render which caused regressions in some environments.
-  return
+  if not properties or type(properties) ~= 'table' then
+    return
+  end
+
+  local active_session = state.active_session
+  if active_session and active_session.id and properties.sessionID ~= active_session.id then
+    return
+  end
+
+  M._animation.status_data = properties.status
+  M.render(state.windows)
 end
 
 local function on_active_session_change(_, new_session, old_session)
@@ -109,27 +104,6 @@ local function on_active_session_change(_, new_session, old_session)
   local old_id = old_session and old_session.id
   if new_id ~= old_id then
     M._animation.status_data = nil
-    if is_active_session_busy() then
-      M.start(state.windows)
-    else
-      M.stop()
-    end
-  end
-end
-
-local function on_user_message_count_change()
-  if not state.windows then
-    return
-  end
-
-  if is_active_session_busy() then
-    if not M.is_running() then
-      M.start(state.windows)
-    else
-      M.render(state.windows)
-    end
-  else
-    M.stop()
   end
 end
 
@@ -164,7 +138,7 @@ M.render = vim.schedule_wrap(function(windows)
     return false
   end
 
-  if not is_active_session_busy() then
+  if not state.jobs.is_running() then
     M.stop()
     return false
   end
@@ -194,7 +168,7 @@ function M._start_animation_timer(windows)
     on_tick = function()
       M._animation.current_frame = M._next_frame()
       M.render(state.windows)
-      if is_active_session_busy() then
+      if state.jobs.is_running() then
         return true
       else
         M.stop()
@@ -240,12 +214,8 @@ local function on_running_change(_, new_value)
     return
   end
 
-  if (new_value and new_value > 0) or is_active_session_busy() then
-    if not M.is_running() then
-      M.start(state.windows)
-    else
-      M.render(state.windows)
-    end
+  if not M.is_running() and new_value and new_value > 0 then
+    M.start(state.windows)
   else
     M.stop()
   end
@@ -253,19 +223,16 @@ end
 
 function M.setup()
   state.store.subscribe('job_count', on_running_change)
-  state.store.subscribe('user_message_count', on_user_message_count_change)
   state.store.subscribe('active_session', on_active_session_change)
-  if is_active_session_busy() then
-    M.start(state.windows)
-  else
-    M.stop()
-  end
+  state.store.subscribe('event_manager', on_event_manager_change)
+  subscribe_session_status_event(state.event_manager)
 end
 
 function M.teardown()
   state.store.unsubscribe('job_count', on_running_change)
-  state.store.unsubscribe('user_message_count', on_user_message_count_change)
   state.store.unsubscribe('active_session', on_active_session_change)
+  state.store.unsubscribe('event_manager', on_event_manager_change)
+  unsubscribe_session_status_event(M._animation.status_event_manager)
   M._animation.status_data = nil
 end
 

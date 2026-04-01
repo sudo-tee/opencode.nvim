@@ -9,6 +9,44 @@ local append = require('opencode.ui.renderer.append')
 
 local M = {}
 
+local function with_suppressed_output_autocmds(fn)
+  local output_win = state.windows and state.windows.output_win
+  local has_output_win = output_win and vim.api.nvim_win_is_valid(output_win)
+  local saved_eventignorewin = has_output_win and vim.api.nvim_get_option_value('eventignorewin', { win = output_win })
+    or nil
+
+  if has_output_win then
+    vim.api.nvim_set_option_value('eventignorewin', 'all', { win = output_win, scope = 'local' })
+  end
+
+  local begin_ok, began_update = xpcall(output_window.begin_update, debug.traceback)
+  if not begin_ok then
+    if has_output_win then
+      vim.api.nvim_set_option_value('eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
+    end
+    error(began_update)
+  end
+
+  local ok, result = xpcall(fn, debug.traceback)
+  local end_ok, end_err = true, nil
+
+  if began_update then
+    end_ok, end_err = xpcall(output_window.end_update, debug.traceback)
+  end
+  if has_output_win then
+    vim.api.nvim_set_option_value('eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
+  end
+
+  if not ok then
+    error(result)
+  end
+  if not end_ok then
+    error(end_err)
+  end
+
+  return result
+end
+
 local function lines_equal(a, b)
   a = a or {}
   b = b or {}
@@ -282,50 +320,46 @@ local function apply_pending(pending)
   end
 
   local scroll_snapshot = scroll.pre_flush(buf)
-  local saved_eventignore = vim.o.eventignore
-  vim.o.eventignore = 'all'
-  output_window.begin_update()
-
-  for _, part_id in ipairs(pending.removed_part_order) do
-    if pending.removed_parts[part_id] then
-      buffer.remove_part_now(part_id)
-    end
-  end
-
-  for _, message_id in ipairs(pending.removed_message_order) do
-    if pending.removed_messages[message_id] then
-      buffer.remove_message_now(message_id)
-    end
-  end
-
-  for _, message_id in ipairs(pending.dirty_message_order) do
-    if pending.dirty_messages[message_id] then
-      apply_message(message_id)
+  with_suppressed_output_autocmds(function()
+    for _, part_id in ipairs(pending.removed_part_order) do
+      if pending.removed_parts[part_id] then
+        buffer.remove_part_now(part_id)
+      end
     end
 
-    local dirty_parts = pending.dirty_part_by_message[message_id]
-    if dirty_parts then
-      local message = ctx.render_state:get_message(message_id)
-      local parts = message and message.message and message.message.parts or {}
-      for _, part in ipairs(parts or {}) do
-        if part.id and dirty_parts[part.id] then
-          apply_part(part.id, message_id)
-          dirty_parts[part.id] = nil
-          pending.dirty_parts[part.id] = nil
+    for _, message_id in ipairs(pending.removed_message_order) do
+      if pending.removed_messages[message_id] then
+        buffer.remove_message_now(message_id)
+      end
+    end
+
+    for _, message_id in ipairs(pending.dirty_message_order) do
+      if pending.dirty_messages[message_id] then
+        apply_message(message_id)
+      end
+
+      local dirty_parts = pending.dirty_part_by_message[message_id]
+      if dirty_parts then
+        local message = ctx.render_state:get_message(message_id)
+        local parts = message and message.message and message.message.parts or {}
+        for _, part in ipairs(parts or {}) do
+          if part.id and dirty_parts[part.id] then
+            apply_part(part.id, message_id)
+            dirty_parts[part.id] = nil
+            pending.dirty_parts[part.id] = nil
+          end
         end
       end
     end
-  end
 
-  for _, part_id in ipairs(pending.dirty_part_order) do
-    local message_id = pending.dirty_parts[part_id]
-    if message_id then
-      apply_part(part_id, message_id)
+    for _, part_id in ipairs(pending.dirty_part_order) do
+      local message_id = pending.dirty_parts[part_id]
+      if message_id then
+        apply_part(part_id, message_id)
+      end
     end
-  end
+  end)
 
-  output_window.end_update()
-  vim.o.eventignore = saved_eventignore
   scroll.post_flush(scroll_snapshot, buf)
   return true
 end
@@ -396,20 +430,22 @@ function M.end_bulk_mode()
   end
 
   -- Write all lines at once. Suppress autocmds so render-markdown and similar
-  -- plugins don't fire mid-write; we trigger them explicitly via vim.schedule
-  -- below. begin_update/end_update handles the modifiable toggle.
-  local saved_eventignore = vim.o.eventignore
-  vim.o.eventignore = 'all'
-  output_window.begin_update()
-  output_window.set_lines(lines, 0, -1)
-  output_window.end_update()
-  vim.o.eventignore = saved_eventignore
+  -- plugins don't fire mid-write; restore state even if the write fails.
+  local ok, err = xpcall(function()
+    with_suppressed_output_autocmds(function()
+      output_window.set_lines(lines, 0, -1)
+    end)
 
-  if next(ctx.bulk_extmarks_by_line) then
-    output_window.set_extmarks(ctx.bulk_extmarks_by_line, 0)
-  end
+    if next(ctx.bulk_extmarks_by_line) then
+      output_window.set_extmarks(ctx.bulk_extmarks_by_line, 0)
+    end
+  end, debug.traceback)
 
   ctx:bulk_reset()
+
+  if not ok then
+    error(err)
+  end
 
   vim.schedule(function()
     M.request_on_data_rendered(true)

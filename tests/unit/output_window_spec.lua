@@ -1,6 +1,7 @@
 local config = require('opencode.config')
 local state = require('opencode.state')
 local output_window = require('opencode.ui.output_window')
+local flush = require('opencode.ui.renderer.flush')
 local stub = require('luassert.stub')
 
 describe('output_window.create_buf', function()
@@ -178,5 +179,75 @@ describe('output_window extmarks', function()
     assert.equals(2, #marks)
     assert.equals(0, marks[1][2])
     assert.equals(1, marks[2][2])
+  end)
+end)
+
+describe('renderer flush cleanup', function()
+  local buf
+  local win
+  local original_eventignore
+  local original_eventignorewin
+  local begin_update_stub
+  local end_update_stub
+  local set_lines_stub
+  local set_extmarks_stub
+
+  before_each(function()
+    buf = vim.api.nvim_create_buf(false, true)
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor',
+      width = 80,
+      height = 10,
+      row = 0,
+      col = 0,
+    })
+    state.ui.set_windows({ output_buf = buf, output_win = win })
+    original_eventignore = vim.o.eventignore
+    original_eventignorewin = vim.api.nvim_get_option_value('eventignorewin', { win = win })
+    begin_update_stub = stub(output_window, 'begin_update').returns(true)
+    end_update_stub = stub(output_window, 'end_update')
+    set_lines_stub = stub(output_window, 'set_lines').invokes(function()
+      error('boom')
+    end)
+    set_extmarks_stub = stub(output_window, 'set_extmarks')
+  end)
+
+  after_each(function()
+    if set_extmarks_stub then
+      set_extmarks_stub:revert()
+    end
+    if set_lines_stub then
+      set_lines_stub:revert()
+    end
+    if end_update_stub then
+      end_update_stub:revert()
+    end
+    if begin_update_stub then
+      begin_update_stub:revert()
+    end
+    vim.o.eventignore = original_eventignore
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_set_option_value('eventignorewin', original_eventignorewin, { win = win, scope = 'local' })
+    end
+    state.ui.set_windows(nil)
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  end)
+
+  it('restores output window eventignorewin and ends updates when bulk writes fail', function()
+    flush.begin_bulk_mode()
+    local ctx = require('opencode.ui.renderer.ctx')
+    ctx.bulk_buffer_lines = { 'line 1' }
+
+    local ok, err = pcall(flush.end_bulk_mode)
+
+    assert.is_false(ok)
+    assert.matches('boom', err)
+    assert.equals(original_eventignore, vim.o.eventignore)
+    assert.equals(original_eventignorewin, vim.api.nvim_get_option_value('eventignorewin', { win = win }))
+    assert.stub(begin_update_stub).was_called(1)
+    assert.stub(end_update_stub).was_called(1)
+    assert.is_false(ctx.bulk_mode)
+    assert.stub(set_extmarks_stub).was_not_called()
   end)
 end)

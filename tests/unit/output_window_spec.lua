@@ -251,3 +251,37 @@ describe('renderer flush cleanup', function()
     assert.stub(set_extmarks_stub).was_not_called()
   end)
 end)
+
+describe('renderer bulk flush extmarks', function()
+  local buf
+
+  before_each(function()
+    buf = vim.api.nvim_create_buf(false, true)
+    state.ui.set_windows({ output_buf = buf })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'old header', 'old body', '' })
+    vim.api.nvim_buf_set_extmark(buf, output_window.namespace, 2, 0, {
+      virt_text = { { 'OLD', 'Normal' } },
+      virt_text_pos = 'overlay',
+    })
+  end)
+
+  after_each(function()
+    local ctx = require('opencode.ui.renderer.ctx')
+    ctx:reset()
+    state.ui.set_windows(nil)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  end)
+
+  it('clears stale extmarks before replaying bulk extmarks', function()
+    local ctx = require('opencode.ui.renderer.ctx')
+
+    flush.begin_bulk_mode()
+    ctx.bulk_buffer_lines = { 'new header' }
+
+    flush.end_bulk_mode()
+
+    local marks = vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })
+    assert.equals(0, #marks)
+    assert.same({ 'new header', '' }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+  end)
+end)

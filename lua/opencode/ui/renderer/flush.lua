@@ -436,6 +436,8 @@ function M.end_bulk_mode()
       output_window.set_lines(lines, 0, -1)
     end)
 
+    output_window.clear_extmarks()
+
     if next(ctx.bulk_extmarks_by_line) then
       output_window.set_extmarks(ctx.bulk_extmarks_by_line, 0)
     end

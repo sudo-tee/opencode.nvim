@@ -129,7 +129,7 @@ local function highlight_written_lines(start_line, lines)
   output_window.highlight_changed_lines(start_line, start_line + #lines - 1)
 end
 
-local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+local function extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
   local prefix_len = math.min(
     unchanged_prefix_len(previous_formatted, formatted_data),
     unchanged_extmark_prefix_len(previous_formatted, formatted_data)
@@ -162,13 +162,21 @@ local function apply_extmarks(previous_formatted, formatted_data, line_start, ol
   if next_min_extmark ~= nil then
     clear_start = math.min(clear_start, line_start + next_min_extmark)
   end
+
   clear_start = math.max(0, clear_start)
   local clear_end = math.max(
     max_extmark_line(previous_formatted, old_line_end),
     max_extmark_line(formatted_data, new_line_end)
   ) + 1
 
-  output_window.clear_extmarks(clear_start, clear_end)
+  return clear_start, clear_end
+end
+
+local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end, skip_clear)
+  local clear_start, clear_end = extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  if not skip_clear then
+    output_window.clear_extmarks(clear_start, clear_end)
+  end
 
   local extmark_start_line = math.max(0, clear_start - line_start)
   local extmarks = slice_extmarks(formatted_data.extmarks, extmark_start_line)
@@ -341,12 +349,20 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
     local write_start = cached.line_start + prefix_len
     local lines_to_write = slice_lines(formatted_data.lines, prefix_len + 1)
+    local clear_start, clear_end = extmark_clear_range(
+      previous_formatted,
+      formatted_data,
+      cached.line_start,
+      old_line_end,
+      cached.line_start + #formatted_data.lines - 1
+    )
 
+    output_window.clear_extmarks(clear_start, clear_end)
     output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
     highlight_written_lines(write_start, lines_to_write)
 
     local new_line_end = cached.line_start + #formatted_data.lines - 1
-    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
+    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, true)
     ctx.render_state:set_message(cached.message, cached.line_start, new_line_end)
 
     local delta = new_line_end - old_line_end
@@ -399,7 +415,15 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     local prefix_len = unchanged_prefix_len(previous_formatted, formatted_data)
     local write_start = cached.line_start + prefix_len
     local lines_to_write = slice_lines(formatted_data.lines, prefix_len + 1)
+    local clear_start, clear_end = extmark_clear_range(
+      previous_formatted,
+      formatted_data,
+      cached.line_start,
+      old_line_end,
+      cached.line_start + #formatted_data.lines - 1
+    )
 
+    output_window.clear_extmarks(clear_start, clear_end)
     output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
     highlight_written_lines(write_start, lines_to_write)
 
@@ -409,7 +433,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     if new_line_end ~= cached.line_end then
       ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
     end
-    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
+    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, true)
     set_part_extmark_state(part_id, formatted_data)
     return true
   end

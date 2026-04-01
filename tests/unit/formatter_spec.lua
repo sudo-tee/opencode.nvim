@@ -199,4 +199,43 @@ describe('formatter', function()
     assert.are.equal('+', add_mark.virt_text[2][1])
     assert.are.equal('OpencodeDiffAddGutter', add_mark.virt_text[1][2])
   end)
+
+  it('formats grep tools when streamed input contains vim.NIL placeholders', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_grep_1',
+      type = 'tool',
+      tool = 'grep',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          path = vim.NIL,
+          include = '*.lua',
+          pattern = 'eventignore',
+        },
+        metadata = {
+          matches = 3,
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true)
+
+    assert.are.equal('**  grep** `*.lua eventignore` 1s', output.lines[1])
+    assert.are.equal('Found `3` matches', output.lines[2])
+  end)
 end)

@@ -187,6 +187,7 @@ describe('renderer flush cleanup', function()
   local win
   local original_eventignore
   local original_eventignorewin
+  local has_eventignorewin
   local begin_update_stub
   local end_update_stub
   local set_lines_stub
@@ -203,7 +204,10 @@ describe('renderer flush cleanup', function()
     })
     state.ui.set_windows({ output_buf = buf, output_win = win })
     original_eventignore = vim.o.eventignore
-    original_eventignorewin = vim.api.nvim_get_option_value('eventignorewin', { win = win })
+    -- 'eventignorewin' may not exist on older/newer Neovim versions; probe safely
+    local ok, val = pcall(vim.api.nvim_get_option_value, 'eventignorewin', { win = win })
+    has_eventignorewin = ok
+    original_eventignorewin = ok and val or nil
     begin_update_stub = stub(output_window, 'begin_update').returns(true)
     end_update_stub = stub(output_window, 'end_update')
     set_lines_stub = stub(output_window, 'set_lines').invokes(function()
@@ -226,7 +230,8 @@ describe('renderer flush cleanup', function()
       begin_update_stub:revert()
     end
     vim.o.eventignore = original_eventignore
-    if win and vim.api.nvim_win_is_valid(win) then
+    if win and vim.api.nvim_win_is_valid(win) and has_eventignorewin then
+      -- only restore if the option exists on this Neovim build
       vim.api.nvim_set_option_value('eventignorewin', original_eventignorewin, { win = win, scope = 'local' })
     end
     state.ui.set_windows(nil)
@@ -244,7 +249,9 @@ describe('renderer flush cleanup', function()
     assert.is_false(ok)
     assert.matches('boom', err)
     assert.equals(original_eventignore, vim.o.eventignore)
-    assert.equals(original_eventignorewin, vim.api.nvim_get_option_value('eventignorewin', { win = win }))
+    if has_eventignorewin then
+      assert.equals(original_eventignorewin, vim.api.nvim_get_option_value('eventignorewin', { win = win }))
+    end
     assert.stub(begin_update_stub).was_called(1)
     assert.stub(end_update_stub).was_called(1)
     assert.is_false(ctx.bulk_mode)

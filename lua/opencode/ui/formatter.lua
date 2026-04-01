@@ -99,6 +99,12 @@ function M._format_revert_message(session_data, start_idx)
   return output
 end
 
+---@param output Output
+---@param text string
+---@param action_type string
+---@param args any[]
+---@param key? string
+---@param line? integer
 local function add_action(output, text, action_type, args, key, line)
   -- actions use api-indexing (e.g. 0 indexed)
   line = (line or output:get_line_count()) - 1
@@ -384,6 +390,8 @@ function M._format_diagnostics_context(output, part)
   M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
+---@param part OpencodeMessagePart|nil
+---@return string|nil
 local function get_visible_user_part_kind(part)
   if not part then
     return nil
@@ -417,6 +425,10 @@ local function get_visible_user_part_kind(part)
   return nil
 end
 
+---@param message OpencodeMessage|nil
+---@param part OpencodeMessagePart|nil
+---@return string|nil previous_kind
+---@return string|nil next_kind
 local function get_user_part_neighbors(message, part)
   if not message or not message.parts or not part or not part.id then
     return nil, nil

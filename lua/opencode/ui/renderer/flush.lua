@@ -9,6 +9,9 @@ local append = require('opencode.ui.renderer.append')
 
 local M = {}
 
+---@generic T
+---@param fn fun(): T
+---@return T
 local function with_suppressed_output_autocmds(fn)
   local output_win = state.windows and state.windows.output_win
   local has_output_win = output_win and vim.api.nvim_win_is_valid(output_win)
@@ -53,6 +56,9 @@ local function with_suppressed_output_autocmds(fn)
   return result
 end
 
+---@param a string[]|nil
+---@param b string[]|nil
+---@return boolean
 local function lines_equal(a, b)
   a = a or {}
   b = b or {}
@@ -67,10 +73,15 @@ local function lines_equal(a, b)
   return true
 end
 
+---@param m OutputExtmark|fun(): OutputExtmark
+---@return OutputExtmark
 local function resolve_mark(m)
   return type(m) == 'function' and m() or m
 end
 
+---@param a table<number, (OutputExtmark|fun(): OutputExtmark)[]>|nil
+---@param b table<number, (OutputExtmark|fun(): OutputExtmark)[]>|nil
+---@return boolean
 local function extmarks_equal(a, b)
   a = a or {}
   b = b or {}
@@ -93,6 +104,7 @@ local function extmarks_equal(a, b)
   return true
 end
 
+---@return boolean
 local function is_markdown_render_deferred()
   if not config.ui.output.rendering.markdown_on_idle then
     return false
@@ -112,6 +124,9 @@ local function is_markdown_render_deferred()
   return (pending[session_id] or 0) > 0
 end
 
+---@param order string[]
+---@param lookup table<string, boolean|string>
+---@param id string
 local function enqueue_once(order, lookup, id)
   if lookup[id] then
     return
@@ -119,6 +134,8 @@ local function enqueue_once(order, lookup, id)
   order[#order + 1] = id
 end
 
+---@param message_id string|nil
+---@param part_id string|nil
 local function track_message_for_part(message_id, part_id)
   if not message_id or not part_id then
     return
@@ -132,6 +149,8 @@ local function track_message_for_part(message_id, part_id)
   part_ids[part_id] = true
 end
 
+---@param message_id string|nil
+---@param part_id string
 local function untrack_message_for_part(message_id, part_id)
   local part_ids = message_id and ctx.pending.dirty_part_by_message[message_id]
   if not part_ids then
@@ -143,6 +162,7 @@ local function untrack_message_for_part(message_id, part_id)
   end
 end
 
+---@param message_id string|nil
 function M.mark_message_dirty(message_id)
   if not message_id then
     return
@@ -155,6 +175,8 @@ function M.mark_message_dirty(message_id)
   M.schedule()
 end
 
+---@param part_id string|nil
+---@param message_id? string
 function M.mark_part_dirty(part_id, message_id)
   if not part_id then
     return
@@ -173,6 +195,7 @@ function M.mark_part_dirty(part_id, message_id)
   M.schedule()
 end
 
+---@param part_id string|nil
 function M.queue_part_removal(part_id)
   if not part_id then
     return
@@ -190,6 +213,7 @@ function M.queue_part_removal(part_id)
   M.schedule()
 end
 
+---@param message_id string|nil
 function M.queue_message_removal(message_id)
   if not message_id then
     return
@@ -203,6 +227,7 @@ function M.queue_message_removal(message_id)
   M.schedule()
 end
 
+---Schedule a renderer flush on the next event loop tick.
 function M.schedule()
   if ctx.flush_scheduled then
     return
@@ -215,6 +240,7 @@ function M.schedule()
   end)
 end
 
+---@return RendererCtx['pending']
 local function snapshot_pending()
   local pending = ctx.pending
   ctx.pending = {
@@ -231,6 +257,8 @@ local function snapshot_pending()
   return pending
 end
 
+---@param message_id string
+---@return Output|nil
 local function format_message(message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   local message = rendered_message and rendered_message.message
@@ -250,6 +278,9 @@ local function format_message(message_id)
   return formatted
 end
 
+---@param part_id string
+---@return Output|nil formatted
+---@return string|nil message_id
 local function format_part(part_id)
   local rendered_part = ctx.render_state:get_part(part_id)
   if not rendered_part or not rendered_part.part then
@@ -270,6 +301,7 @@ local function format_part(part_id)
   return formatted, rendered_part.message_id
 end
 
+---@param message_id string
 local function apply_message(message_id)
   local previous = ctx.formatted_messages[message_id]
   local formatted = format_message(message_id)
@@ -279,6 +311,8 @@ local function apply_message(message_id)
   buffer.upsert_message_now(message_id, formatted, previous)
 end
 
+---@param part_id string
+---@param message_id string|nil
 local function apply_part(part_id, message_id)
   local previous = ctx.formatted_parts[part_id]
   local formatted = nil
@@ -310,6 +344,8 @@ local function apply_part(part_id, message_id)
   buffer.upsert_part_now(part_id, message_id, formatted, previous)
 end
 
+---@param pending RendererCtx['pending']
+---@return boolean
 local function apply_pending(pending)
   local buf = state.windows and state.windows.output_buf
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
@@ -370,6 +406,7 @@ local function apply_pending(pending)
   return true
 end
 
+---Trigger post-render markdown callbacks or commands.
 local function do_trigger_on_data_rendered()
   local cb_type = type(config.ui.output.rendering.on_data_rendered)
   if cb_type == 'boolean' then
@@ -391,6 +428,7 @@ end
 M.trigger_on_data_rendered =
   require('opencode.util').debounce(do_trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
 
+---@param force? boolean
 function M.request_on_data_rendered(force)
   if force or not is_markdown_render_deferred() then
     ctx.markdown_render_scheduled = false
@@ -401,6 +439,7 @@ function M.request_on_data_rendered(force)
   ctx.markdown_render_scheduled = true
 end
 
+---Run deferred markdown rendering once idle conditions are met.
 function M.flush_pending_on_data_rendered()
   if not ctx.markdown_render_scheduled or is_markdown_render_deferred() then
     return
@@ -410,11 +449,13 @@ function M.flush_pending_on_data_rendered()
   M.trigger_on_data_rendered()
 end
 
+---Start collecting renderer writes into a single bulk update.
 function M.begin_bulk_mode()
   ctx:bulk_reset()
   ctx.bulk_mode = true
 end
 
+---Apply the buffered bulk render output to the output window.
 function M.end_bulk_mode()
   if not ctx.bulk_mode then
     return
@@ -460,6 +501,7 @@ function M.end_bulk_mode()
   end)
 end
 
+---Flush all pending renderer changes to the output buffer.
 function M.flush()
   local pending = snapshot_pending()
   local applied = apply_pending(pending)

@@ -30,6 +30,7 @@ local ctx = {
   bulk_extmarks_by_line = {},
 }
 
+---Reset all renderer caches and pending state.
 function ctx:reset()
   self.render_state:reset()
   self.last_part_formatted = { part_id = nil, formatted_data = nil }
@@ -51,6 +52,7 @@ function ctx:reset()
   self:bulk_reset()
 end
 
+---Reset the temporary bulk-render accumulators.
 function ctx:bulk_reset()
   self.bulk_mode = false
   self.bulk_buffer_lines = {}

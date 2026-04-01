@@ -4,6 +4,8 @@ local ctx = require('opencode.ui.renderer.ctx')
 local permission_window = require('opencode.ui.permission_window')
 local flush = require('opencode.ui.renderer.flush')
 
+---@param message OpencodeMessage|nil
+---@return string|nil
 local function get_last_part_for_message(message)
   if not message or not message.parts or #message.parts == 0 then
     return nil
@@ -17,6 +19,8 @@ local function get_last_part_for_message(message)
   return nil
 end
 
+---@param message OpencodeMessage|nil
+---@return string|nil
 local function find_text_part_for_message(message)
   if not message or not message.parts then
     return nil
@@ -30,6 +34,7 @@ local function find_text_part_for_message(message)
 end
 
 -- Lazy require to avoid circular dependency: renderer.lua <-> events.lua
+---@param force? boolean
 local function scroll(force)
   require('opencode.ui.renderer').scroll_to_bottom(force)
 end

@@ -1,25 +1,27 @@
 local icons = require('opencode.ui.icons')
 local M = {}
 
----@param input GrepToolInput|nil
+---@param value any
 ---@return string
-local function resolve_grep_string(input)
-  local function normalize_part(value)
-    if value == nil or value == vim.NIL then
-      return ''
-    end
-
-    local value_type = type(value)
-    if value_type == 'string' then
-      return value
-    end
-    if value_type == 'number' or value_type == 'boolean' then
-      return tostring(value)
-    end
-
+local function normalize_part(value)
+  if value == nil or value == vim.NIL then
     return ''
   end
 
+  local value_type = type(value)
+  if value_type == 'string' then
+    return value
+  end
+  if value_type == 'number' or value_type == 'boolean' then
+    return tostring(value)
+  end
+
+  return ''
+end
+
+---@param input GrepToolInput|nil
+---@return string
+local function resolve_grep_string(input)
   if not input then
     return ''
   end

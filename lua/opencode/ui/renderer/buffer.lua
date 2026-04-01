@@ -4,10 +4,14 @@ local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
+---@param extmarks table<number, OutputExtmark[]|fun(): OutputExtmark>[]|table<number, OutputExtmark[]>|nil
+---@return boolean
 local function has_extmarks(extmarks)
   return type(extmarks) == 'table' and next(extmarks) ~= nil
 end
 
+---@param extmarks table<number, OutputExtmark[]>
+---@param line_start integer
 local function accumulate_bulk_extmarks(extmarks, line_start)
   for line_idx, marks in pairs(extmarks) do
     local actual_line = line_start + line_idx
@@ -26,10 +30,15 @@ local function accumulate_bulk_extmarks(extmarks, line_start)
   end
 end
 
+---@param actions OutputAction[]|nil
+---@return boolean
 local function has_actions(actions)
   return type(actions) == 'table' and #actions > 0
 end
 
+---@param previous_formatted Output|nil
+---@param formatted_data Output
+---@return integer
 local function unchanged_prefix_len(previous_formatted, formatted_data)
   local previous_lines = previous_formatted and previous_formatted.lines or {}
   local next_lines = formatted_data and formatted_data.lines or {}
@@ -45,6 +54,9 @@ local function unchanged_prefix_len(previous_formatted, formatted_data)
   return prefix_len
 end
 
+---@param lines string[]|nil
+---@param start_idx integer
+---@return string[]
 local function slice_lines(lines, start_idx)
   local slice = {}
   for i = start_idx, #(lines or {}) do
@@ -53,6 +65,9 @@ local function slice_lines(lines, start_idx)
   return slice
 end
 
+---@param extmarks table<number, OutputExtmark[]>|nil
+---@param start_line integer
+---@return table<number, OutputExtmark[]>
 local function slice_extmarks(extmarks, start_line)
   local slice = {}
   for line_idx, marks in pairs(extmarks or {}) do
@@ -65,10 +80,15 @@ local function slice_extmarks(extmarks, start_line)
   return slice
 end
 
+---@param mark OutputExtmark|fun(): OutputExtmark
+---@return OutputExtmark
 local function resolve_mark(mark)
   return type(mark) == 'function' and mark() or mark
 end
 
+---@param a (OutputExtmark|fun(): OutputExtmark)[]|nil
+---@param b (OutputExtmark|fun(): OutputExtmark)[]|nil
+---@return boolean
 local function marks_equal(a, b)
   a = a or {}
   b = b or {}
@@ -86,6 +106,9 @@ local function marks_equal(a, b)
   return true
 end
 
+---@param previous_formatted Output|nil
+---@param formatted_data Output
+---@return integer
 local function unchanged_extmark_prefix_len(previous_formatted, formatted_data)
   local previous_extmarks = previous_formatted and previous_formatted.extmarks or {}
   local next_extmarks = formatted_data and formatted_data.extmarks or {}
@@ -122,6 +145,8 @@ local function unchanged_extmark_prefix_len(previous_formatted, formatted_data)
   return prefix_len
 end
 
+---@param start_line integer
+---@param lines string[]
 local function highlight_written_lines(start_line, lines)
   if #lines == 0 then
     return
@@ -129,12 +154,21 @@ local function highlight_written_lines(start_line, lines)
   output_window.highlight_changed_lines(start_line, start_line + #lines - 1)
 end
 
+---@param previous_formatted Output|nil
+---@param formatted_data Output
+---@param line_start integer
+---@param old_line_end integer
+---@param new_line_end integer
+---@return integer clear_start
+---@return integer clear_end
 local function extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
   local prefix_len = math.min(
     unchanged_prefix_len(previous_formatted, formatted_data),
     unchanged_extmark_prefix_len(previous_formatted, formatted_data)
   )
 
+  ---@param formatted Output|nil
+  ---@return integer|nil
   local function min_extmark_line(formatted)
     local min_line = nil
     for line_idx in pairs(formatted and formatted.extmarks or {}) do
@@ -145,6 +179,9 @@ local function extmark_clear_range(previous_formatted, formatted_data, line_star
     return min_line
   end
 
+  ---@param formatted Output|nil
+  ---@param fallback integer
+  ---@return integer
   local function max_extmark_line(formatted, fallback)
     local max_line = fallback
     for line_idx in pairs(formatted and formatted.extmarks or {}) do
@@ -172,6 +209,12 @@ local function extmark_clear_range(previous_formatted, formatted_data, line_star
   return clear_start, clear_end
 end
 
+---@param previous_formatted Output|nil
+---@param formatted_data Output
+---@param line_start integer
+---@param old_line_end integer
+---@param new_line_end integer
+---@param skip_clear? boolean
 local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end, skip_clear)
   local clear_start, clear_end = extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
   if not skip_clear then
@@ -185,6 +228,8 @@ local function apply_extmarks(previous_formatted, formatted_data, line_start, ol
   end
 end
 
+---@param message_id string
+---@return integer
 local function get_message_insert_line(message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if rendered_message and rendered_message.line_start then
@@ -230,6 +275,9 @@ local function get_message_insert_line(message_id)
   return append_at
 end
 
+---@param part_id string
+---@param message_id string
+---@return integer|nil
 local function get_part_insertion_line(part_id, message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if not rendered_message or not rendered_message.message or not rendered_message.line_end then
@@ -264,6 +312,10 @@ local function get_part_insertion_line(part_id, message_id)
   return insertion_line
 end
 
+---@param lines string[]
+---@param start_line integer
+---@param end_line integer
+---@return { line_start: integer, line_end: integer }
 local function write_at(lines, start_line, end_line)
   output_window.set_lines(lines, start_line, end_line)
   highlight_written_lines(start_line, lines)
@@ -273,6 +325,9 @@ local function write_at(lines, start_line, end_line)
   }
 end
 
+---@param part_id string
+---@param formatted_data Output
+---@param line_start integer
 local function apply_part_actions(part_id, formatted_data, line_start)
   if has_actions(formatted_data.actions) then
     ctx.render_state:clear_actions(part_id)
@@ -287,6 +342,8 @@ local function apply_part_actions(part_id, formatted_data, line_start)
   end
 end
 
+---@param part_id string
+---@param formatted_data Output
 local function set_part_extmark_state(part_id, formatted_data)
   local part_data = ctx.render_state:get_part(part_id)
   if part_data then
@@ -294,6 +351,8 @@ local function set_part_extmark_state(part_id, formatted_data)
   end
 end
 
+---@param message OpencodeMessage|nil
+---@return string|nil
 function M.get_last_part_for_message(message)
   if not message or not message.parts or #message.parts == 0 then
     return nil
@@ -307,6 +366,8 @@ function M.get_last_part_for_message(message)
   return nil
 end
 
+---@param message OpencodeMessage|nil
+---@return string|nil
 function M.find_text_part_for_message(message)
   if not message or not message.parts then
     return nil
@@ -319,10 +380,17 @@ function M.find_text_part_for_message(message)
   return nil
 end
 
+---@param call_id string
+---@param message_id string
+---@return string|nil
 function M.find_part_by_call_id(call_id, message_id)
   return ctx.render_state:get_part_by_call_id(call_id, message_id)
 end
 
+---@param message_id string
+---@param formatted_data Output
+---@param previous_formatted Output|nil
+---@return boolean
 function M.upsert_message_now(message_id, formatted_data, previous_formatted)
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
@@ -388,6 +456,11 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
   return false
 end
 
+---@param part_id string
+---@param message_id string
+---@param formatted_data Output
+---@param previous_formatted Output|nil
+---@return boolean
 function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatted)
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
@@ -459,6 +532,11 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   return false
 end
 
+---@param part_id string
+---@param extra_lines string[]
+---@param extra_extmarks table<number, OutputExtmark[]>|nil
+---@param previous_formatted Output|nil
+---@return boolean
 function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_formatted)
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end or #extra_lines == 0 then
@@ -485,6 +563,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
   return true
 end
 
+---@param part_id string
 function M.remove_part_now(part_id)
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
@@ -504,6 +583,7 @@ function M.remove_part_now(part_id)
   ctx.render_state:remove_part(part_id)
 end
 
+---@param message_id string
 function M.remove_message_now(message_id)
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh

@@ -85,6 +85,8 @@ local function telescope_ui(opts)
   local entry_display = require('telescope.pickers.entry_display')
 
   -- Create displayer dynamically based on number of parts
+  ---@param picker_item PickerItem
+  ---@return table
   local function create_displayer(picker_item)
     local items = {}
     for _ in ipairs(picker_item.parts) do
@@ -129,6 +131,7 @@ local function telescope_ui(opts)
     return entry
   end
 
+  ---@return unknown
   local function refresh_picker()
     return current_picker
       and current_picker:refresh(
@@ -232,6 +235,7 @@ end
 local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
 
+  ---@return table
   local function create_fzf_config()
     local has_multi_action = util.some(opts.actions, function(action)
       return action.multi_selection
@@ -261,6 +265,7 @@ local function fzf_ui(opts)
     }
   end
 
+  ---@return fun(fzf_cb: fun(line?: string))
   local function create_finder()
     return function(fzf_cb)
       for idx, item in ipairs(opts.items) do
@@ -299,6 +304,7 @@ local function fzf_ui(opts)
     end
   end
 
+  ---Reopen fzf-lua to reflect updated picker items.
   local function refresh_fzf()
     vim.schedule(function()
       fzf_ui(opts)
@@ -644,6 +650,7 @@ function M.create_picker_item(parts)
     parts = parts,
   }
 
+  ---@return string
   function item:to_string()
     local texts = {}
     for _, part in ipairs(self.parts) do
@@ -652,6 +659,7 @@ function M.create_picker_item(parts)
     return table.concat(texts, ' ')
   end
 
+  ---@return table
   function item:to_formatted_text()
     local formatted = {}
     for _, part in ipairs(self.parts) do

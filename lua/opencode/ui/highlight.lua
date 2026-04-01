@@ -1,5 +1,6 @@
 local M = {}
 
+---Define the plugin highlight groups for the current background.
 function M.setup()
   local is_light = vim.o.background == 'light'
 

@@ -40,6 +40,7 @@ function M.end_update()
   end
 end
 
+---@return integer
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
   local filetype = config.ui.output.filetype or 'opencode_output'
@@ -53,6 +54,7 @@ function M.create_buf()
   return output_buf
 end
 
+---@return vim.api.keyset.win_config
 function M._build_output_win_config()
   return {
     relative = 'editor',
@@ -180,6 +182,7 @@ function M.sync_cursor_with_viewport(win)
   M._was_at_bottom_by_win[win] = visible_bottom >= line_count
 end
 
+---@param windows OpencodeWindowState
 function M.setup(windows)
   window_options.set_window_option(
     'winhighlight',
@@ -215,6 +218,7 @@ function M.setup(windows)
   M.setup_keymaps(windows)
 end
 
+---@param windows OpencodeWindowState?
 function M.update_dimensions(windows)
   if config.ui.position == 'current' then
     return
@@ -250,6 +254,7 @@ function M.update_dimensions(windows)
   pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
 end
 
+---@return integer
 function M.get_buf_line_count()
   local windows = state.windows
   if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
@@ -399,6 +404,7 @@ function M.highlight_changed_lines(start_line, end_line)
   end, config.debug.highlight_changed_lines_timeout_ms or 120)
 end
 
+---@param should_stop_insert? boolean
 function M.focus_output(should_stop_insert)
   if not M.mounted() then
     return
@@ -411,6 +417,7 @@ function M.focus_output(should_stop_insert)
   vim.api.nvim_set_current_win(state.windows.output_win)
 end
 
+---Close and delete the output window and buffer.
 function M.close()
   if not M.mounted() then
     return
@@ -422,11 +429,14 @@ function M.close()
   pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
 end
 
+---@param windows OpencodeWindowState
 function M.setup_keymaps(windows)
   local keymap = require('opencode.keymap')
   keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf)
 end
 
+---@param windows OpencodeWindowState
+---@param group integer
 function M.setup_autocmds(windows, group)
   vim.api.nvim_create_autocmd('WinEnter', {
     group = group,
@@ -472,6 +482,7 @@ function M.setup_autocmds(windows, group)
   })
 end
 
+---Clear the output buffer and all namespaces.
 function M.clear()
   M.set_lines({})
   -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some

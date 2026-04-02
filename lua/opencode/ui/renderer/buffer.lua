@@ -4,6 +4,17 @@ local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
+local pinned_bottom_message_ids = {
+  ['permission-display-message'] = true,
+  ['question-display-message'] = true,
+}
+
+---@param message_id string|nil
+---@return boolean
+local function is_pinned_bottom_message(message_id)
+  return message_id ~= nil and pinned_bottom_message_ids[message_id] == true
+end
+
 ---@param extmarks table<number, OutputExtmark[]|fun(): OutputExtmark>[]|table<number, OutputExtmark[]>|nil
 ---@return boolean
 local function has_extmarks(extmarks)
@@ -259,16 +270,45 @@ local function get_message_insert_line(message_id)
   end
 
   if not message_index then
+    if is_pinned_bottom_message(message_id) then
+      return append_at
+    end
+
+    for _, pinned_message_id in ipairs({ 'permission-display-message', 'question-display-message' }) do
+      local pinned_rendered = ctx.render_state:get_message(pinned_message_id)
+      if pinned_rendered and pinned_rendered.line_start then
+        return pinned_rendered.line_start
+      end
+    end
+
+    return append_at
+  end
+
+  if is_pinned_bottom_message(message_id) then
     return append_at
   end
 
   for i = message_index + 1, #messages do
     local next_message = messages[i]
     if next_message and next_message.info and next_message.info.id then
+      if is_pinned_bottom_message(next_message.info.id) then
+        local next_rendered = ctx.render_state:get_message(next_message.info.id)
+        if next_rendered and next_rendered.line_start then
+          return next_rendered.line_start
+        end
+      end
+
       local next_rendered = ctx.render_state:get_message(next_message.info.id)
       if next_rendered and next_rendered.line_start then
         return next_rendered.line_start
       end
+    end
+  end
+
+  for _, pinned_message_id in ipairs({ 'permission-display-message', 'question-display-message' }) do
+    local pinned_rendered = ctx.render_state:get_message(pinned_message_id)
+    if pinned_rendered and pinned_rendered.line_start then
+      return pinned_rendered.line_start
     end
   end
 

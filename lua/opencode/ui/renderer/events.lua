@@ -414,13 +414,13 @@ end
 ---Handle permission.updated / permission.asked
 ---@param permission OpencodePermission
 function M.on_permission_updated(permission)
+  if not permission or not permission.id then
+    return
+  end
+
   local tool = permission.tool
   local callID = tool and tool.callID or permission.callID
   local messageID = tool and tool.messageID or permission.messageID
-
-  if not permission or not messageID or not callID then
-    return
-  end
 
   if not state.pending_permissions then
     state.renderer.set_pending_permissions({})

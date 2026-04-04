@@ -93,24 +93,6 @@ local function fetch_session()
   return require('opencode.session').get_messages(session)
 end
 
----Set the current model/mode from the most recent assistant message
-local function set_model_and_mode_from_messages()
-  if not state.messages then
-    return
-  end
-  for i = #state.messages, 1, -1 do
-    local message = state.messages[i]
-    if message and message.info and message.info.modelID and message.info.providerID then
-      state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
-      if message.info.mode then
-        state.model.set_mode(message.info.mode)
-      end
-      return
-    end
-  end
-  require('opencode.core').initialize_current_model()
-end
-
 ---Render all messages and parts from session_data into the output buffer
 ---Called after a full session fetch or when revert state changes
 ---@param session_data OpencodeMessage[]
@@ -122,7 +104,6 @@ function M._render_full_session_data(session_data)
   end
 
   local revert_index = nil
-  local set_mode_from_messages = not state.current_model
 
   flush.begin_bulk_mode()
 
@@ -163,9 +144,7 @@ function M._render_full_session_data(session_data)
   flush.flush()
   flush.end_bulk_mode()
 
-  if set_mode_from_messages then
-    set_model_and_mode_from_messages()
-  end
+  require('opencode.core').initialize_current_model()
 
   M.scroll_to_bottom(true)
 

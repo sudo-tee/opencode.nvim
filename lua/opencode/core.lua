@@ -528,15 +528,30 @@ M.ensure_current_mode = Promise.async(function()
   return true
 end)
 
----Initialize current model if it's not already set.
----@return string|nil The current model (or the default model, if configured)
+---Initialize current model from messages or config.
+---@return string|nil The current model
 M.initialize_current_model = Promise.async(function()
+  if state.messages then
+    for i = #state.messages, 1, -1 do
+      local msg = state.messages[i]
+      if msg and msg.info and msg.info.modelID and msg.info.providerID then
+        local model_str = msg.info.providerID .. '/' .. msg.info.modelID
+        if state.current_model ~= model_str then
+          state.model.set_model(model_str)
+        end
+        if msg.info.mode and state.current_mode ~= msg.info.mode then
+          state.model.set_mode(msg.info.mode)
+        end
+        return state.current_model
+      end
+    end
+  end
+
   if state.current_model then
     return state.current_model
   end
 
   local cfg = require('opencode.config_file').get_opencode_config():await()
-
   if cfg and cfg.model and cfg.model ~= '' then
     state.model.set_model(cfg.model)
   end

@@ -269,6 +269,7 @@ describe('renderer functional tests', function()
   local skip_full_session = {
     'permission-prompt',
     'permission-ask-new',
+    'part-before-message-delta',
     'question-ask',
     'question-ask-other',
     'multiple-question-ask',

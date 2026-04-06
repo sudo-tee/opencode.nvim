@@ -41,6 +41,15 @@ end
 
 local M = {}
 
+---@param message_id string
+---@param revert_index? integer
+local function replay_orphan_parts(message_id, revert_index)
+  local orphan_parts = ctx.render_state:consume_orphan_parts(message_id)
+  for _, orphan_part in ipairs(orphan_parts) do
+    M.on_part_updated({ part = orphan_part }, revert_index)
+  end
+end
+
 ---Update token/cost stats in state from a message
 ---@param message OpencodeMessage
 local function update_stats(message)
@@ -159,6 +168,7 @@ function M.on_message_updated(message, revert_index)
       table.insert(state.messages, msg)
     end
     ctx.render_state:set_message(msg, 0, 0)
+    replay_orphan_parts(msg.info.id, revert_index)
     return
   end
 
@@ -180,6 +190,7 @@ function M.on_message_updated(message, revert_index)
   else
     table.insert(state.messages, msg)
     ctx.render_state:set_message(msg)
+    replay_orphan_parts(msg.info.id)
     flush.mark_message_dirty(msg.info.id)
     state.renderer.set_current_message(msg)
     if message.info.role == 'user' then
@@ -204,6 +215,7 @@ function M.on_message_removed(properties)
   end
 
   local rendered_message = ctx.render_state:get_message(message_id)
+  ctx.render_state:clear_orphan_parts(message_id)
   if not rendered_message or not rendered_message.message then
     return
   end
@@ -251,7 +263,7 @@ function M.on_part_updated(properties, revert_index)
 
   local rendered_message = ctx.render_state:get_message(part.messageID)
   if not rendered_message or not rendered_message.message then
-    vim.notify('Could not find message for part: ' .. vim.inspect(part), vim.log.levels.WARN)
+    ctx.render_state:upsert_orphan_part(part.messageID, part)
     return
   end
 
@@ -341,6 +353,10 @@ function M.on_part_removed(properties)
 
   local part_id = properties.partID
   if not part_id then
+    return
+  end
+
+  if properties.messageID and ctx.render_state:remove_orphan_part(properties.messageID, part_id) then
     return
   end
 

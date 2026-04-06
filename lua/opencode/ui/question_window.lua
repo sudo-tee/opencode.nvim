@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 local Dialog = require('opencode.ui.dialog')
+local Promise = require('opencode.promise')
 
 local config = require('opencode.config')
 
@@ -51,6 +52,92 @@ function M.belongs_to_active_session(question_request)
   return false
 end
 
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function has_tool_identifiers(question_request)
+  local tool = question_request and question_request.tool
+  return tool ~= nil and ((tool.callID and tool.callID ~= '') or (tool.messageID and tool.messageID ~= ''))
+end
+
+---@param part OpencodeMessagePart|nil
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function question_part_matches_request(part, question_request)
+  if not part or part.tool ~= 'question' or not question_request then
+    return false
+  end
+
+  local tool = question_request.tool
+  if not tool then
+    return false
+  end
+
+  if tool.callID and tool.callID ~= '' and part.callID ~= tool.callID then
+    return false
+  end
+
+  if tool.messageID and tool.messageID ~= '' and part.messageID ~= tool.messageID then
+    return false
+  end
+
+  return true
+end
+
+---@param parts OpencodeMessagePart[]|nil
+---@param question_request OpencodeQuestionRequest|nil
+---@return OpencodeMessagePart|nil
+local function find_matching_question_part(parts, question_request)
+  for _, part in ipairs(parts or {}) do
+    if question_part_matches_request(part, question_request) then
+      return part
+    end
+  end
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return OpencodeMessagePart|nil
+local function get_question_part(question_request)
+  if not has_tool_identifiers(question_request) then
+    return nil
+  end
+
+  local tool = question_request.tool
+  local tool_message_id = tool and tool.messageID
+
+  if tool_message_id and state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == tool_message_id then
+        local part = find_matching_question_part(message.parts, question_request)
+        if part then
+          return part
+        end
+      end
+    end
+  end
+
+  if question_request and question_request.sessionID and question_request.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    return find_matching_question_part(render_state:get_child_session_parts(question_request.sessionID), question_request)
+  end
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function is_resolved_question_request(question_request)
+  local part = get_question_part(question_request)
+  if not part or not part.state then
+    return false
+  end
+
+  local metadata = part.state.metadata
+  if metadata and metadata.answers and #metadata.answers > 0 then
+    return true
+  end
+
+  local status = part.state.status
+  return status ~= nil and status ~= '' and status ~= 'pending' and status ~= 'running'
+end
+
 ---Request the renderer to show the current question display.
 local function render_question()
   require('opencode.ui.renderer.events').render_question_display()
@@ -64,6 +151,10 @@ end
 ---@param question_request OpencodeQuestionRequest
 function M.show_question(question_request)
   if not question_request or not question_request.questions or #question_request.questions == 0 then
+    return
+  end
+
+  if is_resolved_question_request(question_request) then
     return
   end
 
@@ -82,21 +173,30 @@ end
 ---@param session_id string|nil
 function M.restore_pending_question(session_id)
   if not state.api_client or not session_id or session_id == '' then
-    return
+    return Promise.new():resolve(nil)
   end
 
   if M.has_question() and M.belongs_to_active_session(M._current_question) then
-    return
+    if not is_resolved_question_request(M._current_question) then
+      return Promise.new():resolve(nil)
+    end
+
+    M.clear_question()
   end
 
-  state.api_client:list_questions()
+  return state.api_client:list_questions()
     :and_then(function(requests)
       if not requests or type(requests) ~= 'table' then
         return
       end
 
       for _, request in ipairs(requests) do
-        if request and request.questions and #request.questions > 0 and M.belongs_to_active_session(request) then
+        if request
+          and request.questions
+          and #request.questions > 0
+          and M.belongs_to_active_session(request)
+          and not is_resolved_question_request(request)
+        then
           if M.matches_active_question(request) then
             return
           end

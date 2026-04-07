@@ -28,7 +28,8 @@ local function warn_part_render_error_once(part_id, message_id, err)
   )
 
   vim.schedule(function()
-    vim.notify_once('[opencode.nvim] ' .. msg, vim.log.levels.WARN)
+    local notify = vim.notify_once or vim.notify
+    notify('[opencode.nvim] ' .. msg, vim.log.levels.WARN)
   end)
 end
 

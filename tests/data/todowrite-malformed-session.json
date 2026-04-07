@@ -6,8 +6,8 @@
       "mode": "orchestrator",
       "agent": "orchestrator",
       "path": {
-        "cwd": "/Users/oujinsai/Projects/cupel",
-        "root": "/Users/oujinsai/Projects/cupel"
+        "cwd": "/mock/cupel",
+        "root": "/mock/cupel"
       },
       "cost": 0,
       "tokens": {

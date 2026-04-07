@@ -8,6 +8,29 @@ local buffer = require('opencode.ui.renderer.buffer')
 local append = require('opencode.ui.renderer.append')
 
 local M = {}
+local warned_part_render_error = false
+
+---@param part_id string
+---@param message_id string|nil
+---@param err any
+local function warn_part_render_error_once(part_id, message_id, err)
+  if warned_part_render_error then
+    return
+  end
+  warned_part_render_error = true
+
+  local err_text = tostring(err):gsub('[\r\n]+', ' ')
+  local msg = string.format(
+    'Skipped malformed part during render (part=%s message=%s). First error: %s',
+    tostring(part_id),
+    tostring(message_id),
+    err_text
+  )
+
+  vim.schedule(function()
+    vim.notify_once('[opencode.nvim] ' .. msg, vim.log.levels.WARN)
+  end)
+end
 
 ---@generic T
 ---@param fn fun(): T
@@ -294,11 +317,15 @@ local function format_part(part_id)
   end
 
   local is_last_part = (buffer.get_last_part_for_message(message) == part_id)
-  local formatted = formatter.format_part(rendered_part.part, message, is_last_part, function(session_id)
+  local ok, formatted_or_err = pcall(formatter.format_part, rendered_part.part, message, is_last_part, function(session_id)
     return ctx.render_state:get_child_session_parts(session_id)
   end)
+  if not ok then
+    warn_part_render_error_once(part_id, rendered_part.message_id, formatted_or_err)
+    return nil, rendered_part.message_id
+  end
 
-  return formatted, rendered_part.message_id
+  return formatted_or_err, rendered_part.message_id
 end
 
 ---@param message_id string

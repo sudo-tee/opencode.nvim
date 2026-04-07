@@ -291,7 +291,8 @@ local function format_message(message_id)
   end
 
   local prev = ctx.formatted_messages[message_id]
-  local formatted = formatter.format_message_header(message)
+  local previous_rendered = ctx.render_state:get_previous_message(state.messages or {}, message_id)
+  local formatted = formatter.format_message_header(message, previous_rendered and previous_rendered.message or nil)
 
   if prev and lines_equal(prev.lines, formatted.lines) and extmarks_equal(prev.extmarks, formatted.extmarks) then
     -- no visible change

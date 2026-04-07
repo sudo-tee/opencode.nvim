@@ -3,12 +3,14 @@ local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local Output = require('opencode.ui.output')
 local state = require('opencode.state')
+local util = require('opencode.util')
 
 describe('formatter', function()
   before_each(function()
     config.setup({
       ui = {
         output = {
+          compact_assistant_headers = false,
           tools = {
             show_output = true,
           },
@@ -293,6 +295,76 @@ describe('formatter', function()
       parts = {},
     })
 
+    assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
+  end)
+
+  it('renders minimal same-mode assistant headers with only right-aligned time', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = true,
+        },
+      },
+    })
+
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+        time = {
+          created = 1,
+        },
+      },
+      parts = {},
+    }, {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+      },
+      parts = {},
+    })
+
+    assert.are.same({ '', '' }, output.lines)
+    assert.is_truthy(output.extmarks[0])
+    assert.are.equal(util.format_time(1), output.extmarks[0][1].virt_text[1][1])
+    assert.are.equal('right_align', output.extmarks[0][1].virt_text_pos)
+  end)
+
+  it('keeps full assistant headers when the mode changes', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = true,
+        },
+      },
+    })
+
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+        time = {
+          created = 1,
+        },
+      },
+      parts = {},
+    }, {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'plan',
+      },
+      parts = {},
+    })
+
+    assert.are.same({ '----', '', '' }, output.lines)
     assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
   end)
 

@@ -157,8 +157,9 @@ function M._format_error(output, message)
 end
 
 ---@param message OpencodeMessage
+---@param previous_message? OpencodeMessage
 ---@return Output
-function M.format_message_header(message)
+function M.format_message_header(message, previous_message)
   local output = Output.new()
 
   if message.info and message.info.id == '__opencode_revert_message__' then
@@ -166,7 +167,6 @@ function M.format_message_header(message)
     return output
   end
 
-  output:add_lines(M.separator)
   local role = message.info.role or 'unknown'
   local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
@@ -190,21 +190,42 @@ function M.format_message_header(message)
     display_name = role:upper()
   end
 
-  output:add_extmark(output:get_line_count() - 1, {
-    virt_text = {
-      { icon, role_hl },
-      { ' ' },
-      { display_name, role_hl },
-      { model_text, 'OpencodeHint' },
-      { debug_text, 'OpencodeHint' },
-    },
-    virt_text_win_col = -3,
-    priority = 10,
-  } --[[@as OutputExtmark]])
+  local same_mode_as_previous = false
+  if config.ui.output.compact_assistant_headers and role == 'assistant' and previous_message then
+    local previous_role = previous_message.info and previous_message.info.role or nil
+    local previous_mode = previous_message.info and previous_message.info.mode or state.current_mode
+    local current_mode = message.info.mode or state.current_mode
+    same_mode_as_previous = previous_role == 'assistant'
+      and current_mode
+      and previous_mode
+      and current_mode ~= ''
+      and previous_mode ~= ''
+      and current_mode == previous_mode
+  end
+
+  if not same_mode_as_previous then
+    output:add_lines(M.separator)
+  else
+    output:add_line('')
+  end
+
+  if not same_mode_as_previous then
+    output:add_extmark(output:get_line_count() - 1, {
+      virt_text = {
+        { icon, role_hl },
+        { ' ' },
+        { display_name, role_hl },
+        { model_text, 'OpencodeHint' },
+        { debug_text, 'OpencodeHint' },
+      },
+      virt_text_win_col = -3,
+      priority = 10,
+    } --[[@as OutputExtmark]])
+  end
 
   if time then
     output:add_extmark(output:get_line_count() - 1, {
-      virt_text = { { ' ' .. util.format_time(time), 'OpencodeHint' } },
+      virt_text = { { (same_mode_as_previous and '' or ' ') .. util.format_time(time), 'OpencodeHint' } },
       virt_text_pos = 'right_align',
       priority = 9,
     } --[[@as OutputExtmark]])

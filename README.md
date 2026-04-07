@@ -234,6 +234,7 @@ require('opencode').setup({
     },
     output = {
       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
+      compact_assistant_headers = false, -- Collapse consecutive assistant headers in the same mode to a right-aligned timestamp only
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)

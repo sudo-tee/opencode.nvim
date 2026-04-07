@@ -181,6 +181,7 @@
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
+---@field compact_assistant_headers boolean
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config

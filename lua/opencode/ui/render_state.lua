@@ -207,6 +207,23 @@ function RenderState:get_message(message_id)
   return self._messages[message_id]
 end
 
+---@param messages OpencodeMessage[]
+---@param message_id string
+---@return RenderedMessage?
+function RenderState:get_previous_message(messages, message_id)
+  for i = #messages, 1, -1 do
+    local message = messages[i]
+    if message and message.info and message.info.id == message_id then
+      if i <= 1 then
+        return nil
+      end
+      local previous_message = messages[i - 1]
+      return previous_message and previous_message.info and self._messages[previous_message.info.id] or nil
+    end
+  end
+  return nil
+end
+
 ---@param message_id string
 ---@param part OpencodeMessagePart
 function RenderState:upsert_orphan_part(message_id, part)

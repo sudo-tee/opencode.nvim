@@ -139,6 +139,7 @@ M.defaults = {
     },
     output = {
       filetype = 'opencode_output',
+      compact_assistant_headers = false,
       rendering = {
         markdown_debounce_ms = 250,
         on_data_rendered = nil,

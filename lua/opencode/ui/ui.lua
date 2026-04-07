@@ -90,6 +90,7 @@ function M.close_windows(windows, persist)
   return M.teardown_visible_windows(windows)
 end
 
+---Clear Opencode-specific autocmds and shared UI state before closing windows.
 local function prepare_window_close()
   if M.is_opencode_focused() then
     M.return_to_last_code_win()
@@ -105,6 +106,7 @@ local function prepare_window_close()
   topbar.close()
 end
 
+---@param windows OpencodeWindowState
 local function close_or_restore_output_window(windows)
   if config.ui.position == 'current' then
     if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
@@ -125,6 +127,7 @@ local function close_or_restore_output_window(windows)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
 end
 
+---@param windows OpencodeWindowState?
 function M.hide_visible_windows(windows)
   if not windows then
     return
@@ -166,6 +169,7 @@ function M.hide_visible_windows(windows)
   end
 end
 
+---@param windows OpencodeWindowState?
 function M.teardown_visible_windows(windows)
   if not windows then
     return
@@ -186,6 +190,7 @@ function M.teardown_visible_windows(windows)
   state.ui.clear_hidden_window_state()
 end
 
+---Drop preserved hidden buffers and clear hidden window state.
 function M.drop_hidden_snapshot()
   renderer.teardown()
 
@@ -282,6 +287,7 @@ function M.has_hidden_buffers()
   return state.ui.has_hidden_buffers()
 end
 
+---Return focus to the window that was active before opening Opencode.
 function M.return_to_last_code_win()
   local last_win = state.last_code_win_before_opencode
   if last_win and vim.api.nvim_win_is_valid(last_win) then
@@ -289,6 +295,7 @@ function M.return_to_last_code_win()
   end
 end
 
+---@return { input_buf: integer, output_buf: integer, footer_buf: integer }
 function M.setup_buffers()
   local input_buf = input_window.create_buf()
   local output_buf = output_window.create_buf()
@@ -307,6 +314,9 @@ local function open_split(direction, type)
   return vim.api.nvim_get_current_win()
 end
 
+---@param input_buf integer
+---@param output_buf integer
+---@return { input_win: integer, output_win: integer }
 function M.create_split_windows(input_buf, output_buf)
   if input_window.mounted() or output_window.mounted() then
     M.close_windows(state.windows, false)
@@ -333,10 +343,17 @@ function M.create_split_windows(input_buf, output_buf)
   return { input_win = input_win, output_win = output_win }
 end
 
+---@return OpencodeWindowState
 function M.create_windows()
   if config.ui.enable_treesitter_markdown then
-    vim.treesitter.language.register('markdown', 'opencode_output')
-    vim.treesitter.language.register('markdown', 'opencode')
+    local ok, treesitter = pcall(function()
+      return vim.treesitter
+    end)
+
+    if ok and treesitter and treesitter.language and treesitter.language.register then
+      treesitter.language.register('markdown', 'opencode_output')
+      treesitter.language.register('markdown', 'opencode')
+    end
   end
 
   local autocmds = require('opencode.ui.autocmds')
@@ -368,6 +385,7 @@ function M.create_windows()
   return windows
 end
 
+---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
   opts = opts or {}
   local windows = state.windows
@@ -398,6 +416,7 @@ function M.focus_input(opts)
   end
 end
 
+---@param opts? { restore_position?: boolean }
 function M.focus_output(opts)
   opts = opts or {}
   local windows = state.windows
@@ -412,6 +431,7 @@ function M.focus_output(opts)
   end
 end
 
+---@return boolean
 function M.is_opencode_focused()
   if not state.windows then
     return false
@@ -420,6 +440,8 @@ function M.is_opencode_focused()
   return M.is_opencode_window(current_win)
 end
 
+---@param win integer
+---@return boolean
 function M.is_opencode_window(win)
   local windows = state.windows
   if not windows then
@@ -428,6 +450,7 @@ function M.is_opencode_window(win)
   return win == windows.input_win or win == windows.output_win
 end
 
+---@return boolean
 function M.is_output_empty()
   local windows = state.windows
   if not windows or not windows.output_buf then
@@ -437,6 +460,7 @@ function M.is_output_empty()
   return #lines == 0 or (#lines == 1 and lines[1] == '')
 end
 
+---Reset renderer state and clear all visible output UI.
 function M.clear_output()
   renderer.reset()
   output_window.clear()
@@ -457,11 +481,14 @@ function M.render_output(synchronous, opts)
   end
 end
 
+---@param lines string[]
 function M.render_lines(lines)
   M.clear_output()
   renderer.render_lines(lines)
 end
 
+---@param sessions Session[]
+---@param cb fun(session: Session|nil)
 function M.select_session(sessions, cb)
   local session_picker = require('opencode.ui.session_picker')
   local util = require('opencode.util')
@@ -493,6 +520,7 @@ function M.select_session(sessions, cb)
   end
 end
 
+---Switch focus between the input and output panes.
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
   if state.windows and current_win == state.windows.input_win then
@@ -502,6 +530,7 @@ function M.toggle_pane()
   end
 end
 
+---Swap the split position and reopen the UI.
 function M.swap_position()
   local ui_conf = config.ui
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
@@ -515,6 +544,7 @@ function M.swap_position()
   end)
 end
 
+---Toggle the current Opencode window width between normal and zoomed.
 function M.toggle_zoom()
   local windows = state.windows
   if not windows or not (windows.output_win or windows.input_win) then
@@ -531,6 +561,7 @@ function M.toggle_zoom()
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 
+  ---@param win integer|nil
   local function resize_window(win)
     if not win or not vim.api.nvim_win_is_valid(win) then
       return

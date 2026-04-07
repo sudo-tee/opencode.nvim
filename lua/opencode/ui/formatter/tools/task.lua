@@ -79,8 +79,8 @@ function M.format(output, part, get_child_parts)
     type = 'select_child_session',
     args = {},
     key = 'S',
-    display_line = start_line - 1,
-    range = { from = start_line, to = end_line },
+    display_line = start_line,
+    range = { from = start_line + 1, to = end_line + 1 },
   })
 end
 

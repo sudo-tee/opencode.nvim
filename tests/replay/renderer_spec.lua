@@ -195,6 +195,36 @@ describe('renderer unit tests', function()
     render_stub:revert()
   end)
 
+  it('inserts a single synthetic revert message during full session render', function()
+    local renderer = require('opencode.ui.renderer')
+
+    helpers.replay_setup()
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+      revert = { messageID = 'msg_1', snapshot = 'a', diff = '' },
+    })
+
+    renderer._render_full_session_data({
+      {
+        info = {
+          id = 'msg_1',
+          role = 'assistant',
+          sessionID = 'ses_123',
+        },
+        parts = {},
+      },
+    })
+
+    local revert_messages = vim.tbl_filter(function(message)
+      return message.info and message.info.id == '__opencode_revert_message__'
+    end, state.messages or {})
+
+    assert.are.equal(1, #revert_messages)
+  end)
+
   it('ignores session.updated for non-active session IDs', function()
     local renderer = require('opencode.ui.renderer')
 
@@ -239,6 +269,7 @@ describe('renderer functional tests', function()
   local skip_full_session = {
     'permission-prompt',
     'permission-ask-new',
+    'part-before-message-delta',
     'question-ask',
     'question-ask-other',
     'multiple-question-ask',
@@ -280,12 +311,22 @@ describe('renderer functional tests', function()
         if not vim.tbl_contains(skip_full_session, name) then
           it('replays ' .. name .. ' correctly (session)', function()
             local renderer = require('opencode.ui.renderer')
+            local flush = require('opencode.ui.renderer.flush')
+            local ctx = require('opencode.ui.renderer.ctx')
             local events = helpers.load_test_data(filepath)
             state.session.set_active(helpers.get_session_from_events(events, true))
             local expected = helpers.load_test_data(expected_path)
 
             local session_data = helpers.load_session_from_events(events)
             renderer._render_full_session_data(session_data)
+
+            -- If bulk mode is active (async writing), wait for it to complete
+            -- by forcing synchronous completion
+            if ctx.bulk_mode then
+              -- Force synchronous completion by calling end_bulk_mode directly
+              -- This ensures all content is written before we check
+              flush.end_bulk_mode()
+            end
 
             local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
             assert_output_matches(expected, actual, name)

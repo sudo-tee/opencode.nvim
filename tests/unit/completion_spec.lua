@@ -161,5 +161,4 @@ describe('opencode.ui.completion', function()
       assert.are.equal(4, #sources)
     end)
   end)
-
 end)

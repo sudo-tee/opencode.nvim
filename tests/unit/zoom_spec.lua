@@ -101,7 +101,7 @@ describe('ui zoom state', function()
   describe('input_window.update_dimensions', function()
     it('does not change input window width', function()
       local original_width = vim.api.nvim_win_get_width(windows.input_win)
-      
+
       input_window.update_dimensions(windows)
 
       local actual_width = vim.api.nvim_win_get_width(windows.input_win)

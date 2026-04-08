@@ -19,6 +19,7 @@ local Promise = require('opencode.promise')
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
 ---@field preview? "file"|"none"|false Preview mode: "file" for file preview, "none" or false to disable
 ---@field layout_opts? OpencodeUIPickerConfig
+---@field close? fun() Close the picker programmatically (set by the backend)
 
 ---@class TelescopeEntry
 ---@field value any
@@ -84,6 +85,8 @@ local function telescope_ui(opts)
   local entry_display = require('telescope.pickers.entry_display')
 
   -- Create displayer dynamically based on number of parts
+  ---@param picker_item PickerItem
+  ---@return table
   local function create_displayer(picker_item)
     local items = {}
     for _ in ipairs(picker_item.parts) do
@@ -128,6 +131,7 @@ local function telescope_ui(opts)
     return entry
   end
 
+  ---@return unknown
   local function refresh_picker()
     return current_picker
       and current_picker:refresh(
@@ -147,6 +151,11 @@ local function telescope_ui(opts)
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,
     attach_mappings = function(prompt_bufnr, map)
+      opts.close = function()
+        selection_made = true
+        actions.close(prompt_bufnr)
+      end
+
       actions.select_default:replace(function()
         selection_made = true
         local selection = action_state.get_selected_entry()
@@ -197,8 +206,12 @@ local function telescope_ui(opts)
               local new_items = action.fn(items_to_process, opts)
               Promise.wrap(new_items):and_then(function(resolved_items)
                 if action.reload and resolved_items then
-                  opts.items = resolved_items
-                  refresh_picker()
+                  if #resolved_items == 0 and opts.close then
+                    opts.close()
+                  else
+                    opts.items = resolved_items
+                    refresh_picker()
+                  end
                 end
               end)
             end
@@ -222,6 +235,7 @@ end
 local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
 
+  ---@return table
   local function create_fzf_config()
     local has_multi_action = util.some(opts.actions, function(action)
       return action.multi_selection
@@ -251,6 +265,7 @@ local function fzf_ui(opts)
     }
   end
 
+  ---@return fun(fzf_cb: fun(line?: string))
   local function create_finder()
     return function(fzf_cb)
       for idx, item in ipairs(opts.items) do
@@ -289,15 +304,40 @@ local function fzf_ui(opts)
     end
   end
 
+  ---Reopen fzf-lua to reflect updated picker items.
   local function refresh_fzf()
     vim.schedule(function()
       fzf_ui(opts)
     end)
   end
 
+  local closed = false
+
+  opts.close = function()
+    if closed then
+      return
+    end
+    closed = true
+    vim.schedule(function()
+      local ok, fzf_win = pcall(require, 'fzf-lua.win')
+      if ok and fzf_win.__SELF then
+        local win = fzf_win.__SELF()
+        if win then
+          win:close()
+        end
+      end
+      if opts.callback then
+        opts.callback(nil)
+      end
+    end)
+  end
+
   ---@type FzfLuaActions
   local actions_config = {
     ['default'] = function(selected, fzf_opts)
+      if closed then
+        return
+      end
       if not selected or #selected == 0 then
         if opts.callback then
           opts.callback(nil)
@@ -310,6 +350,9 @@ local function fzf_ui(opts)
       end
     end,
     ['esc'] = function()
+      if closed then
+        return
+      end
       if opts.callback then
         opts.callback(nil)
       end
@@ -346,8 +389,12 @@ local function fzf_ui(opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
                 ---@cast resolved_items any[]
-                opts.items = resolved_items
-                refresh_fzf()
+                if #resolved_items == 0 and opts.close then
+                  opts.close()
+                else
+                  opts.items = resolved_items
+                  refresh_fzf()
+                end
               end
             end)
           end
@@ -376,6 +423,10 @@ local function mini_pick_ui(opts)
 
   local mappings = {}
 
+  opts.close = function()
+    mini_pick.stop()
+  end
+
   for action_name, action in pairs(opts.actions) do
     if action.key and action.key[1] then
       mappings[action_name] = {
@@ -387,8 +438,12 @@ local function mini_pick_ui(opts)
             local new_items = action.fn(current.item, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
-                opts.items = resolved_items
-                mini_pick_ui(opts)
+                if #resolved_items == 0 and opts.close then
+                  opts.close()
+                else
+                  opts.items = resolved_items
+                  mini_pick_ui(opts)
+                end
               end
             end)
           end
@@ -522,6 +577,13 @@ local function snacks_picker_ui(opts)
       snack_opts.win.input.keys[action.key[1]] = { action_name, mode = action.key.mode or 'i' }
 
       snack_opts.actions[action_name] = function(_picker, item)
+        if not opts.close then
+          opts.close = function()
+            selection_made = true
+            _picker:close()
+          end
+        end
+
         if item then
           local items_to_process
           if action.multi_selection then
@@ -540,9 +602,13 @@ local function snacks_picker_ui(opts)
             local new_items = action.fn(items_to_process, opts)
             Promise.wrap(new_items):and_then(function(resolved_items)
               if action.reload and resolved_items then
-                opts.items = resolved_items
-                _picker:refresh()
-                _picker:find()
+                if #resolved_items == 0 and opts.close then
+                  opts.close()
+                else
+                  opts.items = resolved_items
+                  _picker:refresh()
+                  _picker:find()
+                end
               end
             end)
           end)
@@ -584,6 +650,7 @@ function M.create_picker_item(parts)
     parts = parts,
   }
 
+  ---@return string
   function item:to_string()
     local texts = {}
     for _, part in ipairs(self.parts) do
@@ -592,6 +659,7 @@ function M.create_picker_item(parts)
     return table.concat(texts, ' ')
   end
 
+  ---@return table
   function item:to_formatted_text()
     local formatted = {}
     for _, part in ipairs(self.parts) do

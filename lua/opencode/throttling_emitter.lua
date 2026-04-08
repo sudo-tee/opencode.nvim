@@ -46,7 +46,9 @@ function ThrottlingEmitter:_drain()
   local items_to_process = self.queue
   self.queue = {}
 
-  self.process_fn(items_to_process)
+  if #items_to_process > 0 then
+    self.process_fn(items_to_process)
+  end
 
   -- double check that items weren't added while processing
   if #self.queue > 0 and not self.drain_scheduled then

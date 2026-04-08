@@ -32,6 +32,8 @@ end
 function RenderState:reset()
   self._messages = {}
   self._parts = {}
+  self._orphan_parts = {}
+  self._orphan_parts_index = {}
   self._part_ranges = {}
   self._message_ranges = {}
   self._ranges_valid = false
@@ -203,6 +205,99 @@ end
 ---@return RenderedMessage?
 function RenderState:get_message(message_id)
   return self._messages[message_id]
+end
+
+---@param messages OpencodeMessage[]
+---@param message_id string
+---@return RenderedMessage?
+function RenderState:get_previous_message(messages, message_id)
+  for i = #messages, 1, -1 do
+    local message = messages[i]
+    if message and message.info and message.info.id == message_id then
+      if i <= 1 then
+        return nil
+      end
+      local previous_message = messages[i - 1]
+      return previous_message and previous_message.info and self._messages[previous_message.info.id] or nil
+    end
+  end
+  return nil
+end
+
+---@param message_id string
+---@param part OpencodeMessagePart
+function RenderState:upsert_orphan_part(message_id, part)
+  if not message_id or not part or not part.id then
+    return
+  end
+
+  local orphan_parts = self._orphan_parts[message_id]
+  if not orphan_parts then
+    orphan_parts = {}
+    self._orphan_parts[message_id] = orphan_parts
+    self._orphan_parts_index[message_id] = {}
+  end
+
+  local orphan_index = self._orphan_parts_index[message_id]
+  local idx = orphan_index[part.id]
+  if idx then
+    orphan_parts[idx] = part
+  else
+    orphan_parts[#orphan_parts + 1] = part
+    orphan_index[part.id] = #orphan_parts
+  end
+end
+
+---@param message_id string
+---@return OpencodeMessagePart[]
+function RenderState:consume_orphan_parts(message_id)
+  if not message_id then
+    return {}
+  end
+
+  local orphan_parts = self._orphan_parts[message_id] or {}
+  self._orphan_parts[message_id] = nil
+  self._orphan_parts_index[message_id] = nil
+  return orphan_parts
+end
+
+---@param message_id string
+---@param part_id string
+---@return boolean
+function RenderState:remove_orphan_part(message_id, part_id)
+  local orphan_parts = message_id and self._orphan_parts[message_id]
+  local orphan_index = message_id and self._orphan_parts_index[message_id]
+  local idx = orphan_index and orphan_index[part_id]
+  if not idx then
+    return false
+  end
+
+  table.remove(orphan_parts, idx)
+  orphan_index[part_id] = nil
+
+  for i = idx, #orphan_parts do
+    local part = orphan_parts[i]
+    if part and part.id then
+      orphan_index[part.id] = i
+    end
+  end
+
+  if #orphan_parts == 0 then
+    self._orphan_parts[message_id] = nil
+    self._orphan_parts_index[message_id] = nil
+  end
+
+  return true
+end
+
+---@param message_id string
+function RenderState:clear_orphan_parts(message_id)
+  if not message_id then
+    return
+  end
+
+  self._orphan_parts[message_id] = nil
+  self._orphan_parts_index[message_id] = nil
 end
 
 ---@param line integer 1-indexed

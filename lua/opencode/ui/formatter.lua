@@ -61,7 +61,6 @@ function M._format_revert_message(session_data, start_idx)
   local message_text = stats.messages == 1 and 'message' or 'messages'
   local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
 
-  output:add_lines(M.separator)
   output:add_line(
     string.format('> %d %s reverted, %d %s reverted', stats.messages, message_text, stats.tool_calls, tool_text)
   )
@@ -95,9 +94,17 @@ function M._format_revert_message(session_data, start_idx)
       end
     end
   end
+
+  output:add_empty_line()
   return output
 end
 
+---@param output Output
+---@param text string
+---@param action_type string
+---@param args any[]
+---@param key? string
+---@param line? integer
 local function add_action(output, text, action_type, args, key, line)
   -- actions use api-indexing (e.g. 0 indexed)
   line = (line or output:get_line_count()) - 1
@@ -150,11 +157,16 @@ function M._format_error(output, message)
 end
 
 ---@param message OpencodeMessage
+---@param previous_message? OpencodeMessage
 ---@return Output
-function M.format_message_header(message)
+function M.format_message_header(message, previous_message)
   local output = Output.new()
 
-  output:add_lines(M.separator)
+  if message.info and message.info.id == '__opencode_revert_message__' then
+    output:add_lines(M.separator)
+    return output
+  end
+
   local role = message.info.role or 'unknown'
   local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
@@ -169,35 +181,51 @@ function M.format_message_header(message)
     local mode = message.info.mode
     if mode and mode ~= '' then
       display_name = mode:upper()
+    elseif state.current_mode and state.current_mode ~= '' then
+      display_name = state.current_mode:upper()
     else
-      -- For the most recent assistant message, show current_mode if mode is missing
-      -- This handles new messages that haven't been stamped yet
-      local is_last_message = #state.messages == 0 or message.info.id == state.messages[#state.messages].info.id
-      if is_last_message and state.current_mode and state.current_mode ~= '' then
-        display_name = state.current_mode:upper()
-      else
-        display_name = 'ASSISTANT'
-      end
+      display_name = 'ASSISTANT'
     end
   else
     display_name = role:upper()
   end
 
-  output:add_extmark(output:get_line_count() - 1, {
-    virt_text = {
-      { icon, role_hl },
-      { ' ' },
-      { display_name, role_hl },
-      { model_text, 'OpencodeHint' },
-      { debug_text, 'OpencodeHint' },
-    },
-    virt_text_win_col = -3,
-    priority = 10,
-  } --[[@as OutputExtmark]])
+  local same_mode_as_previous = false
+  if config.ui.output.compact_assistant_headers and role == 'assistant' and previous_message then
+    local previous_role = previous_message.info and previous_message.info.role or nil
+    local previous_mode = previous_message.info and previous_message.info.mode or state.current_mode
+    local current_mode = message.info.mode or state.current_mode
+    same_mode_as_previous = previous_role == 'assistant'
+      and current_mode
+      and previous_mode
+      and current_mode ~= ''
+      and previous_mode ~= ''
+      and current_mode == previous_mode
+  end
+
+  if not same_mode_as_previous then
+    output:add_lines(M.separator)
+  else
+    output:add_line('')
+  end
+
+  if not same_mode_as_previous then
+    output:add_extmark(output:get_line_count() - 1, {
+      virt_text = {
+        { icon, role_hl },
+        { ' ' },
+        { display_name, role_hl },
+        { model_text, 'OpencodeHint' },
+        { debug_text, 'OpencodeHint' },
+      },
+      virt_text_win_col = -3,
+      priority = 10,
+    } --[[@as OutputExtmark]])
+  end
 
   if time then
     output:add_extmark(output:get_line_count() - 1, {
-      virt_text = { { ' ' .. util.format_time(time), 'OpencodeHint' } },
+      virt_text = { { (same_mode_as_previous and '' or ' ') .. util.format_time(time), 'OpencodeHint' } },
       virt_text_pos = 'right_align',
       priority = 9,
     } --[[@as OutputExtmark]])
@@ -291,11 +319,35 @@ end
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
 function M._format_selection_context(output, part)
+  local part_message = part._message_context
   local json = context_module.decode_json_context(part.text or '', 'selection')
   if not json then
     return
   end
-  local start_line = output:get_line_count()
+  local start_line = output:get_line_count() + 1
+
+  if part_message and part_message.parts then
+    for i, message_part in ipairs(part_message.parts) do
+      if message_part.id == part.id then
+        local previous_part = part_message.parts[i - 1]
+        if previous_part and previous_part.type == 'text' and previous_part.synthetic then
+          local has_selection = context_module.decode_json_context(previous_part.text or '', 'selection') ~= nil
+          local has_cursor = context_module.decode_json_context(previous_part.text or '', 'cursor-data') ~= nil
+          local diagnostics = context_module.decode_json_context(previous_part.text or '', 'diagnostics')
+          local has_diagnostics = diagnostics
+            and diagnostics.content
+            and type(diagnostics.content) == 'table'
+            and #diagnostics.content > 0
+
+          if has_selection or has_cursor or has_diagnostics then
+            start_line = output:get_line_count()
+          end
+        end
+        break
+      end
+    end
+  end
+
   output:add_lines(vim.split(json.content or '', '\n'))
   output:add_empty_line()
 
@@ -357,6 +409,81 @@ function M._format_diagnostics_context(output, part)
   local end_line = output:get_line_count()
 
   M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
+end
+
+---@param part OpencodeMessagePart|nil
+---@return string|nil
+local function get_visible_user_part_kind(part)
+  if not part then
+    return nil
+  end
+
+  if part.type == 'file' and part.filename and part.filename ~= '' then
+    return 'file'
+  end
+
+  if part.type ~= 'text' or not part.text or part.text == '' then
+    return nil
+  end
+
+  if not part.synthetic then
+    return 'text'
+  end
+
+  if context_module.decode_json_context(part.text, 'selection') then
+    return 'selection'
+  end
+
+  if context_module.decode_json_context(part.text, 'cursor-data') then
+    return 'cursor-data'
+  end
+
+  local diagnostics = context_module.decode_json_context(part.text, 'diagnostics')
+  if diagnostics and diagnostics.content and type(diagnostics.content) == 'table' and #diagnostics.content > 0 then
+    return 'diagnostics'
+  end
+
+  return nil
+end
+
+---@param message OpencodeMessage|nil
+---@param part OpencodeMessagePart|nil
+---@return string|nil previous_kind
+---@return string|nil next_kind
+local function get_user_part_neighbors(message, part)
+  if not message or not message.parts or not part or not part.id then
+    return nil, nil
+  end
+
+  local current_index = nil
+  for i, message_part in ipairs(message.parts) do
+    if message_part.id == part.id then
+      current_index = i
+      break
+    end
+  end
+
+  if not current_index then
+    return nil, nil
+  end
+
+  local previous_kind = nil
+  for i = current_index - 1, 1, -1 do
+    previous_kind = get_visible_user_part_kind(message.parts[i])
+    if previous_kind then
+      break
+    end
+  end
+
+  local next_kind = nil
+  for i = current_index + 1, #message.parts do
+    next_kind = get_visible_user_part_kind(message.parts[i])
+    if next_kind then
+      break
+    end
+  end
+
+  return previous_kind, next_kind
 end
 
 ---Format and display the file path in the context
@@ -450,19 +577,15 @@ end
 ---@param win_col number
 ---@param text_hl_group? string Optional highlight group for the background/foreground of text lines
 function M.add_vertical_border(output, start_line, end_line, hl_group, win_col, text_hl_group)
+  local extmark_opts = {
+    virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
+    virt_text_pos = 'overlay',
+    virt_text_win_col = win_col,
+    virt_text_repeat_linebreak = true,
+    line_hl_group = text_hl_group or nil,
+  }
+
   for line = start_line, end_line do
-    local extmark_opts = {
-      virt_text = { { require('opencode.ui.icons').get('border'), hl_group } },
-      virt_text_pos = 'overlay',
-      virt_text_win_col = win_col,
-      virt_text_repeat_linebreak = true,
-    }
-
-    -- Add line highlight if text_hl_group is provided
-    if text_hl_group then
-      extmark_opts.line_hl_group = text_hl_group
-    end
-
     output:add_extmark(line - 1, extmark_opts --[[@as OutputExtmark]])
   end
 end
@@ -486,9 +609,11 @@ function M.format_part(part, message, is_last_part, get_child_parts)
   if role == 'user' then
     if part.type == 'text' and part.text then
       if part.synthetic == true then
+        part._message_context = message
         M._format_selection_context(output, part)
         M._format_cursor_data_context(output, part)
         M._format_diagnostics_context(output, part)
+        part._message_context = nil
       else
         M._format_user_prompt(output, vim.trim(part.text), message)
         content_added = true
@@ -496,7 +621,18 @@ function M.format_part(part, message, is_last_part, get_child_parts)
     elseif part.type == 'file' then
       local file_line = M._format_context_file(output, part.filename)
       if file_line then
-        M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+        local previous_kind, next_kind = get_user_part_neighbors(message, part)
+        local previous_is_context = previous_kind == 'selection'
+          or previous_kind == 'cursor-data'
+          or previous_kind == 'diagnostics'
+
+        if next_kind == 'text' or (previous_is_context and not next_kind) then
+          M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+        elseif next_kind == 'file' then
+          M.add_vertical_border(output, file_line, file_line + 1, 'OpencodeMessageRoleUser', -3)
+        else
+          M.add_vertical_border(output, file_line, file_line, 'OpencodeMessageRoleUser', -3)
+        end
         content_added = true
       end
     end
@@ -522,6 +658,12 @@ function M.format_part(part, message, is_last_part, get_child_parts)
       local question_window = require('opencode.ui.question_window')
       question_window.format_display(output)
       content_added = true
+    elseif part.type == 'revert-display' then
+      local revert_index = part.state and part.state.revert_index
+      if revert_index then
+        output = M._format_revert_message(state.messages or {}, revert_index)
+        content_added = output:get_line_count() > 0
+      end
     end
   end
 

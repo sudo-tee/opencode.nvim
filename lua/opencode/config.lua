@@ -139,9 +139,15 @@ M.defaults = {
     },
     output = {
       filetype = 'opencode_output',
+      compact_assistant_headers = false,
       rendering = {
         markdown_debounce_ms = 250,
         on_data_rendered = nil,
+        markdown_on_idle = false,
+        -- If set to a number, markdown rendering will be deferred while
+        -- `state.user_message_count[session_id]` is greater than this value.
+        -- If `nil`, the existing behavior is used (defer while > 0).
+        markdown_on_idle_threshold = nil,
         event_throttle_ms = 40,
         event_collapsing = true,
       },
@@ -255,6 +261,8 @@ M.defaults = {
     enabled = false,
     capture_streamed_events = false,
     show_ids = true,
+    highlight_changed_lines = false,
+    highlight_changed_lines_timeout_ms = 120,
     quick_chat = {
       keep_session = false,
       set_active_session = false,

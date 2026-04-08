@@ -1,1 +1,940 @@
-{"lines":["----","","","add another word","","[`test.txt`](test.txt)","","----","","","I'll append a single word (\"again\") to the first line of  `test.txt`. Applying a precise edit to the existing line now.","","**  edit** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`","","`````txt","   tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more","    tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again","   ","   ","","`````","","**󰻛  Created Snapshot** `1b6ba655`","","----","","","**Done:** added the word `again` to  `test.txt`.","","----","","","add another word","","----","","","I'll read  `test.txt` to get the current first-line content, then append one word (\"again2\") to that line. Proceeding to read the file.","","**  read** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`","","----","","","Now I'll append the word \"again2\" to the first line. I'll apply an exact in-place edit to update that line.","","**  edit** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`","","`````txt","   tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again","    tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again again2","   ","   ","","`````","","**󰻛  Created Snapshot** `57d83f55`","","----","","","**Done:** appended the word `again2` to  `test.txt`.","","----","","> 1 message reverted, 2 tool calls reverted",">","> type `/redo` to restore.",""," test.txt: +1 -1",""],"extmarks":[[1,1,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[["▌󰭻 ","OpencodeMessageRoleUser"],[" "],["USER","OpencodeMessageRoleUser"],["","OpencodeHint"],[" [msg_a0234c0b7001y2o9S1jMaNVZar]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[2,1,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:02","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[3,2,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[4,3,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[5,4,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[6,5,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[7,8,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-5-mini","OpencodeHint"],[" [msg_a0234c7960011LTxTvD94hfWCi]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[8,8,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:04","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[9,12,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[10,13,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[11,14,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[12,15,0,{"right_gravity":true,"end_row":16,"end_col":0,"virt_text_hide":false,"ns_id":3,"hl_eol":true,"end_right_gravity":false,"hl_group":"OpencodeDiffDelete","virt_text":[["1","OpencodeDiffDeleteGutter"],["-","OpencodeDiffDeleteGutter"],[" ","OpencodeDiffDeleteGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[13,15,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[14,16,0,{"right_gravity":true,"end_row":17,"end_col":0,"virt_text_hide":false,"ns_id":3,"hl_eol":true,"end_right_gravity":false,"hl_group":"OpencodeDiffAdd","virt_text":[["1","OpencodeDiffAddGutter"],["+","OpencodeDiffAddGutter"],[" ","OpencodeDiffAddGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[15,16,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[16,17,0,{"right_gravity":true,"end_row":18,"end_col":0,"virt_text_hide":false,"ns_id":3,"end_right_gravity":false,"virt_text":[["2","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[17,17,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[18,18,0,{"right_gravity":true,"end_row":19,"end_col":0,"virt_text_hide":false,"ns_id":3,"end_right_gravity":false,"virt_text":[["3","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[19,18,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[20,19,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[21,20,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[22,25,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-5-mini","OpencodeHint"],[" [msg_a0234d8fb001SXyngLjuKSuxOY]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[23,25,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:09","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[24,30,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[["▌󰭻 ","OpencodeMessageRoleUser"],[" "],["USER","OpencodeMessageRoleUser"],["","OpencodeHint"],[" [msg_a0234e308001SKl5bQUibp5gtI]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[25,30,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:11","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[26,31,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[27,32,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeMessageRoleUser"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":4096}],[28,35,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-5-mini","OpencodeHint"],[" [msg_a0234e31f001m4EsQdPmY3PTtS]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[29,35,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:11","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[30,42,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-5-mini","OpencodeHint"],[" [msg_a0234f482001PQbMjWc6W8s0eF]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[31,42,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:16","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[32,46,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[33,47,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[34,48,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[35,49,0,{"right_gravity":true,"end_row":50,"end_col":0,"virt_text_hide":false,"ns_id":3,"hl_eol":true,"end_right_gravity":false,"hl_group":"OpencodeDiffDelete","virt_text":[["1","OpencodeDiffDeleteGutter"],["-","OpencodeDiffDeleteGutter"],[" ","OpencodeDiffDeleteGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[36,49,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[37,50,0,{"right_gravity":true,"end_row":51,"end_col":0,"virt_text_hide":false,"ns_id":3,"hl_eol":true,"end_right_gravity":false,"hl_group":"OpencodeDiffAdd","virt_text":[["1","OpencodeDiffAddGutter"],["+","OpencodeDiffAddGutter"],[" ","OpencodeDiffAddGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[38,50,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[39,51,0,{"right_gravity":true,"end_row":52,"end_col":0,"virt_text_hide":false,"ns_id":3,"end_right_gravity":false,"virt_text":[["2","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[40,51,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[41,52,0,{"right_gravity":true,"end_row":53,"end_col":0,"virt_text_hide":false,"ns_id":3,"end_right_gravity":false,"virt_text":[["3","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"],[" ","OpencodeDiffGutter"]],"virt_text_pos":"overlay","virt_text_repeat_linebreak":false,"priority":5000}],[42,52,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[43,53,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[44,54,0,{"right_gravity":true,"virt_text_repeat_linebreak":true,"virt_text":[["▌","OpencodeToolBorder"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-1,"priority":4096}],[45,59,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[[" ","OpencodeMessageRoleAssistant"],[" "],["BUILD","OpencodeMessageRoleAssistant"],[" gpt-5-mini","OpencodeHint"],[" [msg_a0234f9c6001JCKYaca1HHwwx6]","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":-3,"priority":10}],[46,59,0,{"right_gravity":true,"virt_text":[[" 2025-10-20 15:20:17","OpencodeHint"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"right_align","virt_text_repeat_linebreak":false,"priority":9}],[47,69,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[["+1","OpencodeDiffAddText"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":12,"priority":1000}],[48,69,0,{"right_gravity":true,"virt_text_repeat_linebreak":false,"virt_text":[["-1","OpencodeDiffDeleteText"]],"virt_text_hide":false,"ns_id":3,"virt_text_pos":"win_col","virt_text_win_col":15,"priority":1000}]],"actions":[{"type":"diff_revert_selected_file","key":"R","text":"[R]evert file","range":{"from":56,"to":56},"args":["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],"display_line":56},{"type":"diff_revert_all","key":"A","text":"Revert [A]ll","range":{"from":56,"to":56},"args":["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],"display_line":56},{"type":"diff_open","key":"D","text":"[D]iff","range":{"from":56,"to":56},"args":["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],"display_line":56},{"type":"diff_revert_selected_file","key":"R","text":"[R]evert file","range":{"from":22,"to":22},"args":["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],"display_line":22},{"type":"diff_revert_all","key":"A","text":"Revert [A]ll","range":{"from":22,"to":22},"args":["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],"display_line":22},{"type":"diff_open","key":"D","text":"[D]iff","range":{"from":22,"to":22},"args":["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],"display_line":22}],"timestamp":1773947601}
+{
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" [msg_a0234c0b7001y2o9S1jMaNVZar]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      2,
+      1,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:02", "OpencodeHint"]]
+      }
+    ],
+    [
+      3,
+      2,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      4,
+      3,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      5,
+      4,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      6,
+      5,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      7,
+      8,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-5-mini", "OpencodeHint"],
+          [" [msg_a0234c7960011LTxTvD94hfWCi]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      8,
+      8,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:04", "OpencodeHint"]]
+      }
+    ],
+    [
+      9,
+      12,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      10,
+      13,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      11,
+      14,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      12,
+      15,
+      0,
+      {
+        "end_row": 16,
+        "hl_group": "OpencodeDiffDelete",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "ns_id": 3,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "hl_eol": true,
+        "virt_text": [
+          ["1", "OpencodeDiffDeleteGutter"],
+          ["-", "OpencodeDiffDeleteGutter"],
+          [" ", "OpencodeDiffDeleteGutter"]
+        ]
+      }
+    ],
+    [
+      13,
+      15,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      14,
+      16,
+      0,
+      {
+        "end_row": 17,
+        "hl_group": "OpencodeDiffAdd",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "ns_id": 3,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "hl_eol": true,
+        "virt_text": [
+          ["1", "OpencodeDiffAddGutter"],
+          ["+", "OpencodeDiffAddGutter"],
+          [" ", "OpencodeDiffAddGutter"]
+        ]
+      }
+    ],
+    [
+      15,
+      16,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      16,
+      17,
+      0,
+      {
+        "end_row": 18,
+        "virt_text_pos": "overlay",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "ns_id": 3,
+        "priority": 5000,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          ["2", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"]
+        ]
+      }
+    ],
+    [
+      17,
+      17,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      18,
+      18,
+      0,
+      {
+        "end_row": 19,
+        "virt_text_pos": "overlay",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "ns_id": 3,
+        "priority": 5000,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          ["3", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"]
+        ]
+      }
+    ],
+    [
+      19,
+      18,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      20,
+      19,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      21,
+      20,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      22,
+      25,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-5-mini", "OpencodeHint"],
+          [" [msg_a0234d8fb001SXyngLjuKSuxOY]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      23,
+      25,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:09", "OpencodeHint"]]
+      }
+    ],
+    [
+      24,
+      30,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          ["▌󰭻 ", "OpencodeMessageRoleUser"],
+          [" "],
+          ["USER", "OpencodeMessageRoleUser"],
+          ["", "OpencodeHint"],
+          [" [msg_a0234e308001SKl5bQUibp5gtI]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      25,
+      30,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:11", "OpencodeHint"]]
+      }
+    ],
+    [
+      26,
+      31,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      27,
+      32,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+      }
+    ],
+    [
+      28,
+      35,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-5-mini", "OpencodeHint"],
+          [" [msg_a0234e31f001m4EsQdPmY3PTtS]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      29,
+      35,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:11", "OpencodeHint"]]
+      }
+    ],
+    [
+      30,
+      42,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-5-mini", "OpencodeHint"],
+          [" [msg_a0234f482001PQbMjWc6W8s0eF]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      31,
+      42,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:16", "OpencodeHint"]]
+      }
+    ],
+    [
+      32,
+      46,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      33,
+      47,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      34,
+      48,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      35,
+      49,
+      0,
+      {
+        "end_row": 50,
+        "hl_group": "OpencodeDiffDelete",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "ns_id": 3,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "hl_eol": true,
+        "virt_text": [
+          ["1", "OpencodeDiffDeleteGutter"],
+          ["-", "OpencodeDiffDeleteGutter"],
+          [" ", "OpencodeDiffDeleteGutter"]
+        ]
+      }
+    ],
+    [
+      36,
+      49,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      37,
+      50,
+      0,
+      {
+        "end_row": 51,
+        "hl_group": "OpencodeDiffAdd",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "virt_text_repeat_linebreak": false,
+        "ns_id": 3,
+        "virt_text_pos": "overlay",
+        "priority": 5000,
+        "hl_eol": true,
+        "virt_text": [
+          ["1", "OpencodeDiffAddGutter"],
+          ["+", "OpencodeDiffAddGutter"],
+          [" ", "OpencodeDiffAddGutter"]
+        ]
+      }
+    ],
+    [
+      38,
+      50,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      39,
+      51,
+      0,
+      {
+        "end_row": 52,
+        "virt_text_pos": "overlay",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "ns_id": 3,
+        "priority": 5000,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          ["2", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"]
+        ]
+      }
+    ],
+    [
+      40,
+      51,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      41,
+      52,
+      0,
+      {
+        "end_row": 53,
+        "virt_text_pos": "overlay",
+        "end_right_gravity": false,
+        "virt_text_hide": false,
+        "end_col": 0,
+        "right_gravity": true,
+        "ns_id": 3,
+        "priority": 5000,
+        "virt_text_repeat_linebreak": false,
+        "virt_text": [
+          ["3", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"],
+          [" ", "OpencodeDiffGutter"]
+        ]
+      }
+    ],
+    [
+      42,
+      52,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      43,
+      53,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      44,
+      54,
+      0,
+      {
+        "virt_text_repeat_linebreak": true,
+        "right_gravity": true,
+        "virt_text_win_col": -1,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 4096,
+        "virt_text_hide": false,
+        "virt_text": [["▌", "OpencodeToolBorder"]]
+      }
+    ],
+    [
+      45,
+      59,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": -3,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 10,
+        "virt_text_hide": false,
+        "virt_text": [
+          [" ", "OpencodeMessageRoleAssistant"],
+          [" "],
+          ["BUILD", "OpencodeMessageRoleAssistant"],
+          [" gpt-5-mini", "OpencodeHint"],
+          [" [msg_a0234f9c6001JCKYaca1HHwwx6]", "OpencodeHint"]
+        ]
+      }
+    ],
+    [
+      46,
+      59,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "ns_id": 3,
+        "virt_text_pos": "right_align",
+        "priority": 9,
+        "virt_text_hide": false,
+        "virt_text": [[" 2025-10-20 15:20:17", "OpencodeHint"]]
+      }
+    ],
+    [
+      47,
+      69,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": 12,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 1000,
+        "virt_text_hide": false,
+        "virt_text": [["+1", "OpencodeDiffAddText"]]
+      }
+    ],
+    [
+      48,
+      69,
+      0,
+      {
+        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
+        "virt_text_win_col": 15,
+        "ns_id": 3,
+        "virt_text_pos": "win_col",
+        "priority": 1000,
+        "virt_text_hide": false,
+        "virt_text": [["-1", "OpencodeDiffDeleteText"]]
+      }
+    ]
+  ],
+  "actions": [
+    {
+      "text": "[R]evert file",
+      "range": { "from": 22, "to": 22 },
+      "key": "R",
+      "display_line": 22,
+      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "text": "Revert [A]ll",
+      "range": { "from": 22, "to": 22 },
+      "key": "A",
+      "display_line": 22,
+      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
+      "type": "diff_revert_all"
+    },
+    {
+      "text": "[D]iff",
+      "range": { "from": 22, "to": 22 },
+      "key": "D",
+      "display_line": 22,
+      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
+      "type": "diff_open"
+    },
+    {
+      "text": "[R]evert file",
+      "range": { "from": 56, "to": 56 },
+      "key": "R",
+      "display_line": 56,
+      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "text": "Revert [A]ll",
+      "range": { "from": 56, "to": 56 },
+      "key": "A",
+      "display_line": 56,
+      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
+      "type": "diff_revert_all"
+    },
+    {
+      "text": "[D]iff",
+      "range": { "from": 56, "to": 56 },
+      "key": "D",
+      "display_line": 56,
+      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
+      "type": "diff_open"
+    }
+  ],
+  "timestamp": 1774894778,
+  "lines": [
+    "----",
+    "",
+    "",
+    "add another word",
+    "",
+    "[`test.txt`](test.txt)",
+    "",
+    "----",
+    "",
+    "",
+    "I'll append a single word (\"again\") to the first line of  `test.txt`. Applying a precise edit to the existing line now.",
+    "",
+    "**  edit** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
+    "",
+    "`````txt",
+    "   tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more",
+    "    tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again",
+    "   ",
+    "   ",
+    "",
+    "`````",
+    "",
+    "**󰻛  Created Snapshot** `1b6ba655`",
+    "",
+    "----",
+    "",
+    "",
+    "**Done:** added the word `again` to  `test.txt`.",
+    "",
+    "----",
+    "",
+    "",
+    "add another word",
+    "",
+    "----",
+    "",
+    "",
+    "I'll read  `test.txt` to get the current first-line content, then append one word (\"again2\") to that line. Proceeding to read the file.",
+    "",
+    "**  read** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
+    "",
+    "----",
+    "",
+    "",
+    "Now I'll append the word \"again2\" to the first line. I'll apply an exact in-place edit to update that line.",
+    "",
+    "**  edit** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
+    "",
+    "`````txt",
+    "   tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again",
+    "    tangram quiver saffron nebula cobalt murmur plinth zephyr ember lattice cadenza another yet extra more again again2",
+    "   ",
+    "   ",
+    "",
+    "`````",
+    "",
+    "**󰻛  Created Snapshot** `57d83f55`",
+    "",
+    "----",
+    "",
+    "",
+    "**Done:** appended the word `again2` to  `test.txt`.",
+    "",
+    "----",
+    "",
+    "> 1 message reverted, 2 tool calls reverted",
+    ">",
+    "> type `/redo` to restore.",
+    "",
+    " test.txt: +1 -1",
+    "",
+    ""
+  ]
+}

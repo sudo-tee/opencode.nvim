@@ -1,0 +1,55 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_0000000000001",
+        "sessionID": "ses_0000000000001",
+        "role": "user",
+        "agent": "build",
+        "time": { "created": 1700000000000 },
+        "model": { "providerID": "anthropic", "modelID": "claude-sonnet-4-5" }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_0000000000001",
+        "messageID": "msg_0000000000001",
+        "sessionID": "ses_0000000000001",
+        "type": "text",
+        "text": "Can you help me fix this bug?"
+      }
+    }
+  },
+  {
+    "type": "message.part.delta",
+    "properties": {
+      "partID": "prt_0000000000002",
+      "messageID": "msg_0000000000002",
+      "sessionID": "ses_0000000000001",
+      "field": "text",
+      "delta": "Sure, I can help with that."
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_0000000000002",
+        "sessionID": "ses_0000000000001",
+        "role": "assistant",
+        "agent": "build",
+        "mode": "build",
+        "providerID": "anthropic",
+        "modelID": "claude-sonnet-4-5",
+        "parentID": "msg_0000000000001",
+        "time": { "created": 1700000001000, "completed": 1700000050000 },
+        "cost": 0,
+        "tokens": { "input": 100, "output": 20, "reasoning": 0, "cache": { "read": 0, "write": 0 } }
+      }
+    }
+  }
+]

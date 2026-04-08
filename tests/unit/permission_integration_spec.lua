@@ -2,6 +2,9 @@ local state = require('opencode.state')
 local permission_window = require('opencode.ui.permission_window')
 local events = require('opencode.ui.renderer.events')
 local ctx = require('opencode.ui.renderer.ctx')
+local output_window = require('opencode.ui.output_window')
+local flush = require('opencode.ui.renderer.flush')
+local helpers = require('tests.helpers')
 
 describe('permission_integration', function()
   local mock_update_permission_from_part
@@ -400,5 +403,106 @@ describe('permission_integration', function()
 
       assert.are.equal(0, #captured_calls)
     end)
+  end)
+end)
+
+describe('permission and question display ordering', function()
+  before_each(function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'session_123' })
+  end)
+
+  after_each(function()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
+  end)
+
+  it('keeps the permission display pinned below later messages', function()
+    events.on_message_updated({
+      info = {
+        id = 'msg_user',
+        sessionID = 'session_123',
+        role = 'user',
+      },
+    })
+    events.on_part_updated({
+      part = {
+        id = 'part_user',
+        messageID = 'msg_user',
+        sessionID = 'session_123',
+        type = 'text',
+        text = 'first',
+      },
+    })
+
+    events.on_permission_updated({
+      id = 'perm_1',
+      permission = 'bash',
+      title = 'Run command',
+      metadata = {},
+    })
+
+    events.on_message_updated({
+      info = {
+        id = 'msg_assistant',
+        sessionID = 'session_123',
+        role = 'assistant',
+      },
+    })
+    events.on_part_updated({
+      part = {
+        id = 'part_assistant',
+        messageID = 'msg_assistant',
+        sessionID = 'session_123',
+        type = 'text',
+        text = 'later message',
+      },
+    })
+
+    flush.flush()
+
+    local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+    local permission_line = nil
+    local assistant_line = nil
+    for i, line in ipairs(actual.lines) do
+      if line:find('Permission Required', 1, true) then
+        permission_line = i
+      elseif line == 'later message' then
+        assistant_line = i
+      end
+    end
+
+    assert.is_not_nil(permission_line)
+    assert.is_not_nil(assistant_line)
+    assert.is_true(permission_line > assistant_line)
+  end)
+end)
+
+describe('permission prompt rendering', function()
+  before_each(function()
+    state.renderer.set_messages({})
+    state.renderer.set_pending_permissions({})
+    state.session.set_active({ id = 'session_123' })
+
+    permission_window._permission_queue = {}
+    permission_window._dialog = nil
+    permission_window._processing = false
+
+    ctx.render_state:reset()
+    ctx.prev_line_count = 0
+  end)
+
+  it('tracks and renders permissions without message correlation metadata', function()
+    events.on_permission_updated({
+      id = 'perm_no_meta',
+      permission = 'bash',
+      title = 'Run command',
+      metadata = {},
+    })
+
+    assert.are.equal(1, #state.pending_permissions)
+    assert.are.equal('perm_no_meta', state.pending_permissions[1].id)
+    assert.are.equal(1, permission_window.get_permission_count())
   end)
 end)

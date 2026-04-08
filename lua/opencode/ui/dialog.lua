@@ -261,7 +261,11 @@ function Dialog:format_dialog(output, config)
   local end_line = output:get_line_count()
 
   if config.border_hl then
-    formatter.add_vertical_border(output, start_line + 1, end_line, config.border_hl, -2)
+    local border_end = end_line
+    if config.extend_border_to_trailing_blank then
+      border_end = border_end + 1
+    end
+    formatter.add_vertical_border(output, start_line + 1, border_end, config.border_hl, -2)
   end
 
   output:add_line('')
@@ -277,15 +281,22 @@ function Dialog:format_options(output, options)
       label = label .. ' - ' .. option.description
     end
 
-    local line_idx = output:get_line_count()
     local is_selected = self._selected_index == i
     local line_text = is_selected and string.format('    %d. %s ', i, label) or string.format('    %d. %s', i, label)
 
-    output:add_line(line_text)
+    -- Output uses 0-based indexing for extmarks. The correct target for
+    -- extmarks is the previous line count (0-based) because add_line will
+    -- append a new line and increase the 1-based line count. Capture the
+    -- current count first and then add the line so we can use that 0-based
+    -- index for extmarks.
+    -- add_line returns a 1-based line index; Output extmarks use 0-based
+    -- keys, so subtract 1 to get the correct extmark key.
+    local added_idx = output:add_line(line_text)
 
     if is_selected then
-      output:add_extmark(line_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
-      output:add_extmark(line_idx, {
+      local extmark_idx = added_idx - 1
+      output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
+      output:add_extmark(extmark_idx, {
         start_col = 2,
         virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
         virt_text_pos = 'overlay',
@@ -309,11 +320,16 @@ function Dialog:_setup_keymaps()
   if keymaps.up then
     for _, key in ipairs(keymaps.up) do
       if key and key ~= '' then
-        vim.keymap.set('n', key, function()
-          self:navigate(-1)
-        end, vim.tbl_extend('force', keymap_opts, {
-          desc = 'Dialog: navigate up',
-        }))
+        vim.keymap.set(
+          'n',
+          key,
+          function()
+            self:navigate(-1)
+          end,
+          vim.tbl_extend('force', keymap_opts, {
+            desc = 'Dialog: navigate up',
+          })
+        )
         table.insert(self._keymaps, key)
       end
     end
@@ -322,31 +338,46 @@ function Dialog:_setup_keymaps()
   if keymaps.down then
     for _, key in ipairs(keymaps.down) do
       if key and key ~= '' then
-        vim.keymap.set('n', key, function()
-          self:navigate(1)
-        end, vim.tbl_extend('force', keymap_opts, {
-          desc = 'Dialog: navigate down',
-        }))
+        vim.keymap.set(
+          'n',
+          key,
+          function()
+            self:navigate(1)
+          end,
+          vim.tbl_extend('force', keymap_opts, {
+            desc = 'Dialog: navigate down',
+          })
+        )
         table.insert(self._keymaps, key)
       end
     end
   end
 
   if keymaps.select and keymaps.select ~= '' then
-    vim.keymap.set('n', keymaps.select, function()
-      self:select()
-    end, vim.tbl_extend('force', keymap_opts, {
-      desc = 'Dialog: select option',
-    }))
+    vim.keymap.set(
+      'n',
+      keymaps.select,
+      function()
+        self:select()
+      end,
+      vim.tbl_extend('force', keymap_opts, {
+        desc = 'Dialog: select option',
+      })
+    )
     table.insert(self._keymaps, keymaps.select)
   end
 
   if keymaps.dismiss and keymaps.dismiss ~= '' then
-    vim.keymap.set('n', keymaps.dismiss, function()
-      self:dismiss()
-    end, vim.tbl_extend('force', keymap_opts, {
-      desc = 'Dialog: dismiss',
-    }))
+    vim.keymap.set(
+      'n',
+      keymaps.dismiss,
+      function()
+        self:dismiss()
+      end,
+      vim.tbl_extend('force', keymap_opts, {
+        desc = 'Dialog: dismiss',
+      })
+    )
     table.insert(self._keymaps, keymaps.dismiss)
   end
 
@@ -355,15 +386,20 @@ function Dialog:_setup_keymaps()
     local number_keymap_opts = vim.tbl_extend('force', keymap_opts, { nowait = true })
     for i = 1, math.min(option_count, 9) do
       local key = tostring(i)
-      vim.keymap.set('n', key, function()
-        if not self._active or not self._config.check_focused() then
-          return
-        end
-        self._selected_index = i
-        self._config.on_select(i)
-      end, vim.tbl_extend('force', number_keymap_opts, {
-        desc = 'Dialog: select option ' .. key,
-      }))
+      vim.keymap.set(
+        'n',
+        key,
+        function()
+          if not self._active or not self._config.check_focused() then
+            return
+          end
+          self._selected_index = i
+          self._config.on_select(i)
+        end,
+        vim.tbl_extend('force', number_keymap_opts, {
+          desc = 'Dialog: select option ' .. key,
+        })
+      )
       table.insert(self._keymaps, key)
     end
   end

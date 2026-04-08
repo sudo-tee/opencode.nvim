@@ -1,35 +1,18 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
-local formatter = require('opencode.ui.formatter')
 local output_window = require('opencode.ui.output_window')
 local permission_window = require('opencode.ui.permission_window')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
-local buf = require('opencode.ui.renderer.buffer')
 local events = require('opencode.ui.renderer.events')
+local flush = require('opencode.ui.renderer.flush')
+local scroll = require('opencode.ui.renderer.scroll')
 
 local M = {}
 
 -- Expose event handlers on M so tests can call them directly and subscriptions
 -- can be stubbed cleanly (e.g. stub(renderer, '_render_full_session_data'))
 M.on_session_updated = events.on_session_updated
-
-local trigger_on_data_rendered = require('opencode.util').debounce(function()
-  local cb_type = type(config.ui.output.rendering.on_data_rendered)
-  if cb_type == 'boolean' then
-    return
-  end
-  if not state.windows or not state.windows.output_buf or not state.windows.output_win then
-    return
-  end
-  if cb_type == 'function' then
-    pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
-  elseif vim.fn.exists(':RenderMarkdown') > 0 then
-    vim.cmd(':RenderMarkdown')
-  elseif vim.fn.exists(':Markview') > 0 then
-    vim.cmd(':Markview render ' .. state.windows.output_buf)
-  end
-end, config.ui.output.rendering.markdown_debounce_ms or 250)
 
 ---Reset all renderer state and clear the output buffer
 function M.reset()
@@ -45,7 +28,7 @@ function M.reset()
   permission_window.clear_all()
   state.renderer.reset()
 
-  trigger_on_data_rendered()
+  flush.trigger_on_data_rendered()
 end
 
 ---Unsubscribe from all events and reset
@@ -110,24 +93,6 @@ local function fetch_session()
   return require('opencode.session').get_messages(session)
 end
 
----Set the current model/mode from the most recent assistant message
-local function set_model_and_mode_from_messages()
-  if not state.messages then
-    return
-  end
-  for i = #state.messages, 1, -1 do
-    local message = state.messages[i]
-    if message and message.info and message.info.modelID and message.info.providerID then
-      state.model.set_model(message.info.providerID .. '/' .. message.info.modelID)
-      if message.info.mode then
-        state.model.set_mode(message.info.mode)
-      end
-      return
-    end
-  end
-  require('opencode.core').initialize_current_model()
-end
-
 ---Render all messages and parts from session_data into the output buffer
 ---Called after a full session fetch or when revert state changes
 ---@param session_data OpencodeMessage[]
@@ -139,7 +104,8 @@ function M._render_full_session_data(session_data)
   end
 
   local revert_index = nil
-  local set_mode_from_messages = not state.current_model
+
+  flush.begin_bulk_mode()
 
   for i, msg in ipairs(session_data) do
     if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
@@ -152,12 +118,33 @@ function M._render_full_session_data(session_data)
   end
 
   if revert_index then
-    buf.write_formatted_data(formatter._format_revert_message(state.messages, revert_index))
+    local revert_message = {
+      info = {
+        id = '__opencode_revert_message__',
+        sessionID = state.active_session.id,
+        role = 'system',
+      },
+      parts = {
+        {
+          id = '__opencode_revert_part__',
+          messageID = '__opencode_revert_message__',
+          sessionID = state.active_session.id,
+          type = 'revert-display',
+          state = {
+            revert_index = revert_index,
+          },
+        },
+      },
+    }
+
+    events.on_message_updated(revert_message)
+    events.on_part_updated({ part = revert_message.parts[1] })
   end
 
-  if set_mode_from_messages then
-    set_model_and_mode_from_messages()
-  end
+  flush.flush()
+  flush.end_bulk_mode()
+
+  require('opencode.core').initialize_current_model()
 
   M.scroll_to_bottom(true)
 
@@ -172,7 +159,14 @@ function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
-  return fetch_session():and_then(M._render_full_session_data)
+  return fetch_session():and_then(function(session_data)
+    M._render_full_session_data(session_data)
+    local active_session = state.active_session
+    if active_session and active_session.id then
+      require('opencode.ui.question_window').restore_pending_question(active_session.id)
+    end
+    return session_data
+  end)
 end
 
 ---Replace the entire output buffer with the given lines
@@ -192,6 +186,7 @@ function M.render_output(output_data)
   output_window.set_lines(output_data.lines or {})
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
+  flush.trigger_on_data_rendered()
   M.scroll_to_bottom()
 end
 
@@ -210,30 +205,8 @@ function M.scroll_to_bottom(force)
     return
   end
 
-  local ok, line_count = pcall(vim.api.nvim_buf_line_count, output_buf)
-  if not ok or line_count == 0 then
-    return
-  end
-
-  local prev_line_count = ctx.prev_line_count
-  ctx.prev_line_count = line_count
-
-  trigger_on_data_rendered()
-
-  local should_scroll = force
-    or prev_line_count == 0
-    or config.ui.output.always_scroll_to_bottom
-    or (function()
-         local ok_cursor, cursor = pcall(vim.api.nvim_win_get_cursor, output_win)
-         return ok_cursor and cursor and (cursor[1] >= prev_line_count or cursor[1] >= line_count)
-       end)()
-
-  if should_scroll then
-    local last_line = vim.api.nvim_buf_get_lines(output_buf, line_count - 1, line_count, false)[1] or ''
-    vim.api.nvim_win_set_cursor(output_win, { line_count, #last_line })
-    vim.api.nvim_win_call(output_win, function()
-      vim.cmd('normal! zb')
-    end)
+  if force or config.ui.output.always_scroll_to_bottom or output_window.is_at_bottom(output_win) then
+    scroll.scroll_win_to_bottom(output_win, output_buf)
   end
 end
 
@@ -242,8 +215,8 @@ function M.on_focus_changed()
   if not permission_window.get_all_permissions()[1] then
     return
   end
-  buf.rerender_part('permission-display-part')
-  trigger_on_data_rendered()
+  flush.mark_part_dirty('permission-display-part', 'permission-display-message')
+  flush.flush()
 end
 
 ---Re-render when the active session changes
@@ -274,6 +247,36 @@ end
 ---@return RenderedMessage|nil
 function M.get_rendered_message(message_id)
   return ctx.render_state:get_message(message_id) or nil
+end
+
+---@param current_line integer
+---@return RenderedMessage|nil
+function M.get_next_rendered_message(current_line)
+  local next_message = nil
+
+  for _, message in ipairs(state.messages or {}) do
+    local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
+    if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
+      next_message = rendered
+      break
+    end
+  end
+
+  return next_message
+end
+
+---@param current_line integer
+---@return RenderedMessage|nil
+function M.get_prev_rendered_message(current_line)
+  for i = #(state.messages or {}), 1, -1 do
+    local message = state.messages[i]
+    local rendered = message and message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
+    if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
+      return rendered
+    end
+  end
+
+  return nil
 end
 
 return M

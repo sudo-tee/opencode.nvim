@@ -120,6 +120,21 @@ describe('RenderState', function()
 
       assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
     end)
+
+    it('stores child session parts independently', function()
+      local part = {
+        id = 'child-part-1',
+        messageID = 'msg-child',
+        sessionID = 'child-1',
+        tool = 'question',
+      }
+
+      render_state:upsert_child_session_part('child-1', part)
+
+      local child_parts = render_state:get_child_session_parts('child-1')
+      assert.equals(1, #child_parts)
+      assert.equals('child-part-1', child_parts[1].id)
+    end)
   end)
 
   describe('get_part_at_line', function()

@@ -499,6 +499,17 @@ function M.check_prompt_allowed(guard_callback, mentioned_files)
   return result, nil
 end
 
+local _filetype_overrides = {
+  javascriptreact = 'jsx',
+  typescriptreact = 'tsx',
+  typescript = 'ts',
+  javascipt = 'js',
+  sh = 'bash',
+  yaml = 'yml',
+  text = 'txt', -- nvim 0.12-nightly returns text as the type which breaks our unit tests
+}
+local _filetype_cache = {}
+
 --- Get the markdown type to use based on the filename. First gets the neovim type
 --- for the file. Then apply any specific overrides. Falls back to using the file
 --- extension if nothing else matches
@@ -509,27 +520,16 @@ function M.get_markdown_filetype(filename)
     return ''
   end
 
-  local file_type_overrides = {
-    javascriptreact = 'jsx',
-    typescriptreact = 'tsx',
-    typescript = 'ts',
-    javascipt = 'js',
-    sh = 'bash',
-    yaml = 'yml',
-    text = 'txt', -- nvim 0.12-nightly returns text as the type which breaks our unit tests
-  }
+  local cached = _filetype_cache[filename]
+  if cached ~= nil then
+    return cached
+  end
 
   local file_type = vim.filetype.match({ filename = filename }) or ''
+  local result = _filetype_overrides[file_type] or (file_type ~= '' and file_type) or vim.fn.fnamemodify(filename, ':e')
 
-  if file_type_overrides[file_type] then
-    return file_type_overrides[file_type]
-  end
-
-  if file_type and file_type ~= '' then
-    return file_type
-  end
-
-  return vim.fn.fnamemodify(filename, ':e')
+  _filetype_cache[filename] = result
+  return result
 end
 
 function M.strdisplaywidth(str)
@@ -591,9 +591,17 @@ function M.pcall_trace(fn, ...)
 end
 
 function M.is_path_in_cwd(path)
-  local cwd = vim.fn.getcwd()
-  local abs_path = vim.fn.fnamemodify(path, ':p')
-  return abs_path:sub(1, #cwd) == cwd
+  local cwd = vim.fn.simplify(vim.fn.getcwd())
+  local cwd_prefix = cwd == '/' and cwd or (cwd .. '/')
+
+  local logical_path
+  if path:sub(1, 1) == '/' then
+    logical_path = vim.fn.simplify(path)
+  else
+    logical_path = vim.fn.simplify(cwd .. '/' .. path)
+  end
+
+  return logical_path == cwd or logical_path:sub(1, #cwd_prefix) == cwd_prefix
 end
 
 --- Check if a given path is in the system temporary directory.

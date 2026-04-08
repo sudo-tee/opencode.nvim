@@ -11,11 +11,27 @@ function M.replay_setup()
   local state = require('opencode.state')
   local ui = require('opencode.ui.ui')
   local renderer = require('opencode.ui.renderer')
+  local permission_window = require('opencode.ui.permission_window')
+  local question_window = require('opencode.ui.question_window')
+  local reference_picker = require('opencode.ui.reference_picker')
 
   local empty_promise = require('opencode.promise').new():resolve(nil)
   config_file.config_promise = empty_promise
   config_file.project_promise = empty_promise
   config_file.providers_promise = empty_promise
+
+  if state.windows then
+    ui.close_windows(state.windows)
+  end
+
+  renderer.reset()
+  permission_window.clear_all()
+  question_window._clear_dialog()
+  question_window._current_question = nil
+  question_window._current_question_index = 1
+  question_window._collected_answers = {}
+  question_window._answering = false
+  reference_picker.clear_all()
 
   ---@diagnostic disable-next-line: duplicate-set-field
   require('opencode.session').project_id = function()
@@ -323,9 +339,28 @@ function M.normalize_namespace_ids(extmarks)
 end
 
 function M.capture_output(output_buf, namespace)
+  local extmarks = vim.api.nvim_buf_get_extmarks(output_buf, namespace, 0, -1, { details = true }) or {}
+  table.sort(extmarks, function(a, b)
+    if a[2] ~= b[2] then
+      return a[2] < b[2]
+    end
+
+    if a[3] ~= b[3] then
+      return a[3] < b[3]
+    end
+
+    local a_priority = a[4] and a[4].priority or 0
+    local b_priority = b[4] and b[4].priority or 0
+    if a_priority ~= b_priority then
+      return a_priority > b_priority
+    end
+
+    return a[1] < b[1]
+  end)
+
   return {
     lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false) or {},
-    extmarks = vim.api.nvim_buf_get_extmarks(output_buf, namespace, 0, -1, { details = true }) or {},
+    extmarks = extmarks,
     actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
   }
 end

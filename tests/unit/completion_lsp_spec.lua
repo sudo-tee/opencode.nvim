@@ -1019,136 +1019,136 @@ describe('opencode LSP completion', function()
       end)
 
       it('embeds the original item in data._opencode_item', function()
-         package.loaded['blink.cmp'] = nil
-         package.loaded['opencode.lsp.opencode_ls'] = nil
-         ls = require('opencode.lsp.opencode_ls')
+        package.loaded['blink.cmp'] = nil
+        package.loaded['opencode.lsp.opencode_ls'] = nil
+        ls = require('opencode.lsp.opencode_ls')
 
-         package.loaded['opencode.ui.completion'] = nil
-         local completion = require('opencode.ui.completion')
-         completion._sources = {}
+        package.loaded['opencode.ui.completion'] = nil
+        local completion = require('opencode.ui.completion')
+        completion._sources = {}
 
-         local original_item = {
-           label = 'OriginalItem',
-           kind = 'file',
-           kind_icon = '',
-           insert_text = 'OriginalItem',
-           source_name = 'data_test_source',
-           data = { custom = 'value' },
-         }
+        local original_item = {
+          label = 'OriginalItem',
+          kind = 'file',
+          kind_icon = '',
+          insert_text = 'OriginalItem',
+          source_name = 'data_test_source',
+          data = { custom = 'value' },
+        }
 
-         completion.register_source({
-           name = 'data_test_source',
-           priority = 1,
-           complete = function()
-             return Promise.new():resolve({ original_item })
-           end,
-           get_trigger_character = function()
-             return '@'
-           end,
-         })
+        completion.register_source({
+          name = 'data_test_source',
+          priority = 1,
+          complete = function()
+            return Promise.new():resolve({ original_item })
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
 
-         vim.api.nvim_buf_get_lines = function()
-           return { '@test' }
-         end
-         vim.api.nvim_get_current_line = function()
-           return '@test'
-         end
-         vim.api.nvim_win_get_cursor = function()
-           return { 1, 5 }
-         end
+        vim.api.nvim_buf_get_lines = function()
+          return { '@test' }
+        end
+        vim.api.nvim_get_current_line = function()
+          return '@test'
+        end
+        vim.api.nvim_win_get_cursor = function()
+          return { 1, 5 }
+        end
 
-         local config_obj = ls.create_config()
-         local server = config_obj.cmd({}, {})
+        local config_obj = ls.create_config()
+        local server = config_obj.cmd({}, {})
 
-         local done = false
-         local callback_result = nil
-         server.request('textDocument/completion', {
-           position = { line = 0, character = 5 },
-         }, function(err, result)
-           callback_result = result
-           done = true
-         end)
+        local done = false
+        local callback_result = nil
+        server.request('textDocument/completion', {
+          position = { line = 0, character = 5 },
+        }, function(err, result)
+          callback_result = result
+          done = true
+        end)
 
-         vim.wait(200, function()
-           return done
-         end)
+        vim.wait(200, function()
+          return done
+        end)
 
-         assert.is_not_nil(callback_result)
-         assert.are.equal(1, #callback_result.items)
-         local lsp_item = callback_result.items[1]
-         assert.is_not_nil(lsp_item.data)
-         assert.is_not_nil(lsp_item.data._opencode_item)
-         assert.are.equal(original_item.label, lsp_item.data._opencode_item.label)
-         assert.are.equal('value', lsp_item.data._opencode_item.data.custom)
-       end)
+        assert.is_not_nil(callback_result)
+        assert.are.equal(1, #callback_result.items)
+        local lsp_item = callback_result.items[1]
+        assert.is_not_nil(lsp_item.data)
+        assert.is_not_nil(lsp_item.data._opencode_item)
+        assert.are.equal(original_item.label, lsp_item.data._opencode_item.label)
+        assert.are.equal('value', lsp_item.data._opencode_item.data.custom)
+      end)
 
-       it('calculates correct textEdit range to replace typed word', function()
-         package.loaded['blink.cmp'] = nil
-         package.loaded['opencode.lsp.opencode_ls'] = nil
-         ls = require('opencode.lsp.opencode_ls')
+      it('calculates correct textEdit range to replace typed word', function()
+        package.loaded['blink.cmp'] = nil
+        package.loaded['opencode.lsp.opencode_ls'] = nil
+        ls = require('opencode.lsp.opencode_ls')
 
-         package.loaded['opencode.ui.completion'] = nil
-         local completion = require('opencode.ui.completion')
-         completion._sources = {}
+        package.loaded['opencode.ui.completion'] = nil
+        local completion = require('opencode.ui.completion')
+        completion._sources = {}
 
-         local item_for_range_test = {
-           label = 'tests',
-           kind = 'file',
-           kind_icon = '',
-           insert_text = 'tests',
-           source_name = 'range_test_source',
-           data = {},
-         }
+        local item_for_range_test = {
+          label = 'tests',
+          kind = 'file',
+          kind_icon = '',
+          insert_text = 'tests',
+          source_name = 'range_test_source',
+          data = {},
+        }
 
-         completion.register_source({
-           name = 'range_test_source',
-           priority = 1,
-           complete = function()
-             return Promise.new():resolve({ item_for_range_test })
-           end,
-           get_trigger_character = function()
-             return '@'
-           end,
-         })
+        completion.register_source({
+          name = 'range_test_source',
+          priority = 1,
+          complete = function()
+            return Promise.new():resolve({ item_for_range_test })
+          end,
+          get_trigger_character = function()
+            return '@'
+          end,
+        })
 
-         vim.api.nvim_buf_get_lines = function()
-           return { '@te' }
-         end
-         vim.api.nvim_get_current_line = function()
-           return '@te'
-         end
-         vim.api.nvim_win_get_cursor = function()
-           return { 1, 3 }
-         end
+        vim.api.nvim_buf_get_lines = function()
+          return { '@te' }
+        end
+        vim.api.nvim_get_current_line = function()
+          return '@te'
+        end
+        vim.api.nvim_win_get_cursor = function()
+          return { 1, 3 }
+        end
 
-         local config_obj = ls.create_config()
-         local server = config_obj.cmd({}, {})
+        local config_obj = ls.create_config()
+        local server = config_obj.cmd({}, {})
 
-         local done = false
-         local callback_result = nil
-         server.request('textDocument/completion', {
-           position = { line = 0, character = 3 },
-         }, function(err, result)
-           callback_result = result
-           done = true
-         end)
+        local done = false
+        local callback_result = nil
+        server.request('textDocument/completion', {
+          position = { line = 0, character = 3 },
+        }, function(err, result)
+          callback_result = result
+          done = true
+        end)
 
-         vim.wait(200, function()
-           return done
-         end)
+        vim.wait(200, function()
+          return done
+        end)
 
-         assert.is_not_nil(callback_result)
-         assert.are.equal(1, #callback_result.items)
-         local lsp_item = callback_result.items[1]
-         assert.is_not_nil(lsp_item.textEdit)
-         assert.is_not_nil(lsp_item.textEdit.range)
+        assert.is_not_nil(callback_result)
+        assert.are.equal(1, #callback_result.items)
+        local lsp_item = callback_result.items[1]
+        assert.is_not_nil(lsp_item.textEdit)
+        assert.is_not_nil(lsp_item.textEdit.range)
 
-         local range = lsp_item.textEdit.range
-         assert.are.equal(1, range.start.character, 'start should be at trigger char position + 1')
-         assert.are.equal(3, range['end'].character, 'end should be at cursor position')
-         assert.are.equal(0, range.start.line, 'line should be 0')
-         assert.are.equal(0, range['end'].line, 'line should be 0')
-       end)
+        local range = lsp_item.textEdit.range
+        assert.are.equal(1, range.start.character, 'start should be at trigger char position + 1')
+        assert.are.equal(3, range['end'].character, 'end should be at cursor position')
+        assert.are.equal(0, range.start.line, 'line should be 0')
+        assert.are.equal(0, range['end'].line, 'line should be 0')
+      end)
     end)
   end)
 end)

@@ -378,3 +378,49 @@ describe('util.parse_quick_context_args', function()
     end)
   end
 end)
+
+describe('util.is_path_in_cwd', function()
+  local original_getcwd
+  local test_cwd = '/tmp/test_project'
+
+  before_each(function()
+    original_getcwd = vim.fn.getcwd
+    vim.fn.getcwd = function()
+      return test_cwd
+    end
+  end)
+
+  after_each(function()
+    vim.fn.getcwd = original_getcwd
+  end)
+
+  it('accepts a relative path inside cwd', function()
+    assert.is_true(util.is_path_in_cwd('src/foo.lua'))
+  end)
+
+  it('accepts an absolute path inside cwd', function()
+    assert.is_true(util.is_path_in_cwd(test_cwd .. '/src/foo.lua'))
+  end)
+
+  it('accepts an absolute path through a symlinked directory in cwd', function()
+    assert.is_true(util.is_path_in_cwd(test_cwd .. '/linked_folder/test.txt'))
+  end)
+
+  it('rejects an absolute path outside cwd', function()
+    assert.is_false(util.is_path_in_cwd('/tmp/outside/foo.lua'))
+  end)
+
+  it('rejects a path that only shares the cwd prefix', function()
+    assert.is_false(util.is_path_in_cwd('/tmp/test_project2/src/foo.lua'))
+  end)
+
+  it('rejects a relative path that escapes cwd via ..', function()
+    assert.is_false(util.is_path_in_cwd('../outside/foo.lua'))
+  end)
+
+  it('accepts a relative path through a symlinked directory in cwd', function()
+    -- Simulate the symlink case: relative path stays logical (not resolved)
+    -- e.g. linked_folder -> /tmp/external, linked_folder/test.txt is valid
+    assert.is_true(util.is_path_in_cwd('linked_folder/test.txt'))
+  end)
+end)

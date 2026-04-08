@@ -7,6 +7,7 @@ local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 local assert = require('luassert')
+local flush = require('opencode.ui.renderer.flush')
 
 -- Provide a mock api_client for tests that need it
 local function mock_api_client()
@@ -428,6 +429,101 @@ describe('opencode.core', function()
 
       state.api_client.create_message = orig
       core.cancel = orig_cancel
+    end)
+  end)
+
+  describe('_on_user_message_count_change', function()
+    it('flushes deferred markdown render when thinking completes', function()
+      local flush_stub = stub(flush, 'flush_pending_on_data_rendered')
+
+      core._on_user_message_count_change(nil, { sess1 = 0 }, { sess1 = 1 }):wait()
+
+      assert.stub(flush_stub).was_called()
+      flush_stub:revert()
+    end)
+
+    it('restores a pending question after a full session render', function()
+      local renderer = require('opencode.ui.renderer')
+      local question_window = require('opencode.ui.question_window')
+
+      state.session.set_active({ id = 'sess1' })
+      state.ui.set_windows({ output_buf = 1, output_win = 2 })
+
+      local mounted_stub = stub(require('opencode.ui.output_window'), 'mounted').returns(true)
+      local fetch_stub = stub(session, 'get_messages').invokes(function()
+        return Promise.new():resolve({})
+      end)
+      local render_stub = stub(renderer, '_render_full_session_data')
+      local list_questions_stub = stub(state.api_client, 'list_questions').invokes(function()
+        return Promise.new():resolve({
+          {
+            id = 'q1',
+            sessionID = 'sess1',
+            questions = {
+              {
+                question = 'Pick one',
+                header = 'Test',
+                options = { { label = 'One', description = 'first' } },
+              },
+            },
+          },
+        })
+      end)
+      local show_stub = stub(question_window, 'show_question')
+
+      renderer.render_full_session():wait()
+
+      assert.stub(show_stub).was_called()
+
+      show_stub:revert()
+      list_questions_stub:revert()
+      render_stub:revert()
+      fetch_stub:revert()
+      mounted_stub:revert()
+      state.ui.set_windows(nil)
+    end)
+  end)
+
+  describe('markdown rendering metadata', function()
+    it('stores the markdown namespace on the output buffer before rendering', function()
+      local output_window = require('opencode.ui.output_window')
+      local buf = vim.api.nvim_create_buf(false, true)
+      local win = vim.api.nvim_open_win(buf, false, {
+        relative = 'editor',
+        width = 20,
+        height = 5,
+        row = 0,
+        col = 0,
+        style = 'minimal',
+      })
+
+      state.ui.set_windows({ output_buf = buf, output_win = win })
+      vim.api.nvim_buf_set_var(buf, 'opencode_markdown_namespace', 0)
+
+      local defer_stub = stub(vim, 'defer_fn').invokes(function(cb)
+        cb()
+        return 1
+      end)
+      local original_exists = vim.fn.exists
+      vim.fn.exists = function(name)
+        if name == ':RenderMarkdown' then
+          return 2
+        end
+        return original_exists(name)
+      end
+      local cmd_stub = stub(vim, 'cmd')
+
+      flush.trigger_on_data_rendered()
+
+      assert.equals(output_window.markdown_namespace, vim.b[buf].opencode_markdown_namespace)
+      assert.stub(cmd_stub).was_called_with(':RenderMarkdown')
+
+      cmd_stub:revert()
+      defer_stub:revert()
+      vim.fn.exists = original_exists
+      state.ui.set_windows(nil)
+      pcall(vim.api.nvim_win_close, win, true)
+      pcall(vim.api.nvim_buf_delete, buf, { force = true })
     end)
   end)
 

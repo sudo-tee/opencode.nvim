@@ -522,6 +522,35 @@ describe('opencode.api', function()
       config_file.get_opencode_config = original_get_opencode_config
       state.model.set_model(original_model)
     end)
+
+    it('does not overwrite a user-selected model from prior session messages', function()
+      local original_model = state.current_model
+      local original_mode = state.current_mode
+      local original_messages = state.messages
+
+      state.model.set_model('openai/gpt-4.1')
+      state.model.set_mode('plan')
+      state.renderer.set_messages({
+        {
+          info = {
+            id = 'm1',
+            providerID = 'anthropic',
+            modelID = 'claude-3-opus',
+            mode = 'build',
+          },
+        },
+      })
+
+      local model = api.current_model():wait()
+
+      assert.equal('openai/gpt-4.1', model)
+      assert.equal('openai/gpt-4.1', state.current_model)
+      assert.equal('plan', state.current_mode)
+
+      state.renderer.set_messages(original_messages)
+      state.model.set_mode(original_mode)
+      state.model.set_model(original_model)
+    end)
   end)
 
   describe('toggle_zoom', function()

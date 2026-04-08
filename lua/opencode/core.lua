@@ -528,10 +528,16 @@ M.ensure_current_mode = Promise.async(function()
   return true
 end)
 
----Initialize current model from messages or config.
+---@class InitializeCurrentModelOpts
+---@field restore_from_messages? boolean Restore model/mode from the most recent session message
+
+---Initialize current model from session messages or config.
+---@param opts? InitializeCurrentModelOpts
 ---@return string|nil The current model
-M.initialize_current_model = Promise.async(function()
-  if state.messages then
+M.initialize_current_model = Promise.async(function(opts)
+  opts = opts or {}
+
+  if opts.restore_from_messages and state.messages then
     for i = #state.messages, 1, -1 do
       local msg = state.messages[i]
       if msg and msg.info and msg.info.modelID and msg.info.providerID then

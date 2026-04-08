@@ -96,7 +96,9 @@ end
 ---Render all messages and parts from session_data into the output buffer
 ---Called after a full session fetch or when revert state changes
 ---@param session_data OpencodeMessage[]
-function M._render_full_session_data(session_data)
+---@param opts? { restore_model_from_messages?: boolean }
+function M._render_full_session_data(session_data, opts)
+  opts = opts or {}
   M.reset()
 
   if not state.active_session or not state.messages then
@@ -144,7 +146,9 @@ function M._render_full_session_data(session_data)
   flush.flush()
   flush.end_bulk_mode()
 
-  require('opencode.core').initialize_current_model()
+  if opts.restore_model_from_messages then
+    require('opencode.core').initialize_current_model({ restore_from_messages = true })
+  end
 
   M.scroll_to_bottom(true)
 
@@ -160,7 +164,7 @@ function M.render_full_session()
     return Promise.new():resolve(nil)
   end
   return fetch_session():and_then(function(session_data)
-    M._render_full_session_data(session_data)
+    M._render_full_session_data(session_data, { restore_model_from_messages = true })
     local active_session = state.active_session
     if active_session and active_session.id then
       require('opencode.ui.question_window').restore_pending_question(active_session.id)

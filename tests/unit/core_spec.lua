@@ -779,4 +779,48 @@ describe('opencode.core', function()
       config_file.get_opencode_config:revert()
     end)
   end)
+
+  describe('initialize_current_model', function()
+    it('keeps the current user-selected model and mode by default', function()
+      state.model.set_model('openai/gpt-4.1')
+      state.model.set_mode('plan')
+      state.renderer.set_messages({
+        {
+          info = {
+            id = 'm1',
+            providerID = 'anthropic',
+            modelID = 'claude-3-opus',
+            mode = 'build',
+          },
+        },
+      })
+
+      local model = core.initialize_current_model():wait()
+
+      assert.equal('openai/gpt-4.1', model)
+      assert.equal('openai/gpt-4.1', state.current_model)
+      assert.equal('plan', state.current_mode)
+    end)
+
+    it('restores the latest session model and mode when explicitly requested', function()
+      state.model.set_model('openai/gpt-4.1')
+      state.model.set_mode('plan')
+      state.renderer.set_messages({
+        {
+          info = {
+            id = 'm1',
+            providerID = 'anthropic',
+            modelID = 'claude-3-opus',
+            mode = 'build',
+          },
+        },
+      })
+
+      local model = core.initialize_current_model({ restore_from_messages = true }):wait()
+
+      assert.equal('anthropic/claude-3-opus', model)
+      assert.equal('anthropic/claude-3-opus', state.current_model)
+      assert.equal('build', state.current_mode)
+    end)
+  end)
 end)

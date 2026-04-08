@@ -55,7 +55,12 @@ local function with_suppressed_output_autocmds(fn)
   local begin_ok, began_update = xpcall(output_window.begin_update, debug.traceback)
   if not begin_ok then
     if has_output_win and supports_eventignorewin then
-      pcall(vim.api.nvim_set_option_value, 'eventignorewin', saved_eventignorewin, { win = output_win, scope = 'local' })
+      pcall(
+        vim.api.nvim_set_option_value,
+        'eventignorewin',
+        saved_eventignorewin,
+        { win = output_win, scope = 'local' }
+      )
     end
     error(began_update)
   end
@@ -319,9 +324,15 @@ local function format_part(part_id)
   end
 
   local is_last_part = (buffer.get_last_part_for_message(message) == part_id)
-  local ok, formatted_or_err = pcall(formatter.format_part, rendered_part.part, message, is_last_part, function(session_id)
-    return ctx.render_state:get_child_session_parts(session_id)
-  end)
+  local ok, formatted_or_err = pcall(
+    formatter.format_part,
+    rendered_part.part,
+    message,
+    is_last_part,
+    function(session_id)
+      return ctx.render_state:get_child_session_parts(session_id)
+    end
+  )
   if not ok then
     warn_part_render_error_once(part_id, rendered_part.message_id, formatted_or_err)
     return nil, rendered_part.message_id
@@ -448,7 +459,9 @@ local function do_trigger_on_data_rendered()
   if cb_type == 'function' then
     pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
   elseif vim.fn.exists(':RenderMarkdown') > 0 then
-    vim.cmd(':RenderMarkdown')
+    vim.api.nvim_buf_call(state.windows.output_buf, function()
+      vim.cmd(':RenderMarkdown buf_enable')
+    end)
   elseif vim.fn.exists(':Markview') > 0 then
     vim.cmd(':Markview render ' .. state.windows.output_buf)
   end

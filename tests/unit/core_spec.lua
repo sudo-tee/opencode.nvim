@@ -516,7 +516,7 @@ describe('opencode.core', function()
       flush.trigger_on_data_rendered()
 
       assert.equals(output_window.markdown_namespace, vim.b[buf].opencode_markdown_namespace)
-      assert.stub(cmd_stub).was_called_with(':RenderMarkdown')
+      assert.stub(cmd_stub).was_called_with(':RenderMarkdown buf_enable')
 
       cmd_stub:revert()
       defer_stub:revert()

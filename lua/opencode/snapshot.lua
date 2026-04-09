@@ -103,7 +103,7 @@ end
 ---@return RestorePoint[]
 function M.get_restore_points()
   if not state.active_session then
-    state.restore_points = {}
+    state.session.reset_restore_points()
     return {}
   end
   local cache_path = session.get_cache_path(state.active_session.id)
@@ -117,7 +117,7 @@ function M.get_restore_points()
   table.sort(restore_points, function(a, b)
     return a.created_at > b.created_at
   end)
-  state.restore_points = restore_points
+  state.session.set_restore_points(restore_points)
   return state.restore_points
 end
 

@@ -1,5 +1,6 @@
 local config = require('opencode.config')
 local util = require('opencode.util')
+local winbar = require('opencode.ui.winbar')
 
 local M = {}
 
@@ -53,25 +54,6 @@ local function create_winbar_text(description, token_info, win_width)
   return left_content .. desc_formatted .. right_content
 end
 
-local function update_winbar_highlights(win_id)
-  local current = vim.api.nvim_get_option_value('winhighlight', { win = win_id })
-  local parts = vim.split(current, ',')
-
-  -- Remove any existing winbar highlights
-  parts = vim.tbl_filter(function(part)
-    return not part:match('^WinBar:') and not part:match('^WinBarNC:')
-  end, parts)
-
-  if not vim.tbl_contains(parts, 'Normal:OpencodeNormal') then
-    table.insert(parts, 'Normal:OpencodeNormal')
-  end
-
-  table.insert(parts, 'WinBar:OpencodeSessionDescription')
-  table.insert(parts, 'WinBarNC:OpencodeSessionDescription')
-
-  vim.api.nvim_set_option_value('winhighlight', table.concat(parts, ','), { win = win_id })
-end
-
 local function get_session_desc()
   if state.is_opening then
     return 'Loading...'
@@ -106,7 +88,7 @@ function M.render()
     local winbar_str = create_winbar_text(desc, token_info, vim.api.nvim_win_get_width(win))
     vim.wo[win].winbar = winbar_str
 
-    update_winbar_highlights(win)
+    winbar.update_highlights(win, 'OpencodeSessionDescription')
   end)
 end
 
@@ -115,22 +97,22 @@ local function on_change(_, _, _)
 end
 
 function M.setup()
-  state.subscribe('current_mode', on_change)
-  state.subscribe('current_model', on_change)
-  state.subscribe('active_session', on_change)
-  state.subscribe('is_opencode_focused', on_change)
-  state.subscribe('tokens_count', on_change)
-  state.subscribe('cost', on_change)
-  state.subscribe('is_opening', on_change)
+  state.store.subscribe('current_mode', on_change)
+  state.store.subscribe('current_model', on_change)
+  state.store.subscribe('active_session', on_change)
+  state.store.subscribe('is_opencode_focused', on_change)
+  state.store.subscribe('tokens_count', on_change)
+  state.store.subscribe('cost', on_change)
+  state.store.subscribe('is_opening', on_change)
   M.render()
 end
 
 function M.close()
-  state.unsubscribe('current_mode', on_change)
-  state.unsubscribe('current_model', on_change)
-  state.unsubscribe('active_session', on_change)
-  state.unsubscribe('is_opencode_focused', on_change)
-  state.unsubscribe('tokens_count', on_change)
-  state.unsubscribe('cost', on_change)
+  state.store.unsubscribe('current_mode', on_change)
+  state.store.unsubscribe('current_model', on_change)
+  state.store.unsubscribe('active_session', on_change)
+  state.store.unsubscribe('is_opencode_focused', on_change)
+  state.store.unsubscribe('tokens_count', on_change)
+  state.store.unsubscribe('cost', on_change)
 end
 return M

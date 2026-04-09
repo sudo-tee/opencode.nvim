@@ -85,7 +85,9 @@ local function create_file_item(file, suffix, priority)
   local dir = vim.fn.fnamemodify(file, ':h')
   local file_path = dir == '.' and filename or dir .. '/' .. filename
   local detail = dir == '.' and filename or dir .. '/' .. filename
-  local full_path = vim.fn.fnamemodify(file, ':p')
+  -- Build absolute path without resolving symlinks so that files inside
+  -- symlinked directories within cwd pass the is_path_in_cwd check.
+  local full_path = file:sub(1, 1) == '/' and file or (vim.fn.getcwd() .. '/' .. file)
   local display_label = file_path
 
   local file_config = config.ui.completion.file_sources

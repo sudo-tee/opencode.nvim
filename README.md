@@ -168,16 +168,16 @@ require('opencode').setup({
     },
     input_window = {
       ['<S-cr>'] = { 'submit_input_prompt', mode = { 'n', 'i' } }, -- Submit prompt (normal mode and insert mode)
-      ['<esc>'] = { 'close' }, -- Close UI windows
-      ['<C-c>'] = { 'cancel' }, -- Cancel opencode request while it is running
+      ['<esc>'] = { 'close', defer_to_completion = true }, -- Close UI windows
+      ['<C-c>'] = { 'cancel', defer_to_completion = true }, -- Cancel opencode request while it is running
       ['~'] = { 'mention_file', mode = 'i' }, -- Pick a file and add to context. See File Mentions section
       ['@'] = { 'mention', mode = 'i' }, -- Insert mention (file/agent)
       ['/'] = { 'slash_commands', mode = 'i' }, -- Pick a command to run in the input window
       ['#'] = { 'context_items', mode = 'i' }, -- Manage context items (current file, selection, diagnostics, mentioned files)
       ['<M-v>'] = { 'paste_image', mode = 'i' }, -- Paste image from clipboard as attachment
-      ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
-      ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' } }, -- Navigate to previous prompt in history
-      ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' } }, -- Navigate to next prompt in history
+      ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' }, defer_to_completion = true }, -- Toggle between input and output panes
+      ['<up>'] = { 'prev_prompt_history', mode = { 'n', 'i' }, defer_to_completion = true }, -- Navigate to previous prompt in history
+      ['<down>'] = { 'next_prompt_history', mode = { 'n', 'i' }, defer_to_completion = true }, -- Navigate to next prompt in history
       ['<M-m>'] = { 'switch_mode' }, -- Switch between modes (build/plan)
       ['<M-r>'] = { 'cycle_variant', mode = { 'n', 'i' } }, -- Cycle through available model variants
     },
@@ -234,6 +234,7 @@ require('opencode').setup({
     },
     output = {
       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
+      compact_assistant_headers = false, -- Collapse consecutive assistant headers in the same mode to a right-aligned timestamp only
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
@@ -368,6 +369,7 @@ Each keymap entry is a table consising of:
 - Or a custom function: `{ function() ... end }`
 - An optional mode: `{ 'toggle', mode = { 'n', 'i' } }`
 - An optional desc: `{'toggle', desc = 'Toggle Opencode' }`
+- An optional defer_to_completion: `{'toggle', defer_to_completion = true }` if true, when completion menu is open, it will defer to the completion keymaps instead of triggering the action
 
 #### Disabling Specific Keymaps
 
@@ -661,13 +663,14 @@ Example keymap for silent add:
 
 **add_visual_selection_inline** inserts the visually selected code directly into the input buffer as a Markdown code block, prefixed with the file path:
 
-```
+````
 **`path/to/file.lua`**
 
 ```lua
 <selected text>
-```
-```
+````
+
+````
 
 The cursor is left in normal mode in the input buffer so you can type your prompt around the inserted snippet.
 
@@ -692,7 +695,7 @@ Run a prompt in a new session using the Plan agent and disabling current file co
 ```vim
 :Opencode run new_session "Please help me plan a new feature" agent=plan context.current_file.enabled=false
 :Opencode run "Fix the bug in the current file" model=github-copilot/claude-sonnet-4
-```
+````
 
 ## 👮 Permissions
 

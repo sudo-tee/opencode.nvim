@@ -5,6 +5,7 @@ local icons = require('opencode.ui.icons')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local prompt_guard_indicator = require('opencode.ui.prompt_guard_indicator')
+local winbar = require('opencode.ui.winbar')
 
 local function get_current_file_info(ctx)
   local current_file = ctx.current_file
@@ -151,26 +152,8 @@ local function format_winbar_text(segments)
   return left .. right_align .. table.concat(parts, '')
 end
 
-local function update_winbar_highlights(win_id)
-  local current = vim.api.nvim_get_option_value('winhighlight', { win = win_id })
-  local parts = vim.split(current, ',')
-
-  parts = vim.tbl_filter(function(part)
-    return not part:match('^WinBar:') and not part:match('^WinBarNC:')
-  end, parts)
-
-  if not vim.tbl_contains(parts, 'Normal:OpencodeNormal') then
-    table.insert(parts, 'Normal:OpencodeNormal')
-  end
-
-  table.insert(parts, 'WinBar:OpencodeContextBar')
-  table.insert(parts, 'WinBarNC:OpencodeContextBar')
-
-  vim.api.nvim_set_option_value('winhighlight', table.concat(parts, ','), { win = win_id })
-end
-
 function M.setup()
-  state.subscribe(
+  state.store.subscribe(
     { 'current_context_config', 'current_code_buf', 'is_opencode_focused', 'context_updated_at', 'user_message_count' },
     function()
       M.render()
@@ -188,7 +171,7 @@ function M.render(windows)
     local segments = create_winbar_segments()
 
     vim.wo[win].winbar = format_winbar_text(segments)
-    update_winbar_highlights(win)
+    winbar.update_highlights(win, 'OpencodeContextBar')
   end)
 end
 

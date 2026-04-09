@@ -75,7 +75,7 @@ end
 function M.call_api(url, method, body)
   local call_promise = Promise.new()
 
-  state.job_count = state.job_count + 1
+  state.jobs.increment_count()
 
   local request_entry = { nil, call_promise }
   table.insert(M.requests, request_entry)
@@ -87,7 +87,7 @@ function M.call_api(url, method, body)
         break
       end
     end
-    state.job_count = #M.requests
+    state.jobs.set_count(#M.requests)
   end
 
   local opts = {
@@ -246,7 +246,7 @@ local function spawn_and_retry(base_url, custom_port, custom_url, promise, timeo
 
   retry_connect(base_url, timeout, 3, function(url)
     port_mapping.register(custom_port, vim.fn.getcwd(), true, 'custom', url, server_pid)
-    state.opencode_server = opencode_server.from_custom(url, custom_port, 'custom')
+    state.jobs.set_server(opencode_server.from_custom(url, custom_port, 'custom'))
     promise:resolve(state.opencode_server)
   end, function(_err)
     if config.server.port == 'auto' then
@@ -264,7 +264,7 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
       local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
       local mode = config.server.spawn_command and 'custom' or 'attach'
       port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, mode, url, nil)
-      state.opencode_server = opencode_server.from_custom(url, custom_port, mode)
+      state.jobs.set_server(opencode_server.from_custom(url, custom_port, mode))
       log.notify(
         string.format('Connected to remote server at %s on port %d.', base_url, custom_port),
         vim.log.levels.INFO
@@ -285,7 +285,7 @@ end
 --- @param port? number|string Optional custom port
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
-  state.opencode_server = opencode_server.new()
+  state.jobs.set_server(opencode_server.new())
 
   local spawn_opts = {
     on_ready = function(job, base_url)
@@ -293,7 +293,7 @@ function M.spawn_local_server(promise, port, hostname)
       log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
       if url_port then
         local port_num = tonumber(url_port)
-        state.opencode_server.port = port_num
+        state.jobs.set_server_port(port_num)
         local server_pid = job and job.pid
         port_mapping.register(port_num, vim.fn.getcwd(), true, 'serve', nil, server_pid)
         log.debug(

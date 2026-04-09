@@ -54,12 +54,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
@@ -71,7 +71,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
 
     it('should display command output in output window', function()
@@ -113,12 +113,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo "hello world"' })
 
@@ -134,7 +134,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
 
     it('should prompt user to add output to input', function()
@@ -171,12 +171,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!ls' })
 
@@ -189,7 +189,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
 
     it('should append formatted output to input when user selects Yes', function()
@@ -220,12 +220,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
@@ -247,7 +247,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
 
     it('should clear output window when user selects No', function()
@@ -278,12 +278,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
@@ -296,7 +296,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
 
     it('should handle command errors', function()
@@ -336,12 +336,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!invalid_command' })
 
@@ -354,7 +354,7 @@ describe('input_window', function()
       vim.api.nvim_win_close(output_win, true)
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
     end)
   end)
 
@@ -383,14 +383,14 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
-      state.input_content = { '' }
-      state.display_route = false
+      })
+      state.ui.set_input_content({ '' })
+      state.ui.clear_display_route()
 
       config.ui.input.auto_hide = true
     end)
@@ -403,9 +403,9 @@ describe('input_window', function()
       pcall(vim.api.nvim_win_close, output_win, true)
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
-      state.windows = nil
-      state.input_content = nil
-      state.display_route = nil
+      state.ui.clear_windows()
+      state.ui.set_input_content(nil)
+      state.ui.clear_display_route()
       input_window._hidden = false
     end)
 
@@ -445,7 +445,7 @@ describe('input_window', function()
     it('should NOT auto-hide when input has content', function()
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'user typing...' })
-      state.input_content = { 'user typing...' }
+      state.ui.set_input_content({ 'user typing...' })
 
       local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
       input_window.setup_autocmds(state.windows, group)
@@ -463,7 +463,7 @@ describe('input_window', function()
 
     it('should NOT auto-hide when display_route is active', function()
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
-      state.display_route = true
+      state.ui.set_display_route(true)
 
       local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
       input_window.setup_autocmds(state.windows, group)
@@ -501,12 +501,12 @@ describe('input_window', function()
         col = 0,
       })
 
-      state.windows = {
+      state.ui.set_windows({
         input_buf = input_buf,
         input_win = input_win,
         output_buf = output_buf,
         output_win = output_win,
-      }
+      })
     end)
 
     after_each(function()
@@ -514,7 +514,7 @@ describe('input_window', function()
       pcall(vim.api.nvim_win_close, output_win, true)
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
-      state.windows = nil
+      state.ui.clear_windows()
       input_window._hidden = false
     end)
 

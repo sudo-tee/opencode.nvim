@@ -1,5 +1,3 @@
-local state = require('opencode.state')
-
 ---@class RenderedMessage
 ---@field message OpencodeMessage Direct reference to message in state.messages
 ---@field line_start integer? Line where message header starts
@@ -11,16 +9,16 @@ local state = require('opencode.state')
 ---@field line_start integer? Line where part starts
 ---@field line_end integer? Line where part ends
 ---@field actions table[] Actions associated with this part
-
----@class LineIndex
----@field line_to_part table<integer, string> Maps line number -> part ID
----@field line_to_message table<integer, string> Maps line number -> message ID
+---@field has_extmarks boolean? Whether the part currently has extmarks applied
 
 ---@class RenderState
 ---@field _messages table<string, RenderedMessage> Message ID -> rendered message
 ---@field _parts table<string, RenderedPart> Part ID -> rendered part
----@field _line_index LineIndex Line number -> ID mappings
----@field _line_index_valid boolean Whether line index is up to date
+---@field _part_ranges {[1]: integer, [2]: integer, [3]: string}[] Sorted [line_start, line_end, part_id] for binary search
+---@field _message_ranges {[1]: integer, [2]: integer, [3]: string}[] Sorted [line_start, line_end, message_id] for binary search
+---@field _ranges_valid boolean Whether range arrays are sorted and up-to-date
+---@field _max_line_end integer
+---@field _max_line_end_valid boolean
 local RenderState = {}
 RenderState.__index = RenderState
 
@@ -34,14 +32,46 @@ end
 function RenderState:reset()
   self._messages = {}
   self._parts = {}
-  self._line_index = {
-    line_to_part = {},
-    line_to_message = {},
-  }
+  self._orphan_parts = {}
+  self._orphan_parts_index = {}
+  self._part_ranges = {}
+  self._message_ranges = {}
+  self._ranges_valid = false
+  self._max_line_end = 0
+  self._max_line_end_valid = true
   self._child_session_parts = {}
+  self._child_session_parts_index = {} -- session_id -> part_id -> list_index
   self._child_session_task_parts = {}
   self._task_part_child_sessions = {}
-  self._line_index_valid = false
+  self._snapshot_id_index = {} -- snapshot_id -> OpencodeMessagePart
+end
+
+function RenderState:_recompute_max_line_end()
+  local max_line_end = 0
+
+  for _, msg_data in pairs(self._messages) do
+    if msg_data.line_end and msg_data.line_end > max_line_end then
+      max_line_end = msg_data.line_end
+    end
+  end
+
+  for _, part_data in pairs(self._parts) do
+    if part_data.line_end and part_data.line_end > max_line_end then
+      max_line_end = part_data.line_end
+    end
+  end
+
+  self._max_line_end = max_line_end
+  self._max_line_end_valid = true
+  return max_line_end
+end
+
+---@return integer
+function RenderState:_get_max_line_end()
+  if not self._max_line_end_valid then
+    return self:_recompute_max_line_end()
+  end
+  return self._max_line_end
 end
 
 ---@param part OpencodeMessagePart?
@@ -50,10 +80,8 @@ local function get_child_session_id_for_task_part(part)
   if not part or part.tool ~= 'task' then
     return nil
   end
-
   local part_state = part.state
   local metadata = part_state and part_state.metadata
-
   return metadata and metadata.sessionId or nil
 end
 
@@ -63,11 +91,9 @@ function RenderState:_clear_task_part_child_session(part_id)
   if not child_session_id then
     return
   end
-
   if self._child_session_task_parts[child_session_id] == part_id then
     self._child_session_task_parts[child_session_id] = nil
   end
-
   self._task_part_child_sessions[part_id] = nil
 end
 
@@ -75,82 +101,232 @@ end
 ---@param part OpencodeMessagePart
 function RenderState:_index_task_part_child_session(part_id, part)
   self:_clear_task_part_child_session(part_id)
-
   local child_session_id = get_child_session_id_for_task_part(part)
   if not child_session_id then
     return
   end
-
   self._child_session_task_parts[child_session_id] = part_id
   self._task_part_child_sessions[part_id] = child_session_id
 end
 
----Get parts for a child session
+---@param ranges {[1]: integer, [2]: integer, [3]: string}[]
+---@param line integer
+---@return string?
+local function range_lookup(ranges, line)
+  local lo, hi = 1, #ranges
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    local r = ranges[mid]
+    if line < r[1] then
+      hi = mid - 1
+    elseif line > r[2] then
+      lo = mid + 1
+    else
+      return r[3]
+    end
+  end
+  return nil
+end
+
+function RenderState:_rebuild_ranges()
+  local part_ranges = {}
+  for part_id, part_data in pairs(self._parts) do
+    if part_data.line_start and part_data.line_end then
+      part_ranges[#part_ranges + 1] = { part_data.line_start, part_data.line_end, part_id }
+    end
+  end
+  table.sort(part_ranges, function(a, b)
+    return a[1] < b[1]
+  end)
+  self._part_ranges = part_ranges
+
+  local msg_ranges = {}
+  for msg_id, msg_data in pairs(self._messages) do
+    if msg_data.line_start and msg_data.line_end then
+      msg_ranges[#msg_ranges + 1] = { msg_data.line_start, msg_data.line_end, msg_id }
+    end
+  end
+  table.sort(msg_ranges, function(a, b)
+    return a[1] < b[1]
+  end)
+  self._message_ranges = msg_ranges
+
+  self._ranges_valid = true
+end
+
+function RenderState:_ensure_ranges()
+  if not self._ranges_valid then
+    self:_rebuild_ranges()
+  end
+end
+
 ---@param session_id string
----@return OpencodeMessagePart[]?|nil
+---@return OpencodeMessagePart[]?
 function RenderState:get_child_session_parts(session_id)
   if not session_id then
     return nil
   end
-  return self._child_session_parts and self._child_session_parts[session_id]
+  return self._child_session_parts[session_id]
 end
 
----Get the owning task part for a child session
 ---@param session_id string
 ---@return string?
 function RenderState:get_task_part_by_child_session(session_id)
   if not session_id then
     return nil
   end
-
-  return self._child_session_task_parts and self._child_session_task_parts[session_id]
+  return self._child_session_task_parts[session_id]
 end
 
----Upsert a part associated with a child session
 ---@param session_id string
 ---@param part OpencodeMessagePart
 function RenderState:upsert_child_session_part(session_id, part)
   if not session_id or not part or not part.id then
     return
   end
-  self._child_session_parts = self._child_session_parts or {}
-  local session_parts = self._child_session_parts[session_id] or {}
-  local found = false
-  for i, existing in ipairs(session_parts) do
-    if existing.id == part.id then
-      session_parts[i] = part
-      found = true
-      break
-    end
+
+  local session_parts = self._child_session_parts[session_id]
+  if not session_parts then
+    session_parts = {}
+    self._child_session_parts[session_id] = session_parts
+    self._child_session_parts_index[session_id] = {}
   end
-  if not found then
-    table.insert(session_parts, part)
+
+  local idx = self._child_session_parts_index[session_id][part.id]
+  if idx then
+    session_parts[idx] = part
+  else
+    session_parts[#session_parts + 1] = part
+    self._child_session_parts_index[session_id][part.id] = #session_parts
   end
-  self._child_session_parts[session_id] = session_parts
 end
 
----Get message render data by ID
----@param message_id string Message ID
+---@param message_id string
 ---@return RenderedMessage?
 function RenderState:get_message(message_id)
   return self._messages[message_id]
 end
 
----Get part render data by ID
----@param part_id string Part ID
+---@param messages OpencodeMessage[]
+---@param message_id string
+---@return RenderedMessage?
+function RenderState:get_previous_message(messages, message_id)
+  for i = #messages, 1, -1 do
+    local message = messages[i]
+    if message and message.info and message.info.id == message_id then
+      if i <= 1 then
+        return nil
+      end
+      local previous_message = messages[i - 1]
+      return previous_message and previous_message.info and self._messages[previous_message.info.id] or nil
+    end
+  end
+  return nil
+end
+
+---@param message_id string
+---@param part OpencodeMessagePart
+function RenderState:upsert_orphan_part(message_id, part)
+  if not message_id or not part or not part.id then
+    return
+  end
+
+  local orphan_parts = self._orphan_parts[message_id]
+  if not orphan_parts then
+    orphan_parts = {}
+    self._orphan_parts[message_id] = orphan_parts
+    self._orphan_parts_index[message_id] = {}
+  end
+
+  local orphan_index = self._orphan_parts_index[message_id]
+  local idx = orphan_index[part.id]
+  if idx then
+    orphan_parts[idx] = part
+  else
+    orphan_parts[#orphan_parts + 1] = part
+    orphan_index[part.id] = #orphan_parts
+  end
+end
+
+---@param message_id string
+---@return OpencodeMessagePart[]
+function RenderState:consume_orphan_parts(message_id)
+  if not message_id then
+    return {}
+  end
+
+  local orphan_parts = self._orphan_parts[message_id] or {}
+  self._orphan_parts[message_id] = nil
+  self._orphan_parts_index[message_id] = nil
+  return orphan_parts
+end
+
+---@param message_id string
+---@param part_id string
+---@return boolean
+function RenderState:remove_orphan_part(message_id, part_id)
+  local orphan_parts = message_id and self._orphan_parts[message_id]
+  local orphan_index = message_id and self._orphan_parts_index[message_id]
+  local idx = orphan_index and orphan_index[part_id]
+  if not idx then
+    return false
+  end
+
+  table.remove(orphan_parts, idx)
+  orphan_index[part_id] = nil
+
+  for i = idx, #orphan_parts do
+    local part = orphan_parts[i]
+    if part and part.id then
+      orphan_index[part.id] = i
+    end
+  end
+
+  if #orphan_parts == 0 then
+    self._orphan_parts[message_id] = nil
+    self._orphan_parts_index[message_id] = nil
+  end
+
+  return true
+end
+
+---@param message_id string
+function RenderState:clear_orphan_parts(message_id)
+  if not message_id then
+    return
+  end
+
+  self._orphan_parts[message_id] = nil
+  self._orphan_parts_index[message_id] = nil
+end
+
+---@param line integer 1-indexed
+---@return RenderedMessage?
+function RenderState:get_message_at_line(line)
+  self:_ensure_ranges()
+  local msg_id = range_lookup(self._message_ranges, line)
+  return msg_id and self._messages[msg_id] or nil
+end
+
+---@param part_id string
 ---@return RenderedPart?
 function RenderState:get_part(part_id)
   return self._parts[part_id]
 end
 
----Get part ID by call ID and message ID
----@param call_id string Call ID
----@param message_id string Message ID to check the parts of
----@return string? part_id Part ID if found
+---@param line integer 1-indexed
+---@return RenderedPart?
+function RenderState:get_part_at_line(line)
+  self:_ensure_ranges()
+  local part_id = range_lookup(self._part_ranges, line)
+  return part_id and self._parts[part_id] or nil
+end
+
+---@param call_id string
+---@param message_id string
+---@return string?
 function RenderState:get_part_by_call_id(call_id, message_id)
   local rendered_message = self._messages[message_id]
-  -- There aren't a lot of parts per message and call_id lookups aren't very common so
-  -- a little iteration is fine
   if rendered_message and rendered_message.message and rendered_message.message.parts then
     for _, part in ipairs(rendered_message.message.parts) do
       if part.callID == call_id then
@@ -161,57 +337,17 @@ function RenderState:get_part_by_call_id(call_id, message_id)
   return nil
 end
 
----Get part ID by snapshot_id and message ID
----@param snapshot_id string Call ID
----@return OpencodeMessagePart? part Part if found
+---@param snapshot_id string
+---@return OpencodeMessagePart?
 function RenderState:get_part_by_snapshot_id(snapshot_id)
-  for _, rendered_message in pairs(self._messages or {}) do
-    for _, part in ipairs(rendered_message.message.parts or {}) do
-      if part.type == 'patch' and part.hash == snapshot_id then
-        return part
-      end
-    end
-  end
-  return nil
+  return self._snapshot_id_index[snapshot_id]
 end
 
----Ensure line index is up to date
-function RenderState:_ensure_line_index()
-  if not self._line_index_valid then
-    self:_rebuild_line_index()
-  end
-end
-
----Get part at specific line
----@param line integer Line number (1-indexed)
----@return RenderedPart?
-function RenderState:get_part_at_line(line)
-  self:_ensure_line_index()
-  local part_id = self._line_index.line_to_part[line]
-  if not part_id then
-    return nil
-  end
-  return self._parts[part_id]
-end
-
----Get message at specific line
----@param line integer Line number (1-indexed)
----@return RenderedMessage?
-function RenderState:get_message_at_line(line)
-  self:_ensure_line_index()
-  local message_id = self._line_index.line_to_message[line]
-  if not message_id then
-    return nil
-  end
-  return self._messages[message_id]
-end
-
----Get actions at specific line
----@param line integer Line number (0-indexed)
----@return table[] List of actions at that line
+---@param line integer
+---@return table[]
 function RenderState:get_actions_at_line(line)
-  self:_ensure_line_index()
-  local part_id = self._line_index.line_to_part[line]
+  self:_ensure_ranges()
+  local part_id = range_lookup(self._part_ranges, line)
   if not part_id then
     return {}
   end
@@ -224,107 +360,167 @@ function RenderState:get_actions_at_line(line)
   local actions = {}
   for _, action in ipairs(part_data.actions) do
     if action.range and action.range.from <= line and action.range.to >= line then
-      table.insert(actions, action)
+      actions[#actions + 1] = action
     end
   end
   return actions
 end
 
----Set or update message render data
----@param message OpencodeMessage Direct reference to message
----@param line_start integer? Line where message header starts
----@param line_end integer? Line where message header ends
+---@param part_id string
+---@param actions table[]
+---@param offset? integer Line offset to apply to action line numbers
+function RenderState:add_actions(part_id, actions, offset)
+  local part_data = self._parts[part_id]
+  if not part_data then
+    return
+  end
+  offset = offset or 0
+  for _, action in ipairs(actions) do
+    if offset ~= 0 then
+      if action.display_line then
+        action.display_line = action.display_line + offset
+      end
+      if action.range then
+        action.range.from = action.range.from + offset
+        action.range.to = action.range.to + offset
+      end
+    end
+    part_data.actions[#part_data.actions + 1] = action
+  end
+end
+
+---@param part_id string
+function RenderState:clear_actions(part_id)
+  local part_data = self._parts[part_id]
+  if part_data then
+    part_data.actions = {}
+  end
+end
+
+---@return table[]
+function RenderState:get_all_actions()
+  local all_actions = {}
+  for _, part_data in pairs(self._parts) do
+    if part_data.actions then
+      for _, action in ipairs(part_data.actions) do
+        all_actions[#all_actions + 1] = action
+      end
+    end
+  end
+  return all_actions
+end
+
+---@param message OpencodeMessage
+---@param line_start integer?
+---@param line_end integer?
 function RenderState:set_message(message, line_start, line_end)
   if not message or not message.info or not message.info.id then
     return
   end
   local message_id = message.info.id
 
-  if not self._messages[message_id] then
+  local existing = self._messages[message_id]
+  if not existing then
     self._messages[message_id] = {
       message = message,
       line_start = line_start,
       line_end = line_end,
     }
   else
-    local msg_data = self._messages[message_id]
-    msg_data.message = message
+    existing.message = message
     if line_start then
-      msg_data.line_start = line_start
+      existing.line_start = line_start
     end
     if line_end then
-      msg_data.line_end = line_end
+      existing.line_end = line_end
     end
   end
 
   if line_start and line_end then
-    self._line_index_valid = false
+    self._ranges_valid = false
+    if self._max_line_end_valid and line_end > self._max_line_end then
+      self._max_line_end = line_end
+    end
   end
 end
 
----Set or update part render data
----@param part OpencodeMessagePart Direct reference to part (must include id/messageID)
----@param line_start integer? Line where part starts
----@param line_end integer? Line where part ends
+---@param part OpencodeMessagePart
+---@param line_start integer?
+---@param line_end integer?
 function RenderState:set_part(part, line_start, line_end)
   if not part or not part.id then
     return
   end
-  
-  -- Allow special parts (like permissions) without messageID
   local part_id = part.id
   local message_id = part.messageID or 'special'
 
-  if not self._parts[part_id] then
+  local existing = self._parts[part_id]
+  if not existing then
     self._parts[part_id] = {
       part = part,
       message_id = message_id,
       line_start = line_start,
       line_end = line_end,
       actions = {},
+      has_extmarks = false,
     }
   else
-    local render_part = self._parts[part_id]
-    render_part.part = part
+    existing.part = part
     if message_id then
-      render_part.message_id = message_id
+      existing.message_id = message_id
     end
     if line_start then
-      render_part.line_start = line_start
+      existing.line_start = line_start
     end
     if line_end then
-      render_part.line_end = line_end
+      existing.line_end = line_end
     end
   end
 
   if line_start and line_end then
-    self._line_index_valid = false
+    self._ranges_valid = false
+    if self._max_line_end_valid and line_end > self._max_line_end then
+      self._max_line_end = line_end
+    end
+  end
+
+  if part.type == 'patch' and part.hash then
+    self._snapshot_id_index[part.hash] = part
   end
 
   self:_index_task_part_child_session(part_id, part)
 end
 
----Update part line positions and shift subsequent content
----@param part_id string Part ID
----@param new_line_start integer New start line
----@param new_line_end integer New end line
----@return boolean success
+---@param part_id string
+---@param new_line_start integer
+---@param new_line_end integer
+---@return boolean
 function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
   local part_data = self._parts[part_id]
   if not part_data or not part_data.line_start or not part_data.line_end then
     return false
   end
 
-  local old_line_start = part_data.line_start
+  if part_data.line_start == new_line_start and part_data.line_end == new_line_end then
+    return true
+  end
+
   local old_line_end = part_data.line_end
-  local old_line_count = old_line_end - old_line_start + 1
+  local old_line_count = old_line_end - part_data.line_start + 1
   local new_line_count = new_line_end - new_line_start + 1
   local delta = new_line_count - old_line_count
 
   part_data.line_start = new_line_start
   part_data.line_end = new_line_end
+  self._ranges_valid = false
 
-  self._line_index_valid = false
+  if self._max_line_end_valid then
+    if old_line_end == self._max_line_end and new_line_end < old_line_end then
+      self._max_line_end_valid = false
+    elseif new_line_end > self._max_line_end then
+      self._max_line_end = new_line_end
+    end
+  end
 
   if delta ~= 0 then
     self:shift_all(old_line_end + 1, delta)
@@ -333,9 +529,8 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
   return true
 end
 
----Update part data reference
----@param part_ref OpencodeMessagePart New part reference (must include id)
----@return RenderedPart? part The rendered part
+---@param part_ref OpencodeMessagePart
+---@return RenderedPart?
 function RenderState:update_part_data(part_ref)
   if not part_ref or not part_ref.id then
     return
@@ -344,77 +539,26 @@ function RenderState:update_part_data(part_ref)
   if not rendered_part then
     return
   end
-
   rendered_part.part = part_ref
+
+  if part_ref.type == 'patch' and part_ref.hash then
+    self._snapshot_id_index[part_ref.hash] = part_ref
+  end
+
   self:_index_task_part_child_session(part_ref.id, part_ref)
   return rendered_part
 end
 
----Helper to update action line numbers
----@param action table Action to update
----@param delta integer Line offset to apply
-local function shift_action_lines(action, delta)
-  if action.display_line then
-    action.display_line = action.display_line + delta
-  end
-  if action.range then
-    action.range.from = action.range.from + delta
-    action.range.to = action.range.to + delta
-  end
-end
-
----Add actions to a part
----@param part_id string Part ID
----@param actions table[] Actions to add
----@param offset? integer Optional line offset to apply to actions
-function RenderState:add_actions(part_id, actions, offset)
-  local part_data = self._parts[part_id]
-  if not part_data then
-    return
-  end
-
-  offset = offset or 0
-
-  for _, action in ipairs(actions) do
-    if offset ~= 0 then
-      shift_action_lines(action, offset)
-    end
-    table.insert(part_data.actions, action)
-  end
-end
-
----Clear actions for a part
----@param part_id string Part ID
-function RenderState:clear_actions(part_id)
-  local part_data = self._parts[part_id]
-  if not part_data then
-    return
-  end
-
-  part_data.actions = {}
-end
-
----Get all actions from all parts
----@return table[] List of all actions
-function RenderState:get_all_actions()
-  local all_actions = {}
-  for _, part_data in pairs(self._parts) do
-    if part_data.actions then
-      for _, action in ipairs(part_data.actions) do
-        table.insert(all_actions, action)
-      end
-    end
-  end
-  return all_actions
-end
-
----Remove part and shift subsequent content
----@param part_id string Part ID
----@return boolean success
+---@param part_id string
+---@return boolean
 function RenderState:remove_part(part_id)
   local part_data = self._parts[part_id]
   if not part_data then
     return false
+  end
+
+  if part_data.part and part_data.part.type == 'patch' and part_data.part.hash then
+    self._snapshot_id_index[part_data.part.hash] = nil
   end
 
   self:_clear_task_part_child_session(part_id)
@@ -428,16 +572,17 @@ function RenderState:remove_part(part_id)
   local shift_from = part_data.line_end + 1
 
   self._parts[part_id] = nil
-  self._line_index_valid = false
+  self._ranges_valid = false
+  if self._max_line_end_valid and part_data.line_end == self._max_line_end then
+    self._max_line_end_valid = false
+  end
 
   self:shift_all(shift_from, -line_count)
-
   return true
 end
 
----Remove message (header only, not parts)
----@param message_id string Message ID
----@return boolean success
+---@param message_id string
+---@return boolean
 function RenderState:remove_message(message_id)
   local msg_data = self._messages[message_id]
   if not msg_data or not msg_data.line_start or not msg_data.line_end then
@@ -448,97 +593,91 @@ function RenderState:remove_message(message_id)
   local shift_from = msg_data.line_end + 1
 
   self._messages[message_id] = nil
-  self._line_index_valid = false
+  self._ranges_valid = false
+  if self._max_line_end_valid and msg_data.line_end == self._max_line_end then
+    self._max_line_end_valid = false
+  end
 
   self:shift_all(shift_from, -line_count)
-
   return true
 end
 
----Shift all content starting from a line by delta
----Optimized to scan in reverse order and exit early
----@param from_line integer Line number to start shifting from
----@param delta integer Number of lines to shift (positive or negative)
-function RenderState:shift_all(from_line, delta)
-  if delta == 0 or not state.messages then
-    return
+local function shift_action(action, delta)
+  if action.display_line then
+    action.display_line = action.display_line + delta
   end
-
-  local found_content_before_from_line = false
-  local anything_shifted = false
-
-  for i = #state.messages, 1, -1 do
-    local message = state.messages[i] or {}
-
-    local msg_id = message.info and message.info.id
-    if msg_id then
-      local rendered_msg = self._messages[msg_id]
-      if rendered_msg and rendered_msg.line_start and rendered_msg.line_end then
-        if rendered_msg.line_start >= from_line then
-          rendered_msg.line_start = rendered_msg.line_start + delta
-          rendered_msg.line_end = rendered_msg.line_end + delta
-          anything_shifted = true
-        elseif rendered_msg.line_end < from_line then
-          found_content_before_from_line = true
-        end
-      end
-    end
-
-    if message.parts then
-      for j = #message.parts, 1, -1 do
-        local part = message.parts[j]
-        if part.id then
-          local rendered_part = self._parts[part.id]
-          if rendered_part and rendered_part.line_start and rendered_part.line_end then
-            if rendered_part.line_start >= from_line then
-              rendered_part.line_start = rendered_part.line_start + delta
-              rendered_part.line_end = rendered_part.line_end + delta
-              anything_shifted = true
-
-              if rendered_part.actions then
-                for _, action in ipairs(rendered_part.actions) do
-                  shift_action_lines(action, delta)
-                end
-              end
-            elseif rendered_part.line_end < from_line then
-              found_content_before_from_line = true
-            end
-          end
-        end
-      end
-    end
-
-    if found_content_before_from_line then
-      break
-    end
-  end
-
-  if anything_shifted then
-    self._line_index_valid = false
+  if action.range then
+    action.range.from = action.range.from + delta
+    action.range.to = action.range.to + delta
   end
 end
 
----Rebuild line index from current state
-function RenderState:_rebuild_line_index()
-  self._line_index.line_to_part = {}
-  self._line_index.line_to_message = {}
+--- Binary-search sorted ranges for the first entry whose line_start >= from_line.
+--- Returns the index, or #ranges + 1 if none qualify.
+---@param ranges {[1]: integer, [2]: integer, [3]: string}[]
+---@param from_line integer
+---@return integer
+local function first_range_at_or_after(ranges, from_line)
+  local lo, hi = 1, #ranges
+  local result = #ranges + 1
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    if ranges[mid][1] >= from_line then
+      result = mid
+      hi = mid - 1
+    else
+      lo = mid + 1
+    end
+  end
+  return result
+end
 
-  for msg_id, msg_data in pairs(self._messages) do
-    if msg_data.line_start and msg_data.line_end then
-      for line = msg_data.line_start, msg_data.line_end do
-        self._line_index.line_to_message[line] = msg_id
+function RenderState:shift_all(from_line, delta)
+  if delta == 0 then
+    return
+  end
+
+  if from_line > self:_get_max_line_end() then
+    return
+  end
+
+  -- Build fresh sorted ranges so we can search for the first entry at
+  -- or after from_line, then iterate only the suffix that needs shifting.
+  self:_rebuild_ranges()
+
+  local shifted = false
+
+  local msg_ranges = self._message_ranges
+  local first_msg = first_range_at_or_after(msg_ranges, from_line)
+  for i = first_msg, #msg_ranges do
+    local msg_data = self._messages[msg_ranges[i][3]]
+    if msg_data then
+      msg_data.line_start = msg_data.line_start + delta
+      msg_data.line_end = msg_data.line_end + delta
+      shifted = true
+    end
+  end
+
+  local part_ranges = self._part_ranges
+  local first_part = first_range_at_or_after(part_ranges, from_line)
+  for i = first_part, #part_ranges do
+    local part_data = self._parts[part_ranges[i][3]]
+    if part_data then
+      part_data.line_start = part_data.line_start + delta
+      part_data.line_end = part_data.line_end + delta
+      shifted = true
+      for _, action in ipairs(part_data.actions) do
+        shift_action(action, delta)
       end
     end
   end
 
-  for part_id, part_data in pairs(self._parts) do
-    if part_data.line_start and part_data.line_end then
-      for line = part_data.line_start, part_data.line_end do
-        self._line_index.line_to_part[line] = part_id
-      end
+  if shifted then
+    self._ranges_valid = false
+    if self._max_line_end_valid then
+      self._max_line_end = self._max_line_end + delta
     end
   end
-  self._line_index_valid = true
 end
 
 return RenderState

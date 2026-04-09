@@ -7,13 +7,13 @@ describe('loading_animation status text', function()
   before_each(function()
     original_time = os.time
     loading_animation._animation.status_data = nil
-    state.active_session = nil
+    state.session.clear_active()
   end)
 
   after_each(function()
     os.time = original_time
     loading_animation._animation.status_data = nil
-    state.active_session = nil
+    state.session.clear_active()
   end)
 
   it('renders busy as thinking text', function()
@@ -44,7 +44,7 @@ describe('loading_animation status text', function()
   end)
 
   it('ignores status updates for non-active sessions', function()
-    state.active_session = { id = 'ses_active' }
+    state.session.set_active({ id = 'ses_active' })
     loading_animation._animation.status_data = nil
 
     loading_animation.on_session_status({

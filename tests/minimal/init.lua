@@ -33,3 +33,9 @@ _G.test_plugin_root = plugin_root
 vim.opt.termguicolors = true
 
 require('opencode')
+
+-- Safely stub out treesitter during tests, using pcall(require, ...) so tests pass even if vim.treesitter is unavailable.
+local ok, ts = pcall(require, 'vim.treesitter')
+if ok and ts and ts.start then
+  ts.start = function() end
+end

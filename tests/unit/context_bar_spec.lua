@@ -37,7 +37,7 @@ describe('opencode.ui.context_bar', function()
     original_get_context = context.get_context
     original_is_context_enabled = context.is_context_enabled
     original_get_icon = icons.get
-    original_subscribe = state.subscribe
+    original_subscribe = state.store.subscribe
     original_schedule = vim.schedule
     original_api_win_is_valid = vim.api.nvim_win_is_valid
     original_api_get_option_value = vim.api.nvim_get_option_value
@@ -66,7 +66,7 @@ describe('opencode.ui.context_bar', function()
       return true -- Enable all context types by default
     end
 
-    state.subscribe = function(_, _)
+    state.store.subscribe = function(_, _)
       -- Mock implementation
     end
 
@@ -98,7 +98,7 @@ describe('opencode.ui.context_bar', function()
     vim.wo = {}
 
     -- Reset state
-    state.windows = nil
+    state.ui.set_windows(nil)
   end)
 
   after_each(function()
@@ -106,7 +106,7 @@ describe('opencode.ui.context_bar', function()
     context.get_context = original_get_context
     context.is_context_enabled = original_is_context_enabled
     icons.get = original_get_icon
-    state.subscribe = original_subscribe
+    state.store.subscribe = original_subscribe
     vim.schedule = original_schedule
     vim.api.nvim_win_is_valid = original_api_win_is_valid
     vim.api.nvim_get_option_value = original_api_get_option_value
@@ -120,7 +120,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2001
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -136,7 +136,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2002
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -153,7 +153,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2002
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -172,7 +172,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2003
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -195,7 +195,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2004
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -218,7 +218,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2004
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -240,7 +240,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2005
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -255,7 +255,7 @@ describe('opencode.ui.context_bar', function()
       local mock_input_win = 2006
       local winbar_capture = create_mock_window(mock_input_win)
 
-      state.windows = { input_win = mock_input_win }
+      state.ui.set_windows({ input_win = mock_input_win })
       context_bar.render()
 
       assert.is_string(winbar_capture.value)
@@ -288,7 +288,7 @@ describe('opencode.ui.context_bar', function()
       local subscription_called = false
       local captured_keys = nil
 
-      state.subscribe = function(keys, callback)
+      state.store.subscribe = function(keys, callback)
         subscription_called = true
         captured_keys = keys
         assert.is_table(keys)

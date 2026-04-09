@@ -214,7 +214,7 @@ describe('context update notifications', function()
     ChatContext.context.selections = { { file = { path = '/tmp/a.lua' }, lines = '1, 1', content = 'x' } }
     ChatContext.context.mentioned_subagents = { 'agent1' }
 
-    state.context_updated_at = 0
+    state.context.set_context_updated_at(0)
     local tick = 0
     original_now = vim.uv.now
     vim.uv.now = function()
@@ -268,14 +268,14 @@ describe('delta_context', function()
   it('removes current_file if unchanged', function()
     local file = { name = 'foo.lua', path = '/tmp/foo.lua', extension = 'lua' }
     mock_context.current_file = vim.deepcopy(file)
-    state.last_sent_context = { current_file = mock_context.current_file }
+    state.session.set_last_sent_context({ current_file = mock_context.current_file })
     local result = context.delta_context()
     assert.is_nil(result.current_file)
   end)
   it('removes mentioned_subagents if unchanged', function()
     local subagents = { 'a' }
     mock_context.mentioned_subagents = vim.deepcopy(subagents)
-    state.last_sent_context = { mentioned_subagents = vim.deepcopy(subagents) }
+    state.session.set_last_sent_context({ mentioned_subagents = vim.deepcopy(subagents) })
     local result = context.delta_context()
     assert.is_nil(result.mentioned_subagents)
   end)
@@ -417,7 +417,7 @@ describe('context toggle API', function()
   end)
 
   after_each(function()
-    state.current_context_config = original_context_config
+    state.context.set_current_context_config(original_context_config)
     context.load = original_load
   end)
 
@@ -436,9 +436,9 @@ describe('context toggle API', function()
 
   it('toggle_context inverts the current value', function()
     context.load = function() end
-    state.current_context_config = {
+    state.context.set_current_context_config({
       current_file = { enabled = false },
-    }
+    })
 
     local enabled = context.toggle_context('current_file')
 
@@ -760,8 +760,8 @@ describe('ChatContext.load() preserves selections on file switch', function()
     }
 
     -- Mock state to indicate active session
-    state.active_session = true
-    state.is_opening = false
+    state.session.set_active(true)
+    state.ui.set_opening(false)
   end)
 
   it('should not clear selections when switching to a different file', function()

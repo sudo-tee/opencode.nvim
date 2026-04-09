@@ -150,7 +150,6 @@ function M.paste_image_from_clipboard()
 
   if success then
     context.add_file(image_path)
-    state.context_updated_at = os.time()
     vim.notify('Image saved and added to context: ' .. vim.fn.fnamemodify(image_path, ':t'), vim.log.levels.INFO)
     return true
   end

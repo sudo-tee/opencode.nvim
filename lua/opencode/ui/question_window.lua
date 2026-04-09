@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 local Dialog = require('opencode.ui.dialog')
+local Promise = require('opencode.promise')
 
 local config = require('opencode.config')
 
@@ -12,17 +13,148 @@ M._collected_answers = {}
 M._answering = false
 M._dialog = nil
 
-local function render_question()
-  require('opencode.ui.renderer').render_question_display()
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+function M.matches_active_question(question_request)
+  return question_request ~= nil
+    and M._current_question ~= nil
+    and question_request.id ~= nil
+    and M._current_question.id == question_request.id
 end
 
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+function M.belongs_to_active_session(question_request)
+  if not question_request then
+    return false
+  end
+
+  local active_session = state.active_session
+  if active_session and active_session.id and question_request.sessionID == active_session.id then
+    return true
+  end
+
+  local tool = question_request.tool
+  local tool_message_id = tool and tool.messageID
+  if tool_message_id and state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == tool_message_id then
+        return true
+      end
+    end
+  end
+
+  if question_request.sessionID and question_request.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    return render_state:get_task_part_by_child_session(question_request.sessionID) ~= nil
+  end
+
+  return false
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function has_tool_identifiers(question_request)
+  local tool = question_request and question_request.tool
+  return tool ~= nil and ((tool.callID and tool.callID ~= '') or (tool.messageID and tool.messageID ~= ''))
+end
+
+---@param part OpencodeMessagePart|nil
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function question_part_matches_request(part, question_request)
+  if not part or part.tool ~= 'question' or not question_request then
+    return false
+  end
+
+  local tool = question_request.tool
+  if not tool then
+    return false
+  end
+
+  if tool.callID and tool.callID ~= '' and part.callID ~= tool.callID then
+    return false
+  end
+
+  if tool.messageID and tool.messageID ~= '' and part.messageID ~= tool.messageID then
+    return false
+  end
+
+  return true
+end
+
+---@param parts OpencodeMessagePart[]|nil
+---@param question_request OpencodeQuestionRequest|nil
+---@return OpencodeMessagePart|nil
+local function find_matching_question_part(parts, question_request)
+  for _, part in ipairs(parts or {}) do
+    if question_part_matches_request(part, question_request) then
+      return part
+    end
+  end
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return OpencodeMessagePart|nil
+local function get_question_part(question_request)
+  if not has_tool_identifiers(question_request) then
+    return nil
+  end
+
+  local tool = question_request.tool
+  local tool_message_id = tool and tool.messageID
+
+  if tool_message_id and state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == tool_message_id then
+        local part = find_matching_question_part(message.parts, question_request)
+        if part then
+          return part
+        end
+      end
+    end
+  end
+
+  if question_request and question_request.sessionID and question_request.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    return find_matching_question_part(render_state:get_child_session_parts(question_request.sessionID), question_request)
+  end
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+local function is_resolved_question_request(question_request)
+  local part = get_question_part(question_request)
+  if not part or not part.state then
+    return false
+  end
+
+  local metadata = part.state.metadata
+  if metadata and metadata.answers and #metadata.answers > 0 then
+    return true
+  end
+
+  local status = part.state.status
+  return status ~= nil and status ~= '' and status ~= 'pending' and status ~= 'running'
+end
+
+---Request the renderer to show the current question display.
+local function render_question()
+  require('opencode.ui.renderer.events').render_question_display()
+end
+
+---Request the renderer to remove the current question display.
 local function clear_question()
-  require('opencode.ui.renderer').clear_question_display()
+  require('opencode.ui.renderer.events').clear_question_display()
 end
 
 ---@param question_request OpencodeQuestionRequest
 function M.show_question(question_request)
   if not question_request or not question_request.questions or #question_request.questions == 0 then
+    return
+  end
+
+  if is_resolved_question_request(question_request) then
     return
   end
 
@@ -38,6 +170,50 @@ function M.show_question(question_request)
   end
 end
 
+---@param session_id string|nil
+function M.restore_pending_question(session_id)
+  if not state.api_client or not session_id or session_id == '' then
+    return Promise.new():resolve(nil)
+  end
+
+  if M.has_question() and M.belongs_to_active_session(M._current_question) then
+    if not is_resolved_question_request(M._current_question) then
+      return Promise.new():resolve(nil)
+    end
+
+    M.clear_question()
+  end
+
+  return state.api_client:list_questions()
+    :and_then(function(requests)
+      if not requests or type(requests) ~= 'table' then
+        return
+      end
+
+      for _, request in ipairs(requests) do
+        if request
+          and request.questions
+          and #request.questions > 0
+          and M.belongs_to_active_session(request)
+          and not is_resolved_question_request(request)
+        then
+          if M.matches_active_question(request) then
+            return
+          end
+
+          M.show_question(request)
+          return
+        end
+      end
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to restore pending question: ' .. vim.inspect(err), vim.log.levels.WARN)
+      end)
+    end)
+end
+
+---Reset the current question state and remove any dialog UI.
 function M.clear_question()
   M._clear_dialog()
   M._current_question = nil
@@ -88,6 +264,8 @@ local function answer_current_question(answer_value)
   end)
 end
 
+---@param options OpencodeQuestionOption[]
+---@return integer|nil
 local function find_other_option(options)
   for i, opt in ipairs(options) do
     if vim.startswith(opt.label:lower(), 'other') then
@@ -97,6 +275,8 @@ local function find_other_option(options)
   return nil
 end
 
+---@param question_info OpencodeQuestionInfo
+---@return integer
 local function get_total_options(question_info)
   local has_other = find_other_option(question_info.options) ~= nil
   return has_other and #question_info.options or (#question_info.options + 1)
@@ -125,6 +305,7 @@ function M._answer_with_option(option_index)
   answer_current_question(question_info.options[option_index].label)
 end
 
+---Prompt for a free-form answer to the active question.
 function M._answer_with_custom()
   vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
     if input and input ~= '' then
@@ -137,6 +318,8 @@ function M._answer_with_custom()
   end)
 end
 
+---@param options OpencodeQuestionOption[]
+---@return OpencodeQuestionOption[]
 local function add_other_if_missing(options)
   if find_other_option(options) ~= nil then
     return options
@@ -185,6 +368,7 @@ function M.format_display(output)
   })
 end
 
+---Create the in-buffer dialog used to answer the active question.
 function M._setup_dialog()
   if not M.has_question() then
     return
@@ -199,11 +383,13 @@ function M._setup_dialog()
 
   local buf = state.windows.output_buf
 
+  ---@return boolean
   local function check_focused()
     local ui = require('opencode.ui.ui')
     return ui.is_opencode_focused() and M.has_question()
   end
 
+  ---@param index integer
   local function on_select(index)
     if not check_focused() then
       return
@@ -216,6 +402,7 @@ function M._setup_dialog()
     end, 100)
   end
 
+  ---Reject the current question if the dialog is dismissed.
   local function on_dismiss()
     if not check_focused() then
       return
@@ -225,10 +412,12 @@ function M._setup_dialog()
     render_question()
   end
 
+  ---Refresh the rendered question state after navigation changes.
   local function on_navigate()
     render_question()
   end
 
+  ---@return integer
   local function get_option_count()
     local question_info = M.get_current_question_info()
     return question_info and get_total_options(question_info) or 0
@@ -247,6 +436,7 @@ function M._setup_dialog()
   M._dialog:setup()
 end
 
+---Tear down the active question dialog, if any.
 function M._clear_dialog()
   if M._dialog then
     M._dialog:teardown()

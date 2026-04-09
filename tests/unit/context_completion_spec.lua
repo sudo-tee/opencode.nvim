@@ -54,7 +54,12 @@ describe('context completion', function()
       remove_subagent = function() end,
       remove_selection = function() end,
       toggle_context = function(type)
-        if not vim.tbl_contains({ 'current_file', 'selection', 'diagnostics', 'cursor_data', 'buffer', 'git_diff' }, type) then
+        if
+          not vim.tbl_contains(
+            { 'current_file', 'selection', 'diagnostics', 'cursor_data', 'buffer', 'git_diff' },
+            type
+          )
+        then
           return nil
         end
         mock_state.current_context_config = mock_state.current_context_config or {}
@@ -65,24 +70,24 @@ describe('context completion', function()
       get_context = function()
         return {
           current_file = { extension = 'lua', name = 'test.lua', path = '/test/test.lua' },
-          selections = { 
-            { 
+          selections = {
+            {
               content = 'local x = 1',
               file = { extension = 'lua', name = 'test.lua' },
-              lines = '1-1'
-            } 
+              lines = '1-1',
+            },
           },
           mentioned_files = { '/path/to/file1.lua', '/path/to/file2.lua' },
           mentioned_subagents = { 'review', 'analyze' },
           linter_errors = {
             { severity = 1, msg = 'Test error message', pos = '1:10' },
-            { severity = 2, msg = 'Test warning message', pos = '2:15' }
+            { severity = 2, msg = 'Test warning message', pos = '2:15' },
           },
           cursor_data = {
             line = 42,
             column = 10,
-            line_content = 'local test = "hello"'
-          }
+            line_content = 'local test = "hello"',
+          },
         }
       end,
       context = {

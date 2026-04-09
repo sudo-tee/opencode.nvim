@@ -41,7 +41,7 @@ end
 
 function M.close()
   if state.display_route then
-    state.display_route = nil
+    state.ui.clear_display_route()
     ui.clear_output()
     -- need to trigger a re-render here to re-display the session
     ui.render_output()
@@ -61,7 +61,7 @@ end
 
 ---@return {status: 'closed'|'hidden'|'visible', position: string, windows: OpencodeWindowState|nil, cursor_positions: {input: integer[]|nil, output: integer[]|nil}}
 function M.get_window_state()
-  return state.get_window_state()
+  return state.ui.get_window_state()
 end
 
 ---@param hidden OpencodeHiddenBuffers|nil
@@ -82,7 +82,7 @@ end
 ---@return {focus: 'input'|'output', open_action: 'reuse_visible'|'restore_hidden'|'create_fresh'}
 local function build_toggle_open_context(restore_hidden)
   if restore_hidden then
-    local hidden = state.inspect_hidden_buffers()
+    local hidden = state.ui.inspect_hidden_buffers()
     return {
       focus = resolve_hidden_focus(hidden),
       open_action = 'restore_hidden',
@@ -98,7 +98,7 @@ local function build_toggle_open_context(restore_hidden)
 end
 
 M.toggle = Promise.async(function(new_session)
-  local decision = state.resolve_toggle_decision(config.ui.persist_state, state.display_route ~= nil)
+  local decision = state.ui.resolve_toggle_decision(config.ui.persist_state, state.display_route ~= nil)
   local action = decision.action
   local is_new_session = new_session == true
 
@@ -329,7 +329,7 @@ function M.set_review_breakpoint()
 end
 
 function M.prev_history()
-  if not state.is_visible() then
+  if not state.ui.is_visible() then
     return
   end
   local prev_prompt = history.prev()
@@ -340,7 +340,7 @@ function M.prev_history()
 end
 
 function M.next_history()
-  if not state.is_visible() then
+  if not state.ui.is_visible() then
     return
   end
   local next_prompt = history.next()
@@ -390,7 +390,7 @@ M.submit_input_prompt = Promise.async(function()
   if state.display_route then
     -- we're displaying /help or something similar, need to clear that and refresh
     -- the session data before sending the command
-    state.display_route = nil
+    state.ui.clear_display_route()
     ui.render_output(true)
   end
 
@@ -485,7 +485,7 @@ M.initialize = Promise.async(function()
     vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
     return
   end
-  state.active_session = new_session
+  state.session.set_active(new_session)
   M.open_input()
   state.api_client:init_session(state.active_session.id, {
     providerID = providerId,
@@ -533,7 +533,7 @@ end)
 
 function M.with_header(lines, show_welcome)
   show_welcome = show_welcome or false
-  state.display_route = '/header'
+  state.ui.set_display_route('/header')
 
   local msg = {
     '## Opencode.nvim',
@@ -558,7 +558,7 @@ function M.with_header(lines, show_welcome)
 end
 
 function M.help()
-  state.display_route = '/help'
+  state.ui.set_display_route('/help')
   M.open_input()
   local msg = M.with_header({
     '### Available Commands',
@@ -575,7 +575,7 @@ function M.help()
     '|--------------|-------------|',
   }, false)
 
-  if not state.is_visible() or not state.windows.output_win then
+  if not state.ui.is_visible() or not state.windows.output_win then
     return
   end
 
@@ -611,7 +611,7 @@ M.commands_list = Promise.async(function()
     return
   end
 
-  state.display_route = '/commands'
+  state.ui.set_display_route('/commands')
   M.open_input()
 
   local msg = M.with_header({
@@ -859,7 +859,7 @@ M.rename_session = Promise.async(function(current_session, new_title)
           local session_obj = session.get_by_id(current_session.id):await()
           if session_obj then
             session_obj.title = title
-            state.active_session = vim.deepcopy(session_obj)
+            state.session.set_active(vim.deepcopy(session_obj))
           end
         end
         promise:resolve(current_session)
@@ -1056,7 +1056,7 @@ M.review = Promise.async(function(args)
     vim.notify('Invalid model format: ' .. tostring(state.current_model), vim.log.levels.ERROR)
     return
   end
-  state.active_session = new_session
+  state.session.set_active(new_session)
   M.open_input():await()
   state.api_client
     :send_command(state.active_session.id, {
@@ -1204,7 +1204,7 @@ M.commands = {
               vim.notify('Failed to create new session', vim.log.levels.ERROR)
               return
             end
-            state.active_session = new_session
+            state.session.set_active(new_session)
             M.open_input()
           else
             M.open_input_new_session()

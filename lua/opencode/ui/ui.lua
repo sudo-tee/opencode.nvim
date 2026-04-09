@@ -13,8 +13,8 @@ local M = {}
 ---@return {input: integer[]|nil, output: integer[]|nil}
 local function capture_cursors_position(windows)
   return {
-    input = state.get_window_cursor(windows.input_win),
-    output = state.get_window_cursor(windows.output_win),
+    input = state.ui.get_window_cursor(windows.input_win),
+    output = state.ui.get_window_cursor(windows.output_win),
   }
 end
 
@@ -76,7 +76,7 @@ local function capture_hidden_snapshot(windows)
     output_view = ok and type(view) == 'table' and view or nil,
     focused_window = focused,
     position = config.ui.position,
-    owner_tab = state.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
+    owner_tab = state.ui.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
   }
 end
 
@@ -90,12 +90,13 @@ function M.close_windows(windows, persist)
   return M.teardown_visible_windows(windows)
 end
 
+---Clear Opencode-specific autocmds and shared UI state before closing windows.
 local function prepare_window_close()
   if M.is_opencode_focused() then
     M.return_to_last_code_win()
   end
   if state.display_route then
-    state.display_route = nil
+    state.ui.clear_display_route()
   end
 
   pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
@@ -105,6 +106,7 @@ local function prepare_window_close()
   topbar.close()
 end
 
+---@param windows OpencodeWindowState
 local function close_or_restore_output_window(windows)
   if config.ui.position == 'current' then
     if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
@@ -116,7 +118,7 @@ local function close_or_restore_output_window(windows)
         for opt, value in pairs(state.saved_window_options) do
           pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
         end
-        state.saved_window_options = nil
+        state.ui.set_saved_window_options(nil)
       end
     end
     return
@@ -125,6 +127,7 @@ local function close_or_restore_output_window(windows)
   pcall(vim.api.nvim_win_close, windows.output_win, true)
 end
 
+---@param windows OpencodeWindowState?
 function M.hide_visible_windows(windows)
   if not windows then
     return
@@ -139,10 +142,10 @@ function M.hide_visible_windows(windows)
   if config.ui.position ~= 'current' then
     local total_cols = vim.o.columns
     local current_width = vim.api.nvim_win_get_width(windows.output_win)
-    state.last_window_width_ratio = current_width / total_cols
+    state.ui.set_last_window_width_ratio(current_width / total_cols)
   end
 
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 
   prepare_window_close()
   footer.close(true)
@@ -157,18 +160,16 @@ function M.hide_visible_windows(windows)
   if windows.input_buf and vim.api.nvim_buf_is_valid(windows.input_buf) then
     local ok, lines = pcall(vim.api.nvim_buf_get_lines, windows.input_buf, 0, -1, false)
     if ok then
-      state.input_content = lines
+      state.ui.set_input_content(lines)
     end
   end
-  state.stash_hidden_buffers(snapshot)
+  state.ui.stash_hidden_buffers(snapshot)
   if state.windows == windows then
-    state.windows.input_win = nil
-    state.windows.output_win = nil
-    state.windows.footer_win = nil
-    state.windows.output_was_at_bottom = snapshot.output_was_at_bottom
+    state.ui.mark_windows_hidden(snapshot.output_was_at_bottom)
   end
 end
 
+---@param windows OpencodeWindowState?
 function M.teardown_visible_windows(windows)
   if not windows then
     return
@@ -184,15 +185,16 @@ function M.teardown_visible_windows(windows)
   pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
   pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
   if state.windows == windows then
-    state.windows = nil
+    state.ui.clear_windows()
   end
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
+---Drop preserved hidden buffers and clear hidden window state.
 function M.drop_hidden_snapshot()
   renderer.teardown()
 
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if hidden then
     for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf }) do
       if buf and vim.api.nvim_buf_is_valid(buf) then
@@ -202,13 +204,13 @@ function M.drop_hidden_snapshot()
   end
 
   input_window._hidden = false
-  state.clear_hidden_window_state()
+  state.ui.clear_hidden_window_state()
 end
 
 ---Restore windows using preserved buffers
 ---@return boolean success
 function M.restore_hidden_windows()
-  local hidden = state.inspect_hidden_buffers()
+  local hidden = state.ui.inspect_hidden_buffers()
   if not hidden then
     return false
   end
@@ -221,24 +223,22 @@ function M.restore_hidden_windows()
 
   local win_ids = M.create_split_windows(hidden.input_buf, hidden.output_buf)
 
-  state.consume_hidden_buffers()
+  state.ui.consume_hidden_buffers()
 
+  state.ui.set_windows({
+    input_buf = hidden.input_buf,
+    output_buf = hidden.output_buf,
+    footer_buf = footer_buf,
+    input_win = win_ids.input_win,
+    output_win = win_ids.output_win,
+    footer_win = nil,
+    output_was_at_bottom = hidden.output_was_at_bottom == true,
+    saved_width_ratio = state.last_window_width_ratio,
+  })
   local windows = state.windows
-  if not windows then
-    windows = {}
-    state.windows = windows
-  end
-  windows.input_buf = hidden.input_buf
-  windows.output_buf = hidden.output_buf
-  windows.footer_buf = footer_buf
-  windows.input_win = win_ids.input_win
-  windows.output_win = win_ids.output_win
-  windows.footer_win = nil
-  windows.output_was_at_bottom = hidden.output_was_at_bottom == true
-  windows.saved_width_ratio = state.last_window_width_ratio
 
-  state.set_cursor_position('input', hidden.input_cursor)
-  state.set_cursor_position('output', hidden.output_cursor)
+  state.ui.set_cursor_position('input', hidden.input_cursor)
+  state.ui.set_cursor_position('output', hidden.output_cursor)
 
   input_window.setup(windows)
   output_window.setup(windows)
@@ -263,7 +263,7 @@ function M.restore_hidden_windows()
     if hidden.output_was_at_bottom then
       renderer.scroll_to_bottom(true)
     else
-      restore_window_cursor(w.output_win, w.output_buf, state.get_cursor_position('output'))
+      restore_window_cursor(w.output_win, w.output_buf, state.ui.get_cursor_position('output'))
       if type(hidden.output_view) == 'table' then
         pcall(vim.api.nvim_win_call, w.output_win, function()
           vim.fn.winrestview(hidden.output_view)
@@ -272,7 +272,7 @@ function M.restore_hidden_windows()
     end
 
     if not hidden.input_hidden then
-      restore_window_cursor(w.input_win, w.input_buf, state.get_cursor_position('input'))
+      restore_window_cursor(w.input_win, w.input_buf, state.ui.get_cursor_position('input'))
     end
   end)
 
@@ -284,9 +284,10 @@ end
 ---Check if we have valid hidden buffers
 ---@return boolean
 function M.has_hidden_buffers()
-  return state.has_hidden_buffers()
+  return state.ui.has_hidden_buffers()
 end
 
+---Return focus to the window that was active before opening Opencode.
 function M.return_to_last_code_win()
   local last_win = state.last_code_win_before_opencode
   if last_win and vim.api.nvim_win_is_valid(last_win) then
@@ -294,6 +295,7 @@ function M.return_to_last_code_win()
   end
 end
 
+---@return { input_buf: integer, output_buf: integer, footer_buf: integer }
 function M.setup_buffers()
   local input_buf = input_window.create_buf()
   local output_buf = output_window.create_buf()
@@ -312,6 +314,9 @@ local function open_split(direction, type)
   return vim.api.nvim_get_current_win()
 end
 
+---@param input_buf integer
+---@param output_buf integer
+---@return { input_win: integer, output_win: integer }
 function M.create_split_windows(input_buf, output_buf)
   if input_window.mounted() or output_window.mounted() then
     M.close_windows(state.windows, false)
@@ -338,17 +343,23 @@ function M.create_split_windows(input_buf, output_buf)
   return { input_win = input_win, output_win = output_win }
 end
 
+---@return OpencodeWindowState
 function M.create_windows()
   if config.ui.enable_treesitter_markdown then
-    vim.treesitter.language.register('markdown', 'opencode_output')
-    vim.treesitter.language.register('markdown', 'opencode')
+    local ok, treesitter = pcall(function()
+      return vim.treesitter
+    end)
+
+    if ok and treesitter and treesitter.language and treesitter.language.register then
+      treesitter.language.register('markdown', 'opencode_output')
+      treesitter.language.register('markdown', 'opencode')
+    end
   end
 
   local autocmds = require('opencode.ui.autocmds')
 
   if not require('opencode.ui.ui').is_opencode_focused() then
-    state.last_code_win_before_opencode = vim.api.nvim_get_current_win()
-    state.current_code_buf = vim.api.nvim_get_current_buf()
+    state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
   end
 
   -- Create new windows from scratch
@@ -374,6 +385,7 @@ function M.create_windows()
   return windows
 end
 
+---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
   opts = opts or {}
   local windows = state.windows
@@ -404,6 +416,7 @@ function M.focus_input(opts)
   end
 end
 
+---@param opts? { restore_position?: boolean }
 function M.focus_output(opts)
   opts = opts or {}
   local windows = state.windows
@@ -418,6 +431,7 @@ function M.focus_output(opts)
   end
 end
 
+---@return boolean
 function M.is_opencode_focused()
   if not state.windows then
     return false
@@ -426,6 +440,8 @@ function M.is_opencode_focused()
   return M.is_opencode_window(current_win)
 end
 
+---@param win integer
+---@return boolean
 function M.is_opencode_window(win)
   local windows = state.windows
   if not windows then
@@ -434,6 +450,7 @@ function M.is_opencode_window(win)
   return win == windows.input_win or win == windows.output_win
 end
 
+---@return boolean
 function M.is_output_empty()
   local windows = state.windows
   if not windows or not windows.output_buf then
@@ -443,6 +460,7 @@ function M.is_output_empty()
   return #lines == 0 or (#lines == 1 and lines[1] == '')
 end
 
+---Reset renderer state and clear all visible output UI.
 function M.clear_output()
   renderer.reset()
   output_window.clear()
@@ -463,11 +481,14 @@ function M.render_output(synchronous, opts)
   end
 end
 
+---@param lines string[]
 function M.render_lines(lines)
   M.clear_output()
   renderer.render_lines(lines)
 end
 
+---@param sessions Session[]
+---@param cb fun(session: Session|nil)
 function M.select_session(sessions, cb)
   local session_picker = require('opencode.ui.session_picker')
   local util = require('opencode.util')
@@ -499,6 +520,7 @@ function M.select_session(sessions, cb)
   end
 end
 
+---Switch focus between the input and output panes.
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
   if state.windows and current_win == state.windows.input_win then
@@ -508,6 +530,7 @@ function M.toggle_pane()
   end
 end
 
+---Swap the split position and reopen the UI.
 function M.swap_position()
   local ui_conf = config.ui
   local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
@@ -521,6 +544,7 @@ function M.swap_position()
   end)
 end
 
+---Toggle the current Opencode window width between normal and zoomed.
 function M.toggle_zoom()
   local windows = state.windows
   if not windows or not (windows.output_win or windows.input_win) then
@@ -531,12 +555,13 @@ function M.toggle_zoom()
 
   if state.pre_zoom_width then
     width = state.pre_zoom_width
-    state.pre_zoom_width = nil
+    state.ui.set_pre_zoom_width(nil)
   else
-    state.pre_zoom_width = vim.api.nvim_win_get_width(windows.output_win)
+    state.ui.set_pre_zoom_width(vim.api.nvim_win_get_width(windows.output_win))
     width = math.floor(config.ui.zoom_width * vim.o.columns)
   end
 
+  ---@param win integer|nil
   local function resize_window(win)
     if not win or not vim.api.nvim_win_is_valid(win) then
       return

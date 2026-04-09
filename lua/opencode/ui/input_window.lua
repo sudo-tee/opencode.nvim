@@ -1,6 +1,8 @@
+local M = {}
+
 local state = require('opencode.state')
 local config = require('opencode.config')
-local M = {}
+local window_options = require('opencode.ui.window_options')
 
 -- Track hidden state
 M._hidden = false
@@ -121,10 +123,6 @@ function M.handle_submit()
     return false
   end
   ---@cast windows { input_buf: integer }
-  local completion = require('opencode.ui.completion')
-  if completion.is_completion_visible() then
-    return false
-  end
 
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
@@ -250,40 +248,30 @@ M._execute_slash_command = function(command)
   end
 end
 
-local function set_win_option(option, value, windows)
-  windows = windows or state.windows
-  vim.api.nvim_set_option_value(option, value, { win = windows.input_win, scope = 'local' })
-end
-
-local function set_buf_option(option, value, windows)
-  windows = windows or state.windows
-  vim.api.nvim_set_option_value(option, value, { buf = windows.input_buf })
-end
-
 function M.setup(windows)
   if config.ui.input.text.wrap then
-    set_win_option('wrap', true, windows)
-    set_win_option('linebreak', true, windows)
+    window_options.set_window_option('wrap', true, windows.input_win)
+    window_options.set_window_option('linebreak', true, windows.input_win)
   end
 
-  set_buf_option('filetype', 'opencode', windows)
-  set_win_option('winhighlight', config.ui.window_highlight, windows)
+  window_options.set_buffer_option('filetype', 'opencode', windows.input_buf)
+  window_options.set_window_option('winhighlight', config.ui.window_highlight, windows.input_win)
 
   -- Apply user-configurable window options
   local win_opts = config.ui.input.win_options or {}
   for opt, value in pairs(win_opts) do
-    pcall(set_win_option, opt, value, windows)
+    pcall(window_options.set_window_option, opt, value, windows.input_win)
   end
 
-  set_buf_option('buftype', 'nofile', windows)
-  set_buf_option('bufhidden', 'hide', windows)
-  set_buf_option('buflisted', false, windows)
-  set_buf_option('swapfile', false, windows)
+  window_options.set_buffer_option('buftype', 'nofile', windows.input_buf)
+  window_options.set_buffer_option('bufhidden', 'hide', windows.input_buf)
+  window_options.set_buffer_option('buflisted', false, windows.input_buf)
+  window_options.set_buffer_option('swapfile', false, windows.input_buf)
 
   if config.ui.position ~= 'current' then
-    set_win_option('winfixbuf', true, windows)
+    window_options.set_window_option('winfixbuf', true, windows.input_win)
   end
-  set_win_option('winfixwidth', true, windows)
+  window_options.set_window_option('winfixwidth', true, windows.input_win)
 
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)
@@ -473,7 +461,7 @@ function M.setup_keymaps(windows)
   keymaps_set_for_buf[windows.input_buf] = true
 
   local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf, true)
+  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
 end
 
 function M.setup_autocmds(windows, group)
@@ -482,7 +470,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       M.refresh_placeholder(windows)
-      state.last_focused_opencode_window = 'input'
+      state.ui.set_last_focused_window('input')
       require('opencode.ui.context_bar').render()
     end,
   })
@@ -514,7 +502,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.input_buf,
     callback = function()
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
-      state.input_content = input_lines
+      state.ui.set_input_content(input_lines)
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
       M.schedule_resize(windows)
@@ -525,9 +513,9 @@ function M.setup_autocmds(windows, group)
     group = group,
     buffer = windows.input_buf,
     callback = function()
-      local pos = state.get_window_cursor(windows.input_win)
+      local pos = state.ui.get_window_cursor(windows.input_win)
       if pos then
-        state.set_cursor_position('input', pos)
+        state.ui.set_cursor_position('input', pos)
       end
     end,
   })
@@ -562,9 +550,9 @@ function M._hide()
   M._hidden = true
   M._toggling = true
 
-  local pos = state.get_window_cursor(windows.input_win)
+  local pos = state.ui.get_window_cursor(windows.input_win)
   if pos then
-    state.set_cursor_position('input', pos)
+    state.ui.set_cursor_position('input', pos)
   end
 
   pcall(vim.api.nvim_win_close, windows.input_win, false)

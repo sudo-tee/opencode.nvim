@@ -68,6 +68,7 @@
 ---@field [1] string # Function name
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
+---@field defer_to_completion? boolean # Whether to defer the keymap when completion menu is open
 
 ---@class OpencodeKeymapEditor : table<string, OpencodeKeymapEntry>
 ---@class OpencodeKeymapInputWindow : table<string, OpencodeKeymapEntry>
@@ -171,6 +172,7 @@
 ---@class OpencodeUIOutputRenderingConfig
 ---@field markdown_debounce_ms number
 ---@field on_data_rendered (fun(buf: integer, win: integer)|boolean)|nil
+---@field markdown_on_idle boolean
 ---@field event_throttle_ms number
 ---@field event_collapsing boolean
 
@@ -179,6 +181,7 @@
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
+---@field compact_assistant_headers boolean
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config
@@ -206,6 +209,8 @@
 ---@field enabled boolean
 ---@field capture_streamed_events boolean
 ---@field show_ids boolean
+---@field highlight_changed_lines boolean
+---@field highlight_changed_lines_timeout_ms number
 ---@field quick_chat {keep_session: boolean, set_active_session: boolean}
 
 ---@class OpencodeHooks

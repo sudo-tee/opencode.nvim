@@ -6,11 +6,11 @@ describe('RenderState', function()
 
   before_each(function()
     render_state = RenderState.new()
-    state.messages = {}
+    state.renderer.set_messages({})
   end)
 
   after_each(function()
-    state.messages = {}
+    state.renderer.set_messages({})
   end)
 
   describe('new and reset', function()
@@ -18,20 +18,20 @@ describe('RenderState', function()
       assert.is_not_nil(render_state)
       assert.is_table(render_state._messages)
       assert.is_table(render_state._parts)
-      assert.is_table(render_state._line_index)
-      assert.is_false(render_state._line_index_valid)
+      assert.is_table(render_state._part_ranges)
+      assert.is_false(render_state._ranges_valid)
     end)
 
     it('resets to empty state', function()
       render_state._messages = { test = true }
       render_state._parts = { test = true }
-      render_state._line_index_valid = true
+      render_state._ranges_valid = true
       render_state:reset()
       assert.is_true(vim.tbl_isempty(render_state._messages))
       assert.is_true(vim.tbl_isempty(render_state._parts))
-      assert.is_true(vim.tbl_isempty(render_state._line_index.line_to_part))
-      assert.is_true(vim.tbl_isempty(render_state._line_index.line_to_message))
-      assert.is_false(render_state._line_index_valid)
+      assert.is_true(vim.tbl_isempty(render_state._part_ranges))
+      assert.is_true(vim.tbl_isempty(render_state._message_ranges))
+      assert.is_false(render_state._ranges_valid)
     end)
   end)
 
@@ -51,7 +51,7 @@ describe('RenderState', function()
       local msg = { info = { id = 'msg1' } }
       render_state:set_message(msg, 5, 7)
 
-      assert.is_false(render_state._line_index_valid)
+      assert.is_false(render_state._ranges_valid)
 
       local result = render_state:get_message_at_line(6)
       assert.is_not_nil(result)
@@ -88,7 +88,7 @@ describe('RenderState', function()
       local part = { id = 'part1', messageID = 'msg1' }
       render_state:set_part(part, 20, 22)
 
-      assert.is_false(render_state._line_index_valid)
+      assert.is_false(render_state._ranges_valid)
 
       local result = render_state:get_part_at_line(21)
       assert.is_not_nil(result)
@@ -119,6 +119,21 @@ describe('RenderState', function()
       render_state:set_part(part, 1, 2)
 
       assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
+    end)
+
+    it('stores child session parts independently', function()
+      local part = {
+        id = 'child-part-1',
+        messageID = 'msg-child',
+        sessionID = 'child-1',
+        tool = 'question',
+      }
+
+      render_state:upsert_child_session_part('child-1', part)
+
+      local child_parts = render_state:get_child_session_parts('child-1')
+      assert.equals(1, #child_parts)
+      assert.equals('child-part-1', child_parts[1].id)
     end)
   end)
 
@@ -251,7 +266,7 @@ describe('RenderState', function()
 
   describe('update_part_lines', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -259,7 +274,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('updates part line positions', function()
@@ -304,11 +319,22 @@ describe('RenderState', function()
       local success = render_state:update_part_lines('nonexistent', 10, 20)
       assert.is_false(success)
     end)
+
+    it('returns early when lines are unchanged', function()
+      local part = { id = 'part1', messageID = 'msg1' }
+      render_state:set_part(part, 10, 15)
+      render_state._ranges_valid = true
+
+      local success = render_state:update_part_lines('part1', 10, 15)
+
+      assert.is_true(success)
+      assert.is_true(render_state._ranges_valid)
+    end)
   end)
 
   describe('remove_part', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -316,7 +342,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('removes part and shifts subsequent content', function()
@@ -372,14 +398,14 @@ describe('RenderState', function()
 
   describe('remove_message', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
         },
         {
           info = { id = 'msg2' },
         },
-      }
+      })
     end)
 
     it('removes message and shifts subsequent content', function()
@@ -416,7 +442,7 @@ describe('RenderState', function()
 
   describe('shift_all', function()
     before_each(function()
-      state.messages = {
+      state.renderer.set_messages({
         {
           info = { id = 'msg1' },
           parts = {
@@ -424,7 +450,7 @@ describe('RenderState', function()
             { id = 'part2' },
           },
         },
-      }
+      })
     end)
 
     it('does nothing when delta is 0', function()
@@ -474,22 +500,22 @@ describe('RenderState', function()
       local part = { id = 'part1', messageID = 'msg1' }
       render_state:set_part(part, 10, 15)
 
-      render_state._line_index_valid = true
+      render_state._ranges_valid = true
 
       render_state:shift_all(100, 5)
 
-      assert.is_true(render_state._line_index_valid)
+      assert.is_true(render_state._ranges_valid)
     end)
 
     it('invalidates index when content shifted', function()
       local part = { id = 'part1', messageID = 'msg1' }
       render_state:set_part(part, 10, 15)
 
-      render_state._line_index_valid = true
+      render_state._ranges_valid = true
 
       render_state:shift_all(10, 5)
 
-      assert.is_false(render_state._line_index_valid)
+      assert.is_false(render_state._ranges_valid)
     end)
 
     it('exits early when content found before from_line', function()
@@ -505,6 +531,19 @@ describe('RenderState', function()
 
       local result2 = render_state:get_part('part2')
       assert.equals(60, result2.line_start)
+    end)
+
+    it('exits early when from_line is after max rendered line', function()
+      local part = { id = 'part1', messageID = 'msg1' }
+      render_state:set_part(part, 10, 15)
+
+      render_state._ranges_valid = true
+      render_state:shift_all(100, 5)
+
+      local result = render_state:get_part('part1')
+      assert.equals(10, result.line_start)
+      assert.equals(15, result.line_end)
+      assert.is_true(render_state._ranges_valid)
     end)
   end)
 

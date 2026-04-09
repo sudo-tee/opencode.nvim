@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local icons = require('opencode.ui.icons')
 
 local M = {}
 
@@ -25,7 +26,6 @@ function M.format(output, part)
   end
   local formatter_utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
-  local icons = require('opencode.ui.icons')
 
   local metadata = part.state and part.state.metadata or {}
   for _, file in ipairs(metadata.files or {}) do

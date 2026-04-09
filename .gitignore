@@ -19,3 +19,6 @@ doc/tags
 
 # Test dependencies
 deps/
+
+# Local Claude settings (keep out of repo)
+.claude/

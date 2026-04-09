@@ -43,13 +43,13 @@ describe('ui zoom state', function()
       output_buf = output_buf,
       output_win = output_win,
     }
-    state.windows = windows
-    state.pre_zoom_width = nil
+    state.ui.set_windows(windows)
+    state.ui.set_pre_zoom_width(nil)
   end)
 
   after_each(function()
     vim.o.columns = original_columns
-    state.pre_zoom_width = nil
+    state.ui.set_pre_zoom_width(nil)
 
     if windows then
       pcall(vim.api.nvim_win_close, windows.input_win, true)
@@ -57,7 +57,7 @@ describe('ui zoom state', function()
       pcall(vim.api.nvim_buf_delete, windows.input_buf, { force = true })
       pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
     end
-    state.windows = nil
+    state.ui.clear_windows()
   end)
 
   describe('toggle_zoom', function()
@@ -101,7 +101,7 @@ describe('ui zoom state', function()
   describe('input_window.update_dimensions', function()
     it('does not change input window width', function()
       local original_width = vim.api.nvim_win_get_width(windows.input_win)
-      
+
       input_window.update_dimensions(windows)
 
       local actual_width = vim.api.nvim_win_get_width(windows.input_win)
@@ -109,7 +109,7 @@ describe('ui zoom state', function()
     end)
 
     it('does not change input window width when zoomed', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
       local original_width = vim.api.nvim_win_get_width(windows.input_win)
 
       input_window.update_dimensions(windows)
@@ -119,7 +119,7 @@ describe('ui zoom state', function()
     end)
 
     it('preserves zoom state after update_dimensions', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       input_window.update_dimensions(windows)
 
@@ -211,7 +211,7 @@ describe('ui zoom state', function()
     end)
 
     it('uses zoom_width when zoomed', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       output_window.update_dimensions(windows)
 
@@ -222,11 +222,73 @@ describe('ui zoom state', function()
     end)
 
     it('preserves zoom state after update_dimensions', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
 
       output_window.update_dimensions(windows)
 
       assert.equals(80, state.pre_zoom_width)
+    end)
+
+    it('does not error when focused window is floating and output window is split', function()
+      local split_buf = vim.api.nvim_create_buf(false, true)
+      local focus_buf = vim.api.nvim_create_buf(false, true)
+      local split_win
+      local focus_win
+
+      local normal_win
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_config(win).relative == '' then
+          normal_win = win
+          break
+        end
+      end
+
+      assert.is_not_nil(normal_win)
+      vim.api.nvim_set_current_win(normal_win)
+      vim.cmd('vsplit')
+      split_win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(split_win, split_buf)
+
+      focus_win = vim.api.nvim_open_win(focus_buf, true, {
+        relative = 'editor',
+        width = 20,
+        height = 5,
+        row = 1,
+        col = 1,
+        style = 'minimal',
+      })
+
+      assert.has_no.errors(function()
+        output_window.update_dimensions({ output_win = split_win, output_buf = split_buf })
+      end)
+
+      local expected_width = math.floor(config.ui.window_width * vim.o.columns)
+      assert.equals(expected_width, vim.api.nvim_win_get_width(split_win))
+
+      pcall(vim.api.nvim_win_close, focus_win, true)
+      pcall(vim.api.nvim_win_close, split_win, true)
+      pcall(vim.api.nvim_buf_delete, focus_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, split_buf, { force = true })
+    end)
+
+    it('does not error when output window is invalid', function()
+      local invalid_buf = vim.api.nvim_create_buf(false, true)
+      local invalid_win = vim.api.nvim_open_win(invalid_buf, false, {
+        relative = 'editor',
+        width = 20,
+        height = 5,
+        row = 2,
+        col = 2,
+        style = 'minimal',
+      })
+
+      vim.api.nvim_win_close(invalid_win, true)
+
+      assert.has_no.errors(function()
+        output_window.update_dimensions({ output_win = invalid_win, output_buf = invalid_buf })
+      end)
+
+      pcall(vim.api.nvim_buf_delete, invalid_buf, { force = true })
     end)
   end)
 
@@ -281,7 +343,7 @@ describe('ui zoom state', function()
     it('does not save width in dialog mode (position=current)', function()
       local original_position = config.ui.position
       config.ui.position = 'current'
-      state.last_window_width_ratio = nil
+      state.ui.clear_last_window_width_ratio()
 
       ui.hide_visible_windows(windows)
       assert.is_nil(state.last_window_width_ratio)
@@ -302,7 +364,7 @@ describe('ui zoom state', function()
     end)
 
     it('prefers saved width over zoom width', function()
-      state.pre_zoom_width = 80
+      state.ui.set_pre_zoom_width(80)
       local saved_ratio = 0.5
       windows.saved_width_ratio = saved_ratio
 

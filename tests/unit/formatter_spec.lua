@@ -2,12 +2,15 @@ local assert = require('luassert')
 local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local Output = require('opencode.ui.output')
+local state = require('opencode.state')
+local util = require('opencode.util')
 
 describe('formatter', function()
   before_each(function()
     config.setup({
       ui = {
         output = {
+          compact_assistant_headers = false,
           tools = {
             show_output = true,
           },
@@ -198,5 +201,235 @@ describe('formatter', function()
     assert.are.equal('11', add_mark.virt_text[1][1])
     assert.are.equal('+', add_mark.virt_text[2][1])
     assert.are.equal('OpencodeDiffAddGutter', add_mark.virt_text[1][2])
+  end)
+
+  it('formats grep tools when streamed input contains vim.NIL placeholders', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_grep_1',
+      type = 'tool',
+      tool = 'grep',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          path = vim.NIL,
+          include = '*.lua',
+          pattern = 'eventignore',
+        },
+        metadata = {
+          matches = 3,
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true)
+
+    assert.are.equal('**  grep** `*.lua eventignore` 1s', output.lines[1])
+    assert.are.equal('Found `3` matches', output.lines[2])
+  end)
+
+  it('anchors snapshot actions to the snapshot and restore lines', function()
+    local snapshot = require('opencode.snapshot')
+    local original_get_restore_points_by_parent = snapshot.get_restore_points_by_parent
+
+    snapshot.get_restore_points_by_parent = function(hash)
+      if hash == 'abcdef123456' then
+        return {
+          {
+            id = 'restore123456',
+            created_at = 1,
+          },
+        }
+      end
+      return {}
+    end
+
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_patch_1',
+      type = 'patch',
+      hash = 'abcdef123456',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+    }
+
+    local output = formatter.format_part(part, message, true)
+
+    snapshot.get_restore_points_by_parent = original_get_restore_points_by_parent
+
+    assert.are.same({ 0, 0, 0, 1, 1 }, vim.tbl_map(function(action)
+      return action.display_line
+    end, output.actions))
+  end)
+
+  it('falls back to current mode for assistant messages without a stamped mode', function()
+    state.model.set_mode('build')
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    })
+
+    assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
+  end)
+
+  it('renders minimal same-mode assistant headers with only right-aligned time', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = true,
+        },
+      },
+    })
+
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+        time = {
+          created = 1,
+        },
+      },
+      parts = {},
+    }, {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+      },
+      parts = {},
+    })
+
+    assert.are.same({ '', '' }, output.lines)
+    assert.is_truthy(output.extmarks[0])
+    assert.are.equal(util.format_time(1), output.extmarks[0][1].virt_text[1][1])
+    assert.are.equal('right_align', output.extmarks[0][1].virt_text_pos)
+  end)
+
+  it('keeps full assistant headers when the mode changes', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = true,
+        },
+      },
+    })
+
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+        time = {
+          created = 1,
+        },
+      },
+      parts = {},
+    }, {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'plan',
+      },
+      parts = {},
+    })
+
+    assert.are.same({ '----', '', '' }, output.lines)
+    assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
+  end)
+
+  it('anchors task child-session action to the rendered task block', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_task_1',
+      type = 'tool',
+      tool = 'task',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          description = 'review changes',
+          subagent_type = 'explore',
+        },
+        metadata = {
+          sessionId = 'ses_child',
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local child_parts = {
+      {
+        id = 'prt_child_1',
+        type = 'tool',
+        tool = 'read',
+        messageID = 'msg_child_1',
+        sessionID = 'ses_child',
+        state = {
+          status = 'completed',
+          input = {
+            filePath = '/tmp/project',
+          },
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true, function(session_id)
+      if session_id == 'ses_child' then
+        return child_parts
+      end
+      return nil
+    end)
+
+    assert.are.same({
+      text = '[S]elect Child Session',
+      type = 'select_child_session',
+      args = {},
+      key = 'S',
+      display_line = 1,
+      range = { from = 2, to = 5 },
+    }, output.actions[1])
   end)
 end)

@@ -183,6 +183,7 @@ local log = require('opencode.log')
 --- @field state_cwd_listener function|nil Listener for state.current_cwd updates
 --- @field is_started boolean Whether the event manager is started
 --- @field captured_events table[] List of captured events for debugging
+--- @field ignored_events string[] List of event types to ignore when capturing
 --- @field throttling_emitter ThrottlingEmitter Throttle instance for batching events
 local EventManager = {}
 EventManager.__index = EventManager
@@ -197,6 +198,7 @@ function EventManager.new()
     state_cwd_listener = nil,
     is_started = false,
     captured_events = {},
+    ignored_events = { 'server.heartbeat' },
     _parts_by_id = {},
   }, EventManager)
 
@@ -480,7 +482,7 @@ function EventManager:start()
   self.is_started = true
 
   if self.state_server_listener then
-    state.unsubscribe('opencode_server', self.state_server_listener)
+    state.store.unsubscribe('opencode_server', self.state_server_listener)
   end
 
   self.state_server_listener = function(key, current, prev)
@@ -504,10 +506,10 @@ function EventManager:start()
     end
   end
 
-  state.subscribe('opencode_server', self.state_server_listener)
+  state.store.subscribe('opencode_server', self.state_server_listener)
 
   if self.state_cwd_listener then
-    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    state.store.unsubscribe('current_cwd', self.state_cwd_listener)
   end
 
   self.state_cwd_listener = function(key, new_cwd, old_cwd)
@@ -517,7 +519,7 @@ function EventManager:start()
     end
   end
 
-  state.subscribe('current_cwd', self.state_cwd_listener)
+  state.store.subscribe('current_cwd', self.state_cwd_listener)
 end
 
 function EventManager:stop()
@@ -527,11 +529,11 @@ function EventManager:stop()
 
   self.is_started = false
   if self.state_server_listener then
-    state.unsubscribe('opencode_server', self.state_server_listener)
+    state.store.unsubscribe('opencode_server', self.state_server_listener)
     self.state_server_listener = nil
   end
   if self.state_cwd_listener then
-    state.unsubscribe('current_cwd', self.state_cwd_listener)
+    state.store.unsubscribe('current_cwd', self.state_cwd_listener)
     self.state_cwd_listener = nil
   end
   self:_cleanup_server_subscription()
@@ -553,6 +555,14 @@ function EventManager:_subscribe_to_server_events(server)
   local api_client = state.api_client
 
   local emitter = function(event)
+    if not event or not event.type then
+      log.warn('Received malformed event from server: %s', vim.inspect(event))
+      return
+    end
+    if self.ignored_events and vim.tbl_contains(self.ignored_events, event.type) then
+      log.debug('Ignoring event of type %s', event.type)
+      return
+    end
     self.throttling_emitter:enqueue(event)
   end
 
@@ -593,8 +603,9 @@ function EventManager:get_subscriber_count(event_name)
 end
 
 function EventManager.setup()
-  state.event_manager = EventManager.new()
-  state.event_manager:start()
+  local manager = EventManager.new()
+  state.jobs.set_event_manager(manager)
+  manager:start()
 end
 
 return EventManager

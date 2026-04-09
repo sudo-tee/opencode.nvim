@@ -175,7 +175,7 @@ function M.add_selection(selection)
   end
 
   table.insert(M.context.selections, selection)
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_selection(selection)
@@ -190,12 +190,12 @@ function M.remove_selection(selection)
       break
     end
   end
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_selections()
   M.context.selections = {}
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.add_file(file)
@@ -210,7 +210,7 @@ function M.add_file(file)
   if not vim.tbl_contains(M.context.mentioned_files, file) then
     table.insert(M.context.mentioned_files, file)
   end
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_file(file)
@@ -226,12 +226,12 @@ function M.remove_file(file)
       break
     end
   end
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_files()
   M.context.mentioned_files = {}
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.add_subagent(subagent)
@@ -243,7 +243,7 @@ function M.add_subagent(subagent)
   if not vim.tbl_contains(M.context.mentioned_subagents, subagent) then
     table.insert(M.context.mentioned_subagents, subagent)
   end
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.remove_subagent(subagent)
@@ -258,18 +258,18 @@ function M.remove_subagent(subagent)
       break
     end
   end
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.clear_subagents()
   M.context.mentioned_subagents = {}
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.unload_attachments()
   M.context.mentioned_files = {}
   M.context.selections = {}
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.get_mentioned_files()
@@ -402,7 +402,7 @@ function M.load()
     or not vim.deep_equal(prev_cursor_data, M.context.cursor_data)
     or not vim.deep_equal(prev_linter_errors, M.context.linter_errors)
   then
-    state.context_updated_at = vim.uv.now()
+    state.context.set_context_updated_at(vim.uv.now())
   end
 
   -- Handle current selection
@@ -471,7 +471,7 @@ function M.delta_context(opts)
     end
   end
 
-  state.context_updated_at = vim.uv.now()
+  state.context.set_context_updated_at(vim.uv.now())
   return ctx
 end
 

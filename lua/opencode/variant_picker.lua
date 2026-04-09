@@ -57,7 +57,7 @@ function M.select(callback)
     if provider and model then
       local saved_variant = model_state.get_variant(provider, model)
       if saved_variant then
-        state.current_variant = saved_variant
+        state.model.set_variant(saved_variant)
       end
     end
   end
@@ -89,7 +89,7 @@ function M.select(callback)
     actions = {},
     callback = function(selection)
       if selection and state.current_model then
-        state.current_variant = selection.name
+        state.model.set_variant(selection.name)
 
         -- Save variant to model state
         local provider, model = state.current_model:match('^(.-)/(.+)$')

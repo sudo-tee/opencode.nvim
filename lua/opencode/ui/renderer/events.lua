@@ -76,6 +76,8 @@ function M.render_permissions_display()
     return
   end
 
+  local should_scroll = ctx.render_state:get_part('permission-display-part') == nil
+
   local fake_message = {
     info = {
       id = 'permission-display-message',
@@ -93,6 +95,10 @@ function M.render_permissions_display()
     type = 'permissions-display',
   }
   M.on_part_updated({ part = fake_part })
+
+  if should_scroll then
+    scroll(true)
+  end
 end
 
 ---Render the current question as a synthetic part at the end of the buffer
@@ -111,6 +117,8 @@ function M.render_question_display()
     return
   end
 
+  local should_scroll = ctx.render_state:get_part('question-display-part') == nil
+
   local fake_message = {
     info = {
       id = 'question-display-message',
@@ -128,7 +136,9 @@ function M.render_question_display()
     type = 'questions-display',
   }
   M.on_part_updated({ part = fake_part })
-  scroll(true)
+  if should_scroll then
+    scroll(true)
+  end
 end
 
 ---Remove the question display from the buffer
@@ -460,7 +470,6 @@ function M.on_permission_updated(permission)
 
   permission_window.add_permission(permission)
   M.render_permissions_display()
-  scroll(true)
 end
 
 ---Handle permission.replied — remove the resolved permission and update display

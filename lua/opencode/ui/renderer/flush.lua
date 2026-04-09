@@ -10,6 +10,16 @@ local append = require('opencode.ui.renderer.append')
 local M = {}
 local warned_part_render_error = false
 
+local pinned_overlay_part_ids = {
+  ['permission-display-part'] = true,
+  ['question-display-part'] = true,
+}
+
+local pinned_overlay_message_ids = {
+  ['permission-display-message'] = true,
+  ['question-display-message'] = true,
+}
+
 ---@param part_id string
 ---@param message_id string|nil
 ---@param err any
@@ -401,7 +411,39 @@ local function apply_pending(pending)
     return false
   end
 
-  local scroll_snapshot = scroll.pre_flush(buf)
+  local only_pinned_overlay_updates = true
+  for _, part_id in ipairs(pending.removed_part_order) do
+    if pending.removed_parts[part_id] and not pinned_overlay_part_ids[part_id] then
+      only_pinned_overlay_updates = false
+      break
+    end
+  end
+  if only_pinned_overlay_updates then
+    for _, message_id in ipairs(pending.removed_message_order) do
+      if pending.removed_messages[message_id] and not pinned_overlay_message_ids[message_id] then
+        only_pinned_overlay_updates = false
+        break
+      end
+    end
+  end
+  if only_pinned_overlay_updates then
+    for _, message_id in ipairs(pending.dirty_message_order) do
+      if pending.dirty_messages[message_id] and not pinned_overlay_message_ids[message_id] then
+        only_pinned_overlay_updates = false
+        break
+      end
+    end
+  end
+  if only_pinned_overlay_updates then
+    for _, part_id in ipairs(pending.dirty_part_order) do
+      if pending.dirty_parts[part_id] and not pinned_overlay_part_ids[part_id] then
+        only_pinned_overlay_updates = false
+        break
+      end
+    end
+  end
+
+  local scroll_snapshot = only_pinned_overlay_updates and nil or scroll.pre_flush(buf)
   with_suppressed_output_autocmds(function()
     for _, part_id in ipairs(pending.removed_part_order) do
       if pending.removed_parts[part_id] then

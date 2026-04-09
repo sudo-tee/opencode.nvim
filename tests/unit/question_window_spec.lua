@@ -3,6 +3,7 @@ local Output = require('opencode.ui.output')
 local Promise = require('opencode.promise')
 local state = require('opencode.state')
 local stub = require('luassert.stub')
+local helpers = require('tests.helpers')
 
 describe('question_window', function()
   after_each(function()
@@ -150,5 +151,53 @@ describe('question_window', function()
     assert.stub(show_stub).was_not_called()
 
     show_stub:revert()
+  end)
+
+  it('does not force-scroll on question navigation redraws', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    local renderer = require('opencode.ui.renderer')
+    local output_window = require('opencode.ui.output_window')
+
+    local lines = {}
+    for i = 1, 40 do
+      lines[i] = 'line ' .. i
+    end
+    output_window.set_lines(lines)
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { 5, 0 })
+    output_window.sync_cursor_with_viewport(state.windows.output_win)
+
+    question_window.show_question({
+      id = 'q-nav',
+      sessionID = 'sess1',
+      questions = {
+        {
+          question = 'Pick one',
+          options = {
+            { label = 'One' },
+            { label = 'Two' },
+          },
+        },
+      },
+    })
+
+    local flush = require('opencode.ui.renderer.flush')
+    flush.flush()
+    output_window.sync_cursor_with_viewport(state.windows.output_win)
+
+    local before = vim.api.nvim_win_get_cursor(state.windows.output_win)
+    question_window._dialog:navigate(1)
+    flush.flush()
+
+    local after = vim.api.nvim_win_get_cursor(state.windows.output_win)
+    assert.equals(before[1], after[1])
+    assert.equals(before[2], after[2])
+
+    question_window.clear_question()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
   end)
 end)

@@ -505,4 +505,38 @@ describe('permission prompt rendering', function()
     assert.are.equal('perm_no_meta', state.pending_permissions[1].id)
     assert.are.equal(1, permission_window.get_permission_count())
   end)
+
+  it('does not auto-scroll on permission navigation redraws', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'session_123' })
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    local output_window_local = require('opencode.ui.output_window')
+
+    local lines = {}
+    for i = 1, 40 do
+      lines[i] = 'line ' .. i
+    end
+    output_window_local.set_lines(lines)
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { 5, 0 })
+    output_window_local.sync_cursor_with_viewport(state.windows.output_win)
+
+    events.on_permission_updated({
+      id = 'perm_nav',
+      permission = 'bash',
+      title = 'Run command',
+      metadata = {},
+    })
+
+    flush.flush()
+    output_window_local.sync_cursor_with_viewport(state.windows.output_win)
+
+    local before = vim.api.nvim_win_get_cursor(state.windows.output_win)
+    permission_window._dialog:navigate(1)
+    flush.flush()
+
+    local after = vim.api.nvim_win_get_cursor(state.windows.output_win)
+    assert.equals(before[1], after[1])
+    assert.equals(before[2], after[2])
+  end)
 end)

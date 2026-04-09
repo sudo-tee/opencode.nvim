@@ -155,6 +155,7 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
       },
+      max_messages = nil,
       always_scroll_to_bottom = false,
     },
     questions = {

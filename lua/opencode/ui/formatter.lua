@@ -99,6 +99,18 @@ function M._format_revert_message(session_data, start_idx)
   return output
 end
 
+---@param hidden_count integer
+---@return Output
+function M._format_hidden_messages_notice(hidden_count)
+  local output = Output.new()
+  local message_text = hidden_count == 1 and 'message is' or 'messages are'
+
+  output:add_line(string.format('> %d older %s not displayed.', hidden_count, message_text))
+  output:add_empty_line()
+
+  return output
+end
+
 ---@param output Output
 ---@param text string
 ---@param action_type string
@@ -164,6 +176,10 @@ function M.format_message_header(message, previous_message)
 
   if message.info and message.info.id == '__opencode_revert_message__' then
     output:add_lines(M.separator)
+    return output
+  end
+
+  if message.info and message.info.id == '__opencode_hidden_messages_notice__' then
     return output
   end
 
@@ -662,6 +678,12 @@ function M.format_part(part, message, is_last_part, get_child_parts)
       local revert_index = part.state and part.state.revert_index
       if revert_index then
         output = M._format_revert_message(state.messages or {}, revert_index)
+        content_added = output:get_line_count() > 0
+      end
+    elseif part.type == 'hidden-messages-display' then
+      local hidden_count = part.state and part.state.hidden_count
+      if type(hidden_count) == 'number' and hidden_count > 0 then
+        output = M._format_hidden_messages_notice(hidden_count)
         content_added = output:get_line_count() > 0
       end
     end

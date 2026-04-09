@@ -243,6 +243,7 @@ require('opencode').setup({
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
         on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior
       },
+      max_messages = nil, -- Max number of messages to keep in the output buffer; older messages will be removed as new ones arrive (default: nil, which means no limit)
     },
     input = {
       min_height = 0.10, -- min height of prompt input as percentage of window height

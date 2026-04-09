@@ -33,6 +33,22 @@ local function find_text_part_for_message(message)
   return nil
 end
 
+---@param message_id string|nil
+---@return OpencodeMessage|nil
+local function find_message_in_state(message_id)
+  if not message_id then
+    return nil
+  end
+
+  for _, message in ipairs(state.messages or {}) do
+    if message.info and message.info.id == message_id then
+      return message
+    end
+  end
+
+  return nil
+end
+
 -- Lazy require to avoid circular dependency: renderer.lua <-> events.lua
 ---@param force? boolean
 local function scroll(force)
@@ -171,18 +187,23 @@ function M.on_message_updated(message, revert_index)
   end
 
   local rendered_message = ctx.render_state:get_message(msg.info.id)
-  local found_msg = rendered_message and rendered_message.message
+  local found_msg = rendered_message and rendered_message.message or find_message_in_state(msg.info.id)
 
   if revert_index then
     if not found_msg then
       table.insert(state.messages, msg)
+      found_msg = msg
     end
-    ctx.render_state:set_message(msg, 0, 0)
+    ctx.render_state:set_message(found_msg, 0, 0)
     replay_orphan_parts(msg.info.id, revert_index)
     return
   end
 
   if found_msg then
+    if not rendered_message then
+      ctx.render_state:set_message(found_msg)
+      flush.mark_message_dirty(msg.info.id)
+    end
     local error_changed = not vim.deep_equal(found_msg.info.error, msg.info.error)
     found_msg.info = msg.info
 
@@ -210,6 +231,10 @@ function M.on_message_updated(message, revert_index)
   end
 
   update_stats(msg)
+
+  if not revert_index and not ctx.bulk_mode and msg.info.id ~= '__opencode_hidden_messages_notice__' then
+    require('opencode.ui.renderer').reconcile_rendered_message_limit()
+  end
 end
 
 ---Handle message.removed — remove the message and all its parts from the buffer
@@ -225,12 +250,13 @@ function M.on_message_removed(properties)
   end
 
   local rendered_message = ctx.render_state:get_message(message_id)
+  local message = rendered_message and rendered_message.message or find_message_in_state(message_id)
   ctx.render_state:clear_orphan_parts(message_id)
-  if not rendered_message or not rendered_message.message then
+  if not message then
     return
   end
 
-  for _, part in ipairs(rendered_message.message.parts or {}) do
+  for _, part in ipairs(message.parts or {}) do
     if part.id then
       flush.queue_part_removal(part.id)
     end
@@ -243,6 +269,10 @@ function M.on_message_removed(properties)
       table.remove(state.messages, i)
       break
     end
+  end
+
+  if not ctx.bulk_mode and message_id ~= '__opencode_hidden_messages_notice__' then
+    require('opencode.ui.renderer').reconcile_rendered_message_limit()
   end
 end
 
@@ -272,6 +302,13 @@ function M.on_part_updated(properties, revert_index)
   end
 
   local rendered_message = ctx.render_state:get_message(part.messageID)
+  if not rendered_message then
+    local existing_message = find_message_in_state(part.messageID)
+    if existing_message then
+      ctx.render_state:set_message(existing_message)
+      rendered_message = ctx.render_state:get_message(part.messageID)
+    end
+  end
   if not rendered_message or not rendered_message.message then
     ctx.render_state:upsert_orphan_part(part.messageID, part)
     return
@@ -284,15 +321,30 @@ function M.on_part_updated(properties, revert_index)
   local is_new_part = not part_data
 
   local prev_last_part_id = get_last_part_for_message(message)
+  local existing_part_index = nil
+  for i = #message.parts, 1, -1 do
+    if message.parts[i].id == part.id then
+      existing_part_index = i
+      break
+    end
+  end
 
   -- Update the part reference in the message
   if is_new_part then
-    table.insert(message.parts, part)
+    if existing_part_index then
+      message.parts[existing_part_index] = part
+    else
+      table.insert(message.parts, part)
+    end
   else
-    for i = #message.parts, 1, -1 do
-      if message.parts[i].id == part.id then
-        message.parts[i] = part
-        break
+    if existing_part_index then
+      message.parts[existing_part_index] = part
+    else
+      for i = #message.parts, 1, -1 do
+        if message.parts[i].id == part.id then
+          message.parts[i] = part
+          break
+        end
       end
     end
   end

@@ -9,10 +9,20 @@ local pinned_bottom_message_ids = {
   ['question-display-message'] = true,
 }
 
+local pinned_top_message_ids = {
+  ['__opencode_hidden_messages_notice__'] = true,
+}
+
 ---@param message_id string|nil
 ---@return boolean
 local function is_pinned_bottom_message(message_id)
   return message_id ~= nil and pinned_bottom_message_ids[message_id] == true
+end
+
+---@param message_id string|nil
+---@return boolean
+local function is_pinned_top_message(message_id)
+  return message_id ~= nil and pinned_top_message_ids[message_id] == true
 end
 
 ---@param extmarks table<number, OutputExtmark[]|fun(): OutputExtmark>[]|table<number, OutputExtmark[]>|nil
@@ -245,6 +255,10 @@ local function get_message_insert_line(message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if rendered_message and rendered_message.line_start then
     return rendered_message.line_start
+  end
+
+  if is_pinned_top_message(message_id) then
+    return 0
   end
 
   local line_count = output_window.get_buf_line_count()

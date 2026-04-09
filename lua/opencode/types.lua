@@ -244,6 +244,7 @@
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean, show_reasoning_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
+---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
 ---@field compact_assistant_headers boolean

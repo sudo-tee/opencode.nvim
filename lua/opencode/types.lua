@@ -66,26 +66,25 @@
 ---@alias OpencodeCommandHandler fun(api: OpencodeCommandApi, args: string[], range?: OpencodeSelectionRange): any
 ---@alias OpencodeCommandHandlerMap table<string, OpencodeCommandHandler>
 
----@class OpencodeCommandIntentRaw
----@field args string
+---@class OpencodeParsedIntentSource
+---@field raw_args string
 ---@field argv string[]
----@field subcommand string
 
----@class OpencodeCommandIntent
----@field command_id? string
----@field execute? fun(args: string[], range: OpencodeSelectionRange|nil): any
+---@class OpencodeParsedIntent
+---@field name string
+---@field hook_key? string
 ---@field args string[]
 ---@field range OpencodeSelectionRange|nil
----@field raw? OpencodeCommandIntentRaw
+---@field source OpencodeParsedIntentSource
 
 ---@class OpencodeCommandParseError
----@field code 'unknown_subcommand'|'missing_execute'|'invalid_subcommand'
+---@field code 'unknown_subcommand'|'invalid_subcommand'
 ---@field message string
 ---@field subcommand string
 
 ---@class OpencodeCommandParseResult
 ---@field ok boolean
----@field intent? OpencodeCommandIntent
+---@field intent? OpencodeParsedIntent
 ---@field error? OpencodeCommandParseError
 
 ---@class OpencodeCommandRouteOpts
@@ -101,9 +100,16 @@
 
 ---@class OpencodeCommandDispatchResult
 ---@field ok boolean
----@field intent? OpencodeCommandIntent
+---@field intent? OpencodeParsedIntent
 ---@field result? any
 ---@field error? OpencodeCommandDispatchError
+
+---@class OpencodeCommandActionContext
+---@field parsed OpencodeCommandParseResult
+---@field intent? OpencodeParsedIntent
+---@field args? string[]
+---@field range? OpencodeSelectionRange|nil
+---@field execute? fun(args: string[], range: OpencodeSelectionRange|nil): any
 
 ---@class SessionRevertInfo
 ---@field messageID string
@@ -274,6 +280,10 @@
 
 ---@alias OpencodeCommandLifecycleStage 'before'|'after'|'error'|'finally'
 ---@alias OpencodeCommandDispatchHook fun(ctx: OpencodeCommandDispatchContext): OpencodeCommandDispatchContext|nil
+---@alias OpencodeCommandHookScope string|string[]|'*'
+
+---@class OpencodeCommandHookRegisterOptions
+---@field command? OpencodeCommandHookScope
 
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
@@ -287,7 +297,7 @@
 
 ---@class OpencodeCommandDispatchContext
 ---@field parsed OpencodeCommandParseResult
----@field intent OpencodeCommandIntent|nil
+---@field intent OpencodeParsedIntent|nil
 ---@field args string[]|nil
 ---@field range OpencodeSelectionRange|nil
 ---@field result? any
@@ -326,6 +336,8 @@
 ---@field desc? string
 ---@field args? boolean
 ---@field cmd_str? string
+---@field command_name? string
+---@field preset_args? string[]
 ---@field fn? fun(args:string[]|nil):nil|Promise<any>|any
 
 ---@class OpencodeConfig

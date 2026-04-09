@@ -40,7 +40,40 @@ end
 function M.execute_command_opts(opts)
   local command_opts = opts or { args = '', range = 0 }
   local parsed = command_parse.command(command_opts, command_definitions)
-  local dispatched = command_dispatch.dispatch_intent(parsed)
+  return M.execute_parsed_intent(parsed)
+end
+
+---@param name string
+---@param args any[]|nil
+---@param range? OpencodeSelectionRange
+---@return OpencodeCommandParseResult
+function M.build_parsed_intent(name, args, range)
+  local intent_args = args or {}
+  local source_argv = { name }
+  for _, value in ipairs(intent_args) do
+    table.insert(source_argv, tostring(value))
+  end
+
+  return {
+    ok = true,
+    intent = {
+      name = name,
+      args = intent_args,
+      range = range,
+      source = {
+        raw_args = table.concat(source_argv, ' '),
+        argv = source_argv,
+      },
+    },
+  }
+end
+
+---@param parsed OpencodeCommandParseResult
+---@param execute_override? fun(args: string[], range: OpencodeSelectionRange|nil): any
+---@return any
+function M.execute_parsed_intent(parsed, execute_override)
+  local ctx = M.bind_action_context(parsed, execute_override)
+  local dispatched = command_dispatch.execute(ctx)
 
   if not dispatched.ok then
     vim.notify(dispatched.error.message, vim.log.levels.ERROR)
@@ -48,6 +81,28 @@ function M.execute_command_opts(opts)
   end
 
   return dispatched.result
+end
+
+---@param parsed OpencodeCommandParseResult
+---@param execute_override? fun(args: string[], range: OpencodeSelectionRange|nil): any
+---@return OpencodeCommandActionContext
+function M.bind_action_context(parsed, execute_override)
+  local ctx = { parsed = parsed }
+
+  if not (parsed and parsed.ok and parsed.intent and parsed.intent.name) then
+    ctx.execute = execute_override
+    return ctx
+  end
+
+  local intent = parsed.intent
+  local command_def = command_definitions[intent.name]
+
+  ctx.intent = intent
+  ctx.args = intent.args
+  ctx.range = intent.range
+  ctx.execute = execute_override or (command_def and command_def.execute or nil)
+
+  return ctx
 end
 
 function M.complete_command(arg_lead, cmd_line, _)

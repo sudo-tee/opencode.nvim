@@ -463,15 +463,11 @@ M.command_defs = {
   },
   add_visual_selection = {
     desc = 'Add current visual selection to context',
-    execute = function(args, range)
-      return M.actions.add_visual_selection(args, range)
-    end,
+    execute = M.actions.add_visual_selection,
   },
   add_visual_selection_inline = {
     desc = 'Insert visual selection as inline code block in the input buffer',
-    execute = function(args, range)
-      return M.actions.add_visual_selection_inline(args, range)
-    end,
+    execute = M.actions.add_visual_selection_inline,
   },
 }
 

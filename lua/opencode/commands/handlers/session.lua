@@ -265,6 +265,8 @@ end
 ---@param state_obj OpencodeState
 ---@return string|nil
 local function find_next_message_for_redo(state_obj)
+  -- Redo anchor: find the revert timestamp first, then pick the first user message after that point.
+  -- If no later user message exists, caller falls back to unrevert_messages.
   local active_session = state_obj.active_session
   if not active_session then
     return nil

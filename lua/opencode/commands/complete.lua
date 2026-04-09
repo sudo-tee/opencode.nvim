@@ -27,47 +27,27 @@ local provider_completions = {
   user_commands = user_command_completions,
 }
 
----@class OpencodeCommandCompleteContext
----@field arg_lead string
----@field num_parts integer
----@field subcmd_def OpencodeUICommand
+---@param subcmd_def OpencodeUICommand
+---@param num_parts integer
+---@return string[]
+local function resolve_subcommand_completions(subcmd_def, num_parts)
+  if num_parts <= 3 then
+    if type(subcmd_def.completions) == 'table' then
+      return subcmd_def.completions --[[@as string[] ]]
+    end
 
----@class OpencodeCommandCompleteRule
----@field matches fun(ctx: OpencodeCommandCompleteContext): boolean
----@field resolve fun(ctx: OpencodeCommandCompleteContext): string[]
+    if type(subcmd_def.completion_provider_id) == 'string' then
+      local provider = provider_completions[subcmd_def.completion_provider_id]
+      return provider and provider() or {}
+    end
+  end
 
----@type OpencodeCommandCompleteRule[]
-local completion_rules = {
-  {
-    matches = function(ctx)
-      return ctx.num_parts <= 3 and type(ctx.subcmd_def.completions) == 'table'
-    end,
-    resolve = function(ctx)
-      return ctx.subcmd_def.completions --[[@as string[] ]]
-    end,
-  },
-  {
-    matches = function(ctx)
-      return ctx.num_parts <= 3 and type(ctx.subcmd_def.completion_provider_id) == 'string'
-    end,
-    resolve = function(ctx)
-      local provider_id = ctx.subcmd_def.completion_provider_id --[[@as string ]]
-      local provider = provider_completions[provider_id]
-      if not provider then
-        return {}
-      end
-      return provider()
-    end,
-  },
-  {
-    matches = function(ctx)
-      return ctx.num_parts <= 4 and type(ctx.subcmd_def.sub_completions) == 'table'
-    end,
-    resolve = function(ctx)
-      return ctx.subcmd_def.sub_completions --[[@as string[] ]]
-    end,
-  },
-}
+  if num_parts <= 4 and type(subcmd_def.sub_completions) == 'table' then
+    return subcmd_def.sub_completions --[[@as string[] ]]
+  end
+
+  return {}
+end
 
 ---@param command_definitions table<string, OpencodeUICommand>
 ---@param arg_lead string
@@ -92,19 +72,7 @@ function M.complete_command(command_definitions, arg_lead, cmd_line)
     return {}
   end
 
-  local ctx = {
-    arg_lead = arg_lead,
-    num_parts = num_parts,
-    subcmd_def = subcmd_def,
-  }
-
-  for _, rule in ipairs(completion_rules) do
-    if rule.matches(ctx) then
-      return filter_by_prefix(rule.resolve(ctx), arg_lead)
-    end
-  end
-
-  return {}
+  return filter_by_prefix(resolve_subcommand_completions(subcmd_def, num_parts), arg_lead)
 end
 
 return M

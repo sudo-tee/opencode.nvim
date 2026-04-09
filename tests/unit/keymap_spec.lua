@@ -12,7 +12,8 @@ describe('opencode.keymap', function()
   local mock_commands
   local mock_completion
   local keymap
-  local routed_opts
+  local built_parsed
+  local executed_parsed
   local toggle_calls
   local notify_calls
   local feedkeys_calls = {}
@@ -20,7 +21,8 @@ describe('opencode.keymap', function()
   before_each(function()
     set_keymaps = {}
     cmd_calls = {}
-    routed_opts = {}
+    built_parsed = {}
+    executed_parsed = {}
     toggle_calls = 0
     notify_calls = {}
     feedkeys_calls = {}
@@ -62,8 +64,29 @@ describe('opencode.keymap', function()
           submit_input_prompt = { desc = 'Submit input prompt', execute = function() end },
         }
       end,
-      execute_command_opts = function(opts)
-        table.insert(routed_opts, vim.deepcopy(opts))
+      build_parsed_intent = function(name, args)
+        local argv = { name }
+        for _, arg in ipairs(args or {}) do
+          table.insert(argv, tostring(arg))
+        end
+        local parsed = {
+          ok = true,
+          intent = {
+            name = name,
+            args = args or {},
+            range = nil,
+            source = {
+              raw_args = table.concat(argv, ' '),
+              argv = argv,
+            },
+          },
+        }
+        table.insert(built_parsed, vim.deepcopy(parsed))
+        return parsed
+      end,
+      execute_parsed_intent = function(parsed)
+        table.insert(executed_parsed, vim.deepcopy(parsed))
+        return nil
       end,
     }
 
@@ -135,14 +158,17 @@ describe('opencode.keymap', function()
       assert.equal('', set_keymaps[1].opts.desc)
     end)
 
-    it('routes command-like keymaps through execute_command_opts', function()
+    it('routes command-like keymaps through ParsedIntent + execute_parsed_intent', function()
       keymap.setup({ editor = { ['<leader>test'] = { 'toggle' } } })
 
       assert.equal(1, #set_keymaps)
       set_keymaps[1].callback()
 
-      assert.equal(1, #routed_opts)
-      assert.equal('toggle', routed_opts[1].args)
+      assert.equal(1, #built_parsed)
+      assert.same('toggle', built_parsed[1].intent.name)
+      assert.same({}, built_parsed[1].intent.args)
+      assert.equal('toggle', built_parsed[1].intent.source.raw_args)
+      assert.equal(1, #executed_parsed)
       assert.equal(0, toggle_calls, 'Direct api.toggle should not be called')
     end)
 
@@ -157,17 +183,41 @@ describe('opencode.keymap', function()
   end)
 
   describe('setup_window_keymaps', function()
-    it('routes input-window string actions through execute_command_opts', function()
+    it('routes input-window string actions through ParsedIntent + execute_parsed_intent', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       keymap.setup_window_keymaps({ ['<cr>'] = { 'submit_input_prompt' } }, bufnr)
 
       assert.equal(1, #set_keymaps)
       set_keymaps[1].callback()
 
-      assert.equal(1, #routed_opts)
-      assert.equal('submit_input_prompt', routed_opts[1].args)
+      assert.equal(1, #built_parsed)
+      assert.same('submit_input_prompt', built_parsed[1].intent.name)
+      assert.same({}, built_parsed[1].intent.args)
+      assert.equal(1, #executed_parsed)
 
       vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('does not mutate configured table args across repeated key presses', function()
+      local original_execute_parsed_intent = mock_commands.execute_parsed_intent
+      mock_commands.execute_parsed_intent = function(parsed)
+        table.insert(executed_parsed, vim.deepcopy(parsed))
+        parsed.intent.args[1] = 'dirty'
+        return nil
+      end
+
+      local configured_args = { 'clean' }
+      keymap.setup({ editor = { ['<leader>test'] = { 'toggle', configured_args } } })
+
+      assert.equal(1, #set_keymaps)
+      set_keymaps[1].callback()
+      set_keymaps[1].callback()
+
+      assert.same({ 'clean' }, built_parsed[1].intent.args)
+      assert.same({ 'clean' }, built_parsed[2].intent.args)
+      assert.same({ 'clean' }, configured_args)
+
+      mock_commands.execute_parsed_intent = original_execute_parsed_intent
     end)
   end)
 

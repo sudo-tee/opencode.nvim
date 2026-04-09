@@ -7,6 +7,14 @@ local M = {
 
 local permission_subcommands = { 'accept', 'accept_all', 'deny' }
 
+---@param message string
+local function invalid_arguments(message)
+  error({
+    code = 'invalid_arguments',
+    message = message,
+  }, 0)
+end
+
 ---@param answer? 'once'|'always'|'reject'
 ---@param permission? OpencodePermission
 function M.actions.respond_to_permission(answer, permission)
@@ -89,9 +97,11 @@ M.command_defs = {
       end
 
       local action = permission_subcommand_actions[subcmd]
-      if action then
-        action(permission)
+      if not action then
+        invalid_arguments('Invalid permission subcommand. Use: accept, accept_all, or deny')
       end
+
+      action(permission)
     end,
   },
 }

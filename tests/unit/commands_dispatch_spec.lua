@@ -24,13 +24,24 @@ describe('opencode.commands.dispatch', function()
     local defaults = {
       ok = true,
       intent = {
-        command_id = 'test_cmd',
+        name = 'toggle',
         execute = function() return 'ok' end,
         args = {},
         range = nil,
+        source = {
+          raw_args = 'toggle',
+          argv = { 'toggle' },
+        },
       },
     }
     return vim.tbl_deep_extend('force', defaults, overrides or {})
+  end
+
+  ---@param parsed OpencodeCommandParseResult
+  ---@param execute_override? fun(args: string[], range: OpencodeSelectionRange|nil): any
+  ---@return OpencodeCommandActionContext
+  local function make_ctx(parsed, execute_override)
+    return commands.bind_action_context(parsed, execute_override)
   end
 
   before_each(function()
@@ -38,6 +49,7 @@ describe('opencode.commands.dispatch', function()
     original_event_manager = state.event_manager
     config.hooks = vim.deepcopy(config.hooks or {})
     state.jobs.set_event_manager(nil)
+    command_dispatch.reset_hooks_for_test()
   end)
 
   after_each(function()
@@ -48,7 +60,7 @@ describe('opencode.commands.dispatch', function()
   it('normalizes parse errors as fail result', function()
     local parsed = command_parse.command({ args = 'not_real', range = 0 }, commands.get_commands())
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed))
 
     assert.is_false(result.ok)
     assert.same({
@@ -62,31 +74,52 @@ describe('opencode.commands.dispatch', function()
   it('normalizes successful execution with intent and result', function()
     local parsed = make_parsed({
       intent = {
-        command_id = 'toggle',
+        name = 'toggle',
         execute = function() return 'done' end,
         args = {},
       },
     })
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed, parsed.intent.execute))
 
     assert.is_true(result.ok)
     assert.equal('done', result.result)
-    assert.equal('toggle', result.intent.command_id)
+    assert.equal('toggle', result.intent.name)
     assert.same({}, result.intent.args)
   end)
 
   it('normalizes handler argument errors as fail result', function()
     local parsed = command_parse.command({ args = 'revert all', range = 0 }, commands.get_commands())
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed))
 
     assert.is_false(result.ok)
     assert.same({
       code = 'invalid_arguments',
       message = 'Invalid revert target. Use: prompt, session, or <snapshot_id>',
     }, result.error)
-    assert.equal('revert', result.intent.command_id)
+    assert.equal('revert', result.intent.name)
+  end)
+
+  it('fails with invalid_arguments when permission subcommand is unknown after bind', function()
+    local parsed = make_parsed({
+      intent = {
+        name = 'permission',
+        args = { 'unknown' },
+        range = nil,
+        source = {
+          raw_args = 'permission unknown',
+          argv = { 'permission', 'unknown' },
+        },
+      },
+    })
+
+    local result = command_dispatch.execute(make_ctx(parsed))
+
+    assert.is_false(result.ok)
+    assert.same('invalid_arguments', result.error.code)
+    assert.same('Invalid permission subcommand. Use: accept, accept_all, or deny', result.error.message)
+    assert.equal('permission', result.intent.name)
   end)
 
   it('runs before -> execute -> after lifecycle in order', function()
@@ -94,7 +127,7 @@ describe('opencode.commands.dispatch', function()
 
     local parsed = make_parsed({
       intent = {
-        command_id = 'toggle',
+        name = 'toggle',
         execute = function()
           table.insert(events, 'execute')
           return 'ok'
@@ -119,7 +152,7 @@ describe('opencode.commands.dispatch', function()
       end,
     })
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed, parsed.intent.execute))
 
     assert.is_true(result.ok)
     assert.same({ 'before', 'execute', 'after', 'finally' }, events)
@@ -133,7 +166,7 @@ describe('opencode.commands.dispatch', function()
 
     local parsed = make_parsed({
       intent = {
-        command_id = 'toggle',
+        name = 'toggle',
         execute = function()
           error({ code = 'execute_error', message = 'boom' }, 0)
         end,
@@ -154,7 +187,7 @@ describe('opencode.commands.dispatch', function()
       end,
     })
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed, parsed.intent.execute))
 
     assert.is_false(result.ok)
     assert.same({ 'error', 'finally' }, stages)
@@ -168,7 +201,7 @@ describe('opencode.commands.dispatch', function()
 
     local parsed = make_parsed({
       intent = {
-        command_id = 'toggle',
+        name = 'toggle',
         execute = function() return 'ok' end,
       },
     })
@@ -189,7 +222,7 @@ describe('opencode.commands.dispatch', function()
       error('hook boom')
     end
 
-    local result = command_dispatch.dispatch_intent(parsed)
+    local result = command_dispatch.execute(make_ctx(parsed, parsed.intent.execute))
 
     assert.is_true(result.ok)
     assert.equal('ok', result.result)
@@ -198,4 +231,64 @@ describe('opencode.commands.dispatch', function()
     assert.is_true(includes(emitted, 'custom.command.finally'))
     assert.is_true(includes(emitted, 'custom.command.hook_error'))
   end)
+
+  it('applies runtime hook command filters and supports unregister', function()
+    local seen = {}
+    local hook_id = command_dispatch.register_hook('before', function(ctx)
+      table.insert(seen, ctx.intent.name)
+      return ctx
+    end, { command = 'run' })
+
+    local toggle_parsed = make_parsed({
+      intent = {
+        name = 'toggle',
+        execute = function() return 'toggle' end,
+      },
+    })
+    local run_parsed = make_parsed({
+      intent = {
+        name = 'run',
+        execute = function() return 'run' end,
+      },
+    })
+
+    local toggle_result = command_dispatch.execute(make_ctx(toggle_parsed, toggle_parsed.intent.execute))
+    local run_result = command_dispatch.execute(make_ctx(run_parsed, run_parsed.intent.execute))
+
+    assert.is_true(toggle_result.ok)
+    assert.is_true(run_result.ok)
+    assert.same({ 'run' }, seen)
+
+    assert.is_true(command_dispatch.unregister_hook('before', hook_id))
+    local run_result_after_unregister = command_dispatch.execute(make_ctx(run_parsed, run_parsed.intent.execute))
+    assert.is_true(run_result_after_unregister.ok)
+    assert.same({ 'run' }, seen)
+  end)
+
+  it('supports hook filter fallback from hook_key to intent name', function()
+    local seen = {}
+
+    command_dispatch.register_hook('before', function(ctx)
+      table.insert(seen, 'group:' .. ctx.intent.name)
+      return ctx
+    end, { command = 'session' })
+
+    command_dispatch.register_hook('before', function(ctx)
+      table.insert(seen, 'name:' .. ctx.intent.name)
+      return ctx
+    end, { command = 'select_session' })
+
+    local parsed = make_parsed({
+      intent = {
+        name = 'select_session',
+        hook_key = 'session',
+        execute = function() return 'ok' end,
+      },
+    })
+
+    local result = command_dispatch.execute(make_ctx(parsed, parsed.intent.execute))
+    assert.is_true(result.ok)
+    assert.same({ 'group:select_session', 'name:select_session' }, seen)
+  end)
+
 end)

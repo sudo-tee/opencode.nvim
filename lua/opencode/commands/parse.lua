@@ -68,17 +68,6 @@ function M.command(opts, commands)
     }
   end
 
-  if not subcmd_def.execute then
-    return {
-      ok = false,
-      error = {
-        code = 'missing_execute',
-        message = 'Command is missing execute function: ' .. subcommand,
-        subcommand = subcommand,
-      },
-    }
-  end
-
   local args = #argv == 0 and {} or vim.list_slice(argv, 2)
   local nested_subcommand_error = validate_nested_subcommand(subcommand, subcmd_def, args)
   if nested_subcommand_error then
@@ -91,14 +80,12 @@ function M.command(opts, commands)
   return {
     ok = true,
     intent = {
-      command_id = subcommand,
-      execute = subcmd_def.execute,
+      name = subcommand,
       args = args,
       range = range,
-      raw = {
-        args = raw_args,
+      source = {
+        raw_args = raw_args,
         argv = argv,
-        subcommand = subcommand,
       },
     },
   }

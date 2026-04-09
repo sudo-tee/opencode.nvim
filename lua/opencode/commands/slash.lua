@@ -5,47 +5,63 @@ local log = require('opencode.log')
 
 local M = {}
 
--- Maps slash command -> :Opencode command string (with optional subcommand)
----@type table<string, string>
+---@class OpencodeSlashPreset
+---@field name string
+---@field preset_args? string[]
+
+---@type table<string, OpencodeSlashPreset>
 local slash_command_presets = {
-  ['/help']          = 'help',
-  ['/agent']         = 'agent select',
-  ['/agents_init']   = 'session agents_init',
-  ['/child-sessions']= 'session child',
-  ['/command-list']  = 'commands_list',
-  ['/compact']       = 'session compact',
-  ['/history']       = 'history',
-  ['/mcp']           = 'mcp',
-  ['/models']        = 'models',
-  ['/variant']       = 'variant',
-  ['/new']           = 'session new',
-  ['/redo']          = 'redo',
-  ['/sessions']      = 'session select',
-  ['/share']         = 'session share',
-  ['/timeline']      = 'timeline',
-  ['/references']    = 'references',
-  ['/undo']          = 'undo',
-  ['/unshare']       = 'session unshare',
-  ['/rename']        = 'session rename',
-  ['/thinking']      = 'toggle_reasoning_output',
-  ['/reasoning']     = 'toggle_reasoning_output',
-  ['/review']        = 'review',
+  ['/help'] = { name = 'help' },
+  ['/agent'] = { name = 'agent', preset_args = { 'select' } },
+  ['/agents_init'] = { name = 'session', preset_args = { 'agents_init' } },
+  ['/child-sessions'] = { name = 'session', preset_args = { 'child' } },
+  ['/command-list'] = { name = 'commands_list' },
+  ['/compact'] = { name = 'session', preset_args = { 'compact' } },
+  ['/history'] = { name = 'history' },
+  ['/mcp'] = { name = 'mcp' },
+  ['/models'] = { name = 'models' },
+  ['/variant'] = { name = 'variant' },
+  ['/new'] = { name = 'session', preset_args = { 'new' } },
+  ['/redo'] = { name = 'redo' },
+  ['/sessions'] = { name = 'session', preset_args = { 'select' } },
+  ['/share'] = { name = 'session', preset_args = { 'share' } },
+  ['/timeline'] = { name = 'timeline' },
+  ['/references'] = { name = 'references' },
+  ['/undo'] = { name = 'undo' },
+  ['/unshare'] = { name = 'session', preset_args = { 'unshare' } },
+  ['/rename'] = { name = 'session', preset_args = { 'rename' } },
+  ['/thinking'] = { name = 'toggle_reasoning_output' },
+  ['/reasoning'] = { name = 'toggle_reasoning_output' },
+  ['/review'] = { name = 'review' },
 }
+
+---@param preset OpencodeSlashPreset
+---@return string
+local function preset_to_command_string(preset)
+  local parts = { preset.name }
+  for _, arg in ipairs(preset.preset_args or {}) do
+    table.insert(parts, arg)
+  end
+  return table.concat(parts, ' ')
+end
 
 ---@return table<string, OpencodeSlashCommandSpec>
 local function build_builtin_slash_command_definitions()
   local command_defs = commands.get_commands()
   local slash_defs = {}
 
-  for slash_cmd, cmd_str in pairs(slash_command_presets) do
-    local top_cmd = vim.split(cmd_str, ' ', { trimempty = true })[1]
-    local command_def = command_defs[top_cmd]
+  for slash_cmd, preset in pairs(slash_command_presets) do
+    local cmd_str = preset_to_command_string(preset)
+    local command_def = command_defs[preset.name]
     local desc = 'Run :Opencode ' .. cmd_str
     if command_def and command_def.desc then
       desc = command_def.desc
     end
 
     slash_defs[slash_cmd] = {
+      command_name = preset.name,
+      preset_args = vim.deepcopy(preset.preset_args or {}),
+      -- Keep cmd_str for help/introspection and parseability checks, but execute via structured fields.
       cmd_str = cmd_str,
       desc = desc,
       args = command_def and command_def.nargs ~= nil or false,
@@ -62,19 +78,25 @@ function M.get_builtin_command_definitions()
   return builtin_slash_command_definitions
 end
 
+---@param command_name string
+---@param args string[]|nil
+---@return any
+local function dispatch_parsed(command_name, args)
+  local parsed = commands.build_parsed_intent(command_name, args or {})
+  return commands.execute_parsed_intent(parsed)
+end
+
 ---@param slash_cmd string
 ---@param def OpencodeSlashCommandSpec
 ---@return OpencodeSlashCommand|nil
 local function to_runtime_slash_command(slash_cmd, def)
   local fn = def.fn
-  local cmd_str = def.cmd_str
-  if not fn and type(cmd_str) == 'string' then
+  if not fn and type(def.command_name) == 'string' then
+    local command_name = def.command_name
+    local preset_args = vim.deepcopy(def.preset_args or {})
     fn = function(args)
-      local full = cmd_str
-      if args and #args > 0 then
-        full = full .. ' ' .. table.concat(args, ' ')
-      end
-      return commands.execute_command_opts({ args = full, range = 0 })
+      local merged_args = vim.list_extend(vim.deepcopy(preset_args), args or {})
+      return dispatch_parsed(command_name, merged_args)
     end
   end
 
@@ -109,11 +131,8 @@ M.get_commands = Promise.async(function()
         slash_cmd = '/' .. name,
         desc = def.description or 'User command',
         fn = function(args)
-          local full = 'command ' .. name
-          if args and #args > 0 then
-            full = full .. ' ' .. table.concat(args, ' ')
-          end
-          return commands.execute_command_opts({ args = full, range = 0 })
+          local cmd_args = vim.list_extend({ name }, args or {})
+          return dispatch_parsed('command', cmd_args)
         end,
         args = true,
       })

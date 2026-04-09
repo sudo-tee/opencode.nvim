@@ -175,6 +175,11 @@ local log = require('opencode.log')
 --- | "custom.restore_point.created"
 --- | "custom.emit_events.started"
 --- | "custom.emit_events.finished"
+--- | "custom.command.before"
+--- | "custom.command.after"
+--- | "custom.command.error"
+--- | "custom.command.finally"
+--- | "custom.command.hook_error"
 
 --- @class EventManager
 --- @field events table<string, function[]> Event listener registry

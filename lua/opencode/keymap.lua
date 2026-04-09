@@ -28,8 +28,9 @@ local function resolve_callback(func_name, func_args)
     local command_defs = commands.get_commands()
     if command_defs[func_name] then
       return function()
-        local args = func_args and (type(func_args) == 'table' and func_args or { func_args }) or {}
-        commands.execute_command_opts({ args = table.concat(vim.list_extend({ func_name }, args), ' '), range = 0 })
+        local args = func_args and (type(func_args) == 'table' and vim.deepcopy(func_args) or { func_args }) or {}
+        local parsed = commands.build_parsed_intent(func_name, args)
+        return commands.execute_parsed_intent(parsed)
       end
     end
 

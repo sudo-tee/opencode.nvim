@@ -1,4 +1,3 @@
-local config = require('opencode.config')
 local state = require('opencode.state')
 local output_window = require('opencode.ui.output_window')
 
@@ -15,8 +14,6 @@ function M.get_output_win()
 end
 
 ---Move the cursor in `win` to the last line of `buf` and scroll so it's visible.
----Also marks the window as "at bottom" so that the next is_at_bottom() call
----returns true even when the buffer grew past the current viewport.
 ---@param win integer
 ---@param buf integer
 function M.scroll_win_to_bottom(win, buf)
@@ -29,7 +26,7 @@ function M.scroll_win_to_bottom(win, buf)
   vim.api.nvim_win_call(win, function()
     vim.cmd('normal! zb')
   end)
-  output_window._was_at_bottom_by_win[win] = true
+  output_window._prev_line_count_by_win[win] = line_count
 end
 
 ---@param buf integer|nil
@@ -42,6 +39,13 @@ function M.pre_flush(buf)
   local win = M.get_output_win()
   if not win or vim.api.nvim_win_get_buf(win) ~= buf then
     return nil
+  end
+
+  -- Snapshot the current line count before the buffer write so that
+  -- is_at_bottom() can compare cursor position against it after the write.
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, buf)
+  if ok and line_count and line_count > 0 then
+    output_window._prev_line_count_by_win[win] = line_count
   end
 
   return {

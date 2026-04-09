@@ -86,12 +86,17 @@ has_failures() {
 minimal_output=""
 unit_output=""
 replay_output=""
+minimal_status=0
+unit_status=0
+replay_status=0
+specific_status=0
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "minimal" ]; then
     minimal_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/minimal', {minimal_init = './tests/minimal/init.lua', sequential = true$FILTER_OPTION})" 2>&1)
+    minimal_status=$?
     clean_output "$minimal_output"
 
-    if has_failures "$minimal_output"; then
+    if [ "$minimal_status" -ne 0 ] || has_failures "$minimal_output"; then
         echo -e "${RED}✗ Minimal tests failed${NC}"
     else
         echo -e "${GREEN}✓ Minimal tests passed${NC}"
@@ -101,9 +106,10 @@ fi
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "unit" ]; then
     unit_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/unit', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
+    unit_status=$?
     clean_output "$unit_output"
 
-    if has_failures "$unit_output"; then
+    if [ "$unit_status" -ne 0 ] || has_failures "$unit_output"; then
         echo -e "${RED}✗ Unit tests failed${NC}"
     else
         echo -e "${GREEN}✓ Unit tests passed${NC}"
@@ -113,9 +119,10 @@ fi
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "replay" ]; then
     replay_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
+    replay_status=$?
     clean_output "$replay_output"
 
-    if has_failures "$replay_output"; then
+    if [ "$replay_status" -ne 0 ] || has_failures "$replay_output"; then
         echo -e "${RED}✗ Replay tests failed${NC}"
     else
         echo -e "${GREEN}✓ Replay tests passed${NC}"
@@ -127,9 +134,10 @@ fi
 if [ "$TEST_TYPE" != "all" ] && [ "$TEST_TYPE" != "minimal" ] && [ "$TEST_TYPE" != "unit" ] && [ "$TEST_TYPE" != "replay" ]; then
     if [ -f "$TEST_TYPE" ]; then
         specific_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./$TEST_TYPE', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
+        specific_status=$?
         clean_output "$specific_output"
 
-        if has_failures "$specific_output"; then
+        if [ "$specific_status" -ne 0 ] || has_failures "$specific_output"; then
             echo -e "${RED}✗ Specific test failed${NC}"
         else
             echo -e "${GREEN}✓ Specific test passed${NC}"
@@ -148,8 +156,25 @@ all_output="$minimal_output
 $unit_output
 $replay_output"
 
-if has_failures "$all_output"; then
+if has_failures "$all_output" \
+    || [ "$minimal_status" -ne 0 ] \
+    || [ "$unit_status" -ne 0 ] \
+    || [ "$replay_status" -ne 0 ] \
+    || [ "$specific_status" -ne 0 ]; then
     echo -e "\n${RED}======== TEST FAILURES SUMMARY ========${NC}"
+
+    if [ "$minimal_status" -ne 0 ]; then
+        echo -e "${RED}Runner exit:${NC} minimal tests exited with code $minimal_status"
+    fi
+    if [ "$unit_status" -ne 0 ]; then
+        echo -e "${RED}Runner exit:${NC} unit tests exited with code $unit_status"
+    fi
+    if [ "$replay_status" -ne 0 ]; then
+        echo -e "${RED}Runner exit:${NC} replay tests exited with code $replay_status"
+    fi
+    if [ "$specific_status" -ne 0 ]; then
+        echo -e "${RED}Runner exit:${NC} specific tests exited with code $specific_status"
+    fi
 
     # Extract and format failures
     failures_file=$(mktemp)

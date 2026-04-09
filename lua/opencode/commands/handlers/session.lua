@@ -434,7 +434,7 @@ M.command_defs = {
       local subcommand = args[1]
       local action = session_subcommand_actions[subcommand]
       if not action then
-        invalid_arguments('Invalid session subcommand')
+        invalid_arguments('Invalid session subcommand. Use: ' .. table.concat(session_subcommands, ', '))
       end
       return action(args)
     end,

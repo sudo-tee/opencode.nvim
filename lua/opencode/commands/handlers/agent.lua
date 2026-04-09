@@ -84,7 +84,7 @@ M.command_defs = {
     execute = function(args)
       local action = agent_subcommand_calls[args[1]]
       if not action then
-        invalid_arguments('Invalid agent subcommand')
+        invalid_arguments('Invalid agent subcommand. Use: ' .. table.concat(agent_subcommands, ', '))
       end
       return action()
     end,

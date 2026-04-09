@@ -68,7 +68,7 @@ function M.actions.help()
     return
   end
 
-  local max_desc_length = math.min(90, nvim.nvim_win_get_width(state.windows.output_win) - 35)
+  local max_desc_length = math.max(10, math.min(90, nvim.nvim_win_get_width(state.windows.output_win) - 35))
 
   local command_defs = get_command_definitions()
   local sorted_commands = vim.tbl_keys(command_defs)

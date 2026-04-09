@@ -155,7 +155,7 @@ M.command_defs = {
       local subcommand = args[1] or 'open'
       local action = diff_subcommand_actions[subcommand]
       if not action then
-        invalid_arguments('Invalid diff subcommand')
+        invalid_arguments('Invalid diff subcommand. Use: ' .. table.concat(diff_subcommands, ', '))
       end
       return action()
     end,

@@ -1,4 +1,5 @@
 local assert = require('luassert')
+local stub = require('luassert.stub')
 
 describe('opencode.commands.handlers', function()
   local tracked_modules = {
@@ -108,6 +109,64 @@ describe('opencode.commands.handlers', function()
       code = 'invalid_arguments',
       message = 'Invalid target. Use: input or output',
     }, err)
+  end)
+
+  it('returns actionable invalid subcommand errors for agent/session/diff handlers', function()
+    local agent = require('opencode.commands.handlers.agent')
+    local session = require('opencode.commands.handlers.session')
+    local diff = require('opencode.commands.handlers.diff')
+
+    local ok_agent, err_agent = pcall(agent.command_defs.agent.execute, { 'unknown' })
+    local ok_session, err_session = pcall(session.command_defs.session.execute, { 'unknown' })
+    local ok_diff, err_diff = pcall(diff.command_defs.diff.execute, { 'unknown' })
+
+    assert.is_false(ok_agent)
+    assert.same({
+      code = 'invalid_arguments',
+      message = 'Invalid agent subcommand. Use: ' .. table.concat(agent.command_defs.agent.completions, ', '),
+    }, err_agent)
+
+    assert.is_false(ok_session)
+    assert.same({
+      code = 'invalid_arguments',
+      message = 'Invalid session subcommand. Use: ' .. table.concat(session.command_defs.session.completions, ', '),
+    }, err_session)
+
+    assert.is_false(ok_diff)
+    assert.same({
+      code = 'invalid_arguments',
+      message = 'Invalid diff subcommand. Use: ' .. table.concat(diff.command_defs.diff.completions, ', '),
+    }, err_diff)
+  end)
+
+  it('keeps help rendering stable in narrow output windows', function()
+    local surface = require('opencode.commands.handlers.surface')
+    local window = require('opencode.commands.handlers.window')
+    local state = require('opencode.state')
+    local ui = require('opencode.ui.ui')
+
+    local open_input_stub = stub(window.actions, 'open_input')
+    local is_visible_stub = stub(state.ui, 'is_visible').returns(true)
+    local set_route_stub = stub(state.ui, 'set_display_route')
+    local render_lines_stub = stub(ui, 'render_lines')
+    local width_stub = stub(vim.api, 'nvim_win_get_width').returns(20)
+
+    local original_windows = state.store.get('windows')
+    local test_windows = vim.deepcopy(original_windows or {})
+    test_windows.output_win = 1
+    state.store.set_raw('windows', test_windows)
+
+    local ok = pcall(surface.actions.help)
+
+    state.store.set_raw('windows', original_windows)
+    open_input_stub:revert()
+    is_visible_stub:revert()
+    set_route_stub:revert()
+    render_lines_stub:revert()
+    width_stub:revert()
+
+    assert.is_true(ok)
+    assert.stub(render_lines_stub).was_called()
   end)
 
   it('keeps command semantic routing in diff revert handler (session target -> nil snapshot)', function()

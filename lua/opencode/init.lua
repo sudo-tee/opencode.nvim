@@ -10,7 +10,7 @@ function M.setup(opts)
 
   require('opencode.ui.highlight').setup()
   require('opencode.core').setup()
-  require('opencode.api').setup()
+  require('opencode.commands').setup()
   require('opencode.ui.completion').setup()
   require('opencode.keymap').setup(config.keymap)
   require('opencode.event_manager').setup()

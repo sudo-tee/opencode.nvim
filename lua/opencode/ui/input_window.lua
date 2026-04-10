@@ -227,7 +227,7 @@ M._append_to_input = function(text)
 end
 
 M._execute_slash_command = function(command)
-  local slash_commands = require('opencode.api').get_slash_commands():await()
+  local slash_commands = require('opencode.commands.slash').get_commands():await()
   local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
 
   local cmd = command:sub(2):match('^%s*(.-)%s*$')

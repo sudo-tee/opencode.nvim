@@ -6,7 +6,7 @@ local model = require('opencode.state.model')
 local renderer = require('opencode.state.renderer')
 local context = require('opencode.state.context')
 
----@class OpencodeStateModule
+---@class OpencodeState : OpencodeStateData
 ---@field store OpencodeStateStore
 ---@field session OpencodeSessionStateMutations
 ---@field jobs OpencodeJobStateMutations
@@ -14,8 +14,9 @@ local context = require('opencode.state.context')
 ---@field model OpencodeModelStateMutations
 ---@field renderer OpencodeRendererStateMutations
 ---@field context OpencodeContextStateMutations
-
----@alias OpencodeState OpencodeStateModule & OpencodeStateData
+---@field active_session Session|nil
+---@field current_model string|nil
+---@field api_client OpencodeApiClient|nil
 
 ---@type OpencodeState
 local M = {

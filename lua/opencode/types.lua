@@ -42,9 +42,74 @@
 
 ---@class OpencodeUICommand
 ---@field desc string
----@field completions? string[]|function
+---@field execute fun(args: string[], range: OpencodeSelectionRange|nil): any
+---@field completions? string[]
+---@field nested_subcommand? OpencodeNestedSubcommandValidation
+---@field completion_provider_id? string
 ---@field sub_completions? string[]
----@field fn function
+---@field nargs? string|integer
+---@field range? boolean
+---@field complete? boolean
+
+---@class OpencodeNestedSubcommandValidation
+---@field allow_empty boolean
+
+---@class OpencodeCommandSubcommandSpec
+---@field completions? string[]
+---@field nested_subcommand? OpencodeNestedSubcommandValidation
+---@field sub_completions? string[]
+---@field completion_provider_id? string
+
+---@class OpencodeCommandApi
+---@field [string] any
+
+---@alias OpencodeCommandHandler fun(api: OpencodeCommandApi, args: string[], range?: OpencodeSelectionRange): any
+---@alias OpencodeCommandHandlerMap table<string, OpencodeCommandHandler>
+
+---@class OpencodeParsedIntentSource
+---@field raw_args string
+---@field argv string[]
+
+---@class OpencodeParsedIntent
+---@field name string
+---@field hook_key? string
+---@field args string[]
+---@field range OpencodeSelectionRange|nil
+---@field source OpencodeParsedIntentSource
+
+---@class OpencodeCommandParseError
+---@field code 'unknown_subcommand'|'invalid_subcommand'
+---@field message string
+---@field subcommand string
+
+---@class OpencodeCommandParseResult
+---@field ok boolean
+---@field intent? OpencodeParsedIntent
+---@field error? OpencodeCommandParseError
+
+---@class OpencodeCommandRouteOpts
+---@field args? string
+---@field range? integer
+---@field line1? integer
+---@field line2? integer
+
+---@class OpencodeCommandDispatchError
+---@field code 'unknown_subcommand'|'missing_handler'|'missing_execute'|'invalid_subcommand'|'invalid_arguments'|'execute_error'
+---@field message string
+---@field subcommand? string
+
+---@class OpencodeCommandDispatchResult
+---@field ok boolean
+---@field intent? OpencodeParsedIntent
+---@field result? any
+---@field error? OpencodeCommandDispatchError
+
+---@class OpencodeCommandActionContext
+---@field parsed OpencodeCommandParseResult
+---@field intent? OpencodeParsedIntent
+---@field args? string[]
+---@field range? OpencodeSelectionRange|nil
+---@field execute? fun(args: string[], range: OpencodeSelectionRange|nil): any
 
 ---@class SessionRevertInfo
 ---@field messageID string
@@ -213,11 +278,40 @@
 ---@field highlight_changed_lines_timeout_ms number
 ---@field quick_chat {keep_session: boolean, set_active_session: boolean}
 
+---@alias OpencodeCommandLifecycleStage 'before'|'after'|'error'|'finally'
+---@alias OpencodeCommandDispatchHook fun(ctx: OpencodeCommandDispatchContext): OpencodeCommandDispatchContext|nil
+---@alias OpencodeCommandHookScope string|string[]|'*'
+
+---@class OpencodeCommandHookRegisterOptions
+---@field command? OpencodeCommandHookScope
+
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
 ---@field on_session_loaded? fun(session: Session): nil
 ---@field on_done_thinking? fun(session: Session): nil
 ---@field on_permission_requested? fun(session: Session): nil
+---@field on_command_before? OpencodeCommandDispatchHook
+---@field on_command_after? OpencodeCommandDispatchHook
+---@field on_command_error? OpencodeCommandDispatchHook
+---@field on_command_finally? OpencodeCommandDispatchHook
+
+---@class OpencodeCommandDispatchContext
+---@field parsed OpencodeCommandParseResult
+---@field intent OpencodeParsedIntent|nil
+---@field args string[]|nil
+---@field range OpencodeSelectionRange|nil
+---@field result? any
+---@field error OpencodeCommandDispatchError|nil
+
+---@class OpencodeCommandLifecycleHookSpec
+---@field before? OpencodeCommandDispatchHook
+---@field after? OpencodeCommandDispatchHook
+---@field error? OpencodeCommandDispatchHook
+---@field finally? OpencodeCommandDispatchHook
+---@field on_command_before? OpencodeCommandDispatchHook
+---@field on_command_after? OpencodeCommandDispatchHook
+---@field on_command_error? OpencodeCommandDispatchHook
+---@field on_command_finally? OpencodeCommandDispatchHook
 
 ---@class OpencodeProviders
 ---@field [string] string[]
@@ -237,6 +331,14 @@
 ---@field enabled boolean
 ---@field level 'debug' | 'info' | 'warn' | 'error'
 ---@field outfile string|nil
+
+---@class OpencodeSlashCommandSpec
+---@field desc? string
+---@field args? boolean
+---@field cmd_str? string
+---@field command_name? string
+---@field preset_args? string[]
+---@field fn? fun(args:string[]|nil):nil|Promise<any>|any
 
 ---@class OpencodeConfig
 ---@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
@@ -621,7 +723,7 @@
 ---@class OpencodeSlashCommand
 ---@field slash_cmd string The command trigger (e.g., "/help")
 ---@field desc string|nil Description of the command
----@field fn fun(args:string[]):nil Function to execute the command
+---@field fn fun(args:string[]|nil):nil|Promise<any>|any Function to execute the command
 ---@field args boolean Whether the command accepts arguments
 
 ---@class OpencodeRevertSummary

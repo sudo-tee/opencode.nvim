@@ -89,7 +89,7 @@ describe('opencode.opencode_server', function()
     assert.is_nil(server.handle)
   end)
 
-  it('calls on_error when stderr is triggered', function()
+  it('calls on_error when stderr callback receives an error', function()
     local called = { on_error = false }
     local opts_captured = {}
     vim.system = function(cmd, opts)
@@ -124,18 +124,88 @@ describe('opencode.opencode_server', function()
       end,
       on_error = function(err)
         called.on_error = true
-        assert.equals('some error', err)
+        assert.equals('stream error', err)
       end,
       on_exit = function()
         called.on_exit = true
       end,
     })
-    -- Simulate stderr after job is set
-    server.job.stderr(nil, 'some error')
+    -- Simulate stderr callback error after job is set
+    server.job.stderr('stream error', nil)
     vim.wait(100, function()
       return called.on_error
     end)
     assert.is_true(called.on_error)
+  end)
+
+  it('ignores stderr output before ready when stdout later reports the server URL', function()
+    local called = { on_error = false }
+    local server = OpencodeServer.new()
+
+    vim.system = function(cmd, opts)
+      vim.schedule(function()
+        opts.stderr(nil, 'Performing one time database migration, may take a few minutes...\n')
+        opts.stderr(nil, 'sqlite-migration:100\n')
+        opts.stdout(nil, 'opencode server listening on http://127.0.0.1:7777')
+      end)
+
+      return { pid = 45, kill = function() end }
+    end
+
+    local resolved
+    server:spawn({
+      cwd = '.',
+      on_ready = function(_, url)
+        resolved = url
+      end,
+      on_error = function()
+        called.on_error = true
+      end,
+      on_exit = function() end,
+    })
+
+    vim.wait(100, function()
+      return resolved ~= nil
+    end)
+
+    assert.equals('http://127.0.0.1:7777', resolved)
+    assert.is_false(called.on_error)
+  end)
+
+  it('rejects startup if the process exits before reporting the server URL', function()
+    local called = { on_error = nil, on_exit = false }
+    local server = OpencodeServer.new()
+
+    vim.system = function(cmd, opts, on_exit)
+      vim.schedule(function()
+        opts.stderr(nil, 'Database migration failed.\n')
+        on_exit({ code = 1, signal = 0 })
+      end)
+
+      return { pid = 46, kill = function() end }
+    end
+
+    local promise = server:spawn({
+      cwd = '.',
+      on_ready = function()
+        called.on_ready = true
+      end,
+      on_error = function(err)
+        called.on_error = err
+      end,
+      on_exit = function()
+        called.on_exit = true
+      end,
+    })
+
+    local ok, err = pcall(function()
+      promise:wait(100)
+    end)
+
+    assert.is_false(ok)
+    assert.truthy(tostring(err):match('Database migration failed'))
+    assert.truthy(tostring(called.on_error):match('Database migration failed'))
+    assert.is_true(called.on_exit)
   end)
 
   it('calls on_exit and clears fields when process exits', function()

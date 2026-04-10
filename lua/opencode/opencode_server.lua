@@ -207,6 +207,9 @@ end
 function OpencodeServer:spawn(opts)
   opts = opts or {}
   local log = require('opencode.log')
+  local ready = false
+  local startup_failed = false
+  local startup_stderr = {}
 
   local cmd = {
     config.opencode_executable,
@@ -225,17 +228,28 @@ function OpencodeServer:spawn(opts)
 
   log.debug('spawn: starting opencode server with command: %s', vim.inspect(cmd))
 
+  local function fail_startup(err)
+    if ready or startup_failed then
+      return
+    end
+
+    startup_failed = true
+    self.spawn_promise:reject(err)
+    safe_call(opts.on_error, err)
+  end
+
   self.mode = 'serve'
   self.job = vim.system(cmd, {
     cwd = opts.cwd,
     stdout = function(err, data)
       if err then
-        safe_call(opts.on_error, err)
+        fail_startup(err)
         return
       end
       if data then
         local url = data:match('opencode server listening on ([^%s]+)')
-        if url then
+        if url and not ready then
+          ready = true
           self.url = url
           self.spawn_promise:resolve(self)
           safe_call(opts.on_ready, self.job, url)
@@ -245,23 +259,26 @@ function OpencodeServer:spawn(opts)
     end,
     stderr = function(err, data)
       if err then
-        self.spawn_promise:reject(err)
-        safe_call(opts.on_error, err)
+        fail_startup(err)
         return
       end
-      if data then
-        -- Filter out INFO/WARN/DEBUG log lines (not actual errors)
-        local log_level = data:match('^%s*(%u+)%s')
-        if log_level and (log_level == 'INFO' or log_level == 'WARN' or log_level == 'DEBUG') then
-          -- Ignore log lines, don't reject
-          return
-        end
-        -- Only reject on actual errors
-        self.spawn_promise:reject(data)
-        safe_call(opts.on_error, data)
+      if data and data ~= '' then
+        table.insert(startup_stderr, data)
+        log.debug('spawn: stderr output: %s', vim.inspect(data))
       end
     end,
   }, function(exit_opts)
+    if not ready and not startup_failed then
+      local stderr_output = table.concat(startup_stderr)
+      local startup_error = stderr_output ~= '' and stderr_output
+        or string.format(
+          'Opencode server exited before reporting ready state (code=%s, signal=%s)',
+          tostring(exit_opts and exit_opts.code),
+          tostring(exit_opts and exit_opts.signal)
+        )
+      fail_startup(startup_error)
+    end
+
     -- Clear fields if not already cleared by shutdown()
     self.job = nil
     self.url = nil

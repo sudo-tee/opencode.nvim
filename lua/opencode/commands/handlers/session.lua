@@ -441,7 +441,7 @@ M.command_defs = {
   },
   -- action name aliases for keymap compatibility
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
-  select_session         = { desc = 'Select session',           execute = M.actions.select_session },
+  select_session         = { desc = 'Select session',           execute = function() return M.actions.select_session() end },
   select_child_session   = { desc = 'Select child session',     execute = M.actions.select_child_session },
   rename_session         = { desc = 'Rename session',           execute = function(args) return M.actions.rename_session(nil, args[1]) end },
   undo = {

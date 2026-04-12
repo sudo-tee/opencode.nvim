@@ -220,9 +220,9 @@ describe('output_window.is_at_bottom', function()
     assert.is_true(output_window.is_at_bottom(win))
   end)
 
-  it('returns false when _was_at_bottom_by_win flag is explicitly false', function()
-    -- Simulate user having scrolled away: flag is set to false
-    output_window._was_at_bottom_by_win[win] = false
+  it('returns false when cursor is not on last line', function()
+    -- cursor not at last line
+    vim.api.nvim_win_set_cursor(win, { 25, 0 })
     assert.is_false(output_window.is_at_bottom(win))
   end)
 
@@ -232,16 +232,13 @@ describe('output_window.is_at_bottom', function()
   end)
 
   it('returns false when user has scrolled viewport away from bottom', function()
-    -- Simulate scrolling to bottom then user scrolling away
+    -- Simulate scrolling to bottom then user pressing k to move cursor up
     local scroll = require('opencode.ui.renderer.scroll')
     scroll.scroll_win_to_bottom(win, buf)
     assert.is_true(output_window.is_at_bottom(win))
 
-    -- Simulate WinScrolled: user scrolls viewport up
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.fn.winrestview({ topline = 1 })
-    end)
-    output_window.sync_cursor_with_viewport(win)
+    -- User presses k: cursor moves away from the last line
+    vim.api.nvim_win_set_cursor(win, { 40, 0 })
     assert.is_false(output_window.is_at_bottom(win))
   end)
 
@@ -278,20 +275,14 @@ describe('output_window.is_at_bottom', function()
     pcall(vim.api.nvim_buf_delete, empty_buf, { force = true })
   end)
 
-  it('viewport-based: scrolling viewport up stops auto-scroll even when cursor stays at last line', function()
-    -- Scroll to bottom so _was_at_bottom_by_win is set to true
+  it('cursor-based: moving cursor up stops auto-scroll', function()
+    -- Scroll to bottom: cursor is at last line
     local scroll = require('opencode.ui.renderer.scroll')
     scroll.scroll_win_to_bottom(win, buf)
     assert.is_true(output_window.is_at_bottom(win))
 
-    -- Scroll the viewport up without touching the cursor.
-    -- WinScrolled fires → sync_cursor_with_viewport → _was_at_bottom_by_win = false
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.fn.winrestview({ topline = 1 })
-    end)
-    output_window.sync_cursor_with_viewport(win)
-
-    -- Even though cursor is still at line 50, viewport has scrolled away
+    -- User presses k: cursor moves away from last line → auto-scroll stops
+    vim.api.nvim_win_set_cursor(win, { 40, 0 })
     assert.is_false(output_window.is_at_bottom(win))
   end)
 
@@ -352,20 +343,12 @@ describe('output_window.sync_cursor_with_viewport', function()
     state.ui.set_windows(nil)
   end)
 
-  it('sets _was_at_bottom_by_win to false when viewport scrolls away from bottom', function()
-    -- Start with viewport and cursor at last line
-    vim.api.nvim_win_set_cursor(win, { 5, 0 })
-    local scroll = require('opencode.ui.renderer.scroll')
-    scroll.scroll_win_to_bottom(win, buf)
-    assert.is_true(output_window._was_at_bottom_by_win[win])
-
-    -- Scroll the viewport up (simulate mouse wheel scroll)
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.fn.winrestview({ topline = 1 })
-    end)
+  it('does not affect is_at_bottom when cursor is away from bottom', function()
+    -- cursor not at last line
+    vim.api.nvim_win_set_cursor(win, { 2, 0 })
     output_window.sync_cursor_with_viewport(win)
 
-    assert.is_false(output_window._was_at_bottom_by_win[win])
+    assert.is_false(output_window.is_at_bottom(win))
   end)
 
   it('does not move the cursor when the user is already reading earlier content', function()

@@ -8,6 +8,7 @@ M.debug_namespace = vim.api.nvim_create_namespace('opencode_output_debug')
 M.markdown_namespace = vim.api.nvim_create_namespace('opencode_output_markdown')
 M._last_visible_bottom_by_win = {}
 M._was_at_bottom_by_win = {}
+M._prev_line_count_by_win = {}
 
 local _update_depth = 0
 local _update_buf = nil
@@ -81,19 +82,9 @@ function M.buffer_valid(windows)
   return windows and windows.output_buf and vim.api.nvim_buf_is_valid(windows.output_buf)
 end
 
----Check if the output window viewport is scrolled to the bottom of the buffer.
----Returns true if the output window should continue auto-scrolling to follow
----new content. Uses the viewport position (visible bottom line) rather than
----the cursor, so that mouse-wheel scrolling—which moves the viewport but not
----the cursor—correctly stops the tail-follow behavior.
----
----The `_was_at_bottom_by_win` flag is the persistent signal: it is set to
----`true` by `scroll_win_to_bottom` and cleared to `false` by
----`sync_cursor_with_viewport` whenever the viewport is scrolled away from the
----buffer's last line. Reading a sticky flag (rather than the live viewport
----position) lets callers like `renderer.scroll_to_bottom()` that run *after*
----a buffer write still return the correct answer even though the viewport has
----not yet caught up to the newly appended lines.
+---Check if the cursor in the output window is at (or was at) the bottom of
+---the buffer, using the same logic as the original implementation.
+---Returns true if the window should continue auto-scrolling.
 ---@param win? integer Window ID, defaults to state.windows.output_win
 ---@return boolean
 function M.is_at_bottom(win)
@@ -116,18 +107,13 @@ function M.is_at_bottom(win)
     return true
   end
 
-  -- Prefer the sticky flag when it has been set by scroll/WinScrolled events.
-  -- Fall back to a live viewport check on the very first call (flag is nil).
-  if M._was_at_bottom_by_win[win] ~= nil then
-    return M._was_at_bottom_by_win[win] == true
-  end
-
-  local visible_bottom = M.get_visible_bottom_line(win)
-  if not visible_bottom then
+  local ok2, cursor = pcall(vim.api.nvim_win_get_cursor, win)
+  if not ok2 then
     return true
   end
 
-  return visible_bottom >= line_count
+  local prev_line_count = M._prev_line_count_by_win[win] or line_count
+  return cursor[1] >= prev_line_count or cursor[1] >= line_count
 end
 
 ---@param win? integer
@@ -146,11 +132,13 @@ function M.reset_scroll_tracking(win)
   if win then
     M._last_visible_bottom_by_win[win] = nil
     M._was_at_bottom_by_win[win] = nil
+    M._prev_line_count_by_win[win] = nil
     return
   end
 
   M._last_visible_bottom_by_win = {}
   M._was_at_bottom_by_win = {}
+  M._prev_line_count_by_win = {}
 end
 
 ---@param win? integer
@@ -174,12 +162,6 @@ function M.sync_cursor_with_viewport(win)
   end
 
   M._last_visible_bottom_by_win[win] = visible_bottom
-
-  -- Update the sticky at-bottom flag based on whether the viewport now shows
-  -- the last line. This is the key mechanism: when the user scrolls up (mouse
-  -- or keyboard), WinScrolled fires here and clears the flag so that the next
-  -- `is_at_bottom()` call returns false and streaming stops following the tail.
-  M._was_at_bottom_by_win[win] = visible_bottom >= line_count
 end
 
 ---@param windows OpencodeWindowState

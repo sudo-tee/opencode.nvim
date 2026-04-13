@@ -89,6 +89,7 @@ local action_groups = {
     debug_session = workflow.debug_session,
     toggle_tool_output = workflow.toggle_tool_output,
     toggle_reasoning_output = workflow.toggle_reasoning_output,
+    toggle_max_messages = workflow.toggle_max_messages,
     submit_input_prompt = workflow.submit_input_prompt,
     run = workflow.run,
     run_new_session = workflow.run_new_session,

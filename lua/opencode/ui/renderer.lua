@@ -141,19 +141,31 @@ local function upsert_hidden_messages_notice(hidden_count)
 
   if not existing_message then
     ensure_message_rendered(notice_message)
-    return
+  else
+    local existing_part = ctx.render_state:get_part(HIDDEN_MESSAGES_NOTICE_PART_ID)
+    if not existing_part or not existing_part.part then
+      hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+      ensure_message_rendered(notice_message)
+    else
+      ctx.render_state:set_message(notice_message, existing_message.line_start, existing_message.line_end)
+      ctx.render_state:set_part(notice_message.parts[1], existing_part.line_start, existing_part.line_end)
+    end
   end
 
-  local existing_part = ctx.render_state:get_part(HIDDEN_MESSAGES_NOTICE_PART_ID)
-  if not existing_part or not existing_part.part then
-    hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
-    ensure_message_rendered(notice_message)
-    return
+  local part_data = ctx.render_state:get_part(HIDDEN_MESSAGES_NOTICE_PART_ID)
+  if part_data then
+    ctx.render_state:add_actions(HIDDEN_MESSAGES_NOTICE_PART_ID, {
+      {
+        text = 'Toggle Max Messages',
+        type = 'toggle_max_messages',
+        args = {},
+        key = 'm',
+        range = { from = part_data.line_start, to = part_data.line_end },
+        display_line = part_data.line_start,
+      },
+    })
+    flush.mark_part_dirty(HIDDEN_MESSAGES_NOTICE_PART_ID, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
   end
-
-  ctx.render_state:set_message(notice_message, existing_message.line_start, existing_message.line_end)
-  ctx.render_state:set_part(notice_message.parts[1], existing_part.line_start, existing_part.line_end)
-  flush.mark_part_dirty(HIDDEN_MESSAGES_NOTICE_PART_ID, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
 end
 
 ---@param message_id string

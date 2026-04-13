@@ -473,12 +473,14 @@ end
 ---from opencode
 ---@param synchronous? boolean If true, waits until session is fully rendered
 ---@param opts? {force_scroll?: boolean}
+---@return Promise<OpencodeMessage[]> | OpencodeMessage[] | nil
 function M.render_output(synchronous, opts)
   local ret = renderer.render_full_session(opts)
 
   if ret and synchronous then
     ret:wait()
   end
+  return ret
 end
 
 ---@param lines string[]

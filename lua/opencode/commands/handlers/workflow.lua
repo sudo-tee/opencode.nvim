@@ -283,6 +283,22 @@ function M.actions.toggle_reasoning_output()
   ui.render_output()
 end
 
+local original_max_messages = config.ui.output.max_messages
+function M.actions.toggle_max_messages()
+  local current = config.ui.output.max_messages
+  local next_val
+  if type(current) == 'number' and current > 0 then
+    next_val = nil
+  else
+    next_val = original_max_messages or 20
+  end
+
+  local action_text = next_val == nil and 'Disabling' or 'Enabling'
+  local val_text = next_val == nil and 'none' or tostring(next_val)
+  vim.notify(action_text .. ' message limit to ' .. val_text, vim.log.levels.INFO)
+  config.values.ui.output.max_messages = next_val
+end
+
 M.actions.review = Promise.async(function(args)
   local new_session = core.create_new_session('Code review checklist for diffs and PRs'):await()
   if not new_session then
@@ -452,6 +468,10 @@ M.command_defs = {
   toggle_reasoning_output = {
     desc = 'Toggle reasoning output visibility in the output window',
     execute = M.actions.toggle_reasoning_output,
+  },
+  toggle_max_messages = {
+    desc = 'Toggle maximum number of rendered messages',
+    execute = M.actions.toggle_max_messages,
   },
   paste_image = {
     desc = 'Paste image from clipboard and add to context',

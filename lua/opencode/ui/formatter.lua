@@ -106,6 +106,14 @@ function M._format_hidden_messages_notice(hidden_count)
   local message_text = hidden_count == 1 and 'message is' or 'messages are'
 
   output:add_line(string.format('> %d older %s not displayed.', hidden_count, message_text))
+  output:add_action({
+    text = 'Show [A]ll messages',
+    type = 'toggle_max_messages',
+    args = {},
+    key = 'A',
+    display_line = output:get_line_count() - 1,
+    range = { from = output:get_line_count() - 1, to = output:get_line_count() - 1 },
+  })
   output:add_empty_line()
 
   return output

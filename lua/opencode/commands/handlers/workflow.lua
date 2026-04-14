@@ -297,6 +297,7 @@ function M.actions.toggle_max_messages()
   local val_text = next_val == nil and 'none' or tostring(next_val)
   vim.notify(action_text .. ' message limit to ' .. val_text, vim.log.levels.INFO)
   config.values.ui.output.max_messages = next_val
+  ui.render_output()
 end
 
 M.actions.review = Promise.async(function(args)

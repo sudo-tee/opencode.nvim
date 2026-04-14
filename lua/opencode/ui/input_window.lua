@@ -256,6 +256,7 @@ function M.setup(windows)
 
   window_options.set_buffer_option('filetype', 'opencode', windows.input_buf)
   window_options.set_window_option('winhighlight', config.ui.window_highlight, windows.input_win)
+  window_options.set_window_option('statuscolumn', '', windows.input_win)
 
   -- Apply user-configurable window options
   local win_opts = config.ui.input.win_options or {}

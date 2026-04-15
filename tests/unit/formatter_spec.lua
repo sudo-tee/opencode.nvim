@@ -437,8 +437,62 @@ describe('formatter', function()
       parts = {},
     })
 
-    assert.are.same({ '' }, output.lines)
+    assert.are.same({}, output.lines)
     assert.is_nil(output.extmarks[0])
+  end)
+
+  it('does not add a spacing-only block for hidden same-mode assistant messages', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = 'hidden',
+        },
+      },
+    })
+
+    local previous_message = {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+      },
+      parts = {},
+    }
+
+    local current_message = {
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+      },
+      parts = {},
+    }
+
+    local previous_part = formatter.format_part({
+      id = 'prt_prev',
+      type = 'text',
+      text = 'First reply',
+      messageID = 'msg_prev',
+      sessionID = 'ses_1',
+    }, previous_message, true)
+
+    local header = formatter.format_message_header(current_message, previous_message)
+    local current_part = formatter.format_part({
+      id = 'prt_current',
+      type = 'text',
+      text = 'Second reply',
+      messageID = 'msg_current',
+      sessionID = 'ses_1',
+    }, current_message, true)
+
+    local combined_lines = {}
+    vim.list_extend(combined_lines, previous_part.lines)
+    vim.list_extend(combined_lines, header.lines)
+    vim.list_extend(combined_lines, current_part.lines)
+
+    assert.are.same({ 'First reply', '', 'Second reply', '' }, combined_lines)
   end)
 
   it('keeps full assistant headers when the mode changes', function()

@@ -190,8 +190,16 @@ function M.format_message_header(message, previous_message)
     display_name = role:upper()
   end
 
+  local header_style = config.ui.output.compact_assistant_headers
+  if header_style == true then
+    header_style = 'minimal'
+  end
+  if header_style == false then
+    header_style = 'full'
+  end
+
   local same_mode_as_previous = false
-  if config.ui.output.compact_assistant_headers and role == 'assistant' and previous_message then
+  if (header_style == 'minimal' or header_style == 'hidden') and role == 'assistant' and previous_message then
     local previous_role = previous_message.info and previous_message.info.role or nil
     local previous_mode = previous_message.info and previous_message.info.mode or state.current_mode
     local current_mode = message.info.mode or state.current_mode
@@ -206,7 +214,9 @@ function M.format_message_header(message, previous_message)
   if not same_mode_as_previous then
     output:add_lines(M.separator)
   else
-    output:add_line('')
+    if header_style ~= 'hidden' then
+      output:add_line('')
+    end
   end
 
   if not same_mode_as_previous then
@@ -223,7 +233,7 @@ function M.format_message_header(message, previous_message)
     } --[[@as OutputExtmark]])
   end
 
-  if time then
+  if time and (role ~= 'assistant' or header_style ~= 'hidden') then
     output:add_extmark(output:get_line_count() - 1, {
       virt_text = { { (same_mode_as_previous and '' or ' ') .. util.format_time(time), 'OpencodeHint' } },
       virt_text_pos = 'right_align',

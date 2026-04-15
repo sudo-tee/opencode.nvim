@@ -349,9 +349,12 @@ describe('formatter', function()
 
     snapshot.get_restore_points_by_parent = original_get_restore_points_by_parent
 
-    assert.are.same({ 0, 0, 0, 1, 1 }, vim.tbl_map(function(action)
-      return action.display_line
-    end, output.actions))
+    assert.are.same(
+      { 0, 0, 0, 1, 1 },
+      vim.tbl_map(function(action)
+        return action.display_line
+      end, output.actions)
+    )
   end)
 
   it('falls back to current mode for assistant messages without a stamped mode', function()
@@ -402,6 +405,40 @@ describe('formatter', function()
     assert.is_truthy(output.extmarks[0])
     assert.are.equal(util.format_time(1), output.extmarks[0][1].virt_text[1][1])
     assert.are.equal('right_align', output.extmarks[0][1].virt_text_pos)
+  end)
+
+  it('renders hidden assistant headers without any header content', function()
+    config.setup({
+      ui = {
+        output = {
+          compact_assistant_headers = 'hidden',
+        },
+      },
+    })
+
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_current',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+        time = {
+          created = 1,
+        },
+      },
+      parts = {},
+    }, {
+      info = {
+        id = 'msg_prev',
+        role = 'assistant',
+        sessionID = 'ses_1',
+        mode = 'build',
+      },
+      parts = {},
+    })
+
+    assert.are.same({ '' }, output.lines)
+    assert.is_nil(output.extmarks[0])
   end)
 
   it('keeps full assistant headers when the mode changes', function()

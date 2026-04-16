@@ -36,9 +36,11 @@ function M.format(output, part)
       file.relativePath or file.filePath,
       formatter_utils.get_duration_text(part)
     )
-    if config.ui.output.tools.show_output and file.diff then
+
+    local patch = file.diff or file.patch
+    if config.ui.output.tools.show_output and patch then
       local file_type = file and util.get_markdown_filetype(file.filePath) or ''
-      formatter_utils.format_diff(output, file.diff, file_type)
+      formatter_utils.format_diff(output, patch, file_type)
     end
   end
 end

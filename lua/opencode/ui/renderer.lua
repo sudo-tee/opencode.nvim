@@ -9,6 +9,234 @@ local flush = require('opencode.ui.renderer.flush')
 local scroll = require('opencode.ui.renderer.scroll')
 
 local M = {}
+local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
+local HIDDEN_MESSAGES_NOTICE_PART_ID = '__opencode_hidden_messages_notice_part__'
+
+---@return integer|nil
+local function get_max_rendered_messages()
+  local limit = config.ui and config.ui.output and config.ui.output.max_messages
+  if type(limit) ~= 'number' or limit <= 0 then
+    return nil
+  end
+  return math.floor(limit)
+end
+
+---@param message OpencodeMessage|nil
+---@return boolean
+local function is_renderer_synthetic_message(message)
+  local message_id = message and message.info and message.info.id
+  return message_id == '__opencode_revert_message__' or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
+end
+
+---@param message OpencodeMessage|nil
+---@return boolean
+local function is_active_session_message(message)
+  local session_id = message and message.info and message.info.sessionID
+  return session_id ~= nil and state.active_session and state.active_session.id == session_id
+end
+
+---@param messages OpencodeMessage[]|nil
+---@return OpencodeMessage[]
+local function get_real_session_messages(messages)
+  return vim.tbl_filter(function(message)
+    return is_active_session_message(message) and not is_renderer_synthetic_message(message)
+  end, messages or {})
+end
+
+---@param messages OpencodeMessage[]|nil
+---@return integer|nil
+local function get_revert_index(messages)
+  local revert = state.active_session and state.active_session.revert
+  local revert_message_id = revert and revert.messageID
+  if not revert_message_id then
+    return nil
+  end
+
+  local real_messages = get_real_session_messages(messages)
+  for i, message in ipairs(real_messages) do
+    if message.info and message.info.id == revert_message_id then
+      return i
+    end
+  end
+
+  return nil
+end
+
+---@param messages OpencodeMessage[]|nil
+---@return OpencodeMessage[] visible_messages
+---@return integer hidden_count
+local function get_visible_session_messages(messages)
+  local real_messages = get_real_session_messages(messages)
+  local revert_index = get_revert_index(messages)
+  if revert_index then
+    real_messages = vim.list_slice(real_messages, 1, revert_index - 1)
+  end
+
+  local limit = get_max_rendered_messages()
+  if not limit or #real_messages <= limit then
+    return real_messages, 0
+  end
+
+  local start_index = #real_messages - limit + 1
+  return vim.list_slice(real_messages, start_index, #real_messages), start_index - 1
+end
+
+---@param hidden_count integer
+---@return OpencodeMessage
+local function build_hidden_messages_notice(hidden_count)
+  local session_id = state.active_session and state.active_session.id or ''
+  return {
+    info = {
+      id = HIDDEN_MESSAGES_NOTICE_MESSAGE_ID,
+      sessionID = session_id,
+      role = 'system',
+    },
+    parts = {
+      {
+        id = HIDDEN_MESSAGES_NOTICE_PART_ID,
+        messageID = HIDDEN_MESSAGES_NOTICE_MESSAGE_ID,
+        sessionID = session_id,
+        type = 'hidden-messages-display',
+        state = {
+          hidden_count = hidden_count,
+        },
+      },
+    },
+  }
+end
+
+---@param message_id string
+---@return OpencodeMessage|nil
+local function find_message_in_state(message_id)
+  for _, message in ipairs(state.messages or {}) do
+    if message.info and message.info.id == message_id then
+      return message
+    end
+  end
+  return nil
+end
+
+---@param message OpencodeMessage
+local function ensure_message_rendered(message)
+  local message_id = message.info and message.info.id
+  if not message_id or ctx.render_state:get_message(message_id) then
+    return
+  end
+
+  ctx.render_state:set_message(message)
+  flush.mark_message_dirty(message_id)
+
+  for _, part in ipairs(message.parts or {}) do
+    if part.id and part.type ~= 'step-start' and part.type ~= 'step-finish' then
+      ctx.render_state:set_part(part)
+      flush.mark_part_dirty(part.id, message_id)
+    end
+  end
+end
+
+---@param hidden_count integer
+local function upsert_hidden_messages_notice(hidden_count)
+  local existing_message = ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+  local notice_message = build_hidden_messages_notice(hidden_count)
+
+  if not existing_message then
+    ensure_message_rendered(notice_message)
+  else
+    local existing_part = ctx.render_state:get_part(HIDDEN_MESSAGES_NOTICE_PART_ID)
+    if not existing_part or not existing_part.part then
+      hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+      ensure_message_rendered(notice_message)
+    else
+      ctx.render_state:set_message(notice_message, existing_message.line_start, existing_message.line_end)
+      ctx.render_state:set_part(notice_message.parts[1], existing_part.line_start, existing_part.line_end)
+    end
+  end
+
+  local part_data = ctx.render_state:get_part(HIDDEN_MESSAGES_NOTICE_PART_ID)
+  if part_data then
+    ctx.render_state:add_actions(HIDDEN_MESSAGES_NOTICE_PART_ID, {
+      {
+        text = 'Toggle Max Messages',
+        type = 'toggle_max_messages',
+        args = {},
+        key = 'm',
+        range = { from = part_data.line_start, to = part_data.line_end },
+        display_line = part_data.line_start,
+      },
+    })
+    flush.mark_part_dirty(HIDDEN_MESSAGES_NOTICE_PART_ID, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+  end
+end
+
+---@param message_id string
+local function hide_rendered_message(message_id)
+  local rendered_message = ctx.render_state:get_message(message_id)
+  local message = rendered_message and rendered_message.message or find_message_in_state(message_id)
+  if not message then
+    return
+  end
+
+  ctx.render_state:clear_orphan_parts(message_id)
+  for _, part in ipairs(message.parts or {}) do
+    if part.id then
+      flush.queue_part_removal(part.id)
+    end
+  end
+  flush.queue_message_removal(message_id)
+end
+
+local function reconcile_rendered_message_limit()
+  if not state.active_session or not state.messages then
+    return
+  end
+
+  local limit = get_max_rendered_messages()
+  if not limit then
+    if ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
+      hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+    end
+    return
+  end
+
+  local visible_messages, hidden_count = get_visible_session_messages(state.messages)
+  local visible_ids = {}
+  for _, message in ipairs(visible_messages) do
+    local message_id = message.info and message.info.id
+    if message_id then
+      visible_ids[message_id] = true
+      ensure_message_rendered(message)
+    end
+  end
+
+  for _, message in ipairs(get_real_session_messages(state.messages)) do
+    local message_id = message.info and message.info.id
+    if message_id and not visible_ids[message_id] and ctx.render_state:get_message(message_id) then
+      hide_rendered_message(message_id)
+    end
+  end
+
+  if hidden_count > 0 then
+    upsert_hidden_messages_notice(hidden_count)
+  elseif ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
+    hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+  end
+end
+
+---@param message_id string|nil
+---@return boolean
+local function is_message_visible(message_id)
+  if not message_id then
+    return false
+  end
+
+  for _, message in ipairs(select(1, get_visible_session_messages(state.messages))) do
+    if message.info and message.info.id == message_id then
+      return true
+    end
+  end
+
+  return false
+end
 
 -- Expose event handlers on M so tests can call them directly and subscriptions
 -- can be stubbed cleanly (e.g. stub(renderer, '_render_full_session_data'))
@@ -100,22 +328,35 @@ end
 function M._render_full_session_data(session_data, opts)
   opts = opts or {}
   M.reset()
+  state.renderer.set_messages(vim.deepcopy(session_data or {}))
 
   if not state.active_session or not state.messages then
     return
   end
 
-  local revert_index = nil
+  local visible_messages, hidden_count = get_visible_session_messages(state.messages)
+  local revert_index = get_revert_index(state.messages)
 
   flush.begin_bulk_mode()
 
-  for i, msg in ipairs(session_data) do
-    if state.active_session.revert and state.active_session.revert.messageID == msg.info.id then
-      revert_index = i
-    end
-    events.on_message_updated({ info = msg.info }, revert_index)
+  if hidden_count > 0 then
+    local hidden_notice = build_hidden_messages_notice(hidden_count)
+    events.on_message_updated(hidden_notice)
+    events.on_part_updated({ part = hidden_notice.parts[1] })
+  end
+
+  for _, msg in ipairs(visible_messages) do
+    events.on_message_updated({ info = msg.info })
     for _, part in ipairs(msg.parts or {}) do
-      events.on_part_updated({ part = part }, revert_index)
+      events.on_part_updated({ part = part })
+    end
+  end
+
+  for _, msg in ipairs(state.messages) do
+    if msg.info and msg.info.sessionID ~= state.active_session.id then
+      for _, part in ipairs(msg.parts or {}) do
+        events.on_part_updated({ part = part })
+      end
     end
   end
 
@@ -233,6 +474,9 @@ function M.on_session_changed(_, new, old)
     M.render_full_session()
   end
 end
+
+M.reconcile_rendered_message_limit = reconcile_rendered_message_limit
+M.is_message_visible = is_message_visible
 
 ---Scroll to bottom after all queued events have been processed
 function M.on_emit_events_finished()

@@ -56,7 +56,9 @@ M.defaults = {
       ['<leader>ox'] =  { 'swap_position',                                     desc = 'Swap window position' },
       ['<leader>otr'] = { 'toggle_reasoning_output',                           desc = 'Toggle reasoning output' },
       ['<leader>ott'] = { 'toggle_tool_output',                                desc = 'Toggle tool output' },
+      ['<leader>otm'] = { 'toggle_max_messages',                               desc = 'Toggle max messages' },
       ['<leader>o/'] =  { 'quick_chat',                   mode = { 'n', 'x' }, desc = 'Quick chat with current context' },
+
     },
     output_window = {
       ['<esc>'] =       { 'close',                                             desc = 'Close Opencode windows' },
@@ -155,6 +157,7 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
       },
+      max_messages = nil,
       always_scroll_to_bottom = false,
     },
     questions = {

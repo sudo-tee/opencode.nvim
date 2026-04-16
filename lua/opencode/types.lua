@@ -244,6 +244,7 @@
 ---@class OpencodeUIOutputConfig
 ---@field tools { show_output: boolean, show_reasoning_output: boolean }
 ---@field rendering OpencodeUIOutputRenderingConfig
+---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
 ---@field compact_assistant_headers boolean | 'minimal' | 'hidden' | 'full'
@@ -498,7 +499,7 @@
 
 ---@class OutputAction
 ---@field text string Action text
----@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open'|'diff_restore_snapshot_file'|'diff_restore_snapshot_all'|'select_child_session' Type of action
+---@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open'|'diff_restore_snapshot_file'|'diff_restore_snapshot_all'|'select_child_session'|'toggle_max_messages'
 ---@field args? string[] Optional arguments for the command
 ---@field key string keybinding for the action
 ---@field display_line number Line number to display the action

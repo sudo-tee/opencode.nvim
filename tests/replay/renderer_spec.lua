@@ -225,6 +225,205 @@ describe('renderer unit tests', function()
     assert.are.equal(1, #revert_messages)
   end)
 
+  it('limits rendered messages and inserts a hidden-messages notice', function()
+    local renderer = require('opencode.ui.renderer')
+
+    helpers.replay_setup()
+    config.ui.output.max_messages = 2
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    })
+
+    renderer._render_full_session_data({
+      {
+        info = { id = 'msg_1', role = 'user', sessionID = 'ses_123', time = { created = 1 } },
+        parts = {
+          { id = 'part_1', messageID = 'msg_1', sessionID = 'ses_123', type = 'text', text = 'first' },
+        },
+      },
+      {
+        info = { id = 'msg_2', role = 'assistant', sessionID = 'ses_123', time = { created = 2 } },
+        parts = {
+          { id = 'part_2', messageID = 'msg_2', sessionID = 'ses_123', type = 'text', text = 'second' },
+        },
+      },
+      {
+        info = { id = 'msg_3', role = 'assistant', sessionID = 'ses_123', time = { created = 3 } },
+        parts = {
+          { id = 'part_3', messageID = 'msg_3', sessionID = 'ses_123', type = 'text', text = 'third' },
+        },
+      },
+    })
+
+    assert.is_not_nil(renderer.get_rendered_message('__opencode_hidden_messages_notice__'))
+    assert.is_nil(renderer.get_rendered_message('msg_1'))
+    assert.is_not_nil(renderer.get_rendered_message('msg_2'))
+    assert.is_not_nil(renderer.get_rendered_message('msg_3'))
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.are.equal('> 1 older message is not displayed.', lines[1])
+
+    config.ui.output.max_messages = nil
+  end)
+
+  it('evicts the oldest rendered message during streaming updates', function()
+    local renderer = require('opencode.ui.renderer')
+    local events = require('opencode.ui.renderer.events')
+    local flush = require('opencode.ui.renderer.flush')
+
+    helpers.replay_setup()
+    config.ui.output.max_messages = 2
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    })
+    state.renderer.set_messages({
+      {
+        info = { id = 'msg_1', role = 'user', sessionID = 'ses_123', time = { created = 1 } },
+        parts = {
+          { id = 'part_1', messageID = 'msg_1', sessionID = 'ses_123', type = 'text', text = 'first' },
+        },
+      },
+      {
+        info = { id = 'msg_2', role = 'assistant', sessionID = 'ses_123', time = { created = 2 } },
+        parts = {
+          { id = 'part_2', messageID = 'msg_2', sessionID = 'ses_123', type = 'text', text = 'second' },
+        },
+      },
+    })
+
+    renderer._render_full_session_data(state.messages)
+
+    events.on_message_updated({
+      info = { id = 'msg_3', role = 'assistant', sessionID = 'ses_123', time = { created = 3 } },
+      parts = {},
+    })
+    events.on_part_updated({
+      part = { id = 'part_3', messageID = 'msg_3', sessionID = 'ses_123', type = 'text', text = 'third' },
+    })
+    flush.flush()
+
+    assert.is_nil(renderer.get_rendered_message('msg_1'))
+    assert.is_not_nil(renderer.get_rendered_message('msg_2'))
+    assert.is_not_nil(renderer.get_rendered_message('msg_3'))
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.are.equal('> 1 older message is not displayed.', lines[1])
+
+    config.ui.output.max_messages = nil
+  end)
+
+  it('updates the hidden-messages notice when an older hidden message is removed', function()
+    local renderer = require('opencode.ui.renderer')
+    local events = require('opencode.ui.renderer.events')
+    local flush = require('opencode.ui.renderer.flush')
+
+    helpers.replay_setup()
+    config.ui.output.max_messages = 2
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    })
+
+    renderer._render_full_session_data({
+      {
+        info = { id = 'msg_1', role = 'user', sessionID = 'ses_123', time = { created = 1 } },
+        parts = {
+          { id = 'part_1', messageID = 'msg_1', sessionID = 'ses_123', type = 'text', text = 'first' },
+        },
+      },
+      {
+        info = { id = 'msg_2', role = 'assistant', sessionID = 'ses_123', time = { created = 2 } },
+        parts = {
+          { id = 'part_2', messageID = 'msg_2', sessionID = 'ses_123', type = 'text', text = 'second' },
+        },
+      },
+      {
+        info = { id = 'msg_3', role = 'assistant', sessionID = 'ses_123', time = { created = 3 } },
+        parts = {
+          { id = 'part_3', messageID = 'msg_3', sessionID = 'ses_123', type = 'text', text = 'third' },
+        },
+      },
+      {
+        info = { id = 'msg_4', role = 'assistant', sessionID = 'ses_123', time = { created = 4 } },
+        parts = {
+          { id = 'part_4', messageID = 'msg_4', sessionID = 'ses_123', type = 'text', text = 'fourth' },
+        },
+      },
+    })
+
+    events.on_message_removed({ sessionID = 'ses_123', messageID = 'msg_1' })
+    flush.flush()
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.are.equal('> 1 older message is not displayed.', lines[1])
+
+    config.ui.output.max_messages = nil
+  end)
+
+  it('updates the hidden-messages notice count after multiple hidden removals', function()
+    local renderer = require('opencode.ui.renderer')
+    local events = require('opencode.ui.renderer.events')
+    local flush = require('opencode.ui.renderer.flush')
+
+    helpers.replay_setup()
+    config.ui.output.max_messages = 2
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    })
+
+    renderer._render_full_session_data({
+      {
+        info = { id = 'msg_1', role = 'user', sessionID = 'ses_123', time = { created = 1 } },
+        parts = {
+          { id = 'part_1', messageID = 'msg_1', sessionID = 'ses_123', type = 'text', text = 'first' },
+        },
+      },
+      {
+        info = { id = 'msg_2', role = 'assistant', sessionID = 'ses_123', time = { created = 2 } },
+        parts = {
+          { id = 'part_2', messageID = 'msg_2', sessionID = 'ses_123', type = 'text', text = 'second' },
+        },
+      },
+      {
+        info = { id = 'msg_3', role = 'assistant', sessionID = 'ses_123', time = { created = 3 } },
+        parts = {
+          { id = 'part_3', messageID = 'msg_3', sessionID = 'ses_123', type = 'text', text = 'third' },
+        },
+      },
+      {
+        info = { id = 'msg_4', role = 'assistant', sessionID = 'ses_123', time = { created = 4 } },
+        parts = {
+          { id = 'part_4', messageID = 'msg_4', sessionID = 'ses_123', type = 'text', text = 'fourth' },
+        },
+      },
+    })
+
+    events.on_message_removed({ sessionID = 'ses_123', messageID = 'msg_1' })
+    flush.flush()
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.are.equal('> 1 older message is not displayed.', lines[1])
+
+    events.on_message_removed({ sessionID = 'ses_123', messageID = 'msg_2' })
+    flush.flush()
+
+    lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.are.equal('----', lines[1])
+
+    config.ui.output.max_messages = nil
+  end)
+
   it('ignores session.updated for non-active session IDs', function()
     local renderer = require('opencode.ui.renderer')
 

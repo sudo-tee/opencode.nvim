@@ -193,6 +193,7 @@ function M.setup(windows)
   window_options.set_window_option('signcolumn', 'yes', windows.output_win, { save_original = true })
   window_options.set_window_option('list', false, windows.output_win, { save_original = true })
   window_options.set_window_option('statuscolumn', '', windows.output_win, { save_original = true })
+  window_options.set_window_option('colorcolumn', '', windows.output_win, { save_original = true })
 
   M.update_dimensions(windows)
   M.reset_scroll_tracking(windows.output_win)

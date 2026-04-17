@@ -56,12 +56,28 @@ function M.pick(sessions, callback)
 
         local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
 
-        for _, session in ipairs(sessions_to_delete) do
-          if state.active_session and state.active_session.id == session.id then
-            vim.notify('deleting current session, creating new session')
-            state.session.set_active(require('opencode.core').create_new_session():await())
-          end
+        local to_delete_ids = {}
+        for _, s in ipairs(sessions_to_delete) do
+          to_delete_ids[s.id] = true
+        end
 
+        local deleting_current = state.active_session and to_delete_ids[state.active_session.id] or false
+
+        if deleting_current then
+          local core = require('opencode.core')
+          local remaining = vim.tbl_filter(function(item)
+            return not to_delete_ids[item.id]
+          end, opts.items or {})
+
+          if #remaining > 0 then
+            core.switch_session(remaining[1].id):await()
+          else
+            vim.notify('deleting current session, creating new session')
+            state.session.set_active(core.create_new_session():await())
+          end
+        end
+
+        for _, session in ipairs(sessions_to_delete) do
           state.api_client:delete_session(session.id):catch(function(err)
             vim.schedule(function()
               vim.notify('Failed to delete session ' .. session.id .. ': ' .. vim.inspect(err), vim.log.levels.ERROR)

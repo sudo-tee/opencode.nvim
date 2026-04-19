@@ -2,6 +2,16 @@ local image_handler = require('opencode.image_handler')
 local context = require('opencode.context')
 
 describe('image_handler', function()
+  local function assert_has_sta(args)
+    local has_sta = false
+    for _, arg in ipairs(args) do
+      if arg == '-STA' then
+        has_sta = true
+        break
+      end
+    end
+    assert.is_true(has_sta)
+  end
   local original_fn = vim.fn
   local original_system = vim.system
   local original_uv = vim.uv
@@ -72,6 +82,9 @@ describe('image_handler', function()
       table.insert(mocks.system_calls, { cmd = cmd, opts = opts })
       return {
         wait = function()
+          if cmd[1] == 'wslpath' then
+            return { code = 0, stdout = 'C:\\Windows\\Path' }
+          end
           return { code = 0 }
         end,
       }
@@ -156,6 +169,7 @@ describe('image_handler', function()
     assert.equals(1, #mocks.added_files)
     local cmd_args = mocks.system_calls[1].cmd
     assert.equals('powershell.exe', cmd_args[1])
+    assert_has_sta(cmd_args)
   end)
 
   it('handles WSL clipboard as Windows', function()
@@ -167,8 +181,14 @@ describe('image_handler', function()
 
     assert.is_true(success)
     assert.equals(1, #mocks.added_files)
-    local cmd_args = mocks.system_calls[1].cmd
+
+    -- First call should be wslpath
+    assert.equals('wslpath', mocks.system_calls[1].cmd[1])
+
+    -- Second call should be powershell.exe with -STA
+    local cmd_args = mocks.system_calls[2].cmd
     assert.equals('powershell.exe', cmd_args[1])
+    assert_has_sta(cmd_args)
   end)
 
   it('falls back to base64 clipboard if system command fails', function()

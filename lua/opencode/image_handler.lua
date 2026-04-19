@@ -73,19 +73,26 @@ local function handle_windows_clipboard(path)
   if vim.fn.executable('powershell.exe') ~= 1 then
     return false
   end
+  local win_path = path
+  if vim.fn.exists('$WSL_DISTRO_NAME') == 1 then
+    local res = vim.system({ 'wslpath', '-w', path }):wait()
+    if res.code == 0 then
+      win_path = res.stdout:gsub('%s+$', '')
+    end
+  end
+
   local script = string.format(
     [[
-      Add-Type -AssemblyName System.Windows.Forms;
-      $img = [System.Windows.Forms.Clipboard]::GetImage();
+      $img = Get-Clipboard -Format Image;
       if ($img) {
         $img.Save('%s', [System.Drawing.Imaging.ImageFormat]::Png);
       } else {
         exit 1
       }
     ]],
-    path
+    win_path
   )
-  return run_shell_cmd({ 'powershell.exe', '-command', '-' }, { stdin = script })
+  return run_shell_cmd({ 'powershell.exe', '-STA', '-command', '-' }, { stdin = script })
 end
 
 local handlers = {

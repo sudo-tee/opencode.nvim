@@ -143,6 +143,12 @@ function M.restore_mentions(buf)
       require('opencode.context').add_file(name)
       return
     end
+    if name:find('^pasted_image_') then
+      local restored_path = require('opencode.image_handler').restore_img_path(name)
+      if restored_path then
+        require('opencode.context').add_file(restored_path)
+      end
+    end
   end)
 end
 

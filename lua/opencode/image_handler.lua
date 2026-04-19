@@ -4,6 +4,7 @@ local context = require('opencode.context')
 local state = require('opencode.state')
 
 local M = {}
+local cached_temp_dir = nil
 
 --- Check if a file exists and has content
 --- @param path string
@@ -137,11 +138,25 @@ local function try_base64_clipboard(temp_dir, timestamp)
   return success, success and image_path or nil
 end
 
+--- Restore full path of a pasted image by its name
+--- @param name string
+--- @return string?
+function M.restore_img_path(name)
+  if not cached_temp_dir or not name:find('^pasted_image_') then
+    return nil
+  end
+  local path = cached_temp_dir .. '/' .. name
+  return is_valid_file(path) and path or nil
+end
+
 --- Handle clipboard image data by saving it to a file and adding it to context
 --- @return boolean success True if image was successfully handled
 function M.paste_image_from_clipboard()
-  local temp_dir = vim.fn.tempname()
-  vim.fn.mkdir(temp_dir, 'p')
+  if not cached_temp_dir then
+    cached_temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(cached_temp_dir, 'p')
+  end
+  local temp_dir = cached_temp_dir
   local timestamp = os.date('%Y%m%d_%H%M%S')
   local image_path = string.format('%s/pasted_image_%s.png', temp_dir, timestamp)
 
@@ -156,7 +171,12 @@ function M.paste_image_from_clipboard()
   end
 
   if success then
-    context.add_file(image_path)
+    require('opencode.ui.mention').mention(function(mention_cb)
+      local name = vim.fn.fnamemodify(image_path, ':t')
+      mention_cb(name)
+      context.add_file(image_path)
+    end)
+
     vim.notify('Image saved and added to context: ' .. vim.fn.fnamemodify(image_path, ':t'), vim.log.levels.INFO)
     return true
   end

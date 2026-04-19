@@ -40,6 +40,7 @@ describe('image_handler', function()
       wsl_distro = 0,
       added_files = {},
       notifications = {},
+      existing_files = {},
     }
 
     vim.fn = setmetatable({
@@ -50,8 +51,13 @@ describe('image_handler', function()
         return mocks.temp_dir
       end,
       mkdir = function() end,
-      getfsize = function(_)
-        return 100 -- Simulating non-empty file
+      getfsize = function(path)
+        for _, f in ipairs(mocks.existing_files) do
+          if f == path then
+            return 100
+          end
+        end
+        return 0
       end,
       has = function(feature)
         if feature == 'win32' then
@@ -124,6 +130,7 @@ describe('image_handler', function()
   it('handles Darwin clipboard with osascript', function()
     mocks.os_name = 'Darwin'
     mocks.executable['osascript'] = 1
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -139,6 +146,7 @@ describe('image_handler', function()
     mocks.os_name = 'Linux'
     mocks.executable['wl-paste'] = 1
     mocks.executable['xclip'] = 0
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -151,6 +159,7 @@ describe('image_handler', function()
     mocks.os_name = 'Linux'
     mocks.executable['wl-paste'] = 0
     mocks.executable['xclip'] = 1
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -162,6 +171,7 @@ describe('image_handler', function()
   it('handles Windows clipboard', function()
     mocks.os_name = 'Windows_NT'
     mocks.executable['powershell.exe'] = 1
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -176,6 +186,7 @@ describe('image_handler', function()
     mocks.os_name = 'Linux'
     mocks.wsl_distro = 1
     mocks.executable['powershell.exe'] = 1
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -195,6 +206,7 @@ describe('image_handler', function()
     mocks.os_name = 'Darwin'
     mocks.executable['osascript'] = 0 -- Force failure of system tool
     mocks.clipboard_content = 'data:image/png;base64,fakebasedata'
+    table.insert(mocks.existing_files, '/tmp/test_dir/pasted_image_20240101_120000.png')
 
     local success = image_handler.paste_image_from_clipboard()
 
@@ -227,5 +239,39 @@ describe('image_handler', function()
 
     assert.is_false(success)
     assert.equals(0, #mocks.added_files)
+  end)
+
+  it('restores image path when file exists and name is valid', function()
+    mocks.os_name = 'Darwin'
+    mocks.executable['osascript'] = 1
+    -- Initialize cached_temp_dir
+    image_handler.paste_image_from_clipboard()
+
+    local img_name = 'pasted_image_test.png'
+    local expected_path = mocks.temp_dir .. '/' .. img_name
+    table.insert(mocks.existing_files, expected_path)
+
+    local restored_path = image_handler.restore_img_path(img_name)
+    assert.equals(expected_path, restored_path)
+  end)
+
+  it('returns nil when restoring image path with invalid name', function()
+    mocks.os_name = 'Darwin'
+    mocks.executable['osascript'] = 1
+    image_handler.paste_image_from_clipboard()
+
+    local restored_path = image_handler.restore_img_path('not_a_pasted_image.png')
+    assert.is_nil(restored_path)
+  end)
+
+  it('returns nil when restoring image path and file does not exist', function()
+    mocks.os_name = 'Darwin'
+    mocks.executable['osascript'] = 1
+    image_handler.paste_image_from_clipboard()
+
+    local img_name = 'pasted_image_missing.png'
+
+    local restored_path = image_handler.restore_img_path(img_name)
+    assert.is_nil(restored_path)
   end)
 end)

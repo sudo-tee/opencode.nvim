@@ -53,6 +53,7 @@ function M.pick(sessions, callback)
       multi_selection = true,
       fn = Promise.async(function(selected, opts)
         local state = require('opencode.state')
+        local session_runtime = require('opencode.services.session_runtime')
 
         local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
 
@@ -64,16 +65,15 @@ function M.pick(sessions, callback)
         local deleting_current = state.active_session and to_delete_ids[state.active_session.id] or false
 
         if deleting_current then
-          local core = require('opencode.core')
           local remaining = vim.tbl_filter(function(item)
             return not to_delete_ids[item.id]
           end, opts.items or {})
 
           if #remaining > 0 then
-            core.switch_session(remaining[1].id):await()
+            session_runtime.switch_session(remaining[1].id):await()
           else
             vim.notify('deleting current session, creating new session')
-            state.session.set_active(core.create_new_session():await())
+            state.session.set_active(session_runtime.create_new_session():await())
           end
         end
 
@@ -101,6 +101,7 @@ function M.pick(sessions, callback)
       key = config.keymap.session_picker.new_session,
       label = 'new',
       fn = Promise.async(function(selected, opts)
+        local session_runtime = require('opencode.services.session_runtime')
         local parent_id
         for _, s in ipairs(opts.items or {}) do
           if s.parentID ~= nil then
@@ -108,14 +109,12 @@ function M.pick(sessions, callback)
             break
           end
         end
-        local state = require('opencode.state')
-        local created = state.api_client:create_session(parent_id and { parentID = parent_id } or false):await()
-        if created and created.id then
-          local new_session = require('opencode.session').get_by_id(created.id):await()
+
+        local new_session = session_runtime.create_new_session(parent_id and { parentID = parent_id } or false):await()
+        if new_session then
           table.insert(opts.items, 1, new_session)
           return opts.items
         end
-        return nil
       end),
       reload = true,
     },

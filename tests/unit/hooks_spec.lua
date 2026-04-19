@@ -1,10 +1,22 @@
 local renderer = require('opencode.ui.renderer')
 local config = require('opencode.config')
 local state = require('opencode.state')
-local core = require('opencode.core')
+local session_runtime = require('opencode.services.session_runtime')
 local events = require('opencode.ui.renderer.events')
 local helpers = require('tests.helpers')
 local ui = require('opencode.ui.ui')
+
+
+local function expect_nil_hook_no_error(run)
+  assert.has_no.errors(run)
+end
+
+local function expect_throwing_hook_no_crash(set_hook, run)
+  set_hook(function()
+    error('test error')
+  end)
+  assert.has_no.errors(run)
+end
 
 describe('hooks', function()
   before_each(function()
@@ -48,20 +60,17 @@ describe('hooks', function()
 
     it('should not error when hook is nil', function()
       config.hooks.on_file_edited = nil
-
       local test_event = { file = '/test/file.lua' }
-      assert.has_no.errors(function()
+      expect_nil_hook_no_error(function()
         events.on_file_edited(test_event)
       end)
     end)
 
     it('should not crash when hook throws error', function()
-      config.hooks.on_file_edited = function()
-        error('test error')
-      end
-
       local test_event = { file = '/test/file.lua' }
-      assert.has_no.errors(function()
+      expect_throwing_hook_no_crash(function(fn)
+        config.hooks.on_file_edited = fn
+      end, function()
         events.on_file_edited(test_event)
       end)
     end)
@@ -89,26 +98,21 @@ describe('hooks', function()
 
     it('should not error when hook is nil', function()
       config.hooks.on_session_loaded = nil
-
       local events = helpers.load_test_data('tests/data/simple-session.json')
       state.session.set_active(helpers.get_session_from_events(events, true))
       local loaded_session = helpers.load_session_from_events(events)
-
-      assert.has_no.errors(function()
+      expect_nil_hook_no_error(function()
         renderer._render_full_session_data(loaded_session)
       end)
     end)
 
     it('should not crash when hook throws error', function()
-      config.hooks.on_session_loaded = function()
-        error('test error')
-      end
-
       local events = helpers.load_test_data('tests/data/simple-session.json')
       state.session.set_active(helpers.get_session_from_events(events, true))
       local loaded_session = helpers.load_session_from_events(events)
-
-      assert.has_no.errors(function()
+      expect_throwing_hook_no_crash(function(fn)
+        config.hooks.on_session_loaded = fn
+      end, function()
         renderer._render_full_session_data(loaded_session)
       end)
     end)
@@ -133,7 +137,7 @@ describe('hooks', function()
         return promise
       end
 
-      state.store.subscribe('user_message_count', core._on_user_message_count_change)
+      state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)
 
       -- Simulate job count change from 1 to 0 (done thinking) for a specific session
       state.session.set_active({ id = 'test-session', title = 'Test' })
@@ -147,7 +151,7 @@ describe('hooks', function()
 
       -- Restore original function
       session_module.get_all_workspace_sessions = original_get_all
-      state.store.unsubscribe('user_message_count', core._on_user_message_count_change)
+      state.store.unsubscribe('user_message_count', session_runtime._on_user_message_count_change)
 
       assert.is_true(called)
       assert.are.equal(called_session.id, 'test-session')
@@ -157,19 +161,17 @@ describe('hooks', function()
       config.hooks.on_done_thinking = nil
       state.session.set_active({ id = 'test-session', title = 'Test' })
       state.session.set_user_message_count({ ['test-session'] = 1 })
-      assert.has_no.errors(function()
+      expect_nil_hook_no_error(function()
         state.session.set_user_message_count({ ['test-session'] = 0 })
       end)
     end)
 
     it('should not crash when hook throws error', function()
-      config.hooks.on_done_thinking = function()
-        error('test error')
-      end
-
       state.session.set_active({ id = 'test-session', title = 'Test' })
       state.session.set_user_message_count({ ['test-session'] = 1 })
-      assert.has_no.errors(function()
+      expect_throwing_hook_no_crash(function(fn)
+        config.hooks.on_done_thinking = fn
+      end, function()
         state.session.set_user_message_count({ ['test-session'] = 0 })
       end)
     end)
@@ -195,7 +197,7 @@ describe('hooks', function()
       end
 
       -- Set up the subscription manually
-      state.store.subscribe('pending_permissions', core._on_current_permission_change)
+      state.store.subscribe('pending_permissions', session_runtime._on_current_permission_change)
 
       -- Simulate permission change from nil to a value
       state.session.set_active({ id = 'test-session', title = 'Test' })
@@ -208,7 +210,7 @@ describe('hooks', function()
 
       -- Restore original function
       session_module.get_by_id = original_get_by_id
-      state.store.unsubscribe('pending_permissions', core._on_current_permission_change)
+      state.store.unsubscribe('pending_permissions', session_runtime._on_current_permission_change)
 
       assert.is_true(called)
       assert.are.equal(called_session.id, 'test-session')
@@ -216,17 +218,15 @@ describe('hooks', function()
 
     it('should not error when hook is nil', function()
       config.hooks.on_permission_requested = nil
-      assert.has_no.errors(function()
+      expect_nil_hook_no_error(function()
         state.renderer.set_pending_permissions({ { tool = 'test_tool', action = 'read' } })
       end)
     end)
 
     it('should not crash when hook throws error', function()
-      config.hooks.on_permission_requested = function()
-        error('test error')
-      end
-
-      assert.has_no.errors(function()
+      expect_throwing_hook_no_crash(function(fn)
+        config.hooks.on_permission_requested = fn
+      end, function()
         state.renderer.set_pending_permissions({ { tool = 'test_tool', action = 'read' } })
       end)
     end)

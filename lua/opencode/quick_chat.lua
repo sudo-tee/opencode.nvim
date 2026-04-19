@@ -1,11 +1,12 @@
 local context = require('opencode.context')
 local state = require('opencode.state')
 local config = require('opencode.config')
-local core = require('opencode.core')
 local util = require('opencode.util')
 local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local CursorSpinner = require('opencode.quick_chat.spinner')
+local session_runtime = require('opencode.services.session_runtime')
+local agent_model = require('opencode.services.agent_model')
 
 local M = {}
 
@@ -322,7 +323,7 @@ local create_message = Promise.async(function(message, buf, range, context_confi
 
   local params = { parts = parts }
 
-  local current_model = core.initialize_current_model():await()
+  local current_model = agent_model.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
   if target_model then
     local provider, model = target_model:match('^(.-)/(.+)$')
@@ -368,7 +369,7 @@ M.quick_chat = Promise.async(function(message, options, range)
   end
 
   local title = create_session_title(buf)
-  local quick_chat_session = core.create_new_session(title):await()
+  local quick_chat_session = session_runtime.create_new_session(title):await()
   if not quick_chat_session then
     spinner:stop()
     return Promise.new():reject('Failed to create quickchat session')

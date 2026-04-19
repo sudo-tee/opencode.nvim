@@ -1,4 +1,3 @@
-local core = require('opencode.core')
 local util = require('opencode.util')
 local config_file = require('opencode.config_file')
 ---@type OpencodeState
@@ -11,6 +10,7 @@ local Promise = require('opencode.promise')
 local input_window = require('opencode.ui.input_window')
 local ui = require('opencode.ui.ui')
 local nvim = vim['api']
+local session_runtime = require('opencode.services.session_runtime')
 
 local M = {
   actions = {},
@@ -49,8 +49,8 @@ end
 ---@param prompt string
 ---@param opts SendMessageOpts
 local function run_with_opts(prompt, opts)
-  return core.open(opts):and_then(function()
-    return core.send_message(prompt, opts)
+  return session_runtime.open(opts):and_then(function()
+    return require('opencode.services.messaging').send_message(prompt, opts)
   end)
 end
 
@@ -189,7 +189,7 @@ for _, action_name in ipairs({ 'debug_output', 'debug_message', 'debug_session' 
 end
 
 function M.actions.paste_image()
-  core.paste_image_from_clipboard()
+  session_runtime.paste_image_from_clipboard()
 end
 
 M.actions.submit_input_prompt = Promise.async(function()
@@ -301,12 +301,12 @@ function M.actions.toggle_max_messages()
 end
 
 M.actions.review = Promise.async(function(args)
-  local new_session = core.create_new_session('Code review checklist for diffs and PRs'):await()
+  local new_session = session_runtime.create_new_session('Code review checklist for diffs and PRs'):await()
   if not new_session then
     vim.notify('Failed to create new session', vim.log.levels.ERROR)
     return
   end
-  if not core.initialize_current_model():await() or not state.current_model then
+  if not require('opencode.services.agent_model').initialize_current_model():await() or not state.current_model then
     vim.notify('No model selected', vim.log.levels.ERROR)
     return
   end

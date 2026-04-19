@@ -388,7 +388,7 @@ function M._render_full_session_data(session_data, opts)
   flush.end_bulk_mode()
 
   if opts.restore_model_from_messages then
-    require('opencode.core').initialize_current_model({ restore_from_messages = true })
+    require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
   end
 
   M.scroll_to_bottom(true)

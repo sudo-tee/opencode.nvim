@@ -3,9 +3,11 @@ local stub = require('luassert.stub')
 
 describe('opencode.commands.handlers', function()
   local tracked_modules = {
-    'opencode.core',
     'opencode.state',
     'opencode.promise',
+    'opencode.services.session_runtime',
+    'opencode.services.messaging',
+    'opencode.services.agent_model',
     'opencode.commands',
     'opencode.commands.handlers.window',
     'opencode.commands.handlers.agent',

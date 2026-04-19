@@ -1,8 +1,8 @@
-local core = require('opencode.core')
 local git_review = require('opencode.git_review')
 local session_store = require('opencode.session')
 ---@type OpencodeState
 local state = require('opencode.state')
+local session_runtime = require('opencode.services.session_runtime')
 
 local M = {
   actions = {},
@@ -11,7 +11,7 @@ local M = {
 local diff_subcommands = { 'open', 'next', 'prev', 'close' }
 
 local function with_output_open(callback, open_if_closed)
-  local open_fn = open_if_closed and core.open_if_closed or core.open
+  local open_fn = open_if_closed and session_runtime.open_if_closed or session_runtime.open
   return function(...)
     local args = { ... }
     open_fn({ new_session = false, focus = 'output' }):and_then(function()

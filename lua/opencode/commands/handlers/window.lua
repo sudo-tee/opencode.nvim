@@ -1,10 +1,10 @@
-local core = require('opencode.core')
 ---@type OpencodeState
 local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local config = require('opencode.config')
 local Promise = require('opencode.promise')
 local input_window = require('opencode.ui.input_window')
+local session_runtime = require('opencode.services.session_runtime')
 
 local M = {
   actions = {},
@@ -19,11 +19,11 @@ local function invalid_arguments(message)
 end
 
 function M.actions.open_input()
-  return core.open({ new_session = false, focus = 'input', start_insert = true })
+  return session_runtime.open({ new_session = false, focus = 'input', start_insert = true })
 end
 
 function M.actions.open_output()
-  return core.open({ new_session = false, focus = 'output' })
+  return session_runtime.open({ new_session = false, focus = 'output' })
 end
 
 function M.actions.close()
@@ -47,7 +47,7 @@ function M.actions.get_window_state()
 end
 
 function M.actions.cancel()
-  core.cancel()
+  session_runtime.cancel()
 end
 
 ---@param hidden OpencodeHiddenBuffers|nil
@@ -90,8 +90,8 @@ M.actions.toggle = Promise.async(function(new_session)
 
   local function open_windows(restore_hidden)
     local ctx = build_toggle_open_context(restore_hidden == true)
-    return core
-      .open({
+      return session_runtime
+        .open({
         new_session = is_new_session,
         focus = ctx.focus,
         start_insert = false,
@@ -132,7 +132,7 @@ end)
 function M.actions.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
     local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
-    core.open({ new_session = new_session == true, focus = focus })
+      session_runtime.open({ new_session = new_session == true, focus = focus })
   else
     ui.return_to_last_code_win()
   end

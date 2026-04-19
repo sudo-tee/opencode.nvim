@@ -1,4 +1,13 @@
-local core = require('opencode.core')
+local loaded = rawget(_G, '__opencode_service_spec_loaded') or {}
+_G.__opencode_service_spec_loaded = loaded
+if loaded.services_session_runtime_spec then
+  return
+end
+loaded.services_session_runtime_spec = true
+
+local session_runtime = require('opencode.services.session_runtime')
+local messaging = require('opencode.services.messaging')
+local agent_model = require('opencode.services.agent_model')
 local config_file = require('opencode.config_file')
 local state = require('opencode.state')
 local store = require('opencode.state.store')
@@ -8,39 +17,13 @@ local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 local assert = require('luassert')
 local flush = require('opencode.ui.renderer.flush')
+local support = require('tests.unit.services_spec_support')
 
--- Provide a mock api_client for tests that need it
-local function mock_api_client()
-  state.jobs.set_api_client({
-    create_session = function(_, params)
-      return Promise.new():resolve({ id = params and params.title or 'new-session' })
-    end,
-    create_message = function(_, sess_id, _params)
-      return Promise.new():resolve({ id = 'm1', sessionID = sess_id })
-    end,
-    abort_session = function(_, _id)
-      return Promise.new():resolve(true)
-    end,
-    get_current_project = function()
-      return Promise.new():resolve({ id = 'test-project-id' })
-    end,
-    get_config = function()
-      return Promise.new():resolve({ model = 'gpt-4' })
-    end,
-  })
-end
-
-describe('opencode.core', function()
-  local original_state
-  local original_system
-  local original_executable
-  local original_schedule
+describe('opencode.services.session_runtime', function()
+  local original
 
   before_each(function()
-    original_state = vim.deepcopy(state)
-    original_system = vim.system
-    original_executable = vim.fn.executable
-    original_schedule = vim.schedule
+    original = support.snapshot_state()
 
     vim.fn.executable = function(_)
       return 1
@@ -74,7 +57,6 @@ describe('opencode.core', function()
       return p
     end)
     if session.get_by_id and type(session.get_by_id) == 'function' then
-      -- stub get_by_id to return a simple session object without filesystem access
       stub(session, 'get_by_id').invokes(function(id)
         local p = Promise.new()
         if not id then
@@ -84,7 +66,6 @@ describe('opencode.core', function()
         end
         return p
       end)
-      -- stub get_by_name to return a simple session object without filesystem access
       stub(session, 'get_by_name').invokes(function(name)
         local p = Promise.new()
         if not name then
@@ -95,9 +76,8 @@ describe('opencode.core', function()
         return p
       end)
     end
-    mock_api_client()
+    support.mock_api_client()
 
-    -- Mock server job to avoid trying to start real server
     store.set('opencode_server', {
       is_running = function()
         return true
@@ -105,17 +85,10 @@ describe('opencode.core', function()
       shutdown = function() end,
       url = 'http://127.0.0.1:4000',
     })
-
-    -- Config is now loaded lazily, so no need to pre-seed promises
   end)
 
   after_each(function()
-    for k, v in pairs(original_state) do
-      store.set(k, v)
-    end
-    vim.system = original_system
-    vim.fn.executable = original_executable
-    vim.schedule = original_schedule
+    support.restore_state(original)
 
     for _, fn in ipairs({
       'create_windows',
@@ -143,7 +116,7 @@ describe('opencode.core', function()
   describe('open', function()
     it("creates windows if they don't exist", function()
       state.ui.set_windows(nil)
-      core.open({ new_session = false, focus = 'input' }):wait()
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
       assert.truthy(state.windows)
       assert.same({
         mock = 'windows',
@@ -157,7 +130,7 @@ describe('opencode.core', function()
     it('ensure the current cwd is correct when opening', function()
       local cwd = vim.fn.getcwd()
       state.context.set_current_cwd(nil)
-      core.open({ new_session = false, focus = 'input' }):wait()
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
       assert.equal(cwd, state.current_cwd)
     end)
 
@@ -177,18 +150,17 @@ describe('opencode.core', function()
         return p
       end)
 
-      core.open({ new_session = false, focus = 'input' }):wait()
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
       assert.truthy(state.active_session)
       assert.equal('new_cwd-test-session', state.active_session.id)
-      -- Restore original cwd function
       vim.fn.getcwd = original_getcwd
     end)
 
     it('handles new session properly', function()
       state.ui.set_windows(nil)
       state.session.set_active({ id = 'old-session' })
-      core.open({ new_session = true, focus = 'input' }):wait()
+      session_runtime.open({ new_session = true, focus = 'input' }):wait()
       assert.truthy(state.active_session)
     end)
 
@@ -204,12 +176,12 @@ describe('opencode.core', function()
         output_focused = true
       end)
 
-      core.open({ new_session = false, focus = 'input' }):wait()
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
       assert.is_true(input_focused)
       assert.is_false(output_focused)
 
       input_focused, output_focused = false, false
-      core.open({ new_session = false, focus = 'output' }):wait()
+      session_runtime.open({ new_session = false, focus = 'output' }):wait()
       assert.is_false(input_focused)
       assert.is_true(output_focused)
     end)
@@ -224,7 +196,7 @@ describe('opencode.core', function()
         return p
       end)
 
-      core.open({ new_session = false, focus = 'input' }):wait()
+      session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
       assert.truthy(state.active_session)
       assert.truthy(state.active_session.id)
@@ -234,33 +206,78 @@ describe('opencode.core', function()
       state.ui.set_windows(nil)
       store.set('is_opening', false)
 
-      -- Simply cause an error by stubbing a function that will be called
-      local original_create_new_session = core.create_new_session
-      core.create_new_session = function()
+      local original_create_new_session = session_runtime.create_new_session
+      session_runtime.create_new_session = function()
         error('Test error in create_new_session')
       end
 
       local notify_stub = stub(vim, 'notify')
-      local result_promise = core.open({ new_session = true, focus = 'input' })
+      local result_promise = session_runtime.open({ new_session = true, focus = 'input' })
 
-      -- Wait for async operations to complete
       local ok, err = pcall(function()
         result_promise:wait()
       end)
 
-      -- Should fail due to the error
       assert.is_false(ok)
       assert.truthy(err)
-
-      -- is_opening should be reset to false even when error occurs
       assert.is_false(state.is_opening)
-
-      -- Should have notified about the error
       assert.stub(notify_stub).was_called()
 
-      -- Restore original function
-      core.create_new_session = original_create_new_session
+      session_runtime.create_new_session = original_create_new_session
       notify_stub:revert()
+    end)
+  end)
+
+  describe('setup', function()
+    it('registers key subscriptions only once across repeated setup calls', function()
+      local original_opencode = package.loaded['opencode']
+      package.loaded['opencode'] = nil
+
+      local opencode = require('opencode')
+      local config = require('opencode.config')
+      local highlight = require('opencode.ui.highlight')
+      local commands = require('opencode.commands')
+      local completion = require('opencode.ui.completion')
+      local keymap = require('opencode.keymap')
+      local event_manager = require('opencode.event_manager')
+      local context = require('opencode.context')
+      local context_bar = require('opencode.ui.context_bar')
+      local reference_picker = require('opencode.ui.reference_picker')
+      local subscriptions = {}
+
+      local original_subscribe = state.store.subscribe
+      state.store.subscribe = function(key, cb)
+        table.insert(subscriptions, key)
+        return cb
+      end
+
+      local stubs = {
+        stub(config, 'setup'),
+        stub(highlight, 'setup'),
+        stub(commands, 'setup'),
+        stub(completion, 'setup'),
+        stub(keymap, 'setup'),
+        stub(event_manager, 'setup'),
+        stub(context, 'setup'),
+        stub(context_bar, 'setup'),
+        stub(reference_picker, 'setup'),
+        stub(session_runtime, 'opencode_ok').returns(true),
+      }
+
+      opencode.setup()
+      local first_count = #subscriptions
+      opencode.setup()
+
+      for _, item in ipairs(stubs) do
+        if item.revert then
+          item:revert()
+        end
+      end
+      state.store.subscribe = original_subscribe
+      package.loaded['opencode'] = original_opencode
+
+      assert.is_true(first_count > 0)
+      assert.are.equal(first_count, #subscriptions)
     end)
   end)
 
@@ -279,13 +296,13 @@ describe('opencode.core', function()
       local passed
       stub(ui, 'select_session').invokes(function(sessions, cb)
         passed = sessions
-        cb(sessions[2]) -- expect session3 after filtering
+        cb(sessions[2])
       end)
       ui.render_output:revert()
       stub(ui, 'render_output')
 
       state.ui.set_windows({ input_buf = 1, output_buf = 2 })
-      core.select_session(nil):wait()
+      session_runtime.select_session(nil):wait()
       assert.equal(2, #passed)
       assert.equal('session3', passed[2].id)
       assert.truthy(state.active_session)
@@ -294,141 +311,10 @@ describe('opencode.core', function()
   end)
 
   describe('send_message', function()
-    it('sends a message via api_client', function()
-      state.ui.set_windows({ mock = 'windows' })
-      state.session.set_active({ id = 'sess1' })
-
-      local create_called = false
-      local orig = state.api_client.create_message
-      state.api_client.create_message = function(_, sid, params)
-        create_called = true
-        assert.equal('sess1', sid)
-        assert.truthy(params.parts)
-        return Promise.new():resolve({ id = 'm1' })
-      end
-
-      core.send_message('hello world')
-      vim.wait(50, function()
-        return create_called
-      end)
-      assert.True(create_called)
-      state.api_client.create_message = orig
-    end)
-
-    it('creates new session when none active', function()
-      state.ui.set_windows({ mock = 'windows' })
-      state.session.set_active(nil)
-
-      local created_session
-      local orig_session = state.api_client.create_session
-      state.api_client.create_session = function(_, _params)
-        created_session = true
-        return Promise.new():resolve({ id = 'sess-new' })
-      end
-
-      -- override create_new_session to use api_client path synchronously
-      local new = core.create_new_session('title'):wait()
-      assert.True(created_session)
-      assert.truthy(new)
-      assert.equal('sess-new', new.id)
-      state.api_client.create_session = orig_session
-    end)
-
-    it('persist options in state when sending message', function()
-      local orig = state.api_client.create_message
-      state.ui.set_windows({ mock = 'windows' })
-      state.session.set_active({ id = 'sess1' })
-
-      state.api_client.create_message = function(_, sid, params)
-        create_called = true
-        assert.equal('sess1', sid)
-        assert.truthy(params.parts)
-        return Promise.new():resolve({ id = 'm1' })
-      end
-
-      core.send_message(
-        'hello world',
-        { context = { current_file = { enabled = false } }, agent = 'plan', model = 'test/model' }
-      )
-      assert.same(state.current_context_config, { current_file = { enabled = false } })
-      assert.equal(state.current_mode, 'plan')
-      assert.equal(state.current_model, 'test/model')
-      state.api_client.create_message = orig
-    end)
-
-    it('increments and decrements user_message_count correctly', function()
-      state.ui.set_windows({ mock = 'windows' })
-      state.session.set_active({ id = 'sess1' })
-      state.session.set_user_message_count({})
-
-      -- Capture the count at different stages
-      local count_before = state.user_message_count['sess1'] or 0
-      local count_during = nil
-      local count_after = nil
-
-      local orig = state.api_client.create_message
-      state.api_client.create_message = function(_, sid, params)
-        -- Capture count while message is in flight
-        count_during = state.user_message_count['sess1']
-        return Promise.new():resolve({
-          id = 'm1',
-          info = { id = 'm1' },
-          parts = {},
-        })
-      end
-
-      core.send_message('hello world')
-
-      -- Wait for promise to resolve
-      vim.wait(50, function()
-        count_after = state.user_message_count['sess1'] or 0
-        return count_after == 0
-      end)
-
-      -- Verify: starts at 0, increments to 1, then back to 0
-      assert.equal(0, count_before)
-      assert.equal(1, count_during)
-      assert.equal(0, count_after)
-
-      state.api_client.create_message = orig
-    end)
-
-    it('decrements user_message_count on error', function()
-      state.ui.set_windows({ mock = 'windows' })
-      state.session.set_active({ id = 'sess1' })
-      state.session.set_user_message_count({})
-
-      -- Capture the count at different stages
-      local count_before = state.user_message_count['sess1'] or 0
-      local count_during = nil
-      local count_after = nil
-
-      local orig = state.api_client.create_message
-      state.api_client.create_message = function(_, sid, params)
-        -- Capture count while message is in flight
-        count_during = state.user_message_count['sess1']
-        return Promise.new():reject('Test error')
-      end
-
-      -- Stub cancel to prevent it from trying to abort the session
-      local orig_cancel = core.cancel
-      stub(core, 'cancel')
-
-      core.send_message('hello world')
-
-      -- Wait for promise to reject
-      vim.wait(50, function()
-        count_after = state.user_message_count['sess1'] or 0
-        return count_after == 0
-      end)
-
-      -- Verify: starts at 0, increments to 1, then back to 0 even on error
-      assert.equal(0, count_before)
-      assert.equal(1, count_during)
-      assert.equal(0, count_after)
-
-      state.api_client.create_message = orig
-      core.cancel = orig_cancel
+    it('delegates message-sending coverage to services_messaging_spec', function()
+      -- This spec focuses on session_runtime responsibilities.
+      -- Message pipeline behavior is owned and asserted in services_messaging_spec.lua.
+      assert.is_true(true)
     end)
   end)
 
@@ -436,7 +322,7 @@ describe('opencode.core', function()
     it('flushes deferred markdown render when thinking completes', function()
       local flush_stub = stub(flush, 'flush_pending_on_data_rendered')
 
-      core._on_user_message_count_change(nil, { sess1 = 0 }, { sess1 = 1 }):wait()
+      session_runtime._on_user_message_count_change(nil, { sess1 = 0 }, { sess1 = 1 }):wait()
 
       assert.stub(flush_stub).was_called()
       flush_stub:revert()
@@ -537,7 +423,7 @@ describe('opencode.core', function()
         return Promise.new():resolve(true)
       end)
 
-      core.cancel():wait()
+      session_runtime.cancel():wait()
 
       assert.stub(abort_stub).was_called()
       assert.stub(ui.focus_input).was_not_called()
@@ -582,7 +468,7 @@ describe('opencode.core', function()
       vim.fn.executable = function(_)
         return 0
       end
-      assert.is_false(core.opencode_ok():await())
+      assert.is_false(session_runtime.opencode_ok():await())
     end)
 
     it('returns false when version is below required', function()
@@ -592,7 +478,7 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.1' })
       state.jobs.set_opencode_cli_version(nil)
       store.set('required_version', '0.4.2')
-      assert.is_false(core.opencode_ok():await())
+      assert.is_false(session_runtime.opencode_ok():await())
     end)
 
     it('returns true when version equals required', function()
@@ -602,7 +488,7 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.4.2' })
       state.jobs.set_opencode_cli_version(nil)
       store.set('required_version', '0.4.2')
-      assert.is_true(core.opencode_ok():await())
+      assert.is_true(session_runtime.opencode_ok():await())
     end)
 
     it('returns true when version is above required', function()
@@ -612,18 +498,15 @@ describe('opencode.core', function()
       vim.system = mock_vim_system({ stdout = 'opencode 0.5.0' })
       state.jobs.set_opencode_cli_version(nil)
       store.set('required_version', '0.4.2')
-      assert.is_true(core.opencode_ok():await())
+      assert.is_true(session_runtime.opencode_ok():await())
     end)
   end)
 
   describe('handle_directory_change', function()
-    local server_job
     local context
 
     before_each(function()
-      server_job = require('opencode.server_job')
       context = require('opencode.context')
-
       stub(context, 'unload_attachments')
     end)
 
@@ -635,9 +518,8 @@ describe('opencode.core', function()
       state.session.set_active({ id = 'old-session' })
       state.session.set_last_sent_context({ some = 'context' })
 
-      core.handle_directory_change():wait()
+      session_runtime.handle_directory_change():wait()
 
-      -- Should be set to the new session from get_last_workspace_session stub
       assert.truthy(state.active_session)
       assert.equal('test-session', state.active_session.id)
       assert.is_nil(state.last_sent_context)
@@ -645,7 +527,7 @@ describe('opencode.core', function()
     end)
 
     it('loads last workspace session for new directory', function()
-      core.handle_directory_change():wait()
+      session_runtime.handle_directory_change():wait()
 
       assert.truthy(state.active_session)
       assert.equal('test-session', state.active_session.id)
@@ -653,7 +535,6 @@ describe('opencode.core', function()
     end)
 
     it('creates new session when no last session exists', function()
-      -- Override stub to return nil (no last session)
       session.get_last_workspace_session:revert()
       stub(session, 'get_last_workspace_session').invokes(function()
         local p = Promise.new()
@@ -661,7 +542,7 @@ describe('opencode.core', function()
         return p
       end)
 
-      core.handle_directory_change():wait()
+      session_runtime.handle_directory_change():wait()
 
       assert.truthy(state.active_session)
       assert.truthy(state.active_session.id)
@@ -669,118 +550,13 @@ describe('opencode.core', function()
   end)
 
   describe('switch_to_mode', function()
-    it('sets current model from config file when mode has a model configured', function()
-      local Promise = require('opencode.promise')
-      local agents_promise = Promise.new()
-      agents_promise:resolve({ 'plan', 'build', 'custom' })
-      local config_promise = Promise.new()
-      config_promise:resolve({
-        agent = {
-          custom = {
-            model = 'anthropic/claude-3-opus',
-          },
-        },
-        model = 'gpt-4',
-      })
-
-      stub(config_file, 'get_opencode_agents').returns(agents_promise)
-      stub(config_file, 'get_opencode_config').returns(config_promise)
-
-      store.set('current_mode', nil)
-      store.set('current_model', nil)
-      store.set('user_mode_model_map', {})
-
-      local promise = core.switch_to_mode('custom')
-      local success = promise:wait()
-
-      assert.is_true(success)
-      assert.equal('custom', state.current_mode)
-      assert.equal('anthropic/claude-3-opus', state.current_model)
-
-      config_file.get_opencode_agents:revert()
-      config_file.get_opencode_config:revert()
-    end)
-
-    it('returns false when mode is invalid', function()
-      local Promise = require('opencode.promise')
-      local agents_promise = Promise.new()
-      agents_promise:resolve({ 'plan', 'build' })
-
-      stub(config_file, 'get_opencode_agents').returns(agents_promise)
-
-      local promise = core.switch_to_mode('nonexistent')
-      local success = promise:wait()
-
-      assert.is_false(success)
-
-      config_file.get_opencode_agents:revert()
-    end)
-
-    it('returns false when mode is empty', function()
-      local promise = core.switch_to_mode('')
-      local success = promise:wait()
-      assert.is_false(success)
-
-      promise = core.switch_to_mode(nil)
-      success = promise:wait()
-      assert.is_false(success)
-    end)
-
-    it('respects user_mode_model_map priority: uses model stored in mode_model_map for mode', function()
-      local Promise = require('opencode.promise')
-      local agents_promise = Promise.new()
-      agents_promise:resolve({ 'plan', 'build' })
-      local config_promise = Promise.new()
-      config_promise:resolve({
-        agent = {
-          plan = { model = 'gpt-4' },
-        },
-        model = 'gpt-3',
-      })
-      stub(config_file, 'get_opencode_agents').returns(agents_promise)
-      stub(config_file, 'get_opencode_config').returns(config_promise)
-
-      store.set('current_mode', nil)
-      store.set('current_model', 'should-be-overridden')
-      store.set('user_mode_model_map', { plan = 'anthropic/claude-3-haiku' })
-
-      local promise = core.switch_to_mode('plan')
-      local success = promise:wait()
-      assert.is_true(success)
-      assert.equal('plan', state.current_mode)
-      assert.equal('anthropic/claude-3-haiku', state.current_model)
-
-      config_file.get_opencode_agents:revert()
-      config_file.get_opencode_config:revert()
-    end)
-
-    it('falls back to config model if nothing else matches', function()
-      local Promise = require('opencode.promise')
-      local agents_promise = Promise.new()
-      agents_promise:resolve({ 'plan', 'build' })
-      local config_promise = Promise.new()
-      config_promise:resolve({
-        agent = {
-          plan = {},
-        },
-        model = 'default-model',
-      })
-      stub(config_file, 'get_opencode_agents').returns(agents_promise)
-      stub(config_file, 'get_opencode_config').returns(config_promise)
-      store.set('current_mode', nil)
-      store.set('current_model', 'old-model')
-      store.set('user_mode_model_map', {})
-      local promise = core.switch_to_mode('plan')
-      local success = promise:wait()
-      assert.is_true(success)
-      assert.equal('plan', state.current_mode)
-      assert.equal('default-model', state.current_model)
-      config_file.get_opencode_agents:revert()
-      config_file.get_opencode_config:revert()
+    it('delegates model/mode switch coverage to services_agent_model_spec', function()
+      assert.is_true(true)
     end)
   end)
 
   describe('initialize_current_model', function()
+    -- Keep only integration-level guardrails here; detailed behavior stays in services_agent_model_spec.lua.
     it('keeps the current user-selected model and mode by default', function()
       state.model.set_model('openai/gpt-4.1')
       state.model.set_mode('plan')
@@ -795,7 +571,7 @@ describe('opencode.core', function()
         },
       })
 
-      local model = core.initialize_current_model():wait()
+      local model = agent_model.initialize_current_model():wait()
 
       assert.equal('openai/gpt-4.1', model)
       assert.equal('openai/gpt-4.1', state.current_model)
@@ -816,7 +592,7 @@ describe('opencode.core', function()
         },
       })
 
-      local model = core.initialize_current_model({ restore_from_messages = true }):wait()
+      local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
 
       assert.equal('anthropic/claude-3-opus', model)
       assert.equal('anthropic/claude-3-opus', state.current_model)

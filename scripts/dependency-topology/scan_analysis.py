@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
-from graph_utils import back_edges, degree, largest_scc_size, load_snapshot_graph, tarjan_scc, find_cycle_in_scc
+from graph_utils import back_edges, load_snapshot_graph, tarjan_scc, find_cycle_in_scc
 
 
 _POLICY_RULES: List[Dict[str, Any]] = []
@@ -304,6 +304,10 @@ def build_scan_payload(repo: Path, snapshot: str, strategy: Dict[str, Any], top_
 
         # Layer coverage — confirms all modules are classified
         "group_coverage": grouped_counts,
+
+        # Internal: raw graph for HTML rendering (not included in --json output)
+        "_graph": graph,
+        "_sccs": comps,
     }
 
 

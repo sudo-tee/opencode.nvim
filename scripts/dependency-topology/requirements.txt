@@ -1,0 +1,4 @@
+# Dependencies for the dependency topology scanner.
+# Install with: pip install -r scripts/dependency-topology/requirements.txt
+
+json5>=0.9.0   # JSONC parser — required for topology.jsonc (supports // and /* */ comments)

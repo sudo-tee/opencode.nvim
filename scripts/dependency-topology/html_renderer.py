@@ -37,9 +37,13 @@ class ClusterEdge:
 def match_group(module: str, groups: Dict[str, Any]) -> str:
     """Match module to group using fnmatch patterns."""
     for group_name, group_data in groups.items():
+        if not isinstance(group_data, dict):
+            continue
         patterns = group_data.get("modules", [])
+        if not isinstance(patterns, list):
+            continue
         for pattern in patterns:
-            if fnmatch.fnmatch(module, pattern):
+            if isinstance(pattern, str) and fnmatch.fnmatch(module, pattern):
                 return group_name
     return "ungrouped"
 
@@ -134,7 +138,7 @@ def render_html(payload: dict, groups: Dict[str, Any], cluster_depth: int = 2) -
         node_list, edge_list, scc_nodes, groups, depth=cluster_depth
     )
     
-    # Build GRAPH data
+    # Build GRAPH data — cluster edges for default view, rawEdges for expand
     graph_data = {
         'nodes': [
             {
@@ -149,13 +153,25 @@ def render_html(payload: dict, groups: Dict[str, Any], cluster_depth: int = 2) -
         ],
         'edges': [
             {
-                'src': e.src, 
-                'dst': e.dst, 
+                'src': e.src,
+                'dst': e.dst,
                 'weight': e.weight,
                 'isViolation': e.is_violation,
                 'rule': e.rule
             }
             for e in cluster_edges
+        ],
+        # Raw module-level edges — used when clusters are expanded so children
+        # can show their actual connections instead of appearing isolated.
+        'rawEdges': [
+            {
+                'src': src,
+                'dst': dst,
+                'isViolation': bool(match_group(src, groups) and
+                    _edge_rule(match_group(src, groups), match_group(dst, groups))),
+                'rule': _edge_rule(match_group(src, groups), match_group(dst, groups)),
+            }
+            for src, dst in edge_list
         ]
     }
     
@@ -451,19 +467,50 @@ function buildGraph() {
     }
   });
   
-  // Build edges between visible nodes
+  // Build edges between visible nodes.
+  // If any cluster is expanded, use rawEdges (module-level) and project them:
+  //   - if endpoint is a visible child → use as-is
+  //   - if endpoint's parent cluster is collapsed → map to cluster id
+  //   - if endpoint is ungrouped leaf → use as-is
   const nodeIdSet = new Set(currentNodes.map(n => n.id));
-  
-  // Use original edges, map to visible nodes
-  GRAPH.edges.forEach(e => {
-    let src = e.src, dst = e.dst;
-    // If src/dst is expanded cluster, need to find which child
-    // For simplicity, show edge if both endpoints visible or map to cluster
-    if (nodeIdSet.has(src) && nodeIdSet.has(dst)) {
-      currentEdges.push({ src, dst, isViolation: e.isViolation, rule: e.rule });
+
+  // Build child→parentCluster reverse lookup for projection
+  const childToCluster = {};
+  currentNodes.forEach(n => { if (n.parentCluster) childToCluster[n.id] = n.parentCluster; });
+  GRAPH.nodes.forEach(n => {
+    if (n.isCluster && n.children) {
+      n.children.forEach(c => { if (!childToCluster[c]) childToCluster[c] = n.id; });
     }
   });
-  
+
+  function resolveEndpoint(id) {
+    if (nodeIdSet.has(id)) return id;           // directly visible
+    const cluster = childToCluster[id];
+    if (cluster && nodeIdSet.has(cluster)) return cluster;  // map to collapsed cluster
+    return null;
+  }
+
+  if (expandedClusters.size > 0) {
+    // Use raw module-level edges and project to visible nodes
+    const seen = new Set();
+    GRAPH.rawEdges.forEach(e => {
+      const src = resolveEndpoint(e.src);
+      const dst = resolveEndpoint(e.dst);
+      if (!src || !dst || src === dst) return;
+      const key = src + '|' + dst;
+      if (seen.has(key)) return;
+      seen.add(key);
+      currentEdges.push({ src, dst, isViolation: e.isViolation, rule: e.rule });
+    });
+  } else {
+    // All clusters collapsed: use pre-aggregated cluster edges (faster)
+    GRAPH.edges.forEach(e => {
+      if (nodeIdSet.has(e.src) && nodeIdSet.has(e.dst)) {
+        currentEdges.push({ src: e.src, dst: e.dst, isViolation: e.isViolation, rule: e.rule });
+      }
+    });
+  }
+
   renderGraph();
 }
 

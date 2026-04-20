@@ -52,7 +52,14 @@ def _worktree_files(repo: Path) -> List[Tuple[str, str]]:
 
 def _git_files(repo: Path, ref: str) -> List[Tuple[str, str]]:
     cmd = ["git", "ls-tree", "-r", "--name-only", ref, "lua/opencode"]
-    ls = subprocess.check_output(cmd, cwd=repo, text=True)
+    try:
+        ls = subprocess.check_output(cmd, cwd=repo, text=True, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.strip() if e.stderr else ""
+        raise ValueError(
+            f"Invalid snapshot ref '{ref}'. Valid values: HEAD, worktree, branch name, commit SHA.\n"
+            f"git error: {stderr}"
+        ) from None
 
     out: List[Tuple[str, str]] = []
     for rel in ls.splitlines():

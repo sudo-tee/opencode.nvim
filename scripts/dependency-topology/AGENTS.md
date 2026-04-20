@@ -25,20 +25,29 @@ python3 scripts/dependency-topology/scan_topology.py scan -o /tmp/deps.html
 # JSON output (for scripts/agents)
 python3 scripts/dependency-topology/scan_topology.py scan --json
 
-# Compare HEAD vs working tree (default)
+# Diff — smart default:
+#   worktree has uncommitted Lua changes → HEAD vs worktree
+#   worktree is clean                   → HEAD~1 vs HEAD (last commit)
 python3 scripts/dependency-topology/scan_topology.py diff
 
-# Compare specific refs
-python3 scripts/dependency-topology/scan_topology.py diff --from main --to HEAD
+# Compare specific refs (branch names, commit SHAs, remote refs)
+python3 scripts/dependency-topology/scan_topology.py diff --from upstream/main --to clean-code-remove-core
+python3 scripts/dependency-topology/scan_topology.py diff --from HEAD~5 --to HEAD
 ```
 
 ## Snapshot References
 
 - `worktree` — current working tree (uncommitted changes)
 - `HEAD` — latest commit
-- Any git ref — branch name, tag, commit SHA
+- Any git ref — branch name (e.g. `upstream/main`), tag, short or full commit SHA
+- Relative refs — `HEAD~1`, `HEAD^`
 
-**diff defaults:** `--from HEAD --to worktree`
+**diff defaults (no args):**
+- Worktree has uncommitted Lua changes → `HEAD` vs `worktree`
+- Worktree is clean → `HEAD~1` vs `HEAD`
+
+Note: ambiguous short names (e.g. `upstream` when both a local branch and remote exist)
+produce a git warning. Prefer fully-qualified refs: `upstream/main`, `refs/heads/mybranch`.
 
 ## Output
 

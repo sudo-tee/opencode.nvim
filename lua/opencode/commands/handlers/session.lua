@@ -1,9 +1,10 @@
-local core = require('opencode.core')
 ---@type OpencodeState
 local state = require('opencode.state')
 local session_store = require('opencode.session')
 local Promise = require('opencode.promise')
 local window_actions = require('opencode.commands.handlers.window').actions
+local session_runtime = require('opencode.services.session_runtime')
+local agent_model = require('opencode.services.agent_model')
 
 local M = {
   actions = {},
@@ -77,13 +78,13 @@ local function run_api_action_with_checktime(request_promise, error_prefix)
 end
 
 function M.actions.open_input_new_session()
-  return core.open({ new_session = true, focus = 'input', start_insert = true })
+  return session_runtime.open({ new_session = true, focus = 'input', start_insert = true })
 end
 
 ---@param title string
 function M.actions.open_input_new_session_with_title(title)
   return Promise.async(function(session_title)
-    local new_session = core.create_new_session(session_title):await()
+    local new_session = session_runtime.create_new_session(session_title):await()
     if not new_session then
       vim.notify('Failed to create new session', vim.log.levels.ERROR)
       return
@@ -96,12 +97,12 @@ end
 
 ---@param parent_id? string
 function M.actions.select_session(parent_id)
-  core.select_session(parent_id)
+  session_runtime.select_session(parent_id)
 end
 
 function M.actions.select_child_session()
   local active = state.active_session
-  core.select_session(active and active.id or nil)
+  session_runtime.select_session(active and active.id or nil)
 end
 
 ---@param current_session? Session
@@ -162,15 +163,14 @@ function M.actions.initialize()
   return Promise.async(function()
     local id = require('opencode.id')
     local state_obj = state
-    local core_obj = core
 
-    local new_session = core_obj.create_new_session('AGENTS.md Initialization'):await()
+    local new_session = session_runtime.create_new_session('AGENTS.md Initialization'):await()
     if not new_session then
       vim.notify('Failed to create new session', vim.log.levels.ERROR)
       return
     end
 
-    if not core_obj.initialize_current_model():await() or not state_obj.current_model then
+    if not agent_model.initialize_current_model():await() or not state_obj.current_model then
       vim.notify('No model selected', vim.log.levels.ERROR)
       return
     end
@@ -369,7 +369,7 @@ function M.actions.fork_session(message_id)
         vim.schedule(function()
           if response and response.id then
             vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)
-            core.switch_session(response.id)
+            session_runtime.switch_session(response.id)
           else
             vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)
           end

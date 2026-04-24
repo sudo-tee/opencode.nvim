@@ -146,7 +146,7 @@ function M.handle_submit()
     return false
   end
 
-  require('opencode.core').send_message(input_content)
+  require('opencode.services.messaging').send_message(input_content)
   return true
 end
 

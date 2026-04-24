@@ -1,9 +1,9 @@
-local core = require('opencode.core')
 local config_file = require('opencode.config_file')
 ---@type OpencodeState
 local state = require('opencode.state')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
+local agent_model = require('opencode.services.agent_model')
 
 local M = {
   actions = {},
@@ -18,23 +18,23 @@ local function invalid_arguments(message)
 end
 
 function M.actions.configure_provider()
-  core.configure_provider()
+  agent_model.configure_provider()
 end
 
 function M.actions.configure_variant()
-  core.configure_variant()
+  agent_model.configure_variant()
 end
 
 function M.actions.cycle_variant()
-  core.cycle_variant()
+  agent_model.cycle_variant()
 end
 
 function M.actions.agent_plan()
-  core.switch_to_mode('plan')
+  agent_model.switch_to_mode('plan')
 end
 
 function M.actions.agent_build()
-  core.switch_to_mode('build')
+  agent_model.switch_to_mode('build')
 end
 
 M.actions.select_agent = Promise.async(function()
@@ -47,7 +47,7 @@ M.actions.select_agent = Promise.async(function()
       return
     end
 
-    core.switch_to_mode(selection)
+    agent_model.switch_to_mode(selection)
   end)
 end)
 
@@ -60,11 +60,11 @@ M.actions.switch_mode = Promise.async(function()
   end
 
   local next_index = (current_index % #modes) + 1
-  core.switch_to_mode(modes[next_index])
+  agent_model.switch_to_mode(modes[next_index])
 end)
 
 M.actions.current_model = Promise.async(function()
-  return core.initialize_current_model()
+  return agent_model.initialize_current_model()
 end)
 
 local agent_subcommands = { 'plan', 'build', 'select' }

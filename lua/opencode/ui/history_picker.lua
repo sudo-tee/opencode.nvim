@@ -93,7 +93,7 @@ function M.pick(callback)
         local state = require('opencode.state')
         local windows = state.windows
         if not input_window.mounted(windows) then
-          require('opencode.core').open({ focus_input = true })
+          require('opencode.services.session_runtime').open({ focus = 'input' })
           windows = state.windows
         end
         ---@cast windows { input_win: integer, input_buf: integer }

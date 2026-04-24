@@ -22,3 +22,7 @@ deps/
 
 # Local Claude settings (keep out of repo)
 .claude/
+
+# Dependency topology tool artifacts
+scripts/dependency-topology/__pycache__/
+*.html

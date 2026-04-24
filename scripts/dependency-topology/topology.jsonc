@@ -1,0 +1,238 @@
+// Dependency topology strategy for opencode.nvim
+//
+// Target architecture (strict unidirectional):
+//
+//   Layer 0  Entry              parse / bind / handler shells / keymap
+//                                 → allowed: Dispatch, Capabilities
+//                                 × forbidden: Infrastructure
+//
+//   Layer 1  Dispatch            command registry / execute gate / hooks
+//                                 → allowed: Capabilities, Infrastructure
+//                                 × forbidden: Entry
+//
+//   Layer 2  Capabilities        CLI mirrors + Nvim-native + UI rendering
+//                                 → allowed: Infrastructure, same-layer
+//                                 × forbidden: Entry, Dispatch
+//
+//   Layer 3  Infrastructure      api_client / server_job / event_manager
+//                                 → allowed: same-layer, external
+//                                 × forbidden: Entry, Dispatch, Capabilities
+//
+//   Foundation (layer-exempt)    config / state / util / promise / log / types
+//                                 No rules — any layer may depend on these.
+//
+// NOTE: Module matching uses Python fnmatch — "opencode.ui.*" matches
+//       ALL depths (e.g. opencode.ui.renderer.flush). First match wins
+//       across groups, so put specific patterns before wildcards.
+//
+// STATUS: Draft. Needs owner review. Some placements are debatable — see
+//         inline "REVIEW:" comments.
+{
+  "groups": {
+
+    // ── Layer 0: Entry ──────────────────────────────────────────────
+    // User-facing entry points. These modules receive user intent
+    // (keypress, command, picker selection) and forward it to Dispatch.
+    "entry_layer": {
+      "modules": [
+        "opencode",                        // plugin setup entry
+        "opencode.api",                    // programmatic entry — wraps every action into dispatch_action()
+        "opencode.keymap",                 // keybinding → api calls
+        "opencode.health",                 // :checkhealth entry
+        "opencode.quick_chat",             // standalone quick-chat entry
+        "opencode.quick_chat.*",
+
+        // Handler shells — thin wrappers that define what each command does.
+        // They call into Capabilities / Dispatch, never Infrastructure directly.
+        "opencode.commands.handlers.*",
+
+        // UI modules that act as entry points: after user interaction,
+        // they call api.lua (dispatch_action) to trigger commands.
+        "opencode.ui.session_picker",      // user picks session → api.select_session
+        "opencode.ui.timeline_picker",     // user picks timeline → api.select_timeline_entry
+        "opencode.ui.permission_window",   // user grants/denies → api.permission_grant/deny
+        "opencode.ui.question_window",     // user answers question → handler callback
+        "opencode.ui.contextual_actions",  // user picks action → api.*
+        "opencode.ui.autocmds",            // nvim events → api calls
+        "opencode.ui.debug_helper"         // debug → session inspection
+      ]
+    },
+
+    // ── Layer 1: Dispatch ───────────────────────────────────────────
+    // Command registry, parsing, and execution gate.
+    // Receives structured intent from Entry, routes to handler functions.
+    "dispatch_layer": {
+      "modules": [
+        "opencode.commands",               // command registry + execute_parsed_intent
+        "opencode.commands.dispatch",      // dispatch.execute — the unified gate
+        "opencode.commands.parse",         // argument parsing
+        "opencode.commands.slash",         // slash command mapping table
+        "opencode.commands.complete"       // command completion provider
+      ]
+    },
+
+    // ── Layer 2: Capabilities ───────────────────────────────────────
+    // Business logic, data access, rendering. Three sub-categories:
+    //
+    //   CLI mirrors    — query/mutate CLI server state via api_client
+    //   Nvim-native    — editor-side capabilities (context, LSP, git)
+    //   UI rendering   — window management, rendering pipeline, display
+    //
+    "capabilities_layer": {
+      "modules": [
+        // CLI mirrors
+        "opencode.session",                // session data query (calls state.api_client)
+        "opencode.snapshot",               // snapshot management
+        "opencode.config_file",            // remote config fetch via api_client
+        //                                    REVIEW: could be Foundation (passive data source,
+        //                                    in-degree 14), but it calls state.api_client
+        //                                    which is an active Infrastructure dependency.
+
+        // Nvim-native capabilities
+        "opencode.context",                // editor context collection
+        "opencode.context.*",
+        "opencode.history",                // prompt history
+        "opencode.model_picker",           // model selection UI
+        "opencode.variant_picker",         // variant selection UI
+        "opencode.image_handler",          // clipboard image handling
+        "opencode.git_review",             // git diff review
+        "opencode.lsp.*",                  // LSP completion service
+
+        // PR #360 services (split from core.lua)
+        "opencode.services.*",             // REVIEW: only exists on clean-code-remove-core branch.
+        //                                    Currently has 5 violations (services → UI entry),
+        //                                    same deps core.lua had — now visible because grouped.
+
+        "opencode.core",                   // REVIEW: god module (out-degree 21), being removed
+        //                                    by PR #360. Violations: core→api, core→permission_window.
+
+        // UI rendering & display
+        "opencode.ui.ui",                  // window container management
+        //                                    REVIEW: currently violates no_capabilities_to_entry
+        //                                    (→ api, autocmds, contextual_actions, session_picker).
+        //                                    These deps should eventually be removed.
+        "opencode.ui.input_window",        // input buffer management
+        "opencode.ui.output_window",       // output buffer management
+        "opencode.ui.output",              // output composition
+        "opencode.ui.renderer",            // render pipeline
+        "opencode.ui.renderer.*",
+        "opencode.ui.render_state",        // render state tracking
+        "opencode.ui.formatter",           // message formatting
+        "opencode.ui.formatter.*",
+        "opencode.ui.footer",              // status bar
+        "opencode.ui.topbar",              // top bar
+        "opencode.ui.winbar",              // window bar
+        "opencode.ui.navigation",          // cursor navigation
+        "opencode.ui.diff_tab",            // diff view
+        "opencode.ui.dialog",              // dialog windows
+        "opencode.ui.completion",          // completion engine
+        "opencode.ui.completion.*",
+        "opencode.ui.context_bar",         // context display bar
+        "opencode.ui.reference_picker",    // reference browser
+        "opencode.ui.mention",             // @mention UI
+        "opencode.ui.file_picker",         // file browser
+        "opencode.ui.picker",              // generic picker
+        "opencode.ui.history_picker",      // history browser
+        "opencode.ui.mcp_picker",          // MCP tool browser
+        "opencode.ui.permission.permission" // permission display
+      ]
+    },
+
+    // ── Layer 3: CLI Infrastructure ─────────────────────────────────
+    // Communication with the opencode-cli process.
+    // These modules should have ZERO upward dependencies.
+    "cli_infrastructure_layer": {
+      "modules": [
+        "opencode.api_client",             // HTTP client for REST calls
+        "opencode.server_job",             // server lifecycle + call_api/stream_api
+        "opencode.opencode_server",        // process spawn/shutdown
+        "opencode.event_manager",          // SSE event stream consumer
+        "opencode.port_mapping"            // port registry
+      ]
+    },
+
+    // ── Foundation (no layer restrictions) ──────────────────────────
+    // Passive modules: widely required, but never call upward.
+    // Any layer may depend on these without triggering violations.
+    "foundation": {
+      "modules": [
+        "opencode.config",                 // configuration container (in-degree 57)
+        "opencode.state",                  // reactive store (in-degree 52)
+        "opencode.state.*",                // state sub-modules
+        "opencode.util",                   // utility functions (in-degree 30)
+        "opencode.promise",                // async primitive (in-degree 28)
+        "opencode.log",                    // logging
+        "opencode.types",                  // type definitions (zero runtime code)
+        "opencode.id",                     // ID generation
+        "opencode.curl",                   // HTTP low-level wrapper
+        "opencode.throttling_emitter",     // batching primitive
+        "opencode.model_state",            // local model state file I/O
+
+        // UI primitives — pure data or framework, no business logic
+        "opencode.ui.icons",               // icon data map (in-degree 26)
+        "opencode.ui.highlight",           // highlight group definitions
+        "opencode.ui.window_options",      // window config constants
+        "opencode.ui.loading_animation",   // animation frame data
+        "opencode.ui.timer",               // timer wrapper
+        "opencode.ui.buf_fix_win",         // buffer utility
+        "opencode.ui.prompt_guard_indicator", // display-only component
+        "opencode.ui.base_picker"          // picker framework (no business logic)
+      ]
+    }
+  },
+
+  "policy": {
+    // Each rule forbids edges from one layer to another.
+    // Foundation is exempt — never appears as from/to in rules.
+    "rules": [
+      {
+        "name": "no_entry_to_infra",
+        "from": "entry_layer",
+        "to": ["cli_infrastructure_layer"]
+        // Entry should go through Dispatch/Capabilities, not call infra directly.
+        // Current violations (3): opencode→event_manager, health→opencode_server, health→server_job
+      },
+      {
+        "name": "no_dispatch_to_entry",
+        "from": "dispatch_layer",
+        "to": ["entry_layer"]
+        // Dispatch must not call back into Entry. Currently clean (0 violations).
+      },
+      {
+        "name": "no_capabilities_to_entry",
+        "from": "capabilities_layer",
+        "to": ["entry_layer"]
+        // Capabilities must not drive Entry UI or call api.lua.
+        // Current violations (15) — the biggest category. Root causes:
+        //   - renderer/formatter → permission_window/question_window (popup during render)
+        //   - core/renderer/ui.ui → api (capability modules triggering commands)
+        //   - ui.ui → autocmds/contextual_actions/session_picker (container knows entry modules)
+      },
+      {
+        "name": "no_capabilities_to_dispatch",
+        "from": "capabilities_layer",
+        "to": ["dispatch_layer"]
+        // Current violations (2): completion.commands→commands.slash, input_window→commands.slash
+        // These need slash command list for completion — may need a data-only export.
+      },
+      {
+        "name": "no_infra_to_entry",
+        "from": "cli_infrastructure_layer",
+        "to": ["entry_layer"]
+        // Currently clean (0 violations).
+      },
+      {
+        "name": "no_infra_to_dispatch",
+        "from": "cli_infrastructure_layer",
+        "to": ["dispatch_layer"]
+        // Currently clean (0 violations).
+      },
+      {
+        "name": "no_infra_to_capabilities",
+        "from": "cli_infrastructure_layer",
+        "to": ["capabilities_layer"]
+        // Currently clean (0 violations).
+      }
+    ]
+  }
+}

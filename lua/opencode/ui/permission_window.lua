@@ -269,6 +269,68 @@ function M._clear_dialog()
   end
 end
 
+---Query the server for pending permissions and restore any that belong
+---to the active session.  Mirrors question_window.restore_pending_question.
+---@param session_id string|nil
+function M.restore_pending_permissions(session_id)
+  local Promise = require('opencode.promise')
+  if not state.api_client or not session_id or session_id == '' then
+    return Promise.new():resolve(nil)
+  end
+
+  return state.api_client:list_permissions()
+    :and_then(function(permissions)
+      if not permissions or type(permissions) ~= 'table' then
+        return
+      end
+
+      local events = require('opencode.ui.renderer.events')
+      local render_state = require('opencode.ui.renderer.ctx').render_state
+
+      for _, permission in ipairs(permissions) do
+        if permission and permission.id then
+          -- Check if this permission belongs to the active session or
+          -- one of its child sessions (task tool).
+          local belongs = permission.sessionID == session_id
+          if not belongs and permission.sessionID and permission.sessionID ~= '' then
+            belongs = render_state:get_task_part_by_child_session(permission.sessionID) ~= nil
+          end
+          if not belongs then
+            local tool = permission.tool
+            local tool_message_id = tool and tool.messageID
+            if tool_message_id and state.messages then
+              for _, message in ipairs(state.messages) do
+                if message.info and message.info.id == tool_message_id then
+                  belongs = true
+                  break
+                end
+              end
+            end
+          end
+
+          if belongs then
+            -- Check if already queued (avoid duplicate)
+            local already_queued = false
+            for _, existing in ipairs(M._permission_queue) do
+              if existing.id == permission.id then
+                already_queued = true
+                break
+              end
+            end
+            if not already_queued then
+              events.on_permission_updated(permission)
+            end
+          end
+        end
+      end
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to restore pending permissions: ' .. vim.inspect(err), vim.log.levels.WARN)
+      end)
+    end)
+end
+
 ---Check if we have permissions
 ---@return boolean
 function M.has_permissions()

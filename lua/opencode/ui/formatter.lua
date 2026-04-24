@@ -280,7 +280,12 @@ function M.format_message_header(message, previous_message)
     M._format_callout(output, 'ERROR', error_message)
   end
 
-  output:add_line('')
+  local hidden_same_mode_assistant_header = role == 'assistant' and header_style == 'hidden' and same_mode_as_previous
+
+  if not hidden_same_mode_assistant_header then
+    output:add_line('')
+  end
+
   return output
 end
 

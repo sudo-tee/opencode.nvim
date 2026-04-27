@@ -94,7 +94,7 @@ describe('opencode.commands.handlers', function()
     assert.same({ 'accept', 'accept_all', 'deny' }, defs.permission.completions)
     assert.same({ allow_empty = false }, defs.permission.nested_subcommand)
 
-    assert.same({ 'new', 'select', 'child', 'compact', 'share', 'unshare', 'agents_init', 'rename' }, defs.session.completions)
+    assert.same({ 'new', 'select', 'child', 'sibling', 'parent', 'compact', 'share', 'unshare', 'agents_init', 'rename' }, defs.session.completions)
     assert.same({ allow_empty = false }, defs.session.nested_subcommand)
 
     assert.same({ 'input', 'output' }, defs.open.completions)
@@ -202,5 +202,151 @@ describe('opencode.commands.handlers', function()
 
     assert.equal('all', called.scope)
     assert.is_nil(called.snapshot_id)
+  end)
+
+  it('select_sibling_session calls select_session with parentID when active session is a child', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    local called_parent_id
+    local original = session_runtime.select_session
+    session_runtime.select_session = function(parent_id)
+      called_parent_id = parent_id
+    end
+
+    session_handler.actions.select_sibling_session()
+
+    session_runtime.select_session = original
+    assert.equal('root1', called_parent_id)
+  end)
+
+  it('select_sibling_session falls back to root sessions when active session has no parent', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    local called_parent_id = 'sentinel'
+    local original = session_runtime.select_session
+    session_runtime.select_session = function(parent_id)
+      called_parent_id = parent_id
+    end
+
+    local notify_stub = stub(vim, 'notify')
+    session_handler.actions.select_sibling_session()
+    notify_stub:revert()
+
+    session_runtime.select_session = original
+    assert.is_nil(called_parent_id)
+  end)
+
+  it('select_parent_session switches to parent when active session is a child', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    local switched_to
+    local original = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    session_handler.actions.select_parent_session()
+
+    session_runtime.switch_session = original
+    assert.equal('root1', switched_to)
+  end)
+
+  it('select_parent_session notifies when active session has no parent', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    local switched_to = nil
+    local original = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local notify_stub = stub(vim, 'notify')
+    session_handler.actions.select_parent_session()
+
+    session_runtime.switch_session = original
+    assert.is_nil(switched_to)
+    assert.stub(notify_stub).was_called()
+    notify_stub:revert()
+  end)
+
+  it('select_sibling_session does nothing when no active session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active(nil)
+    local called = false
+    local original = session_runtime.select_session
+    session_runtime.select_session = function()
+      called = true
+    end
+
+    local notify_stub = stub(vim, 'notify')
+    session_handler.actions.select_sibling_session()
+    notify_stub:revert()
+
+    session_runtime.select_session = original
+    assert.is_true(called)
+  end)
+
+  it('select_parent_session does nothing when no active session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active(nil)
+    local switched_to = nil
+    local original = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local notify_stub = stub(vim, 'notify')
+    session_handler.actions.select_parent_session()
+
+    session_runtime.switch_session = original
+    assert.is_nil(switched_to)
+    assert.stub(notify_stub).was_called()
+    notify_stub:revert()
+  end)
+
+  it('session subcommand sibling routes to select_sibling_session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local called = false
+    local original = session_handler.actions.select_sibling_session
+    session_handler.actions.select_sibling_session = function()
+      called = true
+    end
+
+    session_handler.command_defs.session.execute({ 'sibling' })
+
+    session_handler.actions.select_sibling_session = original
+    assert.is_true(called)
+  end)
+
+  it('session subcommand parent routes to select_parent_session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local called = false
+    local original = session_handler.actions.select_parent_session
+    session_handler.actions.select_parent_session = function()
+      called = true
+    end
+
+    session_handler.command_defs.session.execute({ 'parent' })
+
+    session_handler.actions.select_parent_session = original
+    assert.is_true(called)
   end)
 end)

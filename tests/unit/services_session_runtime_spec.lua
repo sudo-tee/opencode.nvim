@@ -308,6 +308,29 @@ describe('opencode.services.session_runtime', function()
       assert.truthy(state.active_session)
       assert.equal('session3', state.active_session.id)
     end)
+
+    it('filters child sessions by parentID', function()
+      local mock_sessions = {
+        { id = 'root1', title = 'Root', modified = 1, parentID = nil },
+        { id = 'child1', title = 'Child 1', modified = 2, parentID = 'root1' },
+        { id = 'child2', title = 'Child 2', modified = 3, parentID = 'root1' },
+        { id = 'child3', title = 'Child of other', modified = 4, parentID = 'root2' },
+      }
+      stub(session, 'get_all_workspace_sessions').invokes(function()
+        return Promise.new():resolve(mock_sessions)
+      end)
+      local passed
+      stub(ui, 'select_session').invokes(function(sessions, cb)
+        passed = sessions
+        cb(nil)
+      end)
+
+      state.ui.set_windows({ input_buf = 1, output_buf = 2 })
+      session_runtime.select_session('root1'):wait()
+      assert.equal(2, #passed)
+      assert.equal('child1', passed[1].id)
+      assert.equal('child2', passed[2].id)
+    end)
   end)
 
   describe('send_message', function()

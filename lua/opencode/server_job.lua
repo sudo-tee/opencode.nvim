@@ -275,6 +275,23 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
       log.warn('failed to connect to %s: %s', base_url, vim.inspect(err))
       if config.server.spawn_command and custom_port and custom_url then
         spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)
+      elseif not config.server.auto_kill then
+        -- Server is externally managed (auto_kill=false). Retry connecting
+        -- instead of spawning a local server that would leak as an orphan.
+        log.debug('try_connect_to_custom_server: auto_kill=false, retrying instead of spawning local')
+        retry_connect(base_url, timeout, 5, function(url)
+          local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
+          port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, 'attach', url, nil)
+          state.jobs.set_server(opencode_server.from_custom(url, custom_port, 'attach'))
+          log.notify(
+            string.format('Connected to external server at %s on port %d.', base_url, custom_port),
+            vim.log.levels.INFO
+          )
+          promise:resolve(state.opencode_server)
+        end, function(retry_err)
+          log.error('try_connect_to_custom_server: exhausted retries for external server: %s', vim.inspect(retry_err))
+          promise:reject(string.format('Failed to connect to external server at %s after retries', base_url))
+        end)
       else
         M.spawn_local_server(promise, custom_port, custom_url)
       end

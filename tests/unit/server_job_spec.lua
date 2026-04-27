@@ -262,5 +262,137 @@ describe('server_job', function()
       assert.equal(1, spawn_count)
       assert.same(fake_local, result._value or result)
     end)
+
+    it('retries and connects when auto_kill=false and health check eventually succeeds', function()
+      local original_auto_kill = config.values.server.auto_kill
+      local original_retry_delay = config.values.server.retry_delay
+      local original_defer_fn = vim.defer_fn
+
+      config.values.server.url = 'http://192.168.1.100'
+      config.values.server.port = 5555
+      config.values.server.spawn_command = nil
+      config.values.server.auto_kill = false
+      config.values.server.retry_delay = 0
+
+      -- Make vim.defer_fn fire immediately so retries don't block
+      vim.defer_fn = function(fn, _delay)
+        vim.schedule(fn)
+      end
+
+      local request_count = 0
+      curl.request = function(opts)
+        vim.schedule(function()
+          request_count = request_count + 1
+          if request_count <= 2 then
+            -- First two attempts fail (initial + first retry)
+            opts.callback({ status = 503, body = '{}' })
+          else
+            -- Third attempt succeeds
+            opts.callback({ status = 200, body = '{"ok":true}' })
+          end
+        end)
+      end
+
+      local registered_mode
+      port_mapping.register = function(_port, _dir, _started, mode)
+        registered_mode = mode
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.is_not_nil(result)
+      assert.equal('http://192.168.1.100:5555', result.url)
+      assert.equal(5555, result.port)
+      assert.equal('attach', registered_mode)
+      assert.is_true(request_count >= 3)
+
+      config.values.server.auto_kill = original_auto_kill
+      config.values.server.retry_delay = original_retry_delay
+      vim.defer_fn = original_defer_fn
+    end)
+
+    it('rejects after exhausting retries when auto_kill=false', function()
+      local original_auto_kill = config.values.server.auto_kill
+      local original_retry_delay = config.values.server.retry_delay
+      local original_defer_fn = vim.defer_fn
+
+      config.values.server.url = 'http://192.168.1.100'
+      config.values.server.port = 5555
+      config.values.server.spawn_command = nil
+      config.values.server.auto_kill = false
+      config.values.server.retry_delay = 0
+
+      vim.defer_fn = function(fn, _delay)
+        vim.schedule(fn)
+      end
+
+      -- All attempts fail
+      curl.request = function(opts)
+        vim.schedule(function()
+          opts.callback({ status = 503, body = '{}' })
+        end)
+      end
+
+      local ok, err = pcall(function()
+        server_job.ensure_server():wait()
+      end)
+
+      assert.is_false(ok)
+      assert.truthy(tostring(err):match('Failed to connect to external server'))
+
+      config.values.server.auto_kill = original_auto_kill
+      config.values.server.retry_delay = original_retry_delay
+      vim.defer_fn = original_defer_fn
+    end)
+
+    it('does not spawn local server when auto_kill=false', function()
+      local original_auto_kill = config.values.server.auto_kill
+      local original_retry_delay = config.values.server.retry_delay
+      local original_defer_fn = vim.defer_fn
+
+      config.values.server.url = 'http://192.168.1.100'
+      config.values.server.port = 5555
+      config.values.server.spawn_command = nil
+      config.values.server.auto_kill = false
+      config.values.server.retry_delay = 0
+
+      vim.defer_fn = function(fn, _delay)
+        vim.schedule(fn)
+      end
+
+      -- All attempts fail
+      curl.request = function(opts)
+        vim.schedule(function()
+          opts.callback({ status = 503, body = '{}' })
+        end)
+      end
+
+      local spawn_count = 0
+      opencode_server.new = function()
+        return {
+          url = 'http://127.0.0.1:8080',
+          port = nil,
+          is_running = function()
+            return spawn_count > 0
+          end,
+          spawn = function(self, opts)
+            spawn_count = spawn_count + 1
+            vim.schedule(function()
+              opts.on_ready({}, self.url)
+            end)
+          end,
+          shutdown = function() end,
+        }
+      end
+
+      pcall(function()
+        server_job.ensure_server():wait()
+      end)
+
+      assert.equal(0, spawn_count)
+
+      config.values.server.auto_kill = original_auto_kill
+      config.values.server.retry_delay = original_retry_delay
+      vim.defer_fn = original_defer_fn
+    end)
   end)
 end)

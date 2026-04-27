@@ -16,8 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: JohnnyMorganz/stylua-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
           args: --check . -g '*.lua' -g '!deps/'
 
   test:

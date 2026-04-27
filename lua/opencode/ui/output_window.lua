@@ -47,6 +47,8 @@ function M.create_buf()
   local filetype = config.ui.output.filetype or 'opencode_output'
   vim.api.nvim_set_option_value('filetype', filetype, { buf = output_buf })
 
+  vim.api.nvim_buf_set_var(output_buf, 'opencode_folds', {})
+
   local buffixwin = require('opencode.ui.buf_fix_win')
   buffixwin.fix_to_win(output_buf, function()
     return state.windows and state.windows.output_win
@@ -184,6 +186,12 @@ function M.setup(windows)
   window_options.set_buffer_option('swapfile', false, windows.output_buf)
   window_options.set_buffer_option('undofile', false, windows.output_buf)
   window_options.set_buffer_option('undolevels', -1, windows.output_buf)
+  window_options.set_window_option('foldmethod', 'expr', windows.output_win)
+  window_options.set_window_option('foldexpr', 'v:lua.opencode_fold_expr()', windows.output_win)
+  window_options.set_window_option('foldenable', true, windows.output_win)
+  window_options.set_window_option('foldlevel', 99, windows.output_win)
+  window_options.set_window_option('foldcolumn', '1', windows.output_win)
+  window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
   if config.ui.position ~= 'current' then
     window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
@@ -235,6 +243,137 @@ function M.update_dimensions(windows)
   end
 
   pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
+end
+
+---Fold expression for the output buffer
+---@return number
+function M.fold_expr()
+  local output_buf = nil
+
+  local windows = state.windows
+  if windows and windows.output_buf and vim.api.nvim_buf_is_valid(windows.output_buf) then
+    output_buf = windows.output_buf
+  else
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_has_var(buf, 'opencode_folds') then
+        output_buf = buf
+        break
+      end
+    end
+  end
+
+  if not output_buf then
+    return 0
+  end
+
+  local line = vim.v.lnum
+  local ok, folds = pcall(function()
+    return vim.api.nvim_buf_get_var(output_buf, 'opencode_folds')
+  end)
+  if not ok or not folds then
+    return 0
+  end
+
+  for _, range in ipairs(folds) do
+    if line >= range.from and line <= range.to then
+      return 1
+    end
+  end
+  return 0
+end
+
+---Fold text for the output buffer
+---@return string
+function M.fold_text()
+  local windows = state.windows
+  local output_buf = windows and windows.output_buf
+  local line = vim.v.foldstart
+
+  if not output_buf or not vim.api.nvim_buf_is_valid(output_buf) then
+    return vim.fn.foldtext()
+  end
+
+  local ok, folds = pcall(function()
+    return vim.api.nvim_buf_get_var(output_buf, 'opencode_folds')
+  end)
+  if not ok or not folds then
+    return vim.fn.foldtext()
+  end
+
+  local line_count = 0
+  for _, range in ipairs(folds) do
+    if line >= range.from and line <= range.to then
+      line_count = range.to - range.from + 1
+      break
+    end
+  end
+
+  if line_count > 0 then
+    local text = string.format('▶ %d lines hidden (zo open, zc close) ◀', line_count)
+    local width = vim.api.nvim_win_get_width(0)
+    local padding = math.max(0, math.floor((width - #text) / 2))
+    return string.rep('-', padding) .. text .. string.rep('-', padding)
+  end
+  return vim.fn.foldtext()
+end
+
+_G.opencode_fold_expr = M.fold_expr
+_G.opencode_fold_text = M.fold_text
+
+---Set the folds for the output buffer
+---@param fold_ranges table<{from: number, to: number}>
+function M.set_folds(fold_ranges)
+  local windows = state.windows
+  local output_win = windows and windows.output_win
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+    return
+  end
+
+  local folds = fold_ranges or {}
+  vim.api.nvim_buf_set_var(windows.output_buf, 'opencode_folds', folds)
+
+  if output_win and vim.api.nvim_win_is_valid(output_win) then
+    local win = output_win
+    local buf = windows.output_buf
+    local folds = fold_ranges or {}
+    vim.schedule(function()
+      if vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf) then
+        local prev_win = vim.api.nvim_get_current_win()
+        vim.api.nvim_set_current_win(win)
+        local orig_foldmethod = vim.api.nvim_get_option_value('foldmethod', { win = win })
+        vim.api.nvim_set_option_value('foldmethod', 'manual', { win = win })
+        for _, range in ipairs(folds) do
+          if range.from < range.to then
+            vim.cmd(string.format('%d,%dfold', range.from, range.to))
+          end
+        end
+        vim.api.nvim_set_option_value('foldmethod', orig_foldmethod, { win = win })
+        vim.api.nvim_set_current_win(prev_win)
+      end
+    end)
+  end
+end
+
+---Shift fold ranges
+---@param start_line integer
+---@param delta integer
+function M.shift_folds(start_line, delta)
+  local windows = state.windows
+  if not windows or not windows.output_buf then
+    return
+  end
+  local buf = windows.output_buf
+  local ok, folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
+  if not ok or not folds then
+    return
+  end
+
+  for _, range in ipairs(folds) do
+    if range.from >= start_line then
+      range.from = range.from + delta
+      range.to = range.to + delta
+    end
+  end
 end
 
 ---@return integer

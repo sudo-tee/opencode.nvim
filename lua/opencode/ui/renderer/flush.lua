@@ -572,6 +572,8 @@ function M.end_bulk_mode()
     if next(ctx.bulk_extmarks_by_line) then
       output_window.set_extmarks(ctx.bulk_extmarks_by_line, 0)
     end
+
+    output_window.set_folds(ctx.bulk_folds)
   end, debug.traceback)
 
   ctx:bulk_reset()

@@ -18,7 +18,9 @@ function M.format(output, part)
     (part.state and part.state.title or ''),
     utils.get_duration_text(part)
   )
-  if not config.ui.output.tools.show_output then
+
+  local start_line = output:get_line_count() + 1
+  if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
     return
   end
 
@@ -27,6 +29,8 @@ function M.format(output, part)
   for _, item in ipairs(todos) do
     output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
   end
+
+  output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
 ---@param part OpencodeMessagePart

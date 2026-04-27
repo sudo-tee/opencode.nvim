@@ -283,22 +283,22 @@ function M.setup_subscriptions(subscribe)
   end
 
   local subs = {
-    { 'session.updated',               events.on_session_updated },
-    { 'session.compacted',             events.on_session_compacted },
-    { 'session.error',                 events.on_session_error },
-    { 'message.updated',               events.on_message_updated },
-    { 'message.removed',               events.on_message_removed },
-    { 'message.part.updated',          events.on_part_updated },
-    { 'message.part.removed',          events.on_part_removed },
-    { 'permission.updated',            events.on_permission_updated },
-    { 'permission.asked',              events.on_permission_updated },
-    { 'permission.replied',            events.on_permission_replied },
-    { 'question.asked',                events.on_question_asked },
-    { 'question.replied',              events.clear_question_display },
-    { 'question.rejected',             events.clear_question_display },
-    { 'file.edited',                   events.on_file_edited },
-    { 'custom.restore_point.created',  events.on_restore_points },
-    { 'custom.emit_events.finished',   M.on_emit_events_finished },
+    { 'session.updated', events.on_session_updated },
+    { 'session.compacted', events.on_session_compacted },
+    { 'session.error', events.on_session_error },
+    { 'message.updated', events.on_message_updated },
+    { 'message.removed', events.on_message_removed },
+    { 'message.part.updated', events.on_part_updated },
+    { 'message.part.removed', events.on_part_removed },
+    { 'permission.updated', events.on_permission_updated },
+    { 'permission.asked', events.on_permission_updated },
+    { 'permission.replied', events.on_permission_replied },
+    { 'question.asked', events.on_question_asked },
+    { 'question.replied', events.clear_question_display },
+    { 'question.rejected', events.clear_question_display },
+    { 'file.edited', events.on_file_edited },
+    { 'custom.restore_point.created', events.on_restore_points },
+    { 'custom.emit_events.finished', M.on_emit_events_finished },
   }
 
   for _, sub in ipairs(subs) do
@@ -431,6 +431,7 @@ function M.render_output(output_data)
   output_window.set_lines(output_data.lines or {})
   output_window.clear_extmarks()
   output_window.set_extmarks(output_data.extmarks)
+  output_window.set_folds(output_data.fold_ranges)
   flush.trigger_on_data_rendered()
   M.scroll_to_bottom()
 end
@@ -518,7 +519,7 @@ end
 function M.get_prev_rendered_message(current_line)
   for i = #(state.messages or {}), 1, -1 do
     local message = state.messages[i]
-    local rendered = message and message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
+    local rendered = message and message.info and message.info.id and ctx.render_state:get_message(message.info.id)
     if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
       return rendered
     end

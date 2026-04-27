@@ -242,7 +242,7 @@
 ---@field event_collapsing boolean
 
 ---@class OpencodeUIOutputConfig
----@field tools { show_output: boolean, show_reasoning_output: boolean }
+---@field tools { show_output: boolean, show_reasoning_output: boolean, use_folds: boolean, folding_threshold: number }
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean

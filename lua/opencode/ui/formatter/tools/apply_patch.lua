@@ -38,9 +38,11 @@ function M.format(output, part)
     )
 
     local patch = file.diff or file.patch
-    if config.ui.output.tools.show_output and patch then
+    if (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) and patch then
+      local start_line = output:get_line_count() + 1
       local file_type = file and util.get_markdown_filetype(file.filePath) or ''
       formatter_utils.format_diff(output, patch, file_type)
+      output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
     end
   end
 end

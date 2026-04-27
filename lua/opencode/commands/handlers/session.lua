@@ -10,7 +10,7 @@ local M = {
   actions = {},
 }
 
-local session_subcommands = { 'new', 'select', 'child', 'compact', 'share', 'unshare', 'agents_init', 'rename' }
+local session_subcommands = { 'new', 'select', 'child', 'sibling', 'parent', 'compact', 'share', 'unshare', 'agents_init', 'rename' }
 
 ---@param message string
 local function invalid_arguments(message)
@@ -103,6 +103,25 @@ end
 function M.actions.select_child_session()
   local active = state.active_session
   session_runtime.select_session(active and active.id or nil)
+end
+
+function M.actions.select_sibling_session()
+  local active = state.active_session
+  if not active or not active.parentID then
+    vim.notify('Current session has no parent – showing root sessions', vim.log.levels.INFO)
+    session_runtime.select_session(nil)
+    return
+  end
+  session_runtime.select_session(active.parentID)
+end
+
+function M.actions.select_parent_session()
+  local active = state.active_session
+  if not active or not active.parentID then
+    vim.notify('Current session has no parent', vim.log.levels.INFO)
+    return
+  end
+  session_runtime.switch_session(active.parentID)
 end
 
 ---@param current_session? Session
@@ -411,6 +430,12 @@ local session_subcommand_actions = {
   child = function()
     return M.actions.select_child_session()
   end,
+  sibling = function()
+    return M.actions.select_sibling_session()
+  end,
+  parent = function()
+    return M.actions.select_parent_session()
+  end,
   compact = function()
     return M.actions.compact_session()
   end,
@@ -443,6 +468,8 @@ M.command_defs = {
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
   select_session         = { desc = 'Select session',           execute = function() return M.actions.select_session() end },
   select_child_session   = { desc = 'Select child session',     execute = M.actions.select_child_session },
+  select_sibling_session = { desc = 'Select sibling session',   execute = M.actions.select_sibling_session },
+  select_parent_session  = { desc = 'Go to parent session',     execute = M.actions.select_parent_session },
   rename_session         = { desc = 'Rename session',           execute = function(args) return M.actions.rename_session(nil, args[1]) end },
   undo = {
     desc = 'Undo last action',

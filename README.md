@@ -190,6 +190,8 @@ require('opencode').setup({
       ['i'] = { 'focus_input', 'n' }, -- Focus on input window and enter insert mode at the end of the input from the output window
       ['<M-r>'] = { 'cycle_variant', mode = { 'n' } }, -- Cycle through available model variants
       ['<leader>oS'] = { 'select_child_session' }, -- Select and load a child session
+      ['<leader>oP'] = { 'select_parent_session' }, -- Go to parent session
+      ['<leader>oB'] = { 'select_sibling_session' }, -- Select sibling session (children of same parent)
       ['<leader>oD'] = { 'debug_message' }, -- Open raw message in new buffer for debugging
       ['<leader>oO'] = { 'debug_output' }, -- Open raw output in new buffer for debugging
       ['<leader>ods'] = { 'debug_session' }, -- Open raw session in new buffer for debugging
@@ -603,7 +605,9 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Toggle focus opencode / last window                         | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                            | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |
 | Select and load session                                     | `<leader>os`                          | `:Opencode session select`                  | `require('opencode.api').select_session()`                             |
-| **Select and load child session**                           | `<leader>oS`                          | `:Opencode session select_child`            | `require('opencode.api').select_child_session()`                       |
+| **Select and load child session**                           | `<leader>oS`                          | `:Opencode session child`                   | `require('opencode.api').select_child_session()`                       |
+| **Select sibling session**                                  | `<leader>oB`                          | `:Opencode session sibling`                 | `require('opencode.api').select_sibling_session()`                     |
+| **Go to parent session**                                    | `<leader>oP`                          | `:Opencode session parent`                  | `require('opencode.api').select_parent_session()`                      |
 | Open timeline picker (navigate/undo/redo/fork to message)   | `<leader>oT`                          | `:Opencode timeline`                        | `require('opencode.api').timeline()`                                   |
 | Browse code references from conversation                    | `gr` (window)                         | `:Opencode references` / `/references`      | `require('opencode.api').references()`                                 |
 | Configure provider and model                                | `<leader>op`                          | `:Opencode configure provider`              | `require('opencode.api').configure_provider()`                         |

@@ -20,7 +20,8 @@ function M.format(output, part)
   local icons = require('opencode.ui.icons')
   utils.format_action(output, icons.get('run'), 'run', input.description, utils.get_duration_text(part))
 
-  if not config.ui.output.tools.show_output then
+  local start_line = output:get_line_count() + 1
+  if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
     return
   end
 
@@ -29,6 +30,8 @@ function M.format(output, part)
     local command_output = metadata.output and metadata.output ~= '' and ('\n' .. metadata.output) or ''
     utils.format_code(output, vim.split('> ' .. command .. '\n' .. command_output, '\n'), 'bash')
   end
+
+  output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
 ---@param _ OpencodeMessagePart

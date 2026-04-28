@@ -189,7 +189,7 @@ function M.setup(windows)
   window_options.set_window_option('foldmethod', 'expr', windows.output_win)
   window_options.set_window_option('foldexpr', 'v:lua.opencode_fold_expr()', windows.output_win)
   window_options.set_window_option('foldenable', true, windows.output_win)
-  window_options.set_window_option('foldlevel', 99, windows.output_win)
+  window_options.set_window_option('foldlevel', 0, windows.output_win)
   window_options.set_window_option('foldcolumn', '1', windows.output_win)
   window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
@@ -324,32 +324,18 @@ _G.opencode_fold_text = M.fold_text
 ---@param fold_ranges table<{from: number, to: number}>
 function M.set_folds(fold_ranges)
   local windows = state.windows
-  local output_win = windows and windows.output_win
   if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
     return
   end
 
   local folds = fold_ranges or {}
-  vim.api.nvim_buf_set_var(windows.output_buf, 'opencode_folds', folds)
+  local buf = windows.output_buf
+  local win = windows.output_win
+  vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
-  if output_win and vim.api.nvim_win_is_valid(output_win) then
-    local win = output_win
-    local buf = windows.output_buf
-    local folds = fold_ranges or {}
-    vim.schedule(function()
-      if vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf) then
-        local prev_win = vim.api.nvim_get_current_win()
-        vim.api.nvim_set_current_win(win)
-        local orig_foldmethod = vim.api.nvim_get_option_value('foldmethod', { win = win })
-        vim.api.nvim_set_option_value('foldmethod', 'manual', { win = win })
-        for _, range in ipairs(folds) do
-          if range.from < range.to then
-            vim.cmd(string.format('%d,%dfold', range.from, range.to))
-          end
-        end
-        vim.api.nvim_set_option_value('foldmethod', orig_foldmethod, { win = win })
-        vim.api.nvim_set_current_win(prev_win)
-      end
+  if win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+    pcall(vim.api.nvim_win_call, win, function()
+      vim.cmd('silent! normal! zX')
     end)
   end
 end

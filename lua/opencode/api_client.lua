@@ -304,6 +304,13 @@ function OpencodeApiClient:unrevert_messages(id, directory)
   return self:_call('/session/' .. id .. '/unrevert', 'POST', nil, { directory = directory })
 end
 
+--- List pending permissions
+--- @param directory string|nil Directory path
+--- @return Promise<OpencodePermission[]>
+function OpencodeApiClient:list_permissions(directory)
+  return self:_call('/permission', 'GET', nil, { directory = directory })
+end
+
 --- Respond to a permission request
 --- @param id string Session ID (required)
 --- @param permissionID string Permission ID (required)

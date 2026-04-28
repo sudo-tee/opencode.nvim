@@ -391,6 +391,52 @@ describe('opencode.services.session_runtime', function()
       mounted_stub:revert()
       state.ui.set_windows(nil)
     end)
+
+    it('restores pending permissions after a full session render', function()
+      local renderer = require('opencode.ui.renderer')
+      local permission_window = require('opencode.ui.permission_window')
+      local events = require('opencode.ui.renderer.events')
+
+      state.session.set_active({ id = 'sess1' })
+      state.ui.set_windows({ output_buf = 1, output_win = 2 })
+
+      local mounted_stub = stub(require('opencode.ui.output_window'), 'mounted').returns(true)
+      local fetch_stub = stub(session, 'get_messages').invokes(function()
+        return Promise.new():resolve({})
+      end)
+      local render_stub = stub(renderer, '_render_full_session_data')
+      local list_questions_stub = stub(state.api_client, 'list_questions').invokes(function()
+        return Promise.new():resolve({})
+      end)
+      local list_permissions_stub = stub(state.api_client, 'list_permissions').invokes(function()
+        return Promise.new():resolve({
+          {
+            id = 'perm1',
+            sessionID = 'sess1',
+            permission = 'bash',
+            patterns = { 'echo hello' },
+          },
+        })
+      end)
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      renderer.render_full_session():wait()
+
+      assert.stub(on_permission_stub).was_called_with({
+        id = 'perm1',
+        sessionID = 'sess1',
+        permission = 'bash',
+        patterns = { 'echo hello' },
+      })
+
+      on_permission_stub:revert()
+      list_permissions_stub:revert()
+      list_questions_stub:revert()
+      render_stub:revert()
+      fetch_stub:revert()
+      mounted_stub:revert()
+      state.ui.set_windows(nil)
+    end)
   end)
 
   describe('markdown rendering metadata', function()

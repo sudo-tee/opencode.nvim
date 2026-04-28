@@ -24,6 +24,9 @@ function M.mock_api_client()
     get_config = function()
       return Promise.new():resolve({ model = 'gpt-4' })
     end,
+    list_permissions = function()
+      return Promise.new():resolve({})
+    end,
   })
 end
 

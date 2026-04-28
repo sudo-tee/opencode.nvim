@@ -246,16 +246,8 @@ M.on_session_updated = events.on_session_updated
 function M.reset()
   ctx:reset()
   output_window.clear()
-
-  local permissions = state.pending_permissions or {}
-  if #permissions > 0 and state.api_client then
-    for _, permission in ipairs(permissions) do
-      require('opencode.api').permission_deny(permission)
-    end
-  end
   permission_window.clear_all()
   state.renderer.reset()
-
   flush.trigger_on_data_rendered()
 end
 
@@ -405,10 +397,13 @@ function M.render_full_session()
     return Promise.new():resolve(nil)
   end
   return fetch_session():and_then(function(session_data)
-    M._render_full_session_data(session_data, { restore_model_from_messages = true })
+    M._render_full_session_data(session_data, {
+      restore_model_from_messages = true,
+    })
     local active_session = state.active_session
     if active_session and active_session.id then
       require('opencode.ui.question_window').restore_pending_question(active_session.id)
+      permission_window.restore_pending_permissions(active_session.id)
     end
     return session_data
   end)

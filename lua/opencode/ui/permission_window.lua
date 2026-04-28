@@ -8,6 +8,73 @@ M._permission_queue = {}
 M._dialog = nil
 M._processing = false
 
+---Get the tool identifiers from a permission (nested or root-level).
+---@param permission OpencodePermission|nil
+---@return string|nil call_id
+---@return string|nil message_id
+local function get_tool_ids(permission)
+  if not permission then
+    return nil, nil
+  end
+  local tool = permission.tool
+  local call_id = (tool and tool.callID) or permission.callID
+  local message_id = (tool and tool.messageID) or permission.messageID
+  return call_id, message_id
+end
+
+---Find the message part that corresponds to a permission request.
+---@param permission OpencodePermission|nil
+---@return OpencodeMessagePart|nil
+local function get_permission_part(permission)
+  local call_id, message_id = get_tool_ids(permission)
+  if not message_id or message_id == '' then
+    return nil
+  end
+
+  if state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == message_id then
+        for _, part in ipairs(message.parts or {}) do
+          if call_id and call_id ~= '' then
+            if part.callID == call_id then
+              return part
+            end
+          else
+            return part
+          end
+        end
+      end
+    end
+  end
+
+  if permission and permission.sessionID and permission.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    for _, part in ipairs(render_state:get_child_session_parts(permission.sessionID) or {}) do
+      if call_id and call_id ~= '' then
+        if part.callID == call_id then
+          return part
+        end
+      else
+        return part
+      end
+    end
+  end
+end
+
+---Check whether a permission has already been resolved (completed, error, etc.)
+---by inspecting the corresponding message part's status.
+---@param permission OpencodePermission|nil
+---@return boolean
+local function is_resolved_permission(permission)
+  local part = get_permission_part(permission)
+  if not part or not part.state then
+    return false
+  end
+
+  local part_status = part.state.status
+  return part_status ~= nil and part_status ~= '' and part_status ~= 'pending' and part_status ~= 'running'
+end
+
 ---Add permission to queue
 ---@param permission OpencodePermission
 function M.add_permission(permission)
@@ -267,6 +334,68 @@ function M._clear_dialog()
     M._dialog:teardown()
     M._dialog = nil
   end
+end
+
+---Query the server for pending permissions and restore any that belong
+---to the active session.  Mirrors question_window.restore_pending_question.
+---@param session_id string|nil
+function M.restore_pending_permissions(session_id)
+  local Promise = require('opencode.promise')
+  if not state.api_client or not session_id or session_id == '' then
+    return Promise.new():resolve(nil)
+  end
+
+  return state.api_client:list_permissions()
+    :and_then(function(permissions)
+      if not permissions or type(permissions) ~= 'table' then
+        return
+      end
+
+      local events = require('opencode.ui.renderer.events')
+      local render_state = require('opencode.ui.renderer.ctx').render_state
+
+      for _, permission in ipairs(permissions) do
+        if permission and permission.id then
+          -- Check if this permission belongs to the active session or
+          -- one of its child sessions (task tool).
+          local belongs = permission.sessionID == session_id
+          if not belongs and permission.sessionID and permission.sessionID ~= '' then
+            belongs = render_state:get_task_part_by_child_session(permission.sessionID) ~= nil
+          end
+          if not belongs then
+            local tool = permission.tool
+            local tool_message_id = tool and tool.messageID
+            if tool_message_id and state.messages then
+              for _, message in ipairs(state.messages) do
+                if message.info and message.info.id == tool_message_id then
+                  belongs = true
+                  break
+                end
+              end
+            end
+          end
+
+          if belongs and not is_resolved_permission(permission) then
+            -- Check if already queued (avoid duplicate)
+            local already_queued = false
+            for _, existing in ipairs(M._permission_queue) do
+              if existing.id == permission.id then
+                already_queued = true
+                break
+              end
+            end
+            if not already_queued then
+              events.on_permission_updated(permission)
+            end
+          end
+        end
+      end
+    end)
+    :catch(function(err)
+      vim.schedule(function()
+        vim.notify('Failed to restore pending permissions: ' .. vim.inspect(err), vim.log.levels.WARN)
+      end)
+    end)
 end
 
 ---Check if we have permissions

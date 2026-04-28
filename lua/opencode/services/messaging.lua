@@ -83,6 +83,7 @@ M.send_message = Promise.async(function(prompt, opts)
       update_sent_message_count(-1)
       session_runtime.cancel():await()
     end)
+    :await()
 end)
 
 ---@param prompt string

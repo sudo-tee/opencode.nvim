@@ -1,5 +1,6 @@
 local permission_window = require('opencode.ui.permission_window')
 local Output = require('opencode.ui.output')
+local stub = require('luassert.stub')
 
 describe('permission_window', function()
   after_each(function()
@@ -342,6 +343,251 @@ describe('permission_window', function()
 
       local result = permission_window.update_permission_from_part('per_test', nil)
       assert.is_false(result)
+    end)
+  end)
+
+  describe('restore_pending_permissions', function()
+    local Promise = require('opencode.promise')
+    local state = require('opencode.state')
+    local events = require('opencode.ui.renderer.events')
+
+    after_each(function()
+      state.jobs.set_api_client(nil)
+      state.renderer.set_messages({})
+    end)
+
+    it('skips permissions whose tool part has completed status', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_resolved',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_1', callID = 'call_1' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'completed' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_not_called()
+      on_permission_stub:revert()
+    end)
+
+    it('skips permissions whose tool part has error status', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_error',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_1', callID = 'call_1' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'error' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_not_called()
+      on_permission_stub:revert()
+    end)
+
+    it('restores permissions whose tool part is still pending', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_pending',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_1', callID = 'call_1' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'pending' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_called(1)
+      on_permission_stub:revert()
+    end)
+
+    it('restores permissions whose tool part is running', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_running',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_1', callID = 'call_1' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'running' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_called(1)
+      on_permission_stub:revert()
+    end)
+
+    it('restores permissions when no matching message part is found', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_no_part',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_unknown', callID = 'call_unknown' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({})
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_called(1)
+      on_permission_stub:revert()
+    end)
+
+    it('restores permissions without tool identifiers', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_no_tool',
+              sessionID = 'sess1',
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({})
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_called(1)
+      on_permission_stub:revert()
+    end)
+
+    it('handles mix of resolved and pending permissions', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_done',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_1', callID = 'call_1' },
+            },
+            {
+              id = 'perm_active',
+              sessionID = 'sess1',
+              tool = { messageID = 'msg_2', callID = 'call_2' },
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'completed' } },
+          },
+        },
+        {
+          info = { id = 'msg_2' },
+          parts = {
+            { callID = 'call_2', state = { status = 'pending' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_called(1)
+      assert.stub(on_permission_stub).was_called_with({
+        id = 'perm_active',
+        sessionID = 'sess1',
+        tool = { messageID = 'msg_2', callID = 'call_2' },
+      })
+      on_permission_stub:revert()
+    end)
+
+    it('uses root-level callID/messageID when tool field is absent', function()
+      state.jobs.set_api_client({
+        list_permissions = function()
+          return Promise.new():resolve({
+            {
+              id = 'perm_root_ids',
+              sessionID = 'sess1',
+              messageID = 'msg_1',
+              callID = 'call_1',
+            },
+          })
+        end,
+      })
+      state.renderer.set_messages({
+        {
+          info = { id = 'msg_1' },
+          parts = {
+            { callID = 'call_1', state = { status = 'completed' } },
+          },
+        },
+      })
+
+      local on_permission_stub = stub(events, 'on_permission_updated')
+
+      permission_window.restore_pending_permissions('sess1'):wait()
+
+      assert.stub(on_permission_stub).was_not_called()
+      on_permission_stub:revert()
     end)
   end)
 

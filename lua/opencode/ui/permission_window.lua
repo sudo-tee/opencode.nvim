@@ -8,6 +8,73 @@ M._permission_queue = {}
 M._dialog = nil
 M._processing = false
 
+---Get the tool identifiers from a permission (nested or root-level).
+---@param permission OpencodePermission|nil
+---@return string|nil call_id
+---@return string|nil message_id
+local function get_tool_ids(permission)
+  if not permission then
+    return nil, nil
+  end
+  local tool = permission.tool
+  local call_id = (tool and tool.callID) or permission.callID
+  local message_id = (tool and tool.messageID) or permission.messageID
+  return call_id, message_id
+end
+
+---Find the message part that corresponds to a permission request.
+---@param permission OpencodePermission|nil
+---@return OpencodeMessagePart|nil
+local function get_permission_part(permission)
+  local call_id, message_id = get_tool_ids(permission)
+  if not message_id or message_id == '' then
+    return nil
+  end
+
+  if state.messages then
+    for _, message in ipairs(state.messages) do
+      if message.info and message.info.id == message_id then
+        for _, part in ipairs(message.parts or {}) do
+          if call_id and call_id ~= '' then
+            if part.callID == call_id then
+              return part
+            end
+          else
+            return part
+          end
+        end
+      end
+    end
+  end
+
+  if permission and permission.sessionID and permission.sessionID ~= '' then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    for _, part in ipairs(render_state:get_child_session_parts(permission.sessionID) or {}) do
+      if call_id and call_id ~= '' then
+        if part.callID == call_id then
+          return part
+        end
+      else
+        return part
+      end
+    end
+  end
+end
+
+---Check whether a permission has already been resolved (completed, error, etc.)
+---by inspecting the corresponding message part's status.
+---@param permission OpencodePermission|nil
+---@return boolean
+local function is_resolved_permission(permission)
+  local part = get_permission_part(permission)
+  if not part or not part.state then
+    return false
+  end
+
+  local part_status = part.state.status
+  return part_status ~= nil and part_status ~= '' and part_status ~= 'pending' and part_status ~= 'running'
+end
+
 ---Add permission to queue
 ---@param permission OpencodePermission
 function M.add_permission(permission)
@@ -308,7 +375,7 @@ function M.restore_pending_permissions(session_id)
             end
           end
 
-          if belongs then
+          if belongs and not is_resolved_permission(permission) then
             -- Check if already queued (avoid duplicate)
             local already_queued = false
             for _, existing in ipairs(M._permission_queue) do

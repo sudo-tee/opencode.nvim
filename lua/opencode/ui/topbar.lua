@@ -83,7 +83,7 @@ function M.render()
 
     vim.wo[win].winbar = ' '
 
-    local desc = get_session_desc()
+    local desc = get_session_desc():gsub('%%', '%%%%')
     local token_info = format_token_info()
     local winbar_str = create_winbar_text(desc, token_info, vim.api.nvim_win_get_width(win))
     vim.wo[win].winbar = winbar_str

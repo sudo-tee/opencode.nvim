@@ -331,6 +331,12 @@ function M.set_folds(fold_ranges)
   local folds = fold_ranges or {}
   local buf = windows.output_buf
   local win = windows.output_win
+
+  local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
+  if ok and vim.deep_equal(prev_folds, folds) then
+    return
+  end
+
   vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
   if win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
@@ -357,7 +363,18 @@ function M.shift_folds(start_line, delta)
   for _, range in ipairs(folds) do
     if range.from >= start_line then
       range.from = range.from + delta
+      if delta < 0 then
+        range.from = math.max(start_line, range.from)
+      end
+    end
+    if range.to >= start_line then
       range.to = range.to + delta
+      if delta < 0 then
+        range.to = math.max(start_line, range.to)
+      end
+    end
+    if range.to < range.from then
+      range.to = range.from
     end
   end
 end

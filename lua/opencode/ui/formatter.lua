@@ -35,10 +35,13 @@ function M._format_reasoning(output, part)
 
   format_utils.format_action(output, icons.get('reasoning'), title, '')
 
-  if config.ui.output.tools.show_reasoning_output and text ~= '' then
+  local show = config.ui.output.tools.show_reasoning_output
+  local use_folds = config.ui.output.tools.use_folds
+  if (show or use_folds) and text ~= '' then
     output:add_empty_line()
     output:add_lines(vim.split(text, '\n'))
     output:add_empty_line()
+    output:add_fold_with_threshold(start_line, show, use_folds)
   end
 
   local end_line = output:get_line_count()

@@ -28,6 +28,7 @@ local ctx = {
   bulk_mode = false,
   bulk_buffer_lines = {},
   bulk_extmarks_by_line = {},
+  bulk_folds = {},
 }
 
 ---Reset all renderer caches and pending state.
@@ -57,6 +58,7 @@ function ctx:bulk_reset()
   self.bulk_mode = false
   self.bulk_buffer_lines = {}
   self.bulk_extmarks_by_line = {}
+  self.bulk_folds = {}
 end
 
 return ctx

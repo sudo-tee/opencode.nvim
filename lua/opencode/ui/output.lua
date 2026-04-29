@@ -1,3 +1,5 @@
+local config = require('opencode.config')
+
 local Output = {}
 Output.__index = Output
 
@@ -24,6 +26,7 @@ function Output.new()
   self.lines = {}
   self.extmarks = {}
   self.actions = {}
+  self.fold_ranges = {}
   return self
 end
 
@@ -81,6 +84,34 @@ function Output:clear()
   self.lines = {}
   self.extmarks = {}
   self.actions = {}
+end
+
+---Add a fold range
+---@param start_line number
+---@param end_line number
+function Output:add_fold(start_line, end_line)
+  table.insert(self.fold_ranges, { from = start_line, to = end_line })
+end
+
+---Add fold with threshold awareness
+---@param start_line number Line where content starts
+---@param show boolean Whether content is visible
+---@param use_folds boolean Whether folds are enabled
+function Output:add_fold_with_threshold(start_line, show, use_folds)
+  if not use_folds then
+    return
+  end
+
+  local threshold = config.ui.output.tools.folding_threshold or 5
+  local end_line = self:get_line_count()
+
+  if not show then
+    if end_line > start_line then
+      self:add_fold(start_line, end_line)
+    end
+  elseif end_line > start_line + threshold then
+    self:add_fold(start_line + threshold, end_line)
+  end
 end
 
 ---Get the number of lines

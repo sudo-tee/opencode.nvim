@@ -143,6 +143,27 @@ describe('output_window.setup', function()
     local cursorline = vim.api.nvim_get_option_value('cursorline', { win = win })
     assert.is_false(cursorline)
   end)
+
+  it('defaults folds to closed for expr-based output folds', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+
+    local foldlevel = vim.api.nvim_get_option_value('foldlevel', { win = win })
+
+    assert.equals(0, foldlevel)
+  end)
+
+  it('applies closed folds immediately when fold ranges change', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd' })
+
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    local foldclosed = vim.api.nvim_win_call(win, function()
+      return vim.fn.foldclosed(1)
+    end)
+
+    assert.equals(1, foldclosed)
+  end)
 end)
 
 describe('output_window extmarks', function()

@@ -15,13 +15,16 @@ function M.format(output, part)
 
   local icons = require('opencode.ui.icons')
   utils.format_action(output, icons.get('list'), 'list', input.path or '', utils.get_duration_text(part))
-  if not config.ui.output.tools.show_output then
+
+  local start_line = output:get_line_count() + 1
+  if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
     return
   end
 
   local lines = vim.split(vim.trim(tool_output), '\n')
   if #lines < 1 or metadata.count == 0 then
     output:add_line('No files found.')
+    output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
     return
   end
   if #lines > 1 then
@@ -36,6 +39,8 @@ function M.format(output, part)
   if metadata.truncated then
     output:add_line(string.format('Results truncated, showing first %d files', metadata.count or '?'))
   end
+
+  output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
 ---@param _ OpencodeMessagePart

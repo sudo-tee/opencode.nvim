@@ -94,7 +94,7 @@ describe('opencode.commands.handlers', function()
     assert.same({ 'accept', 'accept_all', 'deny' }, defs.permission.completions)
     assert.same({ allow_empty = false }, defs.permission.nested_subcommand)
 
-    assert.same({ 'new', 'select', 'child', 'sibling', 'parent', 'compact', 'share', 'unshare', 'agents_init', 'rename' }, defs.session.completions)
+    assert.same({ 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename' }, defs.session.completions)
     assert.same({ allow_empty = false }, defs.session.nested_subcommand)
 
     assert.same({ 'input', 'output' }, defs.open.completions)
@@ -204,45 +204,8 @@ describe('opencode.commands.handlers', function()
     assert.is_nil(called.snapshot_id)
   end)
 
-  it('select_sibling_session calls select_session with parentID when active session is a child', function()
-    local session_handler = require('opencode.commands.handlers.session')
-    local session_runtime = require('opencode.services.session_runtime')
-    local state = require('opencode.state')
-
-    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
-    local called_parent_id
-    local original = session_runtime.select_session
-    session_runtime.select_session = function(parent_id)
-      called_parent_id = parent_id
-    end
-
-    session_handler.actions.select_sibling_session()
-
-    session_runtime.select_session = original
-    assert.equal('root1', called_parent_id)
-  end)
-
-  it('select_sibling_session falls back to root sessions when active session has no parent', function()
-    local session_handler = require('opencode.commands.handlers.session')
-    local session_runtime = require('opencode.services.session_runtime')
-    local state = require('opencode.state')
-
-    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
-    local called_parent_id = 'sentinel'
-    local original = session_runtime.select_session
-    session_runtime.select_session = function(parent_id)
-      called_parent_id = parent_id
-    end
-
-    local notify_stub = stub(vim, 'notify')
-    session_handler.actions.select_sibling_session()
-    notify_stub:revert()
-
-    session_runtime.select_session = original
-    assert.is_nil(called_parent_id)
-  end)
-
-  it('select_parent_session switches to parent when active session is a child', function()
+  -- navigate_session_tree tests
+  it('navigate parent + direct calls switch_session with parentID', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
@@ -254,13 +217,13 @@ describe('opencode.commands.handlers', function()
       switched_to = session_id
     end
 
-    session_handler.actions.select_parent_session()
+    session_handler.actions.navigate_session_tree('parent', 'direct', false, 'notify')
 
     session_runtime.switch_session = original
     assert.equal('root1', switched_to)
   end)
 
-  it('select_parent_session notifies when active session has no parent', function()
+  it('navigate parent + direct notifies when no parent with empty_policy=notify', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
@@ -273,7 +236,7 @@ describe('opencode.commands.handlers', function()
     end
 
     local notify_stub = stub(vim, 'notify')
-    session_handler.actions.select_parent_session()
+    session_handler.actions.navigate_session_tree('parent', 'direct', false, 'notify')
 
     session_runtime.switch_session = original
     assert.is_nil(switched_to)
@@ -281,32 +244,12 @@ describe('opencode.commands.handlers', function()
     notify_stub:revert()
   end)
 
-  it('select_sibling_session does nothing when no active session', function()
+  it('navigate parent + direct no-ops when no parent with empty_policy=noop', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active(nil)
-    local called = false
-    local original = session_runtime.select_session
-    session_runtime.select_session = function()
-      called = true
-    end
-
-    local notify_stub = stub(vim, 'notify')
-    session_handler.actions.select_sibling_session()
-    notify_stub:revert()
-
-    session_runtime.select_session = original
-    assert.is_true(called)
-  end)
-
-  it('select_parent_session does nothing when no active session', function()
-    local session_handler = require('opencode.commands.handlers.session')
-    local session_runtime = require('opencode.services.session_runtime')
-    local state = require('opencode.state')
-
-    state.session.set_active(nil)
+    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
     local switched_to = nil
     local original = session_runtime.switch_session
     session_runtime.switch_session = function(session_id)
@@ -314,39 +257,323 @@ describe('opencode.commands.handlers', function()
     end
 
     local notify_stub = stub(vim, 'notify')
-    session_handler.actions.select_parent_session()
+    session_handler.actions.navigate_session_tree('parent', 'direct', false, 'noop')
 
     session_runtime.switch_session = original
+    assert.is_nil(switched_to)
+    assert.stub(notify_stub).was_not_called()
+    notify_stub:revert()
+  end)
+
+  it('navigate child + picker calls select_session with active.id', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    local selected_with
+    local original = session_runtime.select_session
+    session_runtime.select_session = function(parent_id)
+      selected_with = parent_id
+    end
+
+    session_handler.actions.navigate_session_tree('child', 'picker', false, 'notify')
+
+    session_runtime.select_session = original
+    assert.equal('child1', selected_with)
+  end)
+
+  it('navigate sibling + picker calls select_session with active.parentID', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    local selected_with
+    local original = session_runtime.select_session
+    session_runtime.select_session = function(parent_id)
+      selected_with = parent_id
+    end
+
+    session_handler.actions.navigate_session_tree('sibling', 'picker', false, 'notify')
+
+    session_runtime.select_session = original
+    assert.equal('root1', selected_with)
+  end)
+
+  it('navigate sibling + picker falls back to nil when active has no parent', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+
+    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    local selected_with = 'sentinel'
+    local original = session_runtime.select_session
+    session_runtime.select_session = function(parent_id)
+      selected_with = parent_id
+    end
+
+    session_handler.actions.navigate_session_tree('sibling', 'picker', false, 'notify')
+
+    session_runtime.select_session = original
+    assert.is_nil(selected_with)
+  end)
+
+  it('navigate nil active notifies with empty_policy=notify', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local state = require('opencode.state')
+
+    state.session.set_active(nil)
+    local notify_stub = stub(vim, 'notify')
+
+    session_handler.actions.navigate_session_tree('forward', 'direct', false, 'notify')
+
+    assert.stub(notify_stub).was_called()
+    notify_stub:revert()
+  end)
+
+  it('navigate nil active no-ops with empty_policy=noop', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local state = require('opencode.state')
+
+    state.session.set_active(nil)
+    local notify_stub = stub(vim, 'notify')
+
+    session_handler.actions.navigate_session_tree('forward', 'direct', false, 'noop')
+
+    assert.stub(notify_stub).was_not_called()
+    notify_stub:revert()
+  end)
+
+  it('navigate forward + direct switches to more recent session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local session_store = require('opencode.session')
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+
+    local sessions = {
+      { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
+      { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
+      { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
+    }
+    state.session.set_active(sessions[2])
+
+    local orig_get_all = session_store.get_all_workspace_sessions
+    session_store.get_all_workspace_sessions = function()
+      return Promise.new():resolve(sessions)
+    end
+    local switched_to
+    local orig_switch = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local result = session_handler.actions.navigate_session_tree('forward', 'direct', false, 'notify')
+    if result and result.wait then
+      result:wait()
+    end
+
+    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.switch_session = orig_switch
+    assert.equal('s3', switched_to)
+  end)
+
+  it('navigate backward + direct switches to older session', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local session_store = require('opencode.session')
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+
+    local sessions = {
+      { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
+      { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
+      { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
+    }
+    state.session.set_active(sessions[2])
+
+    local orig_get_all = session_store.get_all_workspace_sessions
+    session_store.get_all_workspace_sessions = function()
+      return Promise.new():resolve(sessions)
+    end
+    local switched_to
+    local orig_switch = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local result = session_handler.actions.navigate_session_tree('backward', 'direct', false, 'notify')
+    if result and result.wait then
+      result:wait()
+    end
+
+    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.switch_session = orig_switch
+    assert.equal('s1', switched_to)
+  end)
+
+  it('navigate forward + wrap: newest session wraps to oldest', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local session_store = require('opencode.session')
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+
+    local sessions = {
+      { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
+      { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
+      { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
+    }
+    state.session.set_active(sessions[1]) -- newest, index 1
+
+    local orig_get_all = session_store.get_all_workspace_sessions
+    session_store.get_all_workspace_sessions = function()
+      return Promise.new():resolve(sessions)
+    end
+    local switched_to
+    local orig_switch = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local result = session_handler.actions.navigate_session_tree('forward', 'direct', true, 'notify')
+    if result and result.wait then
+      result:wait()
+    end
+
+    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.switch_session = orig_switch
+    assert.equal('s1', switched_to) -- wrap to oldest
+  end)
+
+  it('navigate backward + wrap: oldest session wraps to newest', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local session_store = require('opencode.session')
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+
+    local sessions = {
+      { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
+      { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
+      { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
+    }
+    state.session.set_active(sessions[3]) -- oldest, index 3
+
+    local orig_get_all = session_store.get_all_workspace_sessions
+    session_store.get_all_workspace_sessions = function()
+      return Promise.new():resolve(sessions)
+    end
+    local switched_to
+    local orig_switch = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local result = session_handler.actions.navigate_session_tree('backward', 'direct', true, 'notify')
+    if result and result.wait then
+      result:wait()
+    end
+
+    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.switch_session = orig_switch
+    assert.equal('s3', switched_to) -- wrap to newest
+  end)
+
+  it('navigate forward + no-wrap + empty_policy=notify notifies at newest', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local session_store = require('opencode.session')
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+
+    local sessions = {
+      { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
+    }
+    state.session.set_active(sessions[1])
+
+    local orig_get_all = session_store.get_all_workspace_sessions
+    session_store.get_all_workspace_sessions = function()
+      return Promise.new():resolve(sessions)
+    end
+    local switched_to
+    local orig_switch = session_runtime.switch_session
+    session_runtime.switch_session = function(session_id)
+      switched_to = session_id
+    end
+
+    local notify_stub = stub(vim, 'notify')
+    local result = session_handler.actions.navigate_session_tree('forward', 'direct', false, 'notify')
+    if result and result.wait then
+      result:wait()
+    end
+
+    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.switch_session = orig_switch
     assert.is_nil(switched_to)
     assert.stub(notify_stub).was_called()
     notify_stub:revert()
   end)
 
-  it('session subcommand sibling routes to select_sibling_session', function()
+  -- normalize_navigate_args tests via command_defs
+  it('normalize_navigate_args rejects invalid direction', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local ok, err = pcall(session_handler.command_defs.navigate_session_tree.execute, { 'up' })
+    assert.is_false(ok)
+    assert.equal('invalid_arguments', err.code)
+  end)
+
+  it('normalize_navigate_args rejects invalid interaction', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local ok, err = pcall(session_handler.command_defs.navigate_session_tree.execute, { 'parent', 'modal' })
+    assert.is_false(ok)
+    assert.equal('invalid_arguments', err.code)
+  end)
+
+  it('normalize_navigate_args rejects invalid wrap', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local ok, err = pcall(session_handler.command_defs.navigate_session_tree.execute, { 'forward', 'direct', 'yes' })
+    assert.is_false(ok)
+    assert.equal('invalid_arguments', err.code)
+  end)
+
+  it('normalize_navigate_args rejects invalid empty_policy', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local ok, err = pcall(session_handler.command_defs.navigate_session_tree.execute, { 'forward', 'direct', 'false', 'silent' })
+    assert.is_false(ok)
+    assert.equal('invalid_arguments', err.code)
+  end)
+
+  -- subcommand routing test
+  it('session subcommand navigate routes to navigate_session_tree', function()
     local session_handler = require('opencode.commands.handlers.session')
     local called = false
-    local original = session_handler.actions.select_sibling_session
-    session_handler.actions.select_sibling_session = function()
+    local original = session_handler.actions.navigate_session_tree
+    session_handler.actions.navigate_session_tree = function()
       called = true
     end
 
-    session_handler.command_defs.session.execute({ 'sibling' })
+    session_handler.command_defs.session.execute({ 'navigate', 'forward' })
 
-    session_handler.actions.select_sibling_session = original
+    session_handler.actions.navigate_session_tree = original
     assert.is_true(called)
   end)
 
-  it('session subcommand parent routes to select_parent_session', function()
+  it('navigate_session_tree command_defs execute routes to action', function()
     local session_handler = require('opencode.commands.handlers.session')
-    local called = false
-    local original = session_handler.actions.select_parent_session
-    session_handler.actions.select_parent_session = function()
-      called = true
+    local called_with = {}
+    local original = session_handler.actions.navigate_session_tree
+    session_handler.actions.navigate_session_tree = function(direction, interaction, wrap, empty_policy)
+      called_with = { direction = direction, interaction = interaction, wrap = wrap, empty_policy = empty_policy }
     end
 
-    session_handler.command_defs.session.execute({ 'parent' })
+    session_handler.command_defs.navigate_session_tree.execute({ 'forward', 'direct', 'true', 'noop' })
 
-    session_handler.actions.select_parent_session = original
-    assert.is_true(called)
+    session_handler.actions.navigate_session_tree = original
+    assert.equal('forward', called_with.direction)
+    assert.equal('direct', called_with.interaction)
+    assert.is_true(called_with.wrap)
+    assert.equal('noop', called_with.empty_policy)
   end)
 end)

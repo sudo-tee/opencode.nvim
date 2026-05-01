@@ -41,9 +41,7 @@ local action_groups = {
 
   session = {
     open_input_new_session = session.open_input_new_session,
-    select_child_session = session.select_child_session,
-    select_sibling_session = session.select_sibling_session,
-    select_parent_session = session.select_parent_session,
+    navigate_session_tree = session.navigate_session_tree,
     share = session.share,
     unshare = session.unshare,
     initialize = session.initialize,

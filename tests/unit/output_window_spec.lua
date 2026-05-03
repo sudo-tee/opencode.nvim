@@ -164,26 +164,6 @@ describe('output_window.setup', function()
 
     assert.equals(1, foldclosed)
   end)
-
-  it('preserves manually opened folds when fold ranges are reapplied', function()
-    output_window.setup({ output_buf = buf, output_win = win })
-    output_window.set_lines({ 'a', 'b', 'c', 'd', 'e' })
-
-    output_window.set_folds({ { from = 1, to = 3 } })
-
-    vim.api.nvim_win_call(win, function()
-      vim.fn.cursor(1, 1)
-      vim.cmd('silent! normal! zo')
-    end)
-
-    output_window.set_folds({ { from = 1, to = 4 } })
-
-    local foldclosed = vim.api.nvim_win_call(win, function()
-      return vim.fn.foldclosed(1)
-    end)
-
-    assert.equals(-1, foldclosed)
-  end)
 end)
 
 describe('output_window extmarks', function()

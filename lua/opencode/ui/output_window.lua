@@ -13,6 +13,10 @@ M._prev_line_count_by_win = {}
 local _update_depth = 0
 local _update_buf = nil
 
+local function is_win_showing_buf(win, buf)
+  return win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf
+end
+
 ---Begin a batch of buffer writes — toggle modifiable once for the whole batch.
 ---Returns true if the batch was opened (buffer is valid). Must be paired with end_update().
 ---@return boolean
@@ -320,29 +324,60 @@ end
 _G.opencode_fold_expr = M.fold_expr
 _G.opencode_fold_text = M.fold_text
 
+function M.snapshot_open_folds(win, prev_folds)
+  local ok, result = pcall(vim.api.nvim_win_call, win, function()
+    local open = {}
+    for _, range in ipairs(prev_folds) do
+      if vim.fn.foldclosed(range.from) == -1 then
+        open[#open + 1] = range.from
+      end
+    end
+    return open
+  end)
+  return ok and result or {}
+end
+
+function M.restore_open_folds(win, open_fold_starts)
+  pcall(vim.api.nvim_win_call, win, function()
+    local view = vim.fn.winsaveview()
+    vim.cmd('silent! normal! zX')
+    for _, lnum in ipairs(open_fold_starts) do
+      if vim.fn.foldclosed(lnum) ~= -1 then
+        vim.fn.cursor(lnum, 1)
+        vim.cmd('silent! normal! zo')
+      end
+    end
+    vim.fn.winrestview(view)
+  end)
+end
+
 ---Set the folds for the output buffer
 ---@param fold_ranges table<{from: number, to: number}>
 function M.set_folds(fold_ranges)
   local windows = state.windows
-  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+  local buf = windows.output_buf
+  if not M.mounted() then
     return
   end
 
   local folds = fold_ranges or {}
-  local buf = windows.output_buf
-  local win = windows.output_win
-
   local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  if ok and vim.deep_equal(prev_folds, folds) then
+  if ok and #folds == #prev_folds and vim.deep_equal(prev_folds, folds) then
     return
+  end
+
+  local win = windows.output_win
+  local win_owns_buf = is_win_showing_buf(win, buf)
+
+  local open_fold_starts = {}
+  if ok and win_owns_buf then
+    open_fold_starts = M.snapshot_open_folds(win, prev_folds)
   end
 
   vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
-  if win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
-    pcall(vim.api.nvim_win_call, win, function()
-      vim.cmd('silent! normal! zX')
-    end)
+  if win_owns_buf then
+    M.restore_open_folds(win, open_fold_starts)
   end
 end
 

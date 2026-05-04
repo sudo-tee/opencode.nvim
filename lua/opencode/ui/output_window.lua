@@ -73,15 +73,12 @@ end
 ---@param windows OpencodeWindowState?
 function M.mounted(windows)
   windows = windows or state.windows
-  return windows and windows.output_buf and windows.output_win and vim.api.nvim_win_is_valid(windows.output_win)
-end
-
----Check if the output buffer is valid (even if window is hidden)
----@param windows? OpencodeWindowState
----@return boolean
-function M.buffer_valid(windows)
-  windows = windows or state.windows
-  return windows and windows.output_buf and vim.api.nvim_buf_is_valid(windows.output_buf)
+  return windows
+    and windows.output_buf
+    and windows.output_win
+    and vim.api.nvim_win_is_valid(windows.output_win)
+    and vim.api.nvim_buf_is_valid(windows.output_buf)
+    and vim.api.nvim_win_get_buf(windows.output_win) == windows.output_buf
 end
 
 ---Check if the cursor in the output window is at (or was at) the bottom of
@@ -320,74 +317,61 @@ end
 _G.opencode_fold_expr = M.fold_expr
 _G.opencode_fold_text = M.fold_text
 
+function M.get_open_fold_starts(win, buf)
+  if not win or not buf then
+    return {}
+  end
+
+  local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
+  if not ok or not prev_folds then
+    return {}
+  end
+
+  local was_open = {}
+  vim.api.nvim_win_call(win, function()
+    for _, range in ipairs(prev_folds) do
+      if vim.fn.foldclosed(range.from) == -1 then
+        was_open[range.from] = true
+      end
+    end
+  end)
+
+  return was_open
+end
+
 ---Set the folds for the output buffer
 ---@param fold_ranges table<{from: number, to: number}>
 function M.set_folds(fold_ranges)
   local windows = state.windows
-  if not windows or not windows.output_buf then
+  if not M.mounted() then
     return
   end
+  ---@cast windows OpencodeWindowState
 
   local buf = windows.output_buf
-  if not vim.api.nvim_buf_is_valid(buf) then
-    return
-  end
-
+  local win = windows.output_win
   local folds = fold_ranges or {}
 
-  local ok_prev, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  -- Only consider folds identical if we successfully read the previous state.
-  if ok_prev and #folds == #prev_folds and vim.deep_equal(prev_folds, folds) then
+  local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
+  prev_folds = ok and prev_folds or {}
+
+  if #folds == #prev_folds and vim.deep_equal(prev_folds, folds) then
     return
   end
-  prev_folds = ok_prev and prev_folds or {}
 
-  local win = windows.output_win
-  local win_owns_buf = win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf
-
-  -- Track which folds were open
-  local open = {}
-  if win_owns_buf then
-    -- Be defensive: the window may become invalid between the earlier check and
-    -- the call, so use pcall to avoid raising an error.
-    pcall(vim.api.nvim_win_call, win, function()
-      for _, range in ipairs(prev_folds) do
-        if vim.fn.foldclosed(range.from) == -1 then
-          open[range.from] = true
-        end
-      end
-    end)
-  end
+  local was_open = M.get_open_fold_starts(win, buf)
 
   vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
-  if not win_owns_buf then
-    return
-  end
-
-  pcall(vim.api.nvim_win_call, win, function()
+  vim.api.nvim_win_call(win, function()
     local view = vim.fn.winsaveview()
-    -- Use zX to reset manual folds consistently (preserve previous behavior).
     vim.cmd('silent! normal! zX')
-    -- 1. Create/update folds (your foldexpr / markers should already handle this)
-    -- So we only control open/close state
-
     for _, range in ipairs(folds) do
-      local is_open = open[range.from]
+      local is_open = was_open[range.from]
+      local cmd = is_open and 'zo' or 'zc'
 
-      if is_open then
-        -- ensure it's open
-        if vim.fn.foldclosed(range.from) ~= -1 then
-          vim.fn.cursor(range.from, 1)
-          vim.cmd('silent! normal! zo')
-        end
-      else
-        -- ensure it's closed
-        if vim.fn.foldclosed(range.from) == -1 then
-          vim.fn.cursor(range.from, 1)
-          vim.cmd('silent! normal! zc')
-        end
-      end
+      vim.fn.cursor(range.from, 1)
+      vim.cmd('silent! normal! ' .. cmd)
     end
 
     vim.fn.winrestview(view)

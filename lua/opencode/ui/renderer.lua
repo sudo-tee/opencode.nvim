@@ -420,7 +420,7 @@ end
 ---Replace the entire output buffer with formatted output data
 ---@param output_data Output
 function M.render_output(output_data)
-  if not output_window.buffer_valid() then
+  if not output_window.mounted() then
     return
   end
   output_window.set_lines(output_data.lines or {})

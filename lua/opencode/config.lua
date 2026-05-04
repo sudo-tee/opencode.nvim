@@ -164,7 +164,9 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
         use_folds = true,
-        folding_threshold = 20,
+        -- Reduced default threshold to make small tool outputs foldable by default.
+        -- Users can override this in their config if they prefer the previous value.
+        folding_threshold = 4,
       },
 
       max_messages = nil,

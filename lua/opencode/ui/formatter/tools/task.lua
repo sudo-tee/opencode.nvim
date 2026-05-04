@@ -79,8 +79,8 @@ function M.format(output, part, get_child_parts)
   local end_line = output:get_line_count()
   output:add_action({
     text = '[S]elect Child Session',
-    type = 'select_child_session',
-    args = {},
+    type = 'navigate_session_tree',
+    args = { 'child', 'picker' },
     key = 'S',
     display_line = start_line,
     range = { from = start_line + 1, to = end_line + 1 },

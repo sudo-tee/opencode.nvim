@@ -1188,9 +1188,9 @@
   ],
   "actions": [
     {
-      "args": [],
+      "args": ["child", "picker"],
       "display_line": 9,
-      "type": "select_child_session",
+      "type": "navigate_session_tree",
       "text": "[S]elect Child Session",
       "range": { "from": 10, "to": 79 },
       "key": "S"

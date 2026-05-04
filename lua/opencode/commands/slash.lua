@@ -14,7 +14,7 @@ local slash_command_presets = {
   ['/help'] = { name = 'help' },
   ['/agent'] = { name = 'agent', preset_args = { 'select' } },
   ['/agents_init'] = { name = 'session', preset_args = { 'agents_init' } },
-  ['/child-sessions'] = { name = 'session', preset_args = { 'child' } },
+  ['/child-sessions'] = { name = 'session', preset_args = { 'navigate', 'child', 'picker' } },
   ['/command-list'] = { name = 'commands_list' },
   ['/compact'] = { name = 'session', preset_args = { 'compact' } },
   ['/history'] = { name = 'history' },

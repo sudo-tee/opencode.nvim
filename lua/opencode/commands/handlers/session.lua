@@ -10,7 +10,7 @@ local M = {
   actions = {},
 }
 
-local session_subcommands = { 'new', 'select', 'child', 'sibling', 'parent', 'compact', 'share', 'unshare', 'agents_init', 'rename' }
+local session_subcommands = { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename' }
 
 ---@param message string
 local function invalid_arguments(message)
@@ -70,11 +70,9 @@ end
 ---@param request_promise Promise<any>
 ---@param error_prefix string
 local function run_api_action_with_checktime(request_promise, error_prefix)
-  request_promise
-    :and_then(schedule_checktime)
-    :catch(function(err)
-      notify_error(error_prefix, err)
-    end)
+  request_promise:and_then(schedule_checktime):catch(function(err)
+    notify_error(error_prefix, err)
+  end)
 end
 
 function M.actions.open_input_new_session()
@@ -100,28 +98,132 @@ function M.actions.select_session(parent_id)
   session_runtime.select_session(parent_id)
 end
 
-function M.actions.select_child_session()
-  local active = state.active_session
-  session_runtime.select_session(active and active.id or nil)
+local NAV_DIRECTIONS = { parent = true, child = true, sibling = true, forward = true, backward = true }
+local NAV_INTERACTION_DEFAULTS =
+  { parent = 'direct', child = 'picker', sibling = 'picker', forward = 'direct', backward = 'direct' }
+
+---@return string direction, string interaction, boolean wrap, string empty_policy
+---@diagnostic disable-next-line: missing-return-value
+local function normalize_navigate_args(direction, interaction, wrap, empty_policy)
+  if not NAV_DIRECTIONS[direction] then
+    invalid_arguments('Invalid direction: ' .. tostring(direction))
+  end
+
+  interaction = interaction or NAV_INTERACTION_DEFAULTS[direction]
+  if interaction ~= 'direct' and interaction ~= 'picker' then
+    invalid_arguments('Invalid interaction: ' .. tostring(interaction))
+  end
+
+  if wrap == nil then
+    wrap = false
+  end
+  if type(wrap) == 'string' then
+    local coerced = ({ ['true'] = true, ['false'] = false })[wrap]
+    if coerced == nil then
+      invalid_arguments('Invalid wrap: ' .. tostring(wrap))
+    end
+    wrap = coerced
+  elseif type(wrap) ~= 'boolean' then
+    invalid_arguments('Invalid wrap: ' .. tostring(wrap))
+  end
+
+  empty_policy = empty_policy or 'notify'
+  if empty_policy ~= 'notify' and empty_policy ~= 'noop' then
+    invalid_arguments('Invalid empty_policy: ' .. tostring(empty_policy))
+  end
+
+  return direction, interaction, wrap, empty_policy
 end
 
-function M.actions.select_sibling_session()
-  local active = state.active_session
-  if not active or not active.parentID then
-    vim.notify('Current session has no parent – showing root sessions', vim.log.levels.INFO)
-    session_runtime.select_session(nil)
-    return
+-- parent: direct switch to parentID; child/sibling: target_id is filter, always picker
+local tree_directions = {
+  parent = {
+    get_target = function(a)
+      return a.parentID
+    end,
+    allow_direct = true,
+  },
+  child = {
+    get_target = function(a)
+      return a.id
+    end,
+    allow_direct = false,
+  },
+  sibling = {
+    get_target = function(a)
+      return a.parentID
+    end,
+    allow_direct = false,
+  },
+}
+
+local function find_session_index(sessions, session_id)
+  for i, s in ipairs(sessions) do
+    if s.id == session_id then
+      return i
+    end
   end
-  session_runtime.select_session(active.parentID)
+  return nil
 end
 
-function M.actions.select_parent_session()
+local function compute_target_index(current_idx, total, direction, wrap)
+  local step = direction == 'forward' and -1 or 1
+  local target = current_idx + step
+
+  if target >= 1 and target <= total then
+    return target
+  end
+  if wrap then
+    return direction == 'forward' and total or 1
+  end
+  return nil
+end
+
+function M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
   local active = state.active_session
-  if not active or not active.parentID then
-    vim.notify('Current session has no parent', vim.log.levels.INFO)
+  if not active then
+    if empty_policy == 'notify' then vim.notify('No active session', vim.log.levels.WARN) end
     return
   end
-  session_runtime.switch_session(active.parentID)
+
+  local dir = tree_directions[direction]
+  if dir then
+    local target_id = dir.get_target(active)
+    if not target_id then
+      if direction == 'sibling' then return session_runtime.select_session(nil) end
+      if empty_policy == 'notify' then vim.notify('No ' .. direction, vim.log.levels.INFO) end
+      return
+    end
+    if interaction == 'picker' or not dir.allow_direct then
+      return session_runtime.select_session(target_id)
+    end
+    return session_runtime.switch_session(target_id)
+  end
+
+  -- forward / backward: flat navigation by time.updated
+  return Promise.async(function()
+    local all_sessions = session_store.get_all_workspace_sessions():await()
+    if not all_sessions or #all_sessions == 0 then
+      if empty_policy == 'notify' then vim.notify('No sessions', vim.log.levels.INFO) end
+      return
+    end
+
+    local current_idx = find_session_index(all_sessions, active.id)
+    if not current_idx then
+      if empty_policy == 'notify' then vim.notify('Session not in list', vim.log.levels.INFO) end
+      return
+    end
+
+    local target_idx = compute_target_index(current_idx, #all_sessions, direction, wrap)
+    if not target_idx then
+      if empty_policy == 'notify' then
+        vim.notify('At ' .. (direction == 'forward' and 'newest' or 'oldest') .. ' session', vim.log.levels.INFO)
+      end
+      return
+    end
+
+    return session_runtime.switch_session(all_sessions[target_idx].id)
+  end)()
 end
 
 ---@param current_session? Session
@@ -324,6 +426,7 @@ end
 function M.actions.redo()
   return with_active_session('No active session to redo', function(state_obj)
     local active_session = state_obj.active_session
+    ---@diagnostic disable-next-line: need-check-nil
     if not active_session.revert or active_session.revert.messageID == '' then
       vim.notify('Nothing to redo', vim.log.levels.WARN)
       return
@@ -335,11 +438,16 @@ function M.actions.redo()
 
     local next_message_id = find_next_message_for_redo(state_obj)
     if not next_message_id then
-      run_api_action_with_checktime(state_obj.api_client:unrevert_messages(active_session.id), 'Failed to redo message: ')
+      ---@diagnostic disable-next-line: need-check-nil
+      run_api_action_with_checktime(
+        state_obj.api_client:unrevert_messages(active_session.id),
+        'Failed to redo message: '
+      )
       return
     end
 
     run_api_action_with_checktime(
+      ---@diagnostic disable-next-line: need-check-nil
       state_obj.api_client:revert_message(active_session.id, {
         messageID = next_message_id,
       }),
@@ -427,14 +535,9 @@ local session_subcommand_actions = {
   select = function()
     return M.actions.select_session()
   end,
-  child = function()
-    return M.actions.select_child_session()
-  end,
-  sibling = function()
-    return M.actions.select_sibling_session()
-  end,
-  parent = function()
-    return M.actions.select_parent_session()
+  navigate = function(args)
+    local direction, interaction, wrap, empty_policy = normalize_navigate_args(args[2], args[3], args[4], args[5])
+    return M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
   end,
   compact = function()
     return M.actions.compact_session()
@@ -452,7 +555,7 @@ local session_subcommand_actions = {
 
 M.command_defs = {
   session = {
-    desc = 'Manage sessions (new/select/child/compact/share/unshare/rename)',
+    desc = 'Manage sessions (new/select/navigate/compact/share/unshare/rename)',
     completions = session_subcommands,
     nested_subcommand = { allow_empty = false },
     execute = function(args)
@@ -466,11 +569,25 @@ M.command_defs = {
   },
   -- action name aliases for keymap compatibility
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
-  select_session         = { desc = 'Select session',           execute = function() return M.actions.select_session() end },
-  select_child_session   = { desc = 'Select child session',     execute = M.actions.select_child_session },
-  select_sibling_session = { desc = 'Select sibling session',   execute = M.actions.select_sibling_session },
-  select_parent_session  = { desc = 'Go to parent session',     execute = M.actions.select_parent_session },
-  rename_session         = { desc = 'Rename session',           execute = function(args) return M.actions.rename_session(nil, args[1]) end },
+  select_session = {
+    desc = 'Select session',
+    execute = function()
+      return M.actions.select_session()
+    end,
+  },
+  navigate_session_tree = {
+    desc = 'Navigate session tree (parent/child/sibling/forward/backward)',
+    execute = function(args)
+      local direction, interaction, wrap, empty_policy = normalize_navigate_args(args[1], args[2], args[3], args[4])
+      return M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
+    end,
+  },
+  rename_session = {
+    desc = 'Rename session',
+    execute = function(args)
+      return M.actions.rename_session(nil, args[1])
+    end,
+  },
   undo = {
     desc = 'Undo last action',
     execute = function(args)

@@ -186,6 +186,18 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     return
   end
 
+  -- If direction is not a known navigation direction, treat it as a target session ID
+  if direction
+    and not tree_directions[direction]
+    and direction ~= 'forward'
+    and direction ~= 'backward'
+  then
+    if interaction == 'picker' then
+      return session_runtime.select_session(direction)
+    end
+    return session_runtime.switch_session(direction)
+  end
+
   local dir = tree_directions[direction]
   if dir then
     local target_id = dir.get_target(active)
@@ -576,8 +588,12 @@ M.command_defs = {
     end,
   },
   navigate_session_tree = {
-    desc = 'Navigate session tree (parent/child/sibling/forward/backward)',
+    desc = 'Navigate session tree (parent/child/sibling/forward/backward) or switch to a session by ID',
     execute = function(args)
+      -- If args[1] is not a known direction, treat it as a session ID
+      if args[1] and not NAV_DIRECTIONS[args[1]] then
+        return M.actions.navigate_session_tree(args[1], args[2], args[3], args[4])
+      end
       local direction, interaction, wrap, empty_policy = normalize_navigate_args(args[1], args[2], args[3], args[4])
       return M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
     end,

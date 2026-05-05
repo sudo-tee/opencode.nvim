@@ -77,14 +77,16 @@ function M.format(output, part, get_child_parts)
   end
 
   local end_line = output:get_line_count()
-  output:add_action({
-    text = '[S]elect Child Session',
-    type = 'navigate_session_tree',
-    args = { 'child', 'picker' },
-    key = 'S',
-    display_line = start_line,
-    range = { from = start_line + 1, to = end_line + 1 },
-  })
+  if metadata.sessionId then
+    output:add_action({
+      text = '[S] Open this Session',
+      type = 'navigate_session_tree',
+      args = { metadata.sessionId },
+      key = 'S',
+      display_line = start_line,
+      range = { from = start_line + 1, to = end_line + 1 },
+    })
+  end
 end
 
 ---@param _ OpencodeMessagePart

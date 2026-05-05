@@ -3,6 +3,7 @@ local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
 local input_window = require('opencode.ui.input_window')
+local float_layout = require('opencode.ui.float_layout')
 local footer = require('opencode.ui.footer')
 local topbar = require('opencode.ui.topbar')
 
@@ -317,11 +318,26 @@ end
 ---@param input_buf integer
 ---@param output_buf integer
 ---@return { input_win: integer, output_win: integer }
+local function open_float(input_buf, output_buf)
+  local output_config, input_config = float_layout.window_configs({ input_buf = input_buf, output_buf = output_buf }, true)
+  local output_win = float_layout.open_win(output_buf, true, output_config)
+  local input_win = float_layout.open_win(input_buf, true, input_config)
+
+  return { input_win = input_win, output_win = output_win }
+end
+
+---@param input_buf integer
+---@param output_buf integer
+---@return { input_win: integer, output_win: integer }
 function M.create_split_windows(input_buf, output_buf)
   if input_window.mounted() or output_window.mounted() then
     M.close_windows(state.windows, false)
   end
   local ui_conf = config.ui
+
+  if ui_conf.position == 'float' then
+    return open_float(input_buf, output_buf)
+  end
 
   local main_win
   if ui_conf.position == 'current' then

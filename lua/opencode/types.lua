@@ -188,13 +188,24 @@
 ---@field path_map (string | fun(host_path: string): string) | nil -- Map host paths to server paths
 ---@field reverse_path_map (fun(server_path: string): string) | nil -- Map server paths back to host paths
 
+---@class OpencodeUIFloatConfig
+---@field width number # Width in columns, or ratio when <= 1 (default: 0.95)
+---@field height number # Height in rows, or ratio when <= 1 (default: 0.9)
+---@field row number|nil # Top row, centered when nil
+---@field col number|nil # Left column, centered when nil
+---@field border string|string[]|nil # Float border passed to nvim_open_win
+---@field gap integer # Rows between output and input floats
+---@field zindex integer # Output float zindex; input uses zindex + 1
+---@field opts table<string, any> # Window-local options applied to float windows
+
 ---@class OpencodeUIConfig
 ---@field enable_treesitter_markdown boolean
----@field position 'right'|'left'|'current' # Position of the UI (default: 'right')
+---@field position 'right'|'left'|'current'|'float' # Position of the UI (default: 'right')
 ---@field input_position 'bottom'|'top' # Position of the input window (default: 'bottom')
 ---@field window_width number
 ---@field persist_state boolean
 ---@field zoom_width number
+---@field float OpencodeUIFloatConfig
 ---@field picker_width number|nil # Default width for all pickers (nil uses current window width)
 ---@field display_model boolean
 ---@field display_context_size boolean

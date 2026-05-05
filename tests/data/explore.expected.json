@@ -1188,10 +1188,10 @@
   ],
   "actions": [
     {
-      "args": ["child", "picker"],
+      "args": ["ses_341f3e676ffez6WUF6zpok7dUZ"],
       "display_line": 9,
       "type": "navigate_session_tree",
-      "text": "[S]elect Child Session",
+      "text": "[S] Open this Session",
       "range": { "from": 10, "to": 79 },
       "key": "S"
     }

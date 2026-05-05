@@ -180,22 +180,30 @@ local function compute_target_index(current_idx, total, direction, wrap)
 end
 
 function M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
-  local active = state.active_session
-  if not active then
-    if empty_policy == 'notify' then vim.notify('No active session', vim.log.levels.WARN) end
-    return
-  end
-
-  -- If direction is not a known navigation direction, treat it as a target session ID
+  -- If direction is not a known navigation direction, treat it as a target session ID.
+  -- This path runs before the tree lookup so invalid inputs get clear feedback.
   if direction
     and not tree_directions[direction]
     and direction ~= 'forward'
     and direction ~= 'backward'
   then
+    empty_policy = empty_policy or 'notify'
+    if not state.active_session then
+      if empty_policy == 'notify' then
+        vim.notify('No active session to navigate from', vim.log.levels.WARN)
+      end
+      return
+    end
     if interaction == 'picker' then
       return session_runtime.select_session(direction)
     end
     return session_runtime.switch_session(direction)
+  end
+
+  local active = state.active_session
+  if not active then
+    if empty_policy == 'notify' then vim.notify('No active session', vim.log.levels.WARN) end
+    return
   end
 
   local dir = tree_directions[direction]

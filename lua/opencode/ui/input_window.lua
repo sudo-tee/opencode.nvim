@@ -3,6 +3,7 @@ local M = {}
 local state = require('opencode.state')
 local config = require('opencode.config')
 local window_options = require('opencode.ui.window_options')
+local float_layout = require('opencode.ui.float_layout')
 
 -- Track hidden state
 M._hidden = false
@@ -87,6 +88,12 @@ function M._build_input_win_config()
 end
 
 function M.create_window(windows)
+  if config.ui.position == 'float' then
+    local _, input_config = float_layout.window_configs(windows, true)
+    windows.input_win = float_layout.open_win(windows.input_buf, true, input_config)
+    return
+  end
+
   windows.input_win = vim.api.nvim_open_win(windows.input_buf, true, M._build_input_win_config())
 end
 
@@ -285,6 +292,11 @@ end
 
 function M.update_dimensions(windows)
   if not M.mounted(windows) then
+    return
+  end
+
+  if config.ui.position == 'float' then
+    float_layout.update(windows, true)
     return
   end
 
@@ -560,6 +572,10 @@ function M._hide()
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil
 
+  if config.ui.position == 'float' then
+    float_layout.update(windows, false)
+  end
+
   vim.schedule(function()
     M._toggling = false
   end)
@@ -593,6 +609,23 @@ function M._show()
   if not vim.api.nvim_win_is_valid(output_win) then
     return
   end
+
+  if config.ui.position == 'float' then
+    local output_config, input_config = float_layout.window_configs(windows, true)
+    pcall(vim.api.nvim_win_set_config, output_win, output_config)
+    windows.input_win = float_layout.open_win(windows.input_buf, true, input_config)
+    M.setup(windows)
+    M._hidden = false
+    M.focus_input()
+
+    if was_at_bottom then
+      vim.schedule(function()
+        require('opencode.ui.renderer').scroll_to_bottom(true)
+      end)
+    end
+    return
+  end
+
   vim.api.nvim_set_current_win(output_win)
 
   local input_position = config.ui.input_position or 'bottom'

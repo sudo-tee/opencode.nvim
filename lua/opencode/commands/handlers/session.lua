@@ -180,9 +180,25 @@ local function compute_target_index(current_idx, total, direction, wrap)
 end
 
 function M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
+  if direction and not tree_directions[direction] and direction ~= 'forward' and direction ~= 'backward' then
+    empty_policy = empty_policy or 'notify'
+    if not state.active_session then
+      if empty_policy == 'notify' then
+        vim.notify('No active session to navigate from', vim.log.levels.WARN)
+      end
+      return
+    end
+    if interaction == 'picker' then
+      return session_runtime.select_session(direction)
+    end
+    return session_runtime.switch_session(direction)
+  end
+
   local active = state.active_session
   if not active then
-    if empty_policy == 'notify' then vim.notify('No active session', vim.log.levels.WARN) end
+    if empty_policy == 'notify' then
+      vim.notify('No active session', vim.log.levels.WARN)
+    end
     return
   end
 
@@ -190,8 +206,12 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
   if dir then
     local target_id = dir.get_target(active)
     if not target_id then
-      if direction == 'sibling' then return session_runtime.select_session(nil) end
-      if empty_policy == 'notify' then vim.notify('No ' .. direction, vim.log.levels.INFO) end
+      if direction == 'sibling' then
+        return session_runtime.select_session(nil)
+      end
+      if empty_policy == 'notify' then
+        vim.notify('No ' .. direction, vim.log.levels.INFO)
+      end
       return
     end
     if interaction == 'picker' or not dir.allow_direct then
@@ -204,13 +224,17 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
   return Promise.async(function()
     local all_sessions = session_store.get_all_workspace_sessions():await()
     if not all_sessions or #all_sessions == 0 then
-      if empty_policy == 'notify' then vim.notify('No sessions', vim.log.levels.INFO) end
+      if empty_policy == 'notify' then
+        vim.notify('No sessions', vim.log.levels.INFO)
+      end
       return
     end
 
     local current_idx = find_session_index(all_sessions, active.id)
     if not current_idx then
-      if empty_policy == 'notify' then vim.notify('Session not in list', vim.log.levels.INFO) end
+      if empty_policy == 'notify' then
+        vim.notify('Session not in list', vim.log.levels.INFO)
+      end
       return
     end
 
@@ -576,8 +600,11 @@ M.command_defs = {
     end,
   },
   navigate_session_tree = {
-    desc = 'Navigate session tree (parent/child/sibling/forward/backward)',
+    desc = 'Navigate session tree (parent/child/sibling/forward/backward) or switch to a session by ID',
     execute = function(args)
+      if args[1] and not NAV_DIRECTIONS[args[1]] then
+        return M.actions.navigate_session_tree(args[1], args[2], args[3], args[4])
+      end
       local direction, interaction, wrap, empty_policy = normalize_navigate_args(args[1], args[2], args[3], args[4])
       return M.actions.navigate_session_tree(direction, interaction, wrap, empty_policy)
     end,

@@ -585,9 +585,9 @@ describe('formatter', function()
     end)
 
     assert.are.same({
-      text = '[S]elect Child Session',
+      text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = { 'child', 'picker' },
+      args = { 'ses_child' },
       key = 'S',
       display_line = 1,
       range = { from = 2, to = 5 },

@@ -13,7 +13,7 @@ local store = require('opencode.state.store')
 ---@field output_cursor integer[]|nil
 ---@field output_view table|nil
 ---@field focused_window 'input'|'output'|nil
----@field position 'right'|'left'|'current'|nil
+---@field position 'right'|'left'|'current'|'float'|nil
 ---@field owner_tab integer|nil
 
 ---@class OpencodeWindowState

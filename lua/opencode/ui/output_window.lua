@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local window_options = require('opencode.ui.window_options')
+local float_layout = require('opencode.ui.float_layout')
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
@@ -213,6 +214,11 @@ function M.update_dimensions(windows)
   end
 
   if not windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+    return
+  end
+
+  if config.ui.position == 'float' then
+    float_layout.update(windows, windows.input_win ~= nil and vim.api.nvim_win_is_valid(windows.input_win))
     return
   end
 

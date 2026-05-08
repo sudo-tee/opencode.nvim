@@ -133,6 +133,18 @@ M.defaults = {
     input_position = 'bottom',
     window_width = 0.40,
     zoom_width = 0.8,
+    float = {
+      width = 0.95,
+      height = 0.9,
+      row = nil,
+      col = nil,
+      border = 'rounded',
+      gap = 1,
+      zindex = 40,
+      opts = {
+        winblend = 0,
+      },
+    },
     picker_width = 100,
     display_model = true,
     display_context_size = true,

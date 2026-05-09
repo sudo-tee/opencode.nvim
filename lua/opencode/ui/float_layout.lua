@@ -71,7 +71,6 @@ local function base_config(windows)
     height = height,
     row = resolve_position(float.row, vim.o.lines, height),
     col = resolve_position(float.col, vim.o.columns, width),
-    style = 'minimal',
     border = float.border,
   }
 end
@@ -114,6 +113,7 @@ end
 ---@param win_config vim.api.keyset.win_config
 ---@return integer
 function M.open_win(buf, enter, win_config)
+  win_config = vim.tbl_deep_extend('force', win_config, { style = 'minimal' })
   local win = vim.api.nvim_open_win(buf, enter, win_config)
   local float = config.ui.float or {}
   for opt, value in pairs(float.opts or {}) do

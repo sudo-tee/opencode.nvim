@@ -1,3 +1,7 @@
+⚠️ There is a blocking issue with the opencode CLI versions `1.14.42` and up that prevent opencode.nvim from rendering streaming events. Please downgrade to `1.14.41` or wait for a fix. Follow the issue here:
+
+https://github.com/anomalyco/opencode/issues/26697
+
 # 🤖 opencode.nvim
 
 > neovim frontend for opencode - a terminal-based AI coding agent

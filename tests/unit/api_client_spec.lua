@@ -2,6 +2,18 @@ local api_client = require('opencode.api_client')
 local assert = require('luassert')
 
 describe('api_client', function()
+  local original_cli_version
+  local state
+
+  before_each(function()
+    state = require('opencode.state')
+    original_cli_version = state.opencode_cli_version
+  end)
+
+  after_each(function()
+    state.jobs.set_opencode_cli_version(original_cli_version)
+  end)
+
   it('should create a new client instance', function()
     local client = api_client.new('http://localhost:8080')
     assert.is_not_nil(client)
@@ -103,5 +115,107 @@ describe('api_client', function()
     -- Restore original function
     server_job.call_api = original_call_api
     vim.fn.getcwd = original_cwd
+  end)
+
+  it('normalizes /global/event payloads into legacy event shape', function()
+    local server_job = require('opencode.server_job')
+    local original_stream_api = server_job.stream_api
+    state.jobs.set_opencode_cli_version('1.14.42')
+
+    local received = {}
+
+    server_job.stream_api = function(_, _, _, on_chunk)
+      on_chunk(
+        'data: ' .. vim.json.encode({
+          payload = {
+            id = 'evt_1',
+            type = 'session.status',
+            properties = {
+              sessionID = 'ses_1',
+              status = { type = 'busy' },
+            },
+          },
+        })
+      )
+
+      return { shutdown = function() end }
+    end
+
+    local client = api_client.new('http://localhost:8080')
+    client:subscribe_to_events('/some/directory', function(event)
+      table.insert(received, event)
+    end)
+
+    assert.same({
+      {
+        id = 'evt_1',
+        type = 'session.status',
+        properties = {
+          sessionID = 'ses_1',
+          status = { type = 'busy' },
+        },
+      },
+    }, received)
+
+    server_job.stream_api = original_stream_api
+  end)
+
+  it('normalizes /global/event sync payloads into legacy event shape', function()
+    local server_job = require('opencode.server_job')
+    local original_stream_api = server_job.stream_api
+    state.jobs.set_opencode_cli_version('1.14.42')
+
+    local received = {}
+
+    server_job.stream_api = function(_, _, _, on_chunk)
+      on_chunk(
+        'data: ' .. vim.json.encode({
+          payload = {
+            type = 'sync',
+            syncEvent = {
+              id = 'evt_2',
+              type = 'message.part.updated.1',
+              data = {
+                sessionID = 'ses_1',
+                part = {
+                  id = 'prt_1',
+                  type = 'text',
+                  text = 'hello',
+                  messageID = 'msg_1',
+                  sessionID = 'ses_1',
+                },
+              },
+            },
+            id = 'evt_2',
+          },
+        })
+      )
+
+      return { shutdown = function() end }
+    end
+
+    local client = api_client.new('http://localhost:8080')
+    client:subscribe_to_events('/some/directory', function(event)
+      table.insert(received, event)
+    end)
+
+    assert.same({
+      {
+        id = 'evt_2',
+        type = 'message.part.updated',
+        properties = {
+          sessionID = 'ses_1',
+          part = {
+            id = 'prt_1',
+            type = 'text',
+            text = 'hello',
+            messageID = 'msg_1',
+            sessionID = 'ses_1',
+          },
+        },
+      },
+    }, received)
+
+    server_job.stream_api = original_stream_api
   end)
 end)

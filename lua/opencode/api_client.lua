@@ -4,6 +4,7 @@ local url_encode = require('opencode.util').url_encode
 local apply_path_map = require('opencode.util').apply_path_map
 local reverse_transform_paths_recursive = require('opencode.util').reverse_transform_paths_recursive
 local transform_paths_recursive = require('opencode.util').transform_paths_recursive
+local is_version_greater_or_equal = require('opencode.util').is_version_greater_or_equal
 
 --- @class OpencodeApiClient
 --- @field base_url string The base URL of the opencode server
@@ -17,6 +18,51 @@ function OpencodeApiClient.new(base_url)
   return setmetatable({
     base_url = base_url and base_url:gsub('/$', ''), -- Remove trailing slash
   }, OpencodeApiClient)
+end
+
+---Convert /global/event envelopes into the legacy event shape consumed by the
+---rest of the plugin.
+---@param event table|nil
+---@return table|nil
+local function normalize_global_event(event)
+  if type(event) ~= 'table' then
+    return nil
+  end
+
+  local payload = event.payload
+  if type(payload) ~= 'table' then
+    return nil
+  end
+
+  if payload.type == 'sync' then
+    local sync_event = payload.syncEvent
+    if type(sync_event) ~= 'table' then
+      return nil
+    end
+
+    local event_type = sync_event.type
+    if type(event_type) ~= 'string' then
+      return nil
+    end
+
+    event_type = event_type:gsub('%.%d+$', '')
+
+    return {
+      id = sync_event.id or payload.id,
+      type = event_type,
+      properties = sync_event.data,
+    }
+  end
+
+  if type(payload.type) ~= 'string' then
+    return nil
+  end
+
+  return {
+    id = payload.id,
+    type = payload.type,
+    properties = payload.properties,
+  }
 end
 
 ---Ensure that base_url is set. Even thought we're subscribed to
@@ -447,7 +493,17 @@ end
 --- @param on_event fun(event: table) Event callback
 --- @return table The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
-  self:_ensure_base_url()
+  -- Make sure we have a base URL before attempting to subscribe. If we
+  -- cannot determine a base URL (server not running), return nil so
+  -- callers can handle the absence of a subscription without an error.
+  if not self:_ensure_base_url() then
+    return nil
+  end
+
+  if is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+    return self:_subscribe_to_global_events(directory, on_event)
+  end
+
   local url = self.base_url .. '/event'
   if directory then
     local mapped_directory = apply_path_map(directory)
@@ -460,6 +516,39 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     if ok and event then
       local transformed_event = reverse_transform_paths_recursive(event)
       on_event(transformed_event --[[@as table]])
+    end
+  end)
+end
+
+--- Subscribe to events (streaming)
+--- @param directory string|nil Directory path
+--- @param on_event fun(event: table) Event callback
+--- @return table The streaming job handle
+function OpencodeApiClient:_subscribe_to_global_events(directory, on_event)
+  -- Ensure base_url is available. If not, return nil instead of erroring.
+  if not self:_ensure_base_url() then
+    return nil
+  end
+
+  if not is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+    error('subscribe_to_global_events should not be called directly')
+  end
+
+  local url = self.base_url .. '/global/event'
+  if directory then
+    local mapped_directory = apply_path_map(directory)
+    url = url .. '?directory=' .. url_encode(mapped_directory)
+  end
+
+  return server_job.stream_api(url, 'GET', nil, function(chunk)
+    chunk = chunk:gsub('^data:%s*', '')
+    local ok, event = pcall(vim.json.decode, vim.trim(chunk))
+    if ok and event then
+      local normalized_event = normalize_global_event(event)
+      if normalized_event then
+        local transformed_event = reverse_transform_paths_recursive(normalized_event)
+        on_event(transformed_event --[[@as table]])
+      end
     end
   end)
 end

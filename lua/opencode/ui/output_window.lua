@@ -399,13 +399,13 @@ function M.shift_folds(start_line, delta)
   end
 
   for _, range in ipairs(folds) do
-    if range.from >= start_line then
+    if range.from > start_line then
       range.from = range.from + delta
       if delta < 0 then
         range.from = math.max(start_line, range.from)
       end
     end
-    if range.to >= start_line then
+    if range.to > start_line then
       range.to = range.to + delta
       if delta < 0 then
         range.to = math.max(start_line, range.to)

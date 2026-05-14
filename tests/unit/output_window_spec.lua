@@ -164,6 +164,16 @@ describe('output_window.setup', function()
 
     assert.equals(1, foldclosed)
   end)
+
+  it('does not expand a fold when inserting after its end', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    output_window.shift_folds(3, 4)
+
+    local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
+    assert.same({ { from = 1, to = 3 } }, folds)
+  end)
 end)
 
 describe('output_window extmarks', function()

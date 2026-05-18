@@ -5,6 +5,28 @@ local util = require('opencode.util')
 local api = require('opencode.api')
 local Promise = require('opencode.promise')
 
+---Check whether any session id in `delete_ids` is the session itself or an ancestor
+---@param session_id string
+---@param delete_ids table<string, boolean>
+---@param all_sessions Session[]
+---@return boolean
+function M._is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
+  local session_map = {}
+  for _, s in ipairs(all_sessions) do
+    session_map[s.id] = s
+  end
+
+  local current_id = session_id
+  while current_id do
+    if delete_ids[current_id] then
+      return true
+    end
+    local s = session_map[current_id]
+    current_id = s and s.parentID or nil
+  end
+  return false
+end
+
 ---Format session parts for session picker
 ---@param session Session object
 ---@return PickerItem
@@ -62,7 +84,12 @@ function M.pick(sessions, callback)
           to_delete_ids[s.id] = true
         end
 
-        local deleting_current = state.active_session and to_delete_ids[state.active_session.id] or false
+        local deleting_current = false
+        if state.active_session then
+          local session_mod = require('opencode.session')
+          local all_sessions = session_mod.get_all_workspace_sessions():await() or {}
+          deleting_current = M._is_session_or_ancestor_deleted(state.active_session.id, to_delete_ids, all_sessions)
+        end
 
         if deleting_current then
           local remaining = vim.tbl_filter(function(item)
@@ -73,6 +100,8 @@ function M.pick(sessions, callback)
             session_runtime.switch_session(remaining[1].id):await()
           else
             vim.notify('deleting current session, creating new session')
+            state.model.clear()
+            require('opencode.services.agent_model').ensure_current_mode():await()
             state.session.set_active(session_runtime.create_new_session():await())
           end
         end

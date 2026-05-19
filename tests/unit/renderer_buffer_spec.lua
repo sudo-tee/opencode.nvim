@@ -126,3 +126,67 @@ describe('renderer.buffer extmarks', function()
     assert_called_before(call_order, 'clear_extmarks', 'set_lines')
   end)
 end)
+
+describe('update_part_folds', function()
+  local set_folds_stub
+
+  before_each(function()
+    ctx:reset()
+    set_folds_stub = stub(output_window, 'set_folds')
+    ctx.global_folds = {}
+    ctx.part_folds = {}
+  end)
+
+  after_each(function()
+    set_folds_stub:revert()
+    ctx:reset()
+  end)
+
+  it('computes absolute fold ranges for a single part', function()
+    ctx.formatted_parts['part_a'] = {
+      lines = { 'title', '', 'content', 'more' },
+      fold_ranges = { { from = 1, to = 4 } },
+    }
+    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+
+    buffer.update_part_folds('part_a')
+
+    assert.stub(set_folds_stub).was_called_with({
+      { from = 10, to = 13 },
+    })
+  end)
+
+  it('skips set_folds when fold ranges have not changed', function()
+    ctx.formatted_parts['part_a'] = {
+      lines = { 'title', '', 'content', 'more' },
+      fold_ranges = { { from = 1, to = 4 } },
+    }
+    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+
+    buffer.update_part_folds('part_a')
+    set_folds_stub:clear()
+
+    buffer.update_part_folds('part_a')
+
+    assert.stub(set_folds_stub).was_not_called()
+  end)
+
+  it('merges existing folds from other parts', function()
+    ctx.part_folds['part_b'] = { { from = 5, to = 8 } }
+    ctx.global_folds = { { from = 5, to = 8 } }
+
+    ctx.formatted_parts['part_a'] = {
+      lines = { 'title', '', 'content', 'more' },
+      fold_ranges = { { from = 1, to = 4 } },
+    }
+    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+
+    buffer.update_part_folds('part_a')
+
+    assert.stub(set_folds_stub).was_called()
+    assert.stub(set_folds_stub).was_called_with({
+      { from = 5, to = 8 },
+      { from = 10, to = 13 },
+    })
+  end)
+end)

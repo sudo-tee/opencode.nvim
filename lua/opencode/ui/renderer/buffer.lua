@@ -657,6 +657,15 @@ function M.set_all_folds()
   output_window.set_folds(all_folds)
 end
 
+local function folds_equal(a, b)
+  if not a or not b then return false end
+  if #a ~= #b then return false end
+  for i = 1, #a do
+    if a[i].from ~= b[i].from or a[i].to ~= b[i].to then return false end
+  end
+  return true
+end
+
 ---Update folds for a single part during streaming, avoiding a full rebuild.
 ---@param part_id string
 function M.update_part_folds(part_id)
@@ -679,41 +688,17 @@ function M.update_part_folds(part_id)
     })
   end
 
-  local old_folds = ctx.part_folds[part_id]
-  if old_folds and #old_folds == #new_folds then
-    local same = true
-    for i = 1, #new_folds do
-      if new_folds[i].from ~= old_folds[i].from or new_folds[i].to ~= old_folds[i].to then
-        same = false
-        break
-      end
-    end
-    if same then
-      return
-    end
-  end
-
-  local new_global = {}
-  local found = false
-  for pid, pf in pairs(ctx.part_folds) do
-    if pid == part_id then
-      found = true
-      for _, nf in ipairs(new_folds) do
-        table.insert(new_global, nf)
-      end
-    else
-      for _, of in ipairs(pf) do
-        table.insert(new_global, of)
-      end
-    end
-  end
-  if not found then
-    for _, nf in ipairs(new_folds) do
-      table.insert(new_global, nf)
-    end
+  if folds_equal(ctx.part_folds[part_id], new_folds) then
+    return
   end
 
   ctx.part_folds[part_id] = new_folds
+  local new_global = {}
+  for _, pf in pairs(ctx.part_folds) do
+    for _, f in ipairs(pf) do
+      table.insert(new_global, f)
+    end
+  end
   ctx.global_folds = new_global
   output_window.set_folds(new_global)
 end

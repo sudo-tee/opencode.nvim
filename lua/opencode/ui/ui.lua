@@ -484,6 +484,19 @@ function M.clear_output()
   -- state.restore_points = {}
 end
 
+---Re-render the output buffer from cached session data, avoiding a server round-trip.
+---Used for display-only toggles (show_reasoning_output, show_output, max_messages).
+---Falls back to render_output() if no cached messages are available.
+---@param opts? {force_scroll?: boolean}
+function M.render_output_from_cache(opts)
+  local session_data = state.messages
+  if not session_data or not next(session_data) then
+    M.render_output(false, opts)
+    return
+  end
+  renderer.render_from_cache(session_data)
+end
+
 ---Force a full rerender of the output buffer. Should be done synchronously if
 ---called before submitting input or doing something that might generate events
 ---from opencode

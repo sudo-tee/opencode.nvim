@@ -390,6 +390,23 @@ function M._render_full_session_data(session_data, opts)
   end
 end
 
+---Re-render from cached session data without a server round-trip.
+---Used for display-only changes (toggle folds, max_messages, etc.)
+---@param session_data OpencodeMessage[]
+function M.render_from_cache(session_data)
+  if not output_window.mounted() or not state.api_client then
+    return
+  end
+  M._render_full_session_data(session_data, {
+    restore_model_from_messages = true,
+  })
+  local active_session = state.active_session
+  if active_session and active_session.id then
+    require('opencode.ui.question_window').restore_pending_question(active_session.id)
+    permission_window.restore_pending_permissions(active_session.id)
+  end
+end
+
 ---Fetch the active session from the server and render it
 ---@return Promise<OpencodeMessage[]>
 function M.render_full_session()

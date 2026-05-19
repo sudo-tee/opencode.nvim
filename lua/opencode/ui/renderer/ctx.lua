@@ -29,6 +29,10 @@ local ctx = {
   bulk_buffer_lines = {},
   bulk_extmarks_by_line = {},
   bulk_folds = {},
+  ---@type {from: number, to: number}[]
+  global_folds = {},
+  ---@type table<string, {from: number, to: number}[]>
+  part_folds = {},
 }
 
 ---Reset all renderer caches and pending state.
@@ -50,6 +54,8 @@ function ctx:reset()
   }
   self.flush_scheduled = false
   self.markdown_render_scheduled = false
+  self.global_folds = {}
+  self.part_folds = {}
   self:bulk_reset()
 end
 

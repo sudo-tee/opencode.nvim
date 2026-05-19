@@ -743,6 +743,9 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
     apply_part_actions(part_id, formatted_data, cached.line_start)
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
     set_part_extmark_state(part_id, formatted_data)
+    if formatted_data.fold_ranges then
+      M.update_part_folds(part_id)
+    end
   elseif has_extmarks(extra_extmarks) then
     output_window.set_extmarks(extra_extmarks, insert_at)
   end

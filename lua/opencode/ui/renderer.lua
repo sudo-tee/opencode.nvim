@@ -316,15 +316,11 @@ end
 ---Render all messages and parts from session_data into the output buffer
 ---Called after a full session fetch or when revert state changes
 ---@param session_data OpencodeMessage[]
----@param opts? { restore_model_from_messages?: boolean, skip_deepcopy?: boolean }
+---@param opts? { restore_model_from_messages?: boolean }
 function M._render_full_session_data(session_data, opts)
   opts = opts or {}
   M.reset()
-  if opts.skip_deepcopy then
-    state.renderer.set_messages(session_data or {})
-  else
-    state.renderer.set_messages(vim.deepcopy(session_data or {}))
-  end
+  state.renderer.set_messages(session_data or {})
 
   if not state.active_session or not state.messages then
     return
@@ -403,7 +399,6 @@ function M.render_from_cache(session_data)
   end
   M._render_full_session_data(session_data, {
     restore_model_from_messages = true,
-    skip_deepcopy = true,
   })
   local active_session = state.active_session
   if active_session and active_session.id then

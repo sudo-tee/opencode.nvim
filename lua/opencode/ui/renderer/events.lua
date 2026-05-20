@@ -350,8 +350,15 @@ function M.on_part_updated(properties, revert_index)
     end
   end
 
-  -- step-start / step-finish are bookkeeping only — nothing to render
   if part.type == 'step-start' or part.type == 'step-finish' then
+    if part.type == 'step-finish' and part.tokens then
+      local tokens = part.tokens
+      if tokens.input > 0 and part.cost and type(part.cost) == 'number' then
+        state.renderer.set_stats(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write, part.cost)
+      elseif tokens.input > 0 then
+        state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
+      end
+    end
     return
   end
 

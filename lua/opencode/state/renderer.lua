@@ -29,6 +29,9 @@ function M.update_pending_permissions(mutator)
 end
 ---@param cost number
 function M.set_cost(cost)
+  if not cost or cost <= 0 then
+    return
+  end
   return store.set('cost', cost)
 end
 

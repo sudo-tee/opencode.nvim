@@ -55,7 +55,7 @@ M.actions.switch_mode = Promise.async(function()
   local modes = config_file.get_opencode_agents():await() --[[@as string[] ]]
   local current_index = util.index_of(modes, state.store.get('current_mode'))
 
-  if current_index == -1 then
+  if current_index == nil then
     current_index = 0
   end
 

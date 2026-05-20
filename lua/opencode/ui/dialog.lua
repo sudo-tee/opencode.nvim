@@ -3,7 +3,9 @@
 ---@field on_select function(index: integer) Called when an option is selected
 ---@field on_dismiss? function() Called when dialog is dismissed
 ---@field on_navigate? function() Called when selection changes
+---@field on_navigate_group? function(index: integer) Called when group selection changes
 ---@field get_option_count function(): integer Returns the total number of options
+---@field get_group_count? function(): integer Returns the total number of groups
 ---@field check_focused? function(): boolean Returns whether dialog should be active
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
@@ -12,6 +14,8 @@
 ---@class DialogKeymaps
 ---@field up? string[] Keys for navigating up (default: {'k', '<Up>'})
 ---@field down? string[] Keys for navigating down (default: {'j', '<Down>'})
+---@field left? string[] Keys for navigating left between groups
+---@field right? string[] Keys for navigating right between groups
 ---@field select? string Key for selecting current option (default: '<CR>')
 ---@field dismiss? string Key for dismissing dialog (default: '<Esc>')
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
@@ -22,6 +26,7 @@
 ---@field private _key_capture_ns integer? Namespace for vim.on_key
 ---@field private _selected_index integer Currently selected option index
 ---@field private _active boolean Whether dialog is currently active
+---@field private _group_index integer Currently selected group index
 local Dialog = {}
 Dialog.__index = Dialog
 
@@ -35,6 +40,8 @@ function Dialog.new(config)
   local default_keymaps = {
     up = { 'k', '<Up>' },
     down = { 'j', '<Down>' },
+    left = {},
+    right = {},
     select = '<CR>',
     dismiss = '<Esc>',
     number_shortcuts = true,
@@ -52,6 +59,7 @@ function Dialog.new(config)
   self._keymaps = {}
   self._key_capture_ns = nil
   self._selected_index = 1
+  self._group_index = 1
   self._active = false
 
   return self
@@ -69,6 +77,24 @@ function Dialog:set_selection(index)
   local option_count = self._config.get_option_count()
   if index >= 1 and index <= option_count then
     self._selected_index = index
+  end
+end
+
+---@return integer
+function Dialog:get_group_selection()
+  return self._group_index
+end
+
+---@param index integer
+function Dialog:set_group_selection(index)
+  local group_count = self._config.get_group_count and self._config.get_group_count() or 0
+  if group_count == 0 then
+    self._group_index = 1
+    return
+  end
+
+  if index >= 1 and index <= group_count then
+    self._group_index = index
   end
 end
 
@@ -96,6 +122,28 @@ function Dialog:navigate(delta)
   if self._config.on_navigate then
     self._config.on_navigate()
   end
+end
+
+---@param delta integer
+function Dialog:navigate_group(delta)
+  if not self._active or not self._config.check_focused() or not self._config.on_navigate_group then
+    return
+  end
+
+  local group_count = self._config.get_group_count and self._config.get_group_count() or 0
+  if group_count <= 1 then
+    return
+  end
+
+  self._group_index = self._group_index + delta
+
+  if self._group_index < 1 then
+    self._group_index = group_count
+  elseif self._group_index > group_count then
+    self._group_index = 1
+  end
+
+  self._config.on_navigate_group(self._group_index)
 end
 
 ---Select the current option
@@ -178,31 +226,42 @@ function Dialog:format_legend(output, options)
   end
 
   if ui.is_opencode_focused() then
-    local legend_parts = {}
     local keymaps = self._config.keymaps
     if not keymaps then
       return
     end
 
     if keymaps.up and #keymaps.up > 0 and keymaps.down and #keymaps.down > 0 then
-      table.insert(legend_parts, string.format('Navigate: `%s`/`%s` or `↑`/`↓`', keymaps.down[1], keymaps.up[1]))
+      local line = output:add_line(string.format('Move: j/k or %s/%s', '↑', '↓'))
+      output:add_extmark(line - 1, { start_col = 6, end_col = 9, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      output:add_extmark(line - 1, { start_col = 13, end_col = 16, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+    end
+
+    if keymaps.left and #keymaps.left > 0 and keymaps.right and #keymaps.right > 0 then
+      local line = output:add_line('Question: h/l or <-/->')
+      output:add_extmark(line - 1, { start_col = 10, end_col = 13, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      output:add_extmark(line - 1, { start_col = 17, end_col = 23, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
     end
 
     if keymaps.select and keymaps.select ~= '' then
-      local select_text = string.format('Select: `%s`', keymaps.select)
+      local select_text = 'Select: <CR>'
       if keymaps.number_shortcuts and option_count > 0 then
         local max_shortcut = math.min(option_count, 9)
-        select_text = select_text .. string.format(' or `1-%d`', max_shortcut)
+        select_text = select_text .. string.format(' or 1-%d', max_shortcut)
       end
-      table.insert(legend_parts, select_text)
+      local line = output:add_line(select_text)
+      output:add_extmark(line - 1, { start_col = 8, end_col = 12, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      if keymaps.number_shortcuts and option_count > 0 then
+        local max_shortcut = math.min(option_count, 9)
+        local suffix = string.format('1-%d', max_shortcut)
+        local start_col = #select_text - #suffix
+        output:add_extmark(line - 1, { start_col = start_col, end_col = #select_text, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      end
     end
 
     if keymaps.dismiss and keymaps.dismiss ~= '' then
-      table.insert(legend_parts, string.format('Dismiss: `%s`', keymaps.dismiss))
-    end
-
-    if #legend_parts > 0 then
-      output:add_line(table.concat(legend_parts, '  '))
+      local line = output:add_line('Close: <Esc>')
+      output:add_extmark(line - 1, { start_col = 7, end_col = 12, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
     end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'
@@ -346,6 +405,42 @@ function Dialog:_setup_keymaps()
           end,
           vim.tbl_extend('force', keymap_opts, {
             desc = 'Dialog: navigate down',
+          })
+        )
+        table.insert(self._keymaps, key)
+      end
+    end
+  end
+
+  if keymaps.left then
+    for _, key in ipairs(keymaps.left) do
+      if key and key ~= '' then
+        vim.keymap.set(
+          'n',
+          key,
+          function()
+            self:navigate_group(-1)
+          end,
+          vim.tbl_extend('force', keymap_opts, {
+            desc = 'Dialog: navigate left',
+          })
+        )
+        table.insert(self._keymaps, key)
+      end
+    end
+  end
+
+  if keymaps.right then
+    for _, key in ipairs(keymaps.right) do
+      if key and key ~= '' then
+        vim.keymap.set(
+          'n',
+          key,
+          function()
+            self:navigate_group(1)
+          end,
+          vim.tbl_extend('force', keymap_opts, {
+            desc = 'Dialog: navigate right',
           })
         )
         table.insert(self._keymaps, key)

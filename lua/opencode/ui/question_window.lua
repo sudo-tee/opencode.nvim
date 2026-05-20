@@ -13,6 +13,48 @@ M._collected_answers = {}
 M._answering = false
 M._dialog = nil
 
+---@param index integer
+---@return string[]|nil
+local function get_answer_for_index(index)
+  local answer = M._collected_answers[index]
+  if type(answer) ~= 'table' or #answer == 0 then
+    return nil
+  end
+  return answer
+end
+
+---@return boolean
+local function has_all_answers()
+  local request = M._current_question
+  local questions = request and request.questions or {}
+  if #questions == 0 then
+    return false
+  end
+
+  for i = 1, #questions do
+    if not get_answer_for_index(i) then
+      return false
+    end
+  end
+
+  return true
+end
+
+---@return integer|nil
+local function get_next_unanswered_question_index()
+  local request = M._current_question
+  local questions = request and request.questions or {}
+  if #questions == 0 then
+    return nil
+  end
+
+  for i = 1, #questions do
+    if not get_answer_for_index(i) then
+      return i
+    end
+  end
+end
+
 ---@param question_request OpencodeQuestionRequest|nil
 ---@return boolean
 function M.matches_active_question(question_request)
@@ -159,8 +201,8 @@ function M.show_question(question_request)
   end
 
   M._current_question = question_request
-  M._current_question_index = 1
   M._collected_answers = {}
+  M._current_question_index = 1
 
   if config.ui.questions and config.ui.questions.use_vim_ui_select then
     M._show_question_with_vim_ui_select()
@@ -245,13 +287,13 @@ local function answer_current_question(answer_value)
     return
   end
 
-  table.insert(M._collected_answers, type(answer_value) == 'table' and answer_value or { answer_value })
-  M._current_question_index = M._current_question_index + 1
+  M._collected_answers[M._current_question_index] = type(answer_value) == 'table' and answer_value or { answer_value }
 
-  if M._current_question_index > #request.questions then
+  if has_all_answers() then
     M._send_reply(request.id, M._collected_answers)
     M.clear_question()
   else
+    M._current_question_index = get_next_unanswered_question_index() or M._current_question_index
     M._answering = false
     M._clear_dialog()
     M._setup_dialog()
@@ -330,6 +372,49 @@ local function add_other_if_missing(options)
 end
 
 ---@param output Output
+local function format_question_tabs(output)
+  local request = M._current_question
+  if not request or #request.questions <= 1 then
+    return
+  end
+
+  local line = ''
+  local segments = {}
+
+  for i, question in ipairs(request.questions) do
+    local label = question.header ~= '' and question.header or ('Q' .. i)
+    local is_active = i == M._current_question_index
+    local is_done = get_answer_for_index(i) ~= nil
+    local marker = is_done and 'x' or ' '
+    local segment = string.format(' %d [%s] %s ', i, marker, label)
+
+    if #line > 0 then
+      line = line .. ' '
+    end
+
+    local start_col = #line
+    line = line .. segment
+    table.insert(segments, {
+      start_col = start_col,
+      end_col = #line,
+      hl_group = is_active and 'OpencodeQuestionTabActive'
+        or (is_done and 'OpencodeQuestionTabDone' or 'OpencodeQuestionTabPending'),
+    })
+  end
+
+  local line_idx = output:add_line(line)
+  for _, segment in ipairs(segments) do
+    output:add_extmark(line_idx - 1, {
+      start_col = segment.start_col,
+      end_col = segment.end_col,
+      hl_group = segment.hl_group,
+    } --[[@as OutputExtmark]])
+  end
+
+  output:add_line('')
+end
+
+---@param output Output
 function M.format_display(output)
   if not M.has_question() or M._answering then
     return
@@ -346,6 +431,8 @@ function M.format_display(output)
   if M._current_question and #M._current_question.questions > 1 then
     progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
   end
+
+  format_question_tabs(output)
 
   -- Prepare options
   local options_to_display = add_other_if_missing(question_info.options)
@@ -417,6 +504,12 @@ function M._setup_dialog()
     render_question()
   end
 
+  ---@param index integer
+  local function on_navigate_group(index)
+    M._current_question_index = index
+    render_question()
+  end
+
   ---@return integer
   local function get_option_count()
     local question_info = M.get_current_question_info()
@@ -428,11 +521,20 @@ function M._setup_dialog()
     on_select = on_select,
     on_dismiss = on_dismiss,
     on_navigate = on_navigate,
+    on_navigate_group = on_navigate_group,
     get_option_count = get_option_count,
+    get_group_count = function()
+      return M._current_question and #M._current_question.questions or 0
+    end,
     check_focused = check_focused,
     namespace_prefix = 'opencode_question',
+    keymaps = {
+      left = { 'h', '<Left>' },
+      right = { 'l', '<Right>' },
+    },
   })
 
+  M._dialog:set_group_selection(M._current_question_index)
   M._dialog:setup()
 end
 

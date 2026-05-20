@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local context = require('opencode.context')
 local util = require('opencode.util')
 local config = require('opencode.config')
+local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local agent_model = require('opencode.services.agent_model')
@@ -48,7 +49,10 @@ M.send_message = Promise.async(function(prompt, opts)
 
   if opts.agent then
     params.agent = opts.agent
-    state.model.set_mode(opts.agent)
+    local available_agents = config_file.get_opencode_agents():await()
+    if vim.tbl_contains(available_agents, opts.agent) then
+      state.model.set_mode(opts.agent)
+    end
   end
 
   params.parts = context.format_message(prompt, opts.context):await()

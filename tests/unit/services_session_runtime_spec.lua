@@ -650,6 +650,9 @@ describe('opencode.services.session_runtime', function()
     it('restores the latest session model and mode when explicitly requested', function()
       state.model.set_model('openai/gpt-4.1')
       state.model.set_mode('plan')
+
+      stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
       state.renderer.set_messages({
         {
           info = {
@@ -666,6 +669,8 @@ describe('opencode.services.session_runtime', function()
       assert.equal('anthropic/claude-3-opus', model)
       assert.equal('anthropic/claude-3-opus', state.current_model)
       assert.equal('build', state.current_mode)
+
+      config_file.get_opencode_agents:revert()
     end)
   end)
 end)

@@ -7,6 +7,7 @@ loaded.services_messaging_spec = true
 
 local messaging = require('opencode.services.messaging')
 local session_runtime = require('opencode.services.session_runtime')
+local config_file = require('opencode.config_file')
 local state = require('opencode.state')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
@@ -52,6 +53,8 @@ describe('opencode.services.messaging', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
 
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
     local create_called = false
     state.api_client.create_message = function(_, sid, params)
       create_called = true
@@ -69,6 +72,59 @@ describe('opencode.services.messaging', function()
     assert.equal(state.current_model, 'test/model')
     assert.is_true(create_called)
     state.api_client.create_message = orig
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('does not switch mode when agent is hidden', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.session.set_active({ id = 'sess1' })
+    state.model.set_mode('build')
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
+    local captured_params = nil
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      captured_params = params
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world', { agent = 'hidden-xyz' })
+    vim.wait(50, function()
+      return captured_params ~= nil
+    end)
+
+    assert.equal('build', state.current_mode)
+    assert.equal('hidden-xyz', captured_params.agent)
+
+    state.api_client.create_message = orig
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('switches mode when agent is visible', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.session.set_active({ id = 'sess1' })
+    state.model.set_mode('build')
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
+    local captured_params = nil
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      captured_params = params
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world', { agent = 'plan' })
+    vim.wait(50, function()
+      return captured_params ~= nil
+    end)
+
+    assert.equal('plan', state.current_mode)
+    assert.equal('plan', captured_params.agent)
+
+    state.api_client.create_message = orig
+    config_file.get_opencode_agents:revert()
   end)
 
   it('increments and decrements user_message_count correctly', function()

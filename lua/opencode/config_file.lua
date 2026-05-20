@@ -51,16 +51,27 @@ M.get_workspace_snapshot_path = Promise.async(function()
   return home .. '/.local/share/opencode/snapshot/' .. project.id
 end)
 
+local _providers_render_callback = false
+
 ---@return Promise<OpencodeProvidersResponse|nil>
 function M.get_opencode_providers()
   if not M.providers_promise then
     local state = require('opencode.state')
     M.providers_promise = state.api_client:list_providers()
   end
-  return M.providers_promise:catch(function(err)
+  local wrapped = M.providers_promise:catch(function(err)
     vim.notify('Error fetching Opencode providers: ' .. vim.inspect(err), vim.log.levels.ERROR)
     return nil
   end)
+  if not _providers_render_callback then
+    _providers_render_callback = true
+    wrapped:finally(function()
+      local ok, _ = pcall(function()
+        require('opencode.ui.topbar').render()
+      end)
+    end)
+  end
+  return wrapped
 end
 
 --- Get model information for a specific provider and model
@@ -69,14 +80,6 @@ end
 --- @return OpencodeModel|nil Model information with variants
 M.get_model_info = function(provider, model)
   local providers_response = M.get_opencode_providers():peek()
-  if not providers_response then
-    local ok, result = pcall(function()
-      return M.get_opencode_providers():wait(200)
-    end)
-    if ok then
-      providers_response = result
-    end
-  end
 
   local providers = providers_response and providers_response.providers or {}
 

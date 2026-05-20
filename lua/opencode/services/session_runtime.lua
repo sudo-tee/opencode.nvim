@@ -49,7 +49,17 @@ M.switch_session = Promise.async(function(session_id)
 
   state.session.set_active(selected_session)
   if state.ui.is_visible() then
-    ui.focus_input()
+    if selected_session and selected_session.parentID then
+      if not input_window.is_hidden() then
+        input_window._hide()
+      end
+      ui.focus_output()
+    else
+      if input_window.is_hidden() then
+        input_window._show()
+      end
+      ui.focus_input()
+    end
   else
     M.open()
   end

@@ -46,21 +46,8 @@ local function format_token_info()
   return result
 end
 
-local function create_winbar_text(description, token_info, win_width)
-  local left_content = ''
-  local right_content = token_info
-
-  local desc_width = win_width - util.strdisplaywidth(left_content) - util.strdisplaywidth(right_content)
-
-  local desc_formatted
-  if #description >= desc_width then
-    local ellipsis = '... '
-    desc_formatted = description:sub(1, desc_width - #ellipsis) .. ellipsis
-  else
-    desc_formatted = description .. string.rep(' ', math.floor(desc_width - #description))
-  end
-
-  return left_content .. desc_formatted .. right_content
+local function create_winbar_text(description, token_info, _)
+  return description .. '%=' .. token_info
 end
 
 local function get_session_desc()

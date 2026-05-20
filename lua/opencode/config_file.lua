@@ -69,6 +69,14 @@ end
 --- @return OpencodeModel|nil Model information with variants
 M.get_model_info = function(provider, model)
   local providers_response = M.get_opencode_providers():peek()
+  if not providers_response then
+    local ok, result = pcall(function()
+      return M.get_opencode_providers():wait(200)
+    end)
+    if ok then
+      providers_response = result
+    end
+  end
 
   local providers = providers_response and providers_response.providers or {}
 

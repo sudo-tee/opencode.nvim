@@ -18,6 +18,10 @@ M.send_message = Promise.async(function(prompt, opts)
     return false
   end
 
+  if state.active_session.parentID then
+    return false
+  end
+
   local mentioned_files = context.get_context().mentioned_files or {}
   local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, mentioned_files)
 

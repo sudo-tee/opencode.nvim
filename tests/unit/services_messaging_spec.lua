@@ -127,6 +127,23 @@ describe('opencode.services.messaging', function()
     config_file.get_opencode_agents:revert()
   end)
 
+  it('returns false when active session is a child session', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+
+    local create_called = false
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      create_called = true
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    local sent = messaging.send_message('hello world'):wait()
+    assert.is_false(sent)
+    assert.is_false(create_called)
+    state.api_client.create_message = orig
+  end)
+
   it('increments and decrements user_message_count correctly', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })

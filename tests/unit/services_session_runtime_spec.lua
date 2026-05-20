@@ -333,6 +333,71 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
+  describe('switch_session', function()
+    local input_window = require('opencode.ui.input_window')
+
+    it('hides input window when switching to a child session', function()
+      state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
+      local orig_is_visible = state.ui.is_visible
+      state.ui.is_visible = function() return true end
+      stub(input_window, 'is_hidden').returns(false)
+      stub(input_window, '_hide')
+
+      session.get_by_id:revert()
+      stub(session, 'get_by_id').invokes(function(id)
+        return Promise.new():resolve({ id = id, title = id, modified = os.time(), parentID = 'parent1' })
+      end)
+
+      session_runtime.switch_session('child1'):wait()
+
+      assert.stub(input_window._hide).was_called()
+      assert.stub(ui.focus_output).was_called()
+
+      input_window.is_hidden:revert()
+      input_window._hide:revert()
+      state.ui.is_visible = orig_is_visible
+    end)
+
+    it('shows input window when switching to a non-child session', function()
+      state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
+      local orig_is_visible = state.ui.is_visible
+      state.ui.is_visible = function() return true end
+      stub(input_window, 'is_hidden').returns(true)
+      stub(input_window, '_show')
+
+      session_runtime.switch_session('root1'):wait()
+
+      assert.stub(input_window._show).was_called()
+      assert.stub(ui.focus_input).was_called()
+
+      input_window.is_hidden:revert()
+      input_window._show:revert()
+      state.ui.is_visible = orig_is_visible
+    end)
+
+    it('does not hide input when already hidden on child session switch', function()
+      state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
+      local orig_is_visible = state.ui.is_visible
+      state.ui.is_visible = function() return true end
+      stub(input_window, 'is_hidden').returns(true)
+      stub(input_window, '_hide')
+
+      session.get_by_id:revert()
+      stub(session, 'get_by_id').invokes(function(id)
+        return Promise.new():resolve({ id = id, title = id, modified = os.time(), parentID = 'parent1' })
+      end)
+
+      session_runtime.switch_session('child1'):wait()
+
+      assert.stub(input_window._hide).was_not_called()
+      assert.stub(ui.focus_output).was_called()
+
+      input_window.is_hidden:revert()
+      input_window._hide:revert()
+      state.ui.is_visible = orig_is_visible
+    end)
+  end)
+
   describe('send_message', function()
     it('delegates message-sending coverage to services_messaging_spec', function()
       -- This spec focuses on session_runtime responsibilities.

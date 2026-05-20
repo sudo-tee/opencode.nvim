@@ -22,13 +22,22 @@ local function format_token_info()
         model_info = nil
       end
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
-      table.insert(parts, util.format_number(state.tokens_count) or nil)
+      local formatted_count = util.format_number(state.tokens_count)
+      if formatted_count then
+        table.insert(parts, formatted_count)
+      end
       if limit > 0 then
-        table.insert(parts, util.format_percentage(state.tokens_count / limit) or nil)
+        local formatted_pct = util.format_percentage(state.tokens_count / limit)
+        if formatted_pct then
+          table.insert(parts, formatted_pct)
+        end
       end
     end
-    if config.ui.display_cost and state.cost then
-      table.insert(parts, util.format_cost(state.cost) or nil)
+    if config.ui.display_cost and state.cost and state.cost > 0 then
+      local formatted_cost = util.format_cost(state.cost)
+      if formatted_cost then
+        table.insert(parts, formatted_cost)
+      end
     end
   end
 

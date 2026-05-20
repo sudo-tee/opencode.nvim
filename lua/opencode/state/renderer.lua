@@ -45,7 +45,9 @@ end
 function M.set_stats(tokens_count, cost)
   return store.batch(function()
     store.set('tokens_count', tokens_count)
-    store.set('cost', cost)
+    if cost and cost > 0 then
+      store.set('cost', cost)
+    end
   end)
 end
 

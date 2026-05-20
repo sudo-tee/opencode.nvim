@@ -11,6 +11,7 @@ local input_window = require('opencode.ui.input_window')
 local ui = require('opencode.ui.ui')
 local nvim = vim['api']
 local session_runtime = require('opencode.services.session_runtime')
+local agent_model = require('opencode.services.agent_model')
 
 local M = {
   actions = {},
@@ -242,6 +243,13 @@ M.actions.run_user_command = Promise.async(function(name, args)
 
     local model = command_cfg.model or state.current_model
     local agent = command_cfg.agent or state.current_mode
+
+    if command_cfg.agent then
+      local available_agents = config_file.get_opencode_agents():await()
+      if vim.tbl_contains(available_agents, agent) then
+        agent_model.switch_to_mode(agent)
+      end
+    end
 
     local active_session = get_active_session_or_warn('No active session')
     if not active_session then

@@ -144,6 +144,9 @@ describe('opencode.services.agent_model', function()
   it('restores the latest session model and mode when explicitly requested', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
     state.renderer.set_messages({
       {
         info = {
@@ -160,5 +163,33 @@ describe('opencode.services.agent_model', function()
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
     assert.equal('build', state.current_mode)
+
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('does not restore mode to a hidden agent from messages', function()
+    state.model.set_model('openai/gpt-4.1')
+    state.model.set_mode('build')
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
+    state.renderer.set_messages({
+      {
+        info = {
+          id = 'm1',
+          providerID = 'anthropic',
+          modelID = 'claude-3-opus',
+          mode = 'hidden-xyz',
+        },
+      },
+    })
+
+    local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
+
+    assert.equal('anthropic/claude-3-opus', model)
+    assert.equal('anthropic/claude-3-opus', state.current_model)
+    assert.equal('build', state.current_mode)
+
+    config_file.get_opencode_agents:revert()
   end)
 end)

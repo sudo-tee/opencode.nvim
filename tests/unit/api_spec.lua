@@ -463,6 +463,8 @@ describe('opencode.api', function()
         stub(api, 'open_input').invokes(function()
           return resolved('done')
         end)
+        local config_file = require('opencode.config_file')
+        stub(config_file, 'get_opencode_agents').returns(resolved({ 'plan', 'build' }))
       end)
 
       it('invokes run with correct model and agent', function()

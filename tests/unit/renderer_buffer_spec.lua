@@ -183,7 +183,6 @@ describe('update_part_folds', function()
 
     buffer.update_part_folds('part_a')
 
-    assert.stub(set_folds_stub).was_called()
     assert.stub(set_folds_stub).was_called_with({
       { from = 5, to = 8 },
       { from = 10, to = 13 },

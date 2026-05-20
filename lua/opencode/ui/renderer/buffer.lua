@@ -699,6 +699,7 @@ function M.update_part_folds(part_id)
       table.insert(new_global, f)
     end
   end
+  table.sort(new_global, function(a, b) return a.from < b.from end)
   ctx.global_folds = new_global
   output_window.set_folds(new_global)
 end

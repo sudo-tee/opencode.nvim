@@ -29,6 +29,9 @@ function M.update_pending_permissions(mutator)
 end
 ---@param cost number
 function M.set_cost(cost)
+  if not cost or cost <= 0 then
+    return
+  end
   return store.set('cost', cost)
 end
 
@@ -42,7 +45,9 @@ end
 function M.set_stats(tokens_count, cost)
   return store.batch(function()
     store.set('tokens_count', tokens_count)
-    store.set('cost', cost)
+    if cost and cost > 0 then
+      store.set('cost', cost)
+    end
   end)
 end
 

@@ -22,13 +22,22 @@ local function format_token_info()
         model_info = nil
       end
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
-      table.insert(parts, util.format_number(state.tokens_count) or nil)
+      local formatted_count = util.format_number(state.tokens_count)
+      if formatted_count then
+        table.insert(parts, formatted_count)
+      end
       if limit > 0 then
-        table.insert(parts, util.format_percentage(state.tokens_count / limit) or nil)
+        local formatted_pct = util.format_percentage(state.tokens_count / limit)
+        if formatted_pct then
+          table.insert(parts, formatted_pct)
+        end
       end
     end
-    if config.ui.display_cost and state.cost then
-      table.insert(parts, util.format_cost(state.cost) or nil)
+    if config.ui.display_cost and state.cost and state.cost > 0 then
+      local formatted_cost = util.format_cost(state.cost)
+      if formatted_cost then
+        table.insert(parts, formatted_cost)
+      end
     end
   end
 
@@ -37,21 +46,8 @@ local function format_token_info()
   return result
 end
 
-local function create_winbar_text(description, token_info, win_width)
-  local left_content = ''
-  local right_content = token_info
-
-  local desc_width = win_width - util.strdisplaywidth(left_content) - util.strdisplaywidth(right_content)
-
-  local desc_formatted
-  if #description >= desc_width then
-    local ellipsis = '... '
-    desc_formatted = description:sub(1, desc_width - #ellipsis) .. ellipsis
-  else
-    desc_formatted = description .. string.rep(' ', math.floor(desc_width - #description))
-  end
-
-  return left_content .. desc_formatted .. right_content
+local function create_winbar_text(description, token_info, _)
+  return description .. '%=' .. token_info
 end
 
 local function get_session_desc()

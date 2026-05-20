@@ -273,14 +273,14 @@ function M.actions.toggle_tool_output()
   local action_text = config.ui.output.tools.show_output and 'Hiding' or 'Showing'
   vim.notify(action_text .. ' tool output display', vim.log.levels.INFO)
   config.values.ui.output.tools.show_output = not config.ui.output.tools.show_output
-  ui.render_output()
+  ui.render_output_from_cache()
 end
 
 function M.actions.toggle_reasoning_output()
   local action_text = config.ui.output.tools.show_reasoning_output and 'Hiding' or 'Showing'
   vim.notify(action_text .. ' reasoning output display', vim.log.levels.INFO)
   config.values.ui.output.tools.show_reasoning_output = not config.ui.output.tools.show_reasoning_output
-  ui.render_output()
+  ui.render_output_from_cache()
 end
 
 local original_max_messages = config.ui.output.max_messages
@@ -297,7 +297,7 @@ function M.actions.toggle_max_messages()
   local val_text = next_val == nil and 'none' or tostring(next_val)
   vim.notify(action_text .. ' message limit to ' .. val_text, vim.log.levels.INFO)
   config.values.ui.output.max_messages = next_val
-  ui.render_output()
+  ui.render_output_from_cache()
 end
 
 M.actions.review = Promise.async(function(args)

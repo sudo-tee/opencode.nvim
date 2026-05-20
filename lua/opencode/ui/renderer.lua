@@ -320,7 +320,7 @@ end
 function M._render_full_session_data(session_data, opts)
   opts = opts or {}
   M.reset()
-  state.renderer.set_messages(vim.deepcopy(session_data or {}))
+  state.renderer.set_messages(session_data or {})
 
   if not state.active_session or not state.messages then
     return
@@ -387,6 +387,23 @@ function M._render_full_session_data(session_data, opts)
 
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, state.active_session)
+  end
+end
+
+---Re-render from cached session data without a server round-trip.
+---Used for display-only changes (toggle folds, max_messages, etc.)
+---@param session_data OpencodeMessage[]
+function M.render_from_cache(session_data)
+  if not output_window.mounted() or not state.api_client then
+    return
+  end
+  M._render_full_session_data(session_data, {
+    restore_model_from_messages = true,
+  })
+  local active_session = state.active_session
+  if active_session and active_session.id then
+    require('opencode.ui.question_window').restore_pending_question(active_session.id)
+    permission_window.restore_pending_permissions(active_session.id)
   end
 end
 

@@ -600,12 +600,12 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     set_part_extmark_state(part_id, formatted_data)
 
     if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
-      M.set_all_folds()
+      M.update_part_folds(part_id)
     end
 
     return true
   end
-  
+
 local insert_at = get_part_insertion_line(part_id, message_id)
   if not insert_at then
     return false
@@ -635,20 +635,73 @@ end
 
 function M.set_all_folds()
   local all_folds = {}
+  ctx.part_folds = {}
   for part_id_iter, data in pairs(ctx.formatted_parts) do
     if data.fold_ranges then
       local cached_part = ctx.render_state:get_part(part_id_iter)
       if cached_part and cached_part.line_start then
+        local part_abs_folds = {}
         for _, f in ipairs(data.fold_ranges) do
-          table.insert(all_folds, {
+          local abs = {
             from = cached_part.line_start + f.from - 1,
             to = cached_part.line_start + f.to - 1,
-          })
+          }
+          table.insert(part_abs_folds, abs)
+          table.insert(all_folds, abs)
         end
+        ctx.part_folds[part_id_iter] = part_abs_folds
       end
     end
   end
+  ctx.global_folds = all_folds
   output_window.set_folds(all_folds)
+end
+
+local function folds_equal(a, b)
+  if not a or not b then return false end
+  if #a ~= #b then return false end
+  for i = 1, #a do
+    if a[i].from ~= b[i].from or a[i].to ~= b[i].to then return false end
+  end
+  return true
+end
+
+---Update folds for a single part during streaming, avoiding a full rebuild.
+---@param part_id string
+function M.update_part_folds(part_id)
+  local formatted_data = ctx.formatted_parts[part_id]
+  if not formatted_data or not formatted_data.fold_ranges then
+    ctx.part_folds[part_id] = nil
+    M.set_all_folds()
+    return
+  end
+  local cached_part = ctx.render_state:get_part(part_id)
+  if not cached_part or not cached_part.line_start then
+    return
+  end
+
+  local new_folds = {}
+  for _, f in ipairs(formatted_data.fold_ranges) do
+    table.insert(new_folds, {
+      from = cached_part.line_start + f.from - 1,
+      to = cached_part.line_start + f.to - 1,
+    })
+  end
+
+  if folds_equal(ctx.part_folds[part_id], new_folds) then
+    return
+  end
+
+  ctx.part_folds[part_id] = new_folds
+  local new_global = {}
+  for _, pf in pairs(ctx.part_folds) do
+    for _, f in ipairs(pf) do
+      table.insert(new_global, f)
+    end
+  end
+  table.sort(new_global, function(a, b) return a.from < b.from end)
+  ctx.global_folds = new_global
+  output_window.set_folds(new_global)
 end
 
 
@@ -676,6 +729,9 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
     apply_part_actions(part_id, formatted_data, cached.line_start)
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
     set_part_extmark_state(part_id, formatted_data)
+    if formatted_data.fold_ranges then
+      M.update_part_folds(part_id)
+    end
   elseif has_extmarks(extra_extmarks) then
     output_window.set_extmarks(extra_extmarks, insert_at)
   end

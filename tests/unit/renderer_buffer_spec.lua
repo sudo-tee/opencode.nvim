@@ -125,6 +125,39 @@ describe('renderer.buffer extmarks', function()
     assert.stub(clear_extmarks_stub).was_called()
     assert_called_before(call_order, 'clear_extmarks', 'set_lines')
   end)
+
+  it('only clears and reapplies appended extmarks during append-only updates', function()
+    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 10, 11)
+    ctx.formatted_parts['part_1'] = {
+      lines = { 'alpha', 'beta', 'gamma' },
+      extmarks = {
+        [0] = {
+          { line_hl_group = 'ExistingHighlight' },
+        },
+        [2] = {
+          { line_hl_group = 'AppendedHighlight' },
+        },
+      },
+      actions = {},
+    }
+
+    buffer.append_part_now('part_1', { 'gamma' }, nil, {
+      lines = { 'alpha', 'beta' },
+      extmarks = {
+        [0] = {
+          { line_hl_group = 'ExistingHighlight' },
+        },
+      },
+      actions = {},
+    })
+
+    assert.stub(clear_extmarks_stub).was_called_with(12, 13)
+    assert.stub(set_extmarks_stub).was_called_with({
+      [0] = {
+        { line_hl_group = 'AppendedHighlight' },
+      },
+    }, 12)
+  end)
 end)
 
 describe('update_part_folds', function()

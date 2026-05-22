@@ -276,6 +276,27 @@ local function apply_extmarks(previous_formatted, formatted_data, line_start, ol
   end
 end
 
+---@param previous_formatted Output|nil
+---@param formatted_data Output
+---@param line_start integer
+---@param old_line_end integer
+---@param new_line_end integer
+local function apply_appended_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  local clear_start, clear_end = extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  clear_start = math.max(clear_start, old_line_end + 1)
+  if clear_start >= clear_end then
+    return
+  end
+
+  output_window.clear_extmarks(clear_start, clear_end)
+
+  local extmark_start_line = math.max(0, clear_start - line_start)
+  local extmarks = slice_extmarks(formatted_data.extmarks, extmark_start_line)
+  if has_extmarks(extmarks) then
+    output_window.set_extmarks(extmarks, clear_start)
+  end
+end
+
 ---@param message_id string
 ---@return integer
 local function get_message_insert_line(message_id)
@@ -727,7 +748,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
   local formatted_data = ctx.formatted_parts[part_id]
   if formatted_data then
     apply_part_actions(part_id, formatted_data, cached.line_start)
-    apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
+    apply_appended_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
     set_part_extmark_state(part_id, formatted_data)
     if formatted_data.fold_ranges then
       M.update_part_folds(part_id)

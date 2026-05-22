@@ -165,6 +165,21 @@ describe('output_window.setup', function()
     assert.equals(1, foldclosed)
   end)
 
+  it('stores fold metadata in a lookup-friendly structure', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_folds({ { from = 3, to = 5 }, { from = 1, to = 2 } })
+
+    local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
+
+    assert.same({
+      ranges = {
+        { from = 1, to = 2 },
+        { from = 3, to = 5 },
+      },
+      starts = { 1, 3 },
+    }, folds)
+  end)
+
   it('does not expand a fold when inserting after its end', function()
     output_window.setup({ output_buf = buf, output_win = win })
     output_window.set_folds({ { from = 1, to = 3 } })
@@ -172,7 +187,27 @@ describe('output_window.setup', function()
     output_window.shift_folds(3, 4)
 
     local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
-    assert.same({ { from = 1, to = 3 } }, folds)
+    assert.same({
+      ranges = { { from = 1, to = 3 } },
+      starts = { 1 },
+    }, folds)
+  end)
+
+  it('evaluates fold_expr against the fold lookup structure', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_folds({ { from = 2, to = 4 } })
+
+    local inside = vim.api.nvim_win_call(win, function()
+      vim.v.lnum = 3
+      return output_window.fold_expr()
+    end)
+    local outside = vim.api.nvim_win_call(win, function()
+      vim.v.lnum = 5
+      return output_window.fold_expr()
+    end)
+
+    assert.equals(1, inside)
+    assert.equals(0, outside)
   end)
 end)
 

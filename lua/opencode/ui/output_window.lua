@@ -11,6 +11,65 @@ M._last_visible_bottom_by_win = {}
 M._was_at_bottom_by_win = {}
 M._prev_line_count_by_win = {}
 
+local function build_fold_state(folds)
+  local fold_state = {
+    ranges = {},
+    starts = {},
+  }
+
+  for _, range in ipairs(folds or {}) do
+    if range.from and range.to then
+      fold_state.ranges[#fold_state.ranges + 1] = {
+        from = range.from,
+        to = range.to,
+      }
+      fold_state.starts[#fold_state.starts + 1] = range.from
+    end
+  end
+
+  table.sort(fold_state.ranges, function(a, b)
+    return a.from < b.from
+  end)
+  table.sort(fold_state.starts)
+
+  return fold_state
+end
+
+---@param buf integer
+---@return { ranges: table<{from: integer, to: integer}>, starts: integer[] }
+local function get_fold_state(buf)
+  local ok, fold_state = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
+  if not ok or type(fold_state) ~= 'table' then
+    return { ranges = {}, starts = {} }
+  end
+  if type(fold_state.ranges) == 'table' and type(fold_state.starts) == 'table' then
+    return fold_state
+  end
+  return build_fold_state(fold_state)
+end
+
+---@param ranges table<{from: integer, to: integer}>
+---@param line integer
+---@return boolean
+local function line_in_fold(ranges, line)
+  local lo = 1
+  local hi = #ranges
+
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    local range = ranges[mid]
+    if line < range.from then
+      hi = mid - 1
+    elseif line > range.to then
+      lo = mid + 1
+    else
+      return true
+    end
+  end
+
+  return false
+end
+
 local _update_depth = 0
 local _update_buf = nil
 
@@ -48,7 +107,7 @@ function M.create_buf()
   local filetype = config.ui.output.filetype or 'opencode_output'
   vim.api.nvim_set_option_value('filetype', filetype, { buf = output_buf })
 
-  vim.api.nvim_buf_set_var(output_buf, 'opencode_folds', {})
+  vim.api.nvim_buf_set_var(output_buf, 'opencode_folds', build_fold_state({}))
 
   local buffixwin = require('opencode.ui.buf_fix_win')
   buffixwin.fix_to_win(output_buf, function()
@@ -270,19 +329,8 @@ function M.fold_expr()
   end
 
   local line = vim.v.lnum
-  local ok, folds = pcall(function()
-    return vim.api.nvim_buf_get_var(output_buf, 'opencode_folds')
-  end)
-  if not ok or not folds then
-    return 0
-  end
-
-  for _, range in ipairs(folds) do
-    if line >= range.from and line <= range.to then
-      return 1
-    end
-  end
-  return 0
+  local fold_state = get_fold_state(output_buf)
+  return line_in_fold(fold_state.ranges, line) and 1 or 0
 end
 
 ---Fold text for the output buffer
@@ -296,12 +344,7 @@ function M.fold_text()
     return vim.fn.foldtext()
   end
 
-  local ok, folds = pcall(function()
-    return vim.api.nvim_buf_get_var(output_buf, 'opencode_folds')
-  end)
-  if not ok or not folds then
-    return vim.fn.foldtext()
-  end
+  local folds = get_fold_state(output_buf).ranges
 
   local line_count = 0
   for _, range in ipairs(folds) do
@@ -328,10 +371,7 @@ function M.get_open_fold_starts(win, buf)
     return {}
   end
 
-  local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  if not ok or not prev_folds then
-    return {}
-  end
+  local prev_folds = get_fold_state(buf).ranges
 
   local was_open = {}
   vim.api.nvim_win_call(win, function()
@@ -356,12 +396,10 @@ function M.set_folds(fold_ranges)
 
   local buf = windows.output_buf
   local win = windows.output_win
-  local folds = fold_ranges or {}
+  local folds = build_fold_state(fold_ranges or {})
+  local prev_folds = get_fold_state(buf)
 
-  local ok, prev_folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  prev_folds = ok and prev_folds or {}
-
-  if #folds == #prev_folds and vim.deep_equal(prev_folds, folds) then
+  if vim.deep_equal(prev_folds.ranges, folds.ranges) then
     return
   end
 
@@ -371,13 +409,24 @@ function M.set_folds(fold_ranges)
 
   vim.api.nvim_win_call(win, function()
     local view = vim.fn.winsaveview()
-    vim.cmd('silent! normal! zX')
-    for _, range in ipairs(folds) do
-      local is_open = was_open[range.from]
-      local cmd = is_open and 'zo' or 'zc'
+    vim.cmd('silent! normal! zx')
+    local prev_starts = {}
+    for _, start_line in ipairs(prev_folds.starts) do
+      prev_starts[start_line] = true
+    end
 
-      vim.fn.cursor(range.from, 1)
-      vim.cmd('silent! normal! ' .. cmd)
+    for _, range in ipairs(folds.ranges) do
+      if not prev_starts[range.from] then
+        vim.fn.cursor(range.from, 1)
+        vim.cmd('silent! normal! zc')
+      end
+    end
+
+    for _, range in ipairs(folds.ranges) do
+      if was_open[range.from] then
+        vim.fn.cursor(range.from, 1)
+        vim.cmd('silent! normal! zo')
+      end
     end
 
     vim.fn.winrestview(view)
@@ -393,10 +442,8 @@ function M.shift_folds(start_line, delta)
     return
   end
   local buf = windows.output_buf
-  local ok, folds = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  if not ok or not folds then
-    return
-  end
+  local fold_state = get_fold_state(buf)
+  local folds = fold_state.ranges
 
   for _, range in ipairs(folds) do
     if range.from > start_line then
@@ -414,6 +461,15 @@ function M.shift_folds(start_line, delta)
     if range.to < range.from then
       range.to = range.from
     end
+  end
+
+  table.sort(folds, function(a, b)
+    return a.from < b.from
+  end)
+
+  fold_state.starts = {}
+  for _, range in ipairs(folds) do
+    fold_state.starts[#fold_state.starts + 1] = range.from
   end
 end
 

@@ -40,6 +40,16 @@ M.get_opencode_project = Promise.async(function()
   return result --[[@as OpencodeProject|nil]]
 end)
 
+---Compute SHA1 of a string (used to match opencode's Hash.fast for worktree path)
+---@param str string
+---@return string|nil
+local function sha1(str)
+  local result = vim.system({ 'sh', '-c', 'printf "%s" "$1" | sha1sum', '_', str }):wait()
+  if result and result.code == 0 then
+    return vim.trim(result.stdout):match('^(%x+)')
+  end
+end
+
 ---Get the snapshot storage path for the current workspace
 ---@type fun(): Promise<string>
 M.get_workspace_snapshot_path = Promise.async(function()
@@ -48,7 +58,12 @@ M.get_workspace_snapshot_path = Promise.async(function()
     return ''
   end
   local home = vim.uv.os_homedir()
-  return home .. '/.local/share/opencode/snapshot/' .. project.id
+  local cwd = vim.fn.getcwd()
+  local worktree_hash = sha1(cwd)
+  if not worktree_hash then
+    return ''
+  end
+  return home .. '/.local/share/opencode/snapshot/' .. project.id .. '/' .. worktree_hash
 end)
 
 local _providers_render_callback = false

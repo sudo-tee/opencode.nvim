@@ -12,13 +12,14 @@ local session = require('opencode.session')
 ---@return string|nil, string|nil
 local function snapshot_git(cmd_args, opts)
   local snapshot_dir = config_file.get_workspace_snapshot_path():wait()
-  if not snapshot_dir then
+  if not snapshot_dir or snapshot_dir == '' then
     vim.notify('No snapshot path for the active session.')
     return nil, nil
   end
-  local args = { 'git', '-C', snapshot_dir }
+  local cwd = vim.fn.getcwd()
+  local args = { 'git', '--git-dir', snapshot_dir, '--work-tree', cwd }
   vim.list_extend(args, cmd_args)
-  local result = vim.system(args, opts or {}):wait()
+  local result = vim.system(args, opts or { cwd = cwd }):wait()
   if result and result.code == 0 then
     return vim.trim(result.stdout), nil
   else
@@ -133,7 +134,7 @@ function M.patch(hash)
     vim.notify('Failed to add files: ' .. add_err .. _, vim.log.levels.WARN)
   end
 
-  local files_output, diff_err = snapshot_git({ 'diff', '--name-only', hash, '--', '.' })
+  local files_output, diff_err = snapshot_git({ 'diff', '--cached', '--no-ext-diff', '--name-only', hash, '--', '.' })
   if not files_output then
     vim.notify('Failed to get diff: ' .. (diff_err or 'unknown error'), vim.log.levels.ERROR)
     return nil
@@ -160,7 +161,7 @@ function M.diff(hash)
     return nil
   end
 
-  local result, err = snapshot_git({ 'diff', hash, '--', '.' })
+  local result, err = snapshot_git({ 'diff', '--cached', '--no-ext-diff', hash, '--', '.' })
   if not result then
     vim.notify('Failed to get diff: ' .. (err or 'unknown error'), vim.log.levels.ERROR)
     return nil

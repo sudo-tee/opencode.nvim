@@ -17,9 +17,10 @@ local function snapshot_git(cmd_args, opts)
     vim.notify('No snapshot path for the active session.')
     return nil, nil
   end
-  local args = { 'git', '-C', M.__snapshot_path }
+  local cwd = vim.fn.getcwd()
+  local args = { 'git', '--git-dir', M.__snapshot_path, '--work-tree', cwd }
   vim.list_extend(args, cmd_args)
-  local result = vim.system(args, opts or {}):wait()
+  local result = vim.system(args, opts or { cwd = cwd }):wait()
   if result and result.code == 0 then
     return vim.trim(result.stdout), result.stderr
   else
@@ -286,7 +287,9 @@ M.revert_selected_file = require_git_project(function(ref)
 end)
 
 M.revert_all = require_git_project(function(ref)
+  vim.print('⭕ ❱ git_review.lua:288 ❱ ƒ(anonymous) ❱ ref =', ref)
   M.__current_ref = ref or M.get_first_snapshot()
+  vim.print('⭕ ❱ git_review.lua:289 ❱ ƒ(M.__current_ref) ❱ M.__current_ref =', M.__current_ref)
 
   local files = get_changed_files()
 

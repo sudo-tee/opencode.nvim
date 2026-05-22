@@ -224,11 +224,19 @@ function M.format_time(timestamp)
     return ''
   end
 
+  local config = require('opencode.config')
+  local time_format = config.ui.output.time_format
+
+  if time_format then
+    return os.date(time_format, timestamp)
+  end
+
+  local saved = os.setlocale('C', 'time')
   local same_day = os.date('%Y-%m-%d') == os.date('%Y-%m-%d', timestamp)
   local same_year = os.date('%Y') == os.date('%Y', timestamp)
   local locale_time = vim.trim(os.date('%X', timestamp) or '')
+  os.setlocale(saved, 'time')
 
-  -- Keep output close to previous formatting by dropping seconds when present.
   locale_time = locale_time:gsub('^(%d?%d:%d%d):%d%d(.*)$', '%1%2')
   if locale_time == '' then
     locale_time = vim.trim(os.date('%H:%M', timestamp) or '')
@@ -238,11 +246,16 @@ function M.format_time(timestamp)
     return locale_time
   end
 
+  saved = os.setlocale('C', 'time')
+  local date_part
   if same_year then
-    return string.format('%s %s', os.date('%d %b', timestamp), locale_time)
+    date_part = os.date('%d %b', timestamp)
+  else
+    date_part = os.date('%d %b %Y', timestamp)
   end
+  os.setlocale(saved, 'time')
 
-  return string.format('%s %s', os.date('%d %b %Y', timestamp), locale_time)
+  return string.format('%s %s', date_part, locale_time)
 end
 
 ---@param timestamp number

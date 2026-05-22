@@ -103,8 +103,17 @@ describe('util.format_time', function()
     return os.time({ year = year, month = month, day = day, hour = hour or 0, min = min or 0, sec = sec or 0 })
   end
 
+  local function c_locale_date(fmt, timestamp)
+    local saved = os.setlocale('C', 'time')
+    local result = os.date(fmt, timestamp)
+    os.setlocale(saved, 'time')
+    return result
+  end
+
   local function compact_locale_time(timestamp)
+    local saved = os.setlocale('C', 'time')
     local locale_time = vim.trim(os.date('%X', timestamp) or '')
+    os.setlocale(saved, 'time')
     locale_time = locale_time:gsub('^(%d?%d:%d%d):%d%d(.*)$', '%1%2')
     if locale_time == '' then
       locale_time = vim.trim(os.date('%H:%M', timestamp) or '')
@@ -152,21 +161,21 @@ describe('util.format_time', function()
   describe('other day timestamps', function()
     it('formats yesterday with date prefix and locale time', function()
       local result = util.format_time(yesterday)
-      local expected_prefix = os.date('%d %b', yesterday) .. ' '
+      local expected_prefix = c_locale_date('%d %b', yesterday) .. ' '
       assert.is_true(vim.startswith(result, expected_prefix))
       assert.equals(compact_locale_time(yesterday), result:sub(#expected_prefix + 1))
     end)
 
     it('formats last week with date prefix and locale time', function()
       local result = util.format_time(last_week)
-      local expected_prefix = os.date('%d %b', last_week) .. ' '
+      local expected_prefix = c_locale_date('%d %b', last_week) .. ' '
       assert.is_true(vim.startswith(result, expected_prefix))
       assert.equals(compact_locale_time(last_week), result:sub(#expected_prefix + 1))
     end)
 
     it('formats future date with full date and locale time', function()
       local result = util.format_time(next_year)
-      local expected_prefix = os.date('%d %b %Y', next_year) .. ' '
+      local expected_prefix = c_locale_date('%d %b %Y', next_year) .. ' '
       assert.is_true(vim.startswith(result, expected_prefix))
       assert.equals(compact_locale_time(next_year), result:sub(#expected_prefix + 1))
       assert.matches('%d%d%d%d', result)
@@ -230,7 +239,7 @@ describe('util.format_time', function()
       if os.date('%Y-%m-%d', early_tomorrow) == os.date('%Y-%m-%d') then
         assert.equals(compact_locale_time(early_tomorrow), early_result)
       else
-        local expected_prefix = os.date('%d %b', early_tomorrow) .. ' '
+        local expected_prefix = c_locale_date('%d %b', early_tomorrow) .. ' '
         assert.is_true(vim.startswith(early_result, expected_prefix))
         assert.equals(compact_locale_time(early_tomorrow), early_result:sub(#expected_prefix + 1))
       end

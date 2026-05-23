@@ -160,6 +160,7 @@ M.defaults = {
     },
     output = {
       filetype = 'opencode_output',
+      time_format = nil,
       compact_assistant_headers = false,
       rendering = {
         markdown_debounce_ms = 250,

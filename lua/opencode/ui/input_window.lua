@@ -591,6 +591,11 @@ end
 
 ---Show the input window by recreating it
 function M._show()
+  -- Child sessions must never show the input window
+  if state.active_session and state.active_session.parentID then
+    return
+  end
+
   local windows = state.windows
   if not windows or not windows.input_buf or not windows.output_win then
     return

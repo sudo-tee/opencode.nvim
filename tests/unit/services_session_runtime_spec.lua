@@ -398,6 +398,39 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
+  describe('child session UI guards', function()
+    local input_window = require('opencode.ui.input_window')
+
+    after_each(function()
+      state.session.clear_active()
+    end)
+
+    it('toggle_pane does not show input when in a child session', function()
+      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      stub(input_window, 'focus_input')
+
+      -- Simulate being in the output window (not input)
+      state.ui.set_windows({ input_win = -1, output_win = vim.api.nvim_get_current_win(), input_buf = 1, output_buf = 2 })
+
+      ui.toggle_pane()
+
+      assert.stub(input_window.focus_input).was_not_called()
+      input_window.focus_input:revert()
+    end)
+
+    it('focus_input is a no-op when in a child session', function()
+      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      stub(input_window, 'is_hidden').returns(true)
+      stub(input_window, '_show')
+
+      ui.focus_input()
+
+      assert.stub(input_window._show).was_not_called()
+      input_window.is_hidden:revert()
+      input_window._show:revert()
+    end)
+  end)
+
   describe('send_message', function()
     it('delegates message-sending coverage to services_messaging_spec', function()
       -- This spec focuses on session_runtime responsibilities.

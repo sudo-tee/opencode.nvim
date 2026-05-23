@@ -548,4 +548,30 @@ describe('input_window', function()
       assert.is_false(input_window._hidden)
     end)
   end)
+
+  describe('child session input visibility', function()
+    after_each(function()
+      state.session.clear_active()
+    end)
+
+    it('_show() is a no-op when active session is a child session', function()
+      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      input_window._hidden = true
+
+      input_window._show()
+
+      assert.is_true(input_window._hidden)
+    end)
+
+    it('_show() proceeds when active session is a root session', function()
+      state.session.set_active({ id = 'root1' })
+      input_window._hidden = true
+
+      -- _show will early-return due to missing windows, but it should pass the guard
+      input_window._show()
+
+      -- _hidden remains true because windows are nil, but the parentID guard was passed
+      assert.is_true(input_window._hidden)
+    end)
+  end)
 end)

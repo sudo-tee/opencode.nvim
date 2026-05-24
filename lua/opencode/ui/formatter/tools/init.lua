@@ -10,6 +10,7 @@ return {
   webfetch = require('opencode.ui.formatter.tools.webfetch'),
   list = require('opencode.ui.formatter.tools.list'),
   question = require('opencode.ui.formatter.tools.question'),
+  skill = require('opencode.ui.formatter.tools.skill'),
   task = require('opencode.ui.formatter.tools.task'),
   tool = require('opencode.ui.formatter.tools.tool'),
 }

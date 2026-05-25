@@ -211,6 +211,52 @@ describe('output_window.setup', function()
   end)
 end)
 
+describe('output_window.fold_text', function()
+  local buf
+  local win
+
+  before_each(function()
+    buf = vim.api.nvim_create_buf(false, true)
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor',
+      width = 100,
+      height = 10,
+      row = 0,
+      col = 0,
+    })
+    state.ui.set_windows({ output_buf = buf, output_win = win })
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd', 'e', 'f' })
+  end)
+
+  after_each(function()
+    state.ui.set_windows(nil)
+    pcall(vim.api.nvim_win_close, win, true)
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  end)
+
+  it('mentions visible latest lines when latest preview is enabled', function()
+    config.setup({
+      ui = {
+        output = {
+          tools = {
+            only_show_latest_n = 2,
+          },
+        },
+      },
+    })
+
+    output_window.set_folds({ { from = 2, to = 4 } })
+
+    local text = vim.api.nvim_win_call(win, function()
+      vim.v.foldstart = 2
+      return output_window.fold_text()
+    end)
+
+    assert.is_truthy(text:find('3 lines hidden, latest 2 below', 1, true))
+  end)
+end)
+
 describe('output_window extmarks', function()
   local buf
 

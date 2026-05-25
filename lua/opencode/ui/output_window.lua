@@ -339,6 +339,13 @@ function M.fold_text()
   local windows = state.windows
   local output_buf = windows and windows.output_buf
   local line = vim.v.foldstart
+  local latest_n = config.ui.output.tools.only_show_latest_n
+
+  if type(latest_n) ~= 'number' or latest_n < 1 then
+    latest_n = nil
+  else
+    latest_n = math.floor(latest_n)
+  end
 
   if not output_buf or not vim.api.nvim_buf_is_valid(output_buf) then
     return vim.fn.foldtext()
@@ -355,7 +362,12 @@ function M.fold_text()
   end
 
   if line_count > 0 then
-    local text = string.format('▶ %d lines hidden (zo open, zc close) ◀', line_count)
+    local text
+    if latest_n then
+      text = string.format('▶ %d lines hidden, latest %d below (zo open, zc close) ◀', line_count, latest_n)
+    else
+      text = string.format('▶ %d lines hidden (zo open, zc close) ◀', line_count)
+    end
     local width = vim.api.nvim_win_get_width(0)
     local padding = math.max(0, math.floor((width - #text) / 2))
     return string.rep('-', padding) .. text .. string.rep('-', padding)

@@ -103,14 +103,26 @@ function Output:add_fold_with_threshold(start_line, show, use_folds)
   end
 
   local threshold = config.ui.output.tools.folding_threshold or 5
+  local only_show_latest_n = config.ui.output.tools.only_show_latest_n
+  if type(only_show_latest_n) ~= 'number' or only_show_latest_n < 1 then
+    only_show_latest_n = 0
+  else
+    only_show_latest_n = math.floor(only_show_latest_n)
+  end
+
   local end_line = self:get_line_count()
 
   if not show then
-    if end_line > start_line then
-      self:add_fold(start_line, end_line)
+    local fold_end = end_line - only_show_latest_n
+    if fold_end >= start_line then
+      self:add_fold(start_line, fold_end)
     end
   elseif end_line > start_line + threshold then
-    self:add_fold(start_line + threshold, end_line)
+    local fold_start = start_line + threshold
+    local fold_end = end_line - only_show_latest_n
+    if fold_end >= fold_start then
+      self:add_fold(fold_start, fold_end)
+    end
   end
 end
 

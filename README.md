@@ -236,12 +236,13 @@ require('opencode').setup({
     },
     output = {
       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
-       compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
+      compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
         use_folds = true, -- Use folds for tool output (default: true)
-        folding_threshold = 5, -- Number of lines to show before folding when show_output is true (default: 5)
+        only_show_latest_n = nil, -- Keep the latest N lines visible below a closed fold; nil keeps the current behavior (default: nil)
+        folding_threshold = 25, -- Number of leading lines to keep visible before folding when show_output is true (default: 25)
       },
       rendering = {
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)

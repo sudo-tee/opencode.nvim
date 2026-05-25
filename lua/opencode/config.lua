@@ -177,6 +177,8 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
         use_folds = true,
+        -- Keep the latest N lines visible below folds for long-running progress.
+        only_show_latest_n = 3,
         -- Reduced default threshold to make small tool outputs foldable by default.
         -- Users can override this in their config if they prefer the previous value.
         folding_threshold = 25,

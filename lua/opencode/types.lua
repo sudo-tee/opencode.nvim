@@ -254,7 +254,7 @@
 
 ---@class OpencodeUIOutputConfig
 ---@field time_format string|nil # Custom os.date format for timestamps, e.g. '%m/%d %H:%M'. Uses fixed default when nil.
----@field tools { show_output: boolean, show_reasoning_output: boolean, use_folds: boolean, folding_threshold: number }
+---@field tools { show_output: boolean, show_reasoning_output: boolean, use_folds: boolean, folding_threshold: number, only_show_latest_n: integer|nil }
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean

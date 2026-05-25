@@ -232,36 +232,24 @@ function Dialog:format_legend(output, options)
     end
 
     if keymaps.up and #keymaps.up > 0 and keymaps.down and #keymaps.down > 0 then
-      local line = output:add_line(string.format('Move: j/k or %s/%s', '↑', '↓'))
-      output:add_extmark(line - 1, { start_col = 6, end_col = 9, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
-      output:add_extmark(line - 1, { start_col = 13, end_col = 16, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      local line = output:add_line('Move: `j/k` or `↑/↓`')
     end
 
     if keymaps.left and #keymaps.left > 0 and keymaps.right and #keymaps.right > 0 then
-      local line = output:add_line('Question: h/l or <-/->')
-      output:add_extmark(line - 1, { start_col = 10, end_col = 13, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
-      output:add_extmark(line - 1, { start_col = 17, end_col = 23, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      local line = output:add_line('Question: `h/l` or `<-/->`')
     end
 
     if keymaps.select and keymaps.select ~= '' then
-      local select_text = 'Select: <CR>'
+      local select_text = 'Select: `<CR>`'
       if keymaps.number_shortcuts and option_count > 0 then
         local max_shortcut = math.min(option_count, 9)
-        select_text = select_text .. string.format(' or 1-%d', max_shortcut)
+        select_text = select_text .. string.format(' or `1-%d`', max_shortcut)
       end
       local line = output:add_line(select_text)
-      output:add_extmark(line - 1, { start_col = 8, end_col = 12, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
-      if keymaps.number_shortcuts and option_count > 0 then
-        local max_shortcut = math.min(option_count, 9)
-        local suffix = string.format('1-%d', max_shortcut)
-        local start_col = #select_text - #suffix
-        output:add_extmark(line - 1, { start_col = start_col, end_col = #select_text, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
-      end
     end
 
     if keymaps.dismiss and keymaps.dismiss ~= '' then
-      local line = output:add_line('Close: <Esc>')
-      output:add_extmark(line - 1, { start_col = 7, end_col = 12, hl_group = 'OpencodeQuestionKeyHint' } --[[@as OutputExtmark]])
+      local line = output:add_line('Close: `<Esc>`')
     end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'

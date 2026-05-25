@@ -99,7 +99,8 @@ describe('question_window', function()
 
     question_window.format_display(output)
 
-    assert.are.equal(' 1 [x] Color   2 [ ] Shape ', output.lines[1])
+    assert.are.equal(' 1 [Color] 󰄳    2 [Shape]   ', output.lines[1])
+
     assert.are.equal('OpencodeQuestionTabDone', output.extmarks[0][1].hl_group)
     assert.are.equal('OpencodeQuestionTabActive', output.extmarks[0][2].hl_group)
   end)

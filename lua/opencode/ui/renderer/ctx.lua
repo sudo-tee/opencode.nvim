@@ -67,4 +67,17 @@ function ctx:bulk_reset()
   self.bulk_folds = {}
 end
 
+---@param pending? RendererCtx['pending']
+---@return boolean
+function ctx:has_pending_work(pending)
+  pending = pending or self.pending
+
+  return self.flush_scheduled
+    or self.bulk_mode
+    or #pending.dirty_message_order > 0
+    or #pending.dirty_part_order > 0
+    or #pending.removed_part_order > 0
+    or #pending.removed_message_order > 0
+end
+
 return ctx

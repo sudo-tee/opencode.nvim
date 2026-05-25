@@ -159,7 +159,10 @@ local function get_question_part(question_request)
 
   if question_request and question_request.sessionID and question_request.sessionID ~= '' then
     local render_state = require('opencode.ui.renderer.ctx').render_state
-    return find_matching_question_part(render_state:get_child_session_parts(question_request.sessionID), question_request)
+    return find_matching_question_part(
+      render_state:get_child_session_parts(question_request.sessionID),
+      question_request
+    )
   end
 end
 
@@ -226,14 +229,16 @@ function M.restore_pending_question(session_id)
     M.clear_question()
   end
 
-  return state.api_client:list_questions()
+  return state.api_client
+    :list_questions()
     :and_then(function(requests)
       if not requests or type(requests) ~= 'table' then
         return
       end
 
       for _, request in ipairs(requests) do
-        if request
+        if
+          request
           and request.questions
           and #request.questions > 0
           and M.belongs_to_active_session(request)
@@ -385,8 +390,8 @@ local function format_question_tabs(output)
     local label = question.header ~= '' and question.header or ('Q' .. i)
     local is_active = i == M._current_question_index
     local is_done = get_answer_for_index(i) ~= nil
-    local marker = is_done and 'x' or ' '
-    local segment = string.format(' %d [%s] %s ', i, marker, label)
+    local marker = is_done and icons.get('completed') or ' '
+    local segment = string.format(' %d [%s] %s ', i, label, marker)
 
     if #line > 0 then
       line = line .. ' '

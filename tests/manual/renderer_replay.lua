@@ -176,10 +176,38 @@ function M.normalize_file_paths(data)
   return replace_paths(data)
 end
 
+function M.wait_for_idle(timeout_ms)
+  timeout_ms = timeout_ms or 5000
+
+  local ctx = require('opencode.ui.renderer.ctx')
+  local flush = require('opencode.ui.renderer.flush')
+
+  return vim.wait(timeout_ms, function()
+    local emitter = state.event_manager and state.event_manager.throttling_emitter
+    if emitter and (#emitter.queue > 0 or emitter.drain_scheduled) then
+      return false
+    end
+
+    if ctx:has_pending_work() then
+      if ctx.bulk_mode then
+        flush.end_bulk_mode()
+      else
+        flush.flush()
+      end
+    end
+
+    return not ctx:has_pending_work()
+  end, 10)
+end
+
 function M.save_output(filename)
   if not state.windows or not state.windows.output_buf then
     vim.notify('No output buffer available', vim.log.levels.ERROR)
     return nil
+  end
+
+  if not M.wait_for_idle() then
+    vim.notify('Timed out waiting for replay output to settle before saving', vim.log.levels.WARN)
   end
 
   local buf = state.windows.output_buf
@@ -234,10 +262,7 @@ end
 
 function M.dump_buffer_and_quit()
   vim.schedule(function()
-    -- wait until the emitter queue is empty
-    vim.wait(5000, function()
-      return vim.tbl_isempty(state.event_manager.throttling_emitter.queue)
-    end)
+    M.wait_for_idle(5000)
 
     if not state.windows or not state.windows.output_buf then
       print('ERROR: No output buffer available')

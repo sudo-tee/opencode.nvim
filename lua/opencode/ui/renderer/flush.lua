@@ -402,10 +402,7 @@ local function apply_pending(pending)
     return false
   end
 
-  local has_updates = #pending.removed_part_order > 0
-    or #pending.removed_message_order > 0
-    or #pending.dirty_message_order > 0
-    or #pending.dirty_part_order > 0
+  local has_updates = ctx:has_pending_work(pending)
 
   if not has_updates then
     return false

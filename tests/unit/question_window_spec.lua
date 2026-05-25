@@ -17,6 +17,94 @@ describe('question_window', function()
     state.jobs.set_api_client(nil)
   end)
 
+  it('tracks answers by question index and waits until all are answered', function()
+    local replies = {}
+
+    state.jobs.set_api_client({
+      reply_question = function(_, request_id, answers)
+        table.insert(replies, { request_id = request_id, answers = answers })
+        return Promise.new():resolve({})
+      end,
+      reject_question = function()
+        return Promise.new():resolve({})
+      end,
+    })
+
+    question_window.show_question({
+      id = 'q-multi',
+      sessionID = 'sess1',
+      questions = {
+        {
+          header = 'First',
+          question = 'Pick first',
+          options = {
+            { label = 'One' },
+          },
+        },
+        {
+          header = 'Second',
+          question = 'Pick second',
+          options = {
+            { label = 'Two' },
+          },
+        },
+      },
+    })
+
+    question_window._current_question_index = 2
+    question_window._answer_with_option(1)
+
+    assert.are.same({ { 'Two' } }, { question_window._collected_answers[2] })
+    assert.are.equal(1, question_window._current_question_index)
+    assert.are.equal(0, #replies)
+
+    question_window._answer_with_option(1)
+
+    assert.are.equal(1, #replies)
+    assert.are.same({ { 'One' }, { 'Two' } }, replies[1].answers)
+    assert.is_nil(question_window._current_question)
+  end)
+
+  it('renders multi-question tabs with answer status', function()
+    local output = Output.new()
+
+    question_window._current_question = {
+      id = 'q1',
+      questions = {
+        {
+          header = 'Color',
+          question = 'Pick a color',
+          options = {
+            { label = 'Blue', description = 'cool' },
+          },
+        },
+        {
+          header = 'Shape',
+          question = 'Pick a shape',
+          options = {
+            { label = 'Circle', description = 'round' },
+          },
+        },
+      },
+    }
+    question_window._current_question_index = 2
+    question_window._collected_answers = {
+      [1] = { 'Blue' },
+    }
+    question_window._dialog = {
+      format_dialog = function(_, _, opts)
+        output:add_line(opts.title)
+      end,
+    }
+
+    question_window.format_display(output)
+
+    assert.are.equal(' 1 [Color] 󰄳    2 [Shape]   ', output.lines[1])
+
+    assert.are.equal('OpencodeQuestionTabDone', output.extmarks[0][1].hl_group)
+    assert.are.equal('OpencodeQuestionTabActive', output.extmarks[0][2].hl_group)
+  end)
+
   it('adds the Other option when missing', function()
     local captured_opts = nil
     question_window._current_question = {
@@ -194,6 +282,44 @@ describe('question_window', function()
     local after = vim.api.nvim_win_get_cursor(state.windows.output_win)
     assert.equals(before[1], after[1])
     assert.equals(before[2], after[2])
+
+    question_window.clear_question()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
+  end)
+
+  it('navigates between questions with h and l', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    question_window.show_question({
+      id = 'q-nav-groups',
+      sessionID = 'sess1',
+      questions = {
+        {
+          header = 'First',
+          question = 'Pick one',
+          options = {
+            { label = 'One' },
+          },
+        },
+        {
+          header = 'Second',
+          question = 'Pick two',
+          options = {
+            { label = 'Two' },
+          },
+        },
+      },
+    })
+
+    question_window._dialog:navigate_group(1)
+    assert.are.equal(2, question_window._current_question_index)
+
+    question_window._dialog:navigate_group(-1)
+    assert.are.equal(1, question_window._current_question_index)
 
     question_window.clear_question()
     if state.windows then

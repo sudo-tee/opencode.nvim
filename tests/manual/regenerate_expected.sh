@@ -3,7 +3,7 @@
 # Usage: ./regenerate_expected.sh [filename]
 #   filename: Optional. Just the filename (e.g., "simple-session.json"). If not provided, regenerates all files.
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/../.."
@@ -47,10 +47,9 @@ if [[ -n "$TARGET_FILE" ]]; then
   fi
 
   echo "Processing: $data_file -> $expected_file"
-  nvim --headless -u tests/manual/init_replay.lua \
-    "+ReplayLoad $data_file" \
-    "+ReplayAll 0" \
-    "+lua vim.defer_fn(function() vim.cmd('ReplaySave $expected_file') vim.cmd('qall!') end, 200)" 2>&1 | grep -v "^$"
+  nvim --headless -u tests/minimal/init.lua \
+    -c "lua require('tests.manual.regenerate_expected').run([[$data_file]], [[$expected_file]])" \
+    -c "qall!" 2>&1 | grep -v "^$"
 
   echo "Done! Regenerated $expected_file"
 else
@@ -77,10 +76,9 @@ else
     expected_file="${data_file%.json}.expected.json"
     echo "Processing: $data_file -> $expected_file"
 
-    nvim --headless -u tests/manual/init_replay.lua \
-      "+ReplayLoad $data_file" \
-      "+ReplayAll 0" \
-      "+lua vim.defer_fn(function() vim.cmd('ReplaySave $expected_file') vim.cmd('qall!') end, 200)" 2>&1 | grep -v "^$"
+    nvim --headless -u tests/minimal/init.lua \
+      -c "lua require('tests.manual.regenerate_expected').run([[$data_file]], [[$expected_file]])" \
+      -c "qall!" 2>&1 | grep -v "^$"
   done
 
   echo ""

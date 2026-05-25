@@ -66,10 +66,10 @@ describe('snapshot.restore', function()
     assert.equal(2, #system_calls)
 
     -- First call: read-tree
-    assert.same({ 'git', '-C', '/mock/gitdir', 'read-tree', 'abc123' }, system_calls[1].cmd)
+    assert.same({ 'git', '--git-dir', '/mock/gitdir', '--work-tree', '/mock/project/root', 'read-tree', 'abc123' }, system_calls[1].cmd)
 
     -- Second call: checkout-index
-    assert.same({ 'git', '-C', '/mock/gitdir', 'checkout-index', '-a', '-f' }, system_calls[2].cmd)
+    assert.same({ 'git', '--git-dir', '/mock/gitdir', '--work-tree', '/mock/project/root', 'checkout-index', '-a', '-f' }, system_calls[2].cmd)
 
     -- Notification
     assert.is_truthy(vim.g._last_notify)

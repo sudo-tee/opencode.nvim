@@ -202,6 +202,40 @@ describe('formatter', function()
     assert.is_true(found)
   end)
 
+  it('renders loaded skill name for skill tool calls', function()
+    local message = {
+      info = {
+        id = 'msg_1',
+        role = 'assistant',
+        sessionID = 'ses_1',
+      },
+      parts = {},
+    }
+
+    local part = {
+      id = 'prt_1',
+      type = 'tool',
+      tool = 'skill',
+      messageID = 'msg_1',
+      sessionID = 'ses_1',
+      state = {
+        status = 'completed',
+        input = {
+          name = 'context7-cli',
+        },
+        time = {
+          start = 1,
+          ['end'] = 2,
+        },
+      },
+    }
+
+    local output = formatter.format_part(part, message, true)
+
+    assert.is_truthy(output.lines[1]:find('skill', 1, true))
+    assert.is_truthy(output.lines[1]:find('context7%-cli'))
+  end)
+
   it('renders directory reads with trailing slash', function()
     local message = {
       info = {

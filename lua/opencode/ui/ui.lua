@@ -403,6 +403,10 @@ end
 
 ---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
+  if state.active_session and state.active_session.parentID then
+    return
+  end
+
   opts = opts or {}
   local windows = state.windows
   if not windows then
@@ -557,6 +561,9 @@ function M.toggle_pane()
   if state.windows and current_win == state.windows.input_win then
     output_window.focus_output(true)
   else
+    if state.active_session and state.active_session.parentID then
+      return
+    end
     input_window.focus_input()
   end
 end

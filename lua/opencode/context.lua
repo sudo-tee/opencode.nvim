@@ -132,6 +132,11 @@ end
 ---@param range? OpencodeSelectionRange
 ---@return boolean success Whether a selection was successfully added
 function M.add_visual_selection(range)
+  if not M.is_context_enabled('selection') then
+    vim.notify('Selection context is disabled. Enable it to add visual selections.', vim.log.levels.WARN)
+    return false
+  end
+
   local buf = vim.api.nvim_get_current_buf()
 
   if not util.is_buf_a_file(buf) then

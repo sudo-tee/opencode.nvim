@@ -573,5 +573,20 @@ describe('input_window', function()
       -- _hidden remains true because windows are nil, but the parentID guard was passed
       assert.is_true(input_window._hidden)
     end)
+
+    it('_show() proceeds for child session when child_readonly is false', function()
+      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      local config = require('opencode.config')
+      local orig_readonly = config.values.child_readonly
+      config.values.child_readonly = false
+      input_window._hidden = true
+
+      -- _show will early-return due to missing windows, but it should pass the guard
+      input_window._show()
+
+      -- _hidden remains true because windows are nil, but the parentID guard was passed
+      assert.is_true(input_window._hidden)
+      config.values.child_readonly = orig_readonly
+    end)
   end)
 end)

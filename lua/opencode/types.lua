@@ -126,6 +126,8 @@
 ---@field time { created: number, updated: number }
 ---@field id string
 ---@field parentID string|nil
+---@field agent string|nil
+---@field model { id: string, providerID: string, variant?: string }|nil
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 
@@ -367,6 +369,7 @@
 ---@field logging OpencodeLoggingConfig
 ---@field debug OpencodeDebugConfig
 ---@field prompt_guard? fun(mentioned_files: string[]): boolean
+---@field child_readonly boolean
 ---@field hooks OpencodeHooks
 ---@field quick_chat OpencodeQuickChatConfig
 

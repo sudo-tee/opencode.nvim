@@ -106,6 +106,11 @@ M.cycle_variant = Promise.async(function()
 end)
 
 M.switch_to_mode = Promise.async(function(mode)
+  if state.active_session and state.active_session.parentID then
+    log.notify('Cannot switch agent in child session', vim.log.levels.WARN)
+    return false
+  end
+
   if not mode or mode == '' then
     log.notify('Mode cannot be empty', vim.log.levels.ERROR)
     return false
@@ -166,7 +171,14 @@ M.initialize_current_model = Promise.async(function(opts)
   opts = opts or {}
 
   if opts.restore_from_messages and state.messages then
-    for i = #state.messages, 1, -1 do
+    -- Child sessions scan forward (first message is reliable);
+    -- parent sessions scan backward (most recent is current choice)
+    local is_child = state.active_session and state.active_session.parentID ~= nil
+    local start_idx, end_idx, step = #state.messages, 1, -1
+    if is_child then
+      start_idx, end_idx, step = 1, #state.messages, 1
+    end
+    for i = start_idx, end_idx, step do
       local msg = state.messages[i]
       if msg and msg.info and msg.info.modelID and msg.info.providerID then
         local model_str = msg.info.providerID .. '/' .. msg.info.modelID
@@ -174,8 +186,7 @@ M.initialize_current_model = Promise.async(function(opts)
           state.model.set_model(model_str)
         end
         if msg.info.mode and state.current_mode ~= msg.info.mode then
-          local active_session = state.active_session
-          local should_restore_mode = active_session and active_session.parentID
+          local should_restore_mode = is_child
           if not should_restore_mode then
             local available_agents = config_file.get_opencode_agents():await()
             should_restore_mode = vim.tbl_contains(available_agents, msg.info.mode)

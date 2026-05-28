@@ -341,6 +341,7 @@ require('opencode').setup({
     },
   },
   prompt_guard = nil, -- Optional function that returns boolean to control when prompts can be sent (see Prompt Guard section)
+  child_readonly = true, -- When true (default), child sessions are read-only: messaging is blocked and input window is hidden on switch
 
   -- User Hooks for custom behavior at certain events
   hooks = {

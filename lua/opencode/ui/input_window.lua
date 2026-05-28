@@ -591,8 +591,7 @@ end
 
 ---Show the input window by recreating it
 function M._show()
-  -- Child sessions must never show the input window
-  if state.active_session and state.active_session.parentID then
+  if state.active_session and state.active_session.parentID and config.child_readonly then
     return
   end
 

@@ -404,31 +404,28 @@ function M.set_folds(fold_ranges)
   end
 
   local was_open = M.get_open_fold_starts(win, buf)
-
   vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
   vim.api.nvim_win_call(win, function()
     local view = vim.fn.winsaveview()
-    vim.cmd('silent! normal! zx')
-    local prev_starts = {}
-    for _, start_line in ipairs(prev_folds.starts) do
-      prev_starts[start_line] = true
-    end
 
+    -- manual avoids foldexpr recalculation on each fold operation
+    vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
+
+    local line_count = vim.api.nvim_buf_line_count(buf)
     for _, range in ipairs(folds.ranges) do
-      if not prev_starts[range.from] then
-        vim.fn.cursor(range.from, 1)
-        vim.cmd('silent! normal! zc')
+      if range.from <= line_count and range.to <= line_count then
+        vim.cmd(range.from .. ',' .. range.to .. 'fold')
       end
     end
 
     for _, range in ipairs(folds.ranges) do
       if was_open[range.from] then
-        vim.fn.cursor(range.from, 1)
-        vim.cmd('silent! normal! zo')
+        vim.cmd(range.from .. ',' .. range.to .. 'foldopen!')
       end
     end
 
+    -- stay manual; switching to expr re-evaluates foldexpr per-line
     vim.fn.winrestview(view)
   end)
 end
@@ -692,11 +689,22 @@ function M.setup_autocmds(windows, group)
     end,
   })
 
+  -- Lazy-render: load more messages on scroll-to-top (debounced)
+  local debounced_load_more = require('opencode.util').debounce(function()
+    local renderer = require('opencode.ui.renderer')
+    if renderer.load_more_messages() then
+      pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 3, 0 })
+    end
+  end, 150)
   vim.api.nvim_create_autocmd('WinScrolled', {
     group = group,
     buffer = windows.output_buf,
     callback = function()
       M.sync_cursor_with_viewport(windows.output_win)
+      local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
+      if ok and cursor and cursor[1] <= 3 then
+        debounced_load_more()
+      end
     end,
   })
 end

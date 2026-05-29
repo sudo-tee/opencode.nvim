@@ -12,6 +12,25 @@ local M = {}
 local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
 local HIDDEN_MESSAGES_NOTICE_PART_ID = '__opencode_hidden_messages_notice_part__'
 
+-- Lazy-render: render only viewport-sized message count on initial load,
+-- load more on scroll-to-top.
+local EST_LINES_PER_MSG = 5
+local VIEWPORT_BUFFER = 1.5
+
+---Calculate how many messages to render initially based on window height.
+---@return integer
+local function get_initial_render_count()
+  local win = state.windows and state.windows.output_win
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return math.huge -- no window: render all (tests, headless)
+  end
+  local ok, height = pcall(vim.api.nvim_win_get_height, win)
+  if not ok or not height or height <= 0 then
+    return math.huge
+  end
+  return math.ceil(height / EST_LINES_PER_MSG * VIEWPORT_BUFFER)
+end
+
 ---@return integer|nil
 local function get_max_rendered_messages()
   local limit = config.ui and config.ui.output and config.ui.output.max_messages
@@ -319,6 +338,9 @@ end
 ---@param opts? { restore_model_from_messages?: boolean }
 function M._render_full_session_data(session_data, opts)
   opts = opts or {}
+  -- Read before reset() clears it
+  local lazy_limit = ctx.lazy_render_count
+  local t_start = vim.uv.hrtime()
   M.reset()
   state.renderer.set_messages(session_data or {})
 
@@ -329,6 +351,22 @@ function M._render_full_session_data(session_data, opts)
   local visible_messages, hidden_count = get_visible_session_messages(state.messages)
   local revert_index = get_revert_index(state.messages)
 
+  -- Lazy-render: only render viewport-sized message count.
+  -- Active when ctx.lazy_render_count is set or opts.lazy=true.
+  if lazy_limit == nil and opts.lazy then
+    local initial = get_initial_render_count()
+    if #visible_messages > initial then
+      lazy_limit = initial
+    end
+  end
+  -- Persist back to ctx so it survives the next M.reset()
+  ctx.lazy_render_count = lazy_limit
+  if lazy_limit and #visible_messages > lazy_limit then
+    hidden_count = hidden_count + (#visible_messages - lazy_limit)
+    visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
+  end
+
+  local t_format_start = vim.uv.hrtime()
   flush.begin_bulk_mode()
 
   if hidden_count > 0 then
@@ -376,8 +414,10 @@ function M._render_full_session_data(session_data, opts)
     events.on_part_updated({ part = revert_message.parts[1] })
   end
 
+  local t_format_end = vim.uv.hrtime()
   flush.flush()
   flush.end_bulk_mode()
+  local t_flush_end = vim.uv.hrtime()
 
   if opts.restore_model_from_messages then
     require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
@@ -399,12 +439,35 @@ function M.render_from_cache(session_data)
   end
   M._render_full_session_data(session_data, {
     restore_model_from_messages = true,
+    lazy = ctx.lazy_render_count ~= nil,
   })
   local active_session = state.active_session
   if active_session and active_session.id then
     require('opencode.ui.question_window').restore_pending_question(active_session.id)
     permission_window.restore_pending_permissions(active_session.id)
   end
+end
+
+---Load more older messages into the output buffer.
+---Called when user scrolls to the top of the output window.
+---@return boolean Whether more messages were loaded
+function M.load_more_messages()
+  if not state.messages then
+    return false
+  end
+  local total = #get_visible_session_messages(state.messages)
+  if total == 0 then
+    return false
+  end
+  local current = ctx.lazy_render_count or math.min(get_initial_render_count(), total)
+  if current >= total then
+    return false
+  end
+
+  -- Load another viewport's worth
+  ctx.lazy_render_count = math.min(current + get_initial_render_count(), total)
+  M.render_from_cache(state.messages)
+  return true
 end
 
 ---Fetch the active session from the server and render it
@@ -416,6 +479,7 @@ function M.render_full_session()
   return fetch_session():and_then(function(session_data)
     M._render_full_session_data(session_data, {
       restore_model_from_messages = true,
+      lazy = true,
     })
     local active_session = state.active_session
     if active_session and active_session.id then

@@ -482,21 +482,19 @@ function M.clear_extmarks(start_line, end_line, clear_all)
   pcall(vim.api.nvim_buf_clear_namespace, windows.output_buf, clear_all and -1 or M.namespace, start_line, end_line)
 end
 
----Apply extmarks to the output buffer
+---Apply extmarks to any buffer (reusable for preview buffers)
+---@param bufnr integer Target buffer
 ---@param extmarks table<number, OutputExtmark[]> Extmarks indexed by line
 ---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
-function M.set_extmarks(extmarks, line_offset)
+function M.apply_extmarks(bufnr, extmarks, line_offset)
   if not extmarks or type(extmarks) ~= 'table' then
     return
   end
-  local windows = state.windows
-  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
 
   line_offset = line_offset or 0
-
-  local output_buf = windows.output_buf
 
   local line_indices = vim.tbl_keys(extmarks)
   table.sort(line_indices)
@@ -525,9 +523,24 @@ function M.set_extmarks(extmarks, line_offset)
         end
       end
       ---@cast m vim.api.keyset.set_extmark
-      pcall(vim.api.nvim_buf_set_extmark, output_buf, M.namespace, target_line, start_col or 0, m)
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, M.namespace, target_line, start_col or 0, m)
     end
   end
+end
+
+---Apply extmarks to the output buffer
+---@param extmarks table<number, OutputExtmark[]> Extmarks indexed by line
+---@param line_offset? integer Line offset to apply to extmarks, defaults to 0
+function M.set_extmarks(extmarks, line_offset)
+  if not extmarks or type(extmarks) ~= 'table' then
+    return
+  end
+  local windows = state.windows
+  if not windows or not windows.output_buf or not vim.api.nvim_buf_is_valid(windows.output_buf) then
+    return
+  end
+
+  M.apply_extmarks(windows.output_buf, extmarks, line_offset)
 end
 
 ---@param start_line integer

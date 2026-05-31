@@ -17,7 +17,8 @@ local Promise = require('opencode.promise')
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
----@field preview? "file"|"none"|false Preview mode: "file" for file preview, "none" or false to disable
+---@field preview? "file"|"custom"|"none"|false Preview mode: "file" for file preview, "custom" for custom preview via preview_fn, "none" or false to disable
+---@field preview_fn? fun(item: any, bufnr: integer): nil Custom preview function, called when preview = 'custom' and a selection changes
 ---@field layout_opts? OpencodeUIPickerConfig
 ---@field close? fun() Close the picker programmatically (set by the backend)
 
@@ -146,7 +147,22 @@ local function telescope_ui(opts)
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
-    previewer = opts.preview == 'file' and require('telescope.previewers').vim_buffer_vimgrep.new({}) or nil,
+    previewer = (function()
+      if opts.preview == 'file' then
+        return require('telescope.previewers').vim_buffer_vimgrep.new({})
+      elseif opts.preview == 'custom' and opts.preview_fn then
+        return require('telescope.previewers').new_buffer_previewer({
+          define_preview = function(self, entry)
+            if not entry then
+              return
+            end
+            opts.preview_fn(entry.value, self.state.bufnr)
+          end,
+        })
+      else
+        return nil
+      end
+    end)(),
     layout_config = opts.width and {
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,

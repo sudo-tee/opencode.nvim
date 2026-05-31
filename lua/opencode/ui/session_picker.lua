@@ -36,6 +36,174 @@ function format_session_item(session, width)
   return base_picker.create_time_picker_item(session.title, updated_time, debug_text, width)
 end
 
+--- Normalize message order to oldest-first (chronological)
+--- API may return messages in descending order; reverse if detected.
+---@param messages OpencodeMessage[]
+---@return OpencodeMessage[]
+local function normalize_message_order(messages)
+  if not messages or #messages <= 1 then
+    return messages or {}
+  end
+  -- Check if messages are in descending order by checking first two
+  local first_time = messages[1].info and messages[1].info.time and messages[1].info.time.created
+  local second_time = messages[2].info and messages[2].info.time and messages[2].info.time.created
+  if first_time and second_time and first_time > second_time then
+    local reversed = {}
+    for i = #messages, 1, -1 do
+      reversed[#reversed + 1] = messages[i]
+    end
+    return reversed
+  end
+  return messages
+end
+
+--- Append extmarks from source into target, offset by line_offset
+--- Uses append semantics (no overwrite of same-line marks)
+---@param target table<number, OutputExtmark[]> Target extmark map
+---@param extmarks table<number, OutputExtmark[]> Source extmark map
+---@param line_offset integer Line offset for source marks
+local function append_extmarks(target, extmarks, line_offset)
+  for line_idx, marks in pairs(extmarks or {}) do
+    local actual = line_idx + line_offset
+    target[actual] = target[actual] or {}
+    for _, mark in ipairs(marks) do
+      table.insert(target[actual], mark)
+    end
+  end
+end
+
+--- Filter messages for preview: keep first user message + last assistant message
+--- This is a display strategy — format_messages is the rendering mechanism.
+---@param messages OpencodeMessage[]
+---@return OpencodeMessage[], integer omitted_count
+local function filter_preview_messages(messages)
+  if #messages <= 2 then
+    return messages, 0
+  end
+  local first_user_idx = nil
+  local last_assistant_idx = nil
+  for i, msg in ipairs(messages) do
+    if msg.info and msg.info.role == 'user' and not first_user_idx then
+      first_user_idx = i
+    end
+    if msg.info and msg.info.role == 'assistant' then
+      last_assistant_idx = i
+    end
+  end
+  local result = {}
+  if first_user_idx then
+    table.insert(result, messages[first_user_idx])
+  end
+  if last_assistant_idx then
+    table.insert(result, messages[last_assistant_idx])
+  end
+  if #result == 0 then
+    return messages, 0
+  end
+  local omitted = #messages - #result
+  return result, omitted
+end
+
+--- Format messages using the existing formatter, aggregating all Outputs
+---@param messages OpencodeMessage[]
+---@param omitted_count? integer Number of messages omitted between first and second (for preview)
+---@return { lines: string[], extmarks: table<number, OutputExtmark[]>, fold_ranges: table<{from: integer, to: integer}> }
+local function format_messages(messages, omitted_count)
+  local formatter = require('opencode.ui.formatter')
+  local all_lines = {}
+  local all_extmarks = {}
+  local all_fold_ranges = {}
+  local line_offset = 0
+  local rendered_count = 0
+
+  for _, msg in ipairs(messages) do
+    if msg.info and msg.info.role then
+      -- Insert omitted notice between first and second rendered message
+      if rendered_count == 1 and omitted_count and omitted_count > 0 then
+        local notice = string.format('  ⋯ %d message(s) omitted ⋯', omitted_count)
+        vim.list_extend(all_lines, { '', notice, '' })
+        line_offset = line_offset + 3
+      end
+
+      -- Format message header (no previous_message: show full header in preview)
+      local header = formatter.format_message_header(msg)
+      vim.list_extend(all_lines, header.lines)
+      append_extmarks(all_extmarks, header.extmarks, line_offset)
+      for _, range in ipairs(header.fold_ranges or {}) do
+        table.insert(all_fold_ranges, {
+          from = range.from + line_offset,
+          to = range.to + line_offset,
+        })
+      end
+      line_offset = line_offset + #header.lines
+
+      -- Format each part
+      local parts = msg.parts or {}
+      for part_idx, part in ipairs(parts) do
+        local is_last = part_idx == #parts
+        local ok, part_output = pcall(formatter.format_part, part, msg, is_last)
+        if ok and part_output then
+          vim.list_extend(all_lines, part_output.lines)
+          append_extmarks(all_extmarks, part_output.extmarks, line_offset)
+          for _, range in ipairs(part_output.fold_ranges or {}) do
+            table.insert(all_fold_ranges, {
+              from = range.from + line_offset,
+              to = range.to + line_offset,
+            })
+          end
+          line_offset = line_offset + #part_output.lines
+        elseif not ok then
+          -- Degraded: show error line for failed part
+          table.insert(all_lines, '[render error]')
+          line_offset = line_offset + 1
+        end
+        -- Note: Output.actions intentionally not collected (preview doesn't support interactive actions)
+      end
+
+      rendered_count = rendered_count + 1
+    end
+  end
+
+  return {
+    lines = all_lines,
+    extmarks = all_extmarks,
+    fold_ranges = all_fold_ranges,
+  }
+end
+
+--- Write formatted output to a preview buffer
+---@param bufnr integer
+---@param formatted { lines: string[], extmarks: table, fold_ranges: table }
+local function render_preview_buffer(bufnr, formatted)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local output_window = require('opencode.ui.output_window')
+
+  -- Set lines
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, formatted.lines)
+
+  -- Clear old extmarks then apply new ones
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, output_window.namespace, 0, -1)
+  output_window.apply_extmarks(bufnr, formatted.extmarks)
+
+  -- Apply folds (window-local operation)
+  local win = vim.fn.bufwinid(bufnr)
+  if win ~= -1 then
+    vim.api.nvim_win_call(win, function()
+      vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
+      vim.cmd('silent! normal! zE') -- clear existing manual folds
+      local line_count = vim.api.nvim_buf_line_count(bufnr)
+      for _, range in ipairs(formatted.fold_ranges) do
+        if range.from <= line_count and range.to <= line_count then
+          vim.cmd(range.from .. ',' .. range.to .. 'fold')
+        end
+      end
+    end)
+  end
+end
+
 function M.pick(sessions, callback)
   local actions = {
     rename = {
@@ -149,6 +317,9 @@ function M.pick(sessions, callback)
     },
   }
 
+  -- Preview state for race condition protection
+  local preview_seq = 0
+
   return base_picker.pick({
     items = sessions,
     format_fn = format_session_item,
@@ -157,6 +328,34 @@ function M.pick(sessions, callback)
     title = 'Select A Session',
     width = config.ui.picker_width or 100,
     layout_opts = config.ui.picker,
+    preview = 'custom',
+    preview_fn = function(session, bufnr)
+      preview_seq = preview_seq + 1
+      local current_seq = preview_seq
+
+      local state = require('opencode.state')
+      local ok, messages = pcall(function()
+        return state.api_client:list_messages(session.id, nil):wait()
+      end)
+
+      -- Check race: another selection happened while we were loading
+      if current_seq ~= preview_seq then
+        return
+      end
+      if not vim.api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+
+      if not ok or not messages or #messages == 0 then
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'No messages or failed to load' })
+        return
+      end
+
+      messages = normalize_message_order(messages)
+      local preview_msgs, omitted = filter_preview_messages(messages)
+      local formatted = format_messages(preview_msgs, omitted)
+      render_preview_buffer(bufnr, formatted)
+    end,
   })
 end
 

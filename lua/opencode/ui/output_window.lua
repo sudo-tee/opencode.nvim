@@ -14,7 +14,6 @@ M._prev_line_count_by_win = {}
 local function build_fold_state(folds)
   local fold_state = {
     ranges = {},
-    starts = {},
   }
 
   for _, range in ipairs(folds or {}) do
@@ -23,51 +22,27 @@ local function build_fold_state(folds)
         from = range.from,
         to = range.to,
       }
-      fold_state.starts[#fold_state.starts + 1] = range.from
     end
   end
 
   table.sort(fold_state.ranges, function(a, b)
     return a.from < b.from
   end)
-  table.sort(fold_state.starts)
 
   return fold_state
 end
 
 ---@param buf integer
----@return { ranges: table<{from: integer, to: integer}>, starts: integer[] }
+---@return { ranges: table<{from: integer, to: integer}> }
 local function get_fold_state(buf)
   local ok, fold_state = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
   if not ok or type(fold_state) ~= 'table' then
-    return { ranges = {}, starts = {} }
+    return { ranges = {} }
   end
-  if type(fold_state.ranges) == 'table' and type(fold_state.starts) == 'table' then
+  if type(fold_state.ranges) == 'table' then
     return fold_state
   end
   return build_fold_state(fold_state)
-end
-
----@param ranges table<{from: integer, to: integer}>
----@param line integer
----@return boolean
-local function line_in_fold(ranges, line)
-  local lo = 1
-  local hi = #ranges
-
-  while lo <= hi do
-    local mid = math.floor((lo + hi) / 2)
-    local range = ranges[mid]
-    if line < range.from then
-      hi = mid - 1
-    elseif line > range.to then
-      lo = mid + 1
-    else
-      return true
-    end
-  end
-
-  return false
 end
 
 local _update_depth = 0
@@ -243,8 +218,7 @@ function M.setup(windows)
   window_options.set_buffer_option('swapfile', false, windows.output_buf)
   window_options.set_buffer_option('undofile', false, windows.output_buf)
   window_options.set_buffer_option('undolevels', -1, windows.output_buf)
-  window_options.set_window_option('foldmethod', 'expr', windows.output_win)
-  window_options.set_window_option('foldexpr', 'v:lua.opencode_fold_expr()', windows.output_win)
+  window_options.set_window_option('foldmethod', 'manual', windows.output_win)
   window_options.set_window_option('foldenable', true, windows.output_win)
   window_options.set_window_option('foldlevel', 0, windows.output_win)
   window_options.set_window_option('foldcolumn', '1', windows.output_win)
@@ -307,32 +281,6 @@ function M.update_dimensions(windows)
   pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
 end
 
----Fold expression for the output buffer
----@return number
-function M.fold_expr()
-  local output_buf = nil
-
-  local windows = state.windows
-  if windows and windows.output_buf and vim.api.nvim_buf_is_valid(windows.output_buf) then
-    output_buf = windows.output_buf
-  else
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_has_var(buf, 'opencode_folds') then
-        output_buf = buf
-        break
-      end
-    end
-  end
-
-  if not output_buf then
-    return 0
-  end
-
-  local line = vim.v.lnum
-  local fold_state = get_fold_state(output_buf)
-  return line_in_fold(fold_state.ranges, line) and 1 or 0
-end
-
 ---Fold text for the output buffer
 ---@return string
 function M.fold_text()
@@ -363,7 +311,6 @@ function M.fold_text()
   return vim.fn.foldtext()
 end
 
-_G.opencode_fold_expr = M.fold_expr
 _G.opencode_fold_text = M.fold_text
 
 function M.get_open_fold_starts(win, buf)
@@ -409,9 +356,6 @@ function M.set_folds(fold_ranges)
   vim.api.nvim_win_call(win, function()
     local view = vim.fn.winsaveview()
 
-    -- manual avoids foldexpr recalculation on each fold operation
-    vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
-
     local line_count = vim.api.nvim_buf_line_count(buf)
     for _, range in ipairs(folds.ranges) do
       if range.from <= line_count and range.to <= line_count then
@@ -425,7 +369,6 @@ function M.set_folds(fold_ranges)
       end
     end
 
-    -- stay manual; switching to expr re-evaluates foldexpr per-line
     vim.fn.winrestview(view)
   end)
 end

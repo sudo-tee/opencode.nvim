@@ -12,10 +12,8 @@ local M = {}
 local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
 local HIDDEN_MESSAGES_NOTICE_PART_ID = '__opencode_hidden_messages_notice_part__'
 
--- Lazy-render: render only viewport-sized message count on initial load,
--- load more on scroll-to-top.
-local EST_LINES_PER_MSG = 5
-local VIEWPORT_BUFFER = 1.5
+local LAZYRENDER_EST_LINES_PER_MSG = 5
+local LAZYRENDER_VIEWPORT_BUFFER = 1.5
 
 ---Calculate how many messages to render initially based on window height.
 ---@return integer
@@ -28,7 +26,7 @@ local function get_initial_render_count()
   if not ok or not height or height <= 0 then
     return math.huge
   end
-  return math.ceil(height / EST_LINES_PER_MSG * VIEWPORT_BUFFER)
+  return math.ceil(height / LAZYRENDER_EST_LINES_PER_MSG * LAZYRENDER_VIEWPORT_BUFFER)
 end
 
 ---@return integer|nil

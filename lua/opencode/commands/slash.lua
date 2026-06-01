@@ -25,6 +25,8 @@ local slash_command_presets = {
   ['/redo'] = { name = 'redo' },
   ['/sessions'] = { name = 'session', preset_args = { 'select' } },
   ['/share'] = { name = 'session', preset_args = { 'share' } },
+  ['/clear_selections'] = { name = 'clear_selections' },
+  ['/clear_files'] = { name = 'clear_files' },
   ['/timeline'] = { name = 'timeline' },
   ['/references'] = { name = 'references' },
   ['/undo'] = { name = 'undo' },

@@ -277,6 +277,16 @@ function M.actions.prev_message()
   require('opencode.ui.navigation').goto_prev_message()
 end
 
+function M.actions.clear_selections()
+  require('opencode.context').clear_selections()
+  vim.notify('Selections cleared', vim.log.levels.INFO)
+end
+
+function M.actions.clear_files()
+  require('opencode.context').clear_files()
+  vim.notify('Mentioned files cleared', vim.log.levels.INFO)
+end
+
 function M.actions.toggle_tool_output()
   local action_text = config.ui.output.tools.show_output and 'Hiding' or 'Showing'
   vim.notify(action_text .. ' tool output display', vim.log.levels.INFO)
@@ -457,6 +467,14 @@ M.command_defs = {
   prev_message = {
     desc = 'Navigate to previous message in output window',
     execute = M.actions.prev_message,
+  },
+  clear_selections = {
+    desc = 'Clear only selections from context',
+    execute = M.actions.clear_selections,
+  },
+  clear_files = {
+    desc = 'Clear only mentioned files from context',
+    execute = M.actions.clear_files,
   },
   debug_output = {
     desc = 'Open raw output debug view',

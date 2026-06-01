@@ -1,17 +1,16 @@
 local M = {}
 
-local Path = require('plenary.path')
 local cached_history = nil
 local prompt_before_history = nil
 
 M.index = nil
 
 local function get_history_file()
-  local data_path = Path:new(vim.fn.stdpath('data')):joinpath('opencode')
-  if not data_path:exists() then
-    data_path:mkdir({ parents = true })
+  local data_dir = vim.fn.stdpath('data') .. '/opencode'
+  if vim.fn.isdirectory(data_dir) ~= 1 then
+    vim.fn.mkdir(data_dir, 'p')
   end
-  return data_path:joinpath('history.txt')
+  return data_dir .. '/history.txt'
 end
 
 M.write = function(prompt)
@@ -20,7 +19,7 @@ M.write = function(prompt)
     return
   end
 
-  local file = io.open(get_history_file().filename, 'a')
+  local file = io.open(get_history_file(), 'a')
   if file then
     -- Escape any newlines in the prompt
     local escaped_prompt = prompt:gsub('\n', '\\n')
@@ -38,7 +37,7 @@ M.read = function()
   end
 
   local line_by_index = {}
-  local file = io.open(get_history_file().filename, 'r')
+  local file = io.open(get_history_file(), 'r')
 
   if file then
     local lines = {}
@@ -136,7 +135,7 @@ end
 ---@param history_array table Array of history entries to write
 ---@return boolean success Whether the write operation succeeded
 M._write_history = function(history_array)
-  local file = io.open(get_history_file().filename, 'w')
+  local file = io.open(get_history_file(), 'w')
   if not file then
     return false
   end

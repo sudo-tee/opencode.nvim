@@ -1,4 +1,3 @@
-local Path = require('plenary.path')
 local state = require('opencode.state')
 local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
@@ -41,8 +40,8 @@ local git = {
       return M.__is_git_project
     end
 
-    local git_dir = Path:new(vim.fn.getcwd()):joinpath('.git')
-    M.__is_git_project = git_dir:exists() and git_dir:is_dir()
+    local git_dir = vim.fn.getcwd() .. '/.git'
+    M.__is_git_project = vim.fn.isdirectory(git_dir) == 1
 
     return M.__is_git_project
   end,

@@ -1,4 +1,3 @@
-local Path = require('plenary.path')
 local M = {}
 
 function M.uid()
@@ -326,8 +325,7 @@ function M.is_git_project()
     _is_git_project = false
     return _is_git_project
   end
-  local git_dir = Path:new(cwd):joinpath('.git')
-  _is_git_project = git_dir:exists()
+  _is_git_project = vim.fn.isdirectory(cwd .. '/.git') == 1
   return _is_git_project
 end
 

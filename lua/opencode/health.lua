@@ -89,20 +89,6 @@ local function check_opencode_server()
   end
 end
 
-local function check_dependencies()
-  health.start('Dependencies')
-
-  local plenary_ok, _ = pcall(require, 'plenary.job')
-  if not plenary_ok then
-    health.error('plenary.nvim not found', {
-      'Install plenary.nvim: https://github.com/nvim-lua/plenary.nvim',
-      'Example with lazy.nvim: { "nvim-lua/plenary.nvim" }',
-    })
-  else
-    health.ok('plenary.nvim found')
-  end
-end
-
 local function check_configuration()
   health.start('Configuration')
 
@@ -259,7 +245,6 @@ end
 function M.check()
   check_opencode_cli()
   check_opencode_server()
-  check_dependencies()
   check_configuration()
   check_environment()
   check_integrations()

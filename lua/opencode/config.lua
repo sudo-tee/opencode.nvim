@@ -71,6 +71,7 @@ M.defaults = {
       ['<tab>'] =       { 'toggle_pane',                  mode = { 'n' },      desc = 'Toggle input/output panes' },
       ['i']     =       { 'focus_input',                                       desc = 'Focus input window' },
       ['gr']    =       { 'references',                                        desc = 'Browse code references' },
+      ['gf']    =       { 'jump_to_file',                                       desc = 'Jump to file at cursor' },
       ['<M-i>'] =       { 'toggle_input',                 mode = { 'n' },      desc = 'Toggle input window' },
       ['<M-r>'] =       { 'cycle_variant',                mode = { 'n' },      desc = 'Cycle model variants' },
       ['<leader>oS'] =  { 'navigate_session_tree', { 'child', 'picker' },     desc = 'Select child session' },

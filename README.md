@@ -188,6 +188,7 @@ require('opencode').setup({
       ['[['] = { 'prev_message' }, -- Navigate to previous message in the conversation
       ['<tab>'] = { 'toggle_pane', mode = { 'n', 'i' } }, -- Toggle between input and output panes
       ['i'] = { 'focus_input', 'n' }, -- Focus on input window and enter insert mode at the end of the input from the output window
+      ['gf'] = { 'jump_to_file', mode = { 'n' } }, -- Jump to file at cursor in output window
       ['<M-r>'] = { 'cycle_variant', mode = { 'n' } }, -- Cycle through available model variants
       ['<leader>oS'] = { 'select_child_session' }, -- Select and load a child session
       ['<leader>oP'] = { 'select_parent_session' }, -- Go to parent session
@@ -612,6 +613,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | **Go to parent session**                                    | `<leader>oP`                          | `:Opencode session parent`                  | `require('opencode.api').select_parent_session()`                      |
 | Open timeline picker (navigate/undo/redo/fork to message)   | `<leader>oT`                          | `:Opencode timeline`                        | `require('opencode.api').timeline()`                                   |
 | Browse code references from conversation                    | `gr` (window)                         | `:Opencode references` / `/references`      | `require('opencode.api').references()`                                 |
+| Jump to file referenced at cursor in output window          | `gf` (window)                          | `:Opencode jump_to_file` / `/jump_to_file`  | `require('opencode.api').jump_to_file()`                              |
 | Configure provider and model                                | `<leader>op`                          | `:Opencode configure provider`              | `require('opencode.api').configure_provider()`                         |
 | Configure model variant                                     | `<leader>oV`                          | `:Opencode variant` / `/variant`            | `require('opencode.api').configure_variant()`                          |
 | Cycle through model variants                                | `<M-r>` (window)                      | -                                           | `require('opencode.api').cycle_variant()`                              |

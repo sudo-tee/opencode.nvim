@@ -84,6 +84,7 @@ local action_groups = {
     context_items = workflow.context_items,
     slash_commands = workflow.slash_commands,
     references = workflow.references,
+    jump_to_file = workflow.jump_to_file,
     debug_output = workflow.debug_output,
     debug_message = workflow.debug_message,
     debug_session = workflow.debug_session,

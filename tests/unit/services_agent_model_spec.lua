@@ -145,8 +145,6 @@ describe('opencode.services.agent_model', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
 
-    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
-
     state.renderer.set_messages({
       {
         info = {
@@ -163,15 +161,11 @@ describe('opencode.services.agent_model', function()
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
     assert.equal('build', state.current_mode)
-
-    config_file.get_opencode_agents:revert()
   end)
 
-  it('does not restore mode to a hidden agent from messages', function()
+  it('restores mode from messages even if the agent is hidden', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('build')
-
-    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     state.renderer.set_messages({
       {
@@ -188,8 +182,6 @@ describe('opencode.services.agent_model', function()
 
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
-    assert.equal('build', state.current_mode)
-
-    config_file.get_opencode_agents:revert()
+    assert.equal('hidden-xyz', state.current_mode)
   end)
 end)

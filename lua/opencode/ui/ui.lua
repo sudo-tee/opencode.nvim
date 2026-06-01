@@ -319,7 +319,8 @@ end
 ---@param output_buf integer
 ---@return { input_win: integer, output_win: integer }
 local function open_float(input_buf, output_buf)
-  local output_config, input_config = float_layout.window_configs({ input_buf = input_buf, output_buf = output_buf }, true)
+  local output_config, input_config =
+    float_layout.window_configs({ input_buf = input_buf, output_buf = output_buf }, true)
   local output_win = float_layout.open_win(output_buf, true, output_config)
   local input_win = float_layout.open_win(input_buf, true, input_config)
 
@@ -403,7 +404,7 @@ end
 
 ---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
-  if state.active_session and state.active_session.parentID then
+  if state.active_session and state.active_session.parentID and config.child_readonly then
     return
   end
 
@@ -561,7 +562,7 @@ function M.toggle_pane()
   if state.windows and current_win == state.windows.input_win then
     output_window.focus_output(true)
   else
-    if state.active_session and state.active_session.parentID then
+    if state.active_session and state.active_session.parentID and config.child_readonly then
       return
     end
     input_window.focus_input()

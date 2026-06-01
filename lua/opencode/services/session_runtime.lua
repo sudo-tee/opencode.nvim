@@ -13,6 +13,26 @@ local agent_model = require('opencode.services.agent_model')
 
 local M = {}
 
+local function focus_after_session_switch(selected_session)
+  if not state.ui.is_visible() then
+    M.open()
+    return
+  end
+
+  if selected_session and selected_session.parentID and config.child_readonly then
+    if not input_window.is_hidden() then
+      input_window._hide()
+    end
+    ui.focus_output()
+    return
+  end
+
+  if input_window.is_hidden() then
+    input_window._show()
+  end
+  ui.focus_input()
+end
+
 ---@param parent_id string?
 M.select_session = Promise.async(function(parent_id)
   local all_sessions = session.get_all_workspace_sessions():await() or {}
@@ -46,23 +66,8 @@ M.switch_session = Promise.async(function(session_id)
 
   state.model.clear()
   agent_model.ensure_current_mode():await()
-
   state.session.set_active(selected_session)
-  if state.ui.is_visible() then
-    if selected_session and selected_session.parentID then
-      if not input_window.is_hidden() then
-        input_window._hide()
-      end
-      ui.focus_output()
-    else
-      if input_window.is_hidden() then
-        input_window._show()
-      end
-      ui.focus_input()
-    end
-  else
-    M.open()
-  end
+  focus_after_session_switch(selected_session)
 end)
 
 ---@param opts? OpenOpts

@@ -217,4 +217,35 @@ describe('opencode.services.agent_model', function()
     config_file.get_opencode_agents:revert()
     state.session.clear_active()
   end)
+
+  it('rejects switch_to_mode in child session', function()
+    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    state.model.set_mode('build')
+
+    local success = agent_model.switch_to_mode('plan'):wait()
+
+    assert.is_false(success)
+    assert.equal('build', state.current_mode)
+
+    state.session.clear_active()
+  end)
+
+  it('allows switch_to_mode in parent session', function()
+    state.session.set_active({ id = 'parent1' })
+    state.store.set('current_mode', nil)
+    state.store.set('current_model', nil)
+    state.store.set('user_mode_model_map', {})
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+    stub(config_file, 'get_opencode_config').returns(Promise.new():resolve({}))
+
+    local success = agent_model.switch_to_mode('plan'):wait()
+
+    assert.is_true(success)
+    assert.equal('plan', state.current_mode)
+
+    config_file.get_opencode_agents:revert()
+    config_file.get_opencode_config:revert()
+    state.session.clear_active()
+  end)
 end)

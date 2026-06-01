@@ -18,7 +18,7 @@ M.send_message = Promise.async(function(prompt, opts)
     return false
   end
 
-  if state.active_session.parentID then
+  if state.active_session.parentID and config.child_readonly then
     return false
   end
 
@@ -36,7 +36,9 @@ M.send_message = Promise.async(function(prompt, opts)
   state.context.set_current_context_config(opts.context)
   context.load()
   opts.model = opts.model or agent_model.initialize_current_model():await()
-  opts.agent = opts.agent or state.current_mode or config.default_mode
+  if opts.agent == nil then
+    opts.agent = state.current_mode or config.default_mode
+  end
   opts.variant = opts.variant or state.current_variant
   local params = {}
 

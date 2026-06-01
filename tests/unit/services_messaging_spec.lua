@@ -144,6 +144,108 @@ describe('opencode.services.messaging', function()
     state.api_client.create_message = orig
   end)
 
+  it('sends message to child session when child_readonly is false', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    local config = require('opencode.config')
+    local orig_readonly = config.values.child_readonly
+    config.values.child_readonly = false
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'build' }))
+
+    local create_called = false
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      create_called = true
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world')
+    vim.wait(50, function()
+      return create_called
+    end)
+    assert.is_true(create_called)
+    state.api_client.create_message = orig
+    config.values.child_readonly = orig_readonly
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('sends inferred agent for child session', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.model.set_mode('study') -- set by switch_session inference
+    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    local config = require('opencode.config')
+    local orig_readonly = config.values.child_readonly
+    config.values.child_readonly = false
+
+    local captured_params = nil
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      captured_params = params
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world')
+    vim.wait(50, function()
+      return captured_params ~= nil
+    end)
+
+    assert.equal('study', captured_params.agent)
+    state.api_client.create_message = orig
+    config.values.child_readonly = orig_readonly
+  end)
+
+  it('respects explicit agent for child session', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    local config = require('opencode.config')
+    local orig_readonly = config.values.child_readonly
+    config.values.child_readonly = false
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'study', 'build' }))
+
+    local captured_params = nil
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      captured_params = params
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world', { agent = 'study' })
+    vim.wait(50, function()
+      return captured_params ~= nil
+    end)
+
+    assert.equal('study', captured_params.agent)
+    state.api_client.create_message = orig
+    config.values.child_readonly = orig_readonly
+    config_file.get_opencode_agents:revert()
+  end)
+
+  it('sends agent param for parent session', function()
+    state.ui.set_windows({ mock = 'windows' })
+    state.model.set_mode('build')
+    state.session.set_active({ id = 'sess1' })
+
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'build' }))
+
+    local captured_params = nil
+    local orig = state.api_client.create_message
+    state.api_client.create_message = function(_, sid, params)
+      captured_params = params
+      return Promise.new():resolve({ id = 'm1' })
+    end
+
+    messaging.send_message('hello world')
+    vim.wait(50, function()
+      return captured_params ~= nil
+    end)
+
+    assert.equal('build', captured_params.agent)
+    state.api_client.create_message = orig
+    config_file.get_opencode_agents:revert()
+  end)
+
   it('increments and decrements user_message_count correctly', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })

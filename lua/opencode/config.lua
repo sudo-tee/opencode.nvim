@@ -298,6 +298,7 @@ M.defaults = {
     },
   },
   prompt_guard = nil,
+  child_readonly = true,
   hooks = {
     on_file_edited = nil,
     on_session_loaded = nil,

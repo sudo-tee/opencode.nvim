@@ -222,6 +222,7 @@ function M.setup(windows)
   window_options.set_window_option('foldenable', true, windows.output_win)
   window_options.set_window_option('foldlevel', 0, windows.output_win)
   window_options.set_window_option('foldcolumn', '1', windows.output_win)
+  window_options.set_window_option('fillchars', 'fold:-,foldopen:-,foldclose:+,foldsep:│', windows.output_win)
   window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
   if config.ui.position ~= 'current' then

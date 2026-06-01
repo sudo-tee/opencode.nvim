@@ -154,6 +154,14 @@ describe('output_window.setup', function()
     assert.equals(0, foldlevel)
   end)
 
+  it('sets fold fillchars to avoid numeric fold column markers', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+
+    local fillchars = vim.api.nvim_get_option_value('fillchars', { win = win })
+
+    assert.equals('fold:-,foldopen:-,foldclose:+,foldsep:│', fillchars)
+  end)
+
   it('applies closed folds immediately when fold ranges change', function()
     output_window.setup({ output_buf = buf, output_win = win })
     output_window.set_lines({ 'a', 'b', 'c', 'd' })

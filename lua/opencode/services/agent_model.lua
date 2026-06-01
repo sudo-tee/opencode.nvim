@@ -174,8 +174,13 @@ M.initialize_current_model = Promise.async(function(opts)
           state.model.set_model(model_str)
         end
         if msg.info.mode and state.current_mode ~= msg.info.mode then
-          local available_agents = config_file.get_opencode_agents():await()
-          if vim.tbl_contains(available_agents, msg.info.mode) then
+          local active_session = state.active_session
+          local should_restore_mode = active_session and active_session.parentID
+          if not should_restore_mode then
+            local available_agents = config_file.get_opencode_agents():await()
+            should_restore_mode = vim.tbl_contains(available_agents, msg.info.mode)
+          end
+          if should_restore_mode then
             state.model.set_mode(msg.info.mode)
           end
         end

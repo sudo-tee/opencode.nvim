@@ -356,7 +356,7 @@
 ---@field fn? fun(args:string[]|nil):nil|Promise<any>|any
 
 ---@class OpencodeConfig
----@field preferred_picker 'telescope' | 'fzf' | 'mini.pick' | 'snacks' | 'select' | nil
+---@field preferred_picker 'telescope' | 'telescope.nvim' | 'fzf' | 'fzf-lua' | 'mini.pick' | 'snacks' | 'snacks.nvim' | 'select' | nil
 ---@field default_global_keymaps boolean
 ---@field default_mode 'build' | 'plan' | string -- Default mode
 ---@field default_system_prompt string | nil

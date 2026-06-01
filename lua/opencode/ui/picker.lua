@@ -1,15 +1,25 @@
 local M = {}
 
+local picker_aliases = {
+  ['fzf-lua'] = 'fzf',
+  ['snacks.nvim'] = 'snacks',
+  ['telescope.nvim'] = 'telescope',
+}
+
+local function normalize_picker_name(name)
+  if name == 'select' then
+    return nil
+  end
+
+  return picker_aliases[name] or name
+end
+
 function M.get_best_picker()
   local config = require('opencode.config')
 
   local preferred_picker = config.preferred_picker
   if preferred_picker and type(preferred_picker) == 'string' and preferred_picker ~= '' then
-    if preferred_picker == 'select' then
-      return nil
-    end
-
-    return preferred_picker
+    return normalize_picker_name(preferred_picker)
   end
 
   if pcall(require, 'telescope') then

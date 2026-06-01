@@ -172,36 +172,40 @@ local function format_messages(messages, omitted_count)
 end
 
 --- Write formatted output to a preview buffer
----@param bufnr integer
+---@param target PickerPreviewTarget
 ---@param formatted { lines: string[], extmarks: table, fold_ranges: table }
-local function render_preview_buffer(bufnr, formatted)
-  if not vim.api.nvim_buf_is_valid(bufnr) then
+local function render_preview_buffer(target, formatted)
+  if not target:is_valid() then
+    return
+  end
+  local bufnr = target:get_bufnr()
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
 
   local output_window = require('opencode.ui.output_window')
 
-  -- Set lines
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, formatted.lines)
+  target:set_lines(formatted.lines)
+  bufnr = target:get_bufnr()
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
 
   -- Clear old extmarks then apply new ones
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, output_window.namespace, 0, -1)
   output_window.apply_extmarks(bufnr, formatted.extmarks)
 
   -- Apply folds (window-local operation)
-  local win = vim.fn.bufwinid(bufnr)
-  if win ~= -1 then
-    vim.api.nvim_win_call(win, function()
-      vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
-      vim.cmd('silent! normal! zE') -- clear existing manual folds
-      local line_count = vim.api.nvim_buf_line_count(bufnr)
-      for _, range in ipairs(formatted.fold_ranges) do
-        if range.from <= line_count and range.to <= line_count then
-          vim.cmd(range.from .. ',' .. range.to .. 'fold')
-        end
+  target:with_window(function()
+    vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
+    vim.cmd('silent! normal! zE') -- clear existing manual folds
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
+    for _, range in ipairs(formatted.fold_ranges) do
+      if range.from <= line_count and range.to <= line_count then
+        vim.cmd(range.from .. ',' .. range.to .. 'fold')
       end
-    end)
-  end
+    end
+  end)
 end
 
 function M.pick(sessions, callback)
@@ -329,32 +333,47 @@ function M.pick(sessions, callback)
     width = config.ui.picker_width or 100,
     layout_opts = config.ui.picker,
     preview = 'custom',
-    preview_fn = function(session, bufnr)
+    ---@param session table
+    ---@param target PickerPreviewTarget
+    preview_fn = function(session, target)
       preview_seq = preview_seq + 1
       local current_seq = preview_seq
+      target:set_lines({ 'Loading...' })
 
       local state = require('opencode.state')
-      local ok, messages = pcall(function()
-        return state.api_client:list_messages(session.id, nil):wait()
+      local ok, request = pcall(function()
+        return state.api_client:list_messages(session.id, nil)
       end)
-
-      -- Check race: another selection happened while we were loading
-      if current_seq ~= preview_seq then
-        return
-      end
-      if not vim.api.nvim_buf_is_valid(bufnr) then
+      if not ok or not request then
+        target:set_lines({ 'No messages or failed to load' })
         return
       end
 
-      if not ok or not messages or #messages == 0 then
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'No messages or failed to load' })
-        return
-      end
+      request
+        :and_then(function(messages)
+          -- Check race: another selection happened while we were loading
+          if current_seq ~= preview_seq then
+            return
+          end
+          if not target:is_valid() then
+            return
+          end
 
-      messages = normalize_message_order(messages)
-      local preview_msgs, omitted = filter_preview_messages(messages)
-      local formatted = format_messages(preview_msgs, omitted)
-      render_preview_buffer(bufnr, formatted)
+          if not messages or #messages == 0 then
+            target:set_lines({ 'No messages or failed to load' })
+            return
+          end
+
+          messages = normalize_message_order(messages)
+          local preview_msgs, omitted = filter_preview_messages(messages)
+          local formatted = format_messages(preview_msgs, omitted)
+          render_preview_buffer(target, formatted)
+        end)
+        :catch(function()
+          if current_seq == preview_seq and target:is_valid() then
+            target:set_lines({ 'No messages or failed to load' })
+          end
+        end)
     end,
   })
 end

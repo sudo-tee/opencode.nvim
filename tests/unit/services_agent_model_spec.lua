@@ -144,6 +144,7 @@ describe('opencode.services.agent_model', function()
   it('restores the latest session model and mode when explicitly requested', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     state.renderer.set_messages({
       {
@@ -161,11 +162,14 @@ describe('opencode.services.agent_model', function()
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
     assert.equal('build', state.current_mode)
+
+    config_file.get_opencode_agents:revert()
   end)
 
-  it('restores mode from messages even if the agent is hidden', function()
+  it('restores hidden mode from messages for child sessions', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('build')
+    state.session.set_active({ id = 'child', parentID = 'parent' })
 
     state.renderer.set_messages({
       {
@@ -183,5 +187,34 @@ describe('opencode.services.agent_model', function()
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
     assert.equal('hidden-xyz', state.current_mode)
+
+    state.session.clear_active()
+  end)
+
+  it('does not restore hidden mode from messages for primary sessions', function()
+    state.model.set_model('openai/gpt-4.1')
+    state.model.set_mode('build')
+    state.session.set_active({ id = 'primary' })
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
+
+    state.renderer.set_messages({
+      {
+        info = {
+          id = 'm1',
+          providerID = 'anthropic',
+          modelID = 'claude-3-opus',
+          mode = 'hidden-xyz',
+        },
+      },
+    })
+
+    local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
+
+    assert.equal('anthropic/claude-3-opus', model)
+    assert.equal('anthropic/claude-3-opus', state.current_model)
+    assert.equal('build', state.current_mode)
+
+    config_file.get_opencode_agents:revert()
+    state.session.clear_active()
   end)
 end)

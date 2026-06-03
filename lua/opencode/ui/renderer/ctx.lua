@@ -58,7 +58,6 @@ function ctx:reset()
   self.markdown_render_scheduled = false
   self.global_folds = {}
   self.part_folds = {}
-  self.lazy_render_count = nil
   self:bulk_reset()
 end
 

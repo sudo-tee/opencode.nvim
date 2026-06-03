@@ -349,20 +349,16 @@ function M._render_full_session_data(session_data, opts)
   local visible_messages, hidden_count = get_visible_session_messages(state.messages)
   local revert_index = get_revert_index(state.messages)
 
-  -- Lazy-render: only render viewport-sized message count.
-  -- Active when ctx.lazy_render_count is set or opts.lazy=true.
-  if lazy_limit == nil and opts.lazy then
-    local initial = get_initial_render_count()
-    if #visible_messages > initial then
-      lazy_limit = initial
+    if lazy_limit == nil then
+      local initial = get_initial_render_count()
+      if #visible_messages > initial then
+        lazy_limit = initial
+      end
     end
-  end
-  -- Persist back to ctx so it survives the next M.reset()
-  ctx.lazy_render_count = lazy_limit
-  if lazy_limit and #visible_messages > lazy_limit then
-    hidden_count = hidden_count + (#visible_messages - lazy_limit)
-    visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
-  end
+    ctx.lazy_render_count = lazy_limit
+    if lazy_limit and #visible_messages > lazy_limit then
+      visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
+    end
 
   local t_format_start = vim.uv.hrtime()
   flush.begin_bulk_mode()
@@ -435,10 +431,9 @@ function M.render_from_cache(session_data)
   if not output_window.mounted() or not state.api_client then
     return
   end
-  M._render_full_session_data(session_data, {
-    restore_model_from_messages = true,
-    lazy = ctx.lazy_render_count ~= nil,
-  })
+    M._render_full_session_data(session_data, {
+      restore_model_from_messages = true,
+    })
   local active_session = state.active_session
   if active_session and active_session.id then
     require('opencode.ui.question_window').restore_pending_question(active_session.id)
@@ -468,6 +463,28 @@ function M.load_more_messages()
   return true
 end
 
+---Load all remaining messages and re-render.
+---Used when user explicitly navigates to the top (gg) to ensure
+---the full history is available for navigation and search.
+---@return boolean Whether any messages were loaded
+function M.load_all_messages()
+  if not state.messages then
+    return false
+  end
+  local total = #get_visible_session_messages(state.messages)
+  if total == 0 then
+    return false
+  end
+  local current = ctx.lazy_render_count or 0
+  if current >= total then
+    return false
+  end
+
+  ctx.lazy_render_count = total
+  M.render_from_cache(state.messages)
+  return true
+end
+
 ---Fetch the active session from the server and render it
 ---@return Promise<OpencodeMessage[]>
 function M.render_full_session()
@@ -475,10 +492,9 @@ function M.render_full_session()
     return Promise.new():resolve(nil)
   end
   return fetch_session():and_then(function(session_data)
-    M._render_full_session_data(session_data, {
-      restore_model_from_messages = true,
-      lazy = true,
-    })
+      M._render_full_session_data(session_data, {
+        restore_model_from_messages = true,
+      })
     local active_session = state.active_session
     if active_session and active_session.id then
       require('opencode.ui.question_window').restore_pending_question(active_session.id)

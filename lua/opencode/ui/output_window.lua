@@ -593,6 +593,15 @@ end
 function M.setup_keymaps(windows)
   local keymap = require('opencode.keymap')
   keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf)
+
+  -- When lazy-render is active, gg only reaches the top of rendered content.
+  -- Load all messages first so gg reaches the true start of history.
+  -- See tests/unit/renderer_lazy_spec.lua: "gg loads all messages and makes them searchable"
+  vim.keymap.set('n', 'gg', function()
+    local renderer = require('opencode.ui.renderer')
+    renderer.load_all_messages()
+    return 'gg'
+  end, { buffer = windows.output_buf, expr = true, remap = true })
 end
 
 ---@param windows OpencodeWindowState
@@ -633,13 +642,42 @@ function M.setup_autocmds(windows, group)
     end,
   })
 
-  -- Lazy-render: load more messages on scroll-to-top (debounced)
-  local debounced_load_more = require('opencode.util').debounce(function()
-    local renderer = require('opencode.ui.renderer')
-    if renderer.load_more_messages() then
-      pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 3, 0 })
-    end
-  end, 150)
+    -- Lazy-render: load more messages on scroll-to-top (debounced)
+    local debounced_load_more = require('opencode.util').debounce(function()
+      local renderer = require('opencode.ui.renderer')
+      local render_state = require('opencode.ui.renderer.ctx').render_state
+      -- Save the message at the top of the viewport before loading more
+      local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
+      local anchor_msg_id = nil
+      local anchor_was_at_line = nil
+      if ok and cursor then
+        local top_line = cursor[1]
+        for _, msg in ipairs(state.messages or {}) do
+          local msg_id = msg.info and msg.info.id or ''
+          if not msg_id:match('^__opencode_') then
+            local rendered = render_state:get_message(msg_id)
+            if rendered and rendered.line_start and rendered.line_start >= top_line then
+              anchor_msg_id = msg_id
+              anchor_was_at_line = rendered.line_start
+              break
+            end
+          end
+        end
+      end
+
+      if renderer.load_more_messages() then
+        -- Restore cursor to the anchor message's new position
+        if anchor_msg_id then
+          local rendered = render_state:get_message(anchor_msg_id)
+          if rendered and rendered.line_start then
+            pcall(vim.api.nvim_win_set_cursor, windows.output_win, { rendered.line_start, 0 })
+            return
+          end
+        end
+        -- Fallback: move to top of buffer
+        pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 1, 0 })
+      end
+    end, 150)
   vim.api.nvim_create_autocmd('WinScrolled', {
     group = group,
     buffer = windows.output_buf,

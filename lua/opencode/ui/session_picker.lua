@@ -196,8 +196,10 @@ local function render_preview_buffer(target, formatted)
   output_window.apply_extmarks(bufnr, formatted.extmarks)
 
   -- Apply folds (window-local operation)
-  target:with_window(function()
-    vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
+    target:with_window(function()
+      vim.api.nvim_set_option_value('number', false, { win = 0 })
+      vim.api.nvim_set_option_value('relativenumber', false, { win = 0 })
+      vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
     vim.cmd('silent! normal! zE') -- clear existing manual folds
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     for _, range in ipairs(formatted.fold_ranges) do

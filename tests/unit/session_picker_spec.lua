@@ -52,6 +52,62 @@ describe('opencode.ui.session_picker', function()
     end)
   end)
 
+  describe('preview_fn contract', function()
+    local original_api_client
+    local original_pick
+
+    before_each(function()
+      original_api_client = state.api_client
+      local base_picker = require('opencode.ui.base_picker')
+      original_pick = base_picker.pick
+    end)
+
+    after_each(function()
+      state.jobs.set_api_client(original_api_client)
+      require('opencode.ui.base_picker').pick = original_pick
+    end)
+
+    it('writes through the backend-neutral preview target', function()
+      local base_picker = require('opencode.ui.base_picker')
+      local captured_opts
+      base_picker.pick = function(opts)
+        captured_opts = opts
+        return true
+      end
+
+      state.jobs.set_api_client({
+        list_messages = function()
+          return Promise.new():resolve({})
+        end,
+      })
+
+      session_picker.pick({ { id = 's1', title = 'Session', time = { updated = 'now' } } }, function() end)
+      assert.is_table(captured_opts)
+
+      local writes = {}
+      local target = {
+        get_bufnr = function()
+          return nil
+        end,
+        is_valid = function()
+          return true
+        end,
+        set_lines = function(_, lines)
+          writes[#writes + 1] = lines
+        end,
+        with_window = function() end,
+      }
+
+      captured_opts.preview_fn({ id = 's1' }, target)
+      vim.wait(100, function()
+        return #writes >= 2
+      end)
+
+      assert.are.same({ 'Loading...' }, writes[1])
+      assert.are.same({ 'No messages or failed to load' }, writes[2])
+    end)
+  end)
+
   -- -----------------------------------------------------------------------
   -- Integration tests: delete action triggers switch when parent/grandparent
   -- of the active session is deleted

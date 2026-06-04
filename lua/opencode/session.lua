@@ -94,13 +94,14 @@ end)
 
 ---Get messages for a session
 ---@param session Session
+---@param opts? { limit?: number } Optional query parameters (e.g. limit)
 ---@return Promise<OpencodeMessage[]>
-function M.get_messages(session)
+function M.get_messages(session, opts)
   if not session then
     return Promise.new():resolve(nil)
   end
 
-  return state.api_client:list_messages(session.id)
+  return state.api_client:list_messages(session.id, nil, opts)
 end
 
 ---Get snapshot IDs from a message's parts

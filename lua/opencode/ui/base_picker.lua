@@ -17,9 +17,16 @@ local Promise = require('opencode.promise')
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
----@field preview? "file"|"none"|false Preview mode: "file" for file preview, "none" or false to disable
+---@field preview? "file"|"custom"|"none"|false Preview mode: "file" for file preview, "custom" for custom preview via preview_fn, "none" or false to disable
+---@field preview_fn? fun(item: any, target: PickerPreviewTarget): nil Custom preview function, called when preview = 'custom' and a selection changes
 ---@field layout_opts? OpencodeUIPickerConfig
 ---@field close? fun() Close the picker programmatically (set by the backend)
+
+---@class PickerPreviewTarget
+---@field get_bufnr fun(self: PickerPreviewTarget): integer?
+---@field is_valid fun(self: PickerPreviewTarget): boolean
+---@field set_lines fun(self: PickerPreviewTarget, lines: string[]): nil
+---@field with_window fun(self: PickerPreviewTarget, fn: fun(): nil): nil
 
 ---@class TelescopeEntry
 ---@field value any
@@ -56,6 +63,64 @@ local Promise = require('opencode.promise')
 ---@class BasePicker
 local M = {}
 local picker = require('opencode.ui.picker')
+
+---@param bufnr integer?
+---@return PickerPreviewTarget
+local function create_buffer_preview_target(bufnr)
+  return {
+    get_bufnr = function()
+      return bufnr
+    end,
+    is_valid = function()
+      return bufnr ~= nil and vim.api.nvim_buf_is_valid(bufnr)
+    end,
+    set_lines = function(_, lines)
+      if bufnr == nil or not vim.api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+      local modifiable = vim.bo[bufnr].modifiable
+      vim.bo[bufnr].modifiable = true
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+      vim.bo[bufnr].modifiable = modifiable
+    end,
+    with_window = function(_, fn)
+      if bufnr == nil or not vim.api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+      local win = vim.fn.bufwinid(bufnr)
+      if win ~= -1 then
+        vim.api.nvim_win_call(win, fn)
+      end
+    end,
+  }
+end
+
+---@param ctx snacks.picker.preview.ctx
+---@return PickerPreviewTarget
+local function create_snacks_preview_target(ctx)
+  return {
+    get_bufnr = function()
+      return ctx.buf
+    end,
+    is_valid = function()
+      return ctx.buf ~= nil and vim.api.nvim_buf_is_valid(ctx.buf)
+    end,
+    set_lines = function(_, lines)
+      if ctx.preview and ctx.preview.set_lines then
+        ctx.preview:set_lines(lines)
+      elseif ctx.buf and vim.api.nvim_buf_is_valid(ctx.buf) then
+        create_buffer_preview_target(ctx.buf):set_lines(lines)
+      end
+    end,
+    with_window = function(_, fn)
+      if ctx.win and vim.api.nvim_win_is_valid(ctx.win) then
+        vim.api.nvim_win_call(ctx.win, fn)
+        return
+      end
+      create_buffer_preview_target(ctx.buf):with_window(fn)
+    end,
+  }
+end
 
 ---Build title with action legend
 ---@param base_title string The base title
@@ -146,7 +211,22 @@ local function telescope_ui(opts)
     prompt_title = opts.title,
     finder = finders.new_table({ results = opts.items, entry_maker = make_entry }),
     sorter = conf.generic_sorter({}),
-    previewer = opts.preview == 'file' and require('telescope.previewers').vim_buffer_vimgrep.new({}) or nil,
+    previewer = (function()
+      if opts.preview == 'file' then
+        return require('telescope.previewers').vim_buffer_vimgrep.new({})
+      elseif opts.preview == 'custom' and opts.preview_fn then
+        return require('telescope.previewers').new_buffer_previewer({
+          define_preview = function(self, entry)
+            if not entry then
+              return
+            end
+            opts.preview_fn(entry.value, create_buffer_preview_target(self.state.bufnr))
+          end,
+        })
+      else
+        return nil
+      end
+    end)(),
     layout_config = opts.width and {
         width = opts.width + 7, -- extra space for telescope UI
       } or nil,
@@ -252,8 +332,35 @@ local function fzf_ui(opts)
         ['--delimiter'] = '\x01', -- use SOH as delimiter (invisible char)
       },
       _headers = { 'actions' },
-      -- Enable builtin previewer for file preview support
-      previewer = opts.preview == 'file' and 'builtin' or nil,
+      previewer = (function()
+        if opts.preview == 'file' then
+          return 'builtin'
+        elseif opts.preview == 'custom' and opts.preview_fn then
+          return {
+            _ctor = function()
+              local previewer = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
+              function previewer:populate_preview_buf(entry_str)
+                if not self.win or not self.win:validate_preview() then
+                  return
+                end
+                local idx_str = entry_str:match('^(%d+)\x01')
+                local idx = tonumber(idx_str)
+                if not idx or not opts.items[idx] then
+                  return
+                end
+                -- Create scratch buffer, attach to preview window first
+                -- so preview_fn can use bufwinid for window-local ops (folds)
+                local buf = self:get_tmp_buffer()
+                self:set_preview_buf(buf, true) -- min_winopts=true
+                opts.preview_fn(opts.items[idx], create_buffer_preview_target(buf))
+              end
+              return previewer
+            end,
+          }
+        else
+          return nil
+        end
+      end)(),
       fn_fzf_index = function(line)
         -- Extract the numeric index prefix before the SOH delimiter
         local idx_str = line:match('^(%d+)\x01')
@@ -490,7 +597,8 @@ end
 local function snacks_picker_ui(opts)
   local Snacks = require('snacks')
 
-  local has_preview = opts.preview == 'file'
+  local has_custom_preview = opts.preview == 'custom' and opts.preview_fn ~= nil
+  local has_preview = opts.preview == 'file' or has_custom_preview
 
   local title = type(opts.title) == 'function' and opts.title() or opts.title
   ---@cast title string
@@ -498,22 +606,27 @@ local function snacks_picker_ui(opts)
   local layout_opts = opts.layout_opts and opts.layout_opts.snacks_layout or nil
 
   local selection_made = false
+  local default_layout = {
+    preset = has_custom_preview and 'default' or 'select',
+    config = function(layout)
+      local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
+      if not has_preview then
+        layout.layout.width = width
+        layout.layout.max_width = width
+        layout.layout.min_width = width
+      end
+    end,
+  }
+  if opts.preview == 'file' then
+    default_layout.preview = 'main'
+  elseif not has_preview then
+    default_layout.preview = false
+  end
 
   ---@type snacks.picker.Config
   local snack_opts = {
     title = title,
-    layout = layout_opts or {
-      preview = has_preview and 'main' or false,
-      preset = 'select',
-      config = function(layout)
-        local width = opts.width and (opts.width + 3) or nil -- extra space for snacks UI
-        if not has_preview then
-          layout.layout.width = width
-          layout.layout.max_width = width
-          layout.layout.min_width = width
-        end
-      end,
-    },
+    layout = layout_opts or default_layout,
     finder = function()
       return opts.items
     end,
@@ -560,9 +673,15 @@ local function snacks_picker_ui(opts)
     },
   }
 
-  -- Add file preview if enabled
-  if has_preview then
+  if opts.preview == 'file' then
     snack_opts.preview = 'file'
+  elseif has_custom_preview then
+    snack_opts.preview = function(ctx)
+      if ctx.item then
+        ctx.preview:reset()
+        opts.preview_fn(ctx.item, create_snacks_preview_target(ctx))
+      end
+    end
   else
     snack_opts.preview = function()
       return false

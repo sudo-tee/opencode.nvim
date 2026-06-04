@@ -292,9 +292,16 @@ end
 --- List messages for a session
 --- @param id string Session ID (required)
 --- @param directory string|nil Directory path
+--- @param opts? { limit?: number } Optional query parameters
 --- @return Promise<OpencodeMessage[]>
-function OpencodeApiClient:list_messages(id, directory)
-  return self:_call('/session/' .. id .. '/message', 'GET', nil, { directory = directory })
+function OpencodeApiClient:list_messages(id, directory, opts)
+  local query = { directory = directory }
+  if opts then
+    for k, v in pairs(opts) do
+      query[k] = v
+    end
+  end
+  return self:_call('/session/' .. id .. '/message', 'GET', nil, query)
 end
 
 --- Create and send a new message to a session

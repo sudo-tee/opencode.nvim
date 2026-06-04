@@ -33,6 +33,8 @@ local ctx = {
   global_folds = {},
   ---@type table<string, {from: number, to: number}[]>
   part_folds = {},
+  ---@type integer|nil Number of messages to render from the end (nil = all)
+  lazy_render_count = nil,
 }
 
 ---Reset all renderer caches and pending state.

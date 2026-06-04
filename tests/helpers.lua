@@ -25,6 +25,8 @@ function M.replay_setup()
   end
 
   renderer.reset()
+  -- Ensure replay tests render all messages (lazy-render is always active)
+  require('opencode.ui.renderer.ctx').lazy_render_count = math.huge
   permission_window.clear_all()
   question_window._clear_dialog()
   question_window._current_question = nil

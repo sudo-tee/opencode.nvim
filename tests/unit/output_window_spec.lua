@@ -144,12 +144,22 @@ describe('output_window.setup', function()
     assert.is_false(cursorline)
   end)
 
-  it('defaults folds to closed for expr-based output folds', function()
+  it('uses manual folds for output fold ranges', function()
     output_window.setup({ output_buf = buf, output_win = win })
 
+    local foldmethod = vim.api.nvim_get_option_value('foldmethod', { win = win })
     local foldlevel = vim.api.nvim_get_option_value('foldlevel', { win = win })
 
+    assert.equals('manual', foldmethod)
     assert.equals(0, foldlevel)
+  end)
+
+  it('sets fold fillchars to avoid numeric fold column markers', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+
+    local fillchars = vim.api.nvim_get_option_value('fillchars', { win = win })
+
+    assert.equals('fold:-,foldopen:-,foldclose:+,foldsep:│', fillchars)
   end)
 
   it('applies closed folds immediately when fold ranges change', function()
@@ -176,7 +186,6 @@ describe('output_window.setup', function()
         { from = 1, to = 2 },
         { from = 3, to = 5 },
       },
-      starts = { 1, 3 },
     }, folds)
   end)
 
@@ -189,25 +198,7 @@ describe('output_window.setup', function()
     local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
     assert.same({
       ranges = { { from = 1, to = 3 } },
-      starts = { 1 },
     }, folds)
-  end)
-
-  it('evaluates fold_expr against the fold lookup structure', function()
-    output_window.setup({ output_buf = buf, output_win = win })
-    output_window.set_folds({ { from = 2, to = 4 } })
-
-    local inside = vim.api.nvim_win_call(win, function()
-      vim.v.lnum = 3
-      return output_window.fold_expr()
-    end)
-    local outside = vim.api.nvim_win_call(win, function()
-      vim.v.lnum = 5
-      return output_window.fold_expr()
-    end)
-
-    assert.equals(1, inside)
-    assert.equals(0, outside)
   end)
 end)
 

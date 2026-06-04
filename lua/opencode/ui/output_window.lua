@@ -596,12 +596,11 @@ function M.setup_keymaps(windows)
 
   -- When lazy-render is active, gg only reaches the top of rendered content.
   -- Load all messages first so gg reaches the true start of history.
-  -- See tests/unit/renderer_lazy_spec.lua: "gg loads all messages and makes them searchable"
   vim.keymap.set('n', 'gg', function()
     local renderer = require('opencode.ui.renderer')
     renderer.load_all_messages()
-    return 'gg'
-  end, { buffer = windows.output_buf, expr = true, remap = true })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  end, { buffer = windows.output_buf })
 end
 
 ---@param windows OpencodeWindowState
@@ -678,17 +677,22 @@ function M.setup_autocmds(windows, group)
         pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 1, 0 })
       end
     end, 150)
-  vim.api.nvim_create_autocmd('WinScrolled', {
-    group = group,
-    buffer = windows.output_buf,
-    callback = function()
-      M.sync_cursor_with_viewport(windows.output_win)
-      local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
-      if ok and cursor and cursor[1] <= 3 then
-        debounced_load_more()
-      end
-    end,
-  })
+    vim.api.nvim_create_autocmd('WinScrolled', {
+      group = group,
+      buffer = windows.output_buf,
+      callback = function()
+        M.sync_cursor_with_viewport(windows.output_win)
+        local ctx = require('opencode.ui.renderer.ctx')
+        local has_unrendered = ctx.lazy_render_count ~= nil
+          and ctx.lazy_render_count < #state.messages
+        if has_unrendered then
+          local ok, cursor = pcall(vim.api.nvim_win_get_cursor, windows.output_win)
+          if ok and cursor and cursor[1] <= 3 then
+            debounced_load_more()
+          end
+        end
+      end,
+    })
 end
 
 ---Clear the output buffer and all namespaces.

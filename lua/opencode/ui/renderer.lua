@@ -448,17 +448,20 @@ function M.load_more_messages()
   if not state.messages then
     return false
   end
+  -- nil means no lazy limit → all messages already rendered
+  if not ctx.lazy_render_count then
+    return false
+  end
   local total = #get_visible_session_messages(state.messages)
   if total == 0 then
     return false
   end
-  local current = ctx.lazy_render_count or math.min(get_initial_render_count(), total)
-  if current >= total then
+  if ctx.lazy_render_count >= total then
     return false
   end
 
   -- Load another viewport's worth
-  ctx.lazy_render_count = math.min(current + get_initial_render_count(), total)
+  ctx.lazy_render_count = math.min(ctx.lazy_render_count + get_initial_render_count(), total)
   M.render_from_cache(state.messages)
   return true
 end
@@ -475,8 +478,8 @@ function M.load_all_messages()
   if total == 0 then
     return false
   end
-  local current = ctx.lazy_render_count or 0
-  if current >= total then
+  -- nil means no lazy limit → all messages already rendered
+  if not ctx.lazy_render_count or ctx.lazy_render_count >= total then
     return false
   end
 

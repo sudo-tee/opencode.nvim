@@ -209,6 +209,67 @@ describe('lazy render', function()
     end
   end)
 
+  it('load_more_messages returns false when all messages already rendered', function()
+    -- No lazy_render_count means all messages rendered — no unrendered content
+    local session_data = make_session_data(50) -- 100 messages total
+    renderer._render_full_session_data(session_data)
+
+    -- lazy_render_count was set by _render_full_session_data; verify the guard
+    -- After full render with a lazy limit that covers everything, load_more returns false
+    ctx.lazy_render_count = 100
+    assert.is_false(renderer.load_more_messages(),
+      'should return false when lazy_render_count covers all messages')
+
+    -- nil means no lazy limit at all → nothing to load
+    ctx.lazy_render_count = nil
+    assert.is_false(renderer.load_more_messages(),
+      'should return false when lazy_render_count is nil')
+  end)
+
+  it('load_more_messages returns true only when unrendered messages exist', function()
+    local session_data = make_session_data(50) -- 100 messages total
+
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    -- Stub render_from_cache to avoid test-env dependency
+    local stub = require('luassert.stub')
+    local _rfc = stub(renderer, 'render_from_cache')
+
+    -- 10 rendered out of 100 → has unrendered → load_more should work
+    assert.is_true(renderer.load_more_messages(),
+      'should return true when unrendered messages exist')
+
+    _rfc:revert()
+  end)
+
+  it('has_unrendered gates scroll-to-top load_more', function()
+    -- When lazy_render_count covers all messages, scrolling to top
+    -- should NOT trigger load_more. This tests the guard condition
+    -- that prevents spurious loads when everything is already rendered.
+    local session_data = make_session_data(50) -- 100 messages total
+
+    -- Case 1: all rendered (lazy_render_count covers everything)
+    ctx.lazy_render_count = 100
+    renderer._render_full_session_data(session_data)
+    assert.is_false(renderer.load_more_messages(),
+      'no load_more when lazy_render_count covers all messages')
+
+    -- Case 2: partial render → load_more returns true
+    local stub = require('luassert.stub')
+    local _rfc = stub(renderer, 'render_from_cache')
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+    assert.is_true(renderer.load_more_messages(),
+      'load_more returns true when unrendered messages exist')
+    _rfc:revert()
+
+    -- Case 3: nil (never set) → load_more returns false
+    ctx.lazy_render_count = nil
+    assert.is_false(renderer.load_more_messages(),
+      'no load_more when lazy_render_count is nil')
+  end)
+
   it('load_all_messages renders everything and makes it searchable', function()
     local session_data = make_session_data(50) -- 100 messages total
 

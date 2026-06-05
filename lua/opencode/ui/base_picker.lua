@@ -315,6 +315,54 @@ end
 local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
 
+  local function finder(fzf_cb, width)
+    for idx, item in ipairs(opts.items) do
+      local line_str = opts.format_fn(item, width):to_string()
+
+      -- Prepend index with SOH delimiter for reliable matching
+      local indexed_line = tostring(idx) .. '\x01' .. line_str
+
+      -- For file preview support, append file:line:col format
+      -- fzf-lua's builtin previewer automatically parses this format
+      if opts.preview == 'file' and type(item) == 'table' then
+        local file_path = item.file_path or item.path or item.filename or item.file
+        local line = item.line or item.lnum
+        local col = item.column or item.col
+
+        if file_path then
+          -- fzf-lua parses "path:line:col:" format for preview positioning
+          local pos_info = file_path
+          if line then
+            pos_info = pos_info .. ':' .. tostring(line)
+            if col then
+              pos_info = pos_info .. ':' .. tostring(col)
+            end
+            pos_info = pos_info .. ':'
+          end
+          -- Append position info after nbsp separator (fzf-lua standard)
+          -- nbsp is U+2002 EN SPACE, not regular tab
+          local nbsp = '\xe2\x80\x82'
+          indexed_line = indexed_line .. nbsp .. pos_info
+        end
+      end
+
+      fzf_cb(indexed_line)
+    end
+    fzf_cb()
+  end
+
+  local has_custom_preview = opts.preview == 'custom' and opts.preview_fn ~= nil
+  local format_width
+
+  -- defer item processing until preview if using custom preview_fn
+  -- so we can pass the width of the fzf window to the format_fn for optimal formatting
+  local width_callback = has_custom_preview
+      and function(_, _, _, ctx)
+        format_width = (ctx.env.FZF_COLUMNS or vim.o.columns) - (ctx.env.FZF_PREVIEW_COLUMNS or 0)
+        format_width = math.min(format_width, vim.o.columns - 8)
+      end
+    or nil
+
   ---@return table
   local function create_fzf_config()
     local has_multi_action = util.some(opts.actions, function(action)
@@ -322,6 +370,9 @@ local function fzf_ui(opts)
     end)
 
     return {
+      fzf_cli_args = width_callback and ('--bind=' .. require('fzf-lua.libuv').shellescape(
+        'start:+transform:' .. require('fzf-lua.shell').stringify_data(width_callback, opts)
+      )) or nil,
       winopts = opts.width and {
           width = opts.width + 8, -- extra space for fzf UI
         } or nil,
@@ -335,7 +386,7 @@ local function fzf_ui(opts)
       previewer = (function()
         if opts.preview == 'file' then
           return 'builtin'
-        elseif opts.preview == 'custom' and opts.preview_fn then
+        elseif has_custom_preview then
           return {
             _ctor = function()
               local previewer = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
@@ -370,45 +421,6 @@ local function fzf_ui(opts)
         return nil
       end,
     }
-  end
-
-  ---@return fun(fzf_cb: fun(line?: string))
-  local function create_finder()
-    return function(fzf_cb)
-      for idx, item in ipairs(opts.items) do
-        local line_str = opts.format_fn(item):to_string()
-
-        -- Prepend index with SOH delimiter for reliable matching
-        local indexed_line = tostring(idx) .. '\x01' .. line_str
-
-        -- For file preview support, append file:line:col format
-        -- fzf-lua's builtin previewer automatically parses this format
-        if opts.preview == 'file' and type(item) == 'table' then
-          local file_path = item.file_path or item.path or item.filename or item.file
-          local line = item.line or item.lnum
-          local col = item.column or item.col
-
-          if file_path then
-            -- fzf-lua parses "path:line:col:" format for preview positioning
-            local pos_info = file_path
-            if line then
-              pos_info = pos_info .. ':' .. tostring(line)
-              if col then
-                pos_info = pos_info .. ':' .. tostring(col)
-              end
-              pos_info = pos_info .. ':'
-            end
-            -- Append position info after nbsp separator (fzf-lua standard)
-            -- nbsp is U+2002 EN SPACE, not regular tab
-            local nbsp = '\xe2\x80\x82'
-            indexed_line = indexed_line .. nbsp .. pos_info
-          end
-        end
-
-        fzf_cb(indexed_line)
-      end
-      fzf_cb()
-    end
   end
 
   ---Reopen fzf-lua to reflect updated picker items.
@@ -515,7 +527,14 @@ local function fzf_ui(opts)
   local fzf_config = create_fzf_config()
   fzf_config.actions = actions_config
 
-  fzf_lua.fzf_exec(create_finder(), fzf_config)
+  fzf_lua.fzf_exec(function(fzf_cb)
+    if width_callback then
+      vim.wait(1000, function()
+        return format_width
+      end)
+    end
+    finder(fzf_cb, format_width)
+  end, fzf_config)
 end
 
 ---Mini.pick UI implementation
@@ -888,8 +907,8 @@ function M.pick(opts)
   end
 
   local original_format_fn = opts.format_fn
-  opts.format_fn = function(item)
-    return original_format_fn(item, format_width)
+  opts.format_fn = function(item, width)
+    return original_format_fn(item, width or format_width)
   end
 
   local title_str = type(opts.title) == 'function' and opts.title() or opts.title --[[@as string]]

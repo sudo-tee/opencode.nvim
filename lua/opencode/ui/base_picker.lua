@@ -855,9 +855,33 @@ function M.pick(opts)
     opts.width = math.floor(vim.o.columns * opts.width)
   end
 
+  -- When width is nil (picker_width = false or unset), derive a content width
+  -- from the picker backend's default window size so format functions can
+  -- produce correctly-sized output that fills the backend's content area.
+  local format_width = opts.width
+  if not format_width then
+    if picker_type == 'fzf' then
+      -- Read fzf-lua's effective winopts.width (respects user customization).
+      local fzf_win_width = 0.8
+      local ok, fzf_config = pcall(require, 'fzf-lua.config')
+      if ok and fzf_config and fzf_config.globals and fzf_config.globals.winopts then
+        fzf_win_width = fzf_config.globals.winopts.width or fzf_win_width
+      end
+      -- Resolve fraction to absolute columns
+      if fzf_win_width > 0 and fzf_win_width <= 1 then
+        fzf_win_width = math.floor(vim.o.columns * fzf_win_width)
+      end
+      -- Subtract the same chrome offset used when we set winopts ourselves (+8),
+      -- which covers borders, padding, and fzf's pointer indicator.
+      format_width = fzf_win_width - 8
+    else
+      format_width = math.floor(vim.o.columns * 0.8)
+    end
+  end
+
   local original_format_fn = opts.format_fn
   opts.format_fn = function(item)
-    return original_format_fn(item, opts.width)
+    return original_format_fn(item, format_width)
   end
 
   local title_str = type(opts.title) == 'function' and opts.title() or opts.title --[[@as string]]

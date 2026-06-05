@@ -87,6 +87,7 @@ function M.select(cb)
   base_picker.pick({
     title = 'Select model',
     items = models,
+    width = config.ui.picker_width,
     layout_opts = config.ui.picker,
     format_fn = function(item, width)
       local icon = item.icon or ''

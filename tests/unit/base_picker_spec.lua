@@ -233,6 +233,7 @@ end)
 
 describe('opencode.ui.base_picker fzf-lua preview', function()
   local base_picker
+  local captured_fzf_finder
   local captured_fzf_opts
   local original_schedule
   local saved_modules
@@ -290,10 +291,12 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
       end,
     }
 
+    captured_fzf_finder = nil
     captured_fzf_opts = nil
 
     package.loaded['fzf-lua'] = {
-      fzf_exec = function(_, opts)
+      fzf_exec = function(finder, opts)
+        captured_fzf_finder = finder
         captured_fzf_opts = opts
       end,
     }
@@ -385,5 +388,33 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
     assert.are.same({ 'fzf preview' }, lines)
 
     vim.api.nvim_buf_delete(next_preview_buf, { force = true })
+  end)
+
+  it('formats entries to the visible list width when preview is active', function()
+    local observed_width
+
+    base_picker.pick({
+      title = 'Test',
+      items = { { name = 'session' } },
+      format_fn = function(item, width)
+        observed_width = width
+        return base_picker.create_picker_item({ { text = item.name } })
+      end,
+      actions = {},
+      callback = function() end,
+      preview = 'custom',
+      preview_fn = function() end,
+    })
+
+    local emitted_lines = {}
+    captured_fzf_finder(function(line)
+      if line then
+        table.insert(emitted_lines, line)
+      end
+    end)
+
+    assert.equal(31, observed_width)
+    assert.are.same({ '1\001session' }, emitted_lines)
+    assert.equal(88, captured_fzf_opts.winopts.width)
   end)
 end)

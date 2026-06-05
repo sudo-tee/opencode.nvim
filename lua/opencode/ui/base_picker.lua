@@ -515,17 +515,6 @@ local function fzf_ui(opts)
   local fzf_config = create_fzf_config()
   fzf_config.actions = actions_config
 
-  -- When a preview pane is active, fzf-lua splits the window (default
-  -- right:60% preview, left:40% list). Narrow opts.width so that the
-  -- format function produces entries sized for the list pane, not the
-  -- full window. The format closure reads opts.width on each call.
-  local has_preview = opts.preview and opts.preview ~= 'none' and opts.preview ~= false
-  if has_preview and opts.width then
-    local window_cols = opts.width + 8
-    -- list pane ≈ 40% of the window, minus a small border/padding allowance
-    opts.width = math.floor(window_cols * 0.4) - 4
-  end
-
   fzf_lua.fzf_exec(create_finder(), fzf_config)
 end
 
@@ -888,6 +877,14 @@ function M.pick(opts)
     else
       format_width = math.floor(vim.o.columns * 0.8)
     end
+  end
+
+  local has_preview = opts.preview and opts.preview ~= 'none' and opts.preview ~= false
+  if picker_type == 'fzf' and has_preview and format_width then
+    local window_cols = format_width + 8
+    -- Match fzf-lua's default right:60% preview split so item formatting
+    -- targets the visible list pane instead of the full window width.
+    format_width = math.floor(window_cols * 0.4) - 4
   end
 
   local original_format_fn = opts.format_fn

@@ -844,6 +844,17 @@ function M.pick(opts)
     opts.width = config.ui.picker_width
   end
 
+  -- picker_width = false means "use picker backend defaults, no override"
+  if opts.width == false then
+    opts.width = nil
+  end
+
+  -- Resolve relative width (0 < w <= 1) to absolute columns so that
+  -- format functions and all picker backends receive a consistent value.
+  if opts.width and opts.width > 0 and opts.width <= 1 then
+    opts.width = math.floor(vim.o.columns * opts.width)
+  end
+
   local original_format_fn = opts.format_fn
   opts.format_fn = function(item)
     return original_format_fn(item, opts.width)

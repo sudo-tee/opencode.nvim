@@ -332,7 +332,7 @@ function M.pick(sessions, callback)
     actions = actions,
     callback = callback,
     title = 'Select A Session',
-    width = config.ui.picker_width or 100,
+    width = config.ui.picker_width,
     layout_opts = config.ui.picker,
     preview = 'custom',
     ---@param session table

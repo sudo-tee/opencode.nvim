@@ -10,7 +10,7 @@ local M = {
   actions = {},
 }
 
-local session_subcommands = { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename' }
+local session_subcommands = { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }
 
 ---@param message string
 local function invalid_arguments(message)
@@ -94,8 +94,27 @@ function M.actions.open_input_new_session_with_title(title)
 end
 
 ---@param parent_id? string
-function M.actions.select_session(parent_id)
-  session_runtime.select_session(parent_id)
+---@param scope? 'project' | 'global' defaults to global when session is locked, project otherwise
+function M.actions.select_session(parent_id, scope)
+  if scope == nil then
+    scope = session_runtime.is_session_locked() and 'global' or 'project'
+  end
+  session_runtime.select_session(parent_id, scope)
+end
+
+---@param value? boolean if nil toggle, otherwise set to value
+function M.actions.toggle_session_lock(value)
+  local new_value
+  if value == nil then
+    new_value = session_runtime.toggle_session_lock()
+  else
+    new_value = session_runtime.set_session_lock(value and true or false)
+  end
+  vim.notify(
+    'Session lock ' .. (new_value and 'enabled (session preserved across cwd changes)' or 'disabled'),
+    vim.log.levels.INFO
+  )
+  return new_value
 end
 
 local NAV_DIRECTIONS = { parent = true, child = true, sibling = true, forward = true, backward = true }
@@ -189,7 +208,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return
     end
     if interaction == 'picker' then
-      return session_runtime.select_session(direction)
+      return session_runtime.select_session(direction, 'project')
     end
     return session_runtime.switch_session(direction)
   end
@@ -207,7 +226,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     local target_id = dir.get_target(active)
     if not target_id then
       if direction == 'sibling' then
-        return session_runtime.select_session(nil)
+        return session_runtime.select_session(nil, 'project')
       end
       if empty_policy == 'notify' then
         vim.notify('No ' .. direction, vim.log.levels.INFO)
@@ -215,7 +234,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return
     end
     if interaction == 'picker' or not dir.allow_direct then
-      return session_runtime.select_session(target_id)
+      return session_runtime.select_session(target_id, 'project')
     end
     return session_runtime.switch_session(target_id)
   end
@@ -575,11 +594,25 @@ local session_subcommand_actions = {
   agents_init = function()
     return M.actions.initialize()
   end,
+  toggle_lock = function(args)
+    local raw = args[2]
+    local value
+    if raw == nil or raw == '' then
+      value = nil
+    elseif raw == 'true' or raw == 'on' or raw == '1' then
+      value = true
+    elseif raw == 'false' or raw == 'off' or raw == '0' then
+      value = false
+    else
+      invalid_arguments('Invalid toggle_lock argument: ' .. tostring(raw))
+    end
+    return M.actions.toggle_session_lock(value)
+  end,
 }
 
 M.command_defs = {
   session = {
-    desc = 'Manage sessions (new/select/navigate/compact/share/unshare/rename)',
+    desc = 'Manage sessions (new/select/navigate/compact/share/unshare/rename/toggle_lock)',
     completions = session_subcommands,
     nested_subcommand = { allow_empty = false },
     execute = function(args)
@@ -593,6 +626,12 @@ M.command_defs = {
   },
   -- action name aliases for keymap compatibility
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
+  toggle_session_lock = {
+    desc = 'Toggle session lock (preserve active session across cwd changes)',
+    execute = function(args)
+      return M.actions.toggle_session_lock(args[1])
+    end,
+  },
   select_session = {
     desc = 'Select session',
     execute = function()

@@ -66,6 +66,21 @@ M.get_all_workspace_sessions = Promise.async(function()
   return sessions
 end)
 
+---Get all sessions across every project (no workspace filter)
+---@return GlobalSession[]|nil
+M.get_all_global_sessions = Promise.async(function()
+  local sessions = state.api_client:list_sessions_global():await()
+  if not sessions or type(sessions) ~= 'table' then
+    return nil
+  end
+
+  table.sort(sessions, function(a, b)
+    return a.time.updated > b.time.updated
+  end)
+
+  return sessions
+end)
+
 ---Get the most recent main workspace session
 ---@return Session|nil
 M.get_last_workspace_session = Promise.async(function()

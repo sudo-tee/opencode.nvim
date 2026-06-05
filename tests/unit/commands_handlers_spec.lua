@@ -94,7 +94,7 @@ describe('opencode.commands.handlers', function()
     assert.same({ 'accept', 'accept_all', 'deny' }, defs.permission.completions)
     assert.same({ allow_empty = false }, defs.permission.nested_subcommand)
 
-    assert.same({ 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename' }, defs.session.completions)
+    assert.same({ 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }, defs.session.completions)
     assert.same({ allow_empty = false }, defs.session.nested_subcommand)
 
     assert.same({ 'input', 'output' }, defs.open.completions)

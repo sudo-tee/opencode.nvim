@@ -28,11 +28,18 @@ function M._is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
 end
 
 ---Format session parts for session picker
----@param session Session object
+---@param session Session|GlobalSession object
+---@param width? integer
 ---@return PickerItem
 function format_session_item(session, width)
+  local project = (session --[[@as GlobalSession]]).project
+  local title = session.title or 'N/A'
+  if project then
+    local label = project.name or vim.fn.pathshorten(project.worktree) or project.id or '?'
+    title = title .. '  [' .. label .. ']'
+  end
   local updated_time = (session.time and session.time.updated) or 'N/A'
-  return base_picker.create_time_picker_item(session.title, updated_time, nil, width)
+  return base_picker.create_time_picker_item(title, updated_time, nil, width)
 end
 
 --- Normalize message order to oldest-first (chronological)
@@ -199,12 +206,12 @@ local function render_preview_buffer(target, formatted)
   -- which requires a 3-column gutter (signcolumn=yes + foldcolumn=1) so
   -- the border renders in the gutter instead of overlaying column 0 of text.
   target:with_window(function()
-      vim.api.nvim_set_option_value('number', false, { win = 0 })
-      vim.api.nvim_set_option_value('relativenumber', false, { win = 0 })
-      vim.api.nvim_set_option_value('signcolumn', 'yes', { win = 0 })
-      vim.api.nvim_set_option_value('foldcolumn', '1', { win = 0 })
-      vim.api.nvim_set_option_value('statuscolumn', '', { win = 0 })
-      vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
+    vim.api.nvim_set_option_value('number', false, { win = 0 })
+    vim.api.nvim_set_option_value('relativenumber', false, { win = 0 })
+    vim.api.nvim_set_option_value('signcolumn', 'yes', { win = 0 })
+    vim.api.nvim_set_option_value('foldcolumn', '1', { win = 0 })
+    vim.api.nvim_set_option_value('statuscolumn', '', { win = 0 })
+    vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
     vim.cmd('silent! normal! zE') -- clear existing manual folds
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     for _, range in ipairs(formatted.fold_ranges) do
@@ -215,7 +222,10 @@ local function render_preview_buffer(target, formatted)
   end)
 end
 
-function M.pick(sessions, callback)
+---@param sessions Session[]
+---@param callback fun(session: Session|nil)
+---@param opts? { scope?: 'project' | 'global' }
+function M.pick(sessions, callback, opts)
   local actions = {
     rename = {
       key = config.keymap.session_picker.rename_session,
@@ -336,8 +346,8 @@ function M.pick(sessions, callback)
     format_fn = format_session_item,
     actions = actions,
     callback = callback,
-    title = 'Select A Session',
-    width = config.ui.picker_width,
+    title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',
+    width = config.ui.picker_width or 100,
     layout_opts = config.ui.picker,
     preview = 'custom',
     ---@param session table

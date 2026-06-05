@@ -13,6 +13,7 @@ M.defaults = {
   default_system_prompt = nil,
   keymap_prefix = '<leader>o',
   opencode_executable = 'opencode',
+  lock_session_to_directory = false,
   server = {
     url = nil,
     port = nil,

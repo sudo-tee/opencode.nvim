@@ -22,6 +22,27 @@ function M.clear_active()
   end)
 end
 
+---@return boolean
+function M.is_locked()
+  return store.get('session_locked') == true
+end
+
+---@param value boolean|nil nil = inherit default
+function M.set_locked(value)
+  if value == nil then
+    store.set_raw('session_locked', nil)
+  else
+    store.set('session_locked', value and true or false)
+  end
+end
+
+---@return boolean new_value
+function M.toggle_locked()
+  local new_value = not M.is_locked()
+  M.set_locked(new_value)
+  return new_value
+end
+
 ---@param points RestorePoint[]
 function M.set_restore_points(points)
   return store.set('restore_points', points)

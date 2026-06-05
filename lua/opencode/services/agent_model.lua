@@ -105,6 +105,25 @@ M.cycle_variant = Promise.async(function()
   model_state.set_variant(provider, model, next_variant)
 end)
 
+--- Apply mode and resolve its associated model from config.
+--- No session guards; callers are responsible for validation.
+---@param mode string
+local apply_mode = Promise.async(function(mode)
+  state.model.set_mode(mode)
+  local opencode_config = config_file.get_opencode_config():await() --[[@as OpencodeConfigFile]]
+
+  local agent_config = opencode_config and opencode_config.agent or {}
+  local mode_config = agent_config[mode] or {}
+
+  if state.user_mode_model_map[mode] then
+    state.model.set_model(state.user_mode_model_map[mode])
+  elseif mode_config.model and mode_config.model ~= '' then
+    state.model.set_model(mode_config.model)
+  elseif opencode_config and opencode_config.model and opencode_config.model ~= '' then
+    state.model.set_model(opencode_config.model)
+  end
+end)
+
 M.switch_to_mode = Promise.async(function(mode)
   if state.active_session and state.active_session.parentID then
     log.notify('Cannot switch agent in child session', vim.log.levels.WARN)
@@ -126,19 +145,7 @@ M.switch_to_mode = Promise.async(function(mode)
     return false
   end
 
-  state.model.set_mode(mode)
-  local opencode_config = config_file.get_opencode_config():await() --[[@as OpencodeConfigFile]]
-
-  local agent_config = opencode_config and opencode_config.agent or {}
-  local mode_config = agent_config[mode] or {}
-
-  if state.user_mode_model_map[mode] then
-    state.model.set_model(state.user_mode_model_map[mode])
-  elseif mode_config.model and mode_config.model ~= '' then
-    state.model.set_model(mode_config.model)
-  elseif opencode_config and opencode_config.model and opencode_config.model ~= '' then
-    state.model.set_model(opencode_config.model)
-  end
+  apply_mode(mode):await()
   return true
 end)
 
@@ -153,11 +160,13 @@ M.ensure_current_mode = Promise.async(function()
 
     local default_mode = require('opencode.config').default_mode
 
-    if default_mode and vim.tbl_contains(available_agents, default_mode) then
-      return M.switch_to_mode(default_mode):await()
-    else
-      return M.switch_to_mode(available_agents[1]):await()
-    end
+    local mode = (default_mode and vim.tbl_contains(available_agents, default_mode))
+        and default_mode
+      or available_agents[1]
+
+    -- Initialize directly; the child-session guard in switch_to_mode
+    -- is for user-initiated changes, not system initialization.
+    apply_mode(mode):await()
   end
   return true
 end)

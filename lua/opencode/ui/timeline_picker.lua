@@ -41,7 +41,7 @@ function M.pick(messages, callback)
     actions = actions,
     callback = callback,
     title = 'Timeline',
-    width = config.ui.picker_width or 100,
+    width = config.ui.picker_width,
     layout_opts = config.ui.picker,
   })
 end

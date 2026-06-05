@@ -208,7 +208,7 @@
 ---@field persist_state boolean
 ---@field zoom_width number
 ---@field float OpencodeUIFloatConfig
----@field picker_width number|nil # Default width for all pickers (nil uses current window width)
+---@field picker_width number|false|nil # Width for pickers. 0<w<=1 = fraction of screen; >1 = absolute columns; false = use picker backend defaults.
 ---@field display_model boolean
 ---@field display_context_size boolean
 ---@field display_cost boolean

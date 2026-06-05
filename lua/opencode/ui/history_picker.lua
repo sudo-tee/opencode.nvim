@@ -104,7 +104,7 @@ function M.pick(callback)
       end
     end,
     title = 'Select History Entry',
-    width = config.ui.picker_width or 100,
+    width = config.ui.picker_width,
     layout_opts = config.ui.picker,
   })
 end

@@ -31,9 +31,8 @@ end
 ---@param session Session object
 ---@return PickerItem
 function format_session_item(session, width)
-  local debug_text = 'ID: ' .. (session.id or 'N/A')
   local updated_time = (session.time and session.time.updated) or 'N/A'
-  return base_picker.create_time_picker_item(session.title, updated_time, debug_text, width)
+  return base_picker.create_time_picker_item(session.title, updated_time, nil, width)
 end
 
 --- Normalize message order to oldest-first (chronological)
@@ -195,10 +194,16 @@ local function render_preview_buffer(target, formatted)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, output_window.namespace, 0, -1)
   output_window.apply_extmarks(bufnr, formatted.extmarks)
 
-  -- Apply folds (window-local operation)
-    target:with_window(function()
+  -- Configure preview window to match the main output window's gutter.
+  -- The formatter places vertical border extmarks at virt_text_win_col = -3
+  -- which requires a 3-column gutter (signcolumn=yes + foldcolumn=1) so
+  -- the border renders in the gutter instead of overlaying column 0 of text.
+  target:with_window(function()
       vim.api.nvim_set_option_value('number', false, { win = 0 })
       vim.api.nvim_set_option_value('relativenumber', false, { win = 0 })
+      vim.api.nvim_set_option_value('signcolumn', 'yes', { win = 0 })
+      vim.api.nvim_set_option_value('foldcolumn', '1', { win = 0 })
+      vim.api.nvim_set_option_value('statuscolumn', '', { win = 0 })
       vim.api.nvim_set_option_value('foldmethod', 'manual', { win = 0 })
     vim.cmd('silent! normal! zE') -- clear existing manual folds
     local line_count = vim.api.nvim_buf_line_count(bufnr)

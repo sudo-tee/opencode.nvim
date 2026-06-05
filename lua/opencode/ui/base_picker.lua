@@ -515,6 +515,17 @@ local function fzf_ui(opts)
   local fzf_config = create_fzf_config()
   fzf_config.actions = actions_config
 
+  -- When a preview pane is active, fzf-lua splits the window (default
+  -- right:60% preview, left:40% list). Narrow opts.width so that the
+  -- format function produces entries sized for the list pane, not the
+  -- full window. The format closure reads opts.width on each call.
+  local has_preview = opts.preview and opts.preview ~= 'none' and opts.preview ~= false
+  if has_preview and opts.width then
+    local window_cols = opts.width + 8
+    -- list pane ≈ 40% of the window, minus a small border/padding allowance
+    opts.width = math.floor(window_cols * 0.4) - 4
+  end
+
   fzf_lua.fzf_exec(create_finder(), fzf_config)
 end
 

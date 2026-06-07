@@ -5,6 +5,7 @@ local permission_window = require('opencode.ui.permission_window')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
 local events = require('opencode.ui.renderer.events')
+local event_scope = require('opencode.ui.event_scope')
 local flush = require('opencode.ui.renderer.flush')
 local scroll = require('opencode.ui.renderer.scroll')
 
@@ -259,6 +260,27 @@ end
 -- can be stubbed cleanly (e.g. stub(renderer, '_render_full_session_data'))
 M.on_session_updated = events.on_session_updated
 
+function M.event_subscriptions()
+  return {
+    { 'session.updated', events.on_session_updated },
+    { 'session.compacted', events.on_session_compacted },
+    { 'session.error', events.on_session_error },
+    { 'message.updated', events.on_message_updated },
+    { 'message.removed', events.on_message_removed },
+    { 'message.part.updated', events.on_part_updated },
+    { 'message.part.removed', events.on_part_removed },
+    { 'permission.updated', events.on_permission_updated },
+    { 'permission.asked', events.on_permission_updated },
+    { 'permission.replied', events.on_permission_replied },
+    { 'question.asked', events.on_question_asked },
+    { 'question.replied', events.on_question_replied },
+    { 'question.rejected', events.on_question_replied },
+    { 'file.edited', events.on_file_edited },
+    { 'custom.restore_point.created', events.on_restore_points },
+    { 'custom.emit_events.finished', M.on_emit_events_finished },
+  }
+end
+
 ---Reset all renderer state and clear the output buffer
 function M.reset()
   ctx:reset()
@@ -291,30 +313,12 @@ function M.setup_subscriptions(subscribe)
     return
   end
 
-  local subs = {
-    { 'session.updated', events.on_session_updated },
-    { 'session.compacted', events.on_session_compacted },
-    { 'session.error', events.on_session_error },
-    { 'message.updated', events.on_message_updated },
-    { 'message.removed', events.on_message_removed },
-    { 'message.part.updated', events.on_part_updated },
-    { 'message.part.removed', events.on_part_removed },
-    { 'permission.updated', events.on_permission_updated },
-    { 'permission.asked', events.on_permission_updated },
-    { 'permission.replied', events.on_permission_replied },
-    { 'question.asked', events.on_question_asked },
-    { 'question.replied', events.clear_question_display },
-    { 'question.rejected', events.clear_question_display },
-    { 'file.edited', events.on_file_edited },
-    { 'custom.restore_point.created', events.on_restore_points },
-    { 'custom.emit_events.finished', M.on_emit_events_finished },
-  }
-
-  for _, sub in ipairs(subs) do
+  for _, sub in ipairs(M.event_subscriptions()) do
+    local callback = event_scope.scoped_callback(sub[1], sub[2])
     if subscribe then
-      state.event_manager:subscribe(sub[1], sub[2])
+      state.event_manager:subscribe(sub[1], callback)
     else
-      state.event_manager:unsubscribe(sub[1], sub[2])
+      state.event_manager:unsubscribe(sub[1], callback)
     end
   end
 end

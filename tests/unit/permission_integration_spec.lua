@@ -540,3 +540,82 @@ describe('permission prompt rendering', function()
     assert.equals(before[2], after[2])
   end)
 end)
+
+describe('cross-session realtime permission and question events', function()
+  local event_scope = require('opencode.ui.event_scope')
+  local question_window = require('opencode.ui.question_window')
+
+  before_each(function()
+    state.renderer.set_messages({})
+    state.renderer.set_pending_permissions({})
+    state.session.set_active({ id = 'session_123' })
+
+    permission_window._permission_queue = {}
+    permission_window._dialog = nil
+    permission_window._processing = false
+
+    question_window._current_question = nil
+    question_window._current_question_index = 1
+    question_window._collected_answers = {}
+    question_window._answering = false
+    question_window._dialog = nil
+
+    ctx.render_state:reset()
+    ctx.prev_line_count = 0
+  end)
+
+  it('ignores realtime permissions from another session', function()
+    event_scope.scoped_callback('permission.asked', events.on_permission_updated)({
+      id = 'perm_other_session',
+      sessionID = 'session_other',
+      permission = 'bash',
+      patterns = { 'echo other' },
+      metadata = {},
+    })
+
+    assert.are.equal(0, #state.pending_permissions)
+    assert.are.equal(0, permission_window.get_permission_count())
+  end)
+
+  it('ignores realtime questions from another session', function()
+    event_scope.scoped_callback('question.asked', events.on_question_asked)({
+      id = 'question_other_session',
+      sessionID = 'session_other',
+      questions = {
+        {
+          question = 'Pick one',
+          options = {
+            { label = 'One' },
+          },
+        },
+      },
+    })
+
+    assert.is_nil(question_window._current_question)
+  end)
+
+  it('does not clear the current question when another session replies', function()
+    question_window._current_question = {
+      id = 'question_current',
+      sessionID = 'session_123',
+      questions = {
+        {
+          question = 'Pick one',
+          options = {
+            { label = 'One' },
+          },
+        },
+      },
+    }
+
+    event_scope.scoped_callback('question.replied', events.on_question_replied)({
+      sessionID = 'session_other',
+      requestID = 'question_other',
+      answers = {
+        { 'One' },
+      },
+    })
+
+    assert.are.equal('question_current', question_window._current_question.id)
+  end)
+end)

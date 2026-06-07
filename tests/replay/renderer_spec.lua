@@ -93,22 +93,13 @@ local function assert_output_matches(expected, actual, name)
 end
 
 describe('renderer unit tests', function()
-  local event_subscriptions = {
-    'session.updated',
-    'session.compacted',
-    'session.error',
-    'message.updated',
-    'message.removed',
-    'message.part.updated',
-    'message.part.removed',
-    'permission.updated',
-    'permission.replied',
-    'question.replied',
-    'question.asked',
-    'file.edited',
-    'custom.restore_point.created',
-    'custom.emit_events.finished',
-  }
+  local function event_subscriptions()
+    local names = {}
+    for _, sub in ipairs(require('opencode.ui.renderer').event_subscriptions()) do
+      table.insert(names, sub[1])
+    end
+    return names
+  end
 
   before_each(function()
     require('opencode.event_manager').setup()
@@ -122,7 +113,7 @@ describe('renderer unit tests', function()
 
     renderer.setup_subscriptions()
 
-    for _, event_name in ipairs(event_subscriptions) do
+    for _, event_name in ipairs(event_subscriptions()) do
       assert.is_true(
         event_manager.events[event_name] ~= nil,
         string.format('Renderer did not subscribe to event: %s', event_name)
@@ -138,7 +129,7 @@ describe('renderer unit tests', function()
 
     renderer.setup_subscriptions(false)
 
-    for _, event_name in ipairs(event_subscriptions) do
+    for _, event_name in ipairs(event_subscriptions()) do
       assert.is_true(
         vim.tbl_isempty(event_manager.events[event_name]),
         string.format('Renderer did not unsubscribe from event: %s', event_name)

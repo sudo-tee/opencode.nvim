@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local Dialog = require('opencode.ui.dialog')
+local session_scope = require('opencode.ui.session_scope')
 
 local M = {}
 
@@ -352,30 +353,10 @@ function M.restore_pending_permissions(session_id)
       end
 
       local events = require('opencode.ui.renderer.events')
-      local render_state = require('opencode.ui.renderer.ctx').render_state
 
       for _, permission in ipairs(permissions) do
         if permission and permission.id then
-          -- Check if this permission belongs to the active session or
-          -- one of its child sessions (task tool).
-          local belongs = permission.sessionID == session_id
-          if not belongs and permission.sessionID and permission.sessionID ~= '' then
-            belongs = render_state:get_task_part_by_child_session(permission.sessionID) ~= nil
-          end
-          if not belongs then
-            local tool = permission.tool
-            local tool_message_id = tool and tool.messageID
-            if tool_message_id and state.messages then
-              for _, message in ipairs(state.messages) do
-                if message.info and message.info.id == tool_message_id then
-                  belongs = true
-                  break
-                end
-              end
-            end
-          end
-
-          if belongs and not is_resolved_permission(permission) then
+          if session_scope.belongs_to_session(permission, session_id) and not is_resolved_permission(permission) then
             -- Check if already queued (avoid duplicate)
             local already_queued = false
             for _, existing in ipairs(M._permission_queue) do

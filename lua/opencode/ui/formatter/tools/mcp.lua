@@ -47,7 +47,10 @@ function M.format(output, part)
     return
   end
 
-  local input = part.state and part.state.input or {}
+  local input = part.state and part.state.input
+  if type(input) ~= 'table' then
+    input = {}
+  end
 
   -- Title line (avoid **bold** markdown so highlight isn't overridden by RenderMarkdown)
   local title = string.format('%s %s: %s', icons.get('tool'), server, tool)
@@ -61,6 +64,12 @@ function M.format(output, part)
   -- Content rendering (input only, not output)
   local content_start = nil
   local _, content_value = find_content_field(input)
+  if not content_value and next(input) ~= nil then
+    local ok, json_str = pcall(vim.json.encode, input)
+    if ok then
+      content_value = json_str
+    end
+  end
   if content_value then
     content_start = output:get_line_count() + 1
     output:add_empty_line()
@@ -92,7 +101,7 @@ end
 ---@param input table
 ---@return string, string, string
 function M.summary(_, input)
-  return icons.get('tool'), 'mcp', input and input.query or input and input.url or ''
+  return icons.get('tool'), 'mcp', (input and (input.query or input.url)) or ''
 end
 
 return M

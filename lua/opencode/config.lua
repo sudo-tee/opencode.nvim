@@ -178,6 +178,7 @@ M.defaults = {
         show_output = true,
         show_reasoning_output = true,
         use_folds = true,
+        fold_exclude = { { server = 'sequential-thinking', tool = 'sequentialthinking' } },
         -- Reduced default threshold to make small tool outputs foldable by default.
         -- Users can override this in their config if they prefer the previous value.
         folding_threshold = 25,

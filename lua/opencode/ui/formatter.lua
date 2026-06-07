@@ -592,8 +592,15 @@ function M.format_tool(output, part, get_child_parts)
 
   local start_line = output:get_line_count() + 1
 
-  local formatter = tool_formatters[tool] or tool_formatters.tool
+  local formatter = tool_formatters[tool] or (tool:match('_') and tool_formatters.mcp) or tool_formatters.tool
+  local fold_count = #output.fold_ranges
   formatter.format(output, part, get_child_parts)
+
+  if not format_utils.should_fold_tool(tool) then
+    for idx = #output.fold_ranges, fold_count + 1, -1 do
+      table.remove(output.fold_ranges, idx)
+    end
+  end
 
   if part.state.status == 'error' and part.state.error then
     output:add_line('')

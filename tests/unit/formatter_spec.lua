@@ -627,4 +627,123 @@ describe('formatter', function()
       range = { from = 2, to = 5 },
     }, output.actions[1])
   end)
+
+  describe('fold_exclude', function()
+    local function make_bash_part()
+      return {
+        id = 'prt_bash',
+        type = 'tool',
+        tool = 'bash',
+        messageID = 'msg_1',
+        sessionID = 'ses_1',
+        state = {
+          status = 'completed',
+          input = {
+            command = 'echo hello',
+          },
+          metadata = {
+            output = 'hello\nworld\nfoo\nbar\nbaz\nqux',
+          },
+          time = { start = 1, ['end'] = 2 },
+        },
+      }
+    end
+
+    local function make_mcp_part()
+      return {
+        id = 'prt_mcp',
+        type = 'tool',
+        tool = 'sequential-thinking_sequentialthinking',
+        messageID = 'msg_1',
+        sessionID = 'ses_1',
+        state = {
+          status = 'completed',
+          input = { thought = 'thinking...' },
+          metadata = {},
+          time = { start = 1, ['end'] = 2 },
+        },
+      }
+    end
+
+    it('removes folds for built-in tools matched by string', function()
+      config.setup({
+        ui = {
+          output = {
+            tools = {
+              use_folds = true,
+              folding_threshold = 5,
+              fold_exclude = { 'bash' },
+            },
+          },
+        },
+      })
+
+      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local output = formatter.format_part(make_bash_part(), message, true)
+      assert.are.same({}, output.fold_ranges)
+    end)
+
+    it('removes folds for MCP tools matched by server+tool table', function()
+      config.setup({
+        ui = {
+          output = {
+            tools = {
+              use_folds = true,
+              folding_threshold = 5,
+              fold_exclude = { { server = 'sequential-thinking', tool = 'sequentialthinking' } },
+            },
+          },
+        },
+      })
+
+      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local output = formatter.format_part(make_mcp_part(), message, true)
+      assert.are.same({}, output.fold_ranges)
+      -- Verify thought content is rendered
+      local found = false
+      for _, line in ipairs(output.lines) do
+        if line:find('thinking') then
+          found = true
+          break
+        end
+      end
+      assert.is_true(found, 'MCP formatter should render thought content')
+    end)
+
+    it('keeps folds for tools not in fold_exclude', function()
+      config.setup({
+        ui = {
+          output = {
+            tools = {
+              use_folds = true,
+              folding_threshold = 5,
+              fold_exclude = { 'grep' },
+            },
+          },
+        },
+      })
+
+      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local output = formatter.format_part(make_bash_part(), message, true)
+      assert.is_true(#output.fold_ranges > 0)
+    end)
+
+    it('keeps folds when fold_exclude is empty', function()
+      config.setup({
+        ui = {
+          output = {
+            tools = {
+              use_folds = true,
+              folding_threshold = 5,
+              fold_exclude = {},
+            },
+          },
+        },
+      })
+
+      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local output = formatter.format_part(make_bash_part(), message, true)
+      assert.is_true(#output.fold_ranges > 0)
+    end)
+  end)
 end)

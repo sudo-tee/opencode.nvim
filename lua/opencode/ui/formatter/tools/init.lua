@@ -12,5 +12,6 @@ return {
   question = require('opencode.ui.formatter.tools.question'),
   skill = require('opencode.ui.formatter.tools.skill'),
   task = require('opencode.ui.formatter.tools.task'),
+  mcp = require('opencode.ui.formatter.tools.mcp'),
   tool = require('opencode.ui.formatter.tools.tool'),
 }

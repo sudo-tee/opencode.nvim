@@ -19,6 +19,7 @@ local function snapshot_git(cmd_args, opts)
   local cwd = vim.fn.getcwd()
   local args = { 'git', '--git-dir', snapshot_dir, '--work-tree', cwd }
   vim.list_extend(args, cmd_args)
+
   local result = vim.system(args, opts or { cwd = cwd }):wait()
   if result and result.code == 0 then
     return vim.trim(result.stdout), nil
@@ -172,6 +173,7 @@ end
 
 function M.diff_file(snapshot_id, file_path)
   local relative_path = vim.fn.fnamemodify(file_path, ':.')
+  relative_path = relative_path:gsub('\\', '/')
   local file_at_snapshot = snapshot_git({ 'show', snapshot_id .. ':' .. relative_path })
   local temp_file = write_to_temp_file(file_at_snapshot or '')
   local file_type = vim.fn.fnamemodify(file_path, ':e')
@@ -187,7 +189,8 @@ function M.revert(snapshot_id)
   end
   local deleted_files = {}
   for _, file in ipairs(patch_result.files) do
-    local relative_path = file:match('^' .. vim.fn.getcwd() .. '/?(.*)$')
+    local relative_path = file:match('^' .. vim.pesc(vim.fn.getcwd()) .. '/?(.*)$')
+    relative_path = relative_path:gsub('\\', '/')
     local res, err = snapshot_git({ 'checkout', snapshot_id, '--', relative_path })
     if not res then
       vim.notify(

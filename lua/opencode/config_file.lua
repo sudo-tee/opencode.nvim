@@ -1,4 +1,5 @@
 local Promise = require('opencode.promise')
+local sha1 = require('opencode.sha1')
 local M = {
   config_promise = nil,
   project_promise = nil,
@@ -40,30 +41,30 @@ M.get_opencode_project = Promise.async(function()
   return result --[[@as OpencodeProject|nil]]
 end)
 
----Compute SHA1 of a string (used to match opencode's Hash.fast for worktree path)
----@param str string
----@return string|nil
-local function sha1(str)
-  local result = vim.system({ 'sh', '-c', 'printf "%s" "$1" | sha1sum', '_', str }):wait()
-  if result and result.code == 0 then
-    return vim.trim(result.stdout):match('^(%x+)')
-  end
-end
-
 ---Get the snapshot storage path for the current workspace
+---Matches opencode's Global.Path.data + "snapshot" + projectId + Hash.fast(worktree)
+---Can be overridden via config.snapshot_path (base path, project_id and worktree_hash are appended)
 ---@type fun(): Promise<string>
 M.get_workspace_snapshot_path = Promise.async(function()
   local project = M.get_opencode_project():await() --[[@as OpencodeProject|nil]]
   if not project then
     return ''
   end
-  local home = vim.uv.os_homedir()
+  local data_home = require('opencode.config').snapshot_path
+  if not data_home or data_home == '' then
+    data_home = vim.uv.os_getenv('XDG_DATA_HOME')
+    if not data_home or data_home == '' then
+      data_home = vim.uv.os_homedir() .. '/.local/share'
+    end
+    data_home = vim.fs.joinpath(data_home, 'opencode')
+  end
   local cwd = vim.fn.getcwd()
   local worktree_hash = sha1(cwd)
   if not worktree_hash then
     return ''
   end
-  return home .. '/.local/share/opencode/snapshot/' .. project.id .. '/' .. worktree_hash
+  local path = vim.fs.joinpath(data_home, 'snapshot', project.id, worktree_hash)
+  return vim.fs.normalize(path)
 end)
 
 local _providers_render_callback = false

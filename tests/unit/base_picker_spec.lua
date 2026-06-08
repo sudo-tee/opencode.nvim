@@ -252,6 +252,8 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
       ['opencode.ui.picker'] = package.loaded['opencode.ui.picker'],
       ['opencode.ui.base_picker'] = package.loaded['opencode.ui.base_picker'],
       ['fzf-lua'] = package.loaded['fzf-lua'],
+      ['fzf-lua.libuv'] = package.loaded['fzf-lua.libuv'],
+      ['fzf-lua.shell'] = package.loaded['fzf-lua.shell'],
       ['fzf-lua.previewer.builtin'] = package.loaded['fzf-lua.previewer.builtin'],
     }
 
@@ -293,6 +295,7 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
 
     captured_fzf_finder = nil
     captured_fzf_opts = nil
+    captured_transform = nil
 
     package.loaded['fzf-lua'] = {
       fzf_exec = function(finder, opts)
@@ -302,6 +305,19 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
     }
 
     next_preview_buf = nil
+    package.loaded['fzf-lua.libuv'] = {
+      shellescape = function(s)
+        return s
+      end,
+    }
+
+    package.loaded['fzf-lua.shell'] = {
+      stringify_data = function(fn)
+        captured_transform = fn
+        return ''
+      end,
+    }
+
     package.loaded['fzf-lua.previewer.builtin'] = {
       buffer_or_file = {
         extend = function()
@@ -412,6 +428,8 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
         table.insert(emitted_lines, line)
       end
     end)
+
+    captured_transform(nil, nil, nil, { env = { FZF_COLUMNS = 31 } })
 
     assert.equal(31, observed_width)
     assert.are.same({ '1\001session' }, emitted_lines)

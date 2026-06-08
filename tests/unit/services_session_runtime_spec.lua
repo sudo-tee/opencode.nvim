@@ -9,6 +9,7 @@ local session_runtime = require('opencode.services.session_runtime')
 local messaging = require('opencode.services.messaging')
 local agent_model = require('opencode.services.agent_model')
 local config_file = require('opencode.config_file')
+local config = require('opencode.config')
 local state = require('opencode.state')
 local store = require('opencode.state.store')
 local ui = require('opencode.ui.ui')
@@ -804,6 +805,36 @@ describe('opencode.services.session_runtime', function()
 
       assert.truthy(state.active_session)
       assert.truthy(state.active_session.id)
+    end)
+
+    it('preserves active session when locked', function()
+      session_runtime.set_session_lock(true)
+      state.session.set_active({ id = 'locked-session' })
+
+      session_runtime.handle_directory_change():wait()
+
+      assert.equal('locked-session', state.active_session.id)
+      assert.stub(context.unload_attachments).was_not_called()
+      session_runtime.set_session_lock(false)
+    end)
+
+    it('toggle_session_lock overrides config.lock_session_to_directory=true', function()
+      local original = config.lock_session_to_directory
+      config.lock_session_to_directory = true
+      state.session.set_locked(nil)
+
+      assert.is_true(session_runtime.is_session_locked())
+
+      local new_value = session_runtime.toggle_session_lock()
+      assert.is_false(new_value)
+      assert.is_false(session_runtime.is_session_locked())
+
+      new_value = session_runtime.toggle_session_lock()
+      assert.is_true(new_value)
+      assert.is_true(session_runtime.is_session_locked())
+
+      config.lock_session_to_directory = original
+      state.session.set_locked(nil)
     end)
   end)
 

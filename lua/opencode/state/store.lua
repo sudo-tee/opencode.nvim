@@ -41,6 +41,7 @@ local M = {}
 ---@field required_version string
 ---@field opencode_cli_version string|nil
 ---@field current_cwd string|nil
+---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 
 ---@type OpencodeStateData
@@ -83,6 +84,7 @@ local _state = {
   required_version = '0.6.3',
   opencode_cli_version = nil,
   current_cwd = vim.fn.getcwd(),
+  session_locked = nil,
   _hidden_buffers = nil,
 }
 

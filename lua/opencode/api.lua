@@ -53,6 +53,7 @@ local action_groups = {
     rename_session = session.rename_session,
     undo = session.undo,
     fork_session = session.fork_session,
+    toggle_session_lock = session.toggle_session_lock,
   },
 
   diff = {

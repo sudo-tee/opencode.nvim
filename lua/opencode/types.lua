@@ -128,8 +128,17 @@
 ---@field parentID string|nil
 ---@field agent string|nil
 ---@field model { id: string, providerID: string, variant?: string }|nil
+---@field directory? string
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
+
+---@class SessionProjectInfo
+---@field id string
+---@field name? string
+---@field worktree string
+
+---@class GlobalSession : Session
+---@field project SessionProjectInfo|nil
 
 ---@class OpencodeKeymapEntry
 ---@field [1] string # Function name
@@ -362,6 +371,7 @@
 ---@field default_system_prompt string | nil
 ---@field keymap_prefix string
 ---@field opencode_executable 'opencode' | string -- Command run for calling opencode
+---@field lock_session_to_directory boolean -- If true, active session is preserved across DirChanged events
 ---@field server OpencodeServerConfig -- Custom/external server configuration
 ---@field keymap OpencodeKeymap
 ---@field ui OpencodeUIConfig

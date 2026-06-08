@@ -195,6 +195,17 @@ function OpencodeApiClient:list_sessions(directory)
   return self:_call('/session', 'GET', nil, { directory = directory })
 end
 
+--- List sessions across all projects (experimental global endpoint).
+--- Bypasses _call's automatic directory injection so the server returns all
+--- directories instead of being filtered to the current cwd.
+--- @return Promise<GlobalSession[]>
+function OpencodeApiClient:list_sessions_global()
+  if not self:_ensure_base_url() then
+    return require('opencode.promise').new():reject('No server base url')
+  end
+  return server_job.call_api(self.base_url .. '/experimental/session', 'GET')
+end
+
 --- Create a new session
 --- @param session_data {parentID?: string, title?: string}|nil|boolean Session creation data
 --- @param directory string|nil  Directory path

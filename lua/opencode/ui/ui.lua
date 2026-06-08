@@ -525,12 +525,13 @@ end
 
 ---@param sessions Session[]
 ---@param cb fun(session: Session|nil)
-function M.select_session(sessions, cb)
+---@param opts? { scope?: 'project' | 'global' }
+function M.select_session(sessions, cb, opts)
   local session_picker = require('opencode.ui.session_picker')
   local util = require('opencode.util')
   local picker = require('opencode.ui.picker')
 
-  local success = session_picker.pick(sessions, cb)
+  local success = session_picker.pick(sessions, cb, opts)
   if not success then
     picker.select(sessions, {
       prompt = '',

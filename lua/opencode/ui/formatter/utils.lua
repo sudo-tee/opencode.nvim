@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local config = require('opencode.config')
 
 local M = {}
 
@@ -35,6 +36,35 @@ function M.format_action(output, icon, tool_type, value, duration_text)
     return
   end
   output:add_line(M.build_action_line(icon, tool_type, value, duration_text))
+end
+
+---@param tool string|nil
+---@return boolean
+function M.should_fold_tool(tool)
+  local tools_config = config.ui and config.ui.output and config.ui.output.tools
+  if not tools_config or not tools_config.use_folds then
+    return false
+  end
+
+  local fold_exclude = tools_config.fold_exclude
+  if not fold_exclude or not tool then
+    return true
+  end
+
+  for _, exclude in ipairs(fold_exclude) do
+    if type(exclude) == 'string' then
+      if exclude == tool then
+        return false
+      end
+    elseif type(exclude) == 'table' and exclude.server and exclude.tool then
+      local full_name = exclude.server .. '_' .. exclude.tool
+      if full_name == tool then
+        return false
+      end
+    end
+  end
+
+  return true
 end
 
 ---@param output Output Output object to write to

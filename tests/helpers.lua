@@ -228,6 +228,17 @@ function M.load_session_from_events(events)
           end
 
           if existing_part then
+            -- Preserve state.input when the later event omits it
+            local new_input = part.state and part.state.input
+            local old_input = msg.parts[existing_part].state and msg.parts[existing_part].state.input
+            if
+              type(new_input) == 'table'
+              and next(new_input) == nil
+              and type(old_input) == 'table'
+              and next(old_input) ~= nil
+            then
+              part.state.input = old_input
+            end
             msg.parts[existing_part] = vim.deepcopy(part)
             parts_by_id[part.id] = msg.parts[existing_part]
           else

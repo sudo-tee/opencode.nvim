@@ -424,6 +424,26 @@ function EventManager:_on_drained_events(events)
           collapsed_events[i] = event
           part_update_indices[part_id] = i
         else
+          -- Preserve state.input when the later event omits it. MCP tool
+          -- completion events sometimes arrive with an empty input table,
+          -- which would clobber the call arguments from the running event.
+          local prev_part = collapsed_events[previous_index]
+            and collapsed_events[previous_index].properties
+            and collapsed_events[previous_index].properties.part
+          if
+            prev_part
+            and prev_part.state
+            and prev_part.state.input
+            and type(prev_part.state.input) == 'table'
+            and next(prev_part.state.input) ~= nil
+            and event.properties.part
+            and event.properties.part.state
+            and event.properties.part.state.input
+            and type(event.properties.part.state.input) == 'table'
+            and next(event.properties.part.state.input) == nil
+          then
+            event.properties.part.state.input = prev_part.state.input
+          end
           collapsed_events[previous_index] = event
           collapsed_events[i] = nil
         end

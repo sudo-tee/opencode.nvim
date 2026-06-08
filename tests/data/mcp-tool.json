@@ -1,0 +1,237 @@
+[
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_mcp_test_1",
+        "title": "MCP Tool Test",
+        "time": {
+          "created": 1766000000000,
+          "updated": 1766000000000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_mcp_user1",
+        "role": "user",
+        "sessionID": "ses_mcp_test_1",
+        "time": {
+          "created": 1766000000000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_user_text",
+        "messageID": "msg_mcp_user1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "text",
+        "text": "Think about this step by step."
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_mcp_asst1",
+        "role": "assistant",
+        "sessionID": "ses_mcp_test_1",
+        "mode": "build",
+        "modelID": "test-model",
+        "providerID": "test-provider",
+        "path": {
+          "cwd": "/workspace",
+          "root": "/workspace"
+        },
+        "time": {
+          "created": 1766000000500
+        },
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_step1",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "step-start",
+        "callID": "step_1"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_tool1",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "tool",
+        "callID": "call_mcp_001",
+        "tool": "sequential-thinking_sequentialthinking",
+        "state": {
+          "status": "running",
+          "input": {
+            "thought": "Let me analyze this problem step by step.\n\nFirst, I need to understand the core issue.",
+            "nextThoughtNeeded": true,
+            "thoughtNumber": 1,
+            "totalThoughts": 2
+          },
+          "time": {
+            "start": 1766000001000
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_tool1",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "tool",
+        "callID": "call_mcp_001",
+        "tool": "sequential-thinking_sequentialthinking",
+        "state": {
+          "status": "completed",
+          "output": "{\"thoughtNumber\": 1, \"totalThoughts\": 2, \"nextThoughtNeeded\": true, \"branches\": [], \"thoughtHistoryLength\": 1}",
+          "title": "",
+          "metadata": {},
+          "time": {
+            "start": 1766000001000,
+            "end": 1766000001500
+          },
+          "input": {}
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_tool2",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "tool",
+        "callID": "call_mcp_002",
+        "tool": "sequential-thinking_sequentialthinking",
+        "state": {
+          "status": "running",
+          "input": {
+            "thought": "Second thought: the analysis is complete.\n\nKey findings:\n- Finding A\n- Finding B",
+            "nextThoughtNeeded": false,
+            "thoughtNumber": 2,
+            "totalThoughts": 2
+          },
+          "time": {
+            "start": 1766000002000
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_tool2",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "tool",
+        "callID": "call_mcp_002",
+        "tool": "sequential-thinking_sequentialthinking",
+        "state": {
+          "status": "completed",
+          "output": "{\"thoughtNumber\": 2, \"totalThoughts\": 2, \"nextThoughtNeeded\": false, \"branches\": [], \"thoughtHistoryLength\": 2}",
+          "title": "",
+          "metadata": {},
+          "time": {
+            "start": 1766000002000,
+            "end": 1766000002500
+          },
+          "input": {
+            "thought": "Second thought: the analysis is complete.\n\nKey findings:\n- Finding A\n- Finding B",
+            "nextThoughtNeeded": false,
+            "thoughtNumber": 2,
+            "totalThoughts": 2
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_step1",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "step-finish",
+        "callID": "step_1",
+        "tokens": {
+          "input": 100,
+          "output": 50,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_mcp_asst_text",
+        "messageID": "msg_mcp_asst1",
+        "sessionID": "ses_mcp_test_1",
+        "type": "text",
+        "text": "Based on my analysis, here is the answer."
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_mcp_asst1",
+        "role": "assistant",
+        "sessionID": "ses_mcp_test_1",
+        "time": {
+          "created": 1766000000500,
+          "updated": 1766000003000
+        },
+        "tokens": {
+          "input": 100,
+          "output": 50,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      }
+    }
+  }
+]

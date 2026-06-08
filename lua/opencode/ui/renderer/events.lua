@@ -504,10 +504,6 @@ function M.on_permission_updated(permission)
     return
   end
 
-  local tool = permission.tool
-  local callID = tool and tool.callID or permission.callID
-  local messageID = tool and tool.messageID or permission.messageID
-
   if not state.pending_permissions then
     state.renderer.set_pending_permissions({})
   end
@@ -561,7 +557,12 @@ function M.on_question_asked(properties)
   if not properties or not properties.id or not properties.questions then
     return
   end
-  require('opencode.ui.question_window').show_question(properties)
+  local question_window = require('opencode.ui.question_window')
+  question_window.show_question(properties)
+end
+
+function M.on_question_replied()
+  M.clear_question_display()
 end
 
 ---Handle file.edited — reload buffers and fire the hook

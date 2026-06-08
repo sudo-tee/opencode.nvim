@@ -4,6 +4,7 @@ local Dialog = require('opencode.ui.dialog')
 local Promise = require('opencode.promise')
 
 local config = require('opencode.config')
+local session_scope = require('opencode.ui.session_scope')
 
 local M = {}
 
@@ -62,36 +63,6 @@ function M.matches_active_question(question_request)
     and M._current_question ~= nil
     and question_request.id ~= nil
     and M._current_question.id == question_request.id
-end
-
----@param question_request OpencodeQuestionRequest|nil
----@return boolean
-function M.belongs_to_active_session(question_request)
-  if not question_request then
-    return false
-  end
-
-  local active_session = state.active_session
-  if active_session and active_session.id and question_request.sessionID == active_session.id then
-    return true
-  end
-
-  local tool = question_request.tool
-  local tool_message_id = tool and tool.messageID
-  if tool_message_id and state.messages then
-    for _, message in ipairs(state.messages) do
-      if message.info and message.info.id == tool_message_id then
-        return true
-      end
-    end
-  end
-
-  if question_request.sessionID and question_request.sessionID ~= '' then
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    return render_state:get_task_part_by_child_session(question_request.sessionID) ~= nil
-  end
-
-  return false
 end
 
 ---@param question_request OpencodeQuestionRequest|nil
@@ -221,7 +192,7 @@ function M.restore_pending_question(session_id)
     return Promise.new():resolve(nil)
   end
 
-  if M.has_question() and M.belongs_to_active_session(M._current_question) then
+  if M.has_question() and session_scope.belongs_to_active_session(M._current_question) then
     if not is_resolved_question_request(M._current_question) then
       return Promise.new():resolve(nil)
     end
@@ -238,11 +209,11 @@ function M.restore_pending_question(session_id)
 
       for _, request in ipairs(requests) do
         if
-          request
-          and request.questions
-          and #request.questions > 0
-          and M.belongs_to_active_session(request)
-          and not is_resolved_question_request(request)
+            request
+            and request.questions
+            and #request.questions > 0
+            and session_scope.belongs_to_active_session(request)
+            and not is_resolved_question_request(request)
         then
           if M.matches_active_question(request) then
             return

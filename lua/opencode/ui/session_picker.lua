@@ -347,7 +347,7 @@ function M.pick(sessions, callback, opts)
     actions = actions,
     callback = callback,
     title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',
-    width = config.ui.picker_width or 100,
+    width = config.ui.picker_width,
     layout_opts = config.ui.picker,
     preview = 'custom',
     ---@param session table

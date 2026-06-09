@@ -30,8 +30,9 @@ end
 ---Format session parts for session picker
 ---@param session Session|GlobalSession object
 ---@param width? integer
+---@param max_tw? number Pre-computed max time column width
 ---@return PickerItem
-function format_session_item(session, width)
+local function format_session_item(session, width, max_tw)
   local project = (session --[[@as GlobalSession]]).project
   local title = session.title or 'N/A'
   if project then
@@ -39,7 +40,7 @@ function format_session_item(session, width)
     title = title .. '  [' .. label .. ']'
   end
   local updated_time = (session.time and session.time.updated) or 'N/A'
-  return base_picker.create_time_picker_item(title, updated_time, nil, width)
+  return base_picker.create_time_picker_item(title, updated_time, nil, width, max_tw)
 end
 
 --- Normalize message order to oldest-first (chronological)
@@ -341,9 +342,15 @@ function M.pick(sessions, callback, opts)
   -- Preview state for race condition protection
   local preview_seq = 0
 
+  local max_tw = base_picker.max_time_width(sessions, function(s)
+    return s.time and s.time.updated
+  end)
+
   return base_picker.pick({
     items = sessions,
-    format_fn = format_session_item,
+    format_fn = function(session, width)
+      return format_session_item(session, width, max_tw)
+    end,
     actions = actions,
     callback = callback,
     title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',

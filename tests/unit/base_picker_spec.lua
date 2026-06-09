@@ -252,8 +252,6 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
       ['opencode.ui.picker'] = package.loaded['opencode.ui.picker'],
       ['opencode.ui.base_picker'] = package.loaded['opencode.ui.base_picker'],
       ['fzf-lua'] = package.loaded['fzf-lua'],
-      ['fzf-lua.libuv'] = package.loaded['fzf-lua.libuv'],
-      ['fzf-lua.shell'] = package.loaded['fzf-lua.shell'],
       ['fzf-lua.previewer.builtin'] = package.loaded['fzf-lua.previewer.builtin'],
     }
 
@@ -295,7 +293,6 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
 
     captured_fzf_finder = nil
     captured_fzf_opts = nil
-    captured_transform = nil
 
     package.loaded['fzf-lua'] = {
       fzf_exec = function(finder, opts)
@@ -305,18 +302,6 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
     }
 
     next_preview_buf = nil
-    package.loaded['fzf-lua.libuv'] = {
-      shellescape = function(s)
-        return s
-      end,
-    }
-
-    package.loaded['fzf-lua.shell'] = {
-      stringify_data = function(fn)
-        captured_transform = fn
-        return ''
-      end,
-    }
 
     package.loaded['fzf-lua.previewer.builtin'] = {
       buffer_or_file = {
@@ -429,10 +414,179 @@ describe('opencode.ui.base_picker fzf-lua preview', function()
       end
     end)
 
-    captured_transform(nil, nil, nil, { env = { FZF_COLUMNS = 31 } })
-
+    -- picker_width=80 with preview: window=80+8=88, list pane=floor(88*0.4)-4=31
     assert.equal(31, observed_width)
     assert.are.same({ '1\001session' }, emitted_lines)
     assert.equal(88, captured_fzf_opts.winopts.width)
+  end)
+end)
+
+describe('opencode.ui.base_picker create_time_picker_item alignment', function()
+  local base_picker
+  local original_schedule
+  local saved_modules
+  local mock_config
+
+  before_each(function()
+    original_schedule = vim.schedule
+    vim.schedule = function(fn)
+      fn()
+    end
+
+    saved_modules = {
+      ['opencode.config'] = package.loaded['opencode.config'],
+      ['opencode.util'] = package.loaded['opencode.util'],
+      ['opencode.promise'] = package.loaded['opencode.promise'],
+      ['opencode.ui.picker'] = package.loaded['opencode.ui.picker'],
+      ['opencode.ui.base_picker'] = package.loaded['opencode.ui.base_picker'],
+    }
+
+    mock_config = {
+      ui = {
+        picker_width = 80,
+        output = { time_format = nil },
+      },
+      debug = { show_ids = false },
+    }
+    package.loaded['opencode.config'] = mock_config
+
+    -- Provide a format_time that mimics real behavior: variable-width output
+    -- depending on how old the timestamp is relative to "now".
+    package.loaded['opencode.util'] = {
+      format_time = function(timestamp)
+        if not timestamp then
+          return ''
+        end
+        local now = os.time()
+        local same_day = os.date('%Y-%m-%d') == os.date('%Y-%m-%d', timestamp)
+        local same_year = os.date('%Y') == os.date('%Y', timestamp)
+        local time_part = os.date('%H:%M', timestamp)
+        if same_day then
+          return time_part -- e.g. "10:35"
+        elseif same_year then
+          return os.date('%d %b', timestamp) .. ' ' .. time_part -- e.g. "09 Jun 10:35"
+        else
+          return os.date('%d %b %Y', timestamp) .. ' ' .. time_part -- e.g. "09 Jun 2024 10:35"
+        end
+      end,
+    }
+
+    package.loaded['opencode.promise'] = {
+      wrap = function(value)
+        return {
+          and_then = function(_, cb)
+            cb(value)
+          end,
+        }
+      end,
+    }
+
+    package.loaded['opencode.ui.picker'] = {
+      get_best_picker = function()
+        return 'snacks'
+      end,
+    }
+
+    package.loaded['opencode.ui.base_picker'] = nil
+    base_picker = require('opencode.ui.base_picker')
+  end)
+
+  after_each(function()
+    vim.schedule = original_schedule
+    for module_name, module_value in pairs(saved_modules) do
+      package.loaded[module_name] = module_value
+    end
+  end)
+
+  it('produces identical total width for timestamps of different ages', function()
+    local now = os.time()
+    local same_day_ts = now - 3600 -- 1 hour ago
+    local same_year_ts = now - 86400 * 60 -- ~2 months ago
+    local diff_year_ts = 0 -- epoch (1970)
+
+    local width = 80
+    local format_time = package.loaded['opencode.util'].format_time
+    local max_tw = math.max(#format_time(same_day_ts), #format_time(same_year_ts), #format_time(diff_year_ts))
+
+    local item_today = base_picker.create_time_picker_item('Session A', same_day_ts, nil, width, max_tw)
+    local item_month = base_picker.create_time_picker_item('Session B', same_year_ts, nil, width, max_tw)
+    local item_old = base_picker.create_time_picker_item('Session C', diff_year_ts, nil, width, max_tw)
+
+    local str_today = item_today:to_string()
+    local str_month = item_month:to_string()
+    local str_old = item_old:to_string()
+
+    assert.equal(#str_today, #str_month, 'same-day and same-year items should have equal width')
+    assert.equal(#str_today, #str_old, 'same-day and different-year items should have equal width')
+  end)
+
+  it('to_string width matches the requested item width exactly', function()
+    local width = 60
+
+    local item = base_picker.create_time_picker_item('Session Title', 0, nil, width)
+    local str = item:to_string()
+
+    assert.equal(width, #str, 'to_string() output should be exactly item_width chars')
+  end)
+
+  it('right-aligns time within a fixed-width column', function()
+    local now = os.time()
+    local same_day_ts = now - 3600
+
+    local width = 80
+    local max_tw = #package.loaded['opencode.util'].format_time(same_day_ts)
+    local item = base_picker.create_time_picker_item('Title', same_day_ts, nil, width, max_tw)
+    local str = item:to_string()
+
+    local time_str = package.loaded['opencode.util'].format_time(same_day_ts)
+    assert.is_truthy(str:match(time_str .. '$'), 'time string should be at the right edge')
+  end)
+
+  it('max_time_width returns the width of the longest formatted timestamp', function()
+    local now = os.time()
+    local items = {
+      { time = now - 3600 }, -- same-day
+      { time = now - 86400 * 60 }, -- same-year
+      { time = 0 }, -- different year (longest)
+    }
+
+    local max_tw = base_picker.max_time_width(items, function(item)
+      return item.time
+    end)
+
+    local format_time = package.loaded['opencode.util'].format_time
+    local expected = math.max(#format_time(items[1].time), #format_time(items[2].time), #format_time(items[3].time))
+    assert.equal(expected, max_tw)
+  end)
+
+  it('max_time_width returns 0 for empty items', function()
+    local max_tw = base_picker.max_time_width({}, function(item)
+      return item.time
+    end)
+    assert.equal(0, max_tw)
+  end)
+
+  it('max_time_width returns 0 when no items have timestamps', function()
+    local items = { { name = 'a' }, { name = 'b' } }
+    local max_tw = base_picker.max_time_width(items, function(item)
+      return item.time -- nil
+    end)
+    assert.equal(0, max_tw)
+  end)
+
+  it('uses only same-day width when all timestamps are from today', function()
+    local now = os.time()
+    local items = {
+      { time = now - 60 },
+      { time = now - 3600 },
+    }
+
+    local max_tw = base_picker.max_time_width(items, function(item)
+      return item.time
+    end)
+
+    local format_time = package.loaded['opencode.util'].format_time
+    -- All same-day, so max_tw should equal the short time width
+    assert.equal(#format_time(now - 60), max_tw)
   end)
 end)

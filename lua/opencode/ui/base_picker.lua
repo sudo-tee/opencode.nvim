@@ -315,9 +315,9 @@ end
 local function fzf_ui(opts)
   local fzf_lua = require('fzf-lua')
 
-  local function finder(fzf_cb, width)
+  local function finder(fzf_cb)
     for idx, item in ipairs(opts.items) do
-      local line_str = opts.format_fn(item, width):to_string()
+      local line_str = opts.format_fn(item):to_string()
 
       -- Prepend index with SOH delimiter for reliable matching
       local indexed_line = tostring(idx) .. '\x01' .. line_str
@@ -352,16 +352,6 @@ local function fzf_ui(opts)
   end
 
   local has_custom_preview = opts.preview == 'custom' and opts.preview_fn ~= nil
-  local format_width
-
-  -- defer item processing until preview if using custom preview_fn
-  -- so we can pass the width of the fzf window to the format_fn for optimal formatting
-  local width_callback = has_custom_preview
-      and function(_, _, _, ctx)
-        format_width = (ctx.env.FZF_COLUMNS or vim.o.columns) - (ctx.env.FZF_PREVIEW_COLUMNS or 0)
-        format_width = math.min(format_width, vim.o.columns - 8)
-      end
-    or nil
 
   ---@return table
   local function create_fzf_config()
@@ -370,9 +360,6 @@ local function fzf_ui(opts)
     end)
 
     return {
-      fzf_cli_args = width_callback and ('--bind=' .. require('fzf-lua.libuv').shellescape(
-        'start:+transform:' .. require('fzf-lua.shell').stringify_data(width_callback, opts)
-      )) or nil,
       winopts = opts.width and {
           width = opts.width + 8, -- extra space for fzf UI
         } or nil,
@@ -528,12 +515,7 @@ local function fzf_ui(opts)
   fzf_config.actions = actions_config
 
   fzf_lua.fzf_exec(function(fzf_cb)
-    if width_callback then
-      vim.wait(1000, function()
-        return format_width
-      end)
-    end
-    finder(fzf_cb, format_width)
+    finder(fzf_cb)
   end, fzf_config)
 end
 
@@ -813,18 +795,41 @@ function M.create_picker_item(parts)
   return item
 end
 
+---Compute the maximum formatted time width across a list of items.
+---@param items any[] The list of items
+---@param get_time_fn fun(item: any): number? Extracts a timestamp from an item
+---@return number max_width The width of the longest format_time result (0 if no valid timestamps)
+function M.max_time_width(items, get_time_fn)
+  local max_w = 0
+  for _, item in ipairs(items) do
+    local t = get_time_fn(item)
+    if t and type(t) == 'number' then
+      local w = #util.format_time(t)
+      if w > max_w then
+        max_w = w
+      end
+    end
+  end
+  return max_w
+end
+
 ---Helper function to create a simple picker item with content, time, and debug text
 ---This is a convenience wrapper around create_picker_item for common use cases
 ---@param text string Main content text
 ---@param time? number Optional time to format
 ---@param debug_text? string Optional debug text to append
 ---@param width? number Optional width override
+---@param max_time_width? number Optional pre-computed max time column width from max_time_width()
 ---@return PickerItem
-function M.create_time_picker_item(text, time, debug_text, width)
-  local time_width = time and #util.format_time(time) + 1 or 0
-  local debug_width = config.debug.show_ids and debug_text and #debug_text + 1 or 0
+function M.create_time_picker_item(text, time, debug_text, width, max_time_width)
+  local time_width = time and (max_time_width or #util.format_time(0)) or 0
+  local has_debug = config.debug.show_ids and debug_text
+  local debug_width = has_debug and #debug_text or 0
   local item_width = width or vim.api.nvim_win_get_width(0)
-  local text_width = item_width - (debug_width + time_width)
+  -- Each extra part adds a 1-char separator in to_string()/to_formatted_text(),
+  -- so subtract those from the text budget.
+  local separator_count = (time_width > 0 and 1 or 0) + (debug_width > 0 and 1 or 0)
+  local text_width = item_width - time_width - debug_width - separator_count
 
   local parts = {
     {
@@ -839,7 +844,7 @@ function M.create_time_picker_item(text, time, debug_text, width)
     })
   end
 
-  if config.debug.show_ids and debug_text then
+  if has_debug then
     table.insert(parts, {
       text = debug_text,
       highlight = 'OpencodeDebugText',

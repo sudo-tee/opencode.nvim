@@ -69,6 +69,18 @@ local function assert_followed_bottom(actual)
   )
 end
 
+local function assert_preserved_user_away_after_growth(before, actual)
+  assert.is_true(
+    vim.deep_equal(actual.cursor, before.cursor)
+      and actual.visible_bottom == before.visible_bottom
+      and actual.line_count > before.line_count,
+    'Expected external new user message to render without force-scrolling; before '
+      .. format_window(before)
+      .. ', actual '
+      .. format_window(actual)
+  )
+end
+
 describe('replay user message metadata scroll behavior', function()
   before_each(function()
     helpers.replay_setup()
@@ -107,13 +119,34 @@ describe('replay user message metadata scroll behavior', function()
     assert_preserved_user_away('duplicate', before, capture_window())
   end)
 
-  it('keeps submit-follow for new user messages', function()
+  it('preserves user-away scroll when replaying external new user messages', function()
     local events = helpers.load_test_data(fixture_path)
-    state.session.set_active(helpers.get_session_from_events(events))
+    local session = helpers.get_session_from_events(events)
+    state.session.set_active(session)
+
+    replay_event(events[1])
+    replay_event(events[2])
+    local before = move_output_away_from_bottom()
+
+    local new_user_message = vim.deepcopy(events[1])
+    new_user_message.properties.info.id = 'msg_user_metadata_update_external'
+    new_user_message.properties.info.time.created = 1700000000001
+
+    replay_event(new_user_message)
+
+    assert_preserved_user_away_after_growth(before, capture_window())
+  end)
+
+  it('keeps submit-follow for locally submitted new user messages', function()
+    local events = helpers.load_test_data(fixture_path)
+    local session = helpers.get_session_from_events(events)
+    state.session.set_active(session)
 
     replay_event(events[1])
     replay_event(events[2])
     move_output_away_from_bottom()
+
+    state.session.set_user_message_count({ [session.id] = 1 })
 
     local new_user_message = vim.deepcopy(events[1])
     new_user_message.properties.info.id = 'msg_user_metadata_update_new'

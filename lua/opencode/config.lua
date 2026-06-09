@@ -301,6 +301,7 @@ M.defaults = {
   },
   prompt_guard = nil,
   child_readonly = true,
+  snapshot_path = nil,
   hooks = {
     on_file_edited = nil,
     on_session_loaded = nil,

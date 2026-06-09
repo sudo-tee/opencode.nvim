@@ -389,6 +389,7 @@
 ---@field child_readonly boolean
 ---@field hooks OpencodeHooks
 ---@field quick_chat OpencodeQuickChatConfig
+---@field snapshot_path? string -- Override base path for snapshot storage (default: $XDG_DATA_HOME/opencode). Appends /snapshot/<project_id>/<worktree_hash>
 
 ---@class MessagePartState
 ---@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput|QuestionToolInput|ApplyPatchToolInput Input data for the tool

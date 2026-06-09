@@ -353,16 +353,16 @@ function M._render_full_session_data(session_data, opts)
   local visible_messages, hidden_count = get_visible_session_messages(state.messages)
   local revert_index = get_revert_index(state.messages)
 
-    if lazy_limit == nil then
-      local initial = get_initial_render_count()
-      if #visible_messages > initial then
-        lazy_limit = initial
-      end
+  if lazy_limit == nil then
+    local initial = get_initial_render_count()
+    if #visible_messages > initial then
+      lazy_limit = initial
     end
-    ctx.lazy_render_count = lazy_limit
-    if lazy_limit and #visible_messages > lazy_limit then
-      visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
-    end
+  end
+  ctx.lazy_render_count = lazy_limit
+  if lazy_limit and #visible_messages > lazy_limit then
+    visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
+  end
 
   local t_format_start = vim.uv.hrtime()
   flush.begin_bulk_mode()
@@ -435,9 +435,9 @@ function M.render_from_cache(session_data)
   if not output_window.mounted() or not state.api_client then
     return
   end
-    M._render_full_session_data(session_data, {
-      restore_model_from_messages = true,
-    })
+  M._render_full_session_data(session_data, {
+    restore_model_from_messages = true,
+  })
   local active_session = state.active_session
   if active_session and active_session.id then
     require('opencode.ui.question_window').restore_pending_question(active_session.id)
@@ -499,9 +499,9 @@ function M.render_full_session()
     return Promise.new():resolve(nil)
   end
   return fetch_session():and_then(function(session_data)
-      M._render_full_session_data(session_data, {
-        restore_model_from_messages = true,
-      })
+    M._render_full_session_data(session_data, {
+      restore_model_from_messages = true,
+    })
     local active_session = state.active_session
     if active_session and active_session.id then
       require('opencode.ui.question_window').restore_pending_question(active_session.id)

@@ -217,13 +217,11 @@ describe('lazy render', function()
     -- lazy_render_count was set by _render_full_session_data; verify the guard
     -- After full render with a lazy limit that covers everything, load_more returns false
     ctx.lazy_render_count = 100
-    assert.is_false(renderer.load_more_messages(),
-      'should return false when lazy_render_count covers all messages')
+    assert.is_false(renderer.load_more_messages(), 'should return false when lazy_render_count covers all messages')
 
     -- nil means no lazy limit at all → nothing to load
     ctx.lazy_render_count = nil
-    assert.is_false(renderer.load_more_messages(),
-      'should return false when lazy_render_count is nil')
+    assert.is_false(renderer.load_more_messages(), 'should return false when lazy_render_count is nil')
   end)
 
   it('load_more_messages returns true only when unrendered messages exist', function()
@@ -237,8 +235,7 @@ describe('lazy render', function()
     local _rfc = stub(renderer, 'render_from_cache')
 
     -- 10 rendered out of 100 → has unrendered → load_more should work
-    assert.is_true(renderer.load_more_messages(),
-      'should return true when unrendered messages exist')
+    assert.is_true(renderer.load_more_messages(), 'should return true when unrendered messages exist')
 
     _rfc:revert()
   end)
@@ -252,22 +249,57 @@ describe('lazy render', function()
     -- Case 1: all rendered (lazy_render_count covers everything)
     ctx.lazy_render_count = 100
     renderer._render_full_session_data(session_data)
-    assert.is_false(renderer.load_more_messages(),
-      'no load_more when lazy_render_count covers all messages')
+    assert.is_false(renderer.load_more_messages(), 'no load_more when lazy_render_count covers all messages')
 
     -- Case 2: partial render → load_more returns true
     local stub = require('luassert.stub')
     local _rfc = stub(renderer, 'render_from_cache')
     ctx.lazy_render_count = 10
     renderer._render_full_session_data(session_data)
-    assert.is_true(renderer.load_more_messages(),
-      'load_more returns true when unrendered messages exist')
+    assert.is_true(renderer.load_more_messages(), 'load_more returns true when unrendered messages exist')
     _rfc:revert()
 
     -- Case 3: nil (never set) → load_more returns false
     ctx.lazy_render_count = nil
-    assert.is_false(renderer.load_more_messages(),
-      'no load_more when lazy_render_count is nil')
+    assert.is_false(renderer.load_more_messages(), 'no load_more when lazy_render_count is nil')
+  end)
+
+  it('triggers scroll-to-top load_more from viewport top, not cursor line', function()
+    local session_data = make_session_data(50) -- 100 messages total
+    local output_window = require('opencode.ui.output_window')
+
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    local buf = state.windows.output_buf
+    vim.api.nvim_win_set_height(win, 15)
+    vim.api.nvim_set_current_win(win)
+    vim.api.nvim_win_set_cursor(win, { 5, 0 })
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! zz')
+    end)
+
+    assert.are.equal(1, output_window.get_visible_top_line(win))
+    assert.are.equal(5, vim.api.nvim_win_get_cursor(win)[1])
+
+    local stub = require('luassert.stub')
+    local load_more_stub = stub(renderer, 'load_more_messages').returns(false)
+
+    vim.api.nvim_exec_autocmds('WinScrolled', {
+      buffer = buf,
+      modeline = false,
+    })
+
+    vim.wait(500, function()
+      local ok = pcall(function()
+        assert.stub(load_more_stub).was_called()
+      end)
+      return ok
+    end)
+
+    assert.stub(load_more_stub).was_called()
+    load_more_stub:revert()
   end)
 
   it('load_all_messages renders everything and makes it searchable', function()
@@ -293,8 +325,11 @@ describe('lazy render', function()
     -- After load_all: old message IS in the buffer and searchable
     if output_buf and vim.api.nvim_buf_is_valid(output_buf) then
       local buf_text = table.concat(vim.api.nvim_buf_get_lines(output_buf, 0, -1, false), '\n')
-      assert.is_match('Message msg_u1', buf_text,
-        'after load_all_messages, all messages should be searchable in the output buffer')
+      assert.is_match(
+        'Message msg_u1',
+        buf_text,
+        'after load_all_messages, all messages should be searchable in the output buffer'
+      )
     end
   end)
 end)

@@ -512,5 +512,13 @@
     "",
     ""
   ],
-  "timestamp": 1770935236
+  "timestamp": 1770935236,
+  "window": {
+    "cursor": [
+      24,
+      0
+    ],
+    "line_count": 24,
+    "visible_bottom": 24
+  }
 }

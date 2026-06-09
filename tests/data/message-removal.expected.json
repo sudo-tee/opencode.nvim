@@ -257,5 +257,13 @@
       }
     ]
   ],
-  "actions": []
+  "actions": [],
+  "window": {
+    "cursor": [
+      28,
+      0
+    ],
+    "line_count": 28,
+    "visible_bottom": 28
+  }
 }

@@ -188,6 +188,7 @@ function M.on_message_updated(message, revert_index)
 
   local rendered_message = ctx.render_state:get_message(msg.info.id)
   local found_msg = rendered_message and rendered_message.message or find_message_in_state(msg.info.id)
+  local found_before = found_msg ~= nil
 
   if revert_index then
     if not found_msg then
@@ -228,7 +229,9 @@ function M.on_message_updated(message, revert_index)
 
   if msg.info.role == 'user' then
     state.renderer.set_last_user_message(msg)
-    scroll(true)
+    if not found_before then
+      scroll(true)
+    end
   end
 
   update_stats(msg)

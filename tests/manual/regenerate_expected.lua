@@ -58,15 +58,10 @@ function M.run(data_file, expected_file)
       error('Timed out waiting for replay events to drain')
     end
 
-    local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
-    local snapshot = {
-      lines = actual.lines,
-      extmarks = helpers.normalize_namespace_ids(actual.extmarks),
-      actions = actual.actions,
-      timestamp = os.time(),
-    }
+    local snapshot =
+      helpers.output_snapshot(state.windows and state.windows.output_buf, output_window.namespace, expected_file)
+    local json = helpers.encode_snapshot_json(snapshot, expected_file)
 
-    local json = vim.json.encode(snapshot, { indent = '  ', sort_keys = true })
     local file = assert(io.open(expected_file, 'w'))
     file:write(json)
     file:close()

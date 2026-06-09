@@ -90,6 +90,21 @@ local function assert_output_matches(expected, actual, name)
       )
     )
   end
+
+  if expected.window then
+    assert.are.same(expected.window.cursor, actual.window and actual.window.cursor, 'Window cursor mismatch')
+    assert.are.same(
+      expected.window.visible_bottom,
+      actual.window and actual.window.visible_bottom,
+      'Window visible_bottom mismatch'
+    )
+    assert.are.same(
+      expected.window.line_count,
+      actual.window and actual.window.line_count,
+      'Window line_count mismatch'
+    )
+    assert.are.same(expected.window, actual.window, 'Window snapshot mismatch')
+  end
 end
 
 describe('renderer unit tests', function()
@@ -135,6 +150,46 @@ describe('renderer unit tests', function()
         string.format('Renderer did not unsubscribe from event: %s', event_name)
       )
     end
+  end)
+
+  it('captures stable output window state', function()
+    helpers.replay_setup()
+
+    output_window.set_lines({ 'one', 'two', 'three' })
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { 2, 0 })
+
+    local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+    local window_keys = vim.tbl_keys(actual.window)
+    table.sort(window_keys)
+
+    assert.are.same({ 'cursor', 'line_count', 'visible_bottom' }, window_keys)
+    assert.are.same({ 2, 0 }, actual.window.cursor)
+    assert.are.equal(3, actual.window.visible_bottom)
+    assert.are.equal(3, actual.window.line_count)
+
+    local existing_file = vim.fn.tempname()
+    local file = assert(io.open(existing_file, 'w'))
+    file:write(vim.json.encode({ timestamp = 123 }))
+    file:close()
+
+    local snapshot = helpers.output_snapshot(state.windows.output_buf, output_window.namespace, existing_file)
+    vim.fn.delete(existing_file)
+
+    assert.are.equal(123, snapshot.timestamp)
+    assert.are.same(actual.window, snapshot.window)
+
+    local existing_without_timestamp = vim.fn.tempname()
+    file = assert(io.open(existing_without_timestamp, 'w'))
+    file:write(vim.json.encode({ lines = {} }))
+    file:close()
+
+    local snapshot_without_timestamp =
+      helpers.output_snapshot(state.windows.output_buf, output_window.namespace, existing_without_timestamp)
+    vim.fn.delete(existing_without_timestamp)
+
+    assert.is_nil(snapshot_without_timestamp.timestamp)
+
+    ui.close_windows(state.windows)
   end)
 
   it('updates active session title from session.updated event', function()

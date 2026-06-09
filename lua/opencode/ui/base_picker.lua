@@ -381,6 +381,7 @@ local function fzf_ui(opts)
         ['--multi'] = has_multi_action and true or nil,
         ['--with-nth'] = '2..', -- hide the index prefix from display
         ['--delimiter'] = '\x01', -- use SOH as delimiter (invisible char)
+        ['--read0'] = true,
       },
       _headers = { 'actions' },
       previewer = (function()

@@ -1,0 +1,190 @@
+{
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      0,
+      0,
+      {
+        "line_hl_group": "OpencodeBorder",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ],
+    [
+      2,
+      5,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_after_user]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      3,
+      5,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:20",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      4,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      5,
+      7,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
+      10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "ORCHESTRATOR",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5.5",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_after_assistant]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      7,
+      10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:20",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ]
+  ],
+  "lines": [
+    "━━━━━━━━━━━━ Session compacted ━━━━━━━━━━━━",
+    "",
+    "Rendered compaction summary should render.",
+    "",
+    "----",
+    "",
+    "",
+    "please continue after compact",
+    "",
+    "----",
+    "",
+    "",
+    "continuing after compact",
+    "",
+    ""
+  ],
+  "timestamp": 1780985131,
+  "window": {
+    "cursor": [
+      15,
+      0
+    ],
+    "line_count": 15,
+    "visible_bottom": 15
+  }
+}

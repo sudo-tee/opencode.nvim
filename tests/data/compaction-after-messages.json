@@ -1,0 +1,140 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_parent_after",
+        "sessionID": "ses_compaction_after_messages",
+        "role": "user",
+        "agent": "orchestrator",
+        "time": {
+          "created": 1700000000000
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_marker_after",
+        "messageID": "msg_compaction_parent_after",
+        "sessionID": "ses_compaction_after_messages",
+        "type": "compaction",
+        "auto": false,
+        "tail_start_id": "msg_after_user"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_summary_after",
+        "sessionID": "ses_compaction_after_messages",
+        "role": "assistant",
+        "parentID": "msg_compaction_parent_after",
+        "mode": "compaction",
+        "agent": "compaction",
+        "summary": true,
+        "modelID": "gpt-5.5",
+        "providerID": "openai",
+        "time": {
+          "created": 1700000000100,
+          "completed": 1700000000200
+        },
+        "finish": "stop"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_reasoning_after",
+        "messageID": "msg_compaction_summary_after",
+        "sessionID": "ses_compaction_after_messages",
+        "type": "reasoning",
+        "text": "**Updating summary output**\n\nInternal summary reasoning should not render."
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_text_after",
+        "messageID": "msg_compaction_summary_after",
+        "sessionID": "ses_compaction_after_messages",
+        "type": "text",
+        "text": "Rendered compaction summary should render."
+      }
+    }
+  },
+  {
+    "type": "session.compacted",
+    "properties": {
+      "sessionID": "ses_compaction_after_messages"
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_after_user",
+        "sessionID": "ses_compaction_after_messages",
+        "role": "user",
+        "time": {
+          "created": 1700000000300
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_after_user_text",
+        "messageID": "msg_after_user",
+        "sessionID": "ses_compaction_after_messages",
+        "type": "text",
+        "text": "please continue after compact"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_after_assistant",
+        "sessionID": "ses_compaction_after_messages",
+        "role": "assistant",
+        "mode": "orchestrator",
+        "agent": "orchestrator",
+        "modelID": "gpt-5.5",
+        "providerID": "openai",
+        "time": {
+          "created": 1700000000400
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_after_assistant_text",
+        "messageID": "msg_after_assistant",
+        "sessionID": "ses_compaction_after_messages",
+        "type": "text",
+        "text": "continuing after compact"
+      }
+    }
+  }
+]

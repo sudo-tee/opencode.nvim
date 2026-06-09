@@ -1,0 +1,30 @@
+{
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      0,
+      0,
+      {
+        "line_hl_group": "OpencodeBorder",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ]
+  ],
+  "lines": [
+    "━━━━━━━━━━━━ Session compacted ━━━━━━━━━━━━",
+    "",
+    ""
+  ],
+  "timestamp": 1780976798,
+  "window": {
+    "cursor": [
+      3,
+      0
+    ],
+    "line_count": 3,
+    "visible_bottom": 3
+  }
+}

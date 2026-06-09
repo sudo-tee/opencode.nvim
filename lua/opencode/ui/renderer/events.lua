@@ -431,6 +431,10 @@ function M.on_part_updated(properties, revert_index)
     flush.mark_part_dirty(part.id, part.messageID)
   end
 
+  if part.type == 'compaction' then
+    flush.mark_message_dirty(part.messageID)
+  end
+
   -- File / agent mentions: re-render the text part to highlight them
   if (part.type == 'file' or part.type == 'agent') and part.source then
     local text_part_id = find_text_part_for_message(message)
@@ -507,9 +511,19 @@ function M.on_session_updated(properties)
   end
 end
 
----Handle session.compacted
-function M.on_session_compacted()
+---@param properties {sessionID: string}|nil
+function M.on_session_compacted(properties)
+  if
+    properties
+    and properties.sessionID
+    and state.active_session
+    and properties.sessionID ~= state.active_session.id
+  then
+    return
+  end
+
   vim.notify('Session has been compacted')
+  require('opencode.ui.renderer').render_full_session()
 end
 
 ---Handle session.error

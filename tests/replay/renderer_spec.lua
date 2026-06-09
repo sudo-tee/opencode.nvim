@@ -241,6 +241,24 @@ describe('renderer unit tests', function()
     render_stub:revert()
   end)
 
+  it('refreshes the full session when compacted', function()
+    local renderer = require('opencode.ui.renderer')
+    local events = require('opencode.ui.renderer.events')
+
+    state.session.set_active({
+      id = 'ses_123',
+      title = 'Session',
+      time = { created = 1, updated = 1 },
+    })
+
+    local render_stub = stub(renderer, 'render_full_session')
+
+    events.on_session_compacted()
+
+    assert.stub(render_stub).was_called(1)
+    render_stub:revert()
+  end)
+
   it('inserts a single synthetic revert message during full session render', function()
     local renderer = require('opencode.ui.renderer')
 

@@ -1,0 +1,96 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_parent",
+        "sessionID": "ses_compaction_summary_hidden",
+        "role": "user",
+        "agent": "orchestrator",
+        "model": {
+          "providerID": "openai",
+          "modelID": "gpt-5.5"
+        },
+        "time": {
+          "created": 1700000000000
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_marker",
+        "messageID": "msg_compaction_parent",
+        "sessionID": "ses_compaction_summary_hidden",
+        "type": "compaction",
+        "auto": false,
+        "tail_start_id": "msg_tail_start"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_summary",
+        "sessionID": "ses_compaction_summary_hidden",
+        "role": "assistant",
+        "parentID": "msg_compaction_parent",
+        "mode": "compaction",
+        "agent": "compaction",
+        "summary": true,
+        "cost": 0.1,
+        "tokens": {
+          "total": 30,
+          "input": 20,
+          "output": 10,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "modelID": "gpt-5.5",
+        "providerID": "openai",
+        "time": {
+          "created": 1700000000100,
+          "completed": 1700000000200
+        },
+        "finish": "stop"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_reasoning",
+        "messageID": "msg_compaction_summary",
+        "sessionID": "ses_compaction_summary_hidden",
+        "type": "reasoning",
+        "text": "**Updating summary output**\n\nInternal summary reasoning should not render.",
+        "time": {
+          "start": 1700000000110,
+          "end": 1700000000120
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_text",
+        "messageID": "msg_compaction_summary",
+        "sessionID": "ses_compaction_summary_hidden",
+        "type": "text",
+        "text": "## Goal\n- Rendered compaction summary should render."
+      }
+    }
+  }
+]

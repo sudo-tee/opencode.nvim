@@ -1,0 +1,42 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_user_marker",
+        "sessionID": "ses_compaction_user_marker",
+        "role": "user",
+        "time": {
+          "created": 1700000000000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_compaction_user_marker",
+        "messageID": "msg_compaction_user_marker",
+        "sessionID": "ses_compaction_user_marker",
+        "type": "compaction"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_compaction_user_marker",
+        "sessionID": "ses_compaction_user_marker",
+        "role": "user",
+        "time": {
+          "created": 1700000000000
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  }
+]

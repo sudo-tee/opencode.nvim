@@ -351,6 +351,266 @@ function M.normalize_namespace_ids(extmarks)
   return normalized
 end
 
+local function is_array(value)
+  local max = 0
+  local count = 0
+
+  for key, _ in pairs(value) do
+    if type(key) ~= 'number' or key < 1 or key % 1 ~= 0 then
+      return false
+    end
+
+    max = math.max(max, key)
+    count = count + 1
+  end
+
+  return count == max
+end
+
+local function encode_pretty_json(value, level)
+  level = level or 0
+
+  if type(value) ~= 'table' then
+    return vim.json.encode(value)
+  end
+
+  local indent = string.rep('  ', level)
+  local child_indent = string.rep('  ', level + 1)
+
+  if is_array(value) then
+    if #value == 0 then
+      return '[]'
+    end
+
+    local items = {}
+    for index = 1, #value do
+      items[#items + 1] = child_indent .. encode_pretty_json(value[index], level + 1)
+    end
+
+    return '[\n' .. table.concat(items, ',\n') .. '\n' .. indent .. ']'
+  end
+
+  local keys = vim.tbl_keys(value)
+  table.sort(keys)
+
+  if #keys == 0 then
+    return '{}'
+  end
+
+  local items = {}
+  for _, key in ipairs(keys) do
+    items[#items + 1] = child_indent .. vim.json.encode(key) .. ': ' .. encode_pretty_json(value[key], level + 1)
+  end
+
+  return '{\n' .. table.concat(items, ',\n') .. '\n' .. indent .. '}'
+end
+
+function M.encode_pretty_json(value)
+  return encode_pretty_json(value) .. '\n'
+end
+
+local existing_snapshot
+
+local function existing_snapshot_is_minified(filename)
+  if not filename or vim.fn.filereadable(filename) ~= 1 then
+    return false
+  end
+
+  local file = io.open(filename, 'r')
+  if not file then
+    return false
+  end
+
+  local prefix = file:read(2)
+  file:close()
+
+  return prefix == '{"'
+end
+
+local function snapshot_without_window(snapshot)
+  local copy = vim.deepcopy(snapshot)
+  copy.window = nil
+  return copy
+end
+
+local function window_entry_json(window)
+  return '  "window": ' .. encode_pretty_json(window, 1)
+end
+
+local function append_window_to_existing_snapshot(content, window)
+  local content_without_newline = content:sub(-1) == '\n' and content:sub(1, -2) or content
+  local before_closing_brace = content_without_newline:match('^(.*)%}%s*$')
+
+  if not before_closing_brace then
+    return nil
+  end
+
+  local json = before_closing_brace:gsub('%s+$', '') .. ',\n' .. window_entry_json(window) .. '\n}'
+  if content:sub(-1) == '\n' then
+    json = json .. '\n'
+  end
+
+  return json
+end
+
+function M.encode_snapshot_json(snapshot, existing_file)
+  local existing = existing_snapshot(existing_file)
+  if existing and vim.deep_equal(snapshot_without_window(existing), snapshot_without_window(snapshot)) then
+    local file = io.open(existing_file, 'r')
+    if file then
+      local content = file:read('*all')
+      file:close()
+
+      if vim.deep_equal(existing.window, snapshot.window) then
+        return content
+      end
+
+      if existing_snapshot_is_minified(existing_file) then
+        existing.window = snapshot.window
+        return vim.json.encode(existing)
+      end
+
+      if not existing.window then
+        local json = append_window_to_existing_snapshot(content, snapshot.window)
+        if json then
+          return json
+        end
+      end
+    end
+  end
+
+  if existing_snapshot_is_minified(existing_file) then
+    return vim.json.encode(snapshot)
+  end
+
+  return M.encode_pretty_json(snapshot)
+end
+
+existing_snapshot = function(filename)
+  if not filename or vim.fn.filereadable(filename) ~= 1 then
+    return nil
+  end
+
+  local file = io.open(filename, 'r')
+  if not file then
+    return nil
+  end
+
+  local content = file:read('*all')
+  file:close()
+
+  local ok, snapshot = pcall(vim.json.decode, content)
+  if ok and type(snapshot) == 'table' then
+    return snapshot
+  end
+
+  return nil
+end
+
+local function action_key(action)
+  return encode_pretty_json(action)
+end
+
+local function same_action_multiset(left, right)
+  if type(left) ~= 'table' or type(right) ~= 'table' or #left ~= #right then
+    return false
+  end
+
+  local counts = {}
+  for _, action in ipairs(left) do
+    local key = action_key(action)
+    counts[key] = (counts[key] or 0) + 1
+  end
+
+  for _, action in ipairs(right) do
+    local key = action_key(action)
+    if not counts[key] then
+      return false
+    end
+
+    counts[key] = counts[key] - 1
+    if counts[key] == 0 then
+      counts[key] = nil
+    end
+  end
+
+  return next(counts) == nil
+end
+
+local function preserve_existing_action_order(actions, existing_file)
+  local snapshot = existing_snapshot(existing_file)
+  if snapshot and same_action_multiset(snapshot.actions, actions) then
+    return snapshot.actions
+  end
+
+  return actions
+end
+
+local function output_window_for_buffer(output_buf)
+  local state = require('opencode.state')
+  local output_win = state.windows and state.windows.output_win
+
+  if output_win and vim.api.nvim_win_is_valid(output_win) and vim.api.nvim_win_get_buf(output_win) == output_buf then
+    return output_win
+  end
+
+  error('Could not resolve output window for buffer')
+end
+
+local function capture_window(output_buf)
+  local output_win = output_window_for_buffer(output_buf)
+
+  return {
+    cursor = vim.api.nvim_win_get_cursor(output_win),
+    visible_bottom = vim.api.nvim_win_call(output_win, function()
+      return vim.fn.line('w$')
+    end),
+    line_count = vim.api.nvim_buf_line_count(output_buf),
+  }
+end
+
+function M.existing_snapshot_timestamp(filename)
+  if not filename or vim.fn.filereadable(filename) ~= 1 then
+    return nil, false
+  end
+
+  local file = io.open(filename, 'r')
+  if not file then
+    return nil, false
+  end
+
+  local content = file:read('*all')
+  file:close()
+
+  local ok, snapshot = pcall(vim.json.decode, content)
+  if ok and type(snapshot) == 'table' then
+    return snapshot.timestamp, true
+  end
+
+  return nil, true
+end
+
+function M.output_snapshot(output_buf, namespace, existing_file)
+  local actual = M.capture_output(output_buf, namespace)
+  local timestamp, has_existing_snapshot = M.existing_snapshot_timestamp(existing_file)
+  local actions = preserve_existing_action_order(actual.actions, existing_file)
+
+  local snapshot = {
+    lines = actual.lines,
+    extmarks = M.normalize_namespace_ids(actual.extmarks),
+    actions = actions,
+    window = actual.window,
+  }
+
+  if timestamp ~= nil then
+    snapshot.timestamp = timestamp
+  elseif not has_existing_snapshot then
+    snapshot.timestamp = os.time()
+  end
+
+  return snapshot
+end
+
 function M.capture_output(output_buf, namespace)
   local extmarks = vim.api.nvim_buf_get_extmarks(output_buf, namespace, 0, -1, { details = true }) or {}
   table.sort(extmarks, function(a, b)
@@ -375,6 +635,7 @@ function M.capture_output(output_buf, namespace)
     lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false) or {},
     extmarks = extmarks,
     actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
+    window = capture_window(output_buf),
   }
 end
 

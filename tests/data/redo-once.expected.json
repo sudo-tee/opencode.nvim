@@ -936,5 +936,13 @@
     " test.txt: +1 -1",
     "",
     ""
-  ]
+  ],
+  "window": {
+    "cursor": [
+      72,
+      0
+    ],
+    "line_count": 72,
+    "visible_bottom": 72
+  }
 }

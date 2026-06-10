@@ -216,21 +216,12 @@ function M.save_output(filename)
     return nil
   end
 
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  local extmarks = vim.api.nvim_buf_get_extmarks(buf, output_window.namespace, 0, -1, { details = true })
-
-  local snapshot = {
-    lines = lines,
-    extmarks = M.normalize_namespace_ids(extmarks),
-    actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
-    timestamp = os.time(),
-  }
+  local snapshot = helpers.output_snapshot(buf, output_window.namespace, filename)
 
   snapshot = M.normalize_file_paths(snapshot)
 
   if filename then
-    local json = vim.json.encode(snapshot, { indent = '  ', sort_keys = true })
-
+    local json = helpers.encode_snapshot_json(snapshot, filename)
     local f = io.open(filename, 'w')
     if not f then
       vim.notify('Failed to open file for writing: ' .. filename, vim.log.levels.ERROR)

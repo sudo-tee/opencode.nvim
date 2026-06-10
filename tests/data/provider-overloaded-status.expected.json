@@ -163,6 +163,13 @@
     "",
     ""
   ],
-  "timestamp": 1773091221
+  "timestamp": 1773091221,
+  "window": {
+    "cursor": [
+      11,
+      0
+    ],
+    "line_count": 11,
+    "visible_bottom": 11
+  }
 }
-

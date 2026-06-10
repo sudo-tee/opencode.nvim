@@ -26,7 +26,7 @@
             "OpencodeHint"
           ],
           [
-            " [msg_0000000000001]",
+            " [msg_user_metadata_update]",
             "OpencodeHint"
           ]
         ],
@@ -94,82 +94,23 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -3
       }
-    ],
-    [
-      5,
-      6,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 10,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " claude-sonnet-4-5",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_0000000000002]",
-            "OpencodeHint"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      6,
-      6,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 9,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " 2023-11-14 22:13:21",
-            "OpencodeHint"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "right_align",
-        "virt_text_repeat_linebreak": false
-      }
     ]
   ],
   "lines": [
     "----",
     "",
     "",
-    "Can you help me fix this bug?",
-    "",
-    "----",
-    "",
-    "",
-    "Sure, I can help with that.",
+    "Review the small change.",
     "",
     ""
   ],
-  "timestamp": 1773091221,
+  "timestamp": 1780934440,
   "window": {
     "cursor": [
-      11,
+      6,
       0
     ],
-    "line_count": 11,
-    "visible_bottom": 11
+    "line_count": 6,
+    "visible_bottom": 6
   }
 }

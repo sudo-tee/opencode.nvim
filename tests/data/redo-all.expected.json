@@ -1349,5 +1349,13 @@
         "right_gravity": true
       }
     ]
-  ]
+  ],
+  "window": {
+    "cursor": [
+      98,
+      0
+    ],
+    "line_count": 98,
+    "visible_bottom": 98
+  }
 }

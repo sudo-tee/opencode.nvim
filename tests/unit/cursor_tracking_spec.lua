@@ -528,8 +528,9 @@ describe('renderer._add_message_to_buffer scrolling', function()
     ctx.render_state:reset()
   end)
 
-  it('scrolls to bottom when user message is added', function()
+  it('force-scrolls to bottom when locally submitted user message is added', function()
     vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    state.session.set_user_message_count({ ['test-session'] = 1 })
 
     local user_message = {
       info = {
@@ -549,6 +550,27 @@ describe('renderer._add_message_to_buffer scrolling', function()
 
     assert.is_true(scroll_called_with_force)
     assert.stub(renderer.scroll_to_bottom).was_called_with(true)
+
+    renderer.scroll_to_bottom:revert()
+  end)
+
+  it('uses non-forced scroll when external user message is added', function()
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local user_message = {
+      info = {
+        id = 'msg-1',
+        sessionID = 'test-session',
+        role = 'user',
+      },
+      parts = {},
+    }
+
+    stub(renderer, 'scroll_to_bottom')
+
+    events.on_message_updated(user_message)
+
+    assert.stub(renderer.scroll_to_bottom).was_called_with(false)
 
     renderer.scroll_to_bottom:revert()
   end)

@@ -603,5 +603,13 @@
       }
     ]
   ],
-  "timestamp": 1774894779
+  "timestamp": 1774894779,
+  "window": {
+    "cursor": [
+      69,
+      0
+    ],
+    "line_count": 69,
+    "visible_bottom": 69
+  }
 }

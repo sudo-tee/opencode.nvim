@@ -3,7 +3,18 @@
   "extmarks": [
     [
       1,
-      1,
+      0,
+      0,
+      {
+        "line_hl_group": "OpencodeBorder",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ],
+    [
+      2,
+      5,
       0,
       {
         "ns_id": 3,
@@ -26,7 +37,7 @@
             "OpencodeHint"
           ],
           [
-            " [msg_0000000000001]",
+            " [msg_after_user]",
             "OpencodeHint"
           ]
         ],
@@ -37,8 +48,8 @@
       }
     ],
     [
-      2,
-      1,
+      3,
+      5,
       0,
       {
         "ns_id": 3,
@@ -56,28 +67,8 @@
       }
     ],
     [
-      3,
-      2,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       4,
-      3,
+      6,
       0,
       {
         "ns_id": 3,
@@ -97,7 +88,27 @@
     ],
     [
       5,
+      7,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
       6,
+      10,
       0,
       {
         "ns_id": 3,
@@ -112,15 +123,15 @@
             " "
           ],
           [
-            "BUILD",
+            "ORCHESTRATOR",
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4-5",
+            " gpt-5.5",
             "OpencodeHint"
           ],
           [
-            " [msg_0000000000002]",
+            " [msg_after_assistant]",
             "OpencodeHint"
           ]
         ],
@@ -131,8 +142,8 @@
       }
     ],
     [
-      6,
-      6,
+      7,
+      10,
       0,
       {
         "ns_id": 3,
@@ -140,7 +151,7 @@
         "right_gravity": true,
         "virt_text": [
           [
-            " 2023-11-14 22:13:21",
+            " 2023-11-14 22:13:20",
             "OpencodeHint"
           ]
         ],
@@ -151,25 +162,29 @@
     ]
   ],
   "lines": [
+    "━━━━━━━━━━━━ Session compacted ━━━━━━━━━━━━",
+    "",
+    "Rendered compaction summary should render.",
+    "",
     "----",
     "",
     "",
-    "Can you help me fix this bug?",
+    "please continue after compact",
     "",
     "----",
     "",
     "",
-    "Sure, I can help with that.",
+    "continuing after compact",
     "",
     ""
   ],
-  "timestamp": 1773091221,
+  "timestamp": 1780985131,
   "window": {
     "cursor": [
-      11,
+      15,
       0
     ],
-    "line_count": 11,
-    "visible_bottom": 11
+    "line_count": 15,
+    "visible_bottom": 15
   }
 }

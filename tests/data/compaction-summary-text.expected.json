@@ -1,0 +1,33 @@
+{
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      0,
+      0,
+      {
+        "line_hl_group": "OpencodeBorder",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ]
+  ],
+  "lines": [
+    "━━━━━━━━━━━━ Session compacted ━━━━━━━━━━━━",
+    "",
+    "## Goal",
+    "- Rendered compaction summary should render.",
+    "",
+    ""
+  ],
+  "timestamp": 1700000000,
+  "window": {
+    "cursor": [
+      6,
+      0
+    ],
+    "line_count": 6,
+    "visible_bottom": 6
+  }
+}

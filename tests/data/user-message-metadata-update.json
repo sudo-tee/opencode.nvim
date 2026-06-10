@@ -1,0 +1,59 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_user_metadata_update",
+        "sessionID": "ses_user_metadata_update",
+        "role": "user",
+        "time": {
+          "created": 1700000000000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_user_metadata_update_text",
+        "messageID": "msg_user_metadata_update",
+        "sessionID": "ses_user_metadata_update",
+        "type": "text",
+        "text": "Review the small change."
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_user_metadata_update",
+        "sessionID": "ses_user_metadata_update",
+        "role": "user",
+        "time": {
+          "created": 1700000000000
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_user_metadata_update",
+        "sessionID": "ses_user_metadata_update",
+        "role": "user",
+        "time": {
+          "created": 1700000000000
+        },
+        "summary": {
+          "diffs": []
+        }
+      }
+    }
+  }
+]

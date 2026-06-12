@@ -175,6 +175,32 @@ describe('output_window.setup', function()
     assert.equals(1, foldclosed)
   end)
 
+  it('does not restore the view when following the bottom during fold updates', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd' })
+    vim.api.nvim_win_set_cursor(win, { 4, 0 })
+
+    local winrestview_stub = stub(vim.fn, 'winrestview')
+
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    assert.stub(winrestview_stub).was_not_called()
+    winrestview_stub:revert()
+  end)
+
+  it('restores the view when the user is reading away from the bottom', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd' })
+    vim.api.nvim_win_set_cursor(win, { 2, 0 })
+
+    local winrestview_stub = stub(vim.fn, 'winrestview')
+
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    assert.stub(winrestview_stub).was_called()
+    winrestview_stub:revert()
+  end)
+
   it('stores fold metadata in a lookup-friendly structure', function()
     output_window.setup({ output_buf = buf, output_win = win })
     output_window.set_folds({ { from = 3, to = 5 }, { from = 1, to = 2 } })

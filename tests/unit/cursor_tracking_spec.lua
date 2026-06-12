@@ -220,6 +220,13 @@ describe('output_window.is_at_bottom', function()
     assert.is_true(output_window.is_at_bottom(win))
   end)
 
+  it('treats a trailing blank line as padding, not content bottom', function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', '' })
+    vim.api.nvim_win_set_cursor(win, { 2, 0 })
+
+    assert.is_true(output_window.is_at_bottom(win))
+  end)
+
   it('returns false when cursor is not on last line', function()
     -- cursor not at last line
     vim.api.nvim_win_set_cursor(win, { 25, 0 })
@@ -364,6 +371,7 @@ describe('renderer.scroll_to_bottom', function()
   local renderer = require('opencode.ui.renderer')
   local ctx = require('opencode.ui.renderer.ctx')
   local output_window = require('opencode.ui.output_window')
+  local stub = require('luassert.stub')
   local buf, win
 
   before_each(function()
@@ -436,6 +444,90 @@ describe('renderer.scroll_to_bottom', function()
     local cursor = vim.api.nvim_win_get_cursor(win)
     assert.equals(3, cursor[1])
     assert.equals(#longer_line - 1, cursor[2])
+  end)
+
+  it('scrolls to the last non-empty line when buffer ends with padding', function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', '' })
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(2, cursor[1])
+  end)
+
+  it('skips zb when the followed bottom line is already visible', function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', 'line 3' })
+    vim.api.nvim_win_set_height(win, 10)
+    vim.api.nvim_set_option_value('wrap', false, { win = win, scope = 'local' })
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local cmd_stub = stub(vim, 'cmd')
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(3, cursor[1])
+    assert.stub(cmd_stub).was_not_called_with('normal! zb')
+    cmd_stub:revert()
+  end)
+
+  it('uses zb when the followed bottom line is below the viewport', function()
+    local lines = {}
+    for i = 1, 40 do
+      lines[i] = 'line ' .. i
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_win_set_height(win, 5)
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+
+    local cmd_stub = stub(vim, 'cmd').invokes(function(cmd)
+      if cmd == 'normal! zb' then
+        vim.api.nvim_win_call(win, function()
+          vim.fn.winrestview({ topline = 36 })
+        end)
+        return
+      end
+      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
+    end)
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(40, cursor[1])
+    assert.stub(cmd_stub).was_called_with('normal! zb')
+    cmd_stub:revert()
+  end)
+
+  it('uses zb when a wrapped bottom line grows past the last screen row', function()
+    local long_line = string.rep('x', 80)
+    local longer_line = string.rep('x', 180)
+
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_win_set_height(win, 5)
+    vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { long_line })
+
+    local cmd_stub = stub(vim, 'cmd').invokes(function(cmd)
+      if cmd == 'normal! zb' then
+        return
+      end
+      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
+    end)
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    cmd_stub:clear()
+
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { longer_line })
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    assert.equals(1, cursor[1])
+    assert.equals(#longer_line - 1, cursor[2])
+    assert.stub(cmd_stub).was_called_with('normal! zb')
+    cmd_stub:revert()
   end)
 end)
 

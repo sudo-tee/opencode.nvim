@@ -141,13 +141,37 @@ function M.is_at_bottom(win)
     return true
   end
 
+  local effective_bottom = M.get_effective_bottom_line(state.windows.output_buf, line_count)
+
   local ok2, cursor = pcall(vim.api.nvim_win_get_cursor, win)
   if not ok2 then
     return true
   end
 
   local prev_line_count = M._prev_line_count_by_win[win] or line_count
-  return cursor[1] >= prev_line_count or cursor[1] >= line_count
+  local prev_effective_bottom = M.get_effective_bottom_line(state.windows.output_buf, prev_line_count)
+  return cursor[1] >= prev_effective_bottom or cursor[1] >= effective_bottom
+end
+
+---@param buf integer
+---@param line_count? integer
+---@return integer
+function M.get_effective_bottom_line(buf, line_count)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return 0
+  end
+
+  line_count = line_count or vim.api.nvim_buf_line_count(buf)
+  if not line_count or line_count <= 0 then
+    return 0
+  end
+
+  local last_line = vim.api.nvim_buf_get_lines(buf, line_count - 1, line_count, false)[1]
+  if line_count > 1 and last_line == '' then
+    return line_count - 1
+  end
+
+  return line_count
 end
 
 ---@param win? integer
@@ -219,6 +243,7 @@ function M.setup(windows)
   )
   window_options.set_window_option('wrap', true, windows.output_win, { save_original = true })
   window_options.set_window_option('linebreak', true, windows.output_win, { save_original = true })
+  pcall(window_options.set_window_option, 'smoothscroll', true, windows.output_win, { save_original = true })
   window_options.set_window_option('cursorline', false, windows.output_win, { save_original = true })
   window_options.set_window_option('number', false, windows.output_win, { save_original = true })
   window_options.set_window_option('relativenumber', false, windows.output_win, { save_original = true })
@@ -363,10 +388,11 @@ function M.set_folds(fold_ranges)
   end
 
   local was_open = M.get_open_fold_starts(win, buf)
+  local preserve_view = not M.is_at_bottom(win)
   vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
 
   vim.api.nvim_win_call(win, function()
-    local view = vim.fn.winsaveview()
+    local view = preserve_view and vim.fn.winsaveview() or nil
 
     local line_count = vim.api.nvim_buf_line_count(buf)
     for _, range in ipairs(folds.ranges) do
@@ -381,7 +407,9 @@ function M.set_folds(fold_ranges)
       end
     end
 
-    vim.fn.winrestview(view)
+    if view then
+      vim.fn.winrestview(view)
+    end
   end)
 end
 

@@ -28,10 +28,22 @@ local function invalid_arguments(message)
   }, 0)
 end
 
+local function extract_hash_arg(value)
+  if type(value) == 'table' then
+    value = value[1]
+  end
+
+  if type(value) == 'string' and value ~= '' then
+    return value
+  end
+
+  return nil
+end
+
 ---@param from_snapshot_id? string
 ---@param _to_snapshot_id? string|number
 M.actions.diff_open = with_output_open(function(from_snapshot_id, _to_snapshot_id)
-  git_review.review(from_snapshot_id)
+  git_review.review(extract_hash_arg(from_snapshot_id))
 end, true)
 
 M.actions.diff_next = with_output_open(function()
@@ -153,11 +165,12 @@ M.command_defs = {
     nested_subcommand = { allow_empty = true },
     execute = function(args)
       local subcommand = args[1] or 'open'
+      local target = args[2]
       local action = diff_subcommand_actions[subcommand]
       if not action then
         invalid_arguments('Invalid diff subcommand. Use: ' .. table.concat(diff_subcommands, ', '))
       end
-      return action()
+      return action(target)
     end,
   },
   revert = {
@@ -229,12 +242,18 @@ M.command_defs = {
     end,
   },
   -- action name aliases for keymap compatibility
-  diff_open                    = { desc = 'Open diff view',              execute = M.actions.diff_open },
-  diff_next                    = { desc = 'Next diff',                   execute = M.actions.diff_next },
-  diff_prev                    = { desc = 'Previous diff',               execute = M.actions.diff_prev },
-  diff_close                   = { desc = 'Close diff view',             execute = M.actions.diff_close },
-  diff_revert_all_last_prompt  = { desc = 'Revert all (last prompt)',    execute = M.actions.diff_revert_all_last_prompt },
-  diff_revert_this_last_prompt = { desc = 'Revert this (last prompt)',   execute = M.actions.diff_revert_this_last_prompt },
+  diff_open = { desc = 'Open diff view', execute = M.actions.diff_open },
+  diff_next = { desc = 'Next diff', execute = M.actions.diff_next },
+  diff_prev = { desc = 'Previous diff', execute = M.actions.diff_prev },
+  diff_close = { desc = 'Close diff view', execute = M.actions.diff_close },
+  diff_revert_all_last_prompt = {
+    desc = 'Revert all (last prompt)',
+    execute = M.actions.diff_revert_all_last_prompt,
+  },
+  diff_revert_this_last_prompt = {
+    desc = 'Revert this (last prompt)',
+    execute = M.actions.diff_revert_this_last_prompt,
+  },
 }
 
 return M

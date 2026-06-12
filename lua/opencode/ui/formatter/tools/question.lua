@@ -11,15 +11,13 @@ function M.format(output, part)
   local metadata = part.state and part.state.metadata or {}
 
   local utils = require('opencode.ui.formatter.utils')
-  local config = require('opencode.config')
 
   -- question tool never shows duration
   local icons = require('opencode.ui.icons')
   utils.format_action(output, icons.get('question'), 'question', '', nil)
   output:add_empty_line()
 
-  local start_line = output:get_line_count() + 1
-  if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) or (part.state and part.state.status) ~= 'completed' then
+  if (part.state and part.state.status) ~= 'completed' then
     return
   end
 
@@ -48,8 +46,6 @@ function M.format(output, part)
       output:add_line('')
     end
   end
-
-  output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
 return M

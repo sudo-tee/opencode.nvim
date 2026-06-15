@@ -8,6 +8,7 @@ Community-contributed configurations and workflows for opencode.nvim.
 
 - [Bidirectional TUI/nvim Sync](./recipes/bidirectional-sync/README.md) - Share sessions between TUI and nvim plugin seamlessly
 - [Three-State Layout Toggle](./recipes/three-state-layout/README.md) - Instantly switch between code/split/dialog viewing modes
+- [Change-by-Change Review](./recipes/change-by-change-review/README.md) - Review Opencode edits using diffview+ and gitsigns
 
 ### Contributing a Recipe
 

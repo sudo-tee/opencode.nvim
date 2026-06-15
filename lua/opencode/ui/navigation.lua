@@ -72,6 +72,10 @@ function M.goto_next_user_message()
     return
   end
 
+  -- Mirror `gg` in output_window.setup_keymaps: under lazy render the target
+  -- message may not yet have a line_start, so force a full render first.
+  renderer.load_all_messages()
+
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
   local next_message = renderer.get_next_user_message(current_line)
   if next_message and next_message.line_start then
@@ -91,6 +95,8 @@ function M.goto_prev_user_message()
   if not win or not buf then
     return
   end
+
+  renderer.load_all_messages()
 
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
   local previous_message = renderer.get_prev_user_message(current_line)

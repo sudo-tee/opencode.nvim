@@ -257,4 +257,80 @@ describe('navigation user message jumps', function()
       assert.stub(notify_stub).was_called_with('No next user message', vim.log.levels.INFO)
     end)
   end)
+
+  describe('lazy render interaction', function()
+    -- Under lazy render, only the most recent N messages are present in the
+    -- render_state. The jump action must force a full render first (mirroring
+    -- how `gg` in output_window.setup_keymaps handles this), otherwise the
+    -- target user message has no line_start and the jump silently no-ops.
+    local original_load
+
+    before_each(function()
+      original_load = renderer.load_all_messages
+    end)
+
+    after_each(function()
+      renderer.load_all_messages = original_load
+      ctx.lazy_render_count = nil
+    end)
+
+    it('calls load_all_messages before navigating to the previous user message', function()
+      seed({
+        { info = { id = 'u1', role = 'user' } },
+        { info = { id = 'a1', role = 'assistant' } },
+        { info = { id = 'u2', role = 'user' } },
+      }, {})
+      ctx.lazy_render_count = 0
+
+      local called = 0
+      renderer.load_all_messages = function()
+        called = called + 1
+        return true
+      end
+
+      navigation.goto_prev_user_message()
+
+      assert.equals(1, called)
+    end)
+
+    it('calls load_all_messages before navigating to the next user message', function()
+      seed({
+        { info = { id = 'u1', role = 'user' } },
+        { info = { id = 'u2', role = 'user' } },
+      }, {})
+      ctx.lazy_render_count = 0
+
+      local called = 0
+      renderer.load_all_messages = function()
+        called = called + 1
+        return true
+      end
+
+      navigation.goto_next_user_message()
+
+      assert.equals(1, called)
+    end)
+
+    it('jumps correctly when load_all_messages fills in the previously unrendered user message', function()
+      state.renderer.set_messages({
+        { info = { id = 'u1', role = 'user' } },
+        { info = { id = 'a1', role = 'assistant' } },
+        { info = { id = 'u2', role = 'user' } },
+      })
+      ctx.render_state:reset()
+      ctx.lazy_render_count = 1
+
+      renderer.load_all_messages = function()
+        ctx.render_state:set_message({ info = { id = 'u1', role = 'user' } }, 1, 1)
+        ctx.render_state:set_message({ info = { id = 'u2', role = 'user' } }, 40, 40)
+        return true
+      end
+
+      vim.api.nvim_win_set_cursor(output_win, { 41, 0 })
+      navigation.goto_prev_user_message()
+
+      local cursor = vim.api.nvim_win_get_cursor(output_win)
+      assert.equals(2, cursor[1])
+    end)
+  end)
 end)

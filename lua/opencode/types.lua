@@ -34,6 +34,12 @@
 ---@field worktree string
 ---@field directory string
 
+---@class OpencodeSkill
+---@field name string
+---@field description string|nil
+---@field location string
+---@field content string
+
 ---@class OpencodeCommand
 ---@field description string
 ---@field agent string

@@ -642,6 +642,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | Set mode to Build                                           | -                                     | `:Opencode agent build`                     | `require('opencode.api').agent_build()`                                |
 | Set mode to Plan                                            | -                                     | `:Opencode agent plan`                      | `require('opencode.api').agent_plan()`                                 |
 | Select and switch mode/agent                                | -                                     | `:Opencode agent select`                    | `require('opencode.api').select_agent()`                               |
+| Browse and select available skills                          | -                                     | `:Opencode skills` / `/skills`              | -                                                                      |
 | Display list of available mcp servers                       | -                                     | `:Opencode mcp`                             | `require('opencode.api').mcp()`                                        |
 | Run user commands                                           | -                                     | `:Opencode run user_command`                | `require('opencode.api').run_user_command()`                           |
 | Share current session and get a link                        | -                                     | `:Opencode session share` / `/share`        | `require('opencode.api').share()`                                      |
@@ -979,6 +980,22 @@ When `port = 'auto'` is used, opencode.nvim:
 - Only kills the server when the last nvim instance exits (if `auto_kill = true`). Only applies to servers spawned by the plugin with `spawn_command`/`kill_command`.
 - Locally spawned servers will be killed automatically regardless of the auto_kill setting if they are the last nvim instance using them
 
+## 🎯 Skills
+
+Skills are reusable, installable instruction packs that enhance opencode.nvim with domain-specific workflows. Each skill provides its own behavior, prompts, and tool configurations.
+
+### Browsing Skills
+
+- **Via command:** Run `:Opencode skills` to open the skills picker
+- **Via slash command:** Type `/skills` in the input window to open the skills picker
+- **Via completion:** Type `/` in the input window and select a skill from the completion menu
+
+The skills picker displays each skill with its name, description, and full content rendered as markdown in the preview pane. Selecting a skill executes it directly — opening a session and sending the skill's content as a prompt.
+
+### Installing Skills
+
+See the [Opencode Skills Documentation](https://opencode.ai/docs/skills/) for how to discover and install community skills.
+
 ## User Commands and Slash Commands
 
 You can run predefined user commands and built-in slash commands from the input window by typing `/`. This opens a command picker where you can select a command to execute. The output of the command will be included in your prompt context.
@@ -993,6 +1010,7 @@ You can run predefined user commands and built-in slash commands from the input 
 - `/agents_init` — Initialize/update AGENTS.md
 - `/help` — Show help
 - `/mcp` — Show MCP servers
+- `/skills` — Browse and select available skills
 - `/models` — Switch provider/model
 - `/variant` — Switch model variant
 - `/sessions` — Switch session

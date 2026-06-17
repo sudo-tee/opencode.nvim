@@ -8,11 +8,13 @@ function M.setup()
   local subagents_source = require('opencode.ui.completion.subagents')
   local commands_source = require('opencode.ui.completion.commands')
   local context_source = require('opencode.ui.completion.context')
+  local skills_source = require('opencode.ui.completion.skills')
 
   M.register_source(files_source.get_source())
   M.register_source(subagents_source.get_source())
   M.register_source(commands_source.get_source())
   M.register_source(context_source.get_source())
+  M.register_source(skills_source.get_source())
 
   table.sort(M._sources, function(a, b)
     return (a.priority or 0) > (b.priority or 0)

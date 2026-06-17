@@ -120,6 +120,11 @@ M.actions.mcp = Promise.async(function()
   mcp_picker.pick()
 end)
 
+M.actions.skills = Promise.async(function()
+  local skill_picker = require('opencode.ui.skill_picker')
+  skill_picker.pick()
+end)
+
 M.command_defs = {
   help = {
     desc = 'Show this help message',
@@ -128,6 +133,10 @@ M.command_defs = {
   commands_list = {
     desc = 'Show user-defined commands',
     execute = M.actions.commands_list,
+  },
+  skills = {
+    desc = 'Browse and select available skills',
+    execute = M.actions.skills,
   },
   mcp = {
     desc = 'Show MCP server configuration',

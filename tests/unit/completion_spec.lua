@@ -33,6 +33,7 @@ describe('opencode.ui.completion', function()
     package.loaded['opencode.ui.completion.subagents'] = nil
     package.loaded['opencode.ui.completion.commands'] = nil
     package.loaded['opencode.ui.completion.context'] = nil
+    package.loaded['opencode.ui.completion.skills'] = nil
 
     completion = require('opencode.ui.completion')
     completion._sources = {}
@@ -48,10 +49,11 @@ describe('opencode.ui.completion', function()
     package.loaded['opencode.ui.completion.subagents'] = nil
     package.loaded['opencode.ui.completion.commands'] = nil
     package.loaded['opencode.ui.completion.context'] = nil
+    package.loaded['opencode.ui.completion.skills'] = nil
   end)
 
   describe('setup', function()
-    it('registers all four built-in sources', function()
+    it('registers all built-in sources', function()
       local registered = {}
 
       package.loaded['opencode.ui.completion.files'] = {
@@ -74,6 +76,11 @@ describe('opencode.ui.completion', function()
           return { name = 'context', priority = 1, complete = function() end }
         end,
       }
+      package.loaded['opencode.ui.completion.skills'] = {
+        get_source = function()
+          return { name = 'skills', priority = 1, complete = function() end }
+        end,
+      }
 
       package.loaded['opencode.ui.completion'] = nil
       completion = require('opencode.ui.completion')
@@ -82,7 +89,7 @@ describe('opencode.ui.completion', function()
       completion.setup()
 
       local sources = completion.get_sources()
-      assert.are.equal(4, #sources)
+      assert.are.equal(5, #sources)
 
       for _, s in ipairs(sources) do
         registered[s.name] = true
@@ -91,6 +98,7 @@ describe('opencode.ui.completion', function()
       assert.is_true(registered['subagents'])
       assert.is_true(registered['commands'])
       assert.is_true(registered['context'])
+      assert.is_true(registered['skills'])
     end)
 
     it('sorts sources in descending priority order after setup', function()
@@ -112,6 +120,11 @@ describe('opencode.ui.completion', function()
       package.loaded['opencode.ui.completion.context'] = {
         get_source = function()
           return { name = 'context', priority = 1, complete = function() end }
+        end,
+      }
+      package.loaded['opencode.ui.completion.skills'] = {
+        get_source = function()
+          return { name = 'skills', priority = 1, complete = function() end }
         end,
       }
 
@@ -148,6 +161,11 @@ describe('opencode.ui.completion', function()
           return { name = 'context', complete = function() end } -- no priority
         end,
       }
+      package.loaded['opencode.ui.completion.skills'] = {
+        get_source = function()
+          return { name = 'skills', priority = 1, complete = function() end }
+        end,
+      }
 
       package.loaded['opencode.ui.completion'] = nil
       completion = require('opencode.ui.completion')
@@ -158,7 +176,7 @@ describe('opencode.ui.completion', function()
       end)
 
       local sources = completion.get_sources()
-      assert.are.equal(4, #sources)
+      assert.are.equal(5, #sources)
     end)
   end)
 end)

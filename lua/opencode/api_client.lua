@@ -571,6 +571,15 @@ function OpencodeApiClient:_subscribe_to_global_events(directory, on_event)
   end)
 end
 
+-- Skill endpoints
+
+--- List all skills
+--- @param directory string|nil Directory path
+--- @return Promise<OpencodeSkill[]>
+function OpencodeApiClient:list_skills(directory)
+  return self:_call('/skill', 'GET', nil, { directory = directory })
+end
+
 -- Tool endpoints
 
 --- List all tool IDs (including built-in and dynamically registered)

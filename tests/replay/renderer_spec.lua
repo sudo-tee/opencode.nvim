@@ -9,6 +9,46 @@ local config = require('opencode.config')
 local function assert_output_matches(expected, actual, name)
   local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
 
+  local function legacy_effective_bottom(window)
+    if not window or not window.cursor or not window.line_count then
+      return nil
+    end
+
+    if window.cursor[1] == window.line_count - 1 then
+      return window.line_count - 1
+    end
+
+    return window.line_count
+  end
+
+  local function visible_bottom_equivalent(expected_window, actual_window)
+    if expected_window.visible_bottom == actual_window.visible_bottom then
+      return true
+    end
+
+    if expected_window.effective_bottom == nil or actual_window.effective_bottom == nil then
+      return false
+    end
+
+    if not vim.deep_equal(expected_window.cursor, actual_window.cursor) then
+      return false
+    end
+
+    if expected_window.effective_bottom ~= actual_window.effective_bottom then
+      return false
+    end
+
+    if expected_window.cursor[1] ~= expected_window.effective_bottom then
+      return false
+    end
+
+    -- line('w$') can differ by one wrapped/padding row between event replay and
+    -- bulk full-session render even when both windows are following the same
+    -- effective bottom line.
+    return math.abs(expected_window.visible_bottom - expected_window.effective_bottom) <= 1
+      and math.abs(actual_window.visible_bottom - actual_window.effective_bottom) <= 1
+  end
+
   assert.are.equal(
     #expected.lines,
     #actual.lines,
@@ -92,18 +132,43 @@ local function assert_output_matches(expected, actual, name)
   end
 
   if expected.window then
-    assert.are.same(expected.window.cursor, actual.window and actual.window.cursor, 'Window cursor mismatch')
-    assert.are.same(
-      expected.window.visible_bottom,
-      actual.window and actual.window.visible_bottom,
-      'Window visible_bottom mismatch'
-    )
-    assert.are.same(
-      expected.window.line_count,
-      actual.window and actual.window.line_count,
-      'Window line_count mismatch'
-    )
-    assert.are.same(expected.window, actual.window, 'Window snapshot mismatch')
+    local actual_window = actual.window or {}
+    assert.are.same(expected.window.cursor, actual_window.cursor, 'Window cursor mismatch')
+    assert.are.same(expected.window.line_count, actual_window.line_count, 'Window line_count mismatch')
+
+    local expected_has_effective_bottom = expected.window.effective_bottom ~= nil
+    if expected_has_effective_bottom then
+      assert.are.same(
+        expected.window.effective_bottom,
+        actual_window.effective_bottom,
+        'Window effective_bottom mismatch'
+      )
+      assert.is_true(
+        visible_bottom_equivalent(expected.window, actual_window),
+        string.format(
+          'Window visible_bottom mismatch: expected %s, got %s (effective_bottom=%s)',
+          vim.inspect(expected.window.visible_bottom),
+          vim.inspect(actual_window.visible_bottom),
+          vim.inspect(expected.window.effective_bottom)
+        )
+      )
+    else
+      local expected_visible_bottom = expected.window.visible_bottom
+      local actual_visible_bottom = actual_window.visible_bottom
+      local expected_effective_bottom = legacy_effective_bottom(expected.window)
+      local matches_legacy_bottom_follow = actual_visible_bottom == expected_visible_bottom
+        or actual_visible_bottom == expected_effective_bottom
+
+      assert.is_true(
+        matches_legacy_bottom_follow,
+        string.format(
+          'Window visible_bottom mismatch: expected %s, got %s (legacy effective_bottom=%s)',
+          vim.inspect(expected_visible_bottom),
+          vim.inspect(actual_visible_bottom),
+          vim.inspect(expected_effective_bottom)
+        )
+      )
+    end
   end
 end
 
@@ -162,10 +227,11 @@ describe('renderer unit tests', function()
     local window_keys = vim.tbl_keys(actual.window)
     table.sort(window_keys)
 
-    assert.are.same({ 'cursor', 'line_count', 'visible_bottom' }, window_keys)
+    assert.are.same({ 'cursor', 'effective_bottom', 'line_count', 'visible_bottom' }, window_keys)
     assert.are.same({ 2, 0 }, actual.window.cursor)
     assert.are.equal(3, actual.window.visible_bottom)
     assert.are.equal(3, actual.window.line_count)
+    assert.are.equal(3, actual.window.effective_bottom)
 
     local existing_file = vim.fn.tempname()
     local file = assert(io.open(existing_file, 'w'))

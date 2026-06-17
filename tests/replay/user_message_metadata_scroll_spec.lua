@@ -25,11 +25,16 @@ end
 
 local function format_window(window)
   return string.format(
-    'cursor=%s visible_bottom=%s line_count=%s',
+    'cursor=%s visible_bottom=%s line_count=%s effective_bottom=%s',
     vim.inspect(window.cursor),
     vim.inspect(window.visible_bottom),
-    vim.inspect(window.line_count)
+    vim.inspect(window.line_count),
+    vim.inspect(window.effective_bottom)
   )
+end
+
+local function is_at_effective_bottom(window)
+  return window.visible_bottom == window.effective_bottom and window.cursor[1] == window.effective_bottom
 end
 
 local function move_output_away_from_bottom()
@@ -42,7 +47,7 @@ local function move_output_away_from_bottom()
 
   local window = capture_window()
   assert.is_true(
-    window.visible_bottom ~= window.line_count and window.cursor[1] ~= window.line_count,
+    window.visible_bottom ~= window.effective_bottom and window.cursor[1] ~= window.effective_bottom,
     'Could not construct user-away output window state: ' .. format_window(window)
   )
   return window
@@ -52,7 +57,8 @@ local function assert_preserved_user_away(update_kind, before, actual)
   assert.is_true(
     vim.deep_equal(actual.cursor, before.cursor)
       and actual.visible_bottom == before.visible_bottom
-      and actual.line_count == before.line_count,
+      and actual.line_count == before.line_count
+      and actual.effective_bottom == before.effective_bottom,
     'Expected existing user metadata '
       .. update_kind
       .. ' update to preserve user-away output window state; before '
@@ -64,7 +70,7 @@ end
 
 local function assert_followed_bottom(actual)
   assert.is_true(
-    actual.visible_bottom == actual.line_count and actual.cursor[1] == actual.line_count,
+    is_at_effective_bottom(actual),
     'Expected new user message submit-follow to reach bottom; actual ' .. format_window(actual)
   )
 end

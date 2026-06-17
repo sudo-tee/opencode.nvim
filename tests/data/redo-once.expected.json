@@ -1,24 +1,118 @@
 {
+  "actions": [
+    {
+      "args": [
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+      ],
+      "display_line": 22,
+      "key": "R",
+      "range": {
+        "from": 22,
+        "to": 22
+      },
+      "text": "[R]evert file",
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "args": [
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+      ],
+      "display_line": 22,
+      "key": "A",
+      "range": {
+        "from": 22,
+        "to": 22
+      },
+      "text": "Revert [A]ll",
+      "type": "diff_revert_all"
+    },
+    {
+      "args": [
+        "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
+      ],
+      "display_line": 22,
+      "key": "D",
+      "range": {
+        "from": 22,
+        "to": 22
+      },
+      "text": "[D]iff",
+      "type": "diff_open"
+    },
+    {
+      "args": [
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+      ],
+      "display_line": 56,
+      "key": "R",
+      "range": {
+        "from": 56,
+        "to": 56
+      },
+      "text": "[R]evert file",
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "args": [
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+      ],
+      "display_line": 56,
+      "key": "A",
+      "range": {
+        "from": 56,
+        "to": 56
+      },
+      "text": "Revert [A]ll",
+      "type": "diff_revert_all"
+    },
+    {
+      "args": [
+        "57d83f5596cb1f142fbc681d3d93b7184f7f73cd"
+      ],
+      "display_line": 56,
+      "key": "D",
+      "range": {
+        "from": 56,
+        "to": 56
+      },
+      "text": "[D]iff",
+      "type": "diff_open"
+    }
+  ],
   "extmarks": [
     [
       1,
       1,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" [msg_a0234c0b7001y2o9S1jMaNVZar]", "OpencodeHint"]
-        ]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234c0b7001y2o9S1jMaNVZar]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -26,13 +120,18 @@
       1,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:02",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:02", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -40,14 +139,19 @@
       2,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -55,14 +159,19 @@
       3,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -70,14 +179,19 @@
       4,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -85,14 +199,19 @@
       5,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -100,20 +219,34 @@
       8,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-5-mini", "OpencodeHint"],
-          [" [msg_a0234c7960011LTxTvD94hfWCi]", "OpencodeHint"]
-        ]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5-mini",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234c7960011LTxTvD94hfWCi]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -121,13 +254,18 @@
       8,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:04",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:04", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -135,14 +273,19 @@
       12,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -150,14 +293,19 @@
       13,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -165,14 +313,19 @@
       14,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -180,22 +333,31 @@
       15,
       0,
       {
-        "end_row": 16,
-        "hl_group": "OpencodeDiffDelete",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "ns_id": 3,
-        "virt_text_pos": "overlay",
-        "priority": 5000,
+        "end_right_gravity": false,
+        "end_row": 16,
         "hl_eol": true,
+        "hl_group": "OpencodeDiffDelete",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true,
         "virt_text": [
-          ["1", "OpencodeDiffDeleteGutter"],
-          ["-", "OpencodeDiffDeleteGutter"],
-          [" ", "OpencodeDiffDeleteGutter"]
-        ]
+          [
+            "1",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            "-",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffDeleteGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -203,14 +365,19 @@
       15,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -218,22 +385,31 @@
       16,
       0,
       {
-        "end_row": 17,
-        "hl_group": "OpencodeDiffAdd",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "ns_id": 3,
-        "virt_text_pos": "overlay",
-        "priority": 5000,
+        "end_right_gravity": false,
+        "end_row": 17,
         "hl_eol": true,
+        "hl_group": "OpencodeDiffAdd",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true,
         "virt_text": [
-          ["1", "OpencodeDiffAddGutter"],
-          ["+", "OpencodeDiffAddGutter"],
-          [" ", "OpencodeDiffAddGutter"]
-        ]
+          [
+            "1",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            "+",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffAddGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -241,14 +417,19 @@
       16,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -256,20 +437,29 @@
       17,
       0,
       {
+        "end_col": 0,
+        "end_right_gravity": false,
         "end_row": 18,
-        "virt_text_pos": "overlay",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
-        "end_col": 0,
-        "right_gravity": true,
         "ns_id": 3,
         "priority": 5000,
-        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
         "virt_text": [
-          ["2", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
-        ]
+          [
+            "2",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -277,14 +467,19 @@
       17,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -292,20 +487,29 @@
       18,
       0,
       {
-        "end_row": 19,
-        "virt_text_pos": "overlay",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
+        "end_right_gravity": false,
+        "end_row": 19,
         "ns_id": 3,
         "priority": 5000,
-        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
         "virt_text": [
-          ["3", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
-        ]
+          [
+            "3",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -313,14 +517,19 @@
       18,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -328,14 +537,19 @@
       19,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -343,14 +557,19 @@
       20,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -358,20 +577,34 @@
       25,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-5-mini", "OpencodeHint"],
-          [" [msg_a0234d8fb001SXyngLjuKSuxOY]", "OpencodeHint"]
-        ]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5-mini",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234d8fb001SXyngLjuKSuxOY]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -379,13 +612,18 @@
       25,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:09",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:09", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -393,20 +631,34 @@
       30,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          ["▌󰭻 ", "OpencodeMessageRoleUser"],
-          [" "],
-          ["USER", "OpencodeMessageRoleUser"],
-          ["", "OpencodeHint"],
-          [" [msg_a0234e308001SKl5bQUibp5gtI]", "OpencodeHint"]
-        ]
+          [
+            "▌󰭻 ",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
+          ],
+          [
+            "USER",
+            "OpencodeMessageRoleUser"
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234e308001SKl5bQUibp5gtI]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -414,13 +666,18 @@
       30,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:11",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:11", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -428,14 +685,19 @@
       31,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -443,14 +705,19 @@
       32,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeMessageRoleUser"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -458,20 +725,34 @@
       35,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-5-mini", "OpencodeHint"],
-          [" [msg_a0234e31f001m4EsQdPmY3PTtS]", "OpencodeHint"]
-        ]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5-mini",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234e31f001m4EsQdPmY3PTtS]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -479,13 +760,18 @@
       35,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:11",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:11", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -493,20 +779,34 @@
       42,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-5-mini", "OpencodeHint"],
-          [" [msg_a0234f482001PQbMjWc6W8s0eF]", "OpencodeHint"]
-        ]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5-mini",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234f482001PQbMjWc6W8s0eF]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -514,13 +814,18 @@
       42,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:16",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:16", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -528,14 +833,19 @@
       46,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -543,14 +853,19 @@
       47,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -558,14 +873,19 @@
       48,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -573,22 +893,31 @@
       49,
       0,
       {
-        "end_row": 50,
-        "hl_group": "OpencodeDiffDelete",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "ns_id": 3,
-        "virt_text_pos": "overlay",
-        "priority": 5000,
+        "end_right_gravity": false,
+        "end_row": 50,
         "hl_eol": true,
+        "hl_group": "OpencodeDiffDelete",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true,
         "virt_text": [
-          ["1", "OpencodeDiffDeleteGutter"],
-          ["-", "OpencodeDiffDeleteGutter"],
-          [" ", "OpencodeDiffDeleteGutter"]
-        ]
+          [
+            "1",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            "-",
+            "OpencodeDiffDeleteGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffDeleteGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -596,14 +925,19 @@
       49,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -611,22 +945,31 @@
       50,
       0,
       {
-        "end_row": 51,
-        "hl_group": "OpencodeDiffAdd",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
-        "virt_text_repeat_linebreak": false,
-        "ns_id": 3,
-        "virt_text_pos": "overlay",
-        "priority": 5000,
+        "end_right_gravity": false,
+        "end_row": 51,
         "hl_eol": true,
+        "hl_group": "OpencodeDiffAdd",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true,
         "virt_text": [
-          ["1", "OpencodeDiffAddGutter"],
-          ["+", "OpencodeDiffAddGutter"],
-          [" ", "OpencodeDiffAddGutter"]
-        ]
+          [
+            "1",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            "+",
+            "OpencodeDiffAddGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffAddGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -634,14 +977,19 @@
       50,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -649,20 +997,29 @@
       51,
       0,
       {
-        "end_row": 52,
-        "virt_text_pos": "overlay",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
+        "end_right_gravity": false,
+        "end_row": 52,
         "ns_id": 3,
         "priority": 5000,
-        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
         "virt_text": [
-          ["2", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
-        ]
+          [
+            "2",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -670,14 +1027,19 @@
       51,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -685,20 +1047,29 @@
       52,
       0,
       {
-        "end_row": 53,
-        "virt_text_pos": "overlay",
-        "end_right_gravity": false,
-        "virt_text_hide": false,
         "end_col": 0,
-        "right_gravity": true,
+        "end_right_gravity": false,
+        "end_row": 53,
         "ns_id": 3,
         "priority": 5000,
-        "virt_text_repeat_linebreak": false,
+        "right_gravity": true,
         "virt_text": [
-          ["3", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"],
-          [" ", "OpencodeDiffGutter"]
-        ]
+          [
+            "3",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ],
+          [
+            " ",
+            "OpencodeDiffGutter"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "overlay",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -706,14 +1077,19 @@
       52,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -721,14 +1097,19 @@
       53,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -736,14 +1117,19 @@
       54,
       0,
       {
-        "virt_text_repeat_linebreak": true,
-        "right_gravity": true,
-        "virt_text_win_col": -1,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["▌", "OpencodeToolBorder"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
@@ -751,20 +1137,34 @@
       59,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": -3,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 10,
-        "virt_text_hide": false,
+        "right_gravity": true,
         "virt_text": [
-          [" ", "OpencodeMessageRoleAssistant"],
-          [" "],
-          ["BUILD", "OpencodeMessageRoleAssistant"],
-          [" gpt-5-mini", "OpencodeHint"],
-          [" [msg_a0234f9c6001JCKYaca1HHwwx6]", "OpencodeHint"]
-        ]
+          [
+            " ",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
+          ],
+          [
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " gpt-5-mini",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_a0234f9c6001JCKYaca1HHwwx6]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
       }
     ],
     [
@@ -772,13 +1172,18 @@
       59,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
         "ns_id": 3,
-        "virt_text_pos": "right_align",
         "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2025-10-20 15:20:17",
+            "OpencodeHint"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [[" 2025-10-20 15:20:17", "OpencodeHint"]]
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
       }
     ],
     [
@@ -786,14 +1191,19 @@
       69,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": 12,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 1000,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "+1",
+            "OpencodeDiffAddText"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["+1", "OpencodeDiffAddText"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": 12
       }
     ],
     [
@@ -801,68 +1211,22 @@
       69,
       0,
       {
-        "virt_text_repeat_linebreak": false,
-        "right_gravity": true,
-        "virt_text_win_col": 15,
         "ns_id": 3,
-        "virt_text_pos": "win_col",
         "priority": 1000,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "-1",
+            "OpencodeDiffDeleteText"
+          ]
+        ],
         "virt_text_hide": false,
-        "virt_text": [["-1", "OpencodeDiffDeleteText"]]
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": 15
       }
     ]
   ],
-  "actions": [
-    {
-      "text": "[R]evert file",
-      "range": { "from": 22, "to": 22 },
-      "key": "R",
-      "display_line": 22,
-      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
-      "type": "diff_revert_selected_file"
-    },
-    {
-      "text": "Revert [A]ll",
-      "range": { "from": 22, "to": 22 },
-      "key": "A",
-      "display_line": 22,
-      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
-      "type": "diff_revert_all"
-    },
-    {
-      "text": "[D]iff",
-      "range": { "from": 22, "to": 22 },
-      "key": "D",
-      "display_line": 22,
-      "args": ["1b6ba655c6c0d899965adff278ac6320d5fc3b12"],
-      "type": "diff_open"
-    },
-    {
-      "text": "[R]evert file",
-      "range": { "from": 56, "to": 56 },
-      "key": "R",
-      "display_line": 56,
-      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
-      "type": "diff_revert_selected_file"
-    },
-    {
-      "text": "Revert [A]ll",
-      "range": { "from": 56, "to": 56 },
-      "key": "A",
-      "display_line": 56,
-      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
-      "type": "diff_revert_all"
-    },
-    {
-      "text": "[D]iff",
-      "range": { "from": 56, "to": 56 },
-      "key": "D",
-      "display_line": 56,
-      "args": ["57d83f5596cb1f142fbc681d3d93b7184f7f73cd"],
-      "type": "diff_open"
-    }
-  ],
-  "timestamp": 1774894778,
   "lines": [
     "----",
     "",
@@ -937,12 +1301,13 @@
     "",
     ""
   ],
+  "timestamp": 1774894778,
   "window": {
     "cursor": [
-      72,
+      71,
       0
     ],
     "line_count": 72,
-    "visible_bottom": 72
+    "visible_bottom": 71
   }
 }

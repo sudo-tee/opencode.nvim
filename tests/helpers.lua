@@ -559,13 +559,16 @@ end
 
 local function capture_window(output_buf)
   local output_win = output_window_for_buffer(output_buf)
+  local output_window = require('opencode.ui.output_window')
+  local line_count = vim.api.nvim_buf_line_count(output_buf)
 
   return {
     cursor = vim.api.nvim_win_get_cursor(output_win),
     visible_bottom = vim.api.nvim_win_call(output_win, function()
       return vim.fn.line('w$')
     end),
-    line_count = vim.api.nvim_buf_line_count(output_buf),
+    line_count = line_count,
+    effective_bottom = output_window.get_effective_bottom_line(output_buf, line_count),
   }
 end
 

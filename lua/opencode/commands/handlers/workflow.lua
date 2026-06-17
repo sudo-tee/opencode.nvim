@@ -277,6 +277,14 @@ function M.actions.prev_message()
   require('opencode.ui.navigation').goto_prev_message()
 end
 
+function M.actions.next_user_message()
+  require('opencode.ui.navigation').goto_next_user_message()
+end
+
+function M.actions.prev_user_message()
+  require('opencode.ui.navigation').goto_prev_user_message()
+end
+
 function M.actions.clear_selections()
   require('opencode.context').clear_selections()
   vim.notify('Selections cleared', vim.log.levels.INFO)
@@ -471,6 +479,14 @@ M.command_defs = {
   prev_message = {
     desc = 'Navigate to previous message in output window',
     execute = M.actions.prev_message,
+  },
+  next_user_message = {
+    desc = 'Navigate to next user message in output window',
+    execute = M.actions.next_user_message,
+  },
+  prev_user_message = {
+    desc = 'Navigate to previous user message in output window',
+    execute = M.actions.prev_user_message,
   },
   clear_selections = {
     desc = 'Clear only selections from context',

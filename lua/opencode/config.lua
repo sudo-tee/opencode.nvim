@@ -69,6 +69,8 @@ M.defaults = {
       ['<C-c>'] =       { 'cancel',                                            desc = 'Cancel running request' },
       [']]']   =        { 'next_message',                                      desc = 'Go to next message' },
       ['[[']   =        { 'prev_message',                                      desc = 'Go to previous message' },
+      [']u']   =        { 'next_user_message',                                 desc = 'Go to next user message' },
+      ['[u']   =        { 'prev_user_message',                                 desc = 'Go to previous user message' },
       ['<tab>'] =       { 'toggle_pane',                  mode = { 'n' },      desc = 'Toggle input/output panes' },
       ['i']     =       { 'focus_input',                                       desc = 'Focus input window' },
       ['gr']    =       { 'references',                                        desc = 'Browse code references' },

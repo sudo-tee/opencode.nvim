@@ -625,4 +625,35 @@ function M.get_prev_rendered_message(current_line)
   return nil
 end
 
+---@param current_line integer
+---@return RenderedMessage|nil
+function M.get_next_user_message(current_line)
+  for _, message in ipairs(state.messages or {}) do
+    if message.info and message.info.role == 'user' then
+      local rendered = message.info.id and ctx.render_state:get_message(message.info.id) or nil
+      if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
+        return rendered
+      end
+    end
+  end
+
+  return nil
+end
+
+---@param current_line integer
+---@return RenderedMessage|nil
+function M.get_prev_user_message(current_line)
+  for i = #(state.messages or {}), 1, -1 do
+    local message = state.messages[i]
+    if message and message.info and message.info.role == 'user' then
+      local rendered = message.info.id and ctx.render_state:get_message(message.info.id)
+      if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
+        return rendered
+      end
+    end
+  end
+
+  return nil
+end
+
 return M

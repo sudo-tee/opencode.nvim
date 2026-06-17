@@ -62,6 +62,52 @@ function M.goto_prev_message()
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
 end
 
+function M.goto_next_user_message()
+  require('opencode.ui.ui').focus_output()
+  local windows = state.windows or {}
+  local win = windows.output_win
+  local buf = windows.output_buf
+
+  if not win or not buf then
+    return
+  end
+
+  -- Mirror `gg` in output_window.setup_keymaps: under lazy render the target
+  -- message may not yet have a line_start, so force a full render first.
+  renderer.load_all_messages()
+
+  local current_line = vim.api.nvim_win_get_cursor(win)[1]
+  local next_message = renderer.get_next_user_message(current_line)
+  if next_message and next_message.line_start then
+    vim.api.nvim_win_set_cursor(win, { next_message.line_start + 1, 0 })
+    return
+  end
+
+  vim.notify('No next user message', vim.log.levels.INFO)
+end
+
+function M.goto_prev_user_message()
+  require('opencode.ui.ui').focus_output()
+  local windows = state.windows or {}
+  local win = windows.output_win
+  local buf = windows.output_buf
+
+  if not win or not buf then
+    return
+  end
+
+  renderer.load_all_messages()
+
+  local current_line = vim.api.nvim_win_get_cursor(win)[1]
+  local previous_message = renderer.get_prev_user_message(current_line)
+  if previous_message and previous_message.line_start then
+    vim.api.nvim_win_set_cursor(win, { previous_message.line_start + 1, 0 })
+    return
+  end
+
+  vim.notify('No previous user message', vim.log.levels.INFO)
+end
+
 ---@param raw string
 local function resolve_path(raw)
   if vim.uv.fs_stat(raw) then

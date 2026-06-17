@@ -11,6 +11,13 @@ M._last_visible_bottom_by_win = {}
 M._was_at_bottom_by_win = {}
 M._prev_line_count_by_win = {}
 
+local OUTPUT_FOLD_FILLCHARS = {
+  fold = '-',
+  foldclose = '+',
+  foldopen = '-',
+  foldsep = '│',
+}
+
 local function build_fold_state(folds)
   local fold_state = {
     ranges = {},
@@ -258,7 +265,15 @@ function M.setup(windows)
   window_options.set_window_option('foldenable', true, windows.output_win)
   window_options.set_window_option('foldlevel', 0, windows.output_win)
   window_options.set_window_option('foldcolumn', '1', windows.output_win)
-  window_options.set_window_option('fillchars', 'fold:-,foldopen:-,foldclose:+,foldsep:│', windows.output_win)
+  window_options.set_window_option(
+    'fillchars',
+    vim.api.nvim_get_option_value('fillchars', { win = windows.output_win }),
+    windows.output_win,
+    { save_original = true }
+  )
+  vim.api.nvim_win_call(windows.output_win, function()
+    vim.opt_local.fillchars:append(OUTPUT_FOLD_FILLCHARS)
+  end)
   window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
   if config.ui.position ~= 'current' then

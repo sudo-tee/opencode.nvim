@@ -4,6 +4,19 @@ local output_window = require('opencode.ui.output_window')
 local flush = require('opencode.ui.renderer.flush')
 local stub = require('luassert.stub')
 
+---@param value string
+---@return table<string, string>
+local function parse_fillchars(value)
+  local result = {}
+  for _, part in ipairs(vim.split(value, ',', { plain = true, trimempty = true })) do
+    local key, item = part:match('^([^:]+):(.*)$')
+    if key and item then
+      result[key] = item
+    end
+  end
+  return result
+end
+
 describe('output_window.create_buf', function()
   local original_config
 
@@ -154,12 +167,21 @@ describe('output_window.setup', function()
     assert.equals(0, foldlevel)
   end)
 
-  it('sets fold fillchars to avoid numeric fold column markers', function()
+  it('preserves existing fillchars while setting fold fillchars', function()
+    vim.api.nvim_set_option_value('fillchars', 'eob:~,lastline:@', { win = win, scope = 'local' })
+
     output_window.setup({ output_buf = buf, output_win = win })
 
     local fillchars = vim.api.nvim_get_option_value('fillchars', { win = win })
 
-    assert.equals('fold:-,foldopen:-,foldclose:+,foldsep:│', fillchars)
+    assert.same({
+      eob = '~',
+      lastline = '@',
+      fold = '-',
+      foldopen = '-',
+      foldclose = '+',
+      foldsep = '│',
+    }, parse_fillchars(fillchars))
   end)
 
   it('applies closed folds immediately when fold ranges change', function()

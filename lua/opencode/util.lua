@@ -352,10 +352,10 @@ function M.format_cost(c)
 end
 
 function M.debounce(func, delay)
-  local timer = nil
+  local timer ---@type uv.uv_timer_t?
   return function(...)
-    if timer then
-      timer:stop()
+    if timer and not timer:is_closing() then
+      timer:close()
     end
     local args = { ... }
     timer = vim.defer_fn(function()

@@ -578,13 +578,6 @@ function M.on_permission_replied(properties)
 
   permission_window.remove_permission(permission_id)
   state.renderer.set_pending_permissions(vim.deepcopy(permission_window.get_all_permissions()))
-
-  if #state.pending_permissions == 0 then
-    flush.queue_part_removal('permission-display-part')
-    flush.queue_message_removal('permission-display-message')
-  else
-    M.render_permissions_display()
-  end
 end
 
 ---Handle question.asked — show the question picker UI

@@ -31,7 +31,7 @@ end
 ---@param session Session|GlobalSession object
 ---@param width? integer
 ---@return PickerItem
-function format_session_item(session, width)
+local function format_session_item(session, width)
   local project = (session --[[@as GlobalSession]]).project
   local title = session.title or 'N/A'
   if project then

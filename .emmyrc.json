@@ -3,6 +3,11 @@
     "runtime": {
         "version": "LuaJIT"
     },
+    "diagnostics": {
+        "enables": [
+            "missing-global-doc"
+        ]
+    },
     "workspace": {
         "library": [
             "$VIMRUNTIME",

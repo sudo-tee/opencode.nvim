@@ -86,6 +86,37 @@ function OpencodeServer:is_running()
   return self.job.pid ~= nil
 end
 
+---Perform a health check on a server URL.
+---@param url string The full health endpoint URL
+---@param timeout_ms number Timeout in milliseconds
+---@return Promise<boolean>
+function OpencodeServer.health_check(url, timeout_ms)
+  local health_promise = Promise.new()
+  curl.request({
+    url = url,
+    method = 'GET',
+    timeout = timeout_ms or 2000,
+    proxy = '',
+    callback = function(response)
+      health_promise:resolve(response ~= nil and response.status >= 200 and response.status < 300)
+    end,
+    on_error = function(_err)
+      health_promise:resolve(false)
+    end,
+  })
+  return health_promise
+end
+
+---Check if the server is reachable via its health endpoint.
+---@return Promise<boolean>
+function OpencodeServer:check_health()
+  if not self.url then
+    return Promise.new():resolve(false)
+  end
+  local health_url = self.url:gsub('/$', '') .. '/global/health'
+  return OpencodeServer.health_check(health_url, 2000)
+end
+
 local function kill_process(pid, signal, desc)
   local log = require('opencode.log')
   local ok, err = pcall(vim.uv.kill, pid, signal)

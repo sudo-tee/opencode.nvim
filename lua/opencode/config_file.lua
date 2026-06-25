@@ -10,13 +10,16 @@ local M = {
 M.get_opencode_config = Promise.async(function()
   if not M.config_promise then
     local state = require('opencode.state')
-    M.config_promise = state.api_client:get_config()
+    M.config_promise = Promise.retry(function()
+      return state.api_client:get_config()
+    end, 3, 500)
   end
   local ok, result = pcall(function()
     return M.config_promise:await()
   end)
 
   if not ok then
+    M.config_promise = nil
     vim.notify('Error fetching Opencode config: ' .. vim.inspect(result), vim.log.levels.ERROR)
     return nil
   end
@@ -28,12 +31,15 @@ end)
 M.get_opencode_project = Promise.async(function()
   if not M.project_promise then
     local state = require('opencode.state')
-    M.project_promise = state.api_client:get_current_project()
+    M.project_promise = Promise.retry(function()
+      return state.api_client:get_current_project()
+    end, 3, 500)
   end
   local ok, result = pcall(function()
     return M.project_promise:await()
   end)
   if not ok then
+    M.project_promise = nil
     vim.notify('Error fetching Opencode project: ' .. vim.inspect(result), vim.log.levels.ERROR)
     return nil
   end
@@ -77,6 +83,7 @@ function M.get_opencode_providers()
   end
   local wrapped = M.providers_promise:catch(function(err)
     vim.notify('Error fetching Opencode providers: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    M.providers_promise = nil
     return nil
   end)
   if not _providers_render_callback then

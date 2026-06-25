@@ -286,9 +286,7 @@ M.revert_selected_file = require_git_project(function(ref)
 end)
 
 M.revert_all = require_git_project(function(ref)
-  vim.print('⭕ ❱ git_review.lua:288 ❱ ƒ(anonymous) ❱ ref =', ref)
   M.__current_ref = ref or M.get_first_snapshot()
-  vim.print('⭕ ❱ git_review.lua:289 ❱ ƒ(M.__current_ref) ❱ M.__current_ref =', M.__current_ref)
 
   local files = get_changed_files()
 

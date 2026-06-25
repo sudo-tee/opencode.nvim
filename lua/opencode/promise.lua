@@ -418,4 +418,40 @@ function Promise.all(promises)
   end)
 end
 
+---Create a promise that resolves after a delay.
+---@param ms number Delay in milliseconds
+---@return Promise<boolean>
+function Promise.delay(ms)
+  local delay = Promise.new()
+  vim.defer_fn(function()
+    pcall(delay.resolve, delay, true)
+  end, ms)
+  return delay
+end
+
+---Retry a promise-returning operation on failure.
+---@generic T
+---@param factory fun(): Promise<T> Creates a fresh promise per attempt
+---@param max_retries number Total attempts (1 = no retry)
+---@param delay_ms number Delay between retries in milliseconds
+---@return Promise<T>
+function Promise.retry(factory, max_retries, delay_ms)
+  return Promise.spawn(function()
+    local last_err
+    for i = 1, max_retries do
+      local ok, result = pcall(function()
+        return factory():await()
+      end)
+      if ok then
+        return result
+      end
+      last_err = result
+      if i < max_retries then
+        Promise.delay(delay_ms):await()
+      end
+    end
+    return Promise.new():reject(last_err)
+  end)
+end
+
 return Promise

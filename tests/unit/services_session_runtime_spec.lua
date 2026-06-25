@@ -85,6 +85,9 @@ describe('opencode.services.session_runtime', function()
       end,
       shutdown = function() end,
       url = 'http://127.0.0.1:4000',
+      check_health = function()
+        return Promise.new():resolve(true)
+      end,
     })
   end)
 

@@ -1,4 +1,5 @@
 local server_job = require('opencode.server_job')
+local Promise = require('opencode.promise')
 
 local curl = require('opencode.curl')
 local assert = require('luassert')
@@ -93,6 +94,9 @@ describe('server_job', function()
         end)
       end,
       shutdown = function() end,
+      check_health = function()
+        return Promise.new():resolve(true)
+      end,
     }
     opencode_server.new = function()
       return fake

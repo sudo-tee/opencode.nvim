@@ -101,6 +101,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -235,7 +238,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-5-mini",
+            " "
+          ],
+          [
+            "github-copilot/gpt-5-mini",
             "OpencodeHint"
           ],
           [
@@ -593,7 +599,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-5-mini",
+            " "
+          ],
+          [
+            "github-copilot/gpt-5-mini",
             "OpencodeHint"
           ],
           [
@@ -645,6 +654,9 @@
           [
             "USER",
             "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
           ],
           [
             "",
@@ -741,7 +753,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-5-mini",
+            " "
+          ],
+          [
+            "github-copilot/gpt-5-mini",
             "OpencodeHint"
           ],
           [
@@ -795,7 +810,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-5-mini",
+            " "
+          ],
+          [
+            "github-copilot/gpt-5-mini",
             "OpencodeHint"
           ],
           [
@@ -1153,7 +1171,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-5-mini",
+            " "
+          ],
+          [
+            "github-copilot/gpt-5-mini",
             "OpencodeHint"
           ],
           [

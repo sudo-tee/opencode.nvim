@@ -62,6 +62,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -216,7 +219,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-4.1",
+            " "
+          ],
+          [
+            "github-copilot/gpt-4.1",
             "OpencodeHint"
           ],
           [
@@ -510,7 +516,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-4.1",
+            " "
+          ],
+          [
+            "github-copilot/gpt-4.1",
             "OpencodeHint"
           ],
           [

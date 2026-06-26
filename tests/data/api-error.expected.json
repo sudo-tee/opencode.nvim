@@ -22,6 +22,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -156,7 +159,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4-5-20250929",
+            " "
+          ],
+          [
+            "anthropic/claude-sonnet-4-5-20250929",
             "OpencodeHint"
           ],
           [
@@ -210,7 +216,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4-5-20250929",
+            " "
+          ],
+          [
+            "anthropic/claude-sonnet-4-5-20250929",
             "OpencodeHint"
           ],
           [

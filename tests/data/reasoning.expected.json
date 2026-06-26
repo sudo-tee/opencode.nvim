@@ -22,6 +22,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -116,7 +119,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4",
             "OpencodeHint"
           ],
           [

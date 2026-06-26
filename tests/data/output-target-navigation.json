@@ -1,0 +1,43 @@
+[
+  {
+    "type": "session.updated",
+    "properties": {
+      "info": {
+        "id": "ses_output_target_navigation",
+        "directory": "/mock/project/path",
+        "time": {
+          "created": 1760000000000,
+          "updated": 1760000000000
+        },
+        "version": "0.15.0",
+        "title": "Output Target Navigation Test",
+        "projectID": "test-output-target-navigation"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_output_target_navigation",
+        "sessionID": "ses_output_target_navigation",
+        "time": {
+          "created": 1760000001000
+        },
+        "role": "assistant"
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_output_target_navigation_text",
+        "messageID": "msg_output_target_navigation",
+        "sessionID": "ses_output_target_navigation",
+        "type": "text",
+        "text": "Open `lua/opencode/ui/navigation.lua:12:3` from replayed output."
+      }
+    }
+  }
+]

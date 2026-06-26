@@ -38,6 +38,13 @@ describe('opencode.config', function()
     assert.same(config.defaults.keymap, config.values.keymap)
   end)
 
+  it('maps output enter to target jump while keeping gf on file jump', function()
+    local output_keymap = config.defaults.keymap.output_window
+
+    assert.equal('jump_to_file', output_keymap['gf'][1])
+    assert.equal('jump_to_target_at_cursor', output_keymap['<CR>'][1])
+  end)
+
   describe('update_keymap_prefix', function()
     local function test_prefix_update(opts)
       config.values.keymap = vim.deepcopy(opts.given)

@@ -372,7 +372,7 @@ describe('renderer.scroll_to_bottom', function()
   local ctx = require('opencode.ui.renderer.ctx')
   local output_window = require('opencode.ui.output_window')
   local stub = require('luassert.stub')
-  local buf, win
+  local buf, win, input_buf, input_win
 
   before_each(function()
     config.setup({})
@@ -396,6 +396,8 @@ describe('renderer.scroll_to_bottom', function()
   end)
 
   after_each(function()
+    pcall(vim.api.nvim_win_close, input_win, true)
+    pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
     pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
     state.ui.set_windows(nil)
@@ -528,6 +530,43 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(#longer_line - 1, cursor[2])
     assert.stub(cmd_stub).was_called_with('normal! zb')
     cmd_stub:revert()
+  end)
+
+  it('does not leave the focused input window while following output at bottom', function()
+    input_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { '中文输入' })
+    input_win = vim.api.nvim_open_win(input_buf, true, {
+      relative = 'editor',
+      width = 40,
+      height = 3,
+      row = 12,
+      col = 0,
+    })
+    state.ui.set_windows({ output_win = win, output_buf = buf, input_win = input_win, input_buf = input_buf })
+    vim.api.nvim_set_current_win(input_win)
+
+    local winleave_count = 0
+    local group = vim.api.nvim_create_augroup('OpencodeScrollImeRegression', { clear = true })
+    vim.api.nvim_create_autocmd('WinLeave', {
+      group = group,
+      buffer = input_buf,
+      callback = function()
+        winleave_count = winleave_count + 1
+      end,
+    })
+
+    vim.api.nvim_win_set_height(win, 5)
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    config.values.ui.output.always_scroll_to_bottom = true
+
+    renderer.scroll_to_bottom()
+
+    assert.equals(input_win, vim.api.nvim_get_current_win())
+    assert.equals(0, winleave_count)
+    assert.equals(50, vim.api.nvim_win_get_cursor(win)[1])
+
+    config.values.ui.output.always_scroll_to_bottom = false
+    pcall(vim.api.nvim_del_augroup_by_id, group)
   end)
 end)
 

@@ -3,6 +3,31 @@ local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
+local function with_window_event_autocmds_ignored(fn)
+  local previous = vim.o.eventignore
+  local ignored = {
+    WinEnter = true,
+    WinLeave = true,
+    BufEnter = true,
+  }
+
+  for event in previous:gmatch('[^,]+') do
+    if event ~= '' then
+      ignored[event] = true
+    end
+  end
+
+  local events = vim.tbl_keys(ignored)
+  table.sort(events)
+  vim.o.eventignore = table.concat(events, ',')
+
+  local ok, err = pcall(fn)
+  vim.o.eventignore = previous
+  if not ok then
+    error(err)
+  end
+end
+
 ---@param win integer
 ---@return boolean
 local function window_wraps(win)
@@ -98,9 +123,18 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   if needs_bottom_align then
-    vim.api.nvim_win_call(win, function()
-      vim.cmd('normal! zb')
-    end)
+    local windows = state.windows
+    if windows and vim.api.nvim_get_current_win() == windows.input_win then
+      with_window_event_autocmds_ignored(function()
+        vim.api.nvim_win_call(win, function()
+          vim.cmd('normal! zb')
+        end)
+      end)
+    else
+      vim.api.nvim_win_call(win, function()
+        vim.cmd('normal! zb')
+      end)
+    end
   end
 
   output_window._prev_line_count_by_win[win] = line_count

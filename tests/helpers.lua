@@ -411,22 +411,6 @@ end
 
 local existing_snapshot
 
-local function existing_snapshot_is_minified(filename)
-  if not filename or vim.fn.filereadable(filename) ~= 1 then
-    return false
-  end
-
-  local file = io.open(filename, 'r')
-  if not file then
-    return false
-  end
-
-  local prefix = file:read(2)
-  file:close()
-
-  return prefix == '{"'
-end
-
 local function snapshot_without_window(snapshot)
   local copy = vim.deepcopy(snapshot)
   copy.window = nil
@@ -465,11 +449,6 @@ function M.encode_snapshot_json(snapshot, existing_file)
         return content
       end
 
-      if existing_snapshot_is_minified(existing_file) then
-        existing.window = snapshot.window
-        return vim.json.encode(existing)
-      end
-
       if not existing.window then
         local json = append_window_to_existing_snapshot(content, snapshot.window)
         if json then
@@ -477,10 +456,6 @@ function M.encode_snapshot_json(snapshot, existing_file)
         end
       end
     end
-  end
-
-  if existing_snapshot_is_minified(existing_file) then
-    return vim.json.encode(snapshot)
   end
 
   return M.encode_pretty_json(snapshot)

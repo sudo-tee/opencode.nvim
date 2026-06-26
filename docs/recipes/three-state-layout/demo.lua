@@ -19,7 +19,7 @@ local get_opencode_config
 -- Actions to transition between modes
 local ACTIONS = {
   to_focused = function(api)
-    api.toggle(false)
+    api.hide()
   end,
   to_side_by_side = function(api)
     local config = get_opencode_config()

@@ -296,7 +296,11 @@ function M.actions.clear_files()
 end
 
 function M.actions.jump_to_file()
-  require('opencode.ui.navigation').jump_to_file_at_cursor()
+  require('opencode.ui.navigation').jump_to_target_at_cursor()
+end
+
+function M.actions.jump_to_target_at_cursor()
+  require('opencode.ui.navigation').jump_to_target_at_cursor()
 end
 
 function M.actions.toggle_tool_output()
@@ -311,6 +315,14 @@ function M.actions.toggle_reasoning_output()
   vim.notify(action_text .. ' reasoning output display', vim.log.levels.INFO)
   config.values.ui.output.tools.show_reasoning_output = not config.ui.output.tools.show_reasoning_output
   ui.render_output_from_cache()
+end
+
+---Navigate to a file location (file_path, optional line, optional col).
+---@param file_path string
+---@param line? number
+---@param col? number
+function M.actions.navigate_to_location(file_path, line, col)
+  require('opencode.ui.navigation').navigate_to_location(file_path, line, col)
 end
 
 local original_max_messages = config.ui.output.max_messages
@@ -499,6 +511,10 @@ M.command_defs = {
   jump_to_file = {
     desc = 'Jump to file at cursor in output window',
     execute = M.actions.jump_to_file,
+  },
+  jump_to_target_at_cursor = {
+    desc = 'Jump to target at cursor in output window',
+    execute = M.actions.jump_to_target_at_cursor,
   },
   debug_output = {
     desc = 'Open raw output debug view',

@@ -355,6 +355,53 @@ describe('renderer unit tests', function()
     assert.are.equal(1, #revert_messages)
   end)
 
+  it('supports output target navigation from a replayed assistant file reference', function()
+    local renderer = require('opencode.ui.renderer')
+    local navigation = require('opencode.ui.navigation')
+
+    helpers.replay_setup()
+
+    local code_buf = vim.api.nvim_create_buf(false, true)
+    local code_win = vim.api.nvim_open_win(code_buf, false, {
+      relative = 'editor',
+      width = 40,
+      height = 8,
+      row = 0,
+      col = 0,
+    })
+
+    state.ui.set_last_code_window(code_win)
+    local path = 'lua/opencode/ui/navigation.lua'
+    local events = helpers.load_test_data('tests/data/output-target-navigation.json')
+    state.session.set_active(helpers.get_session_from_events(events, true))
+    local session_data = helpers.load_session_from_events(events)
+    renderer._render_full_session_data(session_data)
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    local target_line, target_col
+    for idx, line in ipairs(lines) do
+      local col = line:find(path, 1, true)
+      if col then
+        target_line = idx
+        target_col = col - 1
+        break
+      end
+    end
+
+    assert.is_not_nil(target_line, 'replayed output did not contain file reference')
+    vim.api.nvim_set_current_win(state.windows.output_win)
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { target_line, target_col })
+
+    navigation.jump_to_target_at_cursor()
+
+    assert.equals(code_win, vim.api.nvim_get_current_win())
+    assert.matches(path .. '$', vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(code_win)))
+    assert.same({ 12, 2 }, vim.api.nvim_win_get_cursor(code_win))
+
+    pcall(vim.api.nvim_win_close, code_win, true)
+    pcall(vim.api.nvim_buf_delete, code_buf, { force = true })
+  end)
+
   it('limits rendered messages and inserts a hidden-messages notice', function()
     local renderer = require('opencode.ui.renderer')
 

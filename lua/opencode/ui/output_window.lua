@@ -86,8 +86,6 @@ end
 ---@return integer
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
-  local filetype = config.ui.output.filetype or 'opencode_output'
-  vim.api.nvim_set_option_value('filetype', filetype, { buf = output_buf })
 
   vim.api.nvim_buf_set_var(output_buf, 'opencode_folds', build_fold_state({}))
 

@@ -10,7 +10,7 @@ PROJECT_ROOT="$SCRIPT_DIR/../.."
 cd "$PROJECT_ROOT"
 
 # Check if specific file was requested
-TARGET_FILE="$1"
+TARGET_FILE="${1:-}"
 
 if [[ -n "$TARGET_FILE" ]]; then
   # Single file mode
@@ -49,7 +49,7 @@ if [[ -n "$TARGET_FILE" ]]; then
   echo "Processing: $data_file -> $expected_file"
   nvim --headless -u tests/minimal/init.lua \
     -c "lua require('tests.manual.regenerate_expected').run([[$data_file]], [[$expected_file]])" \
-    -c "qall!" 2>&1 | grep -v "^$"
+    -c "qall!" 2>&1 | grep -v "^$" || true
 
   echo "Done! Regenerated $expected_file"
 else
@@ -74,11 +74,17 @@ else
     fi
 
     expected_file="${data_file%.json}.expected.json"
+
+    if [[ ! -f "$expected_file" ]]; then
+      echo "Skipping (no .expected.json): $data_file"
+      continue
+    fi
+
     echo "Processing: $data_file -> $expected_file"
 
     nvim --headless -u tests/minimal/init.lua \
       -c "lua require('tests.manual.regenerate_expected').run([[$data_file]], [[$expected_file]])" \
-      -c "qall!" 2>&1 | grep -v "^$"
+      -c "qall!" 2>&1 | grep -v "^$" || true
   done
 
   echo ""
@@ -86,7 +92,7 @@ else
   expected_count=0
   for file in tests/data/*.expected.json; do
     if [[ -f "$file" ]]; then
-      ((expected_count++))
+      ((expected_count++)) || true
     fi
   done
   echo "Done! Regenerated $expected_count expected files"

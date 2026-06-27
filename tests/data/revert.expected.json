@@ -62,6 +62,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -196,7 +199,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-4.1",
+            " "
+          ],
+          [
+            "github-copilot/gpt-4.1",
             "OpencodeHint"
           ],
           [
@@ -248,6 +254,9 @@
           [
             "USER",
             "OpencodeMessageRoleUser"
+          ],
+          [
+            " "
           ],
           [
             "",
@@ -344,7 +353,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-4.1",
+            " "
+          ],
+          [
+            "github-copilot/gpt-4.1",
             "OpencodeHint"
           ],
           [
@@ -698,7 +710,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " gpt-4.1",
+            " "
+          ],
+          [
+            "github-copilot/gpt-4.1",
             "OpencodeHint"
           ],
           [
@@ -829,6 +844,7 @@
       68,
       0
     ],
+    "effective_bottom": 68,
     "line_count": 69,
     "visible_bottom": 68
   }

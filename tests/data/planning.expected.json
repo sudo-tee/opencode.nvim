@@ -22,6 +22,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -156,7 +159,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4",
             "OpencodeHint"
           ],
           [
@@ -310,7 +316,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4",
             "OpencodeHint"
           ],
           [
@@ -364,7 +373,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4",
             "OpencodeHint"
           ],
           [
@@ -518,7 +530,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4",
             "OpencodeHint"
           ],
           [
@@ -604,6 +619,7 @@
       43,
       0
     ],
+    "effective_bottom": 43,
     "line_count": 44,
     "visible_bottom": 44
   }

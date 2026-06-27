@@ -246,7 +246,12 @@ function M.format_message_header(message, previous_message)
 
   local time = message.info.time and message.info.time.created or nil
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
-  local model_text = message.info.modelID and ' ' .. message.info.modelID or ''
+  local model_text = message.info.providerID
+      and message.info.modelID
+      and (message.info.providerID .. '/' .. message.info.modelID)
+    or message.info.providerID
+    or message.info.modelID
+    or ''
 
   local debug_text = config.debug.show_ids and ' [' .. message.info.id .. ']' or ''
 
@@ -299,6 +304,7 @@ function M.format_message_header(message, previous_message)
         { icon, role_hl },
         { ' ' },
         { display_name, role_hl },
+        { ' ' },
         { model_text, 'OpencodeHint' },
         { debug_text, 'OpencodeHint' },
       },

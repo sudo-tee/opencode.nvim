@@ -22,6 +22,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -55,6 +58,9 @@
           [
             "BUILD",
             "OpencodeMessageRoleAssistant"
+          ],
+          [
+            " "
           ],
           [
             "",
@@ -299,6 +305,7 @@
       14,
       0
     ],
+    "effective_bottom": 14,
     "line_count": 15,
     "visible_bottom": 15
   }

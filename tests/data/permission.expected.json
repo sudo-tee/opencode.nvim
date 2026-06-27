@@ -62,6 +62,9 @@
             "OpencodeMessageRoleUser"
           ],
           [
+            " "
+          ],
+          [
             "",
             "OpencodeHint"
           ],
@@ -156,7 +159,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4.5",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4.5",
             "OpencodeHint"
           ],
           [
@@ -310,7 +316,10 @@
             "OpencodeMessageRoleAssistant"
           ],
           [
-            " claude-sonnet-4.5",
+            " "
+          ],
+          [
+            "github-copilot/claude-sonnet-4.5",
             "OpencodeHint"
           ],
           [
@@ -372,6 +381,7 @@
       19,
       0
     ],
+    "effective_bottom": 19,
     "line_count": 20,
     "visible_bottom": 20
   }

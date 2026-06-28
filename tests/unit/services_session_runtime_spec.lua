@@ -689,6 +689,38 @@ describe('opencode.services.session_runtime', function()
 
       abort_stub:revert()
     end)
+
+    it('aborts when the model is processing on the server but no client request is in flight', function()
+      state.session.set_active({ id = 'sess1' })
+      store.set('job_count', 0)
+
+      local abort_stub = stub(state.api_client, 'abort_session').invokes(function()
+        return Promise.new():resolve(true)
+      end)
+
+      session_runtime.cancel():wait()
+
+      assert.stub(abort_stub).was_called()
+
+      abort_stub:revert()
+    end)
+
+    it('does not count cancel toward the server-restart threshold when no client request is in flight', function()
+      state.session.set_active({ id = 'sess1' })
+      store.set('job_count', 0)
+      vim.g.opencode_abort_count = 0
+
+      for _ = 1, 5 do
+        session_runtime.cancel():wait()
+      end
+
+      assert.is_equal(0, vim.g.opencode_abort_count)
+
+      store.set('job_count', 1)
+      vim.g.opencode_abort_count = 0
+      session_runtime.cancel():wait()
+      assert.is_equal(1, vim.g.opencode_abort_count)
+    end)
   end)
 
   describe('opencode_ok (version checks)', function()

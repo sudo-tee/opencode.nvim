@@ -195,6 +195,13 @@ function OpencodeApiClient:list_sessions(directory)
   return self:_call('/session', 'GET', nil, { directory = directory })
 end
 
+--- List the current status of all sessions in a workspace.
+--- @param directory string|nil Directory path
+--- @return Promise<{[string]: OpencodeSessionStatusInfo}>
+function OpencodeApiClient:list_session_status(directory)
+  return self:_call('/session/status', 'GET', nil, { directory = directory })
+end
+
 --- List sessions across all projects (experimental global endpoint).
 --- Bypasses _call's automatic directory injection so the server returns all
 --- directories instead of being filtered to the current cwd.

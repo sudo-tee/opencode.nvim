@@ -241,8 +241,10 @@ end
 
 ---@param opts? SendMessageOpts
 M.cancel = Promise.async(function()
-  if state.active_session and state.jobs.is_running() then
-    vim.g.opencode_abort_count = (vim.g.opencode_abort_count or 0) + 1
+  if state.active_session then
+    if state.jobs.is_running() then
+      vim.g.opencode_abort_count = (vim.g.opencode_abort_count or 0) + 1
+    end
 
     local permissions = state.pending_permissions or {}
     if #permissions > 0 and state.api_client then

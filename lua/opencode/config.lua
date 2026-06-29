@@ -113,6 +113,7 @@ M.defaults = {
       rename_session = { '<C-r>',                                              desc = 'Rename selected session' },
       delete_session = { '<C-d>',                                              desc = 'Delete selected sessions' },
       new_session =    { '<C-s>',                                              desc = 'Create a new session' },
+      fork_session =  { '<C-f>',                                              desc = 'Fork selected session' },
     },
     timeline_picker = {
       undo = { '<C-u>',                                   mode = { 'i', 'n' }, desc = 'Undo to selected message' },

@@ -20,38 +20,20 @@ end
 --- @param timeout number
 --- @return Promise<string|nil>
 local function try_custom_server(base_url, timeout)
-  local promise = Promise.new()
   local health_url = base_url .. '/global/health'
 
   log.debug('try_custom_server: checking health at %s', health_url)
 
-  curl.request({
-    url = health_url,
-    method = 'GET',
-    timeout = timeout * 1000,
-    proxy = '', -- Disable proxy for health check
-    callback = function(response)
-      if response and response.status >= 200 and response.status < 300 then
-        local success, health_data = pcall(vim.json.decode, response.body)
-        if success and health_data then
-          log.debug('try_custom_server: health check passed')
-          promise:resolve(base_url)
-          return
-        end
-      end
+  return opencode_server.health_check(health_url, timeout * 1000):and_then(function(healthy)
+    if healthy then
+      log.debug('try_custom_server: health check passed')
+      return base_url
+    end
 
-      local err_msg =
-        string.format('Health check failed at %s (status: %d)', health_url, response and response.status or 0)
-      log.debug('try_custom_server: %s', err_msg)
-      promise:reject(err_msg)
-    end,
-    on_error = function(err)
-      log.debug('try_custom_server: error connecting to %s: %s', health_url, vim.inspect(err))
-      promise:reject(err)
-    end,
-  })
-
-  return promise
+    local err_msg = string.format('Health check failed at %s', health_url)
+    log.debug('try_custom_server: %s', err_msg)
+    return Promise.new():reject(err_msg)
+  end)
 end
 
 --- @param response {status: integer, body: string}
@@ -185,14 +167,8 @@ local function resolve_port()
   return existing or math.random(1024, 65535)
 end
 
---- Ensure the opencode server is running, starting it if necessary.
---- @return Promise<OpencodeServer>
-function M.ensure_server()
+local function _start_server()
   local promise = Promise.new()
-
-  if state.opencode_server and state.opencode_server:is_running() then
-    return promise:resolve(state.opencode_server)
-  end
 
   local custom_url = config.server.url
   if not custom_url then
@@ -218,20 +194,36 @@ function M.ensure_server()
   return promise
 end
 
-local function retry_connect(base_url, timeout, max_retries, on_success, on_failure)
-  local function attempt(retry_count)
-    vim.defer_fn(function()
-      try_custom_server(base_url, timeout):and_then(on_success):catch(function(err)
-        if retry_count < max_retries then
-          attempt(retry_count + 1)
-        else
-          log.error('try_connect_to_custom_server: exhausted %d retries: %s', max_retries, vim.inspect(err))
-          on_failure(err)
-        end
-      end)
-    end, retry_count * (config.server.retry_delay or 2000))
+--- Ensure the opencode server is running, starting it if necessary.
+--- @return Promise<OpencodeServer>
+function M.ensure_server()
+  if state.opencode_server and state.opencode_server:is_running() then
+    return state.opencode_server:check_health():and_then(function(healthy)
+      if healthy then
+        return state.opencode_server
+      end
+      log.warn('ensure_server: cached server unhealthy, reconnecting')
+      state.jobs.clear_server()
+      return _start_server()
+    end)
   end
-  attempt(1)
+
+  return _start_server()
+end
+
+local function retry_connect(base_url, timeout, max_retries, on_success, on_failure)
+  local delay = config.server.retry_delay or 2000
+  Promise.delay(delay)
+    :and_then(function()
+      return Promise.retry(function()
+        return try_custom_server(base_url, timeout)
+      end, max_retries, delay)
+    end)
+    :and_then(on_success)
+    :catch(function(err)
+      log.error('try_connect_to_custom_server: exhausted %d retries: %s', max_retries, vim.inspect(err))
+      on_failure(err)
+    end)
 end
 
 local function spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)

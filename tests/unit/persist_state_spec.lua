@@ -197,6 +197,9 @@ describe('persist_state', function()
       is_running = function()
         return true
       end,
+      check_health = function()
+        return Promise.new():resolve(true)
+      end,
       spawn = function() end,
       shutdown = function()
         return Promise.new():resolve(true)

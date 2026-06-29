@@ -142,6 +142,30 @@ M.get_commands = Promise.async(function()
     end
   end
 
+  local state = require('opencode.state')
+  local ok, skills = pcall(function()
+    return state.api_client:list_skills():await()
+  end)
+  if ok and skills then
+    for _, skill in ipairs(skills) do
+      local skill_content = skill.content
+      table.insert(result, {
+        slash_cmd = '/' .. skill.name,
+        desc = skill.description or 'Skill',
+        fn = function(args)
+          local message = skill_content
+          if args and #args > 0 then
+            message = skill_content .. '\n\n' .. table.concat(args, ' ')
+          end
+          require('opencode.services.session_runtime').open({ new_session = false, focus = 'output' }):and_then(function()
+            return require('opencode.services.messaging').send_message(message, {})
+          end)
+        end,
+        args = true,
+      })
+    end
+  end
+
   return result
 end)
 

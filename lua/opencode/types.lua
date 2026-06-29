@@ -169,6 +169,7 @@
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
 ---@field rename_session OpencodeKeymapEntry
+---@field fork_session OpencodeKeymapEntry
 
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry

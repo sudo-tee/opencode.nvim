@@ -336,6 +336,21 @@ function M.pick(sessions, callback, opts)
       end),
       reload = true,
     },
+    fork = {
+      key = config.keymap.session_picker.fork_session,
+      label = 'fork',
+      fn = Promise.async(function(selected, opts)
+        local state = require('opencode.state')
+        local session_runtime = require('opencode.services.session_runtime')
+        local new_session = state.api_client:fork_session(selected.id):await()
+        if new_session then
+          session_runtime.switch_session(new_session.id):await()
+          table.insert(opts.items, 1, new_session)
+          return opts.items
+        end
+      end),
+      reload = true,
+    },
   }
 
   -- Preview state for race condition protection

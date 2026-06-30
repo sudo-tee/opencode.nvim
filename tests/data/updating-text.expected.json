@@ -194,6 +194,51 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
+    ],
+    [
+      9,
+      26,
+      4,
+      {
+        "end_col": 24,
+        "end_right_gravity": false,
+        "end_row": 26,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      10,
+      38,
+      4,
+      {
+        "end_col": 26,
+        "end_right_gravity": false,
+        "end_row": 38,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      11,
+      55,
+      10,
+      {
+        "end_col": 19,
+        "end_right_gravity": false,
+        "end_row": 55,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
     ]
   ],
   "lines": [

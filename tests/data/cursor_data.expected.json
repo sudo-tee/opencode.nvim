@@ -314,6 +314,21 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
+    ],
+    [
+      15,
+      17,
+      95,
+      {
+        "end_col": 124,
+        "end_right_gravity": false,
+        "end_row": 17,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
     ]
   ],
   "lines": [

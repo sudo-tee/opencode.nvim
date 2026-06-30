@@ -194,6 +194,96 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
+    ],
+    [
+      9,
+      13,
+      6,
+      {
+        "end_col": 43,
+        "end_right_gravity": false,
+        "end_row": 13,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      10,
+      16,
+      7,
+      {
+        "end_col": 40,
+        "end_right_gravity": false,
+        "end_row": 16,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      11,
+      255,
+      8,
+      {
+        "end_col": 48,
+        "end_right_gravity": false,
+        "end_row": 255,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      12,
+      301,
+      23,
+      {
+        "end_col": 45,
+        "end_right_gravity": false,
+        "end_row": 301,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      13,
+      301,
+      138,
+      {
+        "end_col": 162,
+        "end_right_gravity": false,
+        "end_row": 301,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      14,
+      305,
+      34,
+      {
+        "end_col": 50,
+        "end_right_gravity": false,
+        "end_row": 305,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
     ]
   ],
   "lines": [

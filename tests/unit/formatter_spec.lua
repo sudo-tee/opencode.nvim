@@ -384,13 +384,17 @@ describe('formatter', function()
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
 
     local symbol_mark
+    local reference_mark
     for _, mark in ipairs(output.extmarks[0]) do
       if mark.hl_group == 'OpencodeSymbolReference' then
         symbol_mark = mark
+      elseif mark.hl_group == 'OpencodeReference' then
+        reference_mark = mark
       end
     end
     local trailing_foo_start = output.lines[1]:find('foo$', 1, false)
-    assert.are.equal(1, #output.extmarks[0])
+    assert.are.equal(2, #output.extmarks[0])
+    assert.is_not_nil(reference_mark)
     assert.is_not_nil(symbol_mark)
     assert.are.equal(trailing_foo_start - 1, symbol_mark.start_col)
     assert.are.equal(trailing_foo_start + 2, symbol_mark.end_col)

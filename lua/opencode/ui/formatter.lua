@@ -690,6 +690,25 @@ local function add_symbol_reference_highlights(output, rendered, rendered_refere
   end
 end
 
+local function add_file_reference_highlights(output, rendered, rendered_reference_ranges, first_line_idx)
+  local line_start = 1
+
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local line_end = line_start + #line - 1
+    for _, range in ipairs(rendered_reference_ranges) do
+      if ranges_overlap(line_start, line_end, range[1], range[2]) then
+        output:add_extmark(first_line_idx + line_idx - 1, {
+          start_col = math.max(range[1], line_start) - line_start,
+          end_col = math.min(range[2], line_end) - line_start + 1,
+          hl_group = 'OpencodeReference',
+          priority = 1000,
+        })
+      end
+    end
+    line_start = line_start + #line + 1
+  end
+end
+
 ---@param output Output Output object to write to
 ---@param text string
 ---@param message_id string|nil Optional message ID for reference parsing
@@ -701,6 +720,7 @@ function M._format_assistant_message(output, text, message_id)
   local first_line_idx = output:get_line_count()
 
   output:add_lines(vim.split(rendered, '\n'))
+  add_file_reference_highlights(output, rendered, rendered_reference_ranges, first_line_idx)
 
   -- Render-time symbol highlights are only visual hints. This intentionally
   -- rebuilds from the current conversation refs instead of storing targets on

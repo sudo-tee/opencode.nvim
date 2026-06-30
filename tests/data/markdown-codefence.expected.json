@@ -1056,6 +1056,36 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
+    ],
+    [
+      42,
+      53,
+      9,
+      {
+        "end_col": 31,
+        "end_right_gravity": false,
+        "end_row": 53,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
+    ],
+    [
+      43,
+      60,
+      9,
+      {
+        "end_col": 34,
+        "end_right_gravity": false,
+        "end_row": 60,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
     ]
   ],
   "lines": [

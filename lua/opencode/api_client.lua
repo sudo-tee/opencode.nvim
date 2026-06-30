@@ -518,7 +518,8 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     return nil
   end
 
-  if is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+  local version = assert(state.opencode_cli_version):wait()
+  if is_version_greater_or_equal(version, '1.14.42') then
     return self:_subscribe_to_global_events(directory, on_event)
   end
 
@@ -548,7 +549,8 @@ function OpencodeApiClient:_subscribe_to_global_events(directory, on_event)
     return nil
   end
 
-  if not is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+  local version = assert(state.opencode_cli_version):wait()
+  if not is_version_greater_or_equal(version, '1.14.42') then
     error('subscribe_to_global_events should not be called directly')
   end
 

@@ -290,14 +290,17 @@ M.opencode_ok = Promise.async(function()
     return false
   end
 
-  if not state.opencode_cli_version or state.opencode_cli_version == '' then
-    local result = Promise.system({ config.opencode_executable, '--version' }):await()
-    local out = (result and result.stdout or ''):gsub('%s+$', '')
-    state.jobs.set_opencode_cli_version(out:match('(%d+%%.%d+%%.%d+)') or out)
+  if not state.opencode_cli_version then
+    local promise = Promise.system({ config.opencode_executable, '--version' }):and_then(function(result)
+      local out = (result and result.stdout or ''):gsub('%s+$', '')
+      out = out:match('(%d+%%.%d+%%.%d+)') or out
+      return Promise.new():resolve(out)
+    end) ---@type Promise<string>
+    state.jobs.set_opencode_cli_version(promise)
   end
 
   local required = state.required_version
-  local current_version = state.opencode_cli_version
+  local current_version = state.opencode_cli_version:await()
 
   if not current_version or current_version == '' then
     vim.notify(string.format('Unable to detect opencode CLI version. Requires >= %s', required), vim.log.levels.ERROR)

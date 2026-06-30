@@ -53,7 +53,7 @@ function M.set_event_manager(manager)
   return store.set('event_manager', manager)
 end
 
----@param version string|nil
+---@param version Promise<string>|nil
 function M.set_opencode_cli_version(version)
   return store.set('opencode_cli_version', version)
 end

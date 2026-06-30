@@ -7,6 +7,7 @@ local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
 local permission_window = require('opencode.ui.permission_window')
+local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tools')
 local format_utils = require('opencode.ui.formatter.utils')
 
@@ -601,43 +602,112 @@ function M._format_context_file(output, path)
   return output:add_line(string.format('[`%s`](%s)', path, path))
 end
 
+local function ranges_overlap(start_a, end_a, start_b, end_b)
+  return start_a <= end_b and end_a >= start_b
+end
+
+local function in_ranges(ranges, start_pos, end_pos)
+  for _, range in ipairs(ranges) do
+    if ranges_overlap(start_pos, end_pos, range[1], range[2]) then
+      return true
+    end
+  end
+  return false
+end
+
+local function snapshot_has_token(symbol_snapshot, symbol_refs, token)
+  for _, variant in ipairs(symbol_snapshot.token_variants(token)) do
+    if symbol_snapshot.has_token(symbol_refs, variant) then
+      return true
+    end
+  end
+  return false
+end
+
+-- Reference icons are inserted into the rendered text, so these ranges must be
+-- measured after rendering. Symbol highlights use them only to stay off file
+-- references; jump targets are recomputed by navigation at keypress time.
+local function rendered_text_with_reference_ranges(text, references)
+  table.sort(references, function(a, b)
+    return a.match_start < b.match_start
+  end)
+
+  local rendered = ''
+  local rendered_reference_ranges = {}
+  local last_pos = 1
+  local ref_icon = icons.get('reference')
+
+  for _, ref in ipairs(references) do
+    rendered = rendered .. text:sub(last_pos, ref.match_start - 1)
+
+    local ref_text = text:sub(ref.match_start, ref.match_end)
+    local rendered_ref_start = #rendered + #ref_icon + 1
+    rendered = rendered .. ref_icon .. ref_text
+    table.insert(rendered_reference_ranges, { rendered_ref_start, rendered_ref_start + #ref_text - 1 })
+
+    last_pos = ref.match_end + 1
+  end
+
+  if last_pos <= #text then
+    rendered = rendered .. text:sub(last_pos)
+  end
+
+  return rendered, rendered_reference_ranges
+end
+
+local function add_symbol_reference_highlights(output, rendered, rendered_reference_ranges, symbol_refs, first_line_idx)
+  local symbol_snapshot = require('opencode.ui.symbol_snapshot')
+  local line_start = 1
+
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local scan_from = 1
+    while scan_from <= #line do
+      local start_pos, end_pos, token = symbol_tokens.find(line, scan_from)
+      if not start_pos then
+        break
+      end
+
+      local abs_start = line_start + start_pos - 1
+      local abs_end = line_start + end_pos - 1
+
+      if
+        token
+        and not in_ranges(rendered_reference_ranges, abs_start, abs_end)
+        and snapshot_has_token(symbol_snapshot, symbol_refs, token)
+      then
+        output:add_extmark(first_line_idx + line_idx - 1, {
+          start_col = start_pos - 1,
+          end_col = end_pos,
+          hl_group = 'OpencodeSymbolReference',
+          priority = 900,
+        })
+      end
+
+      scan_from = end_pos + 1
+    end
+
+    line_start = line_start + #line + 1
+  end
+end
+
 ---@param output Output Output object to write to
 ---@param text string
 ---@param message_id string|nil Optional message ID for reference parsing
 function M._format_assistant_message(output, text, message_id)
   local reference_picker = require('opencode.ui.reference_picker')
-  local references = reference_picker.parse_references(text, message_id)
+  local symbol_snapshot = require('opencode.ui.symbol_snapshot')
+  local references = reference_picker.parse_references(text, message_id or text)
+  local rendered, rendered_reference_ranges = rendered_text_with_reference_ranges(text, references)
+  local first_line_idx = output:get_line_count()
 
-  -- If no references, just add the text as-is
-  if #references == 0 then
-    output:add_lines(vim.split(text, '\n'))
-    return
-  end
+  output:add_lines(vim.split(rendered, '\n'))
 
-  -- Sort references by match_start position (ascending)
-  table.sort(references, function(a, b)
-    return a.match_start < b.match_start
-  end)
-
-  -- Build a new text with icons inserted before each reference
-  local result = ''
-  local last_pos = 1
-  local ref_icon = icons.get('reference')
-
-  for _, ref in ipairs(references) do
-    -- Add text before this reference
-    result = result .. text:sub(last_pos, ref.match_start - 1)
-    -- Add the icon and the reference
-    result = result .. ref_icon .. text:sub(ref.match_start, ref.match_end)
-    last_pos = ref.match_end + 1
-  end
-
-  -- Add any remaining text after the last reference
-  if last_pos <= #text then
-    result = result .. text:sub(last_pos)
-  end
-
-  output:add_lines(vim.split(result, '\n'))
+  -- Render-time symbol highlights are only visual hints. This intentionally
+  -- rebuilds from the current conversation refs instead of storing targets on
+  -- extmarks; navigation recomputes the snapshot before jumping.
+  local refs = reference_picker.collect_refs()
+  local symbol_refs = symbol_snapshot.collect(refs)
+  add_symbol_reference_highlights(output, rendered, rendered_reference_ranges, symbol_refs, first_line_idx)
 end
 
 ---@param output Output Output object to write to
@@ -754,7 +824,7 @@ function M.format_part(part, message, is_last_part, get_child_parts)
     end
   elseif role == 'assistant' then
     if part.type == 'text' and part.text then
-      M._format_assistant_message(output, vim.trim(part.text), part.messageID)
+      M._format_assistant_message(output, vim.trim(part.text), part.id or part.messageID)
       content_added = true
     elseif part.type == 'reasoning' then
       M._format_reasoning(output, part)

@@ -4,6 +4,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local renderer = require('opencode.ui.renderer')
 local output_window = require('opencode.ui.output_window')
+local symbol_tokens = require('opencode.ui.symbol_tokens')
 
 function M.goto_message_by_id(message_id)
   require('opencode.ui.ui').focus_output()
@@ -180,7 +181,11 @@ local function file_target_at_col(line, col)
   add_file_candidate(candidates, line, '()([%w_%-]+%.%w+:?%d*:?%d*)()')
 
   for _, candidate in ipairs(candidates) do
-    if candidate.target and contains_col(candidate.start_pos, candidate.end_pos, col) and resolve_path(candidate.target.path) then
+    if
+      candidate.target
+      and contains_col(candidate.start_pos, candidate.end_pos, col)
+      and resolve_path(candidate.target.path)
+    then
       return candidate.target
     end
   end
@@ -194,6 +199,28 @@ local function first_file_target(line)
       return target
     end
   end
+end
+
+local function symbol_token_at_col(line, col)
+  return symbol_tokens.at_col(line, col)
+end
+
+local function cursor_symbol_token()
+  local windows = state.windows or {}
+  local win = windows.output_win
+  local buf = windows.output_buf
+
+  if not win or not buf or not vim.api.nvim_win_is_valid(win) then
+    return nil
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(win)
+  local line = vim.api.nvim_buf_get_lines(buf, cursor[1] - 1, cursor[1], false)[1]
+  if not line then
+    return nil
+  end
+
+  return symbol_token_at_col(line, cursor[2])
 end
 
 local function diff_line_number(buf, line_num)
@@ -216,7 +243,7 @@ local function diff_line_number(buf, line_num)
 end
 
 ---Resolve file and line number at cursor position in the output buffer.
----@return { path: string, line: number? }?
+---@return { path: string, line: number?, col: number? }?
 function M.resolve_file_at_cursor()
   local windows = state.windows or {}
   local win = windows.output_win
@@ -269,8 +296,12 @@ end
 ---@param path string
 local function open_silent(path)
   local escaped = vim.fn.fnameescape(path)
-  if not pcall(vim.cmd, 'buffer ' .. escaped) then
-    pcall(vim.cmd, 'edit ' .. escaped)
+  if not pcall(function()
+    vim.cmd('buffer ' .. escaped)
+  end) then
+    pcall(function()
+      vim.cmd('edit ' .. escaped)
+    end)
   end
 end
 
@@ -326,16 +357,102 @@ function M.resolve_target_at_cursor()
   return M.resolve_file_at_cursor()
 end
 
+local function target_key(target)
+  return table.concat({ target.path or '', target.line or 0, target.col or 0 }, ':')
+end
+
+local function symbol_targets_for_token(token)
+  local reference_picker = require('opencode.ui.reference_picker')
+  local symbol_snapshot = require('opencode.ui.symbol_snapshot')
+  local refs = reference_picker.collect_refs()
+  local snapshot = symbol_snapshot.collect(refs)
+  local targets = {}
+  local seen = {}
+
+  for _, variant in ipairs(symbol_snapshot.token_variants(token)) do
+    for _, target in ipairs(symbol_snapshot.targets_for_token(snapshot, variant)) do
+      local key = target_key(target)
+      if not seen[key] then
+        seen[key] = true
+        table.insert(targets, target)
+      end
+    end
+  end
+
+  return targets
+end
+
+local function format_symbol_target(target, width)
+  local location = target.path
+  if target.line then
+    location = location .. ':' .. target.line
+    if target.col then
+      location = location .. ':' .. target.col
+    end
+  end
+  local kind = target.kind and (' [' .. target.kind .. ']') or ''
+  return require('opencode.ui.base_picker').create_time_picker_item(
+    target.token .. kind .. ' ' .. location,
+    nil,
+    nil,
+    width
+  )
+end
+
+local function pick_symbol_target(token, targets)
+  return require('opencode.ui.base_picker').pick({
+    items = targets,
+    format_fn = format_symbol_target,
+    actions = {},
+    callback = function(selected)
+      if selected then
+        M.navigate_to_location(selected.path, selected.line, selected.col)
+      end
+    end,
+    title = 'Symbol References (' .. #targets .. ')',
+    width = config.ui.picker_width,
+    preview = 'file',
+    layout_opts = config.ui.picker,
+  })
+end
+
+local function jump_to_symbol_at_cursor()
+  local token = cursor_symbol_token()
+  if not token then
+    return
+  end
+
+  local targets = symbol_targets_for_token(token)
+  if #targets == 0 then
+    vim.notify('No symbol target found: ' .. token, vim.log.levels.INFO)
+    return
+  end
+
+  if #targets == 1 then
+    local target = targets[1]
+    M.navigate_to_location(target.path, target.line, target.col)
+    return
+  end
+
+  pick_symbol_target(token, targets)
+end
+
 function M.jump_to_target_at_cursor()
   local resolved = M.resolve_target_at_cursor()
+  if resolved then
+    M.navigate_to_location(resolved.path, resolved.line, resolved.col)
+    return
+  end
+
+  jump_to_symbol_at_cursor()
+end
+
+function M.jump_to_file_at_cursor()
+  local resolved = M.resolve_file_at_cursor()
   if not resolved then
     return
   end
   M.navigate_to_location(resolved.path, resolved.line, resolved.col)
-end
-
-function M.jump_to_file_at_cursor()
-  M.jump_to_target_at_cursor()
 end
 
 return M

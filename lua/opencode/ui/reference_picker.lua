@@ -74,27 +74,7 @@ local function picker_ref_key(path, line)
   return make_absolute_path(path) .. ':' .. (line or 0)
 end
 
----@param text string
----@param message_id string
----@return CodeReference[]
-function M.parse_references(text, message_id)
-  local c = cache[message_id]
-  if not c then
-    c = {
-      parsed_upto = 0,
-      refs = {},
-      ranges = {},
-      seen_paths = {},
-    }
-    cache[message_id] = c
-  end
-
-  local len = #text
-  if len <= c.parsed_upto then
-    return c.refs
-  end
-
-  local scan_from = math.max(1, c.parsed_upto - OVERLAP + 1)
+local function parse_references_into(text, c, scan_from)
   local chunk = text:sub(scan_from)
   local abs_offset = scan_from - 1
 
@@ -126,6 +106,40 @@ function M.parse_references(text, message_id)
       pos = me + 1
     end
   end
+end
+
+local function parse_references_uncached(text)
+  local c = {
+    refs = {},
+    ranges = {},
+    seen_paths = {},
+  }
+  parse_references_into(text, c, 1)
+  return c.refs
+end
+
+---@param text string
+---@param message_id string
+---@return CodeReference[]
+function M.parse_references(text, message_id)
+  local c = cache[message_id]
+  if not c then
+    c = {
+      parsed_upto = 0,
+      refs = {},
+      ranges = {},
+      seen_paths = {},
+    }
+    cache[message_id] = c
+  end
+
+  local len = #text
+  if len <= c.parsed_upto then
+    return c.refs
+  end
+
+  local scan_from = math.max(1, c.parsed_upto - OVERLAP + 1)
+  parse_references_into(text, c, scan_from)
 
   c.parsed_upto = len
   return c.refs
@@ -152,7 +166,7 @@ local function format_reference_item(ref, width)
   return base_picker.create_time_picker_item(icon .. ' ' .. location, nil, nil, width)
 end
 
-local function collect_picker_refs()
+function M.collect_refs()
   if not state.messages then
     return {}
   end
@@ -160,33 +174,28 @@ local function collect_picker_refs()
   local seen = {}
   local refs = {}
 
+  local function add_ref(ref)
+    local key = picker_ref_key(ref.file_path, ref.line)
+    if not seen[key] then
+      seen[key] = true
+      table.insert(refs, ref)
+    end
+  end
+
   for i = #state.messages, 1, -1 do
     local msg = state.messages[i]
     if msg.info and msg.info.role == 'assistant' then
-      local message_id = msg.info.id
-
-      local c = cache[message_id]
-      if c then
-        for _, ref in ipairs(c.refs) do
-          local key = picker_ref_key(ref.file_path, ref.line)
-          if not seen[key] then
-            seen[key] = true
-            table.insert(refs, ref)
-          end
-        end
-      end
-
       if msg.parts then
         for _, part in ipairs(msg.parts) do
-          if part.type == 'tool' then
+          if part.type == 'text' and part.text then
+            for _, ref in ipairs(parse_references_uncached(part.text)) do
+              add_ref(ref)
+            end
+          elseif part.type == 'tool' then
             local file_path = vim.tbl_get(part, 'state', 'input', 'filePath')
             if file_path and vim.fn.filereadable(file_path) == 1 then
               local rel = vim.fn.fnamemodify(file_path, ':~:.')
-              local key = picker_ref_key(rel, nil)
-              if not seen[key] then
-                seen[key] = true
-                table.insert(refs, make_ref(rel, '', '', 0, 0))
-              end
+              add_ref(make_ref(rel, '', '', 0, 0))
             end
           end
         end
@@ -198,7 +207,7 @@ local function collect_picker_refs()
 end
 
 function M.pick()
-  local refs = collect_picker_refs()
+  local refs = M.collect_refs()
   if #refs == 0 then
     vim.notify('No code references found in the conversation', vim.log.levels.INFO)
     return

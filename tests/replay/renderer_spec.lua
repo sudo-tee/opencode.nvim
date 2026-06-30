@@ -402,6 +402,44 @@ describe('renderer unit tests', function()
     pcall(vim.api.nvim_buf_delete, code_buf, { force = true })
   end)
 
+  it('renders reference-scoped symbol highlights through full session replay', function()
+    local renderer = require('opencode.ui.renderer')
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local events = helpers.load_test_data('tests/data/symbol-reference-navigation.json')
+    local referenced_file = 'lua/opencode/ui/symbol_snapshot.lua'
+
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function(refs)
+        assert.are.equal(1, #refs)
+        assert.are.equal(referenced_file, refs[1].file_path)
+        return { by_token = { collect = true } }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function(_, token)
+        return token == 'collect'
+      end,
+    }
+
+    helpers.replay_setup()
+    state.session.set_active(helpers.get_session_from_events(events, true))
+    renderer._render_full_session_data(helpers.load_session_from_events(events))
+
+    local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+    local symbol_mark
+    for _, mark in ipairs(actual.extmarks) do
+      if mark[4] and mark[4].hl_group == 'OpencodeSymbolReference' then
+        symbol_mark = mark
+        break
+      end
+    end
+
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.is_not_nil(symbol_mark)
+  end)
+
   it('limits rendered messages and inserts a hidden-messages notice', function()
     local renderer = require('opencode.ui.renderer')
 

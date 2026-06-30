@@ -307,6 +307,213 @@ describe('formatter', function()
     assert.are.equal('OpencodeDiffAddGutter', add_mark.virt_text[1][2])
   end)
 
+  it('highlights assistant symbols from the reference-scoped snapshot without current text refs', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      parse_references = function()
+        return {}
+      end,
+      collect_refs = function()
+        return { { file_path = 'src/main.lua' } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function(refs)
+        assert.are.same({ { file_path = 'src/main.lua' } }, refs)
+        return { by_token = { foo = true } }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function(_, token)
+        return token == 'foo'
+      end,
+    }
+
+    local output = Output.new()
+    formatter._format_assistant_message(output, 'foo bar', 'msg_symbols')
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.are.equal('foo bar', output.lines[1])
+    assert.are.equal('OpencodeSymbolReference', output.extmarks[0][1].hl_group)
+    assert.are.equal(0, output.extmarks[0][1].start_col)
+    assert.are.equal(3, output.extmarks[0][1].end_col)
+    assert.is_nil(output.extmarks[0][1].target)
+  end)
+
+  it('does not let symbol highlights overwrite rendered file reference spans', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local text = 'See `src/foo.lua` foo'
+    local ref_start, ref_end = text:find('`src/foo.lua`', 1, true)
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      parse_references = function()
+        return {
+          {
+            file_path = 'src/foo.lua',
+            match_start = ref_start,
+            match_end = ref_end,
+          },
+        }
+      end,
+      collect_refs = function()
+        return { { file_path = 'src/foo.lua' } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function(_, token)
+        return token == 'src/foo.lua' or token == 'foo'
+      end,
+    }
+
+    local output = Output.new()
+    formatter._format_assistant_message(output, text, 'msg_file_ref')
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    local symbol_mark
+    for _, mark in ipairs(output.extmarks[0]) do
+      if mark.hl_group == 'OpencodeSymbolReference' then
+        symbol_mark = mark
+      end
+    end
+    local trailing_foo_start = output.lines[1]:find('foo$', 1, false)
+    assert.are.equal(1, #output.extmarks[0])
+    assert.is_not_nil(symbol_mark)
+    assert.are.equal(trailing_foo_start - 1, symbol_mark.start_col)
+    assert.are.equal(trailing_foo_start + 2, symbol_mark.end_col)
+  end)
+
+  it('does not highlight symbol-looking segments inside paths', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      parse_references = function()
+        return {}
+      end,
+      collect_refs = function()
+        return { { file_path = 'lua/opencode/ui/symbol_snapshot.lua' } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function(_, token)
+        return token == 'data' or token == 'navigation' or token == 'cache'
+      end,
+    }
+
+    local output = Output.new()
+    formatter._format_assistant_message(
+      output,
+      'See tests/data/symbol-reference-navigation.json and .cache/',
+      'msg_path'
+    )
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.is_nil(output.extmarks[0])
+  end)
+
+  it('uses part-level reference parse keys for assistant text parts', function()
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local reference_picker = require('opencode.ui.reference_picker')
+    reference_picker.clear_all()
+
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function()
+        return false
+      end,
+    }
+
+    local message = {
+      info = { id = 'msg_same', role = 'assistant', sessionID = 'ses_1' },
+      parts = {},
+    }
+    local first = formatter.format_part({
+      id = 'part_a',
+      type = 'text',
+      text = 'See `a.lua`',
+      messageID = 'msg_same',
+      sessionID = 'ses_1',
+    }, message, false)
+    local second = formatter.format_part({
+      id = 'part_b',
+      type = 'text',
+      text = 'See `b.lua`',
+      messageID = 'msg_same',
+      sessionID = 'ses_1',
+    }, message, true)
+
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+    reference_picker.clear_all()
+
+    assert.is_truthy(first.lines[1]:find('a.lua', 1, true))
+    assert.is_nil(first.lines[1]:find('b.lua', 1, true))
+    assert.is_truthy(second.lines[1]:find('b.lua', 1, true))
+    assert.is_nil(second.lines[1]:find('a.lua', 1, true))
+  end)
+
+  it('highlights a symbol before trailing prose colon', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      parse_references = function()
+        return {}
+      end,
+      collect_refs = function()
+        return { { file_path = 'src/main.lua' } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      has_token = function(_, token)
+        return token == 'foo'
+      end,
+    }
+
+    local output = Output.new()
+    formatter._format_assistant_message(output, 'foo: call this', 'msg_colon')
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.are.equal('foo: call this', output.lines[1])
+    assert.are.equal(1, #output.extmarks[0])
+    assert.are.equal(0, output.extmarks[0][1].start_col)
+    assert.are.equal(3, output.extmarks[0][1].end_col)
+  end)
+
   it('formats grep tools when streamed input contains vim.NIL placeholders', function()
     local message = {
       info = {

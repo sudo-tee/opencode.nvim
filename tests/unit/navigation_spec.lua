@@ -153,7 +153,7 @@ describe('output token navigation', function()
     assert.is_nil(navigation.resolve_target_at_cursor())
   end)
 
-  it('keeps window and cursor unchanged on missing path or plain text', function()
+  it('keeps gf file-only and silent on missing path or plain text', function()
     local notify_stub = stub(vim, 'notify')
     local load_stub = stub(renderer, 'load_all_messages')
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { '`missing/not_here.lua`', 'plain text' })
@@ -161,7 +161,7 @@ describe('output token navigation', function()
     local before_win = vim.api.nvim_get_current_win()
     local before_cursor = vim.api.nvim_win_get_cursor(output_win)
 
-    navigation.jump_to_target_at_cursor()
+    navigation.jump_to_file_at_cursor()
 
     assert.equals(before_win, vim.api.nvim_get_current_win())
     assert.same(before_cursor, vim.api.nvim_win_get_cursor(output_win))
@@ -169,13 +169,235 @@ describe('output token navigation', function()
     assert.stub(load_stub).was_not_called()
 
     vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
-    navigation.jump_to_target_at_cursor()
+    navigation.jump_to_file_at_cursor()
     assert.equals(before_win, vim.api.nvim_get_current_win())
     assert.stub(notify_stub).was_not_called()
     assert.stub(load_stub).was_not_called()
 
     notify_stub:revert()
     load_stub:revert()
+  end)
+
+  it('uses symbol fallback only after file resolution misses', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local original_navigate_to_location = navigation.navigate_to_location
+    local navigated
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      collect_refs = function()
+        return { { file_path = 'src/main.lua' } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function(refs)
+        assert.same({ { file_path = 'src/main.lua' } }, refs)
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        assert.equal('M.actions.jump_to_file', token)
+        return { 'M.actions.jump_to_file', 'actions.jump_to_file', 'jump_to_file' }
+      end,
+      targets_for_token = function(_, token)
+        if token == 'jump_to_file' then
+          return { { token = 'jump_to_file', path = existing_path, line = 12, col = 3 } }
+        end
+        return {}
+      end,
+    }
+    navigation.navigate_to_location = function(path, line, col)
+      navigated = { path = path, line = line, col = col }
+    end
+
+    local line = 'call M.actions.jump_to_file now'
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { line })
+    set_cursor_on(output_win, 1, line, 'M.actions.jump_to_file')
+
+    navigation.jump_to_target_at_cursor()
+
+    navigation.navigate_to_location = original_navigate_to_location
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.same({ path = existing_path, line = 12, col = 3 }, navigated)
+  end)
+
+  it('offers multiple symbol fallback targets through the base picker', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local original_base_picker = package.loaded['opencode.ui.base_picker']
+    local original_navigate_to_location = navigation.navigate_to_location
+    local picked_opts
+    local navigated
+    local targets = {
+      { token = 'foo', path = existing_path, line = 1, col = 1, kind = 'function' },
+      { token = 'foo', path = existing_path, line = 2, col = 1 },
+    }
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      collect_refs = function()
+        return { { file_path = existing_path } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      targets_for_token = function()
+        return targets
+      end,
+    }
+    package.loaded['opencode.ui.base_picker'] = {
+      create_time_picker_item = function(text)
+        return { text = text }
+      end,
+      pick = function(opts)
+        picked_opts = opts
+        opts.callback(opts.items[2])
+      end,
+    }
+    navigation.navigate_to_location = function(path, line, col)
+      navigated = { path = path, line = line, col = col }
+    end
+
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'foo' })
+    vim.api.nvim_win_set_cursor(output_win, { 1, 0 })
+
+    navigation.jump_to_target_at_cursor()
+
+    navigation.navigate_to_location = original_navigate_to_location
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+    package.loaded['opencode.ui.base_picker'] = original_base_picker
+
+    assert.same(targets, picked_opts.items)
+    assert.equal('file', picked_opts.preview)
+    assert.equal('Symbol References (2)', picked_opts.title)
+    assert.equal(
+      'foo [function] ' .. existing_path .. ':1:1',
+      picked_opts.format_fn(targets[1], 80):to_string():match('^%s*(.-)%s*$')
+    )
+    assert.same({ path = existing_path, line = 2, col = 1 }, navigated)
+  end)
+
+  it('uses the symbol before a trailing prose colon', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local original_navigate_to_location = navigation.navigate_to_location
+    local navigated
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      collect_refs = function()
+        return { { file_path = existing_path } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        assert.equal('foo', token)
+        return { token }
+      end,
+      targets_for_token = function(_, token)
+        if token == 'foo' then
+          return { { token = 'foo', path = existing_path, line = 3, col = 1 } }
+        end
+        return {}
+      end,
+    }
+    navigation.navigate_to_location = function(path, line, col)
+      navigated = { path = path, line = line, col = col }
+    end
+
+    local line = 'foo: call this'
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { line })
+    set_cursor_on(output_win, 1, line, 'foo')
+
+    navigation.jump_to_target_at_cursor()
+
+    navigation.navigate_to_location = original_navigate_to_location
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.same({ path = existing_path, line = 3, col = 1 }, navigated)
+  end)
+
+  it('does not treat a prose colon as part of the symbol token', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local notify_stub = stub(vim, 'notify')
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      collect_refs = function()
+        return { { file_path = existing_path } }
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        error('symbol fallback should not run for cursor on prose colon: ' .. token)
+      end,
+      targets_for_token = function()
+        return {}
+      end,
+    }
+
+    local line = 'Note: plain text'
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { line })
+    set_cursor_on(output_win, 1, line, ':')
+
+    navigation.jump_to_target_at_cursor()
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.stub(notify_stub).was_not_called()
+    notify_stub:revert()
+  end)
+
+  it('notifies on symbol fallback miss without moving the cursor or window', function()
+    local original_reference_picker = package.loaded['opencode.ui.reference_picker']
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local notify_stub = stub(vim, 'notify')
+
+    package.loaded['opencode.ui.reference_picker'] = {
+      collect_refs = function()
+        return {}
+      end,
+    }
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        return { by_token = {} }
+      end,
+      token_variants = function(token)
+        return { token }
+      end,
+      targets_for_token = function()
+        return {}
+      end,
+    }
+
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'plain' })
+    vim.api.nvim_win_set_cursor(output_win, { 1, 0 })
+    local before_win = vim.api.nvim_get_current_win()
+    local before_cursor = vim.api.nvim_win_get_cursor(output_win)
+
+    navigation.jump_to_target_at_cursor()
+
+    package.loaded['opencode.ui.reference_picker'] = original_reference_picker
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.equals(before_win, vim.api.nvim_get_current_win())
+    assert.same(before_cursor, vim.api.nvim_win_get_cursor(output_win))
+    assert.stub(notify_stub).was_called_with('No symbol target found: plain', vim.log.levels.INFO)
+
+    notify_stub:revert()
   end)
 
   it('opens explicit locations with 1-based col converted and clamped', function()
@@ -187,6 +409,32 @@ describe('output token navigation', function()
     assert.equals(line_count, cursor[1])
     local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(code_win), line_count - 1, line_count, false)[1]
     assert.equals(math.max(#line - 1, 0), cursor[2])
+  end)
+
+  it('keeps <CR> file-first without reading symbol fallback state', function()
+    local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
+    local original_navigate_to_location = navigation.navigate_to_location
+    local navigated
+
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      collect = function()
+        error('symbol fallback should not run when a file target exists')
+      end,
+    }
+    navigation.navigate_to_location = function(path, line, col)
+      navigated = { path = path, line = line, col = col }
+    end
+
+    local line = 'open ' .. existing_path .. ':7:2'
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { line })
+    set_cursor_on(output_win, 1, line, existing_path)
+
+    navigation.jump_to_target_at_cursor()
+
+    navigation.navigate_to_location = original_navigate_to_location
+    package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+
+    assert.same({ path = existing_path, line = 7, col = 2 }, navigated)
   end)
 
   it('hides current-mode output before opening a target so output view can be restored', function()

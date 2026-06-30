@@ -415,17 +415,21 @@ describe('opencode.ui.reference_picker', function()
     end)
   end)
 
-  -- Helper: populate parse cache then expose items via pick()
+  -- Helper: populate state messages then expose items via pick()
   local function pick_items(messages_and_texts)
     -- messages_and_texts: list of { id, role, text, parts }
     local state_msgs = {}
     for _, m in ipairs(messages_and_texts) do
+      local parts = {}
       if m.text then
-        reference_picker.parse_references(m.text, m.id)
+        table.insert(parts, { type = 'text', id = m.id .. ':text', text = m.text })
+      end
+      for _, part in ipairs(m.parts or {}) do
+        table.insert(parts, part)
       end
       table.insert(state_msgs, {
         info = { role = m.role or 'assistant', id = m.id },
-        parts = m.parts,
+        parts = parts,
       })
     end
     mock_state.messages = state_msgs
@@ -438,6 +442,62 @@ describe('opencode.ui.reference_picker', function()
     reference_picker.pick()
     return captured and captured.items or nil
   end
+
+  describe('collect_refs', function()
+    it('rebuilds text refs from assistant message parts when parse cache is empty', function()
+      mock_state.messages = {
+        {
+          info = { role = 'assistant', id = 'msg1' },
+          parts = {
+            { type = 'text', id = 'part1', text = 'Check `src/main.lua:10`.' },
+          },
+        },
+      }
+
+      local refs = reference_picker.collect_refs()
+
+      assert.equal(1, #refs)
+      assert.equal('src/main.lua', refs[1].file_path)
+      assert.equal(10, refs[1].line)
+    end)
+
+    it('collects tool part file paths', function()
+      mock_state.messages = {
+        {
+          info = { role = 'assistant', id = 'msg1' },
+          parts = {
+            {
+              type = 'tool',
+              state = { input = { filePath = '/test/project/src/file.lua' } },
+            },
+          },
+        },
+      }
+
+      local refs = reference_picker.collect_refs()
+
+      assert.equal(1, #refs)
+      assert.equal('src/file.lua', refs[1].file_path)
+    end)
+
+    it('keeps separate text parts in the same assistant message', function()
+      mock_state.messages = {
+        {
+          info = { role = 'assistant', id = 'msg1' },
+          parts = {
+            { type = 'text', id = 'part1', text = 'Check `src/one.lua`.' },
+            { type = 'text', id = 'part2', text = 'Then `src/two.lua`.' },
+          },
+        },
+      }
+
+      local refs = reference_picker.collect_refs()
+
+      assert.equal(2, #refs)
+      assert.equal('src/one.lua', refs[1].file_path)
+      assert.equal('src/two.lua', refs[2].file_path)
+    end)
+  end)
 
   describe('pick', function()
     it('shows notification when no references found', function()
@@ -463,8 +523,14 @@ describe('opencode.ui.reference_picker', function()
         return {}
       end
 
-      reference_picker.parse_references('Check `src/main.lua:10`.', 'msg1')
-      mock_state.messages = { { info = { role = 'assistant', id = 'msg1' } } }
+      mock_state.messages = {
+        {
+          info = { role = 'assistant', id = 'msg1' },
+          parts = {
+            { type = 'text', id = 'part1', text = 'Check `src/main.lua:10`.' },
+          },
+        },
+      }
       reference_picker.pick()
 
       assert.equal(1, #pick_calls)
@@ -476,7 +542,7 @@ describe('opencode.ui.reference_picker', function()
       assert.equal('file', pick_calls[1].preview)
     end)
 
-    it('collects references from cached assistant message text', function()
+    it('collects references from assistant message text parts', function()
       local items = pick_items({
         { id = 'msg1', text = 'Check `src/main.lua:10` for details.' },
       })
@@ -488,8 +554,14 @@ describe('opencode.ui.reference_picker', function()
     end)
 
     it('ignores user messages when collecting refs', function()
-      reference_picker.parse_references('Check `src/main.lua:10`.', 'msg1')
-      mock_state.messages = { { info = { role = 'user', id = 'msg1' } } }
+      mock_state.messages = {
+        {
+          info = { role = 'user', id = 'msg1' },
+          parts = {
+            { type = 'text', id = 'part1', text = 'Check `src/main.lua:10`.' },
+          },
+        },
+      }
 
       local notify_calls = {}
       local original_notify = vim.notify
@@ -534,7 +606,6 @@ describe('opencode.ui.reference_picker', function()
 
       assert.is_not_nil(items)
       assert.equal(1, #items)
-      -- The kept ref came from the cache for msg2
       assert.equal('src/main.lua', items[1].file_path)
     end)
 
@@ -647,20 +718,9 @@ describe('opencode.ui.reference_picker', function()
       -- Simulate a messages state change
       handler()
 
-      -- Cache is now cleared; pick() finds no refs for msg1
-      mock_state.messages = { { info = { role = 'assistant', id = 'msg1' } } }
+      local refs = reference_picker.parse_references('No refs.', 'msg1')
 
-      local notify_calls = {}
-      local original_notify = vim.notify
-      vim.notify = function(msg, level)
-        table.insert(notify_calls, { msg = msg, level = level })
-      end
-
-      reference_picker.pick()
-
-      assert.equal(1, #notify_calls)
-      assert.equal('No code references found in the conversation', notify_calls[1].msg)
-      vim.notify = original_notify
+      assert.equal(0, #refs)
     end)
   end)
 end)

@@ -296,7 +296,7 @@ function M.actions.clear_files()
 end
 
 function M.actions.jump_to_file()
-  require('opencode.ui.navigation').jump_to_target_at_cursor()
+  require('opencode.ui.navigation').jump_to_file_at_cursor()
 end
 
 function M.actions.jump_to_target_at_cursor()

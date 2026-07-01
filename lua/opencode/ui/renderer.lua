@@ -283,6 +283,7 @@ end
 
 ---Reset all renderer state and clear the output buffer
 function M.reset()
+  require('opencode.ui.message_actions').teardown()
   ctx:reset()
   output_window.clear()
   permission_window.clear_all()

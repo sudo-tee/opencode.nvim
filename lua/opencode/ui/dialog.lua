@@ -10,6 +10,8 @@
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
+---@field render_part_id? string Rendered part ID used to resolve mouse clicks against output lines
+---@field mouse_select? boolean Whether Dialog should register <LeftMouse> for option selection (default: false)
 
 ---@class DialogKeymaps
 ---@field up? string[] Keys for navigating up (default: {'k', '<Up>'})
@@ -17,7 +19,7 @@
 ---@field left? string[] Keys for navigating left between groups
 ---@field right? string[] Keys for navigating right between groups
 ---@field select? string Key for selecting current option (default: '<CR>')
----@field dismiss? string Key for dismissing dialog (default: '<Esc>')
+---@field dismiss? string|string[] Keys for dismissing dialog (default: {'<Esc>', '<C-c>'})
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
 
 ---@class Dialog
@@ -27,8 +29,37 @@
 ---@field private _selected_index integer Currently selected option index
 ---@field private _active boolean Whether dialog is currently active
 ---@field private _group_index integer Currently selected group index
+---@field private _option_local_lines integer[] 0-based output-local lines for each option
 local Dialog = {}
 Dialog.__index = Dialog
+
+---@param keymap string|string[]|nil
+---@return string[]
+local function keymap_list(keymap)
+  local keymaps = {}
+  if type(keymap) == 'string' then
+    if keymap ~= '' then
+      table.insert(keymaps, keymap)
+    end
+  elseif type(keymap) == 'table' then
+    for _, key in ipairs(keymap) do
+      if key and key ~= '' then
+        table.insert(keymaps, key)
+      end
+    end
+  end
+  return keymaps
+end
+
+---@param keymaps string[]
+---@return string
+local function keymap_legend(keymaps)
+  local labels = {}
+  for _, key in ipairs(keymaps) do
+    table.insert(labels, '`' .. key .. '`')
+  end
+  return table.concat(labels, ' or ')
+end
 
 ---Create a new dialog instance
 ---@param config DialogConfig Dialog configuration
@@ -43,7 +74,7 @@ function Dialog.new(config)
     left = {},
     right = {},
     select = '<CR>',
-    dismiss = '<Esc>',
+    dismiss = { '<Esc>', '<C-c>' },
     number_shortcuts = true,
   }
 
@@ -54,6 +85,7 @@ function Dialog.new(config)
       return true
     end,
     hide_input = true,
+    mouse_select = false,
   } --[[@as DialogConfig]], config)
 
   self._keymaps = {}
@@ -61,6 +93,7 @@ function Dialog.new(config)
   self._selected_index = 1
   self._group_index = 1
   self._active = false
+  self._option_local_lines = {}
 
   return self
 end
@@ -248,8 +281,9 @@ function Dialog:format_legend(output, options)
       local line = output:add_line(select_text)
     end
 
-    if keymaps.dismiss and keymaps.dismiss ~= '' then
-      local line = output:add_line('Close: `<Esc>`')
+    local dismiss_keymaps = keymap_list(keymaps.dismiss)
+    if #dismiss_keymaps > 0 then
+      local line = output:add_line('Close: ' .. keymap_legend(dismiss_keymaps))
     end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'
@@ -268,6 +302,7 @@ end
 ---  - progress?: string - Progress indicator (e.g., "(1/3)")
 ---  - content?: string[] - Array of lines to render before options
 ---  - render_content?: function(output: Output) - Custom function to render content before options
+---  - hide_legend?: boolean - Whether to hide movement/select/dismiss instructions
 function Dialog:format_dialog(output, config)
   if not self._active then
     return
@@ -301,9 +336,10 @@ function Dialog:format_dialog(output, config)
 
   self:format_options(output, config.options or {})
 
-  output:add_line('')
-
-  self:format_legend(output, { unfocused_message = config.unfocused_message })
+  if not config.hide_legend then
+    output:add_line('')
+    self:format_legend(output, { unfocused_message = config.unfocused_message })
+  end
 
   local end_line = output:get_line_count()
 
@@ -322,6 +358,8 @@ end
 ---@param output Output Output object to write to
 ---@param options table[] Array of option objects with {label: string, description?: string}
 function Dialog:format_options(output, options)
+  self._option_local_lines = {}
+
   for i, option in ipairs(options) do
     local label = option.label
     if option.description and option.description ~= '' then
@@ -339,17 +377,70 @@ function Dialog:format_options(output, options)
     -- add_line returns a 1-based line index; Output extmarks use 0-based
     -- keys, so subtract 1 to get the correct extmark key.
     local added_idx = output:add_line(line_text)
+    local option_local_line = added_idx - 1
+    self._option_local_lines[i] = option_local_line
 
     if is_selected then
-      local extmark_idx = added_idx - 1
-      output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
-      output:add_extmark(extmark_idx, {
+      output:add_extmark(option_local_line, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
+      output:add_extmark(option_local_line, {
         start_col = 2,
         virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
         virt_text_pos = 'overlay',
       } --[[@as OutputExtmark]])
     end
   end
+end
+
+---@return integer|nil
+function Dialog:_mouse_option_index()
+  local render_part_id = self._config.render_part_id
+  if not render_part_id or render_part_id == '' then
+    return nil
+  end
+
+  local mouse = vim.fn.getmousepos()
+  local winid = mouse and mouse.winid
+  if not winid or winid == 0 or not vim.api.nvim_win_is_valid(winid) then
+    return nil
+  end
+
+  local buf = self._config.buffer
+  if not buf or vim.api.nvim_win_get_buf(winid) ~= buf then
+    return nil
+  end
+
+  local rendered_part = require('opencode.ui.renderer.ctx').render_state:get_part(render_part_id)
+  if not rendered_part or rendered_part.line_start == nil then
+    return nil
+  end
+
+  local mouse_line = mouse.line
+  if not mouse_line or mouse_line <= 0 then
+    return nil
+  end
+
+  local clicked_output_line = mouse_line - 1
+  for option_index, option_local_line in ipairs(self._option_local_lines) do
+    if clicked_output_line == rendered_part.line_start + option_local_line then
+      return option_index
+    end
+  end
+end
+
+---@return boolean selected
+function Dialog:select_mouse_option()
+  if not self._active or not self._config.check_focused() then
+    return false
+  end
+
+  local option_index = self:_mouse_option_index()
+  if not option_index then
+    return false
+  end
+
+  self._selected_index = option_index
+  self._config.on_select(option_index)
+  return true
 end
 
 ---Set up buffer-scoped keymaps
@@ -450,18 +541,34 @@ function Dialog:_setup_keymaps()
     table.insert(self._keymaps, keymaps.select)
   end
 
-  if keymaps.dismiss and keymaps.dismiss ~= '' then
+  if self._config.mouse_select ~= false and self._config.render_part_id and self._config.render_part_id ~= '' then
     vim.keymap.set(
       'n',
-      keymaps.dismiss,
+      '<LeftMouse>',
       function()
-        self:dismiss()
+        self:select_mouse_option()
       end,
       vim.tbl_extend('force', keymap_opts, {
-        desc = 'Dialog: dismiss',
+        desc = 'Dialog: select clicked option',
       })
     )
-    table.insert(self._keymaps, keymaps.dismiss)
+    table.insert(self._keymaps, '<LeftMouse>')
+  end
+
+  for _, key in ipairs(keymap_list(keymaps.dismiss)) do
+    if key and key ~= '' then
+      vim.keymap.set(
+        'n',
+        key,
+        function()
+          self:dismiss()
+        end,
+        vim.tbl_extend('force', keymap_opts, {
+          desc = 'Dialog: dismiss',
+        })
+      )
+      table.insert(self._keymaps, key)
+    end
   end
 
   if keymaps.number_shortcuts then

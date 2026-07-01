@@ -6,6 +6,20 @@ local stub = require('luassert.stub')
 local helpers = require('tests.helpers')
 
 describe('question_window', function()
+  local function with_mousepos(mousepos, callback)
+    local original_getmousepos = vim.fn.getmousepos
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.fn.getmousepos = function()
+      return mousepos
+    end
+
+    local ok, err = pcall(callback)
+    vim.fn.getmousepos = original_getmousepos
+    if not ok then
+      error(err)
+    end
+  end
+
   after_each(function()
     question_window._current_question = nil
     question_window._current_question_index = 1
@@ -15,6 +29,9 @@ describe('question_window', function()
     state.renderer.set_messages({})
     state.session.set_active(nil)
     state.jobs.set_api_client(nil)
+    if state.windows then
+      pcall(require('opencode.ui.ui').close_windows, state.windows)
+    end
   end)
 
   it('tracks answers by question index and waits until all are answered', function()
@@ -324,6 +341,75 @@ describe('question_window', function()
     question_window.clear_question()
     if state.windows then
       require('opencode.ui.ui').close_windows(state.windows)
+    end
+  end)
+
+  it('passes question display part to Dialog and answers clicked option', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    local original_defer_fn = vim.defer_fn
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.defer_fn = function(fn, _delay)
+      fn()
+    end
+
+    local ok, err = pcall(function()
+      local replies = {}
+      state.jobs.set_api_client({
+        reply_question = function(_, request_id, answers)
+          table.insert(replies, { request_id = request_id, answers = answers })
+          return Promise.new():resolve({})
+        end,
+        reject_question = function()
+          return Promise.new():resolve({})
+        end,
+      })
+
+      question_window.show_question({
+        id = 'q-mouse',
+        sessionID = 'sess1',
+        questions = {
+          {
+            question = 'Pick one',
+            options = {
+              { label = 'One' },
+              { label = 'Two' },
+            },
+          },
+        },
+      })
+
+      local dialog = question_window._dialog
+      assert.are.equal('question-display-part', dialog._config.render_part_id)
+      assert.is_false(dialog._config.mouse_select)
+      assert.are.equal('<Esc>', dialog._config.keymaps.dismiss)
+
+      require('opencode.ui.renderer.flush').flush()
+      local rendered_part = require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+      assert.is_not_nil(rendered_part)
+
+      with_mousepos({
+        winid = state.windows.output_win,
+        line = rendered_part.line_start + dialog._option_local_lines[2] + 1,
+        column = 1,
+      }, function()
+        dialog:select_mouse_option()
+      end)
+
+      assert.are.same({
+        {
+          request_id = 'q-mouse',
+          answers = { { 'Two' } },
+        },
+      }, replies)
+      assert.is_nil(question_window._current_question)
+    end)
+
+    vim.defer_fn = original_defer_fn
+    if not ok then
+      error(err)
     end
   end)
 end)

@@ -45,6 +45,30 @@ describe('opencode.config', function()
     assert.equal('jump_to_target_at_cursor', output_keymap['<CR>'][1])
   end)
 
+  it('maps output message actions to the prefixed enter key by default', function()
+    local output_keymap = config.defaults.keymap.output_window
+
+    assert.equal('message_actions', output_keymap['<leader>o<CR>'][1])
+  end)
+
+  it('maps output single click to message actions by default', function()
+    local output_keymap = config.defaults.keymap.output_window
+
+    assert.equal('message_actions', output_keymap['<LeftMouse>'][1])
+    assert.same({ 'mouse' }, output_keymap['<LeftMouse>'][2])
+    assert.is_nil(output_keymap['<2-LeftMouse>'])
+  end)
+
+  it('moves output message actions with keymap_prefix while leaving bare enter unchanged', function()
+    config.setup({ keymap_prefix = '<leader>x' })
+
+    local output_keymap = config.values.keymap.output_window
+
+    assert.equal('message_actions', output_keymap['<leader>x<CR>'][1])
+    assert.is_nil(output_keymap['<leader>o<CR>'])
+    assert.equal('jump_to_target_at_cursor', output_keymap['<CR>'][1])
+  end)
+
   describe('update_keymap_prefix', function()
     local function test_prefix_update(opts)
       config.values.keymap = vim.deepcopy(opts.given)

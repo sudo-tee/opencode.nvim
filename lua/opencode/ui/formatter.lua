@@ -719,7 +719,11 @@ function M.format_part(part, message, is_last_part, get_child_parts)
 
   local role = message.info.role
 
-  if role == 'user' then
+  if part.type == 'message-actions-display' then
+    local message_actions = require('opencode.ui.message_actions')
+    message_actions.format_display(output)
+    content_added = true
+  elseif role == 'user' then
     if is_compaction_part(part) then
       format_compaction_divider(output)
       content_added = true

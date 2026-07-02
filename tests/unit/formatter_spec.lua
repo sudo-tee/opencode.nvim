@@ -1,5 +1,4 @@
 local assert = require('luassert')
-local stub = require('luassert.stub')
 local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local Output = require('opencode.ui.output')
@@ -474,29 +473,6 @@ describe('formatter', function()
 
     assert.are.same({}, output.lines)
     assert.is_nil(output.extmarks[0])
-  end)
-
-  it('dispatches message-actions-display system parts to message_actions.format_display', function()
-    local message_actions = require('opencode.ui.message_actions')
-    local format_stub = stub(message_actions, 'format_display')
-
-    local output = formatter.format_part({
-      id = 'message-actions-display-part:msg_user',
-      type = 'message-actions-display',
-      messageID = 'msg_user',
-      sessionID = 'ses_1',
-    }, {
-      info = {
-        id = 'msg_user',
-        role = 'user',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }, true)
-
-    assert.stub(format_stub).was_called()
-    assert.are.same({ '' }, output.lines)
-    format_stub:revert()
   end)
 
   it('does not add a spacing-only block for hidden same-mode assistant messages', function()

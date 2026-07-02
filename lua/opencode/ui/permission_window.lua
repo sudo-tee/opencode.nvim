@@ -322,8 +322,6 @@ function M._setup_dialog()
     get_option_count = get_option_count,
     check_focused = check_focused,
     namespace_prefix = 'opencode_permission',
-    render_part_id = 'permission-display-part',
-    mouse_select = false,
     keymaps = {
       dismiss = '', -- Disable dismiss keymap and legend
     },
@@ -341,11 +339,6 @@ function M._clear_dialog()
     M._dialog:teardown()
     M._dialog = nil
   end
-end
-
----@return boolean selected
-function M.select_mouse_option()
-  return M._dialog ~= nil and M._dialog:select_mouse_option() or false
 end
 
 ---Query the server for pending permissions and restore any that belong

@@ -10,7 +10,8 @@ local M = {
   actions = {},
 }
 
-local session_subcommands = { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }
+local session_subcommands =
+  { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }
 
 ---@param message string
 local function invalid_arguments(message)
@@ -522,15 +523,6 @@ function M.actions.timeline()
   end)
 end
 
----@param source? string
-function M.actions.message_actions(source)
-  local message_actions = require('opencode.ui.message_actions')
-  if source == 'mouse' then
-    return message_actions.open_from_mouse()
-  end
-  return message_actions.open_at_cursor()
-end
-
 ---@param message_id? string
 function M.actions.fork_session(message_id)
   return with_active_session('No active session to fork', function(state_obj)
@@ -676,12 +668,6 @@ M.command_defs = {
   timeline = {
     desc = 'Open timeline picker to navigate/undo/redo/fork to message',
     execute = M.actions.timeline,
-  },
-  message_actions = {
-    desc = 'Open message actions',
-    execute = function(args)
-      return M.actions.message_actions(args[1])
-    end,
   },
 }
 

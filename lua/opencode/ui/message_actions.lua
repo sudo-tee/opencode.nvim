@@ -231,17 +231,24 @@ function M.open_at_cursor()
   open_for_message(message, output_buf)
 end
 
+local function pass_through_left_mouse()
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<LeftMouse>', true, true, true), 'n', false)
+end
+
 function M.open_from_mouse()
   local output_win, output_buf = output_window()
   if not output_win or not output_buf then
+    pass_through_left_mouse()
     return
   end
 
   local mouse = vim.fn.getmousepos()
   if not mouse or mouse.winid ~= output_win then
+    pass_through_left_mouse()
     return
   end
   if not vim.api.nvim_win_is_valid(mouse.winid) or vim.api.nvim_win_get_buf(mouse.winid) ~= output_buf then
+    pass_through_left_mouse()
     return
   end
   if not mouse.line or mouse.line <= 0 then

@@ -148,6 +148,7 @@
 
 ---@class OpencodeKeymapEntry
 ---@field [1] string # Function name
+---@field [2]? string|string[] # Preset command arguments
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
 ---@field defer_to_completion? boolean # Whether to defer the keymap when completion menu is open

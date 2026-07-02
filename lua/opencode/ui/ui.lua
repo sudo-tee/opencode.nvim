@@ -137,6 +137,9 @@ function M.hide_visible_windows(windows)
     return M.teardown_visible_windows(windows)
   end
 
+  require('opencode.ui.message_actions').clear()
+  require('opencode.ui.renderer.flush').flush()
+
   local snapshot = capture_hidden_snapshot(windows)
 
   -- Only save width ratio for split modes (not dialog/current mode)

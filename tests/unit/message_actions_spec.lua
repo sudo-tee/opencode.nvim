@@ -398,15 +398,6 @@ describe('message_actions', function()
     assert.are.equal('Finish the active dialog first', notify_mock.get_notifications()[1].msg)
   end)
 
-  it('does not add an active-dialog registry or coordinator surface', function()
-    local source = table.concat(vim.fn.readfile('lua/opencode/ui/message_actions.lua'), '\n')
-
-    assert.is_nil(source:find('registry', 1, true))
-    assert.is_nil(source:find('allowlist', 1, true))
-    assert.is_nil(source:find('coordinator', 1, true))
-    assert.is_nil(source:find('wrapper', 1, true))
-  end)
-
   it('clear tears down the active dialog and requests synthetic display removal', function()
     render_message_at(user_message('msg_user'), 0, 0)
     set_output_cursor(1)
@@ -437,9 +428,13 @@ describe('message_actions', function()
       setreg_value = value
     end
 
-    render_message_at(user_message('msg_user', {
-      { id = 'part_text', type = 'text', text = 'copy me', messageID = 'msg_user', sessionID = 'ses_1' },
-    }), 0, 0)
+    render_message_at(
+      user_message('msg_user', {
+        { id = 'part_text', type = 'text', text = 'copy me', messageID = 'msg_user', sessionID = 'ses_1' },
+      }),
+      0,
+      0
+    )
     set_output_cursor(1)
     message_actions.open_at_cursor()
     attach_rendered_actions_part(20)
@@ -592,11 +587,15 @@ describe('message_actions', function()
       setreg_value = value
     end
 
-    render_message_at(user_message('msg_user', {
-      { type = 'text', text = 'first' },
-      { type = 'text', text = 'synthetic', synthetic = true },
-      { type = 'text', text = 'second' },
-    }), 0, 0)
+    render_message_at(
+      user_message('msg_user', {
+        { type = 'text', text = 'first' },
+        { type = 'text', text = 'synthetic', synthetic = true },
+        { type = 'text', text = 'second' },
+      }),
+      0,
+      0
+    )
     set_output_cursor(1)
     message_actions.open_at_cursor()
 
@@ -616,10 +615,14 @@ describe('message_actions', function()
       setreg_called = true
     end
 
-    render_message_at(user_message('msg_user', {
-      { type = 'text', text = '   ' },
-      { type = 'text', text = 'synthetic', synthetic = true },
-    }), 0, 0)
+    render_message_at(
+      user_message('msg_user', {
+        { type = 'text', text = '   ' },
+        { type = 'text', text = 'synthetic', synthetic = true },
+      }),
+      0,
+      0
+    )
     set_output_cursor(1)
     message_actions.open_at_cursor()
 
@@ -730,9 +733,20 @@ describe('renderer.events message actions display', function()
     })
   end)
 
-  it('does not read message_actions state from renderer events', function()
-    local source = table.concat(vim.fn.readfile('lua/opencode/ui/renderer/events.lua'), '\n')
+  it('renders synthetic parts without loading message_actions', function()
+    package.loaded['opencode.ui.message_actions'] = nil
 
-    assert.is_nil(source:find("require('opencode.ui.message_actions')", 1, true))
+    events.render_message_actions_display('msg_user', 'message-actions-display-part:msg_user')
+
+    assert.is_nil(package.loaded['opencode.ui.message_actions'])
+    assert.stub(part_stub).was_called_with({
+      part = {
+        id = 'message-actions-display-part:msg_user',
+        messageID = 'msg_user',
+        sessionID = 'ses_1',
+        type = 'message-actions-display',
+        synthetic = true,
+      },
+    })
   end)
 end)

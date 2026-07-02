@@ -23,17 +23,24 @@ local function get_current_model_variants()
     return {}
   end
 
-  local variants = {}
+  local variants = {
+    {
+      name = 'default',
+      value = nil,
+      config = nil,
+    },
+  }
   for variant_name, variant_config in pairs(model_info.variants) do
     table.insert(variants, {
       name = variant_name,
+      value = variant_name,
       config = variant_config,
     })
   end
 
   util.sort_by_priority(variants, function(item)
     return item.name
-  end, { low = 1, medium = 2, high = 3 })
+  end, { default = 0, low = 1, medium = 2, high = 3 })
 
   return variants
 end
@@ -68,7 +75,7 @@ function M.select(callback)
     layout_opts = config.ui.picker,
     format_fn = function(item, width)
       local item_width = width or vim.api.nvim_win_get_width(0)
-      local is_current = state.current_variant == item.name
+      local is_current = state.current_variant == item.value
       local current_indicator = is_current and '*' or '  '
 
       local name_width = item_width - vim.api.nvim_strwidth(current_indicator)
@@ -89,12 +96,12 @@ function M.select(callback)
     actions = {},
     callback = function(selection)
       if selection and state.current_model then
-        state.model.set_variant(selection.name)
+        state.model.set_variant(selection.value)
 
         -- Save variant to model state
         local provider, model = state.current_model:match('^(.-)/(.+)$')
         if provider and model then
-          model_state.set_variant(provider, model, selection.name)
+          model_state.set_variant(provider, model, selection.value)
         end
       end
       if callback then

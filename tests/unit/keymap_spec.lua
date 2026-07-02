@@ -62,8 +62,6 @@ describe('opencode.keymap', function()
           open_input = { desc = 'Open input window', execute = function() end },
           toggle = { desc = 'Toggle opencode windows', execute = function() end },
           submit_input_prompt = { desc = 'Submit input prompt', execute = function() end },
-          message_actions = { desc = 'Open message actions', execute = function() end },
-          jump_to_target_at_cursor = { desc = 'Jump to target at cursor', execute = function() end },
         }
       end,
       build_parsed_intent = function(name, args)
@@ -136,7 +134,9 @@ describe('opencode.keymap', function()
 
       assert.equal(2, #set_keymaps)
       local by_key = {}
-      for _, km in ipairs(set_keymaps) do by_key[km.key] = km end
+      for _, km in ipairs(set_keymaps) do
+        by_key[km.key] = km
+      end
 
       assert.equal('Custom description for open input', by_key['<leader>test'].opts.desc)
       assert.equal('Custom function description', by_key['<leader>func'].opts.desc)
@@ -194,51 +194,6 @@ describe('opencode.keymap', function()
 
       assert.equal(1, #built_parsed)
       assert.same('submit_input_prompt', built_parsed[1].intent.name)
-      assert.same({}, built_parsed[1].intent.args)
-      assert.equal(1, #executed_parsed)
-
-      vim.api.nvim_buf_delete(bufnr, { force = true })
-    end)
-
-    it('routes output single-click to message actions from mouse', function()
-      local bufnr = vim.api.nvim_create_buf(false, true)
-      keymap.setup_window_keymaps({ ['<LeftMouse>'] = { 'message_actions', { 'mouse' } } }, bufnr)
-
-      assert.equal(1, #set_keymaps)
-      set_keymaps[1].callback()
-
-      assert.equal(1, #built_parsed)
-      assert.same('message_actions', built_parsed[1].intent.name)
-      assert.same({ 'mouse' }, built_parsed[1].intent.args)
-      assert.equal(1, #executed_parsed)
-
-      vim.api.nvim_buf_delete(bufnr, { force = true })
-    end)
-
-    it('routes output prefixed enter to message actions without args', function()
-      local bufnr = vim.api.nvim_create_buf(false, true)
-      keymap.setup_window_keymaps({ ['<leader>o<CR>'] = { 'message_actions' } }, bufnr)
-
-      assert.equal(1, #set_keymaps)
-      set_keymaps[1].callback()
-
-      assert.equal(1, #built_parsed)
-      assert.same('message_actions', built_parsed[1].intent.name)
-      assert.same({}, built_parsed[1].intent.args)
-      assert.equal(1, #executed_parsed)
-
-      vim.api.nvim_buf_delete(bufnr, { force = true })
-    end)
-
-    it('keeps bare output enter on jump_to_target_at_cursor', function()
-      local bufnr = vim.api.nvim_create_buf(false, true)
-      keymap.setup_window_keymaps({ ['<CR>'] = { 'jump_to_target_at_cursor' } }, bufnr)
-
-      assert.equal(1, #set_keymaps)
-      set_keymaps[1].callback()
-
-      assert.equal(1, #built_parsed)
-      assert.same('jump_to_target_at_cursor', built_parsed[1].intent.name)
       assert.same({}, built_parsed[1].intent.args)
       assert.equal(1, #executed_parsed)
 

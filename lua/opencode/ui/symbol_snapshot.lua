@@ -1,8 +1,5 @@
 local M = {}
 
--- A snapshot is a pull-time view over the files referenced by the current
--- conversation. It has no lifecycle, cache, or edit subscriptions; render and
--- keypress paths collect a fresh snapshot when they need one.
 local MIN_DEFINITION_TOKEN_LENGTH = 2
 
 local function absolute_path(path)
@@ -112,10 +109,11 @@ function M.token_variants(token)
   return variants
 end
 
-local function collect_path(snapshot, path)
+local function collect_path(path)
+  local by_token = {}
   local filetype = vim.filetype and vim.filetype.match and vim.filetype.match({ filename = path }) or nil
   if not filetype then
-    return
+    return by_token
   end
 
   local lang = filetype
@@ -134,19 +132,19 @@ local function collect_path(snapshot, path)
     end
   end)
   if not query_ok or not query then
-    return
+    return by_token
   end
 
   local source, root = current_source_root(path, lang)
   if not (source and root) then
-    return
+    return by_token
   end
 
   local iter_ok, iter, iter_state, iter_initial = pcall(function()
     return query:iter_captures(root, source, 0, -1)
   end)
   if not iter_ok or not iter then
-    return
+    return by_token
   end
 
   for capture_id, node in iter, iter_state, iter_initial do
@@ -157,10 +155,10 @@ local function collect_path(snapshot, path)
     end)
     if kind and kind ~= 'associated' and text_ok and definition_token(token) then
       local row, col = node:range()
-      local targets = snapshot.by_token[token]
+      local targets = by_token[token]
       if not targets then
         targets = {}
-        snapshot.by_token[token] = targets
+        by_token[token] = targets
       end
       table.insert(targets, {
         token = token,
@@ -171,54 +169,55 @@ local function collect_path(snapshot, path)
       })
     end
   end
+
+  return by_token
 end
 
-function M.collect(refs)
-  local snapshot = { by_token = {} }
-  local seen_paths = {}
-  local paths = {}
+local function is_cycle(value)
+  return type(value) == 'table' and value._symbol_snapshot_cycle == true
+end
 
-  for _, ref in ipairs(refs or {}) do
-    if ref.file_path then
-      local path = absolute_path(ref.file_path)
-      if not seen_paths[path] and vim.fn.filereadable(path) == 1 then
-        seen_paths[path] = true
-        table.insert(paths, path)
+function M.new_cycle()
+  return {
+    _symbol_snapshot_cycle = true,
+    by_path = {},
+  }
+end
+
+local function collect_cycle_path(cycle, path)
+  local absolute = absolute_path(path)
+  if cycle.by_path[absolute] == nil then
+    cycle.by_path[absolute] = collect_path(absolute)
+  end
+  return cycle.by_path[absolute]
+end
+
+function M.targets_for_token(cycle, token, candidate_files)
+  if not is_cycle(cycle) then
+    return {}
+  end
+
+  if type(token) ~= 'string' or type(candidate_files) ~= 'table' or #candidate_files == 0 then
+    return {}
+  end
+
+  local targets = {}
+  local seen = {}
+
+  for _, path in ipairs(candidate_files) do
+    local path_snapshot = collect_cycle_path(cycle, path)
+    for _, variant in ipairs(M.token_variants(token)) do
+      for _, target in ipairs(path_snapshot[variant] or {}) do
+        local key = table.concat({ target.path or '', target.line or 0, target.col or 0, target.token or '' }, ':')
+        if not seen[key] then
+          seen[key] = true
+          table.insert(targets, vim.deepcopy(target))
+        end
       end
     end
   end
 
-  for _, path in ipairs(paths) do
-    collect_path(snapshot, path)
-  end
-
-  return snapshot
-end
-
-function M.has_token(snapshot, token)
-  if not (snapshot and snapshot.by_token) then
-    return false
-  end
-
-  local targets = snapshot.by_token[token]
-  return targets ~= nil and #targets > 0
-end
-
-function M.targets_for_token(snapshot, token)
-  if not (snapshot and snapshot.by_token) then
-    return {}
-  end
-
-  local targets = snapshot.by_token[token]
-  if not targets then
-    return {}
-  end
-
-  local copy = {}
-  for _, target in ipairs(targets) do
-    table.insert(copy, target)
-  end
-  return copy
+  return targets
 end
 
 return M

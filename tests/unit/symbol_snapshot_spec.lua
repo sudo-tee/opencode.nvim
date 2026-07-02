@@ -10,6 +10,8 @@ describe('opencode.ui.symbol_snapshot', function()
   local files
   local buffers
   local captures_by_content
+  local read_counts
+  local parse_counts
   local query_available
   local parser_available
   local notify_calls
@@ -37,6 +39,8 @@ describe('opencode.ui.symbol_snapshot', function()
     files = {}
     buffers = {}
     captures_by_content = {}
+    read_counts = {}
+    parse_counts = {}
     query_available = true
     parser_available = true
     notify_calls = {}
@@ -52,6 +56,7 @@ describe('opencode.ui.symbol_snapshot', function()
         if not files[path] then
           error('missing file')
         end
+        read_counts[path] = (read_counts[path] or 0) + 1
         return files[path]
       end,
       bufnr = function(path)
@@ -133,6 +138,7 @@ describe('opencode.ui.symbol_snapshot', function()
         end
         return {
           parse = function()
+            parse_counts[content] = (parse_counts[content] or 0) + 1
             return {
               {
                 root = function()
@@ -149,6 +155,7 @@ describe('opencode.ui.symbol_snapshot', function()
         end
         return {
           parse = function()
+            parse_counts[bufnr] = (parse_counts[bufnr] or 0) + 1
             return {
               {
                 root = function()
@@ -188,7 +195,55 @@ describe('opencode.ui.symbol_snapshot', function()
     end
     table.sort(keys)
 
-    assert.same({ 'collect', 'has_token', 'targets_for_token', 'token_variants' }, keys)
+    assert.same({ 'new_cycle', 'targets_for_token', 'token_variants' }, keys)
+  end)
+
+  it('bounds token lookup to candidate files', function()
+    set_file('/test/project/src/main.lua', { 'local function foo() end' }, {
+      { id = 1, node = fake_node('foo', 0, 15) },
+    })
+    set_file('/test/project/src/other.lua', { 'local function bar() end' }, {
+      { id = 1, node = fake_node('bar', 0, 15) },
+    })
+
+    local cycle = symbol_snapshot.new_cycle()
+
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'bar', { '/test/project/src/main.lua' }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'bar', { '/test/project/src/other.lua' }))
+  end)
+
+  it('parses each candidate file once per cycle', function()
+    set_file('/test/project/src/main.lua', { 'local function foo() end' }, {
+      { id = 1, node = fake_node('foo', 0, 15) },
+    })
+
+    local cycle = symbol_snapshot.new_cycle()
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' }))
+
+    set_file('/test/project/src/main.lua', { 'local function bar() end' }, {
+      { id = 1, node = fake_node('bar', 0, 15) },
+    })
+
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'bar', { '/test/project/src/main.lua' }))
+  end)
+
+  it('reads and parses the same candidate file once per cycle', function()
+    local path = '/test/project/src/main.lua'
+    local content = 'local function foo() end\nlocal function bar() end'
+    set_file(path, { 'local function foo() end', 'local function bar() end' }, {
+      { id = 1, node = fake_node('foo', 0, 15) },
+      { id = 1, node = fake_node('bar', 1, 15) },
+    })
+
+    local cycle = symbol_snapshot.new_cycle()
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { path }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'bar', { path }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { path, path }))
+
+    assert.equal(1, read_counts[path])
+    assert.equal(1, parse_counts[content])
   end)
 
   it('collects definition tokens from referenced readable Lua files', function()
@@ -197,10 +252,9 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 3, node = fake_node('ignored', 0, 0) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
-    local targets = symbol_snapshot.targets_for_token(snapshot, 'foo')
+    local cycle = symbol_snapshot.new_cycle()
+    local targets = symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' })
 
-    assert.is_true(symbol_snapshot.has_token(snapshot, 'foo'))
     assert.equal(1, #targets)
     assert.equal('/test/project/src/main.lua', targets[1].path)
     assert.equal(1, targets[1].line)
@@ -216,26 +270,27 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('bar', 0, 15) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local cycle = symbol_snapshot.new_cycle()
 
-    assert.is_true(symbol_snapshot.has_token(snapshot, 'foo'))
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'bar'))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'bar', { '/test/project/src/main.lua' }))
   end)
 
   it('reflects file changes on each collect call', function()
     set_file('/test/project/src/main.lua', { 'local function foo() end' }, {
       { id = 1, node = fake_node('foo', 0, 15) },
     })
-    local first = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local first = symbol_snapshot.new_cycle()
+    assert.equal(1, #symbol_snapshot.targets_for_token(first, 'foo', { '/test/project/src/main.lua' }))
 
     set_file('/test/project/src/main.lua', { '', '', 'local function bar() end' }, {
       { id = 1, node = fake_node('bar', 2, 15) },
     })
-    local second = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local second = symbol_snapshot.new_cycle()
 
-    assert.is_true(symbol_snapshot.has_token(first, 'foo'))
-    assert.is_false(symbol_snapshot.has_token(second, 'foo'))
-    local targets = symbol_snapshot.targets_for_token(second, 'bar')
+    assert.equal(1, #symbol_snapshot.targets_for_token(first, 'foo', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(second, 'foo', { '/test/project/src/main.lua' }))
+    local targets = symbol_snapshot.targets_for_token(second, 'bar', { '/test/project/src/main.lua' })
     assert.equal(1, #targets)
     assert.equal(3, targets[1].line)
   end)
@@ -252,10 +307,10 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('buffer_name', 0, 15) },
     }
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local cycle = symbol_snapshot.new_cycle()
 
-    assert.is_true(symbol_snapshot.has_token(snapshot, 'buffer_name'))
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'disk_name'))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'buffer_name', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'disk_name', { '/test/project/src/main.lua' }))
   end)
 
   it('filters empty, short, numeric, and whitespace definition tokens', function()
@@ -267,12 +322,12 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('ok', 0, 0) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local cycle = symbol_snapshot.new_cycle()
 
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'x'))
-    assert.is_false(symbol_snapshot.has_token(snapshot, '123'))
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'two words'))
-    assert.is_true(symbol_snapshot.has_token(snapshot, 'ok'))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'x', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, '123', { '/test/project/src/main.lua' }))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'two words', { '/test/project/src/main.lua' }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'ok', { '/test/project/src/main.lua' }))
   end)
 
   it('skips Lua associated owner captures', function()
@@ -281,10 +336,10 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('_call', 0, 27) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/client.lua' } })
+    local cycle = symbol_snapshot.new_cycle()
 
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'OpencodeApiClient'))
-    assert.is_true(symbol_snapshot.has_token(snapshot, '_call'))
+    assert.equal(0, #symbol_snapshot.targets_for_token(cycle, 'OpencodeApiClient', { '/test/project/src/client.lua' }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, '_call', { '/test/project/src/client.lua' }))
   end)
 
   it('silently skips parser and query failures', function()
@@ -293,13 +348,13 @@ describe('opencode.ui.symbol_snapshot', function()
     })
 
     parser_available = false
-    local no_parser = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local no_parser = symbol_snapshot.new_cycle()
+    assert.equal(0, #symbol_snapshot.targets_for_token(no_parser, 'foo', { '/test/project/src/main.lua' }))
     parser_available = true
     query_available = false
-    local no_query = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
+    local no_query = symbol_snapshot.new_cycle()
 
-    assert.is_false(symbol_snapshot.has_token(no_parser, 'foo'))
-    assert.is_false(symbol_snapshot.has_token(no_query, 'foo'))
+    assert.equal(0, #symbol_snapshot.targets_for_token(no_query, 'foo', { '/test/project/src/main.lua' }))
     assert.equal(0, #notify_calls)
   end)
 
@@ -308,11 +363,11 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('foo', 0, 15) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
-    local targets = symbol_snapshot.targets_for_token(snapshot, 'foo')
+    local cycle = symbol_snapshot.new_cycle()
+    local targets = symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' })
     table.remove(targets, 1)
 
-    assert.equal(1, #symbol_snapshot.targets_for_token(snapshot, 'foo'))
+    assert.equal(1, #symbol_snapshot.targets_for_token(cycle, 'foo', { '/test/project/src/main.lua' }))
   end)
 
   it('keeps token variants stable, deduplicated, and whole-token first', function()
@@ -333,14 +388,14 @@ describe('opencode.ui.symbol_snapshot', function()
       { id = 1, node = fake_node('jump_to_file', 0, 15) },
     })
 
-    local snapshot = symbol_snapshot.collect({ { file_path = 'src/main.lua' } })
-    local exact_targets = symbol_snapshot.targets_for_token(snapshot, 'jump_to_file')
-    local qualified_targets = symbol_snapshot.targets_for_token(snapshot, 'M.actions.jump_to_file')
+    local cycle = symbol_snapshot.new_cycle()
+    local exact_targets = symbol_snapshot.targets_for_token(cycle, 'jump_to_file', { '/test/project/src/main.lua' })
+    local qualified_targets =
+      symbol_snapshot.targets_for_token(cycle, 'M.actions.jump_to_file', { '/test/project/src/main.lua' })
 
-    assert.is_true(symbol_snapshot.has_token(snapshot, 'jump_to_file'))
     assert.equal(1, #exact_targets)
     assert.equal('jump_to_file', exact_targets[1].token)
-    assert.is_false(symbol_snapshot.has_token(snapshot, 'M.actions.jump_to_file'))
-    assert.same({}, qualified_targets)
+    assert.equal(1, #qualified_targets)
+    assert.equal('jump_to_file', qualified_targets[1].token)
   end)
 end)

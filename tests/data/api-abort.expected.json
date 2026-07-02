@@ -194,21 +194,6 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
-    ],
-    [
-      9,
-      10,
-      86,
-      {
-        "end_col": 99,
-        "end_right_gravity": false,
-        "end_row": 10,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
     ]
   ],
   "lines": [
@@ -222,7 +207,7 @@
     "----",
     "",
     "",
-    "You asked if I can generate 10 numbers, and you referenced reading an empty file ( `a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe,",
+    "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe,",
     "",
     "> [!ERROR] The operation was aborted.",
     "",

@@ -194,51 +194,6 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
-    ],
-    [
-      9,
-      26,
-      4,
-      {
-        "end_col": 24,
-        "end_right_gravity": false,
-        "end_row": 26,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      10,
-      38,
-      4,
-      {
-        "end_col": 26,
-        "end_right_gravity": false,
-        "end_row": 38,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      11,
-      55,
-      10,
-      {
-        "end_col": 19,
-        "end_right_gravity": false,
-        "end_row": 55,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
     ]
   ],
   "lines": [
@@ -268,7 +223,7 @@
     "",
     "**Minimal example:**",
     "",
-    " `plugin/example.lua`:",
+    "`plugin/example.lua`:",
     "```lua",
     "if vim.g.loaded_example then",
     "  return",
@@ -280,7 +235,7 @@
     "end, {})",
     "```",
     "",
-    " `lua/example/init.lua`:",
+    "`lua/example/init.lua`:",
     "```lua",
     "local M = {}",
     "",
@@ -297,7 +252,7 @@
     "```",
     "",
     "Key components:",
-    "- Use  `vim.api` for Neovim API calls",
+    "- Use `vim.api` for Neovim API calls",
     "- Provide a `setup()` function for configuration",
     "- Create user commands with `nvim_create_user_command`",
     "- Use autocommands with `nvim_create_autocmd`",

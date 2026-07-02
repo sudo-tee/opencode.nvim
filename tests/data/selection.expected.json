@@ -394,21 +394,6 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
-    ],
-    [
-      19,
-      18,
-      23,
-      {
-        "end_col": 55,
-        "end_right_gravity": false,
-        "end_row": 18,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
     ]
   ],
   "lines": [
@@ -430,7 +415,7 @@
     "----",
     "",
     "",
-    "I can see the file  `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.",
+    "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.",
     "",
     "The two selection contexts you provided show:",
     "1. Current content: \"this is a string\"",

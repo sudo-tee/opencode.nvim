@@ -276,22 +276,27 @@
     ],
     [
       9,
-      10,
-      61,
+      12,
+      0,
       {
-        "end_col": 71,
-        "end_right_gravity": false,
-        "end_row": 10,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
         "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       10,
-      12,
+      13,
       0,
       {
         "ns_id": 3,
@@ -311,26 +316,6 @@
     ],
     [
       11,
-      13,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
-      }
-    ],
-    [
-      12,
       14,
       0,
       {
@@ -350,7 +335,7 @@
       }
     ],
     [
-      13,
+      12,
       15,
       0,
       {
@@ -382,7 +367,7 @@
       }
     ],
     [
-      14,
+      13,
       15,
       0,
       {
@@ -402,7 +387,7 @@
       }
     ],
     [
-      15,
+      14,
       16,
       0,
       {
@@ -434,7 +419,7 @@
       }
     ],
     [
-      16,
+      15,
       16,
       0,
       {
@@ -454,7 +439,7 @@
       }
     ],
     [
-      17,
+      16,
       17,
       0,
       {
@@ -484,7 +469,7 @@
       }
     ],
     [
-      18,
+      17,
       17,
       0,
       {
@@ -504,7 +489,7 @@
       }
     ],
     [
-      19,
+      18,
       18,
       0,
       {
@@ -534,7 +519,7 @@
       }
     ],
     [
-      20,
+      19,
       18,
       0,
       {
@@ -554,7 +539,7 @@
       }
     ],
     [
-      21,
+      20,
       19,
       0,
       {
@@ -574,7 +559,7 @@
       }
     ],
     [
-      22,
+      21,
       20,
       0,
       {
@@ -594,7 +579,7 @@
       }
     ],
     [
-      23,
+      22,
       25,
       0,
       {
@@ -632,7 +617,7 @@
       }
     ],
     [
-      24,
+      23,
       25,
       0,
       {
@@ -651,22 +636,7 @@
       }
     ],
     [
-      25,
-      27,
-      40,
-      {
-        "end_col": 50,
-        "end_right_gravity": false,
-        "end_row": 27,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      26,
+      24,
       30,
       0,
       {
@@ -704,7 +674,7 @@
       }
     ],
     [
-      27,
+      25,
       30,
       0,
       {
@@ -723,7 +693,7 @@
       }
     ],
     [
-      28,
+      26,
       31,
       0,
       {
@@ -743,7 +713,7 @@
       }
     ],
     [
-      29,
+      27,
       32,
       0,
       {
@@ -763,7 +733,7 @@
       }
     ],
     [
-      30,
+      28,
       35,
       0,
       {
@@ -801,7 +771,7 @@
       }
     ],
     [
-      31,
+      29,
       35,
       0,
       {
@@ -820,22 +790,7 @@
       }
     ],
     [
-      32,
-      37,
-      14,
-      {
-        "end_col": 24,
-        "end_right_gravity": false,
-        "end_row": 37,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      33,
+      30,
       42,
       0,
       {
@@ -873,7 +828,7 @@
       }
     ],
     [
-      34,
+      31,
       42,
       0,
       {
@@ -892,7 +847,7 @@
       }
     ],
     [
-      35,
+      32,
       46,
       0,
       {
@@ -912,7 +867,7 @@
       }
     ],
     [
-      36,
+      33,
       47,
       0,
       {
@@ -932,7 +887,7 @@
       }
     ],
     [
-      37,
+      34,
       48,
       0,
       {
@@ -952,7 +907,7 @@
       }
     ],
     [
-      38,
+      35,
       49,
       0,
       {
@@ -984,7 +939,7 @@
       }
     ],
     [
-      39,
+      36,
       49,
       0,
       {
@@ -1004,7 +959,7 @@
       }
     ],
     [
-      40,
+      37,
       50,
       0,
       {
@@ -1036,7 +991,7 @@
       }
     ],
     [
-      41,
+      38,
       50,
       0,
       {
@@ -1056,7 +1011,7 @@
       }
     ],
     [
-      42,
+      39,
       51,
       0,
       {
@@ -1086,7 +1041,7 @@
       }
     ],
     [
-      43,
+      40,
       51,
       0,
       {
@@ -1106,7 +1061,7 @@
       }
     ],
     [
-      44,
+      41,
       52,
       0,
       {
@@ -1136,7 +1091,7 @@
       }
     ],
     [
-      45,
+      42,
       52,
       0,
       {
@@ -1156,7 +1111,7 @@
       }
     ],
     [
-      46,
+      43,
       53,
       0,
       {
@@ -1176,7 +1131,7 @@
       }
     ],
     [
-      47,
+      44,
       54,
       0,
       {
@@ -1196,7 +1151,7 @@
       }
     ],
     [
-      48,
+      45,
       59,
       0,
       {
@@ -1234,7 +1189,7 @@
       }
     ],
     [
-      49,
+      46,
       59,
       0,
       {
@@ -1253,22 +1208,7 @@
       }
     ],
     [
-      50,
-      61,
-      44,
-      {
-        "end_col": 54,
-        "end_right_gravity": false,
-        "end_row": 61,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      51,
+      47,
       69,
       0,
       {
@@ -1288,7 +1228,7 @@
       }
     ],
     [
-      52,
+      48,
       69,
       0,
       {
@@ -1319,7 +1259,7 @@
     "----",
     "",
     "",
-    "I'll append a single word (\"again\") to the first line of  `test.txt`. Applying a precise edit to the existing line now.",
+    "I'll append a single word (\"again\") to the first line of `test.txt`. Applying a precise edit to the existing line now.",
     "",
     "**  edit** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
     "",
@@ -1336,7 +1276,7 @@
     "----",
     "",
     "",
-    "**Done:** added the word `again` to  `test.txt`.",
+    "**Done:** added the word `again` to `test.txt`.",
     "",
     "----",
     "",
@@ -1346,7 +1286,7 @@
     "----",
     "",
     "",
-    "I'll read  `test.txt` to get the current first-line content, then append one word (\"again2\") to that line. Proceeding to read the file.",
+    "I'll read `test.txt` to get the current first-line content, then append one word (\"again2\") to that line. Proceeding to read the file.",
     "",
     "**  read** `/home/francis/Projects/_nvim/opencode.nvim/test.txt`",
     "",
@@ -1370,7 +1310,7 @@
     "----",
     "",
     "",
-    "**Done:** appended the word `again2` to  `test.txt`.",
+    "**Done:** appended the word `again2` to `test.txt`.",
     "",
     "----",
     "",

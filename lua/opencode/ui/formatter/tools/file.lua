@@ -71,7 +71,7 @@ function M.format(output, part)
   end
 
   if tool_type == 'edit' and metadata.diff then
-    utils.format_diff(output, metadata.diff, file_type)
+    utils.format_diff(output, metadata.diff, file_type, input.filePath)
   elseif tool_type == 'write' and input.content then
     utils.format_code(output, vim.split(input.content, '\n'), file_type)
   end

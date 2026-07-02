@@ -811,81 +811,6 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
-    ],
-    [
-      37,
-      44,
-      8,
-      {
-        "end_col": 40,
-        "end_right_gravity": false,
-        "end_row": 44,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      38,
-      45,
-      8,
-      {
-        "end_col": 39,
-        "end_right_gravity": false,
-        "end_row": 45,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      39,
-      46,
-      8,
-      {
-        "end_col": 38,
-        "end_right_gravity": false,
-        "end_row": 46,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      40,
-      49,
-      8,
-      {
-        "end_col": 18,
-        "end_right_gravity": false,
-        "end_row": 49,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
-    ],
-    [
-      41,
-      50,
-      8,
-      {
-        "end_col": 44,
-        "end_right_gravity": false,
-        "end_row": 50,
-        "hl_eol": false,
-        "hl_group": "OpencodeReference",
-        "ns_id": 3,
-        "priority": 1000,
-        "right_gravity": true
-      }
     ]
   ],
   "lines": [
@@ -933,13 +858,13 @@
     "Here are the files that have been changed according to git status:",
     "",
     "- Modified (but not staged):",
-    "  -  `lua/opencode/event_manager.lua`",
-    "  -  `lua/opencode/ui/formatter.lua`",
-    "  -  `lua/opencode/ui/renderer.lua`",
+    "  - `lua/opencode/event_manager.lua`",
+    "  - `lua/opencode/ui/formatter.lua`",
+    "  - `lua/opencode/ui/renderer.lua`",
     "",
     "- Untracked files:",
-    "  -  `test.lua`",
-    "  -  `tests/data/permission_ask_new.json`",
+    "  - `test.lua`",
+    "  - `tests/data/permission_ask_new.json`",
     "",
     "No files are currently staged for commit. Let me know if you want more details (like the diff), want to stage/commit, or need help with anything else!",
     "",

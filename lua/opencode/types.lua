@@ -148,6 +148,7 @@
 
 ---@class OpencodeKeymapEntry
 ---@field [1] string # Function name
+---@field [2]? string|string[] # Preset command arguments
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
 ---@field defer_to_completion? boolean # Whether to defer the keymap when completion menu is open
@@ -817,3 +818,10 @@
 ---@class OpencodeSelectionRange
 ---@field start number Starting line number (inclusive)
 ---@field stop number Ending line number (inclusive)
+
+---@class OpencodeSessionStatusInfo
+---@field type 'idle'|'busy'|'retry' Current status of the session
+---@field message? string Human-readable detail (populated for `retry`)
+---@field attempt? number Retry attempt counter (populated for `retry`)
+---@field next? number Server-side timestamp of the next retry (populated for `retry`)
+---@field action? table Optional retry action metadata (populated for `retry`)

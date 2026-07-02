@@ -218,6 +218,39 @@ function M.render_question_display()
   end
 end
 
+---@param part_id string
+local function remove_rendered_part(part_id)
+  local cached = ctx.render_state:get_part(part_id)
+  M.on_part_removed({
+    sessionID = state.active_session and state.active_session.id or '',
+    messageID = cached and cached.message_id or nil,
+    partID = part_id,
+  })
+end
+
+---Render the active message actions dialog as a synthetic part under its target message
+---@param target_message_id string|nil
+---@param part_id string|nil
+function M.render_message_actions_display(target_message_id, part_id)
+  if not part_id or part_id == '' then
+    return
+  end
+
+  if not target_message_id or target_message_id == '' then
+    remove_rendered_part(part_id)
+    return
+  end
+
+  local fake_part = {
+    id = part_id,
+    messageID = target_message_id,
+    sessionID = state.active_session and state.active_session.id or '',
+    type = 'message-actions-display',
+    synthetic = true,
+  }
+  M.on_part_updated({ part = fake_part })
+end
+
 ---Remove the question display from the buffer
 function M.clear_question_display()
   local use_vim_ui = config.ui.questions and config.ui.questions.use_vim_ui_select

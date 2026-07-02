@@ -39,7 +39,7 @@ local M = {}
 ---@field pre_zoom_width integer|nil
 ---@field last_window_width_ratio number|nil
 ---@field required_version string
----@field opencode_cli_version string|nil
+---@field opencode_cli_version Promise<string>|nil
 ---@field current_cwd string|nil
 ---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil

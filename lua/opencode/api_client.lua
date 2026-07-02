@@ -195,6 +195,13 @@ function OpencodeApiClient:list_sessions(directory)
   return self:_call('/session', 'GET', nil, { directory = directory })
 end
 
+--- List the current status of all sessions in a workspace.
+--- @param directory string|nil Directory path
+--- @return Promise<{[string]: OpencodeSessionStatusInfo}>
+function OpencodeApiClient:list_session_status(directory)
+  return self:_call('/session/status', 'GET', nil, { directory = directory })
+end
+
 --- List sessions across all projects (experimental global endpoint).
 --- Bypasses _call's automatic directory injection so the server returns all
 --- directories instead of being filtered to the current cwd.
@@ -518,7 +525,8 @@ function OpencodeApiClient:subscribe_to_events(directory, on_event)
     return nil
   end
 
-  if is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+  local version = assert(state.opencode_cli_version):wait()
+  if is_version_greater_or_equal(version, '1.14.42') then
     return self:_subscribe_to_global_events(directory, on_event)
   end
 
@@ -548,7 +556,8 @@ function OpencodeApiClient:_subscribe_to_global_events(directory, on_event)
     return nil
   end
 
-  if not is_version_greater_or_equal(state.opencode_cli_version, '1.14.42') then
+  local version = assert(state.opencode_cli_version):wait()
+  if not is_version_greater_or_equal(version, '1.14.42') then
     error('subscribe_to_global_events should not be called directly')
   end
 

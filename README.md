@@ -834,7 +834,7 @@ Use `spawn_command` to automatically start your server and `kill_command` to sto
 ```lua
 require('opencode').setup({
   server = {
-    url = 'localhost',
+    url = 'https://localhost',
     port = 'auto',  -- Random port for project isolation
     -- Path mapping: translate host paths to container paths
     path_map = function(host_path)
@@ -870,7 +870,7 @@ docker run -d --rm \
 -v ~/.local/share/opencode:/home/node/.local/share/opencode \
 -v ~/.config/opencode:/home/node/.config/opencode \
 -v "%s":/app:rw \
-opencode:latest opencode serve --port 4096 --hostname '0.0.0.0']],
+ghcr.io/anomalyco/opencode:latest serve --port 4096 --hostname '0.0.0.0']],
         container_name,
         port,
         cwd

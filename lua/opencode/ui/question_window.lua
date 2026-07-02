@@ -504,7 +504,10 @@ function M._setup_dialog()
     end,
     check_focused = check_focused,
     namespace_prefix = 'opencode_question',
+    render_part_id = 'question-display-part',
+    mouse_select = false,
     keymaps = {
+      dismiss = '<Esc>',
       left = { 'h', '<Left>' },
       right = { 'l', '<Right>' },
     },
@@ -512,6 +515,11 @@ function M._setup_dialog()
 
   M._dialog:set_group_selection(M._current_question_index)
   M._dialog:setup()
+end
+
+---@return boolean selected
+function M.select_mouse_option()
+  return M._dialog ~= nil and M._dialog:select_mouse_option() or false
 end
 
 ---Tear down the active question dialog, if any.

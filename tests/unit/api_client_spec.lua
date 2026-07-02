@@ -120,7 +120,8 @@ describe('api_client', function()
   it('normalizes /global/event payloads into legacy event shape', function()
     local server_job = require('opencode.server_job')
     local original_stream_api = server_job.stream_api
-    state.jobs.set_opencode_cli_version('1.14.42')
+    local Promise = require('opencode.promise')
+    state.jobs.set_opencode_cli_version(Promise.new():resolve('1.14.42'))
 
     local received = {}
 
@@ -163,7 +164,8 @@ describe('api_client', function()
   it('normalizes /global/event sync payloads into legacy event shape', function()
     local server_job = require('opencode.server_job')
     local original_stream_api = server_job.stream_api
-    state.jobs.set_opencode_cli_version('1.14.42')
+    local Promise = require('opencode.promise')
+    state.jobs.set_opencode_cli_version(Promise.new():resolve('1.14.42'))
 
     local received = {}
 

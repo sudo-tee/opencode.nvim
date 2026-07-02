@@ -285,6 +285,7 @@ end
 
 ---Reset all renderer state and clear the output buffer
 function M.reset()
+  require('opencode.ui.message_actions').teardown()
   ctx:reset()
   reference_facts.clear()
   output_window.clear()

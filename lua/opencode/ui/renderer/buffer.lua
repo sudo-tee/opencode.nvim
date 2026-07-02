@@ -9,6 +9,11 @@ local pinned_bottom_message_ids = {
   ['question-display-message'] = true,
 }
 
+local pinned_bottom_message_order = {
+  'permission-display-message',
+  'question-display-message',
+}
+
 local pinned_top_message_ids = {
   ['__opencode_hidden_messages_notice__'] = true,
 }
@@ -338,7 +343,7 @@ local function get_message_insert_line(message_id)
       return append_at
     end
 
-    for _, pinned_message_id in ipairs({ 'permission-display-message', 'question-display-message' }) do
+    for _, pinned_message_id in ipairs(pinned_bottom_message_order) do
       local pinned_rendered = ctx.render_state:get_message(pinned_message_id)
       if pinned_rendered and pinned_rendered.line_start then
         return pinned_rendered.line_start
@@ -369,7 +374,7 @@ local function get_message_insert_line(message_id)
     end
   end
 
-  for _, pinned_message_id in ipairs({ 'permission-display-message', 'question-display-message' }) do
+  for _, pinned_message_id in ipairs(pinned_bottom_message_order) do
     local pinned_rendered = ctx.render_state:get_message(pinned_message_id)
     if pinned_rendered and pinned_rendered.line_start then
       return pinned_rendered.line_start

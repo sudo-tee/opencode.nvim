@@ -269,7 +269,8 @@ end
 ---@param new_line_end integer
 ---@param skip_clear? boolean
 local function apply_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end, skip_clear)
-  local clear_start, clear_end = extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  local clear_start, clear_end =
+    extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
   if not skip_clear then
     output_window.clear_extmarks(clear_start, clear_end)
   end
@@ -287,7 +288,8 @@ end
 ---@param old_line_end integer
 ---@param new_line_end integer
 local function apply_appended_extmarks(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
-  local clear_start, clear_end = extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
+  local clear_start, clear_end =
+    extmark_clear_range(previous_formatted, formatted_data, line_start, old_line_end, new_line_end)
   clear_start = math.max(clear_start, old_line_end + 1)
   if clear_start >= clear_end then
     return
@@ -435,7 +437,7 @@ end
 ---@param part_id string
 ---@param formatted_data Output
 ---@param line_start integer
-local function apply_part_actions(part_id, formatted_data, line_start)
+local function apply_part_render_data(part_id, formatted_data, line_start)
   if has_actions(formatted_data.actions) then
     ctx.render_state:clear_actions(part_id)
     ctx.render_state:add_actions(part_id, vim.deepcopy(formatted_data.actions), line_start)
@@ -443,15 +445,9 @@ local function apply_part_actions(part_id, formatted_data, line_start)
     ctx.render_state:clear_actions(part_id)
   end
 
-  local part_data = ctx.render_state:get_part(part_id)
-  if part_data then
-    part_data.has_extmarks = has_extmarks(formatted_data.extmarks)
-  end
-end
+  ctx.render_state:clear_targets(part_id)
+  ctx.render_state:add_targets(part_id, vim.deepcopy(formatted_data.targets or {}), line_start)
 
----@param part_id string
----@param formatted_data Output
-local function set_part_extmark_state(part_id, formatted_data)
   local part_data = ctx.render_state:get_part(part_id)
   if part_data then
     part_data.has_extmarks = has_extmarks(formatted_data.extmarks)
@@ -502,7 +498,7 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
     local line_end = line_start + #formatted_data.lines - 1
-  
+
     for _, line in ipairs(formatted_data.lines) do
       ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
     end
@@ -512,15 +508,15 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     if formatted_data.fold_ranges then
       accumulate_bulk_folds(formatted_data.fold_ranges, line_start)
     end
-  
+
     local message_data = ctx.render_state:get_message(message_id)
     if message_data then
       ctx.render_state:set_message(message_data.message, line_start, line_end)
     end
-  
+
     return true
   end
-  
+
   local cached = ctx.render_state:get_message(message_id)
   if cached and cached.line_start and cached.line_end then
     local old_line_end = cached.line_end
@@ -534,15 +530,15 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
       old_line_end,
       cached.line_start + #formatted_data.lines - 1
     )
-  
+
     output_window.clear_extmarks(clear_start, clear_end)
     output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
     highlight_written_lines(write_start, lines_to_write)
-  
+
     local new_line_end = cached.line_start + #formatted_data.lines - 1
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, true)
     ctx.render_state:set_message(cached.message, cached.line_start, new_line_end)
-  
+
     local delta = new_line_end - old_line_end
     if delta ~= 0 then
       ctx.render_state:shift_all(old_line_end + 1, delta)
@@ -550,7 +546,7 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     end
     return true
   end
-  
+
   local insert_at = get_message_insert_line(message_id)
   local message_data = ctx.render_state:get_message(message_id)
   if message_data and message_data.message then
@@ -558,16 +554,15 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     if has_extmarks(formatted_data.extmarks) then
       output_window.set_extmarks(formatted_data.extmarks, insert_at)
     end
-  
+
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     output_window.shift_folds(insert_at, #formatted_data.lines)
     ctx.render_state:set_message(message_data.message, range.line_start, range.line_end)
     return true
   end
-  
+
   return false
 end
-
 
 ---@param part_id string
 ---@param message_id string
@@ -578,7 +573,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
     local line_end = line_start + #formatted_data.lines - 1
-  
+
     for _, line in ipairs(formatted_data.lines) do
       ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
     end
@@ -588,16 +583,16 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     if formatted_data.fold_ranges then
       accumulate_bulk_folds(formatted_data.fold_ranges, line_start)
     end
-  
+
     local part_data = ctx.render_state:get_part(part_id)
     if part_data then
       ctx.render_state:set_part(part_data.part, line_start, line_end)
-      apply_part_actions(part_id, formatted_data, line_start)
+      apply_part_render_data(part_id, formatted_data, line_start)
     end
-  
+
     return true
   end
-  
+
   local cached = ctx.render_state:get_part(part_id)
   if cached and cached.line_start and cached.line_end then
     local old_line_end = cached.line_end
@@ -611,19 +606,18 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
       old_line_end,
       cached.line_start + #formatted_data.lines - 1
     )
-  
+
     output_window.clear_extmarks(clear_start, clear_end)
     output_window.set_lines(lines_to_write, write_start, cached.line_end + 1)
     highlight_written_lines(write_start, lines_to_write)
-  
+
     local new_line_end = cached.line_start + #formatted_data.lines - 1
-    apply_part_actions(part_id, formatted_data, cached.line_start)
-  
+    apply_part_render_data(part_id, formatted_data, cached.line_start)
+
     if new_line_end ~= cached.line_end then
       ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
     end
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, true)
-    set_part_extmark_state(part_id, formatted_data)
 
     if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
       M.update_part_folds(part_id)
@@ -632,7 +626,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     return true
   end
 
-local insert_at = get_part_insertion_line(part_id, message_id)
+  local insert_at = get_part_insertion_line(part_id, message_id)
   if not insert_at then
     return false
   end
@@ -643,11 +637,10 @@ local insert_at = get_part_insertion_line(part_id, message_id)
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     output_window.shift_folds(insert_at, #formatted_data.lines)
     ctx.render_state:set_part(part_data.part, range.line_start, range.line_end)
-    apply_part_actions(part_id, formatted_data, range.line_start)
+    apply_part_render_data(part_id, formatted_data, range.line_start)
     if has_extmarks(formatted_data.extmarks) then
       output_window.set_extmarks(formatted_data.extmarks, range.line_start)
     end
-    set_part_extmark_state(part_id, formatted_data)
 
     if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
       M.set_all_folds()
@@ -684,10 +677,16 @@ function M.set_all_folds()
 end
 
 local function folds_equal(a, b)
-  if not a or not b then return false end
-  if #a ~= #b then return false end
+  if not a or not b then
+    return false
+  end
+  if #a ~= #b then
+    return false
+  end
   for i = 1, #a do
-    if a[i].from ~= b[i].from or a[i].to ~= b[i].to then return false end
+    if a[i].from ~= b[i].from or a[i].to ~= b[i].to then
+      return false
+    end
   end
   return true
 end
@@ -725,11 +724,12 @@ function M.update_part_folds(part_id)
       table.insert(new_global, f)
     end
   end
-  table.sort(new_global, function(a, b) return a.from < b.from end)
+  table.sort(new_global, function(a, b)
+    return a.from < b.from
+  end)
   ctx.global_folds = new_global
   output_window.set_folds(new_global)
 end
-
 
 ---@param part_id string
 ---@param extra_lines string[]
@@ -752,9 +752,8 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
 
   local formatted_data = ctx.formatted_parts[part_id]
   if formatted_data then
-    apply_part_actions(part_id, formatted_data, cached.line_start)
+    apply_part_render_data(part_id, formatted_data, cached.line_start)
     apply_appended_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end)
-    set_part_extmark_state(part_id, formatted_data)
     if formatted_data.fold_ranges then
       M.update_part_folds(part_id)
     end
@@ -773,20 +772,19 @@ function M.remove_part_now(part_id)
     ctx.render_state:remove_part(part_id)
     return
   end
-  
+
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_part(part_id)
     return
   end
-  
+
   output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
   output_window.set_lines({}, cached.line_start, cached.line_end + 1)
   local delta = -(cached.line_end - cached.line_start + 1)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_part(part_id)
 end
-
 
 ---@param message_id string
 function M.remove_message_now(message_id)
@@ -796,19 +794,18 @@ function M.remove_message_now(message_id)
     ctx.render_state:remove_message(message_id)
     return
   end
-  
+
   local cached = ctx.render_state:get_message(message_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_message(message_id)
     return
   end
-  
+
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
   output_window.set_lines({}, cached.line_start, cached.line_end + 1)
   local delta = -(cached.line_end - cached.line_start + 1)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_message(message_id)
 end
-
 
 return M

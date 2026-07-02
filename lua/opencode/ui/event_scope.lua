@@ -87,6 +87,9 @@ local policies = {
   ['file.edited'] = function()
     return true
   end,
+  ['file.watcher.updated'] = function()
+    return true
+  end,
   ['custom.restore_point.created'] = function()
     return true
   end,

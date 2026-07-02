@@ -334,7 +334,7 @@
     "",
     "**Explanation**",
     "",
-    "- The line `local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')` (in  `lua/opencode/context.lua:58`) uses `vim.tbl_get` to safely read a nested field from a table.",
+    "- The line `local is_enabled = vim.tbl_get(config, 'context', context_key, 'enabled')` (in `lua/opencode/context.lua:58`) uses `vim.tbl_get` to safely read a nested field from a table.",
     "- Concretely it attempts to read `config.context[context_key].enabled` but without throwing an error if `config.context` or `config.context[context_key]` is nil. If any intermediate key is missing it returns `nil`.",
     "- In the surrounding function `M.is_context_enabled`, that value is the default config value for the given context key. The function then checks the state override:",
     "  - If `state.current_context_config[context_key].enabled` is not `nil`, that state value (true/false) is returned.",

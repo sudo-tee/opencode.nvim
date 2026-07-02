@@ -264,6 +264,133 @@ describe('RenderState', function()
     end)
   end)
 
+  describe('targets', function()
+    local function target(kind, line, start_col, end_col, extra)
+      local result = vim.tbl_extend('force', {
+        kind = kind,
+        range = {
+          line = line,
+          start_col = start_col,
+          end_col = end_col,
+        },
+      }, extra or {})
+      return result
+    end
+
+    before_each(function()
+      render_state:set_part({ id = 'part1', messageID = 'msg1' }, 0, 2)
+    end)
+
+    it('adds and gets targets by line and column', function()
+      render_state:add_targets('part1', {
+        target('file', 1, 3, 12, { path = 'lua/opencode/init.lua' }),
+      })
+
+      local result = render_state:get_target_at_position(1, 3)
+
+      assert.is_not_nil(result)
+      assert.equals('file', result.kind)
+      assert.equals('part1', result.part_id)
+      assert.equals('msg1', result.message_id)
+      assert.equals('lua/opencode/init.lua', result.path)
+      assert.is_nil(render_state:get_target_at_position(1, 12))
+    end)
+
+    it('applies output line offset when adding targets', function()
+      render_state:add_targets('part1', {
+        target('file', 2, 0, 4, { path = 'README.md' }),
+      }, 10)
+
+      assert.is_nil(render_state:get_target_at_position(2, 1))
+
+      local result = render_state:get_target_at_position(12, 1)
+      assert.is_not_nil(result)
+      assert.equals('README.md', result.path)
+    end)
+
+    it('clears all targets for a part', function()
+      render_state:add_targets('part1', {
+        target('file', 1, 0, 4, { path = 'README.md' }),
+        target('symbol', 1, 5, 9, { token = 'setup', candidate_files = { 'README.md' } }),
+      })
+
+      render_state:clear_targets('part1')
+
+      assert.is_nil(render_state:get_target_at_position(1, 1))
+      assert.is_nil(render_state:get_target_at_position(1, 6))
+    end)
+
+    it('leaves no target after clear followed by empty add', function()
+      render_state:add_targets('part1', {
+        target('file', 1, 0, 4, { path = 'README.md' }),
+      })
+
+      render_state:clear_targets('part1')
+      render_state:add_targets('part1', {}, 10)
+
+      assert.is_nil(render_state:get_target_at_position(1, 1))
+    end)
+
+    it('filters targets without changing file and diff priority over symbols', function()
+      render_state:add_targets('part1', {
+        target('symbol', 1, 0, 10, { token = 'setup', candidate_files = { 'README.md' } }),
+        target('diff', 1, 0, 10, { path = 'README.md', line = 3 }),
+      })
+
+      local result = render_state:get_target_at_position(1, 4)
+      assert.equals('diff', result.kind)
+
+      local symbol = render_state:get_target_at_position(1, 4, function(candidate)
+        return candidate.kind == 'symbol'
+      end)
+      assert.equals('symbol', symbol.kind)
+    end)
+
+    it('moves targets with shifted parts', function()
+      render_state:set_part({ id = 'part2', messageID = 'msg1' }, 3, 4)
+      render_state:add_targets('part2', {
+        target('file', 4, 0, 6, { path = 'later.lua' }),
+      })
+
+      render_state:shift_all(3, 5)
+
+      assert.is_nil(render_state:get_target_at_position(4, 1))
+      local shifted = render_state:get_target_at_position(9, 1)
+      assert.is_not_nil(shifted)
+      assert.equals('part2', shifted.part_id)
+    end)
+
+    it('moves targets when a part line range is updated', function()
+      render_state:add_targets('part1', {
+        target('file', 1, 0, 6, { path = 'moved.lua' }),
+      })
+
+      render_state:update_part_lines('part1', 5, 7)
+
+      assert.is_nil(render_state:get_target_at_position(1, 1))
+      local shifted = render_state:get_target_at_position(6, 1)
+      assert.is_not_nil(shifted)
+      assert.equals('moved.lua', shifted.path)
+    end)
+
+    it('removes targets with the removed part and shifts remaining part targets', function()
+      render_state:set_part({ id = 'part2', messageID = 'msg1' }, 3, 4)
+      render_state:add_targets('part1', {
+        target('file', 1, 8, 14, { path = 'removed.lua' }),
+      })
+      render_state:add_targets('part2', {
+        target('file', 4, 0, 6, { path = 'kept.lua' }),
+      })
+
+      render_state:remove_part('part1')
+
+      assert.is_nil(render_state:get_target_at_position(1, 9))
+      local shifted = render_state:get_target_at_position(1, 1)
+      assert.is_not_nil(shifted)
+      assert.equals('kept.lua', shifted.path)
+    end)
+  end)
+
   describe('update_part_lines', function()
     before_each(function()
       state.renderer.set_messages({

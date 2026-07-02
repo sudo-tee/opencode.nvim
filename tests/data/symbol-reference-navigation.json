@@ -1,0 +1,66 @@
+[
+    {
+        "type": "session.updated",
+        "properties": {
+            "info": {
+                "id": "ses_symbol_reference_navigation",
+                "directory": "/mock/project/path",
+                "time": {
+                    "created": 1760000000000,
+                    "updated": 1760000000000
+                },
+                "version": "0.15.0",
+                "title": "Symbol Reference Navigation Test",
+                "projectID": "test-symbol-reference-navigation"
+            }
+        }
+    },
+    {
+        "type": "message.updated",
+        "properties": {
+            "info": {
+                "id": "msg_symbol_reference_navigation",
+                "sessionID": "ses_symbol_reference_navigation",
+                "time": {
+                    "created": 1760000001000
+                },
+                "role": "assistant"
+            }
+        }
+    },
+    {
+        "type": "message.part.updated",
+        "properties": {
+            "part": {
+                "id": "prt_symbol_reference_navigation_tool",
+                "messageID": "msg_symbol_reference_navigation",
+                "sessionID": "ses_symbol_reference_navigation",
+                "type": "tool",
+                "tool": "read",
+                "state": {
+                    "status": "completed",
+                    "input": {
+                        "filePath": "lua/opencode/ui/symbol_snapshot.lua"
+                    },
+                    "output": "<path>lua/opencode/ui/symbol_snapshot.lua</path>\n<content>function M.collect(refs)</content>",
+                    "time": {
+                        "start": 1760000001000,
+                        "end": 1760000001001
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "message.part.updated",
+        "properties": {
+            "part": {
+                "id": "prt_symbol_reference_navigation_text",
+                "messageID": "msg_symbol_reference_navigation",
+                "sessionID": "ses_symbol_reference_navigation",
+                "type": "text",
+                "text": "collect should be highlighted from the referenced file."
+            }
+        }
+    }
+]

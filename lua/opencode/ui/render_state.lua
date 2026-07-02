@@ -9,6 +9,7 @@
 ---@field line_start integer? Line where part starts
 ---@field line_end integer? Line where part ends
 ---@field actions table[] Actions associated with this part
+---@field targets RenderedTarget[] Targets associated with this part
 ---@field has_extmarks boolean? Whether the part currently has extmarks applied
 
 ---@class RenderState
@@ -366,6 +367,86 @@ function RenderState:get_actions_at_line(line)
   return actions
 end
 
+---@param target RenderedTarget
+---@param line integer 1-indexed
+---@param col integer 0-indexed
+---@return boolean
+local function target_contains_position(target, line, col)
+  local range = target.range
+  return range.line == line and col >= range.start_col and col < range.end_col
+end
+
+---@param target RenderedTarget
+---@return integer
+local function target_priority(target)
+  if target.kind == 'file' or target.kind == 'diff' then
+    return 1
+  end
+  if target.kind == 'symbol' then
+    return 2
+  end
+  return 3
+end
+
+---@param target RenderedTarget
+---@return integer
+local function target_width(target)
+  return target.range.end_col - target.range.start_col
+end
+
+---@param part_id string
+---@param targets OutputTarget[]
+---@param offset? integer Line offset to apply to target line numbers
+function RenderState:add_targets(part_id, targets, offset)
+  local part_data = self._parts[part_id]
+  if not part_data then
+    return
+  end
+  offset = offset or 0
+
+  for _, target in ipairs(targets) do
+    local rendered_target = vim.deepcopy(target)
+    rendered_target.range.line = rendered_target.range.line + offset
+    rendered_target.part_id = part_id
+    rendered_target.message_id = part_data.message_id
+    part_data.targets[#part_data.targets + 1] = rendered_target
+  end
+end
+
+---@param part_id string
+function RenderState:clear_targets(part_id)
+  local part_data = self._parts[part_id]
+  if part_data then
+    part_data.targets = {}
+  end
+end
+
+---@param line integer 1-indexed
+---@param col integer 0-indexed
+---@param filter? fun(target: RenderedTarget): boolean
+---@return RenderedTarget?
+function RenderState:get_target_at_position(line, col, filter)
+  local best = nil
+  local best_priority = nil
+  local best_width = nil
+
+  for _, part_data in pairs(self._parts) do
+    for _, target in ipairs(part_data.targets or {}) do
+      if target_contains_position(target, line, col) and (not filter or filter(target)) then
+        local priority = target_priority(target)
+        local width = target_width(target)
+        if not best or priority < best_priority or (priority == best_priority and width < best_width) then
+          best = target
+          best_priority = priority
+          best_width = width
+        end
+      end
+    end
+  end
+
+  return best and vim.deepcopy(best) or nil
+end
+
 ---@param part_id string
 ---@param actions table[]
 ---@param offset? integer Line offset to apply to action line numbers
@@ -408,6 +489,14 @@ function RenderState:get_all_actions()
     end
   end
   return all_actions
+end
+
+---@param targets RenderedTarget[]
+---@param delta integer
+local function shift_targets(targets, delta)
+  for _, target in ipairs(targets or {}) do
+    target.range.line = target.range.line + delta
+  end
 end
 
 ---@param message OpencodeMessage
@@ -462,12 +551,16 @@ function RenderState:set_part(part, line_start, line_end)
       line_start = line_start,
       line_end = line_end,
       actions = {},
+      targets = {},
       has_extmarks = false,
     }
   else
     existing.part = part
     if message_id then
       existing.message_id = message_id
+    end
+    if line_start and existing.line_start and existing.line_start ~= line_start then
+      shift_targets(existing.targets, line_start - existing.line_start)
     end
     if line_start then
       existing.line_start = line_start
@@ -506,12 +599,16 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
   end
 
   local old_line_end = part_data.line_end
+  local old_line_start = part_data.line_start
   local old_line_count = old_line_end - part_data.line_start + 1
   local new_line_count = new_line_end - new_line_start + 1
   local delta = new_line_count - old_line_count
 
   part_data.line_start = new_line_start
   part_data.line_end = new_line_end
+  if old_line_start ~= new_line_start then
+    shift_targets(part_data.targets, new_line_start - old_line_start)
+  end
   self._ranges_valid = false
 
   if self._max_line_end_valid then
@@ -669,6 +766,7 @@ function RenderState:shift_all(from_line, delta)
       for _, action in ipairs(part_data.actions) do
         shift_action(action, delta)
       end
+      shift_targets(part_data.targets, delta)
     end
   end
 

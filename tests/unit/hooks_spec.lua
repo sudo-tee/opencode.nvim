@@ -1,11 +1,11 @@
 local renderer = require('opencode.ui.renderer')
+local stub = require('luassert.stub')
 local config = require('opencode.config')
 local state = require('opencode.state')
 local session_runtime = require('opencode.services.session_runtime')
 local events = require('opencode.ui.renderer.events')
 local helpers = require('tests.helpers')
 local ui = require('opencode.ui.ui')
-
 
 local function expect_nil_hook_no_error(run)
   assert.has_no.errors(run)
@@ -230,5 +230,54 @@ describe('hooks', function()
         state.renderer.set_pending_permissions({ { tool = 'test_tool', action = 'read' } })
       end)
     end)
+  end)
+end)
+
+describe('reference target local file lifecycle autocmds', function()
+  local autocmds = require('opencode.ui.autocmds')
+
+  it('invalidates rendered reference targets on local file writes, renames, unloads, and shell changes', function()
+    local original_create_augroup = vim.api.nvim_create_augroup
+    local original_create_autocmd = vim.api.nvim_create_autocmd
+    local created = {}
+
+    local invalidate_stub = stub(events, 'invalidate_reference_targets_for_file_change')
+    local ok, err = pcall(function()
+      vim.api.nvim_create_augroup = function()
+        return 42
+      end
+      vim.api.nvim_create_autocmd = function(event, opts)
+        created[#created + 1] = { event = event, opts = opts }
+        return #created
+      end
+
+      autocmds.setup_autocmds({ input_win = 1, output_win = 2, footer_win = 3, input_buf = 4, output_buf = 5 })
+
+      local file_lifecycle_autocmd
+      for _, entry in ipairs(created) do
+        if type(entry.event) == 'table' and vim.tbl_contains(entry.event, 'BufWritePost') then
+          file_lifecycle_autocmd = entry
+          break
+        end
+      end
+
+      assert.is_not_nil(file_lifecycle_autocmd)
+      assert.are.same(
+        { 'BufWritePost', 'BufFilePost', 'BufDelete', 'BufWipeout', 'FileChangedShellPost' },
+        file_lifecycle_autocmd.event
+      )
+
+      file_lifecycle_autocmd.opts.callback({ file = '/repo/tests/unit/formatter_spec.lua' })
+      file_lifecycle_autocmd.opts.callback({ file = '' })
+
+      assert.stub(invalidate_stub).was_called(1)
+    end)
+
+    vim.api.nvim_create_augroup = original_create_augroup
+    vim.api.nvim_create_autocmd = original_create_autocmd
+    invalidate_stub:revert()
+    if not ok then
+      error(err)
+    end
   end)
 end)

@@ -3,6 +3,7 @@ local config = require('opencode.config')
 local ctx = require('opencode.ui.renderer.ctx')
 local permission_window = require('opencode.ui.permission_window')
 local flush = require('opencode.ui.renderer.flush')
+local reference_facts = require('opencode.ui.reference_facts')
 
 ---@param message OpencodeMessage|nil
 ---@return string|nil
@@ -49,6 +50,61 @@ local function find_message_in_state(message_id)
   return nil
 end
 
+local function is_assistant_message(message)
+  return message and message.info and message.info.role == 'assistant'
+end
+
+local function find_part_index(message, part_id)
+  if not message or not message.parts or not part_id then
+    return nil
+  end
+  for index, part in ipairs(message.parts) do
+    if part.id == part_id then
+      return index
+    end
+  end
+  return nil
+end
+
+local function mark_following_assistant_text_parts_dirty(message, changed_part_index)
+  if not is_assistant_message(message) or not changed_part_index then
+    return
+  end
+
+  local message_id = message.info and message.info.id
+  for index = changed_part_index + 1, #(message.parts or {}) do
+    local part = message.parts[index]
+    if part.type == 'text' and part.text and part.id then
+      flush.mark_part_dirty(part.id, message_id)
+    end
+  end
+end
+
+local function mark_rendered_assistant_text_parts_dirty()
+  local active_session_id = state.active_session and state.active_session.id
+  if not active_session_id then
+    return
+  end
+
+  for part_id, part_data in pairs(ctx.render_state._parts or {}) do
+    local part = part_data.part
+    if
+      part
+      and part.type == 'text'
+      and part.text
+      and not part.synthetic
+      and part_data.line_start
+      and part_data.line_end
+    then
+      local message_data = ctx.render_state:get_message(part_data.message_id)
+      local message = message_data and message_data.message or find_message_in_state(part_data.message_id)
+      if is_assistant_message(message) and message.info.sessionID == active_session_id then
+        flush.mark_part_dirty(part_id, part_data.message_id)
+      end
+    end
+  end
+end
+
 -- Lazy require to avoid circular dependency: renderer.lua <-> events.lua
 ---@param force? boolean
 local function scroll(force)
@@ -56,6 +112,11 @@ local function scroll(force)
 end
 
 local M = {}
+
+function M.invalidate_reference_targets_for_file_change()
+  reference_facts.refresh_current_files()
+  mark_rendered_assistant_text_parts_dirty()
+end
 
 ---@param message_id string
 ---@param revert_index? integer
@@ -300,6 +361,7 @@ function M.on_message_removed(properties)
     end
   end
 
+  reference_facts.remove_message(message_id)
   flush.queue_message_removal(message_id)
 
   for i, msg in ipairs(state.messages or {}) do
@@ -417,6 +479,11 @@ function M.on_part_updated(properties, revert_index)
     return
   end
 
+  local ref_scope_changed = reference_facts.replace_part(state.active_session.id, message, part)
+  if ref_scope_changed then
+    mark_following_assistant_text_parts_dirty(message, find_part_index(message, part.id))
+  end
+
   if is_new_part then
     ctx.render_state:set_part(part)
   else
@@ -491,13 +558,19 @@ function M.on_part_removed(properties)
 
   -- Remove the part from the in-memory message too
   local cached = ctx.render_state:get_part(part_id)
-  local message_id = cached and cached.message_id
+  local message_id = (cached and cached.message_id) or properties.messageID
   if message_id then
     local rendered_message = ctx.render_state:get_message(message_id)
-    if rendered_message and rendered_message.message and rendered_message.message.parts then
-      for i, part in ipairs(rendered_message.message.parts) do
+    local message = rendered_message and rendered_message.message or find_message_in_state(message_id)
+    local removed_index = find_part_index(message, part_id)
+    local ref_scope_changed = reference_facts.remove_part(message_id, part_id)
+    if message and message.parts then
+      if ref_scope_changed then
+        mark_following_assistant_text_parts_dirty(message, removed_index)
+      end
+      for i, part in ipairs(message.parts) do
         if part.id == part_id then
-          table.remove(rendered_message.message.parts, i)
+          table.remove(message.parts, i)
           break
         end
       end
@@ -631,9 +704,15 @@ end
 ---@param properties {file: string}
 function M.on_file_edited(properties)
   vim.cmd('checktime')
+  M.invalidate_reference_targets_for_file_change()
   if config.hooks and config.hooks.on_file_edited then
     pcall(config.hooks.on_file_edited, properties.file)
   end
+end
+
+---@param properties {file: string, event: "add"|"change"|"unlink"}
+function M.on_file_watcher_updated(properties)
+  M.invalidate_reference_targets_for_file_change()
 end
 
 ---Handle custom.restore_point.created

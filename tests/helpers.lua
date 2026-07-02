@@ -13,7 +13,7 @@ function M.replay_setup()
   local renderer = require('opencode.ui.renderer')
   local permission_window = require('opencode.ui.permission_window')
   local question_window = require('opencode.ui.question_window')
-  local reference_picker = require('opencode.ui.reference_picker')
+  local reference_parser = require('opencode.ui.reference_parser')
 
   local empty_promise = require('opencode.promise').new():resolve(nil)
   config_file.config_promise = empty_promise
@@ -33,7 +33,7 @@ function M.replay_setup()
   question_window._current_question_index = 1
   question_window._collected_answers = {}
   question_window._answering = false
-  reference_picker.clear_all()
+  reference_parser.clear_all()
 
   ---@diagnostic disable-next-line: duplicate-set-field
   require('opencode.session').project_id = function()

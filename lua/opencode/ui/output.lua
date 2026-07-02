@@ -7,6 +7,7 @@ Output.__index = Output
 ---@field lines string[]
 ---@field extmarks table<number, OutputExtmark[]>
 ---@field actions OutputAction[]
+---@field targets OutputTarget[]
 ---@field add_line fun(self: Output, line: string, fit?: boolean): number
 ---@field get_line fun(self: Output, idx: number): string?
 ---@field merge_line fun(self: Output, idx: number, text: string)
@@ -20,12 +21,15 @@ Output.__index = Output
 ---@field add_actions fun(self: Output, actions: OutputAction[])
 ---@field add_action fun(self: Output, action: OutputAction)
 ---@field get_actions_for_line fun(self: Output, line: number): OutputAction[]?
+---@field add_target fun(self: Output, target: OutputTarget)
+---@field add_targets fun(self: Output, targets: OutputTarget[])
 ---@return self Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}
   self.extmarks = {}
   self.actions = {}
+  self.targets = {}
   self.fold_ranges = {}
   return self
 end
@@ -79,11 +83,12 @@ function Output:add_empty_line()
   return nil
 end
 
----Clear all lines, extmarks, and actions
+---Clear all lines, extmarks, actions, and targets
 function Output:clear()
   self.lines = {}
   self.extmarks = {}
   self.actions = {}
+  self.targets = {}
 end
 
 ---Add a fold range
@@ -160,6 +165,18 @@ function Output:add_action(action)
     action.range = { from = #self.lines, to = #self.lines }
   end
   table.insert(self.actions, action)
+end
+
+---@param target OutputTarget
+function Output:add_target(target)
+  table.insert(self.targets, target)
+end
+
+---@param targets OutputTarget[]
+function Output:add_targets(targets)
+  for _, target in ipairs(targets) do
+    self:add_target(target)
+  end
 end
 
 ---Get actions for a line matching a range

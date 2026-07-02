@@ -201,6 +201,14 @@ describe('renderer unit tests', function()
     end
   end)
 
+  it('subscribes to file watcher updates for reference target invalidation', function()
+    assert(vim.tbl_contains(event_subscriptions(), 'file.watcher.updated'))
+    assert.is_true(require('opencode.ui.event_scope').should_handle('file.watcher.updated', {
+      file = 'src/ok.lua',
+      event = 'unlink',
+    }))
+  end)
+
   it('unsubsribes from events correctly', function()
     local renderer = require('opencode.ui.renderer')
     local event_manager = state.event_manager
@@ -325,6 +333,39 @@ describe('renderer unit tests', function()
     render_stub:revert()
   end)
 
+  it('render_output and render_lines do not write targets into RenderState', function()
+    local renderer = require('opencode.ui.renderer')
+    local ctx = require('opencode.ui.renderer.ctx')
+    local Output = require('opencode.ui.output')
+
+    helpers.replay_setup()
+    local add_targets_stub = stub(ctx.render_state, 'add_targets')
+    local clear_targets_stub = stub(ctx.render_state, 'clear_targets')
+
+    local output = Output.new()
+    output:add_line('open README.md')
+    output:add_extmark(0, { hl_group = 'OpencodeReference', start_col = 5, end_col = 14 })
+    output:add_fold(1, 1)
+    output:add_target({
+      kind = 'file',
+      path = 'README.md',
+      range = { line = 1, start_col = 5, end_col = 14 },
+    })
+
+    renderer.render_output(output)
+    renderer.render_lines({ 'display only' })
+
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+
+    add_targets_stub:revert()
+    clear_targets_stub:revert()
+    ui.close_windows(state.windows)
+
+    assert.are.same({ 'display only' }, lines)
+    assert.stub(add_targets_stub).was_not_called()
+    assert.stub(clear_targets_stub).was_not_called()
+  end)
+
   it('inserts a single synthetic revert message during full session render', function()
     local renderer = require('opencode.ui.renderer')
 
@@ -372,34 +413,107 @@ describe('renderer unit tests', function()
 
     state.ui.set_last_code_window(code_win)
     local path = 'lua/opencode/ui/navigation.lua'
+    local test_root = vim.fn.tempname()
+    local absolute_path = test_root .. '/' .. path
+    vim.fn.mkdir(vim.fn.fnamemodify(absolute_path, ':h'), 'p')
+    local file = assert(io.open(absolute_path, 'w'))
+    file:write('abc')
+    file:close()
+
+    local original_getcwd = vim.fn.getcwd
+    vim.fn.getcwd = function()
+      return test_root
+    end
+    vim.api.nvim_buf_set_name(code_buf, absolute_path)
+    vim.api.nvim_buf_set_lines(code_buf, 0, -1, false, { 'abc' })
     local events = helpers.load_test_data('tests/data/output-target-navigation.json')
     state.session.set_active(helpers.get_session_from_events(events, true))
     local session_data = helpers.load_session_from_events(events)
-    renderer._render_full_session_data(session_data)
+    local ok, err = pcall(function()
+      renderer._render_full_session_data(session_data)
 
-    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
-    local target_line, target_col
-    for idx, line in ipairs(lines) do
-      local col = line:find(path, 1, true)
-      if col then
-        target_line = idx
-        target_col = col - 1
+      local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+      local target_line, target_col
+      for idx, line in ipairs(lines) do
+        local col = line:find(path, 1, true)
+        if col then
+          target_line = idx
+          target_col = col - 1
+          break
+        end
+      end
+
+      assert.is_not_nil(target_line, 'replayed output did not contain file reference')
+      vim.api.nvim_set_current_win(state.windows.output_win)
+      vim.api.nvim_win_set_cursor(state.windows.output_win, { target_line, target_col })
+
+      navigation.jump_to_target_at_cursor()
+
+      assert.equals(code_win, vim.api.nvim_get_current_win())
+      assert.matches(path .. '$', vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(code_win)))
+      assert.same({ 1, 2 }, vim.api.nvim_win_get_cursor(code_win))
+    end)
+
+    vim.fn.getcwd = original_getcwd
+    pcall(vim.api.nvim_win_close, code_win, true)
+    pcall(vim.api.nvim_buf_delete, code_buf, { force = true })
+    pcall(vim.fn.delete, test_root, 'rf')
+    if not ok then
+      error(err)
+    end
+  end)
+
+  it('renders reference-scoped symbol highlights through full session replay', function()
+    local renderer = require('opencode.ui.renderer')
+    local symbol_snapshot = require('opencode.ui.symbol_snapshot')
+    local events = helpers.load_test_data('tests/data/symbol-reference-navigation.json')
+    local referenced_file = 'lua/opencode/ui/symbol_snapshot.lua'
+    local cycle = { id = 'cycle' }
+    local new_cycle_stub = stub(symbol_snapshot, 'new_cycle').returns(cycle)
+    local targets_for_token_stub = stub(symbol_snapshot, 'targets_for_token').invokes(
+      function(received_cycle, token, candidate_files)
+        assert.are.equal(cycle, received_cycle)
+        if token ~= 'collect' then
+          return {}
+        end
+        assert.are.equal(1, #candidate_files)
+        assert.matches(referenced_file .. '$', candidate_files[1])
+        return {
+          {
+            path = candidate_files[1],
+            line = 1,
+            col = 10,
+            token = token,
+          },
+        }
+      end
+    )
+
+    helpers.replay_setup()
+    local original_filereadable = vim.fn.filereadable
+    vim.fn.filereadable = function(path)
+      if path:match(referenced_file .. '$') then
+        return 1
+      end
+      return original_filereadable(path)
+    end
+    state.session.set_active(helpers.get_session_from_events(events, true))
+    renderer._render_full_session_data(helpers.load_session_from_events(events))
+
+    local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
+    local symbol_mark
+    for _, mark in ipairs(actual.extmarks) do
+      if mark[4] and mark[4].hl_group == 'OpencodeSymbolReference' then
+        symbol_mark = mark
         break
       end
     end
 
-    assert.is_not_nil(target_line, 'replayed output did not contain file reference')
-    vim.api.nvim_set_current_win(state.windows.output_win)
-    vim.api.nvim_win_set_cursor(state.windows.output_win, { target_line, target_col })
+    new_cycle_stub:revert()
+    targets_for_token_stub:revert()
+    vim.fn.filereadable = original_filereadable
 
-    navigation.jump_to_target_at_cursor()
-
-    assert.equals(code_win, vim.api.nvim_get_current_win())
-    assert.matches(path .. '$', vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(code_win)))
-    assert.same({ 12, 2 }, vim.api.nvim_win_get_cursor(code_win))
-
-    pcall(vim.api.nvim_win_close, code_win, true)
-    pcall(vim.api.nvim_buf_delete, code_buf, { force = true })
+    assert.is_not_nil(symbol_mark)
   end)
 
   it('limits rendered messages and inserts a hidden-messages notice', function()

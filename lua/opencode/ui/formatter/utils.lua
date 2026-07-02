@@ -119,7 +119,7 @@ local function build_diff_gutter(line_numbers, width)
   return string.format('%' .. width .. 's', line_number and tostring(line_number) or '')
 end
 
-local function add_diff_line(output, line, line_numbers, width)
+local function add_diff_line(output, line, line_numbers, width, source_path)
   local first_char = line:sub(1, 1)
   local line_hl = first_char == '+' and 'OpencodeDiffAdd' or first_char == '-' and 'OpencodeDiffDelete' or nil
   local gutter_hl = first_char == '+' and 'OpencodeDiffAddGutter'
@@ -129,9 +129,23 @@ local function add_diff_line(output, line, line_numbers, width)
   local gutter = build_diff_gutter(line_numbers, width)
   local gutter_width = #gutter + 2
 
-  output:add_line(string.rep(' ', gutter_width) .. line:sub(2))
+  local rendered_line = string.rep(' ', gutter_width) .. line:sub(2)
+  output:add_line(rendered_line)
 
   local line_idx = output:get_line_count()
+  if source_path and line_numbers.new then
+    output:add_target({
+      kind = 'diff',
+      path = source_path,
+      line = line_numbers.new,
+      range = {
+        line = line_idx,
+        start_col = 0,
+        end_col = #rendered_line,
+      },
+    })
+  end
+
   local extmark = {
     end_col = 0,
     end_row = line_idx,
@@ -159,7 +173,8 @@ end
 ---@param output Output
 ---@param code string
 ---@param file_type string
-function M.format_diff(output, code, file_type)
+---@param source_path? string
+function M.format_diff(output, code, file_type, source_path)
   output:add_empty_line()
 
   --- NOTE: use longer code fence because code could contain ```
@@ -172,7 +187,7 @@ function M.format_diff(output, code, file_type)
   for idx, line in ipairs(lines) do
     local source_idx = first_visible_line + idx - 1
     if numbered_lines[source_idx] then
-      add_diff_line(output, line, numbered_lines[source_idx], line_number_width)
+      add_diff_line(output, line, numbered_lines[source_idx], line_number_width, source_path)
     else
       output:add_line(line)
     end

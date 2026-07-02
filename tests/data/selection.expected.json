@@ -415,7 +415,7 @@
     "----",
     "",
     "",
-    "I can see the file  `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.",
+    "I can see the file `/Users/cam/tmp/a/diff-test.txt` contains \"this is a string\" on line 1.",
     "",
     "The two selection contexts you provided show:",
     "1. Current content: \"this is a string\"",

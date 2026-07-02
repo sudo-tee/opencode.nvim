@@ -1,6 +1,8 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
+local reference_facts = require('opencode.ui.reference_facts')
+local symbol_snapshot = require('opencode.ui.symbol_snapshot')
 local output_window = require('opencode.ui.output_window')
 local ctx = require('opencode.ui.renderer.ctx')
 local scroll = require('opencode.ui.renderer.scroll')
@@ -296,6 +298,19 @@ local function snapshot_pending()
   return pending
 end
 
+---@return FormatterContext
+local function new_formatter_context()
+  return {
+    interactive = true,
+    get_child_parts = function(session_id)
+      return ctx.render_state:get_child_session_parts(session_id)
+    end,
+    current_refs = reference_facts.current_refs(),
+    current_files = reference_facts.current_files(),
+    symbol_cycle = symbol_snapshot.new_cycle(),
+  }
+end
+
 ---@param message_id string
 ---@return Output|nil
 local function format_message(message_id)
@@ -319,9 +334,10 @@ local function format_message(message_id)
 end
 
 ---@param part_id string
+---@param render_context FormatterContext
 ---@return Output|nil formatted
 ---@return string|nil message_id
-local function format_part(part_id)
+local function format_part(part_id, render_context)
   local rendered_part = ctx.render_state:get_part(part_id)
   if not rendered_part or not rendered_part.part then
     return nil
@@ -334,15 +350,7 @@ local function format_part(part_id)
   end
 
   local is_last_part = (buffer.get_last_part_for_message(message) == part_id)
-  local ok, formatted_or_err = pcall(
-    formatter.format_part,
-    rendered_part.part,
-    message,
-    is_last_part,
-    function(session_id)
-      return ctx.render_state:get_child_session_parts(session_id)
-    end
-  )
+  local ok, formatted_or_err = pcall(formatter.format_part, rendered_part.part, message, is_last_part, render_context)
   if not ok then
     warn_part_render_error_once(part_id, rendered_part.message_id, formatted_or_err)
     return nil, rendered_part.message_id
@@ -363,10 +371,11 @@ end
 
 ---@param part_id string
 ---@param message_id string|nil
-local function apply_part(part_id, message_id)
+---@param render_context FormatterContext
+local function apply_part(part_id, message_id, render_context)
   local previous = ctx.formatted_parts[part_id]
   local formatted = nil
-  formatted, message_id = format_part(part_id)
+  formatted, message_id = format_part(part_id, render_context)
   if not formatted or not message_id then
     return
   end
@@ -395,8 +404,9 @@ local function apply_part(part_id, message_id)
 end
 
 ---@param pending RendererCtx['pending']
+---@param render_context FormatterContext
 ---@return boolean
-local function apply_pending(pending)
+local function apply_pending(pending, render_context)
   local buf = state.windows and state.windows.output_buf
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return false
@@ -465,7 +475,7 @@ local function apply_pending(pending)
         local parts = message and message.message and message.message.parts or {}
         for _, part in ipairs(parts or {}) do
           if part.id and dirty_parts[part.id] then
-            apply_part(part.id, message_id)
+            apply_part(part.id, message_id, render_context)
             dirty_parts[part.id] = nil
             pending.dirty_parts[part.id] = nil
           end
@@ -476,7 +486,7 @@ local function apply_pending(pending)
     for _, part_id in ipairs(pending.dirty_part_order) do
       local message_id = pending.dirty_parts[part_id]
       if message_id then
-        apply_part(part_id, message_id)
+        apply_part(part_id, message_id, render_context)
       end
     end
   end)
@@ -587,7 +597,7 @@ end
 ---Flush all pending renderer changes to the output buffer.
 function M.flush()
   local pending = snapshot_pending()
-  local applied = apply_pending(pending)
+  local applied = apply_pending(pending, new_formatter_context())
   if applied and not ctx.bulk_mode then
     M.request_on_data_rendered()
   end

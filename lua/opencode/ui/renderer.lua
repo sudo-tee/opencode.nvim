@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local output_window = require('opencode.ui.output_window')
 local permission_window = require('opencode.ui.permission_window')
+local reference_facts = require('opencode.ui.reference_facts')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
 local events = require('opencode.ui.renderer.events')
@@ -276,6 +277,7 @@ function M.event_subscriptions()
     { 'question.replied', events.on_question_replied },
     { 'question.rejected', events.on_question_replied },
     { 'file.edited', events.on_file_edited },
+    { 'file.watcher.updated', events.on_file_watcher_updated },
     { 'custom.restore_point.created', events.on_restore_points },
     { 'custom.emit_events.finished', M.on_emit_events_finished },
   }
@@ -285,6 +287,7 @@ end
 function M.reset()
   require('opencode.ui.message_actions').teardown()
   ctx:reset()
+  reference_facts.clear()
   output_window.clear()
   permission_window.clear_all()
   state.renderer.reset()
@@ -350,6 +353,8 @@ function M._render_full_session_data(session_data, opts)
   if not state.active_session or not state.messages then
     return
   end
+
+  reference_facts.rebuild(state.active_session.id, state.messages)
 
   local visible_messages, hidden_count = get_visible_session_messages(state.messages)
   local revert_index = get_revert_index(state.messages)
@@ -587,6 +592,20 @@ end
 ---@return table[]
 function M.get_actions_for_line(line)
   return ctx.render_state:get_actions_at_line(line)
+end
+
+---@param line integer 1-indexed
+---@param col integer 0-indexed
+---@param filter? fun(target: RenderedTarget): boolean
+---@return RenderedTarget|nil
+function M.get_target_at_position(line, col, filter)
+  return ctx.render_state:get_target_at_position(line, col, filter)
+end
+
+---@param part_id string
+---@param message_id string
+function M.mark_part_dirty(part_id, message_id)
+  flush.mark_part_dirty(part_id, message_id)
 end
 
 ---Return the rendered message record for a given message ID

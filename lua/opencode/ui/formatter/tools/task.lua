@@ -23,8 +23,8 @@ end
 
 ---@param output Output
 ---@param part OpencodeMessagePart
----@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
-function M.format(output, part, get_child_parts)
+---@param context? FormatterContext
+function M.format(output, part, context)
   if part.tool ~= 'task' then
     return
   end
@@ -49,7 +49,10 @@ function M.format(output, part, get_child_parts)
   local output_start_line = output:get_line_count() + 1
   if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then
     local child_session_id = metadata.sessionId
-    local child_parts = child_session_id and get_child_parts and get_child_parts(child_session_id)
+    local child_parts = child_session_id
+      and context
+      and context.get_child_parts
+      and context.get_child_parts(child_session_id)
 
     if child_parts and #child_parts > 0 then
       output:add_empty_line()
@@ -73,7 +76,11 @@ function M.format(output, part, get_child_parts)
       end
     end
 
-    output:add_fold_with_threshold(output_start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
+    output:add_fold_with_threshold(
+      output_start_line,
+      config.ui.output.tools.show_output,
+      config.ui.output.tools.use_folds
+    )
   end
 
   local end_line = output:get_line_count()

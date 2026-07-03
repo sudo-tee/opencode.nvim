@@ -196,7 +196,7 @@ function M.build_inline_selection_text(range)
 
   local fence = string.rep('`', n)
   local filetype = vim.bo[buf].filetype or ''
-  local code = current_selection.text:gsub('^%s+', ''):gsub('%s+$', '')
+  local code = current_selection.text:gsub('^%s+\r?\n', ''):gsub('%s+$', '')
   local text ---@type string
   if file then
     text = string.format('**`%s`**\n\n%s%s\n%s\n%s', file.path, fence, filetype, code, fence)

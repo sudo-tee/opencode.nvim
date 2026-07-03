@@ -181,11 +181,6 @@ end
 function M.build_inline_selection_text(range)
   local buf = vim.api.nvim_get_current_buf()
 
-  if not util.is_buf_a_file(buf) then
-    vim.notify('Cannot add selection: not a file buffer', vim.log.levels.WARN)
-    return nil
-  end
-
   local current_selection = BaseContext.get_current_selection(nil, range)
   if not current_selection then
     vim.notify('No visual selection found', vim.log.levels.WARN)
@@ -193,13 +188,21 @@ function M.build_inline_selection_text(range)
   end
 
   local file = BaseContext.get_current_file_for_selection(buf)
-  if not file then
-    vim.notify('Cannot determine file for selection', vim.log.levels.WARN)
-    return nil
-  end
 
+  local n = 3
+  current_selection.text:gsub('(`+)', function(run)
+    n = math.max(n, #run + 1)
+  end)
+
+  local fence = string.rep('`', n)
   local filetype = vim.bo[buf].filetype or ''
-  local text = string.format('**`%s`**\n\n```%s\n%s\n```', file.path, filetype, current_selection.text)
+  local code = current_selection.text:gsub('^%s+', ''):gsub('%s+$', '')
+  local text ---@type string
+  if file then
+    text = string.format('**`%s`**\n\n%s%s\n%s\n%s', file.path, fence, filetype, code, fence)
+  else
+    text = string.format('%s%s\n%s\n%s', fence, filetype, code, fence)
+  end
 
   return text
 end

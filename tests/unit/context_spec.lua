@@ -1194,33 +1194,45 @@ describe('build_inline_selection_text', function()
     vim.bo = original_bo
   end)
 
-  it('should return nil and notify when not a file buffer', function()
+  it('should return formatted text without file path for non-file buffer', function()
     local original_is_buf_a_file = util.is_buf_a_file
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_current_file_for_selection = BaseContext.get_current_file_for_selection
     local original_get_current_buf = vim.api.nvim_get_current_buf
 
     util.is_buf_a_file = function()
       return false
     end
+    BaseContext.get_current_selection = function()
+      return { text = 'function foo()\n  return 42\nend', lines = '10, 12' }
+    end
+    BaseContext.get_current_file_for_selection = function()
+      return nil
+    end
     vim.api.nvim_get_current_buf = function()
       return 10
     end
 
-    local original_notify = vim.notify
-    local notifications = {}
-    vim.notify = function(msg, level)
-      table.insert(notifications, { msg = msg, level = level })
-    end
+    local original_bo = vim.bo
+    vim.bo = setmetatable({}, {
+      __index = function(_, _)
+        return { filetype = 'lua' }
+      end,
+    })
 
     local text = context.build_inline_selection_text()
 
-    assert.is_nil(text)
-    assert.equal(1, #notifications)
-    assert.equal('Cannot add selection: not a file buffer', notifications[1].msg)
-    assert.equal(vim.log.levels.WARN, notifications[1].level)
+    assert.is_not_nil(text)
+    assert.is_nil(text:match('%*%*`'))
+    assert.is_not_nil(text:match('```lua'))
+    assert.is_not_nil(text:match('function foo%(%)'))
+    assert.is_not_nil(text:match('```$'))
 
     util.is_buf_a_file = original_is_buf_a_file
+    BaseContext.get_current_selection = original_get_current_selection
+    BaseContext.get_current_file_for_selection = original_get_current_file_for_selection
     vim.api.nvim_get_current_buf = original_get_current_buf
-    vim.notify = original_notify
+    vim.bo = original_bo
   end)
 
   it('should return nil and notify when no visual selection found', function()

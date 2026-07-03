@@ -351,6 +351,19 @@ function M.pick(sessions, callback, opts)
       end),
       reload = true,
     },
+    toggle = {
+      key = config.keymap.session_picker.toggle_scope,
+      label = 'toggle scope',
+      fn = Promise.async(function(_, _)
+        local session_runtime = require('opencode.services.session_runtime')
+        local new_scope = (opts.scope == 'global') and 'project' or 'global'
+        local new_sessions = session_runtime.list_sessions_by_scope(new_scope)
+        local filtered_sessions = session_runtime.filter_pickable_sessions(new_sessions, nil)
+        opts.scope = new_scope
+        return filtered_sessions
+      end),
+      reload = true,
+    },
   }
 
   -- Preview state for race condition protection

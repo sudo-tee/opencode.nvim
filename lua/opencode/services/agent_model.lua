@@ -39,7 +39,7 @@ function M.configure_variant()
       return
     end
 
-    state.model.set_variant(selection.name)
+    state.model.set_variant(selection.value)
 
     if state.ui.is_visible() then
       ui.focus_input()

@@ -76,8 +76,6 @@ M.defaults = {
       ['gr']    =       { 'references',                                        desc = 'Browse code references' },
       ['gf']    =       { 'jump_to_file',                                       desc = 'Jump to file at cursor' },
       ['<CR>']  =       { 'jump_to_target_at_cursor',                          desc = 'Jump to target at cursor' },
-      ['<LeftMouse>'] = { 'message_actions', { 'mouse' },                      desc = 'Open message actions' },
-      ['<leader>o<CR>'] = { 'message_actions',                                  desc = 'Open message actions' },
       ['<M-i>'] =       { 'toggle_input',                 mode = { 'n' },      desc = 'Toggle input window' },
       ['<M-r>'] =       { 'cycle_variant',                mode = { 'n' },      desc = 'Cycle model variants' },
       ['<leader>oS'] =  { 'navigate_session_tree', { 'child', 'picker' },     desc = 'Select child session' },

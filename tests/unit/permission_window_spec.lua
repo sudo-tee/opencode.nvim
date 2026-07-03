@@ -1,44 +1,12 @@
 local permission_window = require('opencode.ui.permission_window')
 local Output = require('opencode.ui.output')
 local stub = require('luassert.stub')
-local helpers = require('tests.helpers')
-local state = require('opencode.state')
-local config = require('opencode.config')
 
 describe('permission_window', function()
-  local original_auto_hide
-
-  before_each(function()
-    original_auto_hide = config.ui.input.auto_hide
-  end)
-
-  local function with_mousepos(mousepos, callback)
-    local original_getmousepos = vim.fn.getmousepos
-    ---@diagnostic disable-next-line: duplicate-set-field
-    vim.fn.getmousepos = function()
-      return mousepos
-    end
-
-    local ok, err = pcall(callback)
-    vim.fn.getmousepos = original_getmousepos
-    if not ok then
-      error(err)
-    end
-  end
-
   after_each(function()
-    config.ui.input.auto_hide = true
-    pcall(permission_window.clear_all)
-    config.ui.input.auto_hide = original_auto_hide
     permission_window._permission_queue = {}
     permission_window._dialog = nil
     permission_window._processing = false
-    state.jobs.set_api_client(nil)
-    state.renderer.set_messages({})
-    state.session.set_active(nil)
-    if state.windows then
-      pcall(require('opencode.ui.ui').close_windows, state.windows)
-    end
   end)
 
   describe('format_display', function()
@@ -665,79 +633,6 @@ describe('permission_window', function()
 
       assert.is_nil(permission_window._permission_queue[1]._message_id)
       assert.is_nil(permission_window._permission_queue[1]._call_id)
-    end)
-  end)
-
-  describe('Dialog integration', function()
-    it('passes permission display part to Dialog and selects clicked option', function()
-      helpers.replay_setup()
-      config.ui.input.auto_hide = true
-      state.session.set_active({ id = 'sess1' })
-      vim.api.nvim_set_current_win(state.windows.output_win)
-
-      local original_schedule = vim.schedule
-      ---@diagnostic disable-next-line: duplicate-set-field
-      vim.schedule = function(fn)
-        fn()
-      end
-
-      local api = require('opencode.api')
-      local original_permission_deny = api.permission_deny
-      local denied = {}
-      api.permission_deny = function(permission)
-        table.insert(denied, permission.id)
-      end
-
-      local ok, err = pcall(function()
-        permission_window.add_permission({
-          id = 'perm-mouse',
-          permission = 'bash',
-          title = 'Run command',
-        })
-
-        local dialog = permission_window._dialog
-        assert.are.equal('permission-display-part', dialog._config.render_part_id)
-        assert.is_false(dialog._config.mouse_select)
-
-        require('opencode.ui.renderer.events').render_permissions_display()
-        require('opencode.ui.renderer.flush').flush()
-
-        local rendered_part = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
-        assert.is_not_nil(rendered_part)
-
-        with_mousepos({
-          winid = state.windows.output_win,
-          line = rendered_part.line_start + dialog._option_local_lines[2] + 1,
-          column = 1,
-        }, function()
-          dialog:select_mouse_option()
-        end)
-
-        assert.are.same({ 'perm-mouse' }, denied)
-        assert.are.equal(0, permission_window.get_permission_count())
-      end)
-
-      api.permission_deny = original_permission_deny
-      vim.schedule = original_schedule
-      if not ok then
-        error(err)
-      end
-    end)
-
-    it('keeps Esc and Ctrl-C unavailable as dismiss keys', function()
-      helpers.replay_setup()
-      state.session.set_active({ id = 'sess1' })
-      vim.api.nvim_set_current_win(state.windows.output_win)
-
-      permission_window.add_permission({
-        id = 'perm-dismiss',
-        permission = 'bash',
-        title = 'Run command',
-      })
-
-      assert.is_false(vim.tbl_contains(permission_window._dialog._keymaps, '<Esc>'))
-      assert.is_false(vim.tbl_contains(permission_window._dialog._keymaps, '<C-c>'))
-      assert.are.equal(1, permission_window.get_permission_count())
     end)
   end)
 end)

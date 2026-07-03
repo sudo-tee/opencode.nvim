@@ -16,7 +16,6 @@ describe('opencode.commands.handlers', function()
     'opencode.commands.handlers.session',
     'opencode.commands.handlers.diff',
     'opencode.commands.handlers.permission',
-    'opencode.ui.message_actions',
   }
 
   local original_loaded = {}
@@ -95,13 +94,14 @@ describe('opencode.commands.handlers', function()
     assert.same({ 'accept', 'accept_all', 'deny' }, defs.permission.completions)
     assert.same({ allow_empty = false }, defs.permission.nested_subcommand)
 
-    assert.same({ 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }, defs.session.completions)
+    assert.same(
+      { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' },
+      defs.session.completions
+    )
     assert.same({ allow_empty = false }, defs.session.nested_subcommand)
-    assert.equal('Open message actions', defs.message_actions.desc)
 
     assert.same({ 'input', 'output' }, defs.open.completions)
     assert.equal('user_commands', defs.command.completion_provider_id)
-
   end)
 
   it('keeps command semantic validation in window handler (open target)', function()
@@ -141,44 +141,6 @@ describe('opencode.commands.handlers', function()
       code = 'invalid_arguments',
       message = 'Invalid diff subcommand. Use: ' .. table.concat(diff.command_defs.diff.completions, ', '),
     }, err_diff)
-  end)
-
-  it('routes message_actions mouse to the mouse opener without requiring it at module load', function()
-    local session = require('opencode.commands.handlers.session')
-    local calls = {}
-
-    assert.is_nil(package.loaded['opencode.ui.message_actions'])
-
-    package.loaded['opencode.ui.message_actions'] = {
-      open_from_mouse = function()
-        calls[#calls + 1] = 'mouse'
-      end,
-      open_at_cursor = function()
-        calls[#calls + 1] = 'cursor'
-      end,
-    }
-
-    session.command_defs.message_actions.execute({ 'mouse' })
-
-    assert.same({ 'mouse' }, calls)
-  end)
-
-  it('routes message_actions without mouse arg to the cursor opener', function()
-    local session = require('opencode.commands.handlers.session')
-    local calls = {}
-
-    package.loaded['opencode.ui.message_actions'] = {
-      open_from_mouse = function()
-        calls[#calls + 1] = 'mouse'
-      end,
-      open_at_cursor = function()
-        calls[#calls + 1] = 'cursor'
-      end,
-    }
-
-    session.command_defs.message_actions.execute({})
-
-    assert.same({ 'cursor' }, calls)
   end)
 
   it('keeps help rendering stable in narrow output windows', function()
@@ -584,7 +546,8 @@ describe('opencode.commands.handlers', function()
 
   it('normalize_navigate_args rejects invalid empty_policy', function()
     local session_handler = require('opencode.commands.handlers.session')
-    local ok, err = pcall(session_handler.command_defs.navigate_session_tree.execute, { 'forward', 'direct', 'false', 'silent' })
+    local ok, err =
+      pcall(session_handler.command_defs.navigate_session_tree.execute, { 'forward', 'direct', 'false', 'silent' })
     assert.is_false(ok)
     assert.equal('invalid_arguments', err.code)
   end)

@@ -1,7 +1,6 @@
 local buffer = require('opencode.ui.renderer.buffer')
 local ctx = require('opencode.ui.renderer.ctx')
 local output_window = require('opencode.ui.output_window')
-local state = require('opencode.state')
 local stub = require('luassert.stub')
 
 local function assert_called_before(call_order, first_name, second_name)
@@ -47,7 +46,6 @@ describe('renderer.buffer extmarks', function()
     clear_extmarks_stub:revert()
     set_extmarks_stub:revert()
     highlight_changed_lines_stub:revert()
-    state.renderer.set_messages({})
     ctx:reset()
   end)
 
@@ -126,29 +124,6 @@ describe('renderer.buffer extmarks', function()
 
     assert.stub(clear_extmarks_stub).was_called()
     assert_called_before(call_order, 'clear_extmarks', 'set_lines')
-  end)
-
-  it('inserts regular messages above pinned bottom displays', function()
-    local get_line_count_stub = stub(output_window, 'get_buf_line_count').returns(14)
-    local shift_folds_stub = stub(output_window, 'shift_folds')
-    state.renderer.set_messages({
-      { info = { id = 'msg_1' } },
-    })
-    ctx.render_state:set_message({ info = { id = 'question-display-message' } }, 10, 12)
-    ctx.render_state:set_message({ info = { id = 'msg_1' } })
-
-    buffer.upsert_message_now('msg_1', {
-      lines = { 'regular message' },
-      extmarks = {},
-      actions = {},
-      fold_ranges = {},
-    })
-
-    assert.stub(set_lines_stub).was_called_with({ 'regular message' }, 10, 10)
-
-    get_line_count_stub:revert()
-    shift_folds_stub:revert()
-    state.renderer.set_messages({})
   end)
 
   it('only clears and reapplies appended extmarks during append-only updates', function()

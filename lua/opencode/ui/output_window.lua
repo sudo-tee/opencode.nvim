@@ -642,6 +642,18 @@ function M.focus_output(should_stop_insert)
   vim.api.nvim_set_current_win(state.windows.output_win)
 end
 
+---Restore winfix options on a window so they don't linger if the window
+---survives (e.g. after buffer deletion or when Neovim reuses the window).
+---@param win integer
+function M.restore_winfix_options(win)
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = win })
+  pcall(vim.api.nvim_set_option_value, 'winfixheight', false, { win = win })
+  pcall(vim.api.nvim_set_option_value, 'winfixwidth', false, { win = win })
+end
+
 ---Close and delete the output window and buffer.
 function M.close()
   if not M.mounted() then
@@ -650,6 +662,7 @@ function M.close()
   ---@cast state.windows { output_win: integer, output_buf: integer }
 
   M.reset_scroll_tracking(state.windows.output_win)
+  M.restore_winfix_options(state.windows.output_win)
   pcall(vim.api.nvim_win_close, state.windows.output_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
 end
@@ -767,6 +780,17 @@ function M.setup_autocmds(windows, group)
       M.sync_cursor_with_viewport(windows.output_win)
       if debounced_load_more_at_top and has_unrendered_messages() and viewport_is_at_rendered_top() then
         debounced_load_more_at_top()
+      end
+    end,
+  })
+
+  -- Restore winfixbuf etc. when the output buffer is removed from the window,
+  vim.api.nvim_create_autocmd('BufDelete', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
+        M.restore_winfix_options(windows.output_win)
       end
     end,
   })

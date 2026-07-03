@@ -109,18 +109,21 @@ end
 
 ---@param windows OpencodeWindowState
 local function close_or_restore_output_window(windows)
+  if not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+    return
+  end
+
+  output_window.restore_winfix_options(windows.output_win)
+
   if config.ui.position == 'current' then
-    if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
-      pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = windows.output_win })
-      if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
-        pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
+    if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
+      pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
+    end
+    if state.saved_window_options then
+      for opt, value in pairs(state.saved_window_options) do
+        pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
       end
-      if state.saved_window_options then
-        for opt, value in pairs(state.saved_window_options) do
-          pcall(vim.api.nvim_set_option_value, opt, value, { win = windows.output_win })
-        end
-        state.ui.set_saved_window_options(nil)
-      end
+      state.ui.set_saved_window_options(nil)
     end
     return
   end

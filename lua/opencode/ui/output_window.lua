@@ -704,7 +704,7 @@ function M.setup_autocmds(windows, group)
       state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
-      vim.cmd('stopinsert')
+      vim.cmd('noau stopinsert')
     end,
   })
 
@@ -716,7 +716,7 @@ function M.setup_autocmds(windows, group)
       state.ui.set_last_focused_window('output')
       input_window.refresh_placeholder(state.windows)
 
-      vim.cmd('stopinsert')
+      vim.cmd('noau stopinsert')
     end,
   })
 

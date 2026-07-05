@@ -35,14 +35,14 @@ end
 local function build_right_segments()
   local segments = {}
 
-  if state.jobs.is_running() and not state.is_opening then
+  if loading_animation.is_running() then
     local cancel_keymap = config.get_key_for_function('input_window', 'cancel') or '<C-c>'
     table.insert(segments, { string.format('%s ', cancel_keymap), 'OpencodeInputLegend' })
     table.insert(segments, { 'to cancel', 'OpencodeHint' })
     table.insert(segments, { ' ' })
   end
 
-  if not state.jobs.is_running() and state.current_model and config.ui.display_model then
+  if not loading_animation.is_running() and state.current_model and config.ui.display_model then
     table.insert(segments, { state.current_model, 'OpencodeHint' })
     if state.current_variant then
       table.insert(segments, { '·', 'OpencodeHint' })

@@ -62,8 +62,22 @@ function M.format(output, part)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  local icons = require('opencode.ui.icons')
-  utils.format_action(output, icons.get(tool_type), tool_type, file_name, utils.get_duration_text(part))
+  local icon_text = icons.get(tool_type)
+  utils.format_action(output, icon_text, tool_type, file_name, utils.get_duration_text(part))
+
+  if file_name ~= '' and input.filePath then
+    local action_line = output:get_line_count()
+    local line_content = output:get_line(action_line)
+    output:add_target({
+      kind = 'file',
+      path = input.filePath,
+      range = {
+        line = action_line,
+        start_col = 0,
+        end_col = line_content and #line_content or 0,
+      },
+    })
+  end
 
   local start_line = output:get_line_count() + 1
   if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then

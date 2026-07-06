@@ -207,7 +207,7 @@
     "----",
     "",
     "",
-    "You asked if I can generate 10 numbers, and you referenced reading an empty file ( `a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe,",
+    "You asked if I can generate 10 numbers, and you referenced reading an empty file (`a-empty.txt`). However, I'm currently in \"plan mode,\" which means I cannot write or modify any files—I'm only allowed to read, observe,",
     "",
     "> [!ERROR] The operation was aborted.",
     "",

@@ -1360,7 +1360,7 @@
     "- **Add** a blank line after writing new content (in `_write_formatted_data`)",
     "- **Remove** the trailing blank line before writing new content (also in `_write_formatted_data`)",
     "",
-    "### Changes needed in  `renderer.lua`:",
+    "### Changes needed in `renderer.lua`:",
     "",
     "1. **Add state tracking** (after line 14):",
     "   ```lua",

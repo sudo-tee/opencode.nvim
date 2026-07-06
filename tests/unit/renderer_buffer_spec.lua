@@ -158,6 +158,43 @@ describe('renderer.buffer extmarks', function()
       },
     }, 12)
   end)
+
+  it('replaces rendered targets with line offset when updating a part', function()
+    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 10, 10)
+    ctx.render_state:add_targets('part_1', {
+      {
+        kind = 'file',
+        path = 'old.lua',
+        range = { line = 11, start_col = 0, end_col = 7 },
+      },
+    })
+
+    buffer.upsert_part_now('part_1', 'msg_1', {
+      lines = { 'new.lua' },
+      extmarks = {},
+      actions = {},
+      targets = {
+        {
+          kind = 'file',
+          path = 'new.lua',
+          range = { line = 1, start_col = 0, end_col = 7 },
+        },
+      },
+    }, {
+      lines = { 'old.lua' },
+      extmarks = {},
+      actions = {},
+      targets = {},
+    })
+
+    assert.is_nil(ctx.render_state:get_target_at_position(11, 1, function(target)
+      return target.path == 'old.lua'
+    end))
+
+    local result = ctx.render_state:get_target_at_position(11, 1)
+    assert.is_not_nil(result)
+    assert.equals('new.lua', result.path)
+  end)
 end)
 
 describe('update_part_folds', function()

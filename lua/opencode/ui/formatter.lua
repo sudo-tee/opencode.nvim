@@ -7,6 +7,7 @@ local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
 local permission_window = require('opencode.ui.permission_window')
+local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tools')
 local format_utils = require('opencode.ui.formatter.utils')
 
@@ -601,49 +602,339 @@ function M._format_context_file(output, path)
   return output:add_line(string.format('[`%s`](%s)', path, path))
 end
 
----@param output Output Output object to write to
----@param text string
----@param message_id string|nil Optional message ID for reference parsing
-function M._format_assistant_message(output, text, message_id)
-  local reference_picker = require('opencode.ui.reference_picker')
-  local references = reference_picker.parse_references(text, message_id)
+local function ranges_overlap(start_a, end_a, start_b, end_b)
+  return start_a <= end_b and end_a >= start_b
+end
 
-  -- If no references, just add the text as-is
-  if #references == 0 then
-    output:add_lines(vim.split(text, '\n'))
-    return
+local function in_ranges(ranges, start_pos, end_pos)
+  for _, range in ipairs(ranges) do
+    if ranges_overlap(start_pos, end_pos, range.start_offset, range.end_offset) then
+      return true
+    end
+  end
+  return false
+end
+
+local function available_file_set(context)
+  local files = {}
+  for _, path in ipairs((context and context.current_files) or {}) do
+    if type(path) == 'string' and path ~= '' then
+      files[path] = true
+    end
+  end
+  return files
+end
+
+local function resolve_available_path(path, available_files)
+  if type(path) ~= 'string' or path == '' then
+    return nil
+  end
+  if path:sub(1, 1) == '/' then
+    return available_files[path] and path or nil
+  end
+  local absolute = (vim.fn.getcwd and vim.fn.getcwd() or '') .. '/' .. path
+  if available_files[absolute] then
+    return absolute
+  end
+end
+
+local function add_candidate_file(candidates, seen, available_files, path)
+  local absolute = resolve_available_path(path, available_files)
+  if absolute and not seen[absolute] then
+    seen[absolute] = true
+    candidates[#candidates + 1] = absolute
+  end
+end
+
+local function output_range_for_absolute_range(rendered, first_output_line, start_offset, end_offset)
+  local line_start = 1
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local line_end = line_start + #line - 1
+    if ranges_overlap(line_start, line_end, start_offset, end_offset) then
+      return {
+        line = first_output_line + line_idx,
+        start_col = math.max(start_offset, line_start) - line_start,
+        end_col = math.min(end_offset, line_end) - line_start + 1,
+      }
+    end
+    line_start = line_start + #line + 1
+  end
+end
+
+local function current_part_index(message, part)
+  if not (message and message.parts and part and part.id) then
+    return nil
+  end
+  for index, candidate in ipairs(message.parts) do
+    if candidate.id == part.id then
+      return index
+    end
+  end
+end
+
+local function previous_part_candidate_files(message, part, context, available_files)
+  local index = current_part_index(message, part)
+  if not index then
+    return {}
   end
 
-  -- Sort references by match_start position (ascending)
+  local part_index_by_id = {}
+  for part_index, message_part in ipairs(message.parts or {}) do
+    if message_part.id then
+      part_index_by_id[message_part.id] = part_index
+    end
+  end
+
+  local candidates = {}
+  local seen = {}
+  local message_id = message.info and message.info.id
+  for _, ref in ipairs((context and context.current_refs) or {}) do
+    local ref_part_index = part_index_by_id[ref.part_id]
+    if ref.message_id == message_id and ref_part_index and ref_part_index < index then
+      add_candidate_file(candidates, seen, available_files, ref.path)
+    end
+  end
+
+  return candidates
+end
+
+local function part_text_trim_offset(part, text)
+  local raw_text = part and part.text
+  if type(raw_text) ~= 'string' or raw_text == text then
+    return 0
+  end
+
+  local visible_start = raw_text:find(text, 1, true)
+  return visible_start and (visible_start - 1) or 0
+end
+
+local function current_part_text_references(part, message, text, context)
+  if not (part and part.id and message and message.info and message.info.id and context and context.current_refs) then
+    return {}
+  end
+
+  local trim_offset = part_text_trim_offset(part, text)
+  local refs = {}
+  for _, ref in ipairs(context.current_refs) do
+    local raw_range = ref.raw_range
+    if
+      ref.source_kind == 'assistant_text'
+      and ref.message_id == message.info.id
+      and ref.part_id == part.id
+      and raw_range
+    then
+      local match_start = raw_range.start_offset - trim_offset
+      local match_end = raw_range.end_offset - trim_offset
+      if match_start >= 1 and match_end <= #text and match_start <= match_end then
+        refs[#refs + 1] = {
+          file_path = ref.path,
+          line = ref.line,
+          col = ref.col,
+          match_start = match_start,
+          match_end = match_end,
+        }
+      end
+    end
+  end
+  return refs
+end
+
+local function rendered_text_with_reference_ranges(text, references, available_files)
   table.sort(references, function(a, b)
     return a.match_start < b.match_start
   end)
 
-  -- Build a new text with icons inserted before each reference
-  local result = ''
+  local rendered = ''
+  local executable_reference_ranges = {}
+  local rendered_mention_ranges = {}
   local last_pos = 1
   local ref_icon = icons.get('reference')
 
   for _, ref in ipairs(references) do
-    -- Add text before this reference
-    result = result .. text:sub(last_pos, ref.match_start - 1)
-    -- Add the icon and the reference
-    result = result .. ref_icon .. text:sub(ref.match_start, ref.match_end)
+    rendered = rendered .. text:sub(last_pos, ref.match_start - 1)
+
+    local ref_text = text:sub(ref.match_start, ref.match_end)
+    local absolute = resolve_available_path(ref.file_path, available_files)
+    local rendered_ref_start = #rendered + (absolute and #ref_icon or 0) + 1
+    rendered = rendered .. (absolute and ref_icon or '') .. ref_text
+    local range = {
+      start_offset = rendered_ref_start,
+      end_offset = rendered_ref_start + #ref_text - 1,
+      path = ref.file_path,
+      absolute_path = absolute,
+      line = ref.line,
+      col = ref.col,
+    }
+    rendered_mention_ranges[#rendered_mention_ranges + 1] = range
+    if absolute then
+      executable_reference_ranges[#executable_reference_ranges + 1] = range
+    end
+
     last_pos = ref.match_end + 1
   end
 
-  -- Add any remaining text after the last reference
   if last_pos <= #text then
-    result = result .. text:sub(last_pos)
+    rendered = rendered .. text:sub(last_pos)
   end
 
-  output:add_lines(vim.split(result, '\n'))
+  return rendered, executable_reference_ranges, rendered_mention_ranges
+end
+
+local function add_symbol_reference_highlights(output, rendered, rendered_mention_ranges, symbol_refs, first_line_idx)
+  local line_start = 1
+
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local scan_from = 1
+    while scan_from <= #line do
+      local start_pos, end_pos, token = symbol_tokens.find(line, scan_from)
+      if not start_pos then
+        break
+      end
+
+      local abs_start = line_start + start_pos - 1
+      local abs_end = line_start + end_pos - 1
+
+      if token and not in_ranges(rendered_mention_ranges, abs_start, abs_end) and symbol_refs[token] then
+        output:add_extmark(first_line_idx + line_idx - 1, {
+          start_col = start_pos - 1,
+          end_col = end_pos,
+          hl_group = 'OpencodeSymbolReference',
+          priority = 900,
+        })
+      end
+
+      scan_from = end_pos + 1
+    end
+
+    line_start = line_start + #line + 1
+  end
+end
+
+local function add_file_reference_targets(output, rendered, rendered_reference_ranges, first_line_idx)
+  for _, range in ipairs(rendered_reference_ranges) do
+    local output_range = output_range_for_absolute_range(rendered, first_line_idx, range.start_offset, range.end_offset)
+    if output_range then
+      output:add_target({
+        kind = 'file',
+        path = range.absolute_path,
+        line = range.line,
+        col = range.col,
+        range = output_range,
+      })
+    end
+  end
+end
+
+local function add_symbol_reference_targets(
+  output,
+  rendered,
+  rendered_mention_ranges,
+  first_line_idx,
+  part,
+  message,
+  context
+)
+  if not (context and context.interactive and context.symbol_cycle) then
+    return {}
+  end
+
+  local symbol_snapshot = require('opencode.ui.symbol_snapshot')
+  local available_files = available_file_set(context)
+  local prior_part_candidates = previous_part_candidate_files(message, part, context, available_files)
+  local line_start = 1
+  local targeted_tokens = {}
+
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local scan_from = 1
+    while scan_from <= #line do
+      local start_pos, end_pos, token = symbol_tokens.find(line, scan_from)
+      if not start_pos then
+        break
+      end
+
+      local abs_start = line_start + start_pos - 1
+      local abs_end = line_start + end_pos - 1
+
+      if token and not in_ranges(rendered_mention_ranges, abs_start, abs_end) then
+        local candidates = {}
+        local seen = {}
+        for _, range in ipairs(rendered_mention_ranges) do
+          if range.end_offset < abs_start then
+            add_candidate_file(candidates, seen, available_files, range.path)
+          end
+        end
+        if #candidates == 0 then
+          candidates = prior_part_candidates
+        end
+
+        if #candidates > 0 and #symbol_snapshot.targets_for_token(context.symbol_cycle, token, candidates) > 0 then
+          output:add_target({
+            kind = 'symbol',
+            token = token,
+            candidate_files = vim.deepcopy(candidates),
+            range = {
+              line = first_line_idx + line_idx,
+              start_col = start_pos - 1,
+              end_col = end_pos,
+            },
+          })
+          targeted_tokens[token] = true
+        end
+      end
+
+      scan_from = end_pos + 1
+    end
+
+    line_start = line_start + #line + 1
+  end
+
+  return targeted_tokens
+end
+
+local function add_file_reference_highlights(output, rendered, rendered_reference_ranges, first_line_idx)
+  local line_start = 1
+
+  for line_idx, line in ipairs(vim.split(rendered, '\n')) do
+    local line_end = line_start + #line - 1
+    for _, range in ipairs(rendered_reference_ranges) do
+      if ranges_overlap(line_start, line_end, range.start_offset, range.end_offset) then
+        output:add_extmark(first_line_idx + line_idx - 1, {
+          start_col = math.max(range.start_offset, line_start) - line_start,
+          end_col = math.min(range.end_offset, line_end) - line_start + 1,
+          hl_group = 'OpencodeReference',
+          priority = 1000,
+        })
+      end
+    end
+    line_start = line_start + #line + 1
+  end
+end
+
+---@param output Output Output object to write to
+---@param text string
+---@param part? OpencodeMessagePart
+---@param message? OpencodeMessage
+---@param context? FormatterContext
+function M._format_assistant_message(output, text, part, message, context)
+  local references = current_part_text_references(part, message, text, context)
+  local rendered, rendered_reference_ranges, rendered_mention_ranges =
+    rendered_text_with_reference_ranges(text, references, available_file_set(context))
+  local first_line_idx = output:get_line_count()
+
+  output:add_lines(vim.split(rendered, '\n'))
+  if context and context.interactive then
+    add_file_reference_targets(output, rendered, rendered_reference_ranges, first_line_idx)
+  end
+  add_file_reference_highlights(output, rendered, rendered_reference_ranges, first_line_idx)
+  local targeted_tokens =
+    add_symbol_reference_targets(output, rendered, rendered_mention_ranges, first_line_idx, part, message, context)
+  add_symbol_reference_highlights(output, rendered, rendered_mention_ranges, targeted_tokens, first_line_idx)
 end
 
 ---@param output Output Output object to write to
 ---@param part OpencodeMessagePart
----@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
-function M.format_tool(output, part, get_child_parts)
+---@param context FormatterContext
+function M.format_tool(output, part, context)
   local tool = part.tool
   if not tool or not part.state then
     return
@@ -653,7 +944,7 @@ function M.format_tool(output, part, get_child_parts)
 
   local formatter = tool_formatters[tool] or (tool:match('_') and tool_formatters.mcp) or tool_formatters.tool
   local fold_count = #output.fold_ranges
-  formatter.format(output, part, get_child_parts)
+  formatter.format(output, part, context)
 
   if not format_utils.should_fold_tool(tool) then
     for idx = #output.fold_ranges, fold_count + 1, -1 do
@@ -702,9 +993,9 @@ end
 ---@param part OpencodeMessagePart The part to format
 ---@param message? OpencodeMessage Optional message object to extract role and mentions from
 ---@param is_last_part? boolean Whether this is the last part in the message, used to show an error if there is one
----@param get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+---@param context FormatterContext
 ---@return Output
-function M.format_part(part, message, is_last_part, get_child_parts)
+function M.format_part(part, message, is_last_part, context)
   local output = Output.new()
 
   if not message or not message.info or not message.info.role then
@@ -754,13 +1045,13 @@ function M.format_part(part, message, is_last_part, get_child_parts)
     end
   elseif role == 'assistant' then
     if part.type == 'text' and part.text then
-      M._format_assistant_message(output, vim.trim(part.text), part.messageID)
+      M._format_assistant_message(output, vim.trim(part.text), part, message, context)
       content_added = true
     elseif part.type == 'reasoning' then
       M._format_reasoning(output, part)
       content_added = true
     elseif part.type == 'tool' then
-      M.format_tool(output, part, get_child_parts)
+      M.format_tool(output, part, context)
       content_added = true
     elseif part.type == 'patch' and part.hash then
       M._format_patch(output, part)

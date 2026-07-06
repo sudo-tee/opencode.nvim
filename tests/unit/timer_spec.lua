@@ -335,18 +335,18 @@ describe('Timer', function()
 
       -- Start, wait for ticks, then stop
       timer:start()
-      vim.wait(30, function()
+      assert.is_true(vim.wait(1000, function()
         return tick_count >= 2
-      end)
+      end))
       timer:stop()
 
       local count_after_stop = tick_count
 
       -- Restart and verify it works again
       timer:start()
-      vim.wait(30, function()
+      assert.is_true(vim.wait(1000, function()
         return tick_count > count_after_stop + 1
-      end)
+      end))
 
       assert.is_true(tick_count > count_after_stop + 1)
       assert.is_true(timer:is_running())

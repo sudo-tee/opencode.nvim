@@ -546,6 +546,48 @@
 ---@field display_line number Line number to display the action
 ---@field range? { from: number, to: number } Optional range for the action
 
+---@class CodeReferenceTextRange
+---@field start_offset integer Raw part text offset, 1-based inclusive
+---@field end_offset integer Raw part text offset, 1-based inclusive
+
+---@class CodeReference
+---@field session_id string
+---@field message_id string
+---@field part_id string
+---@field path string
+---@field line? integer
+---@field col? integer
+---@field source_kind 'assistant_text'|'tool_file_path'
+---@field raw_range? CodeReferenceTextRange Required for assistant_text references
+---@field order integer Smaller values appear earlier in the session message/part/text order.
+
+---@class SymbolSnapshotCycle
+
+---@class FormatterContext
+---@field interactive boolean
+---@field get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+---@field current_refs? CodeReference[]
+---@field current_files? string[]
+---@field symbol_cycle? SymbolSnapshotCycle
+
+---@class OutputTargetRange
+---@field line integer Output-local line, 1-based
+---@field start_col integer Output-local column, 0-based inclusive
+---@field end_col integer Output-local column, 0-based exclusive
+
+---@class OutputTarget
+---@field kind 'file'|'diff'|'symbol'
+---@field range OutputTargetRange
+---@field path? string
+---@field line? integer
+---@field col? integer
+---@field token? string
+---@field candidate_files? string[]
+
+---@class RenderedTarget: OutputTarget
+---@field part_id string
+---@field message_id string
+
 ---@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0}
 ---@alias OutputExtmark OutputExtmarkType|fun():OutputExtmarkType
 

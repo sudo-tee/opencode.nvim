@@ -147,7 +147,10 @@ local function format_messages(messages, omitted_count)
       local parts = msg.parts or {}
       for part_idx, part in ipairs(parts) do
         local is_last = part_idx == #parts
-        local ok, part_output = pcall(formatter.format_part, part, msg, is_last)
+        local ok, part_output = pcall(formatter.format_part, part, msg, is_last, {
+          interactive = false,
+          get_child_parts = nil,
+        })
         if ok and part_output then
           vim.list_extend(all_lines, part_output.lines)
           append_extmarks(all_extmarks, part_output.extmarks, line_offset)

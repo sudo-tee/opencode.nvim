@@ -39,6 +39,17 @@ function M.setup_autocmds(windows)
     end,
   })
 
+  vim.api.nvim_create_autocmd({ 'BufWritePost', 'BufFilePost', 'BufDelete', 'BufWipeout', 'FileChangedShellPost' }, {
+    group = group,
+    pattern = '*',
+    callback = function(args)
+      if args.file == '' then
+        return
+      end
+      require('opencode.ui.renderer.events').invalidate_reference_targets_for_file_change()
+    end,
+  })
+
   vim.api.nvim_create_autocmd('WinEnter', {
     group = group,
     pattern = '*',

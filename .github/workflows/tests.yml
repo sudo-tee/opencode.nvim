@@ -44,10 +44,6 @@ jobs:
       - name: Add nvim to PATH
         run: echo "${{ steps.setup_nvim.outputs.executable }}" >> $GITHUB_PATH
 
-      - name: Install plenary
-        run: |
-          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
-
       - name: Run tests
         run: ./run_tests.sh
 

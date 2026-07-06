@@ -89,7 +89,6 @@ Install the plugin with your favorite package manager. See the [Configuration](#
     require("opencode").setup({})
   end,
   dependencies = {
-    "nvim-lua/plenary.nvim",
     {
       "MeanderingProgrammer/render-markdown.nvim",
       opts = {

@@ -1204,7 +1204,7 @@ describe('build_inline_selection_text', function()
       return false
     end
     BaseContext.get_current_selection = function()
-      return { text = 'function foo()\n  return 42\nend', lines = '10, 12' }
+      return { text = '  function foo()\n  return 42\nend', lines = '10, 12' }
     end
     BaseContext.get_current_file_for_selection = function()
       return nil
@@ -1225,7 +1225,7 @@ describe('build_inline_selection_text', function()
     assert.is_not_nil(text)
     assert.is_nil(text:match('%*%*`'))
     assert.is_not_nil(text:match('```lua'))
-    assert.is_not_nil(text:match('function foo%(%)'))
+    assert.is_not_nil(text:match('  function foo%(%)'))
     assert.is_not_nil(text:match('```$'))
 
     util.is_buf_a_file = original_is_buf_a_file

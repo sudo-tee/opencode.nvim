@@ -34,6 +34,26 @@ function M.toggle_session_lock()
   return M.set_session_lock(not M.is_session_locked())
 end
 
+---List sessions in the given scope. Always returns a non-nil array.
+---@param scope? 'project' | 'global' defaults to project-scoped
+---@return Session[]|GlobalSession[]
+function M.list_sessions_by_scope(scope)
+  if scope == 'global' then
+    return session.get_all_global_sessions():await() or {}
+  end
+  return session.get_all_workspace_sessions():await() or {}
+end
+
+---Keep only pickable sessions: non-empty title and matching parent_id.
+---@param sessions Session[]|GlobalSession[]
+---@param parent_id? string nil selects mainline (no parent), otherwise children of parent_id
+---@return Session[]
+function M.filter_pickable_sessions(sessions, parent_id)
+  return vim.tbl_filter(function(s)
+    return s ~= nil and s.title ~= '' and s.parentID == parent_id
+  end, sessions)
+end
+
 local function focus_after_session_switch(selected_session)
   if not state.ui.is_visible() then
     M.open()
@@ -57,17 +77,10 @@ end
 ---@param parent_id string?
 ---@param scope? 'project' | 'global' when nil, defaults to project-scoped
 M.select_session = Promise.async(function(parent_id, scope)
-  local all_sessions
-  if scope == 'global' then
-    all_sessions = session.get_all_global_sessions():await() or {}
-  else
-    all_sessions = session.get_all_workspace_sessions():await() or {}
-  end
+  local all_sessions = M.list_sessions_by_scope(scope)
   ---@cast all_sessions Session[]
 
-  local filtered_sessions = vim.tbl_filter(function(s)
-    return s.title ~= '' and s ~= nil and s.parentID == parent_id
-  end, all_sessions)
+  local filtered_sessions = M.filter_pickable_sessions(all_sessions, parent_id)
 
   if #filtered_sessions == 0 then
     vim.notify(parent_id and 'No child sessions found' or 'No sessions found', vim.log.levels.INFO)

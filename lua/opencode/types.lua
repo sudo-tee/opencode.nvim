@@ -170,6 +170,7 @@
 ---@field new_session OpencodeKeymapEntry
 ---@field rename_session OpencodeKeymapEntry
 ---@field fork_session OpencodeKeymapEntry
+---@field toggle_scope OpencodeKeymapEntry
 
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry

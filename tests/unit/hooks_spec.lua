@@ -267,8 +267,10 @@ describe('reference target local file lifecycle autocmds', function()
         file_lifecycle_autocmd.event
       )
 
-      file_lifecycle_autocmd.opts.callback({ file = '/repo/tests/unit/formatter_spec.lua' })
-      file_lifecycle_autocmd.opts.callback({ file = '' })
+      local file_buf = vim.api.nvim_create_buf(false, false)
+      vim.bo[file_buf].buftype = ''
+      file_lifecycle_autocmd.opts.callback({ file = '/repo/tests/unit/formatter_spec.lua', buf = file_buf })
+      file_lifecycle_autocmd.opts.callback({ file = '', buf = file_buf })
 
       assert.stub(invalidate_stub).was_called(1)
     end)

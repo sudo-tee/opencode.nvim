@@ -546,6 +546,7 @@ describe('renderer.scroll_to_bottom', function()
     vim.api.nvim_set_current_win(input_win)
 
     local winleave_count = 0
+    local modechanged_count = 0
     local group = vim.api.nvim_create_augroup('OpencodeScrollImeRegression', { clear = true })
     vim.api.nvim_create_autocmd('WinLeave', {
       group = group,
@@ -554,6 +555,21 @@ describe('renderer.scroll_to_bottom', function()
         winleave_count = winleave_count + 1
       end,
     })
+    vim.api.nvim_create_autocmd('ModeChanged', {
+      group = group,
+      pattern = 'i:n',
+      callback = function()
+        modechanged_count = modechanged_count + 1
+      end,
+    })
+
+    local cmd_stub = require('luassert.stub')(vim, 'cmd').invokes(function(cmd)
+      if cmd == 'normal! zb' then
+        vim.api.nvim_exec_autocmds('ModeChanged', { pattern = 'i:n', modeline = false })
+        return
+      end
+      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
+    end)
 
     vim.api.nvim_win_set_height(win, 5)
     vim.api.nvim_win_set_cursor(win, { 1, 0 })
@@ -563,8 +579,11 @@ describe('renderer.scroll_to_bottom', function()
 
     assert.equals(input_win, vim.api.nvim_get_current_win())
     assert.equals(0, winleave_count)
+    assert.equals(0, modechanged_count)
     assert.equals(50, vim.api.nvim_win_get_cursor(win)[1])
+    assert.stub(cmd_stub).was_called_with('normal! zb')
 
+    cmd_stub:revert()
     config.values.ui.output.always_scroll_to_bottom = false
     pcall(vim.api.nvim_del_augroup_by_id, group)
   end)

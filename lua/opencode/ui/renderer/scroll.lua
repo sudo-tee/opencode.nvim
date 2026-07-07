@@ -6,6 +6,7 @@ local M = {}
 local function with_window_event_autocmds_ignored(fn)
   local previous = vim.o.eventignore
   local ignored = {
+    ModeChanged = true,
     WinEnter = true,
     WinLeave = true,
     BufEnter = true,

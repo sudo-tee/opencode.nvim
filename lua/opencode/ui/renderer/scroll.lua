@@ -76,6 +76,9 @@ local function end_of_target_line_fits_view(buf, win, target_line)
       end)
     else
       local text = vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or ''
+      if type(text) ~= 'string' then
+        text = tostring(text)
+      end
       local display_width = math.max(1, vim.fn.strdisplaywidth(text))
       rows = rows + math.max(1, math.ceil(display_width / text_width))
       line = line + 1
@@ -114,6 +117,9 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   local target_text = vim.api.nvim_buf_get_lines(buf, target_line - 1, target_line, false)[1] or ''
+  if type(target_text) ~= 'string' then
+    target_text = tostring(target_text)
+  end
   local visible_bottom = output_window.get_visible_bottom_line(win)
   vim.api.nvim_win_set_cursor(win, { target_line, #target_text })
 

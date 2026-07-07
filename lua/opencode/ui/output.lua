@@ -35,11 +35,22 @@ function Output.new()
 end
 
 ---Add a new line
----@param line string
----@return number index The index of the added line
+---@param line string|nil
+---@return number index of the first line added (0 if line was nil)
 function Output:add_line(line)
-  table.insert(self.lines, line)
-  return #self.lines
+  if line == nil then
+    table.insert(self.lines, '')
+    return #self.lines
+  end
+  local segments = vim.split(line, '\r?\n')
+  local first_idx = 0
+  for _, segment in ipairs(segments) do
+    table.insert(self.lines, segment)
+    if first_idx == 0 then
+      first_idx = #self.lines
+    end
+  end
+  return first_idx
 end
 
 ---Get line by index
@@ -63,11 +74,14 @@ end
 ---@param prefix? string Optional prefix for each line
 function Output:add_lines(lines, prefix)
   for _, line in ipairs(lines) do
-    if line == '' then
+    if line == nil or line == '' then
       table.insert(self.lines, '')
     else
       prefix = prefix or ''
-      table.insert(self.lines, prefix .. line)
+      local segments = vim.split(line, '\r?\n')
+      for _, segment in ipairs(segments) do
+        table.insert(self.lines, prefix .. segment)
+      end
     end
   end
 end

@@ -1,7 +1,5 @@
 local state = require('opencode.state')
-local session_module = require('opencode.session')
 local input_window = require('opencode.ui.input_window')
-local Promise = require('opencode.promise')
 
 ---@class OpencodeHistoryEntry
 ---@field id string Message ID from the server
@@ -21,8 +19,7 @@ local cached_session_id = nil
 local prompt_before_history = nil
 
 local function active_session_id()
-  local session = state.active_session
-  return session and session.id or nil
+  return state.active_session and state.active_session.id
 end
 
 local function maybe_reset_for_new_session()
@@ -54,7 +51,9 @@ local function entry_has_content(entry)
 end
 
 --- Read user-message prompt history for the active session, newest first.
---- Empty list when there is no active session or no user messages yet.
+--- Pure read against `state.messages`; if no entry has been populated yet
+--- (e.g. right after switching sessions before SSE catches up) the result is
+--- an empty list. Populating `state.messages` is the renderer's job.
 ---@return OpencodeHistoryEntry[]
 function M.read()
   maybe_reset_for_new_session()
@@ -132,35 +131,6 @@ end
 function M.reset()
   M.index = nil
   prompt_before_history = nil
-end
-
---- Force a fresh fetch from the server for the active session. Used by
---- callers (e.g. the history picker) that want guaranteed-fresh data and
---- don't want to wait for SSE to repopulate state.messages.
----@return Promise<OpencodeHistoryEntry[]>
-function M.refresh()
-  local active = state.active_session
-  if not active or not active.id then
-    return Promise.new():resolve({})
-  end
-  return session_module
-    .get_messages(active)
-    :and_then(function(messages)
-      local entries = {}
-      for _, msg in ipairs(messages or {}) do
-        if msg.info and msg.info.role == 'user' then
-          local prompt = input_window.build_prompt_from_message(msg)
-          local entry = { id = msg.info.id, message = msg, prompt = prompt }
-          if entry_has_content(entry) then
-            table.insert(entries, entry)
-          end
-        end
-      end
-      return Promise.new():resolve(entries)
-    end)
-    :catch(function()
-      return Promise.new():resolve({})
-    end)
 end
 
 -- Reset on session changes too. Subscribers react synchronously, so the next

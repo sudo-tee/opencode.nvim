@@ -106,8 +106,46 @@ function M.actions.quick_chat(message, range)
   quick_chat.quick_chat(prompt, { context_config = ctx }, range)
 end
 
+---Refill the input buffer from a user message returned by the timeline picker.
+---Open the opencode UI first when the input window is not mounted yet.
+---@param message OpencodeMessage
+local function refill_input_from_message(message)
+  local windows = state.windows
+  if not input_window.mounted(windows) then
+    session_runtime.open({ focus = 'input' })
+    windows = state.windows
+  end
+  if not input_window.mounted(windows) then
+    return
+  end
+  ---@cast windows { input_win: integer, input_buf: integer }
+  if input_window.refill_prompt_from_message(message) then
+    input_window.focus_input()
+  end
+end
+
+---@param entries OpencodeHistoryEntry[]
+local function pick_history_with(entries)
+  local messages = vim.tbl_map(function(entry)
+    return entry.message
+  end, entries)
+  require('opencode.ui.timeline_picker').pick(messages, {
+    title = 'Select History Entry',
+    callback = function(selected_msg)
+      if selected_msg then
+        refill_input_from_message(selected_msg)
+      end
+    end,
+  })
+end
+
 function M.actions.select_history()
-  require('opencode.ui.history_picker').pick()
+  local entries = history.read()
+  if #entries == 0 then
+    vim.notify('No history entries found', vim.log.levels.INFO)
+    return false
+  end
+  return pick_history_with(entries)
 end
 
 ---Refill the input buffer from a history entry reconstructed from the active

@@ -234,6 +234,7 @@ require('opencode').setup({
     },
     questions = {
       use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
+      inline_other_input = true, -- If true, show an inline floating input for "Other" instead of vim.ui.input.
     },
     output = {
       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
@@ -618,7 +619,7 @@ The plugin provides the following actions that can be triggered via keymaps, com
 | **Go to parent session**                                    | `<leader>oP`                          | `:Opencode session parent`                  | `require('opencode.api').select_parent_session()`                      |
 | Open timeline picker (navigate/undo/redo/fork to message)   | `<leader>oT`                          | `:Opencode timeline`                        | `require('opencode.api').timeline()`                                   |
 | Browse code references from conversation                    | `gr` (window)                         | `:Opencode references` / `/references`      | `require('opencode.api').references()`                                 |
-| Jump to file referenced at cursor in output window          | `gf` (window)                          | `:Opencode jump_to_file` / `/jump_to_file`  | `require('opencode.api').jump_to_file()`                              |
+| Jump to file referenced at cursor in output window          | `gf` (window)                         | `:Opencode jump_to_file` / `/jump_to_file`  | `require('opencode.api').jump_to_file()`                               |
 | Configure provider and model                                | `<leader>op`                          | `:Opencode configure provider`              | `require('opencode.api').configure_provider()`                         |
 | Configure model variant                                     | `<leader>oV`                          | `:Opencode variant` / `/variant`            | `require('opencode.api').configure_variant()`                          |
 | Cycle through model variants                                | `<M-r>` (window)                      | -                                           | `require('opencode.api').cycle_variant()`                              |

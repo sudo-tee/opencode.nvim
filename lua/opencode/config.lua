@@ -195,6 +195,7 @@ M.defaults = {
     },
     questions = {
       use_vim_ui_select = false, -- If true, render questions with vim.ui.select instead of in the output buffer
+      inline_other_input = true, -- If true, show an inline floating input for "Other" instead of cmdline prompt
     },
     input = {
       min_height = 0.10,

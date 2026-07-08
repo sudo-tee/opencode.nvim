@@ -589,4 +589,212 @@ describe('input_window', function()
       config.values.child_readonly = orig_readonly
     end)
   end)
+
+  local function make_message(parts)
+    return {
+      info = { id = 'msg_1', sessionID = 'ses_1', role = 'user' },
+      parts = parts,
+    }
+  end
+
+  describe('build_prompt_from_message', function()
+    it('returns an empty placeholder when given a nil message', function()
+      local prompt = input_window.build_prompt_from_message(nil)
+      assert.same({ '' }, prompt.lines)
+      assert.same({}, prompt.mention_paths)
+    end)
+
+    it('returns an empty placeholder when the message has no parts', function()
+      local prompt = input_window.build_prompt_from_message(make_message({}))
+      assert.same({ '' }, prompt.lines)
+      assert.same({}, prompt.mention_paths)
+    end)
+
+    it('emits the raw text from a single non-synthetic text part', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'hello world' },
+      }))
+      assert.same({ 'hello world' }, prompt.lines)
+      assert.same({}, prompt.mention_paths)
+    end)
+
+    it('skips synthetic text parts', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', synthetic = true, text = 'should be dropped' },
+        { type = 'text', text = 'keep me' },
+      }))
+      assert.same({ 'keep me' }, prompt.lines)
+    end)
+
+    it('emits @<path> tokens for file parts using filename', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'look at' },
+        { type = 'file', filename = 'lua/opencode/foo.lua' },
+        { type = 'text', text = 'thanks' },
+      }))
+      assert.same({ 'look at', '@lua/opencode/foo.lua ', 'thanks' }, prompt.lines)
+      assert.same({ 'lua/opencode/foo.lua' }, prompt.mention_paths)
+    end)
+
+    it('falls back to source.path when filename is missing', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'file', source = { path = 'src/main.lua' } },
+      }))
+      assert.same({ '@src/main.lua ' }, prompt.lines)
+      assert.same({ 'src/main.lua' }, prompt.mention_paths)
+    end)
+
+    it('emits @<name> tokens for agent parts', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'use' },
+        { type = 'agent', name = 'build' },
+        { type = 'text', text = 'to compile' },
+      }))
+      assert.same({ 'use', '@build ', 'to compile' }, prompt.lines)
+      assert.same({ 'build' }, prompt.mention_paths)
+    end)
+
+    it('skips tool, step-start, and patch parts', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'first' },
+        { type = 'tool', text = 'should be dropped' },
+        { type = 'step-start' },
+        { type = 'patch', text = 'also dropped' },
+        { type = 'text', text = 'last' },
+      }))
+      assert.same({ 'first', 'last' }, prompt.lines)
+      assert.same({}, prompt.mention_paths)
+    end)
+
+    it('splits text parts on embedded newlines into separate lines', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'line1\nline2' },
+      }))
+      assert.same({ 'line1', 'line2' }, prompt.lines)
+    end)
+
+    it('splits text parts on embedded newlines interleaved with mentions', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = 'before' },
+        { type = 'file', filename = 'a.lua' },
+        { type = 'text', text = 'middle\nmore' },
+        { type = 'agent', name = 'build' },
+        { type = 'text', text = 'after' },
+      }))
+      assert.same({
+        'before',
+        '@a.lua ',
+        'middle',
+        'more',
+        '@build ',
+        'after',
+      }, prompt.lines)
+      assert.same({ 'a.lua', 'build' }, prompt.mention_paths)
+    end)
+
+    it('handles nil and non-string fields defensively', function()
+      local prompt = input_window.build_prompt_from_message(make_message({
+        { type = 'text', text = nil },
+        { type = 'text' },
+        { type = 'text', text = 'safe' },
+        { type = 'file', filename = nil },
+        { type = 'agent', name = '' },
+      }))
+      assert.same({ 'safe' }, prompt.lines)
+      assert.same({}, prompt.mention_paths)
+    end)
+  end)
+
+  describe('refill_prompt_from_message', function()
+    local function open_input_window()
+      local input_buf = vim.api.nvim_create_buf(false, true)
+      local output_buf = vim.api.nvim_create_buf(false, true)
+      local output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        width = 80,
+        height = 5,
+        row = 0,
+        col = 0,
+      })
+      local input_win = vim.api.nvim_open_win(input_buf, true, {
+        relative = 'editor',
+        width = 80,
+        height = 5,
+        row = 6,
+        col = 0,
+      })
+      state.ui.set_windows({
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+      })
+      vim.api.nvim_set_current_win(output_win)
+      input_window._hidden = false
+      return input_buf, input_win, output_buf, output_win
+    end
+
+    local function cleanup(input_buf, input_win, output_buf, output_win)
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.ui.clear_windows()
+    end
+
+    it('parks the cursor at the end of the refilled text', function()
+      local input_buf, input_win, output_buf, output_win = open_input_window()
+      local message = make_message({
+        { type = 'text', text = 'refactor this' },
+      })
+      input_window.refill_prompt_from_message(message)
+      local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+      local cursor = vim.api.nvim_win_get_cursor(input_win)
+      assert.equals(#lines, cursor[1])
+      assert.equals(#lines[#lines] - 1, cursor[2])
+      assert.same({ 'refactor this' }, lines)
+      cleanup(input_buf, input_win, output_buf, output_win)
+    end)
+
+    it('parks the cursor on the last line of a multi-line refill', function()
+      local input_buf, input_win, output_buf, output_win = open_input_window()
+      local message = make_message({
+        { type = 'text', text = 'line1' },
+        { type = 'text', text = 'line2' },
+        { type = 'text', text = 'line3' },
+      })
+      input_window.refill_prompt_from_message(message)
+      local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+      local cursor = vim.api.nvim_win_get_cursor(input_win)
+      assert.equals(#lines, cursor[1])
+      assert.equals(#lines[#lines] - 1, cursor[2])
+      assert.same({ 'line1', 'line2', 'line3' }, lines)
+      cleanup(input_buf, input_win, output_buf, output_win)
+    end)
+
+    it('parks the cursor after the mention token when a file is attached', function()
+      local input_buf, input_win, output_buf, output_win = open_input_window()
+      local message = make_message({
+        { type = 'text', text = 'look at' },
+        { type = 'file', filename = 'lua/opencode/foo.lua' },
+        { type = 'text', text = 'thanks' },
+      })
+      input_window.refill_prompt_from_message(message)
+      local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
+      local cursor = vim.api.nvim_win_get_cursor(input_win)
+      assert.equals(#lines, cursor[1])
+      assert.equals(#lines[#lines] - 1, cursor[2])
+      assert.equals('thanks', lines[#lines])
+      cleanup(input_buf, input_win, output_buf, output_win)
+    end)
+
+    it('returns false and does not touch the buffer when there is nothing to refill', function()
+      local input_buf, input_win, output_buf, output_win = open_input_window()
+      vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'untouched' })
+      local filled = input_window.refill_prompt_from_message(make_message({}))
+      assert.is_false(filled)
+      assert.same({ 'untouched' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+      cleanup(input_buf, input_win, output_buf, output_win)
+    end)
+  end)
 end)

@@ -598,16 +598,12 @@ describe('input_window', function()
   end
 
   describe('build_prompt_from_message', function()
-    it('returns an empty placeholder when given a nil message', function()
-      local prompt = input_window.build_prompt_from_message(nil)
-      assert.same({ '' }, prompt.lines)
-      assert.same({}, prompt.mention_paths)
+    it('returns nil when given a nil message', function()
+      assert.is_nil(input_window.build_prompt_from_message(nil))
     end)
 
-    it('returns an empty placeholder when the message has no parts', function()
-      local prompt = input_window.build_prompt_from_message(make_message({}))
-      assert.same({ '' }, prompt.lines)
-      assert.same({}, prompt.mention_paths)
+    it('returns nil when the message has no parts', function()
+      assert.is_nil(input_window.build_prompt_from_message(make_message({})))
     end)
 
     it('emits the raw text from a single non-synthetic text part', function()

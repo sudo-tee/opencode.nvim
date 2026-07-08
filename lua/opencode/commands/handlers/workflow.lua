@@ -29,15 +29,6 @@ local function get_active_session_or_warn(message)
   return active_session
 end
 
----@param command string
----@param args string[]|nil
-local function schedule_slash_history(command, args)
-  local joined_args = args and table.concat(args, ' ') or ''
-  vim.schedule(function()
-    history.write('/' .. command .. ' ' .. joined_args)
-  end)
-end
-
 ---@param args string[]|nil
 ---@return string
 local function join_args(args)
@@ -119,14 +110,24 @@ function M.actions.select_history()
   require('opencode.ui.history_picker').pick()
 end
 
----@param prompt string|nil
-local function restore_prompt_history_entry(prompt)
-  if not prompt then
+---Refill the input buffer from a history entry reconstructed from the active
+---session's user messages
+---@param entry OpencodeHistoryEntry
+local function restore_prompt_history_entry(entry)
+  local windows = state.windows
+  if not windows or not windows.input_buf or not input_window.mounted(windows) then
     return
   end
+  if input_window.refill_prompt_from_message(entry.message) then
+    input_window.focus_input()
+  end
+end
 
-  input_window.set_content(prompt)
-  require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
+---@param draft string[]
+local function restore_prompt_draft(draft)
+  if input_window.replace_input(draft) then
+    input_window.focus_input()
+  end
 end
 
 function M.actions.prev_history()
@@ -134,8 +135,10 @@ function M.actions.prev_history()
     return
   end
 
-  local prev_prompt = history.prev()
-  restore_prompt_history_entry(prev_prompt)
+  local entry = history.prev()
+  if entry then
+    restore_prompt_history_entry(entry)
+  end
 end
 
 function M.actions.next_history()
@@ -143,8 +146,12 @@ function M.actions.next_history()
     return
   end
 
-  local next_prompt = history.next()
-  restore_prompt_history_entry(next_prompt)
+  local result = history.next()
+  if result and result.message then
+    restore_prompt_history_entry(result)
+  elseif result then
+    restore_prompt_draft(result)
+  end
 end
 
 function M.actions.prev_prompt_history()
@@ -263,9 +270,6 @@ M.actions.run_user_command = Promise.async(function(name, args)
         model = model,
         agent = agent,
       })
-      :and_then(function()
-        schedule_slash_history(name, args)
-      end)
   end) --[[@as Promise<void> ]]
 end)
 
@@ -361,9 +365,6 @@ M.actions.review = Promise.async(function(args)
       arguments = join_args(args),
       model = state.current_model,
     })
-    :and_then(function()
-      schedule_slash_history('review', args)
-    end)
 end)
 
 M.actions.add_visual_selection = Promise.async(

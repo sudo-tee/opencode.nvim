@@ -263,13 +263,12 @@ M.actions.run_user_command = Promise.async(function(name, args)
       return
     end
 
-    state.api_client
-      :send_command(active_session.id, {
-        command = name,
-        arguments = join_args(args),
-        model = model,
-        agent = agent,
-      })
+    state.api_client:send_command(active_session.id, {
+      command = name,
+      arguments = join_args(args),
+      model = model,
+      agent = agent,
+    })
   end) --[[@as Promise<void> ]]
 end)
 
@@ -359,12 +358,11 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  state.api_client
-    :send_command(state.active_session.id, {
-      command = 'review',
-      arguments = join_args(args),
-      model = state.current_model,
-    })
+  state.api_client:send_command(state.active_session.id, {
+    command = 'review',
+    arguments = join_args(args),
+    model = state.current_model,
+  })
 end)
 
 M.actions.add_visual_selection = Promise.async(

@@ -70,10 +70,18 @@ end
 
 ---@param request_promise Promise<any>
 ---@param error_prefix string
-local function run_api_action_with_checktime(request_promise, error_prefix)
-  request_promise:and_then(schedule_checktime):catch(function(err)
-    notify_error(error_prefix, err)
-  end)
+---@param on_success? fun(...)
+local function run_api_action_with_checktime(request_promise, error_prefix, on_success)
+  request_promise
+    :and_then(function(...)
+      schedule_checktime()
+      if on_success then
+        on_success(...)
+      end
+    end)
+    :catch(function(err)
+      notify_error(error_prefix, err)
+    end)
 end
 
 function M.actions.open_input_new_session()
@@ -418,11 +426,32 @@ function M.actions.undo(messageId)
       return
     end
 
+    -- Snapshot the message now; state may drop it once the revert lands.
+    local refill_message = nil
+    for _, msg in ipairs(state_obj.messages or {}) do
+      if msg.info and msg.info.id == message_to_revert then
+        refill_message = msg
+        break
+      end
+    end
+    if
+      not refill_message
+      and state_obj.last_user_message
+      and state_obj.last_user_message.info.id == message_to_revert
+    then
+      refill_message = state_obj.last_user_message
+    end
+
     run_api_action_with_checktime(
       state_obj.api_client:revert_message(state_obj.active_session.id, {
         messageID = message_to_revert,
       }),
-      'Failed to undo last message: '
+      'Failed to undo last message: ',
+      function()
+        if refill_message then
+          require('opencode.ui.input_window').refill_prompt_from_message(refill_message)
+        end
+      end
     )
   end)
 end

@@ -209,7 +209,7 @@ function M.restore_view_topline(win, topline)
     view.topline = math.max(1, topline)
     view.skipcol = 0
     vim.fn.winrestview(view)
-    vim.fn.line('w$')
+    -- Apply the restored viewport before later line('w$') reads inspect it.
     vim.cmd('redraw')
   end)
 end

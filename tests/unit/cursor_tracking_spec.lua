@@ -474,7 +474,7 @@ describe('renderer.scroll_to_bottom', function()
     cmd_stub:revert()
   end)
 
-  it('uses zb when the followed bottom line is below the viewport', function()
+  it('bottom-aligns when the followed bottom line is below the viewport', function()
     local lines = {}
     for i = 1, 40 do
       lines[i] = 'line ' .. i
@@ -483,26 +483,19 @@ describe('renderer.scroll_to_bottom', function()
     vim.api.nvim_win_set_height(win, 5)
     vim.api.nvim_win_set_cursor(win, { 1, 0 })
 
-    local cmd_stub = stub(vim, 'cmd').invokes(function(cmd)
-      if cmd == 'normal! zb' then
-        vim.api.nvim_win_call(win, function()
-          vim.fn.winrestview({ topline = 36 })
-        end)
-        return
-      end
-      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
-    end)
+    local cmd_stub = stub(vim, 'cmd')
 
     local scroll = require('opencode.ui.renderer.scroll')
     scroll.scroll_win_to_bottom(win, buf)
 
     local cursor = vim.api.nvim_win_get_cursor(win)
     assert.equals(40, cursor[1])
-    assert.stub(cmd_stub).was_called_with('normal! zb')
+    assert.equals(40, output_window.get_visible_bottom_line(win))
+    assert.stub(cmd_stub).was_not_called_with('normal! zb')
     cmd_stub:revert()
   end)
 
-  it('uses zb when a wrapped bottom line grows past the last screen row', function()
+  it('keeps the visual end selected when a wrapped bottom line grows past the last screen row', function()
     local long_line = string.rep('x', 80)
     local longer_line = string.rep('x', 180)
 
@@ -511,12 +504,7 @@ describe('renderer.scroll_to_bottom', function()
     vim.api.nvim_set_option_value('wrap', true, { win = win, scope = 'local' })
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { long_line })
 
-    local cmd_stub = stub(vim, 'cmd').invokes(function(cmd)
-      if cmd == 'normal! zb' then
-        return
-      end
-      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
-    end)
+    local cmd_stub = stub(vim, 'cmd')
 
     local scroll = require('opencode.ui.renderer.scroll')
     scroll.scroll_win_to_bottom(win, buf)
@@ -528,7 +516,7 @@ describe('renderer.scroll_to_bottom', function()
     local cursor = vim.api.nvim_win_get_cursor(win)
     assert.equals(1, cursor[1])
     assert.equals(#longer_line - 1, cursor[2])
-    assert.stub(cmd_stub).was_called_with('normal! zb')
+    assert.stub(cmd_stub).was_not_called_with('normal! zb')
     cmd_stub:revert()
   end)
 
@@ -545,21 +533,36 @@ describe('renderer.scroll_to_bottom', function()
     state.ui.set_windows({ output_win = win, output_buf = buf, input_win = input_win, input_buf = input_buf })
     vim.api.nvim_set_current_win(input_win)
 
-    local winleave_count = 0
-    local modechanged_count = 0
+    local events = {
+      BufEnter = 0,
+      ModeChanged = 0,
+      WinEnter = 0,
+      WinLeave = 0,
+    }
     local group = vim.api.nvim_create_augroup('OpencodeScrollImeRegression', { clear = true })
+    vim.api.nvim_create_autocmd('WinEnter', {
+      group = group,
+      callback = function()
+        events.WinEnter = events.WinEnter + 1
+      end,
+    })
     vim.api.nvim_create_autocmd('WinLeave', {
       group = group,
-      buffer = input_buf,
       callback = function()
-        winleave_count = winleave_count + 1
+        events.WinLeave = events.WinLeave + 1
+      end,
+    })
+    vim.api.nvim_create_autocmd('BufEnter', {
+      group = group,
+      callback = function()
+        events.BufEnter = events.BufEnter + 1
       end,
     })
     vim.api.nvim_create_autocmd('ModeChanged', {
       group = group,
       pattern = 'i:n',
       callback = function()
-        modechanged_count = modechanged_count + 1
+        events.ModeChanged = events.ModeChanged + 1
       end,
     })
 
@@ -578,10 +581,14 @@ describe('renderer.scroll_to_bottom', function()
     renderer.scroll_to_bottom()
 
     assert.equals(input_win, vim.api.nvim_get_current_win())
-    assert.equals(0, winleave_count)
-    assert.equals(0, modechanged_count)
+    assert.same({
+      BufEnter = 0,
+      ModeChanged = 0,
+      WinEnter = 0,
+      WinLeave = 0,
+    }, events)
     assert.equals(50, vim.api.nvim_win_get_cursor(win)[1])
-    assert.stub(cmd_stub).was_called_with('normal! zb')
+    assert.stub(cmd_stub).was_not_called_with('normal! zb')
 
     cmd_stub:revert()
     config.values.ui.output.always_scroll_to_bottom = false

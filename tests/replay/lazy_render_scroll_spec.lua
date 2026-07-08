@@ -113,6 +113,17 @@ describe('replay lazy-render upward loading', function()
     assert.are.equal(1, output_window.get_visible_top_line(win))
     assert.are.equal(5, vim.api.nvim_win_get_cursor(win)[1])
 
+    local modechanged_count = 0
+    local group = vim.api.nvim_create_augroup('OpencodeLazyRenderViewRegression', { clear = true })
+    vim.api.nvim_create_autocmd('ModeChanged', {
+      group = group,
+      pattern = 'i:n',
+      callback = function()
+        modechanged_count = modechanged_count + 1
+      end,
+    })
+    local cmd_stub = require('luassert.stub')(vim, 'cmd')
+
     vim.api.nvim_exec_autocmds('WinScrolled', {
       buffer = state.windows.output_buf,
       modeline = false,
@@ -123,5 +134,10 @@ describe('replay lazy-render upward loading', function()
     end)
 
     assert.is_true(loaded, 'Expected viewport-at-top WinScrolled to load older replayed messages')
+    assert.equals(0, modechanged_count)
+    assert.stub(cmd_stub).was_not_called_with('normal! zt')
+
+    cmd_stub:revert()
+    pcall(vim.api.nvim_del_augroup_by_id, group)
   end)
 end)

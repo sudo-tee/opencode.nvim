@@ -3,32 +3,6 @@ local output_window = require('opencode.ui.output_window')
 
 local M = {}
 
-local function with_window_event_autocmds_ignored(fn)
-  local previous = vim.o.eventignore
-  local ignored = {
-    ModeChanged = true,
-    WinEnter = true,
-    WinLeave = true,
-    BufEnter = true,
-  }
-
-  for event in previous:gmatch('[^,]+') do
-    if event ~= '' then
-      ignored[event] = true
-    end
-  end
-
-  local events = vim.tbl_keys(ignored)
-  table.sort(events)
-  vim.o.eventignore = table.concat(events, ',')
-
-  local ok, err = pcall(fn)
-  vim.o.eventignore = previous
-  if not ok then
-    error(err)
-  end
-end
-
 ---@param win integer
 ---@return boolean
 local function window_wraps(win)
@@ -43,6 +17,12 @@ local function get_text_width(win)
   local ok, wininfo = pcall(vim.fn.getwininfo, win)
   local textoff = ok and wininfo and wininfo[1] and wininfo[1].textoff or 0
   return math.max(1, width - textoff)
+end
+
+---@param win integer
+---@param line integer
+local function restore_view_with_line_at_bottom(win, line)
+  output_window.restore_view_topline(win, line - vim.api.nvim_win_get_height(win) + 1)
 end
 
 ---@param buf integer
@@ -124,18 +104,7 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   if needs_bottom_align then
-    local windows = state.windows
-    if windows and vim.api.nvim_get_current_win() == windows.input_win then
-      with_window_event_autocmds_ignored(function()
-        vim.api.nvim_win_call(win, function()
-          vim.cmd('normal! zb')
-        end)
-      end)
-    else
-      vim.api.nvim_win_call(win, function()
-        vim.cmd('normal! zb')
-      end)
-    end
+    restore_view_with_line_at_bottom(win, target_line)
   end
 
   output_window._prev_line_count_by_win[win] = line_count

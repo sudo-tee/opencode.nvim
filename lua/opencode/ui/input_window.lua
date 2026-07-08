@@ -459,8 +459,35 @@ function M.build_prompt_from_message(message)
   if #lines == 0 then
     return nil
   end
-
   return { lines = lines, mention_paths = mention_paths }
+end
+
+---Replace the input buffer content with `lines`, restore mention extmarks
+---and park the cursor at the end. Callers that want the user to start typing
+---immediately should follow up with `focus_input`. Empty input is written
+---as-is so callers restoring a previously-captured state can clear it.
+---@param lines string[]
+---@param windows OpencodeWindowState|nil
+---@return boolean mounted True if the input window was mounted and the
+---buffer was rewritten.
+function M.replace_input(lines, windows)
+  windows = windows or state.windows
+  if not M.mounted(windows) then
+    return false
+  end
+  ---@cast windows { input_win: integer, input_buf: integer }
+
+  M.set_content(lines, windows)
+  require('opencode.ui.mention').restore_mentions(windows.input_buf)
+
+  -- nvim_win_set_cursor clamps col to the line's last byte, which is the
+  -- canonical end-of-line position both for 'a' (append) and 'i' (insert).
+  pcall(vim.api.nvim_win_set_cursor, windows.input_win, {
+    math.max(#lines, 1),
+    #(lines[#lines] or ''),
+  })
+
+  return true
 end
 
 ---@param message OpencodeMessage|nil
@@ -470,22 +497,7 @@ function M.refill_prompt_from_message(message)
   if not prompt then
     return false
   end
-  if not M.mounted() then
-    return false
-  end
-  ---@cast state.windows { input_win: integer, input_buf: integer }
-
-  M.set_content(prompt.lines)
-  require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
-
-  -- nvim_win_set_cursor clamps col to the line's last byte, which is the
-  -- canonical end-of-line position both for 'a' (append) and 'i' (insert).
-  pcall(vim.api.nvim_win_set_cursor, state.windows.input_win, {
-    math.max(#prompt.lines, 1),
-    #(prompt.lines[#prompt.lines] or ''),
-  })
-
-  return true
+  return M.replace_input(prompt.lines)
 end
 
 function M.set_current_line(text, windows)

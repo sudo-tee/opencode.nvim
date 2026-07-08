@@ -120,10 +120,6 @@ M.defaults = {
       undo = { '<C-u>',                                   mode = { 'i', 'n' }, desc = 'Undo to selected message' },
       fork = { '<C-f>',                                   mode = { 'i', 'n' }, desc = 'Fork from selected message' },
     },
-    history_picker = {
-      delete_entry = { '<C-d>',                           mode = { 'i', 'n' }, desc = 'Delete selected history entries' },
-      clear_all =    { '<C-X>',                           mode = { 'i', 'n' }, desc = 'Clear all history entries' },
-    },
     model_picker = {
       toggle_favorite = { '<C-f>',                        mode = { 'i', 'n' }, desc = 'Toggle model favorite' },
     },

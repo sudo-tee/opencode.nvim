@@ -132,7 +132,6 @@
         "opencode.ui.mention",             // @mention UI
         "opencode.ui.file_picker",         // file browser
         "opencode.ui.picker",              // generic picker
-        "opencode.ui.history_picker",      // history browser
         "opencode.ui.mcp_picker",          // MCP tool browser
         "opencode.ui.permission.permission" // permission display
       ]

@@ -536,12 +536,13 @@ function M.actions.timeline()
     return
   end
 
-  local timeline_picker = require('opencode.ui.timeline_picker')
-  timeline_picker.pick(user_messages, function(selected_msg)
-    if selected_msg then
-      require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
-    end
-  end)
+  require('opencode.ui.timeline_picker').pick(user_messages, {
+    callback = function(selected_msg)
+      if selected_msg then
+        require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
+      end
+    end,
+  })
 end
 
 ---@param message_id? string

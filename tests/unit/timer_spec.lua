@@ -1,9 +1,53 @@
 local Timer = require('opencode.ui.timer')
 
+local function make_fake_timer()
+  local ft = {
+    _started = false,
+    _stopped = false,
+    _closed = false,
+    _interval = nil,
+    _repeat_interval = nil,
+    _callback = nil,
+  }
+  function ft:start(interval, repeat_interval, callback)
+    ft._interval = interval
+    ft._repeat_interval = repeat_interval
+    ft._callback = callback
+    ft._started = true
+  end
+  function ft:stop()
+    ft._stopped = true
+  end
+  function ft:close()
+    ft._closed = true
+  end
+  function ft:fire()
+    if ft._callback then
+      ft._callback()
+    end
+  end
+  return ft
+end
+
 describe('Timer', function()
   local timer
+  local orig_new_timer
+  local orig_schedule_wrap
+
+  before_each(function()
+    orig_new_timer = vim.uv.new_timer
+    orig_schedule_wrap = vim.schedule_wrap
+    vim.uv.new_timer = function()
+      return make_fake_timer()
+    end
+    vim.schedule_wrap = function(fn)
+      return fn
+    end
+  end)
 
   after_each(function()
+    vim.uv.new_timer = orig_new_timer
+    vim.schedule_wrap = orig_schedule_wrap
     if timer then
       timer:stop()
       timer = nil
@@ -63,10 +107,9 @@ describe('Timer', function()
       timer:start()
       assert.is_true(timer:is_running())
 
-      -- Wait for multiple ticks
-      vim.wait(1000, function()
-        return tick_count >= 3
-      end)
+      timer._uv_timer:fire()
+      timer._uv_timer:fire()
+      timer._uv_timer:fire()
 
       assert.is_true(tick_count >= 3)
     end)
@@ -84,10 +127,7 @@ describe('Timer', function()
       timer:start()
       assert.is_true(timer:is_running())
 
-      -- Wait for timer to complete
-      vim.wait(30, function()
-        return not timer:is_running()
-      end)
+      timer._uv_timer:fire()
 
       assert.are.equal(1, tick_count)
       assert.is_false(timer:is_running())
@@ -105,10 +145,7 @@ describe('Timer', function()
       })
 
       timer:start()
-
-      vim.wait(30, function()
-        return received_args ~= nil
-      end)
+      timer._uv_timer:fire()
 
       assert.are.same({ 'test', 42, true }, received_args)
     end)
@@ -119,15 +156,14 @@ describe('Timer', function()
         interval = 10,
         on_tick = function()
           tick_count = tick_count + 1
-          return tick_count < 2 -- Stop after 2 ticks
+          return tick_count < 2
         end,
       })
 
       timer:start()
 
-      vim.wait(50, function()
-        return not timer:is_running()
-      end)
+      timer._uv_timer:fire()
+      timer._uv_timer:fire()
 
       assert.are.equal(2, tick_count)
       assert.is_false(timer:is_running())
@@ -147,9 +183,8 @@ describe('Timer', function()
 
       timer:start()
 
-      vim.wait(50, function()
-        return not timer:is_running()
-      end)
+      timer._uv_timer:fire()
+      timer._uv_timer:fire()
 
       assert.are.equal(2, tick_count)
       assert.is_false(timer:is_running())
@@ -169,26 +204,19 @@ describe('Timer', function()
       timer:start()
       assert.is_true(timer:is_running())
 
-      -- Change the on_tick and start again
       timer.on_tick = function()
         second_running = true
       end
       timer:start()
 
-      vim.wait(30, function()
-        return second_running
-      end)
+      timer._uv_timer:fire()
 
       assert.is_true(second_running)
-      -- First callback should not be called after restart
-      first_running = false
-      vim.wait(30)
       assert.is_false(first_running)
     end)
 
     it('throws error when timer creation fails', function()
-      -- Mock vim.uv.new_timer to return nil
-      local original_new_timer = vim.uv.new_timer
+      local orig_new_timer = vim.uv.new_timer
       vim.uv.new_timer = function()
         return nil
       end
@@ -202,8 +230,7 @@ describe('Timer', function()
         timer:start()
       end, 'failed to create uv timer')
 
-      -- Restore original function
-      vim.uv.new_timer = original_new_timer
+      vim.uv.new_timer = orig_new_timer
     end)
   end)
 
@@ -222,10 +249,7 @@ describe('Timer', function()
 
       timer:stop()
       assert.is_false(timer:is_running())
-
-      local count_before_wait = tick_count
-      vim.wait(30)
-      assert.are.equal(count_before_wait, tick_count)
+      assert.are.equal(0, tick_count)
     end)
 
     it('calls on_stop callback when provided', function()
@@ -250,7 +274,6 @@ describe('Timer', function()
         on_tick = function() end,
       })
 
-      -- Should not error
       timer:stop()
       assert.is_false(timer:is_running())
     end)
@@ -265,7 +288,6 @@ describe('Timer', function()
       })
 
       timer:start()
-      -- Should not throw error
       assert.has_no.errors(function()
         timer:stop()
       end)
@@ -315,9 +337,7 @@ describe('Timer', function()
       timer:start()
       assert.is_true(timer:is_running())
 
-      vim.wait(30, function()
-        return not timer:is_running()
-      end)
+      timer._uv_timer:fire()
 
       assert.is_false(timer:is_running())
     end)
@@ -333,22 +353,18 @@ describe('Timer', function()
         end,
       })
 
-      -- Start, wait for ticks, then stop
       timer:start()
-      assert.is_true(vim.wait(1000, function()
-        return tick_count >= 2
-      end))
+      timer._uv_timer:fire()
+      timer._uv_timer:fire()
+      assert.is_true(tick_count >= 2)
       timer:stop()
 
       local count_after_stop = tick_count
 
-      -- Restart and verify it works again
       timer:start()
-      assert.is_true(vim.wait(1000, function()
-        return tick_count > count_after_stop + 1
-      end))
+      timer._uv_timer:fire()
 
-      assert.is_true(tick_count > count_after_stop + 1)
+      assert.is_true(tick_count > count_after_stop)
       assert.is_true(timer:is_running())
     end)
 

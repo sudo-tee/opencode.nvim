@@ -68,8 +68,9 @@ function CursorSpinner:get_float_config()
   local total_width = spinner_width + legend_width + 1 -- +1 for spacing
 
   return {
-    relative = 'cursor',
+    relative = 'win',
     width = total_width,
+    bufpos = { self.row, self.col },
     height = 1,
     row = 0,
     col = 2, -- 2 columns to the right of cursor

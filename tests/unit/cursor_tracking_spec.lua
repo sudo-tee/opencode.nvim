@@ -566,13 +566,7 @@ describe('renderer.scroll_to_bottom', function()
       end,
     })
 
-    local cmd_stub = require('luassert.stub')(vim, 'cmd').invokes(function(cmd)
-      if cmd == 'normal! zb' then
-        vim.api.nvim_exec_autocmds('ModeChanged', { pattern = 'i:n', modeline = false })
-        return
-      end
-      return vim.api.nvim_cmd(vim.api.nvim_parse_cmd(cmd, {}), {})
-    end)
+    local cmd_stub = require('luassert.stub')(vim, 'cmd')
 
     vim.api.nvim_win_set_height(win, 5)
     vim.api.nvim_win_set_cursor(win, { 1, 0 })

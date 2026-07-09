@@ -431,6 +431,48 @@ function M.format_display(output)
   })
 end
 
+---@param index integer
+---@return boolean
+local function handle_other_option_inline(index)
+  local question_info = M.get_current_question_info()
+  local other_index = question_info and find_other_option(question_info.options)
+  local total_options = question_info and get_total_options(question_info)
+  local is_other = question_info
+    and ((other_index and index == other_index) or (not other_index and index == total_options))
+
+  if not (is_other and config.ui.questions.inline_other_input ~= false) then
+    return false
+  end
+
+  local pos = M._dialog and M._dialog:get_option_position(index)
+  local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+
+  if not (pos and part_data and part_data.line_start and state.windows and state.windows.output_win) then
+    return false
+  end
+
+  require('opencode.ui.inline_input').open({
+    win = state.windows.output_win,
+    row = part_data.line_start + pos.line,
+    col = pos.col,
+    title = 'Type your answer',
+    on_submit = function(text)
+      if text and text ~= '' then
+        M._answering = true
+        render_question()
+        M._clear_dialog()
+        answer_current_question(text)
+      else
+        render_question()
+      end
+    end,
+    on_cancel = function()
+      render_question()
+    end,
+  })
+  return true
+end
+
 ---Create the in-buffer dialog used to answer the active question.
 function M._setup_dialog()
   if not M.has_question() then
@@ -457,6 +499,11 @@ function M._setup_dialog()
     if not check_focused() then
       return
     end
+
+    if handle_other_option_inline(index) then
+      return
+    end
+
     M._answering = true
     render_question()
     M._clear_dialog()

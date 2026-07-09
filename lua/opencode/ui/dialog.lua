@@ -27,6 +27,7 @@
 ---@field private _selected_index integer Currently selected option index
 ---@field private _active boolean Whether dialog is currently active
 ---@field private _group_index integer Currently selected group index
+---@field private _option_positions table<integer, {line: integer, col: integer}>?
 local Dialog = {}
 Dialog.__index = Dialog
 
@@ -322,6 +323,8 @@ end
 ---@param output Output Output object to write to
 ---@param options table[] Array of option objects with {label: string, description?: string}
 function Dialog:format_options(output, options)
+  self._option_positions = {}
+
   for i, option in ipairs(options) do
     local label = option.label
     if option.description and option.description ~= '' then
@@ -329,19 +332,15 @@ function Dialog:format_options(output, options)
     end
 
     local is_selected = self._selected_index == i
-    local line_text = is_selected and string.format('    %d. %s ', i, label) or string.format('    %d. %s', i, label)
+    local prefix = string.format('    %d. ', i)
+    local line_text = is_selected and (prefix .. label .. ' ') or (prefix .. label)
 
-    -- Output uses 0-based indexing for extmarks. The correct target for
-    -- extmarks is the previous line count (0-based) because add_line will
-    -- append a new line and increase the 1-based line count. Capture the
-    -- current count first and then add the line so we can use that 0-based
-    -- index for extmarks.
-    -- add_line returns a 1-based line index; Output extmarks use 0-based
-    -- keys, so subtract 1 to get the correct extmark key.
     local added_idx = output:add_line(line_text)
+    local extmark_idx = added_idx - 1
+
+    self._option_positions[i] = { line = extmark_idx, col = #prefix }
 
     if is_selected then
-      local extmark_idx = added_idx - 1
       output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
       output:add_extmark(extmark_idx, {
         start_col = 2,
@@ -350,6 +349,16 @@ function Dialog:format_options(output, options)
       } --[[@as OutputExtmark]])
     end
   end
+end
+
+---Get the (line, col) of a rendered option from the most recent
+---format_options call. 0-based, relative to this dialog's Output block —
+---callers must add the containing part's `line_start` (from render_state)
+---to get an absolute buffer row.
+---@param index integer
+---@return { line: integer, col: integer }|nil
+function Dialog:get_option_position(index)
+  return self._option_positions and self._option_positions[index]
 end
 
 ---Set up buffer-scoped keymaps

@@ -333,4 +333,46 @@ describe('navigation user message jumps', function()
       assert.equals(2, cursor[1])
     end)
   end)
+
+  describe('jumplist preservation', function()
+    it('marks the previous position before jumping to the next user message', function()
+      seed({
+        { info = { id = 'u1', role = 'user' } },
+        { info = { id = 'a1', role = 'assistant' } },
+        { info = { id = 'u2', role = 'user' } },
+      }, {
+        { id = 'u1', role = 'user', line_start = 1 },
+        { id = 'a1', role = 'assistant', line_start = 20 },
+        { id = 'u2', role = 'user', line_start = 40 },
+      })
+
+      vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
+      vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})
+      navigation.goto_next_user_message()
+
+      local mark = vim.api.nvim_buf_get_mark(output_buf, "'")
+      assert.equals(5, mark[1])
+      assert.equals(0, mark[2])
+    end)
+
+    it('marks the previous position before jumping to the previous user message', function()
+      seed({
+        { info = { id = 'u1', role = 'user' } },
+        { info = { id = 'a1', role = 'assistant' } },
+        { info = { id = 'u2', role = 'user' } },
+      }, {
+        { id = 'u1', role = 'user', line_start = 1 },
+        { id = 'a1', role = 'assistant', line_start = 20 },
+        { id = 'u2', role = 'user', line_start = 40 },
+      })
+
+      vim.api.nvim_win_set_cursor(output_win, { 81, 0 })
+      vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})
+      navigation.goto_prev_user_message()
+
+      local mark = vim.api.nvim_buf_get_mark(output_buf, "'")
+      assert.equals(81, mark[1])
+      assert.equals(0, mark[2])
+    end)
+  end)
 end)

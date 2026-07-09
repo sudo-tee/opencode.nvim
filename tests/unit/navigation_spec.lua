@@ -539,3 +539,120 @@ describe('output token navigation', function()
     assert.same({ 2, 3 }, vim.api.nvim_win_get_cursor(state.windows.output_win))
   end)
 end)
+
+describe('navigation jumplist preservation', function()
+  local output_buf, output_win, input_buf, input_win, code_buf, code_win
+  local original_windows, original_code_win, original_code_buf, original_config
+
+  before_each(function()
+    original_windows = state.store.get('windows')
+    original_code_win = state.store.get('last_code_win_before_opencode')
+    original_code_buf = state.store.get('current_code_buf')
+    original_config = vim.deepcopy(config.values)
+    state.ui.clear_hidden_window_state()
+
+    code_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(code_buf, 0, -1, false, { 'alpha', 'beta', 'gamma' })
+    code_win = vim.api.nvim_open_win(code_buf, true, {
+      relative = 'editor',
+      width = 40,
+      height = 5,
+      row = 0,
+      col = 0,
+    })
+
+    output_buf = vim.api.nvim_create_buf(false, true)
+    output_win = vim.api.nvim_open_win(output_buf, true, {
+      relative = 'editor',
+      width = 80,
+      height = 8,
+      row = 6,
+      col = 0,
+    })
+
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.ui.set_last_code_window(code_win)
+  end)
+
+  after_each(function()
+    state.ui.clear_hidden_window_state()
+    pcall(vim.api.nvim_win_close, output_win, true)
+    pcall(vim.api.nvim_win_close, input_win, true)
+    pcall(vim.api.nvim_win_close, code_win, true)
+    pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, code_buf, { force = true })
+
+    if original_windows ~= nil then
+      state.ui.set_windows(original_windows)
+    else
+      state.ui.clear_windows()
+    end
+    state.ui.set_last_code_window(original_code_win)
+    state.ui.set_current_code_buf(original_code_buf)
+    config.values = original_config
+  end)
+
+  it('marks the output cursor before goto_next_message moves', function()
+    local renderer = require('opencode.ui.renderer')
+    local ctx = require('opencode.ui.renderer.ctx')
+    state.renderer.set_messages({
+      { info = { id = 'm1', role = 'user' } },
+      { info = { id = 'm2', role = 'assistant' } },
+    })
+    ctx.render_state:set_message({ info = { id = 'm1', role = 'user' } }, 1, 1)
+    ctx.render_state:set_message({ info = { id = 'm2', role = 'assistant' } }, 20, 20)
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 40))
+    vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
+    vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})
+
+    navigation.goto_next_message()
+
+    local mark = vim.api.nvim_buf_get_mark(output_buf, "'")
+    assert.equals(5, mark[1])
+    assert.equals(0, mark[2])
+  end)
+
+  it('marks the output cursor before goto_prev_message moves', function()
+    local renderer = require('opencode.ui.renderer')
+    local ctx = require('opencode.ui.renderer.ctx')
+    state.renderer.set_messages({
+      { info = { id = 'm1', role = 'user' } },
+      { info = { id = 'm2', role = 'assistant' } },
+    })
+    ctx.render_state:set_message({ info = { id = 'm1', role = 'user' } }, 1, 1)
+    ctx.render_state:set_message({ info = { id = 'm2', role = 'assistant' } }, 20, 20)
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 40))
+    vim.api.nvim_win_set_cursor(output_win, { 31, 0 })
+    vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})
+
+    navigation.goto_prev_message()
+
+    local mark = vim.api.nvim_buf_get_mark(output_buf, "'")
+    assert.equals(31, mark[1])
+    assert.equals(0, mark[2])
+  end)
+
+  it('marks the output cursor before jumping to a rendered file target', function()
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { existing_path })
+    vim.api.nvim_win_set_cursor(output_win, { 1, 0 })
+    vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})
+    local original_navigate = navigation.navigate_to_location
+    navigation.navigate_to_location = function()
+      return true
+    end
+    stub(renderer, 'get_target_at_position').returns({
+      kind = 'file',
+      path = existing_path,
+      line = 1,
+      col = 1,
+    })
+
+    navigation.jump_to_target_at_cursor()
+
+    navigation.navigate_to_location = original_navigate
+    local mark = vim.api.nvim_buf_get_mark(output_buf, "'")
+    assert.equals(1, mark[1])
+    assert.equals(0, mark[2])
+  end)
+end)

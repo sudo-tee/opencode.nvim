@@ -677,6 +677,7 @@ function M.setup_keymaps(windows)
   vim.keymap.set('n', 'gg', function()
     local renderer = require('opencode.ui.renderer')
     renderer.load_all_messages()
+    pcall(vim.cmd, [[noau normal! m']])
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
   end, { buffer = windows.output_buf })
 end

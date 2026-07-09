@@ -1,5 +1,8 @@
 local M = {}
 
+---@type string|nil
+local saved_text = nil
+
 ---@class InlineInputOpts
 ---@field win integer            -- window to anchor against
 ---@field row integer            -- 0-indexed row in that window's buffer
@@ -23,6 +26,11 @@ function M.open(opts)
   vim.bo[buf].buftype = 'prompt'
   vim.bo[buf].bufhidden = 'wipe'
   vim.fn.prompt_setprompt(buf, '')
+
+  if saved_text and saved_text ~= '' then
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { saved_text })
+    saved_text = nil
+  end
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'win',
@@ -54,6 +62,7 @@ function M.open(opts)
   vim.fn.prompt_setcallback(buf, function(text)
     close()
     if text ~= '' then
+      saved_text = nil
       opts.on_submit(text)
     else
       opts.on_cancel()
@@ -61,11 +70,13 @@ function M.open(opts)
   end)
 
   vim.keymap.set('i', '<C-c>', function()
+    saved_text = nil
     close()
     opts.on_cancel()
   end, { buffer = buf, silent = true, nowait = true })
 
   vim.keymap.set('n', '<Esc>', function()
+    saved_text = nil
     close()
     opts.on_cancel()
   end, { buffer = buf, silent = true, nowait = true })
@@ -100,6 +111,10 @@ function M.open(opts)
     buffer = buf,
     callback = function()
       if not closed then
+        local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''
+        if line ~= '' then
+          saved_text = line
+        end
         close()
         opts.on_cancel()
       end

@@ -201,6 +201,19 @@ function M.get_visible_top_line(win)
   return (ok and line and line > 0) and line or nil
 end
 
+---@param win integer
+---@param topline integer
+function M.restore_view_topline(win, topline)
+  vim.api.nvim_win_call(win, function()
+    local view = vim.fn.winsaveview()
+    view.topline = math.max(1, topline)
+    view.skipcol = 0
+    vim.fn.winrestview(view)
+    -- Apply the restored viewport before later line('w$') reads inspect it.
+    vim.cmd('redraw')
+  end)
+end
+
 ---@param win? integer
 function M.reset_scroll_tracking(win)
   if win then
@@ -764,9 +777,7 @@ function M.setup_autocmds(windows, group)
         if rendered and rendered.line_start then
           local restored_top = math.max(1, rendered.line_start + anchor_offset)
           pcall(vim.api.nvim_win_set_cursor, windows.output_win, { restored_top, 0 })
-          pcall(vim.api.nvim_win_call, windows.output_win, function()
-            vim.cmd('normal! zt')
-          end)
+          pcall(M.restore_view_topline, windows.output_win, restored_top)
           return
         end
       end

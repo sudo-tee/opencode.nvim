@@ -102,7 +102,7 @@ function M.clear_last_window_width_ratio()
   return store.set('last_window_width_ratio', nil)
 end
 
----@param lines table<string>|nil
+---@param lines string[]
 function M.set_input_content(lines)
   return store.set('input_content', lines)
 end

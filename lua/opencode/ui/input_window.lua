@@ -426,6 +426,84 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
+---@param message OpencodeMessage|nil
+---@return { lines: string[], mention_paths: string[] }|nil
+function M.build_prompt_from_message(message)
+  if not message or not message.parts then
+    return nil
+  end
+
+  local lines = {}
+  local mention_paths = {}
+
+  for _, part in ipairs(message.parts) do
+    if type(part) == 'table' then
+      if part.type == 'text' then
+        if not part.synthetic and type(part.text) == 'string' and part.text ~= '' then
+          for _, sub in ipairs(vim.split(part.text, '\n', { plain = true })) do
+            lines[#lines + 1] = sub
+          end
+        end
+      elseif part.type == 'file' then
+        local name = part.filename or (part.source and part.source.path) or part.name
+        if type(name) == 'string' and name ~= '' then
+          lines[#lines + 1] = '@' .. name .. ' '
+          table.insert(mention_paths, name)
+        end
+      elseif part.type == 'agent' then
+        local name = part.name or (part.source and part.source.path)
+        if type(name) == 'string' and name ~= '' then
+          lines[#lines + 1] = '@' .. name .. ' '
+          table.insert(mention_paths, name)
+        end
+      end
+    end
+  end
+
+  if #lines == 0 then
+    return nil
+  end
+  return { lines = lines, mention_paths = mention_paths }
+end
+
+---Replace the input buffer content with `lines`, restore mention extmarks
+---and park the cursor at the end. Callers that want the user to start typing
+---immediately should follow up with `focus_input`. Empty input is written
+---as-is so callers restoring a previously-captured state can clear it.
+---@param lines string[]
+---@param windows OpencodeWindowState|nil
+---@return boolean mounted True if the input window was mounted and the
+---buffer was rewritten.
+function M.replace_input(lines, windows)
+  windows = windows or state.windows
+  if not M.mounted(windows) then
+    return false
+  end
+  ---@cast windows { input_win: integer, input_buf: integer }
+
+  M.set_content(lines, windows)
+  require('opencode.ui.mention').restore_mentions(windows.input_buf)
+
+  -- nvim_win_set_cursor clamps col to the line's last byte, which is the
+  -- canonical end-of-line position both for 'a' (append) and 'i' (insert).
+  pcall(vim.api.nvim_win_set_cursor, windows.input_win, {
+    math.max(#lines, 1),
+    #(lines[#lines] or ''),
+  })
+
+  return true
+end
+
+---@param message OpencodeMessage|nil
+---@return boolean filled True when the input was populated with content.
+function M.refill_prompt_from_message(message)
+  local prompt = M.build_prompt_from_message(message)
+  if not prompt then
+    return false
+  end
+  return M.replace_input(prompt.lines)
+end
+
 function M.set_current_line(text, windows)
   windows = windows or state.windows
   if not M.mounted(windows) then

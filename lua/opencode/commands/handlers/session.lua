@@ -418,12 +418,33 @@ function M.actions.undo(messageId)
       return
     end
 
-    run_api_action_with_checktime(
-      state_obj.api_client:revert_message(state_obj.active_session.id, {
-        messageID = message_to_revert,
-      }),
-      'Failed to undo last message: '
-    )
+    -- Snapshot the message now; state may drop it once the revert lands.
+    local refill_message = nil
+    for _, msg in ipairs(state_obj.messages or {}) do
+      if msg.info and msg.info.id == message_to_revert then
+        refill_message = msg
+        break
+      end
+    end
+    if not refill_message and state_obj.last_user_message and state_obj.last_user_message.info.id == message_to_revert then
+      refill_message = state_obj.last_user_message
+    end
+
+    local revert_promise = state_obj.api_client:revert_message(state_obj.active_session.id, {
+      messageID = message_to_revert,
+    })
+
+    revert_promise:and_then(function()
+      schedule_checktime()
+      if refill_message then
+        local input_window = require('opencode.ui.input_window')
+        if input_window.refill_prompt_from_message(refill_message) then
+          input_window.focus_input()
+        end
+      end
+    end):catch(function(err)
+      notify_error('Failed to undo last message: ', err)
+    end)
   end)
 end
 
@@ -515,12 +536,13 @@ function M.actions.timeline()
     return
   end
 
-  local timeline_picker = require('opencode.ui.timeline_picker')
-  timeline_picker.pick(user_messages, function(selected_msg)
-    if selected_msg then
-      require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
-    end
-  end)
+  require('opencode.ui.timeline_picker').pick(user_messages, {
+    callback = function(selected_msg)
+      if selected_msg then
+        require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
+      end
+    end,
+  })
 end
 
 ---@param message_id? string

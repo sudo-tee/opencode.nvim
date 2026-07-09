@@ -29,15 +29,6 @@ local function get_active_session_or_warn(message)
   return active_session
 end
 
----@param command string
----@param args string[]|nil
-local function schedule_slash_history(command, args)
-  local joined_args = args and table.concat(args, ' ') or ''
-  vim.schedule(function()
-    history.write('/' .. command .. ' ' .. joined_args)
-  end)
-end
-
 ---@param args string[]|nil
 ---@return string
 local function join_args(args)
@@ -115,18 +106,66 @@ function M.actions.quick_chat(message, range)
   quick_chat.quick_chat(prompt, { context_config = ctx }, range)
 end
 
-function M.actions.select_history()
-  require('opencode.ui.history_picker').pick()
-end
-
----@param prompt string|nil
-local function restore_prompt_history_entry(prompt)
-  if not prompt then
+---Refill the input buffer from a user message returned by the timeline picker.
+---Open the opencode UI first when the input window is not mounted yet.
+---@param message OpencodeMessage
+local function refill_input_from_message(message)
+  local windows = state.windows
+  if not input_window.mounted(windows) then
+    session_runtime.open({ focus = 'input' })
+    windows = state.windows
+  end
+  if not input_window.mounted(windows) then
     return
   end
+  ---@cast windows { input_win: integer, input_buf: integer }
+  if input_window.refill_prompt_from_message(message) then
+    input_window.focus_input()
+  end
+end
 
-  input_window.set_content(prompt)
-  require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
+---@param entries OpencodeHistoryEntry[]
+local function pick_history_with(entries)
+  local messages = vim.tbl_map(function(entry)
+    return entry.message
+  end, entries)
+  require('opencode.ui.timeline_picker').pick(messages, {
+    title = 'Select History Entry',
+    callback = function(selected_msg)
+      if selected_msg then
+        refill_input_from_message(selected_msg)
+      end
+    end,
+  })
+end
+
+function M.actions.select_history()
+  local entries = history.read()
+  if #entries == 0 then
+    vim.notify('No history entries found', vim.log.levels.INFO)
+    return false
+  end
+  return pick_history_with(entries)
+end
+
+---Refill the input buffer from a history entry reconstructed from the active
+---session's user messages
+---@param entry OpencodeHistoryEntry
+local function restore_prompt_history_entry(entry)
+  local windows = state.windows
+  if not windows or not windows.input_buf or not input_window.mounted(windows) then
+    return
+  end
+  if input_window.refill_prompt_from_message(entry.message) then
+    input_window.focus_input()
+  end
+end
+
+---@param draft string[]
+local function restore_prompt_draft(draft)
+  if input_window.replace_input(draft) then
+    input_window.focus_input()
+  end
 end
 
 function M.actions.prev_history()
@@ -134,8 +173,10 @@ function M.actions.prev_history()
     return
   end
 
-  local prev_prompt = history.prev()
-  restore_prompt_history_entry(prev_prompt)
+  local entry = history.prev()
+  if entry then
+    restore_prompt_history_entry(entry)
+  end
 end
 
 function M.actions.next_history()
@@ -143,8 +184,12 @@ function M.actions.next_history()
     return
   end
 
-  local next_prompt = history.next()
-  restore_prompt_history_entry(next_prompt)
+  local result = history.next()
+  if result and result.message then
+    restore_prompt_history_entry(result)
+  elseif result then
+    restore_prompt_draft(result)
+  end
 end
 
 function M.actions.prev_prompt_history()
@@ -256,16 +301,12 @@ M.actions.run_user_command = Promise.async(function(name, args)
       return
     end
 
-    state.api_client
-      :send_command(active_session.id, {
-        command = name,
-        arguments = join_args(args),
-        model = model,
-        agent = agent,
-      })
-      :and_then(function()
-        schedule_slash_history(name, args)
-      end)
+    state.api_client:send_command(active_session.id, {
+      command = name,
+      arguments = join_args(args),
+      model = model,
+      agent = agent,
+    })
   end) --[[@as Promise<void> ]]
 end)
 
@@ -355,15 +396,11 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  state.api_client
-    :send_command(state.active_session.id, {
-      command = 'review',
-      arguments = join_args(args),
-      model = state.current_model,
-    })
-    :and_then(function()
-      schedule_slash_history('review', args)
-    end)
+  state.api_client:send_command(state.active_session.id, {
+    command = 'review',
+    arguments = join_args(args),
+    model = state.current_model,
+  })
 end)
 
 M.actions.add_visual_selection = Promise.async(

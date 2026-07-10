@@ -426,6 +426,72 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
+---@param message OpencodeMessage|nil
+---@return { lines: string[], mention_paths: string[] }|nil
+function M.build_prompt_from_message(message)
+  if not message or not message.parts then
+    return nil
+  end
+
+  local lines = {}
+  local mention_paths = {}
+
+  for _, part in ipairs(message.parts) do
+    if type(part) == 'table' then
+      if part.type == 'text' then
+        if not part.synthetic and type(part.text) == 'string' and part.text ~= '' then
+          for _, sub in ipairs(vim.split(part.text, '\n', { plain = true })) do
+            lines[#lines + 1] = sub
+          end
+        end
+      elseif part.type == 'file' then
+        local name = part.filename or (part.source and part.source.path) or part.name
+        if type(name) == 'string' and name ~= '' then
+          lines[#lines + 1] = '@' .. name .. ' '
+          table.insert(mention_paths, name)
+        end
+      elseif part.type == 'agent' then
+        local name = part.name or (part.source and part.source.path)
+        if type(name) == 'string' and name ~= '' then
+          lines[#lines + 1] = '@' .. name .. ' '
+          table.insert(mention_paths, name)
+        end
+      end
+    end
+  end
+
+  if #lines == 0 then
+    return nil
+  end
+
+  return { lines = lines, mention_paths = mention_paths }
+end
+
+---@param message OpencodeMessage|nil
+---@return boolean
+function M.refill_prompt_from_message(message)
+  local prompt = M.build_prompt_from_message(message)
+  if not prompt then
+    return false
+  end
+  if not M.mounted() then
+    return false
+  end
+  ---@cast state.windows { input_win: integer, input_buf: integer }
+
+  M.set_content(prompt.lines)
+  require('opencode.ui.mention').restore_mentions(state.windows.input_buf)
+
+  -- nvim_win_set_cursor clamps col to the line's last byte, which is the
+  -- canonical end-of-line position both for 'a' (append) and 'i' (insert).
+  pcall(vim.api.nvim_win_set_cursor, state.windows.input_win, {
+    math.max(#prompt.lines, 1),
+    #(prompt.lines[#prompt.lines] or ''),
+  })
+
+  return true
+end
+
 function M.set_current_line(text, windows)
   windows = windows or state.windows
   if not M.mounted(windows) then

@@ -13,11 +13,6 @@ function M.set_current_message(message)
   return store.set('current_message', message)
 end
 
----@param message OpencodeMessage|nil
-function M.set_last_user_message(message)
-  return store.set('last_user_message', message)
-end
-
 ---@param permissions OpencodePermission[]
 function M.set_pending_permissions(permissions)
   return store.set('pending_permissions', permissions)
@@ -27,6 +22,7 @@ end
 function M.update_pending_permissions(mutator)
   return store.mutate('pending_permissions', mutator)
 end
+
 ---@param cost number
 function M.set_cost(cost)
   if not cost or cost <= 0 then
@@ -55,7 +51,6 @@ function M.reset()
   return store.batch(function()
     store.set('messages', {})
     store.set('current_message', nil)
-    store.set('last_user_message', nil)
     store.set('tokens_count', 0)
     store.set('cost', 0)
     store.set('pending_permissions', {})

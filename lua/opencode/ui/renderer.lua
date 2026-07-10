@@ -333,7 +333,6 @@ local function fetch_session()
   if not session or session == '' then
     return Promise.new():resolve(nil)
   end
-  state.renderer.set_last_user_message(nil)
   return require('opencode.session').get_messages(session)
 end
 

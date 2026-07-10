@@ -288,12 +288,9 @@ function M.on_message_updated(message, revert_index)
     state.renderer.set_current_message(msg)
   end
 
-  if msg.info.role == 'user' then
-    state.renderer.set_last_user_message(msg)
-    if not found_before then
-      local local_submit_pending = (state.user_message_count or {})[msg.info.sessionID] or 0
-      scroll(local_submit_pending > 0)
-    end
+  if msg.info.role == 'user' and not found_before then
+    local local_submit_pending = (state.user_message_count or {})[msg.info.sessionID] or 0
+    scroll(local_submit_pending > 0)
   end
 
   update_stats(msg)

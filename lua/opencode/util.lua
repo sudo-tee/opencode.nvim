@@ -297,6 +297,9 @@ function M.index_of(tbl, value)
   return nil
 end
 
+---@generic T
+---@param tbl T[]
+---@param predicate function(item: T): boolean
 function M.find_index_of(tbl, predicate)
   for i, v in ipairs(tbl) do
     if predicate(v) then

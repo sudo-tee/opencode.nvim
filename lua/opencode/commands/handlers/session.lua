@@ -452,6 +452,13 @@ end
 ---@param message_id? string
 function M.actions.undo(message_id)
   return with_active_session('No active session to undo', function(state_obj)
+    local queue = require('opencode.services.client_queue')
+    local queued = queue.undo_last()
+    if queued then
+      vim.notify(('Removed from client queue: ' .. queued.prompt):sub(vim.v.echospace), vim.log.levels.INFO)
+      return
+    end
+
     local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
     if not target then
       vim.notify('No user message to undo', vim.log.levels.WARN)

@@ -167,6 +167,7 @@ function M.setup(windows)
   })
 
   loading_animation.setup()
+  require('opencode.services.client_queue').setup()
 end
 
 ---@param preserve_buffer? boolean

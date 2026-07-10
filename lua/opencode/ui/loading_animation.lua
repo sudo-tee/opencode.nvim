@@ -275,6 +275,12 @@ function M.is_running()
   return M._animation.timer ~= nil
 end
 
+---@param session_id string
+---@return OpencodeSessionStatusInfo['type']|nil
+function M.get_status(session_id)
+  return M._animation.last_status_map[session_id]
+end
+
 function M.refresh()
   if not state.windows then
     return

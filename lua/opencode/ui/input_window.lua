@@ -153,7 +153,7 @@ function M.handle_submit()
     return false
   end
 
-  require('opencode.services.messaging').send_message(input_content)
+  require('opencode.services.client_queue').submit(input_content)
   return true
 end
 
@@ -724,6 +724,35 @@ end
 ---@return boolean
 function M.is_hidden()
   return M._hidden
+end
+
+local _queue_hint_ns = vim.api.nvim_create_namespace('opencode_queue_hint')
+local _queue_hint_extmark_id = nil
+
+---Render a small "[N queued]" hint at the end of the input line when the
+---client queue has pending items. Called by services/client_queue.
+---@param size integer
+function M.render_queue_hint(size)
+  local windows = state.windows
+  if not windows or not windows.input_buf or not vim.api.nvim_buf_is_valid(windows.input_buf) then
+    return
+  end
+  local input_buf = windows.input_buf
+  local cleared = pcall(vim.api.nvim_buf_clear_namespace, input_buf, _queue_hint_ns, 0, -1)
+  if not cleared then
+    return
+  end
+  _queue_hint_extmark_id = nil
+  if not size or size <= 0 then
+    return
+  end
+  local last_line = vim.api.nvim_buf_line_count(input_buf) - 1
+  local last_col = #(vim.api.nvim_buf_get_lines(input_buf, last_line, last_line + 1, false)[1] or '')
+  _queue_hint_extmark_id = vim.api.nvim_buf_set_extmark(input_buf, _queue_hint_ns, last_line, last_col, {
+    virt_text = { { string.format(' [%d queued]', size), 'Comment' } },
+    virt_text_pos = 'eol',
+    hl_mode = 'combine',
+  })
 end
 
 return M

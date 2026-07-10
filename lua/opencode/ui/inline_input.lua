@@ -4,8 +4,6 @@ local M = {}
 ---@field win integer            -- window to anchor against
 ---@field row integer            -- 0-indexed row in that window's buffer
 ---@field col integer            -- 0-indexed col in that window's buffer
----@field min_width? integer
----@field max_width? integer
 ---@field title? string           -- window border title
 ---@field initial_text? string
 ---@field on_submit fun(text: string)
@@ -18,8 +16,9 @@ local M = {}
 ---@param opts InlineInputOpts
 ---@return { close: fun(), win: integer, buf: integer }
 function M.open(opts)
-  local min_width = opts.min_width or 50
-  local max_width = opts.max_width or 75
+  local anchor = vim.fn.screenpos(opts.win, opts.row + 1, opts.col + 1)
+  local width = math.max(1, math.min(50, vim.o.columns - anchor.col - 1))
+  local max_height = math.max(1, vim.o.lines - anchor.row - 2)
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].buftype = 'prompt'
@@ -34,7 +33,7 @@ function M.open(opts)
     relative = 'win',
     win = opts.win,
     bufpos = { opts.row, opts.col },
-    width = min_width,
+    width = width,
     height = 1,
     style = 'minimal',
     border = 'rounded',
@@ -42,6 +41,18 @@ function M.open(opts)
     title_pos = opts.title and 'left' or nil,
     zindex = 60,
   })
+  vim.wo[win].wrap = true
+
+  local function resize_height()
+    if not vim.api.nvim_win_is_valid(win) then
+      return
+    end
+
+    local height = vim.api.nvim_win_text_height(win, { start_row = 0, end_row = 0 }).all
+    vim.api.nvim_win_set_config(win, { height = math.min(max_height, math.max(1, height)) })
+  end
+
+  resize_height()
 
   local closed = false
   local function close()
@@ -82,12 +93,7 @@ function M.open(opts)
   vim.api.nvim_create_autocmd('TextChangedI', {
     buffer = buf,
     callback = function()
-      if not vim.api.nvim_win_is_valid(win) then
-        return
-      end
-      local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''
-      local width = math.min(max_width, math.max(min_width, vim.fn.strdisplaywidth(line) + 2))
-      vim.api.nvim_win_set_config(win, { width = width })
+      resize_height()
     end,
   })
 

@@ -27,7 +27,6 @@ local M = {}
 ---@field current_variant string|nil
 ---@field messages OpencodeMessage[]|nil
 ---@field current_message OpencodeMessage|nil
----@field last_user_message OpencodeMessage|nil
 ---@field pending_permissions OpencodePermission[]
 ---@field cost number
 ---@field tokens_count number
@@ -72,7 +71,6 @@ local _state = {
   current_variant = nil,
   messages = nil,
   current_message = nil,
-  last_user_message = nil,
   pending_permissions = {},
   cost = 0,
   tokens_count = 0,

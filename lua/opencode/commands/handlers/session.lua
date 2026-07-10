@@ -417,40 +417,54 @@ function M.actions.rename_session(current_session, new_title)
   end)(current_session, new_title)
 end
 
----@param messageId? string
-function M.actions.undo(messageId)
+---@param state_obj OpencodeState
+---@param target_id string
+---@return OpencodeMessage|nil
+local function find_message_in_state(state_obj, target_id)
+  for _, m in ipairs(state_obj.messages or {}) do
+    if m.info and m.info.id == target_id then
+      return m
+    end
+  end
+  return nil
+end
+
+---@param state_obj OpencodeState
+---@return OpencodeMessage|nil
+local function find_last_user_message(state_obj)
+  local messages = state_obj.messages or {}
+  local revert = state_obj.active_session and state_obj.active_session.revert
+
+  local revert_index = revert
+    and require('opencode.util').find_index_of(messages, function(m)
+      return m.info and m.info.id == revert.messageID
+    end)
+
+  for i = revert_index and revert_index - 1 or #messages, 1, -1 do
+    local m = messages[i]
+    if m.info and m.info.role == 'user' then
+      return m
+    end
+  end
+  return nil
+end
+
+---@param message_id? string
+function M.actions.undo(message_id)
   return with_active_session('No active session to undo', function(state_obj)
-    local message_to_revert = messageId or (state_obj.last_user_message and state_obj.last_user_message.info.id)
-    if not message_to_revert then
+    local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
+    if not target then
       vim.notify('No user message to undo', vim.log.levels.WARN)
       return
     end
 
-    -- Snapshot the message now; state may drop it once the revert lands.
-    local refill_message = nil
-    for _, msg in ipairs(state_obj.messages or {}) do
-      if msg.info and msg.info.id == message_to_revert then
-        refill_message = msg
-        break
-      end
-    end
-    if
-      not refill_message
-      and state_obj.last_user_message
-      and state_obj.last_user_message.info.id == message_to_revert
-    then
-      refill_message = state_obj.last_user_message
-    end
-
     run_api_action_with_checktime(
       state_obj.api_client:revert_message(state_obj.active_session.id, {
-        messageID = message_to_revert,
+        messageID = target.info.id,
       }),
       'Failed to undo last message: ',
       function()
-        if refill_message then
-          require('opencode.ui.input_window').refill_prompt_from_message(refill_message)
-        end
+        require('opencode.ui.input_window').refill_prompt_from_message(target)
       end
     )
   end)
@@ -555,7 +569,12 @@ end
 ---@param message_id? string
 function M.actions.fork_session(message_id)
   return with_active_session('No active session to fork', function(state_obj)
-    local message_to_fork = message_id or state_obj.last_user_message and state_obj.last_user_message.info.id
+    local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
+    if not target then
+      vim.notify('No user message to fork from', vim.log.levels.WARN)
+      return
+    end
+    local message_to_fork = target.info.id
     if not message_to_fork then
       vim.notify('No user message to fork from', vim.log.levels.WARN)
       return

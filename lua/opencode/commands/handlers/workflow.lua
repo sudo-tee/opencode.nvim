@@ -223,6 +223,9 @@ function M.actions.mention_file()
   local context = require('opencode.context')
   require('opencode.ui.mention').mention(function(mention_cb)
     picker.pick(function(file)
+      if not file then
+        return
+      end
       mention_cb(file.path)
       context.add_file(file.path)
     end)

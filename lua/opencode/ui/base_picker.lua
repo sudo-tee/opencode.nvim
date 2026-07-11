@@ -760,6 +760,17 @@ local function snacks_picker_ui(opts)
   Snacks.picker.pick(snack_opts)
 end
 
+---vim.ui.select UI implementation
+---@param opts PickerOptions The picker options
+local function select_picker_ui(opts)
+  vim.ui.select(opts.items, {
+    format_item = function(item)
+      return opts.format_fn(item, opts.width):to_string()
+    end,
+    prompt = opts.title --[[@as string]]
+  }, opts.callback)
+end
+
 ---@param text? string
 ---@param width integer
 ---@param opts? {align?: "left" | "right" | "center", truncate?: boolean}
@@ -856,10 +867,6 @@ end
 function M.pick(opts)
   local picker_type = picker.get_best_picker()
 
-  if not picker_type then
-    return false
-  end
-
   if not opts.width then
     opts.width = config.ui.picker_width
   end
@@ -927,6 +934,9 @@ function M.pick(opts)
     elseif picker_type == 'snacks' then
       opts.title = build_title(title_str, opts.actions)
       snacks_picker_ui(opts)
+    elseif picker_type == 'select' then
+      opts.title = title_str
+      select_picker_ui(opts)
     else
       opts.callback(nil)
     end

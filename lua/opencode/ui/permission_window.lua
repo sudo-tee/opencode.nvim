@@ -244,7 +244,7 @@ function M.format_display(output)
     title = icons.get('warning') .. ' Permission Required' .. progress,
     title_hl = 'OpencodePermissionTitle',
     border_hl = 'OpencodePermissionBorder',
-    content = render_content and nil or content,
+    content = content,
     render_content = render_content,
     options = options,
     unfocused_message = 'Focus Opencode window to respond to permission',

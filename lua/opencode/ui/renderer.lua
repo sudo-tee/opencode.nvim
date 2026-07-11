@@ -619,10 +619,12 @@ function M.get_next_rendered_message(current_line)
   local next_message = nil
 
   for _, message in ipairs(state.messages or {}) do
-    local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
-    if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
-      next_message = rendered
-      break
+    if not is_renderer_synthetic_message(message) then
+      local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
+      if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
+        next_message = rendered
+        break
+      end
     end
   end
 
@@ -634,9 +636,11 @@ end
 function M.get_prev_rendered_message(current_line)
   for i = #(state.messages or {}), 1, -1 do
     local message = state.messages[i]
-    local rendered = message and message.info and message.info.id and ctx.render_state:get_message(message.info.id)
-    if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
-      return rendered
+    if message and not is_renderer_synthetic_message(message) then
+      local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id)
+      if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
+        return rendered
+      end
     end
   end
 

@@ -391,7 +391,7 @@ function M.on_part_updated(properties, revert_index)
   -- Preserve state.input when the update omits it. MCP tool completion
   -- events sometimes arrive with an empty input table, clobbering the
   -- call arguments from the earlier running event.
-  if part.state and part.state.input and type(part.state.input) == 'table' and next(part.state.input) == nil then
+  if part.state and type(part.state.input) == 'table' and next(part.state.input) == nil then
     local old_input = nil
     if existing_part_index then
       old_input = message.parts[existing_part_index]

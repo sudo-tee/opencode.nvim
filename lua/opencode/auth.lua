@@ -2,6 +2,7 @@ local config = require('opencode.config')
 
 local M = {}
 
+---@type {password: string | nil, username: string} | nil
 local cache = nil
 
 --- Resolve a credential value that may be a string or a function returning a string.
@@ -26,20 +27,15 @@ end
 ---@return string|nil password
 ---@return string username
 local function ensure_resolved()
-  if cache then
-    return cache.password, cache.username
+  if cache == nil then
+    local password = resolve_credential(config.server.password) or vim.env.OPENCODE_SERVER_PASSWORD
+    local username = resolve_credential(config.server.username) or vim.env.OPENCODE_SERVER_USERNAME or 'opencode'
+
+    cache = {
+      password = password,
+      username = username,
+    }
   end
-
-  local password = resolve_credential(config.server.password)
-    or vim.env.OPENCODE_SERVER_PASSWORD
-  local username = resolve_credential(config.server.username)
-    or vim.env.OPENCODE_SERVER_USERNAME
-    or 'opencode'
-
-  cache = {
-    password = password,
-    username = username,
-  }
 
   return cache.password, cache.username
 end

@@ -17,9 +17,11 @@ local function resolve_credential(val)
     end
     return nil
   end
+
   if val and val ~= '' then
     return val
   end
+
   return nil
 end
 

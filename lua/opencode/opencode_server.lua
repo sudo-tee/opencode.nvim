@@ -275,6 +275,7 @@ function OpencodeServer:spawn(opts)
   self.mode = 'serve'
   self.job = vim.system(cmd, {
     cwd = opts.cwd,
+    env = auth.get_env(),
     stdout = function(err, data)
       if err then
         fail_startup(err)

@@ -61,3 +61,20 @@ function M.get_auth_headers()
   local encoded = vim.base64.encode(username .. ':' .. password)
   return { ['Authorization'] = 'Basic ' .. encoded }
 end
+
+--- Resolve credentials and return environment variables for a spawned server.
+--- Returns an empty table if no password is configured.
+---@return table<string, string> env
+function M.get_env()
+  local password, username = ensure_resolved()
+  if not password then
+    return {}
+  end
+
+  return {
+    OPENCODE_SERVER_PASSWORD = password,
+    OPENCODE_SERVER_USERNAME = username,
+  }
+end
+
+return M

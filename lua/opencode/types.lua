@@ -316,7 +316,7 @@
 ---@field capture_streamed_events boolean
 ---@field show_ids boolean
 ---@field highlight_changed_lines boolean
----@field highlight_changed_lines_timeout_ms number
+---@field highlight_changed_lines_timeout_ms integer
 ---@field quick_chat {keep_session: boolean, set_active_session: boolean}
 
 ---@alias OpencodeCommandLifecycleStage 'before'|'after'|'error'|'finally'

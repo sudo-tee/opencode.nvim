@@ -103,7 +103,7 @@ end
 
 ---Update permission from message part data
 ---@param permission_id string
----@param part table
+---@param part OpencodeMessagePart
 ---@return boolean
 function M.update_permission_from_part(permission_id, part)
   if not permission_id or not part then
@@ -111,7 +111,7 @@ function M.update_permission_from_part(permission_id, part)
   end
 
   local permission = nil
-  for i, existing in ipairs(M._permission_queue) do
+  for _, existing in ipairs(M._permission_queue) do
     if existing.id == permission_id then
       permission = existing
       break

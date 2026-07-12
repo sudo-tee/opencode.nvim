@@ -24,6 +24,8 @@ M.defaults = {
     auto_kill = true,
     path_map = nil,
     reverse_path_map = nil,
+    username = nil,
+    password = nil,
   },
   -- stylua: ignore
   keymap = {

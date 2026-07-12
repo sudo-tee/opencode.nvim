@@ -380,7 +380,7 @@ function M.on_part_updated(properties, revert_index)
   local is_new_part = not part_data
 
   local prev_last_part_id = get_last_part_for_message(message)
-  local existing_part_index = nil
+  local existing_part_index = nil ---@type integer?
   for i = #message.parts, 1, -1 do
     if message.parts[i].id == part.id then
       existing_part_index = i
@@ -407,23 +407,9 @@ function M.on_part_updated(properties, revert_index)
   end
 
   -- Update the part reference in the message
-  if is_new_part then
-    if existing_part_index then
-      message.parts[existing_part_index] = part
-    else
-      table.insert(message.parts, part)
-    end
-  else
-    if existing_part_index then
-      message.parts[existing_part_index] = part
-    else
-      for i = #message.parts, 1, -1 do
-        if message.parts[i].id == part.id then
-          message.parts[i] = part
-          break
-        end
-      end
-    end
+  local index = existing_part_index or (is_new_part and (#message.parts + 1) or nil)
+  if index then
+    message.parts[index] = part
   end
 
   if part.type == 'step-start' or part.type == 'step-finish' then

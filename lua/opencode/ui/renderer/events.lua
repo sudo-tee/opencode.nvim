@@ -407,10 +407,7 @@ function M.on_part_updated(properties, revert_index)
   end
 
   -- Update the part reference in the message
-  local index = existing_part_index or (is_new_part and (#message.parts + 1) or nil)
-  if index then
-    message.parts[index] = part
-  end
+  message.parts[existing_part_index or #message.parts + 1] = part
 
   if part.type == 'step-start' or part.type == 'step-finish' then
     if part.type == 'step-finish' and part.tokens then

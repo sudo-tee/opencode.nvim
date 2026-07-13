@@ -3,6 +3,7 @@ local safe_call = util.safe_call
 local Promise = require('opencode.promise')
 local config = require('opencode.config')
 local curl = require('opencode.curl')
+local auth = require('opencode.auth')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -95,6 +96,7 @@ function OpencodeServer.health_check(url, timeout_ms)
   curl.request({
     url = url,
     method = 'GET',
+    headers = auth.get_auth_headers(),
     timeout = timeout_ms or 2000,
     proxy = '',
     callback = function(response)
@@ -176,6 +178,7 @@ function OpencodeServer.request_graceful_shutdown(base_url)
     curl.request({
       url = shutdown_url,
       method = 'POST',
+      headers = auth.get_auth_headers(),
       timeout = 1000,
       proxy = '',
       callback = function(response)
@@ -272,6 +275,7 @@ function OpencodeServer:spawn(opts)
   self.mode = 'serve'
   self.job = vim.system(cmd, {
     cwd = opts.cwd,
+    env = auth.get_env(),
     stdout = function(err, data)
       if err then
         fail_startup(err)

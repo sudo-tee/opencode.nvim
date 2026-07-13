@@ -132,6 +132,8 @@ require('opencode').setup({
     spawn_command = nil,   -- Optional function to start the server: function(port, url) ... end
     auto_kill = true,      -- Kill spawned servers when last nvim instance exits (default: true) Only applies to servers spawned by the plugin with spawn_command/kill_command
     path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
+    username = nil,        -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
+    password = nil,        -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
   },
 
   keymap = {
@@ -824,6 +826,48 @@ require('opencode').setup({
     port = 8080,
     timeout = 5,
   },
+})
+```
+
+### Authentication
+
+If your opencode server requires authentication, or if you would like the server that `opencode.nvim` starts to be behind authentication, you have a few options on how to provide the username and password.
+
+If Neovim has the `OPENCODE_SERVER_PASSWORD` environment variable set the plugin will automatically use them for authentication. The username is optional (will default to `opencode`), but can also be set with `OPENCODE_SERVER_USERNAME`.
+
+You can also supply the username and password directly in the config:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    username = 'your_username_here', -- Optional, defaults to 'opencode' if not provided.
+    password = 'your_password_here',
+  }
+})
+```
+
+Both the `username` and `password` fields accept a `function` that returns a string. The results will be cached for the session, and are only called when first attempting to start or connect to a server:
+
+```lua
+require('opencode').setup({
+  server = {
+    url = 'localhost',
+    port = 8080,
+    username = function()
+      local keyfile = vim.fn.expand('~/.config/opencode/server-username')
+      if vim.fn.filereadable(keyfile) == 1 then
+        return vim.fn.trim(vim.fn.readfile(keyfile)[1])
+      end
+    end,
+    password = function()
+      local keyfile = vim.fn.expand('~/.config/opencode/server-password')
+      if vim.fn.filereadable(keyfile) == 1 then
+        return vim.fn.trim(vim.fn.readfile(keyfile)[1])
+      end
+    end,
+  }
 })
 ```
 

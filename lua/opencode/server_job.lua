@@ -6,6 +6,7 @@ local port_mapping = require('opencode.port_mapping')
 local log = require('opencode.log')
 local config = require('opencode.config')
 local util = require('opencode.util')
+local auth = require('opencode.auth')
 
 local M = {}
 M.requests = {}
@@ -75,7 +76,7 @@ function M.call_api(url, method, body)
   local opts = {
     url = url,
     method = method or 'GET',
-    headers = { ['Content-Type'] = 'application/json' },
+    headers = vim.tbl_extend('force', { ['Content-Type'] = 'application/json' }, auth.get_auth_headers()),
     proxy = '',
     callback = function(response)
       remove_from_requests()
@@ -128,6 +129,7 @@ function M.stream_api(url, method, body, on_chunk)
   local opts = {
     url = url,
     method = method or 'GET',
+    headers = auth.get_auth_headers(),
     proxy = '',
     stream = function(err, chunk)
       on_chunk(chunk)

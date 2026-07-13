@@ -206,6 +206,8 @@
 ---@field auto_kill boolean -- Kill spawned servers when nvim exits (default: true)
 ---@field path_map (string | fun(host_path: string): string) | nil -- Map host paths to server paths
 ---@field reverse_path_map (fun(server_path: string): string) | nil -- Map server paths back to host paths
+---@field username? string | fun(): string | nil -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
+---@field password? string | fun(): string | nil -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
 
 ---@class OpencodeUIFloatConfig
 ---@field width number # Width in columns, or ratio when <= 1 (default: 0.95)

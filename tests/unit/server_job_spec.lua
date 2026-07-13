@@ -399,4 +399,103 @@ describe('server_job', function()
       vim.defer_fn = original_defer_fn
     end)
   end)
+
+  describe('authentication headers', function()
+    local config = require('opencode.config')
+    local auth = require('opencode.auth')
+    local original_password
+    local original_username
+    local original_env_password
+    local original_env_username
+
+    before_each(function()
+      auth.clear_cache()
+      original_password = config.values.server.password
+      original_username = config.values.server.username
+      original_env_password = vim.env.OPENCODE_SERVER_PASSWORD
+      original_env_username = vim.env.OPENCODE_SERVER_USERNAME
+      config.values.server.password = nil
+      config.values.server.username = nil
+      vim.env.OPENCODE_SERVER_PASSWORD = nil
+      vim.env.OPENCODE_SERVER_USERNAME = nil
+    end)
+
+    after_each(function()
+      config.values.server.password = original_password
+      config.values.server.username = original_username
+      if original_env_password then
+        vim.env.OPENCODE_SERVER_PASSWORD = original_env_password
+      else
+        vim.env.OPENCODE_SERVER_PASSWORD = nil
+      end
+      if original_env_username then
+        vim.env.OPENCODE_SERVER_USERNAME = original_env_username
+      else
+        vim.env.OPENCODE_SERVER_USERNAME = nil
+      end
+    end)
+
+    it('call_api includes Authorization header when password is set', function()
+      config.values.server.password = 'secret'
+      config.values.server.username = 'testuser'
+
+      local captured_opts
+      curl.request = function(opts)
+        captured_opts = opts
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '{}' })
+        end)
+      end
+
+      server_job.call_api('http://localhost:1234/test', 'GET'):wait()
+
+      assert.is_not_nil(captured_opts)
+      assert.is_not_nil(captured_opts.headers)
+      assert.truthy(vim.startswith(captured_opts.headers['Authorization'], 'Basic '))
+    end)
+
+    it('call_api does not include Authorization header when no password', function()
+      local captured_opts
+      curl.request = function(opts)
+        captured_opts = opts
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '{}' })
+        end)
+      end
+
+      server_job.call_api('http://localhost:1234/test', 'GET'):wait()
+
+      assert.is_not_nil(captured_opts)
+      assert.is_nil(captured_opts.headers['Authorization'])
+    end)
+
+    it('stream_api includes Authorization header when password is set', function()
+      config.values.server.password = 'secret'
+
+      local captured_opts
+      curl.request = function(opts)
+        captured_opts = opts
+        return { pid = 1 }
+      end
+
+      server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
+
+      assert.is_not_nil(captured_opts)
+      assert.is_not_nil(captured_opts.headers)
+      assert.truthy(vim.startswith(captured_opts.headers['Authorization'], 'Basic '))
+    end)
+
+    it('stream_api does not include Authorization header when no password', function()
+      local captured_opts
+      curl.request = function(opts)
+        captured_opts = opts
+        return { pid = 1 }
+      end
+
+      server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
+
+      assert.is_not_nil(captured_opts)
+      assert.is_nil(captured_opts.headers['Authorization'])
+    end)
+  end)
 end)

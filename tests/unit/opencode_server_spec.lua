@@ -48,6 +48,93 @@ describe('opencode.opencode_server', function()
     assert.equals('http://127.0.0.1:7777', server.url)
   end)
 
+  it('spawn passes auth env vars to vim.system when password is configured', function()
+    local config = require('opencode.config')
+    local auth = require('opencode.auth')
+    auth.clear_cache()
+    local original_password = config.values.server.password
+    local original_username = config.values.server.username
+    config.values.server.password = 'secret'
+    config.values.server.username = 'admin'
+
+    local captured_opts
+    vim.system = function(cmd, opts)
+      captured_opts = opts
+      vim.schedule(function()
+        opts.stdout(nil, 'opencode server listening on http://127.0.0.1:7777')
+      end)
+      return { pid = 1, kill = function() end }
+    end
+
+    local server = OpencodeServer.new()
+    server:spawn({
+      cwd = '.',
+      on_ready = function() end,
+      on_error = function() end,
+      on_exit = function() end,
+    })
+
+    vim.wait(100, function()
+      return captured_opts ~= nil
+    end)
+
+    assert.is_not_nil(captured_opts)
+    assert.is_not_nil(captured_opts.env)
+    assert.equals('secret', captured_opts.env.OPENCODE_SERVER_PASSWORD)
+    assert.equals('admin', captured_opts.env.OPENCODE_SERVER_USERNAME)
+
+    config.values.server.password = original_password
+    config.values.server.username = original_username
+  end)
+
+  it('spawn passes empty env when no password is configured', function()
+    local config = require('opencode.config')
+    local auth = require('opencode.auth')
+    auth.clear_cache()
+    local original_password = config.values.server.password
+    local original_env_password = vim.env.OPENCODE_SERVER_PASSWORD
+    local original_env_username = vim.env.OPENCODE_SERVER_USERNAME
+    config.values.server.password = nil
+    vim.env.OPENCODE_SERVER_PASSWORD = nil
+    vim.env.OPENCODE_SERVER_USERNAME = nil
+
+    local captured_opts
+    vim.system = function(cmd, opts)
+      captured_opts = opts
+      vim.schedule(function()
+        opts.stdout(nil, 'opencode server listening on http://127.0.0.1:7777')
+      end)
+      return { pid = 1, kill = function() end }
+    end
+
+    local server = OpencodeServer.new()
+    server:spawn({
+      cwd = '.',
+      on_ready = function() end,
+      on_error = function() end,
+      on_exit = function() end,
+    })
+
+    vim.wait(100, function()
+      return captured_opts ~= nil
+    end)
+
+    assert.is_not_nil(captured_opts)
+    assert.same({}, captured_opts.env)
+
+    config.values.server.password = original_password
+    if original_env_password then
+      vim.env.OPENCODE_SERVER_PASSWORD = original_env_password
+    else
+      vim.env.OPENCODE_SERVER_PASSWORD = nil
+    end
+    if original_env_username then
+      vim.env.OPENCODE_SERVER_USERNAME = original_env_username
+    else
+      vim.env.OPENCODE_SERVER_USERNAME = nil
+    end
+  end)
+
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
     local exit_callback
@@ -385,6 +472,95 @@ describe('opencode.opencode_server', function()
 
       assert.equals(1000, captured.timeout)
       assert.equals('', captured.proxy)
+    end)
+  end)
+
+  describe('authentication headers', function()
+    local config
+    local auth = require('opencode.auth')
+    local original_password
+    local original_username
+    local original_env_password
+    local original_env_username
+
+    before_each(function()
+      auth.clear_cache()
+      config = require('opencode.config')
+      original_password = config.values.server.password
+      original_username = config.values.server.username
+      original_env_password = vim.env.OPENCODE_SERVER_PASSWORD
+      original_env_username = vim.env.OPENCODE_SERVER_USERNAME
+      config.values.server.password = nil
+      config.values.server.username = nil
+      vim.env.OPENCODE_SERVER_PASSWORD = nil
+      vim.env.OPENCODE_SERVER_USERNAME = nil
+    end)
+
+    after_each(function()
+      config.values.server.password = original_password
+      config.values.server.username = original_username
+      if original_env_password then
+        vim.env.OPENCODE_SERVER_PASSWORD = original_env_password
+      else
+        vim.env.OPENCODE_SERVER_PASSWORD = nil
+      end
+      if original_env_username then
+        vim.env.OPENCODE_SERVER_USERNAME = original_env_username
+      else
+        vim.env.OPENCODE_SERVER_USERNAME = nil
+      end
+    end)
+
+    it('health_check includes Authorization header when password is set', function()
+      config.values.server.password = 'secret'
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.health_check('http://127.0.0.1:3000/global/health', 2000)
+
+      assert.is_not_nil(captured)
+      assert.is_not_nil(captured.headers)
+      assert.truthy(vim.startswith(captured.headers['Authorization'], 'Basic '))
+    end)
+
+    it('health_check does not include Authorization header when no password', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.health_check('http://127.0.0.1:3000/global/health', 2000)
+
+      assert.is_not_nil(captured)
+      assert.is_nil(captured.headers['Authorization'])
+    end)
+
+    it('request_graceful_shutdown includes Authorization header when password is set', function()
+      config.values.server.password = 'secret'
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.is_not_nil(captured)
+      assert.is_not_nil(captured.headers)
+      assert.truthy(vim.startswith(captured.headers['Authorization'], 'Basic '))
+    end)
+
+    it('request_graceful_shutdown does not include Authorization header when no password', function()
+      local captured
+      curl.request = function(opts)
+        captured = opts
+      end
+
+      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+
+      assert.is_not_nil(captured)
+      assert.is_nil(captured.headers['Authorization'])
     end)
   end)
 end)

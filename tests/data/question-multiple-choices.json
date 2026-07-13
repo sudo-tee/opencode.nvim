@@ -1,0 +1,1227 @@
+[
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "open_input_new_session",
+          "source": {
+            "raw_args": "open_input_new_session",
+            "argv": ["open_input_new_session"]
+          },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "open_input_new_session",
+        "source": {
+          "raw_args": "open_input_new_session",
+          "argv": ["open_input_new_session"]
+        },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": { "url": "http://127.0.0.1:4096" },
+    "type": "custom.server_starting"
+  },
+  {
+    "properties": { "url": "http://127.0.0.1:4096" },
+    "type": "custom.server_ready"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "open_input_new_session",
+        "source": {
+          "raw_args": "open_input_new_session",
+          "argv": ["open_input_new_session"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "open_input_new_session",
+          "source": {
+            "raw_args": "open_input_new_session",
+            "argv": ["open_input_new_session"]
+          },
+          "args": []
+        }
+      },
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "open_input_new_session",
+        "source": {
+          "raw_args": "open_input_new_session",
+          "argv": ["open_input_new_session"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "open_input_new_session",
+          "source": {
+            "raw_args": "open_input_new_session",
+            "argv": ["open_input_new_session"]
+          },
+          "args": []
+        }
+      },
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  { "properties": [], "type": "custom.emit_events.started" },
+  { "properties": {}, "type": "server.connected" },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "close",
+          "source": { "raw_args": "close", "argv": ["close"] },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "close",
+        "source": { "raw_args": "close", "argv": ["close"] },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "close",
+        "source": { "raw_args": "close", "argv": ["close"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "close",
+          "source": { "raw_args": "close", "argv": ["close"] },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "close",
+        "source": { "raw_args": "close", "argv": ["close"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "close",
+          "source": { "raw_args": "close", "argv": ["close"] },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "toggle",
+          "source": { "raw_args": "toggle", "argv": ["toggle"] },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "toggle",
+        "source": { "raw_args": "toggle", "argv": ["toggle"] },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "toggle",
+        "source": { "raw_args": "toggle", "argv": ["toggle"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "toggle",
+          "source": { "raw_args": "toggle", "argv": ["toggle"] },
+          "args": []
+        }
+      },
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "toggle",
+        "source": { "raw_args": "toggle", "argv": ["toggle"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "toggle",
+          "source": { "raw_args": "toggle", "argv": ["toggle"] },
+          "args": []
+        }
+      },
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "configure_provider",
+          "source": {
+            "raw_args": "configure_provider",
+            "argv": ["configure_provider"]
+          },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "configure_provider",
+        "source": {
+          "raw_args": "configure_provider",
+          "argv": ["configure_provider"]
+        },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "configure_provider",
+        "source": {
+          "raw_args": "configure_provider",
+          "argv": ["configure_provider"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "configure_provider",
+          "source": {
+            "raw_args": "configure_provider",
+            "argv": ["configure_provider"]
+          },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "configure_provider",
+        "source": {
+          "raw_args": "configure_provider",
+          "argv": ["configure_provider"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "configure_provider",
+          "source": {
+            "raw_args": "configure_provider",
+            "argv": ["configure_provider"]
+          },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "prev_prompt_history",
+          "source": {
+            "raw_args": "prev_prompt_history",
+            "argv": ["prev_prompt_history"]
+          },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "prev_prompt_history",
+        "source": {
+          "raw_args": "prev_prompt_history",
+          "argv": ["prev_prompt_history"]
+        },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "prev_prompt_history",
+        "source": {
+          "raw_args": "prev_prompt_history",
+          "argv": ["prev_prompt_history"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "prev_prompt_history",
+          "source": {
+            "raw_args": "prev_prompt_history",
+            "argv": ["prev_prompt_history"]
+          },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "prev_prompt_history",
+        "source": {
+          "raw_args": "prev_prompt_history",
+          "argv": ["prev_prompt_history"]
+        },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "prev_prompt_history",
+          "source": {
+            "raw_args": "prev_prompt_history",
+            "argv": ["prev_prompt_history"]
+          },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "args": [],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "context_items",
+          "source": { "raw_args": "context_items", "argv": ["context_items"] },
+          "args": []
+        }
+      },
+      "intent": {
+        "name": "context_items",
+        "source": { "raw_args": "context_items", "argv": ["context_items"] },
+        "args": []
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "context_items",
+        "source": { "raw_args": "context_items", "argv": ["context_items"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "context_items",
+          "source": { "raw_args": "context_items", "argv": ["context_items"] },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "context_items",
+        "source": { "raw_args": "context_items", "argv": ["context_items"] },
+        "args": []
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "context_items",
+          "source": { "raw_args": "context_items", "argv": ["context_items"] },
+          "args": []
+        }
+      },
+      "args": []
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "args": ["n"],
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "submit_input_prompt",
+          "source": {
+            "raw_args": "submit_input_prompt n",
+            "argv": ["submit_input_prompt", "n"]
+          },
+          "args": ["n"]
+        }
+      },
+      "intent": {
+        "name": "submit_input_prompt",
+        "source": {
+          "raw_args": "submit_input_prompt n",
+          "argv": ["submit_input_prompt", "n"]
+        },
+        "args": ["n"]
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "submit_input_prompt",
+        "source": {
+          "raw_args": "submit_input_prompt n",
+          "argv": ["submit_input_prompt", "n"]
+        },
+        "args": ["n"]
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "submit_input_prompt",
+          "source": {
+            "raw_args": "submit_input_prompt n",
+            "argv": ["submit_input_prompt", "n"]
+          },
+          "args": ["n"]
+        }
+      },
+      "result": {
+        "_resolved": true,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": ["n"]
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "name": "submit_input_prompt",
+        "source": {
+          "raw_args": "submit_input_prompt n",
+          "argv": ["submit_input_prompt", "n"]
+        },
+        "args": ["n"]
+      },
+      "parsed": {
+        "ok": true,
+        "intent": {
+          "name": "submit_input_prompt",
+          "source": {
+            "raw_args": "submit_input_prompt n",
+            "argv": ["submit_input_prompt", "n"]
+          },
+          "args": ["n"]
+        }
+      },
+      "result": {
+        "_resolved": true,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "args": ["n"]
+    },
+    "type": "custom.command.finally"
+  },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "cost": 0,
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "version": "1.17.13",
+        "time": { "updated": 1783953921236, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "cost": 0,
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "version": "1.17.13",
+        "time": { "updated": 1783953921236, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "role": "user",
+        "id": "msg_f5bf094d40010EarsFjD5WvW47",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+        "model": {
+          "providerID": "opencode",
+          "variant": "max",
+          "modelID": "deepseek-v4-flash-free"
+        },
+        "time": { "created": 1783953921236 },
+        "agent": "build"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "role": "user",
+        "id": "msg_f5bf094d40010EarsFjD5WvW47",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+        "model": {
+          "providerID": "opencode",
+          "variant": "max",
+          "modelID": "deepseek-v4-flash-free"
+        },
+        "time": { "created": 1783953921236 },
+        "agent": "build"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094d40010EarsFjD5WvW47",
+        "id": "prt_f5bf094d9001UR1zNKyfXTViD6",
+        "type": "text",
+        "text": "Can you ask me a question with the question tool with multiple response, I mean the user can select multiple response",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      },
+      "time": 1783953921244,
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "cost": 0,
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "version": "1.17.13",
+        "time": { "updated": 1783953921246, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "cost": 0,
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "version": "1.17.13",
+        "time": { "updated": 1783953921246, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "status": { "type": "busy" }
+    },
+    "type": "session.status"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "parentID": "msg_f5bf094d40010EarsFjD5WvW47",
+        "variant": "max",
+        "time": { "created": 1783953921253 },
+        "mode": "build",
+        "providerID": "opencode",
+        "role": "assistant",
+        "id": "msg_f5bf094e4001s2intunIXa7y7E",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "modelID": "deepseek-v4-flash-free",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+        "cost": 0,
+        "agent": "build"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "path": {
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim",
+          "root": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "parentID": "msg_f5bf094d40010EarsFjD5WvW47",
+        "variant": "max",
+        "time": { "created": 1783953921253 },
+        "mode": "build",
+        "providerID": "opencode",
+        "role": "assistant",
+        "id": "msg_f5bf094e4001s2intunIXa7y7E",
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "modelID": "deepseek-v4-flash-free",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+        "cost": 0,
+        "agent": "build"
+      }
+    },
+    "type": "message.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "version": "1.17.13",
+        "cost": 0,
+        "time": { "updated": 1783953921331, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "New session - 2026-07-13T14:44:39.919Z",
+        "version": "1.17.13",
+        "cost": 0,
+        "time": { "updated": 1783953921331, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": { "sessionID": "ses_0a4100c91ffecReou1daUfYBxU", "diff": [] },
+    "type": "session.diff"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "role": "user",
+        "id": "msg_f5bf094d40010EarsFjD5WvW47",
+        "summary": { "diffs": [] },
+        "model": {
+          "providerID": "opencode",
+          "variant": "max",
+          "modelID": "deepseek-v4-flash-free"
+        },
+        "agent": "build",
+        "time": { "created": 1783953921236 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "role": "user",
+        "id": "msg_f5bf094d40010EarsFjD5WvW47",
+        "summary": { "diffs": [] },
+        "model": {
+          "providerID": "opencode",
+          "variant": "max",
+          "modelID": "deepseek-v4-flash-free"
+        },
+        "agent": "build",
+        "time": { "created": 1783953921236 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  { "properties": { "id": "core/config-reference" }, "type": "plugin.added" },
+  { "properties": { "id": "agent" }, "type": "plugin.added" },
+  { "properties": { "id": "command" }, "type": "plugin.added" },
+  { "properties": { "id": "skill" }, "type": "plugin.added" },
+  { "properties": { "id": "models-dev" }, "type": "plugin.added" },
+  { "properties": { "id": "config-agent" }, "type": "plugin.added" },
+  { "properties": { "id": "config-command" }, "type": "plugin.added" },
+  { "properties": { "id": "config-skill" }, "type": "plugin.added" },
+  { "properties": { "id": "alibaba" }, "type": "plugin.added" },
+  { "properties": { "id": "amazon-bedrock" }, "type": "plugin.added" },
+  { "properties": { "id": "anthropic" }, "type": "plugin.added" },
+  {
+    "properties": { "id": "azure-cognitive-services" },
+    "type": "plugin.added"
+  },
+  { "properties": { "id": "azure" }, "type": "plugin.added" },
+  { "properties": { "id": "cerebras" }, "type": "plugin.added" },
+  { "properties": { "id": "cloudflare-ai-gateway" }, "type": "plugin.added" },
+  { "properties": { "id": "cloudflare-workers-ai" }, "type": "plugin.added" },
+  { "properties": { "id": "cohere" }, "type": "plugin.added" },
+  { "properties": { "id": "deepinfra" }, "type": "plugin.added" },
+  { "properties": { "id": "gateway" }, "type": "plugin.added" },
+  { "properties": { "id": "github-copilot" }, "type": "plugin.added" },
+  { "properties": { "id": "gitlab" }, "type": "plugin.added" },
+  { "properties": { "id": "google" }, "type": "plugin.added" },
+  { "properties": { "id": "google-vertex-anthropic" }, "type": "plugin.added" },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  { "properties": { "id": "google-vertex" }, "type": "plugin.added" },
+  { "properties": { "id": "groq" }, "type": "plugin.added" },
+  { "properties": { "id": "kilo" }, "type": "plugin.added" },
+  { "properties": { "id": "llmgateway" }, "type": "plugin.added" },
+  { "properties": { "id": "mistral" }, "type": "plugin.added" },
+  { "properties": { "id": "nvidia" }, "type": "plugin.added" },
+  { "properties": { "id": "opencode" }, "type": "plugin.added" },
+  { "properties": { "id": "snowflake-cortex" }, "type": "plugin.added" },
+  { "properties": { "id": "openai-compatible" }, "type": "plugin.added" },
+  { "properties": { "id": "openai" }, "type": "plugin.added" },
+  { "properties": { "id": "openrouter" }, "type": "plugin.added" },
+  { "properties": { "id": "perplexity" }, "type": "plugin.added" },
+  { "properties": {}, "type": "catalog.updated" },
+  { "properties": { "id": "sap-ai-core" }, "type": "plugin.added" },
+  { "properties": { "id": "togetherai" }, "type": "plugin.added" },
+  { "properties": { "id": "vercel" }, "type": "plugin.added" },
+  { "properties": { "id": "venice" }, "type": "plugin.added" },
+  { "properties": { "id": "xai" }, "type": "plugin.added" },
+  { "properties": { "id": "zenmux" }, "type": "plugin.added" },
+  { "properties": { "id": "dynamic-provider" }, "type": "plugin.added" },
+  { "properties": { "id": "config-plugin" }, "type": "plugin.added" },
+  { "properties": { "id": "config-provider" }, "type": "plugin.added" },
+  { "properties": { "id": "variant" }, "type": "plugin.added" },
+  { "properties": {}, "type": "reference.updated" },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  { "properties": {}, "type": "integration.updated" },
+  { "properties": {}, "type": "catalog.updated" },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "status": { "type": "busy" }
+    },
+    "type": "session.status"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09ac0001hBmgU1wyNy63a1",
+        "snapshot": "01d2a3fecfcd3884d8c01d32f8995a8997938a44",
+        "type": "step-start",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      },
+      "time": 1783953922752,
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple example question where",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple example question where they can select multiple options",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple example question where they can select multiple options.",
+        "type": "reasoning",
+        "time": { "start": 1783953923325 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09cfd001unovvHvn3i9yiQ",
+        "text": "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple example question where they can select multiple options.",
+        "type": "reasoning",
+        "time": { "start": 1783953923325, "end": 1783953923840 },
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      },
+      "time": 1783953923840,
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "call_00_OyJZuIrXa6lFZcwG22wx7945",
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "id": "prt_f5bf09f03001XMS6iioqhi7iBn",
+        "state": { "raw": "", "input": {}, "status": "pending" },
+        "type": "tool",
+        "tool": "question",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      },
+      "time": 1783953923843,
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "questions": [
+        {
+          "options": [
+            { "label": "Lua", "description": "Lua programming language" },
+            { "label": "Python", "description": "Python programming language" },
+            {
+              "label": "TypeScript",
+              "description": "TypeScript programming language"
+            },
+            { "label": "Rust", "description": "Rust programming language" }
+          ],
+          "question": "Which programming languages do you use?",
+          "header": "Languages",
+          "multiple": true
+        }
+      ],
+      "tool": {
+        "callID": "call_00_OyJZuIrXa6lFZcwG22wx7945",
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E"
+      },
+      "id": "que_f5bf0a189001uoc6Xw8D1eG6V5",
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "question.asked"
+  },
+  {
+    "properties": {
+      "part": {
+        "callID": "call_00_OyJZuIrXa6lFZcwG22wx7945",
+        "tool": "question",
+        "id": "prt_f5bf09f03001XMS6iioqhi7iBn",
+        "state": {
+          "input": {
+            "questions": [
+              {
+                "options": [
+                  { "label": "Lua", "description": "Lua programming language" },
+                  {
+                    "label": "Python",
+                    "description": "Python programming language"
+                  },
+                  {
+                    "label": "TypeScript",
+                    "description": "TypeScript programming language"
+                  },
+                  {
+                    "label": "Rust",
+                    "description": "Rust programming language"
+                  }
+                ],
+                "question": "Which programming languages do you use?",
+                "header": "Languages",
+                "multiple": true
+              }
+            ]
+          },
+          "time": { "start": 1783953924491 },
+          "status": "running"
+        },
+        "type": "tool",
+        "messageID": "msg_f5bf094e4001s2intunIXa7y7E",
+        "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+      },
+      "time": 1783953924492,
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU"
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "Multi-select question",
+        "version": "1.17.13",
+        "cost": 0,
+        "time": { "updated": 1783953921331, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a4100c91ffecReou1daUfYBxU",
+      "info": {
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "tokens": {
+          "reasoning": 0,
+          "input": 0,
+          "output": 0,
+          "cache": { "write": 0, "read": 0 }
+        },
+        "model": {
+          "providerID": "opencode",
+          "id": "deepseek-v4-flash-free",
+          "variant": "max"
+        },
+        "path": "",
+        "agent": "build",
+        "id": "ses_0a4100c91ffecReou1daUfYBxU",
+        "title": "Multi-select question",
+        "version": "1.17.13",
+        "cost": 0,
+        "time": { "updated": 1783953921331, "created": 1783953879919 },
+        "slug": "playful-squid"
+      }
+    },
+    "type": "session.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" }
+]

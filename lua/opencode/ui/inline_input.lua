@@ -57,6 +57,9 @@ function M.open(opts)
     if vim.api.nvim_win_is_valid(opts.win) then
       vim.api.nvim_set_current_win(opts.win)
     end
+    vim.schedule(function()
+      pcall(vim.cmd.stopinsert)
+    end)
   end
 
   vim.fn.prompt_setcallback(buf, function(text)
@@ -103,6 +106,9 @@ function M.open(opts)
       if vim.api.nvim_win_is_valid(opts.win) then
         vim.api.nvim_set_current_win(opts.win)
       end
+      vim.schedule(function()
+        pcall(vim.cmd.stopinsert)
+      end)
       opts.on_cancel()
     end,
   })

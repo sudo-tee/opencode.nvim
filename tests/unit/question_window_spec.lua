@@ -10,6 +10,7 @@ describe('question_window', function()
     question_window._current_question = nil
     question_window._current_question_index = 1
     question_window._collected_answers = {}
+    question_window._multi_selections = {}
     question_window._answering = false
     question_window._dialog = nil
     state.renderer.set_messages({})

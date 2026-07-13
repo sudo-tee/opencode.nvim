@@ -11,6 +11,7 @@ local M = {}
 M._current_question = nil
 M._current_question_index = 1
 M._collected_answers = {}
+M._multi_selections = {}
 M._answering = false
 M._dialog = nil
 
@@ -176,9 +177,18 @@ function M.show_question(question_request)
 
   M._current_question = question_request
   M._collected_answers = {}
+  M._multi_selections = {}
   M._current_question_index = 1
 
-  if config.ui.questions and config.ui.questions.use_vim_ui_select then
+  local any_multi = false
+  for _, q in ipairs(question_request.questions) do
+    if q.multiple then
+      any_multi = true
+      break
+    end
+  end
+
+  if config.ui.questions and config.ui.questions.use_vim_ui_select and not any_multi then
     M._show_question_with_vim_ui_select()
   else
     M._setup_dialog()
@@ -237,6 +247,7 @@ function M.clear_question()
   M._current_question = nil
   M._current_question_index = 1
   M._collected_answers = {}
+  M._multi_selections = {}
   M._answering = false
   render_question()
 end
@@ -286,7 +297,9 @@ end
 ---@return integer|nil
 local function find_other_option(options)
   for i, opt in ipairs(options) do
-    if vim.startswith(opt.label:lower(), 'other') then
+    local label = opt.label or ''
+    local desc = opt.description or ''
+    if vim.startswith(label:lower(), 'other') or vim.startswith(desc:lower(), 'other') then
       return i
     end
   end
@@ -298,6 +311,18 @@ end
 local function get_total_options(question_info)
   local has_other = find_other_option(question_info.options) ~= nil
   return has_other and #question_info.options or (#question_info.options + 1)
+end
+
+---@param index integer
+---@return boolean
+local function is_other_index(index)
+  local question_info = M.get_current_question_info()
+  if not question_info then
+    return false
+  end
+  local other_index = find_other_option(question_info.options)
+  local total_options = get_total_options(question_info)
+  return (other_index and index == other_index) or (not other_index and index == total_options)
 end
 
 ---@param option_index number
@@ -323,6 +348,102 @@ function M._answer_with_option(option_index)
   answer_current_question(question_info.options[option_index].label)
 end
 
+---Toggle a multi-select option on/off
+---@param option_index integer
+function M._toggle_multi_selection(option_index)
+  local question_info = M.get_current_question_info()
+  if not question_info then
+    return
+  end
+
+  local idx = M._current_question_index
+  M._multi_selections[idx] = M._multi_selections[idx] or {}
+
+  if M._multi_selections[idx][option_index] then
+    M._multi_selections[idx][option_index] = nil
+  else
+    M._multi_selections[idx][option_index] = true
+  end
+end
+
+---Submit all selected multi-select answers for the current question
+function M._submit_multi_answers()
+  local question_info = M.get_current_question_info()
+  if not question_info then
+    return
+  end
+
+  local idx = M._current_question_index
+  local selections = M._multi_selections[idx] or {}
+  local labels = {}
+
+  for option_index in pairs(selections) do
+    if question_info.options[option_index] then
+      table.insert(labels, question_info.options[option_index].label)
+    end
+  end
+
+  if selections.custom_answer then
+    table.insert(labels, selections.custom_answer)
+  end
+
+  if #labels == 0 then
+    vim.notify('Select at least one option', vim.log.levels.WARN)
+    return
+  end
+
+  M._answering = true
+  render_question()
+  M._clear_dialog()
+
+  vim.defer_fn(function()
+    answer_current_question(labels)
+  end, 100)
+end
+
+---Open inline input for multi-select "Other" custom answer
+function M._open_multi_other_input()
+  local question_info = M.get_current_question_info()
+  if not question_info then
+    return
+  end
+
+  local idx = M._current_question_index
+  local use_inline = config.ui.questions.inline_other_input ~= false
+  local pos = use_inline and M._dialog and M._dialog:get_option_position(get_total_options(question_info))
+  local part_data = use_inline
+      and require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+
+  if use_inline and pos and part_data and part_data.line_start and state.windows and state.windows.output_win then
+    require('opencode.ui.inline_input').open({
+      win = state.windows.output_win,
+      row = part_data.line_start + pos.line,
+      col = pos.col,
+      title = 'Type your answer',
+      on_submit = function(text)
+        if text and text ~= '' then
+          M._multi_selections[idx] = M._multi_selections[idx] or {}
+          M._multi_selections[idx].custom_answer = text
+        elseif M._multi_selections[idx] then
+          M._multi_selections[idx].custom_answer = nil
+        end
+        render_question()
+      end,
+      on_cancel = function()
+        render_question()
+      end,
+    })
+  else
+    vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
+      if input and input ~= '' then
+        M._multi_selections[idx] = M._multi_selections[idx] or {}
+        M._multi_selections[idx].custom_answer = input
+        render_question()
+      end
+    end)
+  end
+end
+
 ---Prompt for a free-form answer to the active question.
 function M._answer_with_custom()
   vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
@@ -337,6 +458,7 @@ function M._answer_with_custom()
 end
 
 ---@param options OpencodeQuestionOption[]
+---@param is_multiple? boolean
 ---@return OpencodeQuestionOption[]
 local function add_other_if_missing(options)
   if find_other_option(options) ~= nil then
@@ -403,6 +525,8 @@ function M.format_display(output)
 
   local icons = require('opencode.ui.icons')
 
+  local is_multiple = question_info.multiple == true
+
   local progress = ''
   if M._current_question and #M._current_question.questions > 1 then
     progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
@@ -412,11 +536,20 @@ function M.format_display(output)
 
   -- Prepare options
   local options_to_display = add_other_if_missing(question_info.options)
+  local selections = M._multi_selections[M._current_question_index] or {}
+  local other_display_index = find_other_option(options_to_display)
   local options = {}
   for i, option in ipairs(options_to_display) do
+    local desc = option.description
+    if is_multiple and other_display_index == i then
+      desc = selections.custom_answer or desc
+    end
     table.insert(options, {
       label = option.label,
-      description = option.description,
+      description = desc,
+      checked = is_multiple and other_display_index == i
+        and selections.custom_answer ~= nil
+        or selections[i] == true,
     })
   end
 
@@ -486,6 +619,7 @@ function M._setup_dialog()
     return
   end
 
+  local is_multiple = question_info.multiple == true
   local buf = state.windows.output_buf
 
   ---@return boolean
@@ -497,6 +631,23 @@ function M._setup_dialog()
   ---@param index integer
   local function on_select(index)
     if not check_focused() then
+      return
+    end
+
+    if is_multiple then
+      if is_other_index(index) then
+        local idx = M._current_question_index
+        local selections = M._multi_selections[idx] or {}
+        if selections.custom_answer then
+          selections.custom_answer = nil
+          render_question()
+        else
+          M._open_multi_other_input()
+        end
+        return
+      end
+      M._toggle_multi_selection(index)
+      render_question()
       return
     end
 
@@ -545,11 +696,17 @@ function M._setup_dialog()
     on_dismiss = on_dismiss,
     on_navigate = on_navigate,
     on_navigate_group = on_navigate_group,
+    on_submit_multi = M._submit_multi_answers,
     get_option_count = get_option_count,
     get_group_count = function()
       return M._current_question and #M._current_question.questions or 0
     end,
+    get_has_selections = function()
+      local selections = M._multi_selections[M._current_question_index] or {}
+      return next(selections) ~= nil
+    end,
     check_focused = check_focused,
+    is_multiple = is_multiple,
     namespace_prefix = 'opencode_question',
     keymaps = {
       left = { 'h', '<Left>' },

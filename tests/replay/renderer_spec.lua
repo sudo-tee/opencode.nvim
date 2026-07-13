@@ -762,6 +762,8 @@ describe('renderer functional tests', function()
     'part-before-message-delta',
     'question-ask',
     'question-ask-other',
+    'question-multiple-choices',
+    'question-multiple-other',
     'multiple-question-ask',
     'shifting-and-multiple-perms',
     'message-removal',

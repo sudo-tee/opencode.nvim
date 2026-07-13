@@ -4,9 +4,12 @@
 ---@field on_dismiss? function() Called when dialog is dismissed
 ---@field on_navigate? function() Called when selection changes
 ---@field on_navigate_group? function(index: integer) Called when group selection changes
+---@field on_submit_multi? function() Called when multi-select answers are submitted
 ---@field get_option_count function(): integer Returns the total number of options
 ---@field get_group_count? function(): integer Returns the total number of groups
 ---@field check_focused? function(): boolean Returns whether dialog should be active
+---@field is_multiple? boolean Whether dialog is in multi-select mode
+---@field get_has_selections? function(): boolean Returns whether any multi-select options are checked
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
@@ -18,6 +21,7 @@
 ---@field right? string[] Keys for navigating right between groups
 ---@field select? string Key for selecting current option (default: '<CR>')
 ---@field dismiss? string Key for dismissing dialog (default: '<Esc>')
+---@field toggle? string Key for toggling multi-select options (default: '<Tab>')
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
 
 ---@class Dialog
@@ -28,6 +32,7 @@
 ---@field private _active boolean Whether dialog is currently active
 ---@field private _group_index integer Currently selected group index
 ---@field private _option_positions table<integer, {line: integer, col: integer}>?
+---@field private _is_multiple boolean Whether dialog is in multi-select mode
 local Dialog = {}
 Dialog.__index = Dialog
 
@@ -45,6 +50,7 @@ function Dialog.new(config)
     right = {},
     select = '<CR>',
     dismiss = '<Esc>',
+    toggle = '<Tab>',
     number_shortcuts = true,
   }
 
@@ -62,6 +68,7 @@ function Dialog.new(config)
   self._selected_index = 1
   self._group_index = 1
   self._active = false
+  self._is_multiple = self._config.is_multiple or false
 
   return self
 end
@@ -161,6 +168,17 @@ function Dialog:select()
   self._config.on_select(self._selected_index)
 end
 
+---Submit multi-select answers
+function Dialog:submit_multi_select()
+  if not self._active or not self._config.check_focused() then
+    return
+  end
+
+  if self._config.on_submit_multi then
+    self._config.on_submit_multi()
+  end
+end
+
 ---Dismiss the dialog
 function Dialog:dismiss()
   if not self._active or not self._config.check_focused() then
@@ -240,17 +258,32 @@ function Dialog:format_legend(output, options)
       local line = output:add_line('Question: `h/l` or `<-/->`')
     end
 
-    if keymaps.select and keymaps.select ~= '' then
+    if self._is_multiple then
+      local toggle_text = 'Toggle: `' .. keymaps.toggle .. '`'
+      if keymaps.number_shortcuts and option_count > 0 then
+        local max_shortcut = math.min(option_count, 9)
+        toggle_text = toggle_text .. string.format(' or `1-%d`', max_shortcut)
+      end
+      output:add_line(toggle_text)
+
+      local has_selections = self._config.get_has_selections and self._config.get_has_selections()
+      local submit_hl = has_selections and 'OpencodeQuestionKeyHint' or 'OpencodeQuestionTabPending'
+      local submit_line = output:add_line('Submit: `<CR>`')
+      local submit_idx = submit_line - 1
+      output:add_extmark(submit_idx, {
+        line_hl_group = submit_hl,
+      } --[[@as OutputExtmark]])
+    elseif keymaps.select and keymaps.select ~= '' then
       local select_text = 'Select: `<CR>`'
       if keymaps.number_shortcuts and option_count > 0 then
         local max_shortcut = math.min(option_count, 9)
         select_text = select_text .. string.format(' or `1-%d`', max_shortcut)
       end
-      local line = output:add_line(select_text)
+      output:add_line(select_text)
     end
 
     if keymaps.dismiss and keymaps.dismiss ~= '' then
-      local line = output:add_line('Close: `<Esc>`')
+      output:add_line('Close: `<Esc>`')
     end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'
@@ -275,7 +308,6 @@ function Dialog:format_dialog(output, config)
   end
 
   local formatter = require('opencode.ui.formatter')
-  local icons = require('opencode.ui.icons')
 
   local start_line = output:get_line_count()
 
@@ -331,22 +363,33 @@ function Dialog:format_options(output, options)
       label = label .. ' - ' .. option.description
     end
 
-    local is_selected = self._selected_index == i
-    local prefix = string.format('    %d. ', i)
-    local line_text = is_selected and (prefix .. label .. ' ') or (prefix .. label)
+    local is_cursor = self._selected_index == i
+    local prefix
+
+    if self._is_multiple then
+      local icons = require('opencode.ui.icons')
+      local checkbox = option.checked and icons.get('checkbox_checked') or icons.get('checkbox_unchecked')
+      prefix = string.format('    %s %d. ', checkbox, i)
+    else
+      prefix = string.format('    %d. ', i)
+    end
+
+    local line_text = is_cursor and (prefix .. label .. ' ') or (prefix .. label)
 
     local added_idx = output:add_line(line_text)
     local extmark_idx = added_idx - 1
 
     self._option_positions[i] = { line = extmark_idx, col = #prefix }
 
-    if is_selected then
+    if is_cursor then
       output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
-      output:add_extmark(extmark_idx, {
-        start_col = 2,
-        virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
-        virt_text_pos = 'overlay',
-      } --[[@as OutputExtmark]])
+      if not self._is_multiple then
+        output:add_extmark(extmark_idx, {
+          start_col = 2,
+          virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
+          virt_text_pos = 'overlay',
+        } --[[@as OutputExtmark]])
+      end
     end
   end
 end
@@ -445,7 +488,33 @@ function Dialog:_setup_keymaps()
     end
   end
 
-  if keymaps.select and keymaps.select ~= '' then
+  if self._is_multiple then
+    if keymaps.select and keymaps.select ~= '' then
+      vim.keymap.set(
+        'n',
+        keymaps.select,
+        function()
+          self:submit_multi_select()
+        end,
+        vim.tbl_extend('force', keymap_opts, {
+          desc = 'Dialog: submit multi-select',
+        })
+      )
+      table.insert(self._keymaps, keymaps.select)
+    end
+
+    vim.keymap.set(
+      'n',
+      keymaps.toggle,
+      function()
+        self:select()
+      end,
+      vim.tbl_extend('force', keymap_opts, {
+        desc = 'Dialog: toggle option',
+      })
+    )
+    table.insert(self._keymaps, keymaps.toggle)
+  elseif keymaps.select and keymaps.select ~= '' then
     vim.keymap.set(
       'n',
       keymaps.select,

@@ -49,6 +49,8 @@ local presets = {
     completed = '󰄳 ',
     pending = '󰅐 ',
     running = ' ',
+    checkbox_checked = ' ',
+    checkbox_unchecked = ' ',
   },
   text = {
     -- headers
@@ -94,6 +96,8 @@ local presets = {
     completed = 'X ',
     pending = '- ',
     running = '> ',
+    checkbox_checked = '[*]',
+    checkbox_unchecked = '[ ]',
   },
 }
 

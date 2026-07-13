@@ -147,6 +147,23 @@ function M.actions.next_history()
   restore_prompt_history_entry(next_prompt)
 end
 
+local function has_custom_input()
+  local lines = nvim.nvim_buf_get_lines(0, 0, -1, false)
+  local has_content = #lines > 1 or (lines[1] and lines[1] ~= '')
+
+  if not has_content then
+    return false
+  end
+
+  if history.index == nil then
+    return true
+  end
+
+  local current_text = table.concat(lines, '\n')
+  local entry = history.read()[history.index]
+  return entry == nil or current_text ~= entry
+end
+
 function M.actions.prev_prompt_history()
   local key = config.get_key_for_function('input_window', 'prev_prompt_history')
   if key ~= '<up>' then
@@ -157,6 +174,9 @@ function M.actions.prev_prompt_history()
   local at_boundary = current_line <= 1
 
   if at_boundary then
+    if has_custom_input() then
+      return
+    end
     return M.actions.prev_history()
   end
 
@@ -173,6 +193,9 @@ function M.actions.next_prompt_history()
   local at_boundary = current_line >= nvim.nvim_buf_line_count(0)
 
   if at_boundary then
+    if has_custom_input() then
+      return
+    end
     return M.actions.next_history()
   end
 

@@ -146,10 +146,6 @@ end
 function M.pick(callback, path)
   local picker_type = picker.get_best_picker()
 
-  if not picker_type then
-    return
-  end
-
   local wrapped_callback = function(selected_file)
     local file_name = format_file(selected_file)
     callback(file_name)

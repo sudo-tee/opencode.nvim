@@ -41,6 +41,6 @@ describe('opencode.ui.picker', function()
   end)
 
   it('keeps select as the explicit vim.ui.select fallback', function()
-    assert.is_nil(get_best_picker('select'))
+    assert.equal('select', get_best_picker('select'))
   end)
 end)

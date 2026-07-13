@@ -7,10 +7,6 @@ local picker_aliases = {
 }
 
 local function normalize_picker_name(name)
-  if name == 'select' then
-    return nil
-  end
-
   return picker_aliases[name] or name
 end
 

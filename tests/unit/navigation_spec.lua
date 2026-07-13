@@ -656,3 +656,61 @@ describe('navigation jumplist preservation', function()
     assert.equals(0, mark[2])
   end)
 end)
+
+describe('navigation hidden-messages-notice handling', function()
+  local output_buf, output_win
+  local original_windows
+
+  before_each(function()
+    original_windows = state.store.get('windows')
+    state.ui.clear_hidden_window_state()
+
+    output_buf = vim.api.nvim_create_buf(false, true)
+    output_win = vim.api.nvim_open_win(output_buf, true, {
+      relative = 'editor',
+      width = 80,
+      height = 20,
+      row = 0,
+      col = 0,
+    })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+  end)
+
+  after_each(function()
+    state.ui.clear_hidden_window_state()
+    pcall(vim.api.nvim_win_close, output_win, true)
+    pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+
+    if original_windows ~= nil then
+      state.ui.set_windows(original_windows)
+    else
+      state.ui.clear_windows()
+    end
+  end)
+
+  it('does not jump [[ to the hidden-messages notice when max_messages truncates', function()
+    local ctx = require('opencode.ui.renderer.ctx')
+    -- Simulate `on_message_updated` appending the hidden notice to `state.messages` after a `max_messages` truncation.
+    state.renderer.set_messages({
+      { info = { id = 'real_old', role = 'assistant', sessionID = 's1' } },
+      { info = { id = 'real_mid', role = 'user', sessionID = 's1' } },
+      { info = { id = '__opencode_hidden_messages_notice__', role = 'system', sessionID = 's1' } },
+    })
+    ctx.render_state:set_message(
+      { info = { id = '__opencode_hidden_messages_notice__', role = 'system', sessionID = 's1' } },
+      1,
+      2
+    )
+    ctx.render_state:set_message({ info = { id = 'real_old', role = 'assistant', sessionID = 's1' } }, 4, 8)
+    ctx.render_state:set_message({ info = { id = 'real_mid', role = 'user', sessionID = 's1' } }, 10, 18)
+
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 25))
+    -- Without the fix, [[ from line 11 would match the notice (line 1) instead of `real_old` (line 4).
+    vim.api.nvim_win_set_cursor(output_win, { 11, 0 })
+
+    navigation.goto_prev_message()
+
+    local cursor = vim.api.nvim_win_get_cursor(output_win)
+    assert.equals(5, cursor[1])
+  end)
+end)

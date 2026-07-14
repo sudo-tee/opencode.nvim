@@ -38,6 +38,74 @@ local function build_curl_args(opts)
   return args
 end
 
+-- Header names whose values should never be logged.
+local SENSITIVE_HEADER_NAMES = {
+  authorization = true,
+  ['proxy-authorization'] = true,
+  cookie = true,
+}
+
+-- Query parameters whose values should never be logged.
+local SENSITIVE_QUERY_PARAMS = {
+  access_token = true,
+  token = true,
+  api_key = true,
+  key = true,
+  auth = true,
+}
+
+local function redact_query_params(str)
+  return str:gsub('([?&])([^=&]+)=([^&]*)', function(prefix, key)
+    if SENSITIVE_QUERY_PARAMS[key:lower()] then
+      return prefix .. key .. '=REDACTED'
+    end
+
+    return prefix .. key .. '='
+  end)
+end
+
+local function redact_url(url)
+  return redact_query_params(url:gsub('^(https?://)[^/@]+@', '%1REDACTED@'))
+end
+
+local function redact_header(header)
+  local name = header:match('^%s*([^:]+):')
+  if not name or not SENSITIVE_HEADER_NAMES[name:lower()] then
+    return header
+  end
+
+  return name .. ': REDACTED'
+end
+
+-- Returns a copy of `args` with sensitive values redacted for logging.
+local function sanitize_args(args)
+  local out = {}
+  local i = 1
+
+  while i <= #args do
+    local arg = args[i]
+
+    if (arg == '-H' or arg == '--header') and args[i + 1] then
+      out[#out + 1] = arg
+      out[#out + 1] = redact_header(args[i + 1])
+      i = i + 2
+    elseif arg == '--url' and args[i + 1] then
+      out[#out + 1] = arg
+      out[#out + 1] = redact_url(args[i + 1])
+      i = i + 2
+    elseif type(arg) == 'string' then
+      out[#out + 1] = arg:match('^https?://') and redact_url(arg) or redact_query_params(arg)
+
+      i = i + 1
+    else
+      out[#out + 1] = arg
+      i = i + 1
+    end
+  end
+
+  return out
+end
+
 --- Parse HTTP response headers and body
 --- @param output string Raw curl output with headers
 --- @return table response Response object with status, headers, and body
@@ -82,7 +150,8 @@ function M.request(opts)
   local args = build_curl_args(opts)
 
   local log = require('opencode.log')
-  log.debug('curl.request: executing command: %s', table.concat(args, ' '))
+  local safe_args = sanitize_args(args)
+  log.debug('curl.request: executing command: %s', table.concat(safe_args, ' '))
 
   if opts.stream then
     local buffer = ''

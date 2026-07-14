@@ -1,8 +1,5 @@
 local M = {}
 
----@type string|nil
-local saved_text = nil
-
 ---@class InlineInputOpts
 ---@field win integer            -- window to anchor against
 ---@field row integer            -- 0-indexed row in that window's buffer
@@ -10,8 +7,10 @@ local saved_text = nil
 ---@field min_width? integer
 ---@field max_width? integer
 ---@field title? string           -- window border title
+---@field initial_text? string
 ---@field on_submit fun(text: string)
 ---@field on_cancel fun()
+---@field on_leave? fun(text: string)
 
 ---Open a floating, prompt-buffer-backed text input anchored at a specific
 ---(row, col) inside an existing window's buffer, so it visually appears
@@ -27,9 +26,8 @@ function M.open(opts)
   vim.bo[buf].bufhidden = 'wipe'
   vim.fn.prompt_setprompt(buf, '')
 
-  if saved_text and saved_text ~= '' then
-    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { saved_text })
-    saved_text = nil
+  if opts.initial_text then
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { opts.initial_text })
   end
 
   local win = vim.api.nvim_open_win(buf, true, {
@@ -41,7 +39,7 @@ function M.open(opts)
     style = 'minimal',
     border = 'rounded',
     title = opts.title and (' ' .. opts.title .. ' ') or nil,
-    title_pos = 'left',
+    title_pos = opts.title and 'left' or nil,
     zindex = 60,
   })
 
@@ -57,12 +55,14 @@ function M.open(opts)
     if vim.api.nvim_win_is_valid(opts.win) then
       vim.api.nvim_set_current_win(opts.win)
     end
+    vim.schedule(function()
+      pcall(vim.cmd.stopinsert)
+    end)
   end
 
   vim.fn.prompt_setcallback(buf, function(text)
     close()
     if text ~= '' then
-      saved_text = nil
       opts.on_submit(text)
     else
       opts.on_cancel()
@@ -70,13 +70,11 @@ function M.open(opts)
   end)
 
   vim.keymap.set('i', '<C-c>', function()
-    saved_text = nil
     close()
     opts.on_cancel()
   end, { buffer = buf, silent = true, nowait = true })
 
   vim.keymap.set('n', '<Esc>', function()
-    saved_text = nil
     close()
     opts.on_cancel()
   end, { buffer = buf, silent = true, nowait = true })
@@ -103,6 +101,9 @@ function M.open(opts)
       if vim.api.nvim_win_is_valid(opts.win) then
         vim.api.nvim_set_current_win(opts.win)
       end
+      vim.schedule(function()
+        pcall(vim.cmd.stopinsert)
+      end)
       opts.on_cancel()
     end,
   })
@@ -112,10 +113,10 @@ function M.open(opts)
     callback = function()
       if not closed then
         local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''
-        if line ~= '' then
-          saved_text = line
-        end
         close()
+        if opts.on_leave then
+          opts.on_leave(line)
+        end
         opts.on_cancel()
       end
     end,
@@ -125,6 +126,9 @@ function M.open(opts)
     if vim.api.nvim_win_is_valid(win) then
       vim.api.nvim_set_current_win(win)
       vim.cmd.startinsert()
+      if opts.initial_text then
+        vim.api.nvim_win_set_cursor(win, { 1, vim.fn.strlen(opts.initial_text) })
+      end
     end
   end)
 

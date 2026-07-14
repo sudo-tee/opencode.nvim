@@ -29,7 +29,7 @@
             "OpencodeHint"
           ],
           [
-            " [msg_bfab6dbf3001ZOVHTFKR1CMUE5]",
+            " [msg_f5bf094d40010EarsFjD5WvW47]",
             "OpencodeHint"
           ]
         ],
@@ -49,7 +49,7 @@
         "right_gravity": true,
         "virt_text": [
           [
-            " 2026-01-26 14:30:46",
+            " 2026-07-13 14:45:21",
             "OpencodeHint"
           ]
         ],
@@ -100,67 +100,7 @@
     ],
     [
       5,
-      4,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       6,
-      5,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      7,
-      6,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      8,
-      8,
       0,
       {
         "ns_id": 3,
@@ -182,11 +122,11 @@
             " "
           ],
           [
-            "github-copilot/gpt-4.1",
+            "opencode/deepseek-v4-flash-free",
             "OpencodeHint"
           ],
           [
-            " [msg_bfab6dc80001FueCN7E2691J2R]",
+            " [msg_f5bf094e4001s2intunIXa7y7E]",
             "OpencodeHint"
           ]
         ],
@@ -197,8 +137,8 @@
       }
     ],
     [
-      9,
-      8,
+      6,
+      6,
       0,
       {
         "ns_id": 3,
@@ -206,7 +146,7 @@
         "right_gravity": true,
         "virt_text": [
           [
-            " 2026-01-26 14:30:46",
+            " 2026-07-13 14:45:21",
             "OpencodeHint"
           ]
         ],
@@ -216,8 +156,92 @@
       }
     ],
     [
+      7,
+      8,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      8,
+      9,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      9,
       10,
-      13,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      10,
+      11,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      11,
+      15,
       0,
       {
         "ns_id": 3,
@@ -254,37 +278,7 @@
       }
     ],
     [
-      11,
-      15,
-      0,
-      {
-        "end_col": 26,
-        "end_right_gravity": false,
-        "end_row": 15,
-        "hl_eol": false,
-        "hl_group": "OpencodeQuestionTabActive",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
       12,
-      15,
-      27,
-      {
-        "end_col": 53,
-        "end_right_gravity": false,
-        "end_row": 15,
-        "hl_eol": false,
-        "hl_group": "OpencodeQuestionTabPending",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
-      13,
       17,
       0,
       {
@@ -295,7 +289,7 @@
       }
     ],
     [
-      14,
+      13,
       17,
       0,
       {
@@ -315,8 +309,28 @@
       }
     ],
     [
-      15,
+      14,
       18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      15,
+      19,
       0,
       {
         "ns_id": 3,
@@ -336,7 +350,7 @@
     ],
     [
       16,
-      19,
+      20,
       0,
       {
         "ns_id": 3,
@@ -356,26 +370,6 @@
     ],
     [
       17,
-      20,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      18,
       21,
       0,
       {
@@ -386,8 +380,28 @@
       }
     ],
     [
-      19,
+      18,
       21,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      19,
+      22,
       0,
       {
         "ns_id": 3,
@@ -407,45 +421,6 @@
     ],
     [
       20,
-      21,
-      2,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "› ",
-            "OpencodeDialogOptionHover"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "overlay",
-        "virt_text_repeat_linebreak": false
-      }
-    ],
-    [
-      21,
-      22,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      22,
       23,
       0,
       {
@@ -465,47 +440,47 @@
       }
     ],
     [
+      21,
+      24,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      22,
+      25,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
       23,
-      24,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      24,
-      25,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      25,
       26,
       0,
       {
@@ -525,48 +500,108 @@
       }
     ],
     [
+      24,
+      27,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      25,
+      28,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
       26,
-      27,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      27,
-      28,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      28,
       29,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      27,
+      30,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      28,
+      31,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      29,
+      32,
       0,
       {
         "ns_id": 3,
@@ -589,44 +624,47 @@
     "----",
     "",
     "",
-    "[`tests/replay/renderer_spec.lua`](tests/replay/renderer_spec.lua)",
-    "",
-    "can you use the question tool and ask me a couple of questions",
+    "Can you ask me a question with the question tool with multiple response, I mean the user can select multiple response",
     "",
     "----",
     "",
+    "",
+    "**󰧑  Reasoning** ",
+    "",
+    "The user wants to see an example of using the question tool with multiple selection enabled. I'll create a simple example question where they can select multiple options.",
     "",
     "** question** ",
     "",
     "----",
     "",
     "",
-    " 1 [Testing Framework?]     2 [Run Tests Approach]   ",
+    " Question",
     "",
-    " Question (1/2)",
+    "Which programming languages do you use?",
     "",
-    "Which Lua testing framework do you use or prefer for your Neovim Lua plugins?",
-    "",
-    "    1. busted - Busted is the most common Lua testing framework. ",
-    "    2. plenary.nvim - Plenary.nvim provides unit test utilities for Neovim plugins.",
-    "    3. other - Other or custom test framework",
-    "    4. Other - Type your own answer",
+    "      1. Lua - Lua programming language ",
+    "      2. Python - Python programming language",
+    "      3. TypeScript - TypeScript programming language",
+    "      4. Rust - Rust programming language",
+    "      5. Other - Type your own answer",
+    "    →  Confirm - Submit selected answers",
     "",
     "Move: `j/k` or `↑/↓`",
     "Question: `h/l` or `<-/->`",
-    "Choose/Edit: `<CR>` or `<Tab>` or `1-4`",
+    "Toggle/Edit: `<CR>` or `<Tab>` or `<Space>` or `1-5`",
+    "Submit: select Confirm and press `<CR>`",
     "Close: `<Esc>`",
     "",
     ""
   ],
-  "timestamp": 1779709441,
+  "timestamp": 1783967222,
   "window": {
     "cursor": [
-      31,
+      34,
       0
     ],
-    "effective_bottom": 31,
-    "line_count": 32,
-    "visible_bottom": 32
+    "effective_bottom": 34,
+    "line_count": 35,
+    "visible_bottom": 35
   }
 }

@@ -5,8 +5,10 @@
 ---@field on_navigate? function() Called when selection changes
 ---@field on_navigate_group? function(index: integer) Called when group selection changes
 ---@field get_option_count function(): integer Returns the total number of options
+---@field get_shortcut_count? function(): integer Returns the options addressable by toggle and number shortcuts
 ---@field get_group_count? function(): integer Returns the total number of groups
 ---@field check_focused? function(): boolean Returns whether dialog should be active
+---@field is_multiple? boolean Whether dialog is in multi-select mode
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
@@ -17,7 +19,10 @@
 ---@field left? string[] Keys for navigating left between groups
 ---@field right? string[] Keys for navigating right between groups
 ---@field select? string Key for selecting current option (default: '<CR>')
+---@field select_aliases? string[] Additional keys for selecting the current option
 ---@field dismiss? string Key for dismissing dialog (default: '<Esc>')
+---@field toggle? string Key for toggling multi-select options (default: '<Tab>')
+---@field toggle_aliases? string[] Additional keys for toggling multi-select options
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
 
 ---@class Dialog
@@ -28,6 +33,7 @@
 ---@field private _active boolean Whether dialog is currently active
 ---@field private _group_index integer Currently selected group index
 ---@field private _option_positions table<integer, {line: integer, col: integer}>?
+---@field private _is_multiple boolean Whether dialog is in multi-select mode
 local Dialog = {}
 Dialog.__index = Dialog
 
@@ -45,6 +51,7 @@ function Dialog.new(config)
     right = {},
     select = '<CR>',
     dismiss = '<Esc>',
+    toggle = '<Tab>',
     number_shortcuts = true,
   }
 
@@ -62,6 +69,7 @@ function Dialog.new(config)
   self._selected_index = 1
   self._group_index = 1
   self._active = false
+  self._is_multiple = self._config.is_multiple or false
 
   return self
 end
@@ -161,6 +169,21 @@ function Dialog:select()
   self._config.on_select(self._selected_index)
 end
 
+---Act on the current multi-select choice without activating trailing action rows.
+function Dialog:toggle()
+  if not self._active or not self._config.check_focused() then
+    return
+  end
+
+  local shortcut_count = self._config.get_shortcut_count and self._config.get_shortcut_count()
+    or self._config.get_option_count()
+  if self._selected_index < 1 or self._selected_index > shortcut_count then
+    return
+  end
+
+  self._config.on_select(self._selected_index)
+end
+
 ---Dismiss the dialog
 function Dialog:dismiss()
   if not self._active or not self._config.check_focused() then
@@ -240,17 +263,37 @@ function Dialog:format_legend(output, options)
       local line = output:add_line('Question: `h/l` or `<-/->`')
     end
 
-    if keymaps.select and keymaps.select ~= '' then
-      local select_text = 'Select: `<CR>`'
+    if self._is_multiple then
+      local action_keys = { keymaps.select, keymaps.toggle }
+      for _, key in ipairs(keymaps.toggle_aliases or {}) do
+        if not vim.tbl_contains(action_keys, key) then
+          table.insert(action_keys, key)
+        end
+      end
+      local action_text = 'Toggle/Edit: `' .. table.concat(action_keys, '` or `') .. '`'
+      local shortcut_count = self._config.get_shortcut_count and self._config.get_shortcut_count() or option_count
+      if keymaps.number_shortcuts and shortcut_count > 0 then
+        local max_shortcut = math.min(shortcut_count, 9)
+        action_text = action_text .. string.format(' or `1-%d`', max_shortcut)
+      end
+      output:add_line(action_text)
+      output:add_line('Submit: select Confirm and press `' .. keymaps.select .. '`')
+    elseif keymaps.select and keymaps.select ~= '' then
+      local select_keys = { keymaps.select }
+      for _, key in ipairs(keymaps.select_aliases or {}) do
+        table.insert(select_keys, key)
+      end
+      local action = #select_keys > 1 and 'Choose/Edit' or 'Select'
+      local select_text = action .. ': `' .. table.concat(select_keys, '` or `') .. '`'
       if keymaps.number_shortcuts and option_count > 0 then
         local max_shortcut = math.min(option_count, 9)
         select_text = select_text .. string.format(' or `1-%d`', max_shortcut)
       end
-      local line = output:add_line(select_text)
+      output:add_line(select_text)
     end
 
     if keymaps.dismiss and keymaps.dismiss ~= '' then
-      local line = output:add_line('Close: `<Esc>`')
+      output:add_line('Close: `<Esc>`')
     end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'
@@ -275,7 +318,6 @@ function Dialog:format_dialog(output, config)
   end
 
   local formatter = require('opencode.ui.formatter')
-  local icons = require('opencode.ui.icons')
 
   local start_line = output:get_line_count()
 
@@ -331,22 +373,37 @@ function Dialog:format_options(output, options)
       label = label .. ' - ' .. option.description
     end
 
-    local is_selected = self._selected_index == i
-    local prefix = string.format('    %d. ', i)
-    local line_text = is_selected and (prefix .. label .. ' ') or (prefix .. label)
+    local is_cursor = self._selected_index == i
+    local prefix
+
+    if self._is_multiple then
+      if option.confirm then
+        prefix = '    →  '
+      else
+        local icons = require('opencode.ui.icons')
+        local checkbox = option.checked and icons.get('checkbox_checked') or icons.get('checkbox_unchecked')
+        prefix = string.format('    %s %d. ', checkbox, i)
+      end
+    else
+      prefix = string.format('    %d. ', i)
+    end
+
+    local line_text = is_cursor and (prefix .. label .. ' ') or (prefix .. label)
 
     local added_idx = output:add_line(line_text)
     local extmark_idx = added_idx - 1
 
     self._option_positions[i] = { line = extmark_idx, col = #prefix }
 
-    if is_selected then
+    if is_cursor then
       output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
-      output:add_extmark(extmark_idx, {
-        start_col = 2,
-        virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
-        virt_text_pos = 'overlay',
-      } --[[@as OutputExtmark]])
+      if not self._is_multiple then
+        output:add_extmark(extmark_idx, {
+          start_col = 2,
+          virt_text = { { '› ', 'OpencodeDialogOptionHover' } },
+          virt_text_pos = 'overlay',
+        } --[[@as OutputExtmark]])
+      end
     end
   end
 end
@@ -372,6 +429,23 @@ function Dialog:_setup_keymaps()
 
   local keymaps = self._config.keymaps
   local keymap_opts = { buffer = buf, silent = true }
+
+  local function map_select(key)
+    if not key or key == '' then
+      return
+    end
+    vim.keymap.set(
+      'n',
+      key,
+      function()
+        self:select()
+      end,
+      vim.tbl_extend('force', keymap_opts, {
+        desc = 'Dialog: select option',
+      })
+    )
+    table.insert(self._keymaps, key)
+  end
 
   if keymaps.up then
     for _, key in ipairs(keymaps.up) do
@@ -445,18 +519,26 @@ function Dialog:_setup_keymaps()
     end
   end
 
-  if keymaps.select and keymaps.select ~= '' then
-    vim.keymap.set(
-      'n',
-      keymaps.select,
-      function()
-        self:select()
-      end,
-      vim.tbl_extend('force', keymap_opts, {
-        desc = 'Dialog: select option',
-      })
-    )
-    table.insert(self._keymaps, keymaps.select)
+  if self._is_multiple then
+    map_select(keymaps.select)
+    local function map_toggle(key)
+      if not key or key == '' or key == keymaps.select then
+        return
+      end
+      vim.keymap.set('n', key, function()
+        self:toggle()
+      end, vim.tbl_extend('force', keymap_opts, { desc = 'Dialog: toggle option', nowait = true }))
+      table.insert(self._keymaps, key)
+    end
+    map_toggle(keymaps.toggle)
+    for _, key in ipairs(keymaps.toggle_aliases or {}) do
+      map_toggle(key)
+    end
+  elseif keymaps.select and keymaps.select ~= '' then
+    map_select(keymaps.select)
+    for _, key in ipairs(keymaps.select_aliases or {}) do
+      map_select(key)
+    end
   end
 
   if keymaps.dismiss and keymaps.dismiss ~= '' then
@@ -474,7 +556,8 @@ function Dialog:_setup_keymaps()
   end
 
   if keymaps.number_shortcuts then
-    local option_count = self._config.get_option_count()
+    local option_count = self._config.get_shortcut_count and self._config.get_shortcut_count()
+      or self._config.get_option_count()
     local number_keymap_opts = vim.tbl_extend('force', keymap_opts, { nowait = true })
     for i = 1, math.min(option_count, 9) do
       local key = tostring(i)

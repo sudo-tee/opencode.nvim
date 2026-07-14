@@ -29,7 +29,7 @@
             "OpencodeHint"
           ],
           [
-            " [msg_bfab6dbf3001ZOVHTFKR1CMUE5]",
+            " [msg_f5cc36bf6001DoYmNlAd9dSCzU]",
             "OpencodeHint"
           ]
         ],
@@ -49,7 +49,7 @@
         "right_gravity": true,
         "virt_text": [
           [
-            " 2026-01-26 14:30:46",
+            " 2026-07-13 18:35:38",
             "OpencodeHint"
           ]
         ],
@@ -100,67 +100,7 @@
     ],
     [
       5,
-      4,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
       6,
-      5,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      7,
-      6,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      8,
-      8,
       0,
       {
         "ns_id": 3,
@@ -182,11 +122,11 @@
             " "
           ],
           [
-            "github-copilot/gpt-4.1",
+            "opencode/deepseek-v4-flash-free",
             "OpencodeHint"
           ],
           [
-            " [msg_bfab6dc80001FueCN7E2691J2R]",
+            " [msg_f5cc36c09001f6XapanTWR8RCk]",
             "OpencodeHint"
           ]
         ],
@@ -197,8 +137,8 @@
       }
     ],
     [
-      9,
-      8,
+      6,
+      6,
       0,
       {
         "ns_id": 3,
@@ -206,7 +146,7 @@
         "right_gravity": true,
         "virt_text": [
           [
-            " 2026-01-26 14:30:46",
+            " 2026-07-13 18:35:38",
             "OpencodeHint"
           ]
         ],
@@ -216,8 +156,172 @@
       }
     ],
     [
+      7,
+      8,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      8,
+      9,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      9,
       10,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      10,
+      11,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      11,
+      12,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      12,
       13,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      13,
+      14,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      14,
+      15,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      15,
+      18,
       0,
       {
         "ns_id": 3,
@@ -226,24 +330,24 @@
         "virt_text": [
           [
             " ",
-            "OpencodeMessageRoleSystem"
+            "OpencodeMessageRoleAssistant"
           ],
           [
             " "
           ],
           [
-            "SYSTEM",
-            "OpencodeMessageRoleSystem"
+            "BUILD",
+            "OpencodeMessageRoleAssistant"
           ],
           [
             " "
           ],
           [
-            "",
+            "opencode/deepseek-v4-flash-free",
             "OpencodeHint"
           ],
           [
-            " [question-display-message]",
+            " [msg_f5cc3d92f001GCOb0OGsbQwZaI]",
             "OpencodeHint"
           ]
         ],
@@ -254,334 +358,106 @@
       }
     ],
     [
-      11,
-      15,
-      0,
-      {
-        "end_col": 26,
-        "end_right_gravity": false,
-        "end_row": 15,
-        "hl_eol": false,
-        "hl_group": "OpencodeQuestionTabActive",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
-      12,
-      15,
-      27,
-      {
-        "end_col": 53,
-        "end_right_gravity": false,
-        "end_row": 15,
-        "hl_eol": false,
-        "hl_group": "OpencodeQuestionTabPending",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
-      13,
-      17,
-      0,
-      {
-        "line_hl_group": "OpencodeQuestionTitle",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
-      14,
-      17,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      15,
-      18,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
       16,
-      19,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      17,
-      20,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
       18,
-      21,
-      0,
-      {
-        "line_hl_group": "OpencodeDialogOptionHover",
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true
-      }
-    ],
-    [
-      19,
-      21,
       0,
       {
         "ns_id": 3,
-        "priority": 4096,
+        "priority": 9,
         "right_gravity": true,
         "virt_text": [
           [
-            "▌",
-            "OpencodeQuestionBorder"
+            " 2026-07-13 18:36:06",
+            "OpencodeHint"
           ]
         ],
         "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      20,
-      21,
-      2,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "› ",
-            "OpencodeDialogOptionHover"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "overlay",
+        "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
     ],
     [
+      17,
+      20,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      18,
       21,
+      0,
+      {
+        "line_hl_group": "OpencodeReasoningText",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      19,
       22,
       0,
       {
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
         "priority": 4096,
         "right_gravity": true,
         "virt_text": [
           [
             "▌",
-            "OpencodeQuestionBorder"
+            "OpencodeToolBorder"
           ]
         ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
+        "virt_text_win_col": -1
       }
     ],
     [
-      22,
+      20,
       23,
       0,
       {
+        "line_hl_group": "OpencodeReasoningText",
         "ns_id": 3,
         "priority": 4096,
         "right_gravity": true,
         "virt_text": [
           [
             "▌",
-            "OpencodeQuestionBorder"
+            "OpencodeToolBorder"
           ]
         ],
         "virt_text_hide": false,
         "virt_text_pos": "win_col",
         "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      23,
-      24,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      24,
-      25,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      25,
-      26,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      26,
-      27,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      27,
-      28,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
-      }
-    ],
-    [
-      28,
-      29,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeQuestionBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -2
+        "virt_text_win_col": -1
       }
     ]
   ],
@@ -589,44 +465,39 @@
     "----",
     "",
     "",
-    "[`tests/replay/renderer_spec.lua`](tests/replay/renderer_spec.lua)",
-    "",
-    "can you use the question tool and ask me a couple of questions",
+    "can you ask multiple selectable choices question using the question tool",
     "",
     "----",
     "",
+    "",
+    "**󰧑  Reasoning 1s** ",
+    "",
+    "The user wants me to use the question tool to ask them a multiple-selectable choices question. Let me ask a question that demonstrates the multiple select feature.",
     "",
     "** question** ",
     "",
+    "**Q1:** Which of these features would you be interested in?",
+    "**A1:** LSP integration, ai",
+    "",
     "----",
     "",
     "",
-    " 1 [Testing Framework?]     2 [Run Tests Approach]   ",
+    "**󰧑  Reasoning** ",
     "",
-    " Question (1/2)",
+    "The user answered \"LSP integration, ai\" where \"ai\" was typed in as a custom answer. This shows how the question tool works with multiple selectable options and custom input.",
     "",
-    "Which Lua testing framework do you use or prefer for your Neovim Lua plugins?",
-    "",
-    "    1. busted - Busted is the most common Lua testing framework. ",
-    "    2. plenary.nvim - Plenary.nvim provides unit test utilities for Neovim plugins.",
-    "    3. other - Other or custom test framework",
-    "    4. Other - Type your own answer",
-    "",
-    "Move: `j/k` or `↑/↓`",
-    "Question: `h/l` or `<-/->`",
-    "Choose/Edit: `<CR>` or `<Tab>` or `1-4`",
-    "Close: `<Esc>`",
+    "Confirmed — `question` tool with `multiple: true` lets user pick multiple checkboxes + type custom answer. That's how it works.",
     "",
     ""
   ],
-  "timestamp": 1779709441,
+  "timestamp": 1783967549,
   "window": {
     "cursor": [
-      31,
+      26,
       0
     ],
-    "effective_bottom": 31,
-    "line_count": 32,
-    "visible_bottom": 32
+    "effective_bottom": 26,
+    "line_count": 27,
+    "visible_bottom": 27
   }
 }

@@ -291,6 +291,157 @@ describe('Dialog', function()
       assert.is_true(show_called, 'input should be shown after answering question with auto_hide disabled')
     end)
   end)
+
+  describe('question keymaps', function()
+    local function map_callback(key)
+      return vim.fn.maparg(key, 'n', false, true).callback
+    end
+
+    it('maps Tab only when a single-select dialog requests an alias', function()
+      vim.api.nvim_set_current_win(output_win)
+
+      local selected = 0
+      local question_dialog = Dialog.new({
+        buffer = output_buf,
+        on_select = function()
+          selected = selected + 1
+        end,
+        get_option_count = function()
+          return 1
+        end,
+        hide_input = false,
+        keymaps = { select_aliases = { '<Tab>' } },
+      })
+      question_dialog:setup()
+
+      assert.is_function(map_callback('<Tab>'))
+      map_callback('<Tab>')()
+      assert.are.equal(1, selected)
+      question_dialog:teardown()
+
+      local permission_dialog = Dialog.new({
+        buffer = output_buf,
+        on_select = function() end,
+        get_option_count = function()
+          return 1
+        end,
+        hide_input = false,
+      })
+      permission_dialog:setup()
+
+      assert.is_nil(map_callback('<Tab>'))
+      local permission_output = Output.new()
+      permission_dialog:format_legend(permission_output)
+      local legend = table.concat(permission_output.lines, '\n')
+      assert.is_truthy(legend:find('Select: `<CR>`'))
+      assert.is_nil(legend:find('Edit'))
+      permission_dialog:teardown()
+    end)
+
+    it('uses Enter, Tab, and Space to act on a multi-select choice', function()
+      vim.api.nvim_set_current_win(output_win)
+
+      local selected = 0
+      local dialog = Dialog.new({
+        buffer = output_buf,
+        on_select = function()
+          selected = selected + 1
+        end,
+        get_option_count = function()
+          return 1
+        end,
+        is_multiple = true,
+        hide_input = false,
+        keymaps = { toggle_aliases = { '<Space>' } },
+      })
+      dialog:setup()
+
+      assert.are.equal(1, vim.fn.maparg('<Space>', 'n', false, true).nowait)
+      map_callback('<Tab>')()
+      map_callback('<Space>')()
+      map_callback('<CR>')()
+
+      assert.are.equal(3, selected)
+      dialog:teardown()
+    end)
+
+    it('submits a trailing action row only with Enter', function()
+      vim.api.nvim_set_current_win(output_win)
+
+      local selected = {}
+      local dialog = Dialog.new({
+        buffer = output_buf,
+        on_select = function(index)
+          table.insert(selected, index)
+        end,
+        get_option_count = function()
+          return 2
+        end,
+        get_shortcut_count = function()
+          return 1
+        end,
+        is_multiple = true,
+        hide_input = false,
+        keymaps = { toggle_aliases = { '<Space>' } },
+      })
+      dialog:setup()
+      dialog:set_selection(2)
+
+      map_callback('<Tab>')()
+      map_callback('<Space>')()
+      assert.are.same({}, selected)
+      assert.is_nil(map_callback('2'))
+
+      map_callback('<CR>')()
+      assert.are.same({ 2 }, selected)
+      dialog:teardown()
+    end)
+
+    it('derives question legends from the configured keymaps', function()
+      vim.api.nvim_set_current_win(output_win)
+
+      local single = Dialog.new({
+        buffer = output_buf,
+        on_select = function() end,
+        get_option_count = function()
+          return 2
+        end,
+        hide_input = false,
+        keymaps = { select_aliases = { '<Tab>' } },
+      })
+      single:setup()
+      local single_output = Output.new()
+      single:format_legend(single_output)
+      assert.is_truthy(table.concat(single_output.lines, '\n'):find('Choose/Edit: `<CR>` or `<Tab>` or `1%-2`'))
+      single:teardown()
+
+      local multiple = Dialog.new({
+        buffer = output_buf,
+        on_select = function() end,
+        get_option_count = function()
+          return 2
+        end,
+        get_shortcut_count = function()
+          return 1
+        end,
+        is_multiple = true,
+        hide_input = false,
+        keymaps = { toggle_aliases = { '<Space>' } },
+      })
+      multiple:setup()
+      local multiple_output = Output.new()
+      multiple:format_legend(multiple_output)
+      local legend = table.concat(multiple_output.lines, '\n')
+      assert.is_truthy(legend:find('Toggle/Edit: `<CR>` or `<Tab>` or `<Space>` or `1%-1`'))
+      assert.is_truthy(legend:find('Submit: select Confirm and press `<CR>`'))
+      for _, extmarks in pairs(multiple_output.extmarks) do
+        for _, extmark in ipairs(extmarks) do
+          assert.are_not.equal('OpencodeQuestionTabPending', extmark.line_hl_group)
+        end
+      end
+      multiple:teardown()
+    end)
+  end)
 end)
 
 describe('Dialog formatting', function()

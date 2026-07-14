@@ -35,7 +35,8 @@ function M.format(output, part)
       output:add_line(string.format('**Q%d:** %s', i, question_lines[1]))
     end
 
-    local answer = answers[i] and answers[i][1] or 'No answer'
+    local selected = answers[i] or {}
+    local answer = #selected > 0 and table.concat(selected, ', ') or 'No answer'
     local answer_lines = vim.split(answer, '\n', { plain = true })
     output:add_line(string.format('**A%d:** %s', i, answer_lines[1]))
     for line_idx = 2, #answer_lines do

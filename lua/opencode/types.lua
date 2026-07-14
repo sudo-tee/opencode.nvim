@@ -513,6 +513,7 @@
 ---@field header string Very short label (max 12 chars)
 ---@field options OpencodeQuestionOption[] Available choices
 ---@field multiple? boolean Allow selecting multiple choices
+---@field custom? boolean Allow a custom response
 
 ---@class OpencodeQuestionRequest
 ---@field id string Question request ID

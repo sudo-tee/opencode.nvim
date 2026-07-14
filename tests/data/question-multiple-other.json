@@ -1,0 +1,670 @@
+[
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": { "argv": ["toggle"], "raw_args": "toggle" },
+        "name": "toggle"
+      },
+      "args": [],
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": { "argv": ["toggle"], "raw_args": "toggle" },
+          "name": "toggle"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": { "url": "http://127.0.0.1:4096" },
+    "type": "custom.server_starting"
+  },
+  {
+    "properties": { "url": "http://127.0.0.1:4096" },
+    "type": "custom.server_ready"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": { "argv": ["toggle"], "raw_args": "toggle" },
+        "name": "toggle"
+      },
+      "args": [],
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": { "argv": ["toggle"], "raw_args": "toggle" },
+          "name": "toggle"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": { "argv": ["toggle"], "raw_args": "toggle" },
+        "name": "toggle"
+      },
+      "args": [],
+      "result": {
+        "_resolved": false,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": { "argv": ["toggle"], "raw_args": "toggle" },
+          "name": "toggle"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.finally"
+  },
+  { "properties": [], "type": "custom.emit_events.started" },
+  { "properties": {}, "type": "server.connected" },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": {
+          "argv": ["prev_prompt_history"],
+          "raw_args": "prev_prompt_history"
+        },
+        "name": "prev_prompt_history"
+      },
+      "args": [],
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": {
+            "argv": ["prev_prompt_history"],
+            "raw_args": "prev_prompt_history"
+          },
+          "name": "prev_prompt_history"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": {
+          "argv": ["prev_prompt_history"],
+          "raw_args": "prev_prompt_history"
+        },
+        "name": "prev_prompt_history"
+      },
+      "args": [],
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": {
+            "argv": ["prev_prompt_history"],
+            "raw_args": "prev_prompt_history"
+          },
+          "name": "prev_prompt_history"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": [],
+        "source": {
+          "argv": ["prev_prompt_history"],
+          "raw_args": "prev_prompt_history"
+        },
+        "name": "prev_prompt_history"
+      },
+      "args": [],
+      "parsed": {
+        "intent": {
+          "args": [],
+          "source": {
+            "argv": ["prev_prompt_history"],
+            "raw_args": "prev_prompt_history"
+          },
+          "name": "prev_prompt_history"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.finally"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": ["n"],
+        "source": {
+          "argv": ["submit_input_prompt", "n"],
+          "raw_args": "submit_input_prompt n"
+        },
+        "name": "submit_input_prompt"
+      },
+      "args": ["n"],
+      "parsed": {
+        "intent": {
+          "args": ["n"],
+          "source": {
+            "argv": ["submit_input_prompt", "n"],
+            "raw_args": "submit_input_prompt n"
+          },
+          "name": "submit_input_prompt"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.before"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": ["n"],
+        "source": {
+          "argv": ["submit_input_prompt", "n"],
+          "raw_args": "submit_input_prompt n"
+        },
+        "name": "submit_input_prompt"
+      },
+      "args": ["n"],
+      "result": {
+        "_resolved": true,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "parsed": {
+        "intent": {
+          "args": ["n"],
+          "source": {
+            "argv": ["submit_input_prompt", "n"],
+            "raw_args": "submit_input_prompt n"
+          },
+          "name": "submit_input_prompt"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.after"
+  },
+  {
+    "properties": {
+      "intent": {
+        "args": ["n"],
+        "source": {
+          "argv": ["submit_input_prompt", "n"],
+          "raw_args": "submit_input_prompt n"
+        },
+        "name": "submit_input_prompt"
+      },
+      "args": ["n"],
+      "result": {
+        "_resolved": true,
+        "_coroutines": [],
+        "_catch_callbacks": [],
+        "_then_callbacks": []
+      },
+      "parsed": {
+        "intent": {
+          "args": ["n"],
+          "source": {
+            "argv": ["submit_input_prompt", "n"],
+            "raw_args": "submit_input_prompt n"
+          },
+          "name": "submit_input_prompt"
+        },
+        "ok": true
+      }
+    },
+    "type": "custom.command.finally"
+  },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783965782077 },
+        "role": "user",
+        "id": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "agent": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "model": { "providerID": "opencode", "modelID": "big-pickle" }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783965782077 },
+        "role": "user",
+        "id": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "agent": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "model": { "providerID": "opencode", "modelID": "big-pickle" }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "time": 1783965782082,
+      "part": {
+        "messageID": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "id": "prt_f5ca5903e00104hR8KU5YNGMXF",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "text": "Can you ask the exact same questions as before",
+        "type": "text"
+      },
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI"
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783964783818, "updated": 1783965782085 },
+        "path": "",
+        "agent": "build",
+        "cost": 0.00346625,
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "version": "1.17.13",
+        "model": {
+          "providerID": "opencode",
+          "id": "big-pickle",
+          "variant": "default"
+        },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "title": "Multiple choice question with multi-select options",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "id": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 1047,
+          "cache": { "write": 0, "read": 23360 },
+          "reasoning": 57,
+          "input": 17628
+        },
+        "slug": "brave-wolf"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783964783818, "updated": 1783965782085 },
+        "path": "",
+        "agent": "build",
+        "cost": 0.00346625,
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "version": "1.17.13",
+        "model": {
+          "providerID": "opencode",
+          "id": "big-pickle",
+          "variant": "default"
+        },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "title": "Multiple choice question with multi-select options",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "id": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 1047,
+          "cache": { "write": 0, "read": 23360 },
+          "reasoning": 57,
+          "input": 17628
+        },
+        "slug": "brave-wolf"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "status": { "type": "busy" }
+    },
+    "type": "session.status"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "providerID": "opencode",
+        "role": "assistant",
+        "id": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "agent": "build",
+        "cost": 0,
+        "parentID": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "time": { "created": 1783965782102 },
+        "path": {
+          "root": "/home/francis/Projects/_nvim/opencode.nvim",
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "mode": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 0,
+          "cache": { "write": 0, "read": 0 },
+          "reasoning": 0,
+          "input": 0
+        },
+        "modelID": "big-pickle"
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "providerID": "opencode",
+        "role": "assistant",
+        "id": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "agent": "build",
+        "cost": 0,
+        "parentID": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "time": { "created": 1783965782102 },
+        "path": {
+          "root": "/home/francis/Projects/_nvim/opencode.nvim",
+          "cwd": "/home/francis/Projects/_nvim/opencode.nvim"
+        },
+        "mode": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 0,
+          "cache": { "write": 0, "read": 0 },
+          "reasoning": 0,
+          "input": 0
+        },
+        "modelID": "big-pickle"
+      }
+    },
+    "type": "message.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783964783818, "updated": 1783965782209 },
+        "path": "",
+        "agent": "build",
+        "cost": 0.00346625,
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "version": "1.17.13",
+        "model": {
+          "providerID": "opencode",
+          "id": "big-pickle",
+          "variant": "default"
+        },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "title": "Multiple choice question with multi-select options",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "id": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 1047,
+          "cache": { "write": 0, "read": 23360 },
+          "reasoning": 57,
+          "input": 17628
+        },
+        "slug": "brave-wolf"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783964783818, "updated": 1783965782209 },
+        "path": "",
+        "agent": "build",
+        "cost": 0.00346625,
+        "projectID": "33e70a20e5609c39bd22991cf43ef28daf65fc0b",
+        "version": "1.17.13",
+        "model": {
+          "providerID": "opencode",
+          "id": "big-pickle",
+          "variant": "default"
+        },
+        "directory": "/home/francis/Projects/_nvim/opencode.nvim",
+        "title": "Multiple choice question with multi-select options",
+        "summary": { "deletions": 0, "additions": 0, "files": 0 },
+        "id": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tokens": {
+          "output": 1047,
+          "cache": { "write": 0, "read": 23360 },
+          "reasoning": 57,
+          "input": 17628
+        },
+        "slug": "brave-wolf"
+      }
+    },
+    "type": "session.updated"
+  },
+  {
+    "properties": { "diff": [], "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI" },
+    "type": "session.diff"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783965782077 },
+        "role": "user",
+        "id": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "agent": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "model": { "providerID": "opencode", "modelID": "big-pickle" },
+        "summary": { "diffs": [] }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "info": {
+        "time": { "created": 1783965782077 },
+        "role": "user",
+        "id": "msg_f5ca5903d0014XOHFNqdkjZjV0",
+        "agent": "build",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "model": { "providerID": "opencode", "modelID": "big-pickle" },
+        "summary": { "diffs": [] }
+      }
+    },
+    "type": "message.updated"
+  },
+  {
+    "properties": {
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "status": { "type": "busy" }
+    },
+    "type": "session.status"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "time": 1783965786342,
+      "part": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "id": "prt_f5ca5a0e60012EksKDdAmbmT5M",
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "snapshot": "396fb69f809e5b3229d74217ae2deec214d60d16",
+        "type": "step-start"
+      },
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI"
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "part": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "id": "prt_f5ca5a0e8001YjcBNmX5iJwtZc",
+        "time": { "start": 1783965786344 },
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "text": "The user wants the exact same question again.",
+        "type": "reasoning"
+      }
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "time": 1783965786404,
+      "part": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "id": "prt_f5ca5a0e8001YjcBNmX5iJwtZc",
+        "time": { "start": 1783965786344, "end": 1783965786404 },
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "text": "The user wants the exact same question again.",
+        "type": "reasoning"
+      },
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI"
+    },
+    "type": "message.part.updated"
+  },
+  {
+    "properties": {
+      "time": 1783965786406,
+      "part": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "id": "prt_f5ca5a126001TKFUtoYkFa2q03",
+        "callID": "call_c3add372b5cc41589b045e41",
+        "state": { "raw": "", "input": {}, "status": "pending" },
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "tool": "question",
+        "type": "tool"
+      },
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI"
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" },
+  { "properties": [], "type": "custom.emit_events.started" },
+  {
+    "properties": {
+      "questions": [
+        {
+          "multiple": true,
+          "header": "Test focus areas",
+          "options": [
+            {
+              "description": "Unit tests for core logic and utilities",
+              "label": "Unit tests"
+            },
+            {
+              "description": "Integration tests for provider connectivity",
+              "label": "Integration tests"
+            },
+            {
+              "description": "End-to-end tests simulating real sessions",
+              "label": "E2E tests"
+            },
+            {
+              "description": "Benchmark tests for startup and response times",
+              "label": "Benchmark tests"
+            },
+            {
+              "description": "Mutation tests to validate assertion quality",
+              "label": "Mutation tests"
+            },
+            { "description": "Other", "label": "Type a custom option" }
+          ],
+          "question": "Which testing areas should we focus on for the test suite?"
+        }
+      ],
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+      "tool": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "callID": "call_c3add372b5cc41589b045e41"
+      },
+      "id": "que_f5ca5a6f9001jM1qGu4PWzSlrz"
+    },
+    "type": "question.asked"
+  },
+  {
+    "properties": {
+      "time": 1783965787899,
+      "part": {
+        "messageID": "msg_f5ca59056001tpLIhqlyrPQ7F5",
+        "tool": "question",
+        "callID": "call_c3add372b5cc41589b045e41",
+        "state": {
+          "time": { "start": 1783965787899 },
+          "input": {
+            "questions": [
+              {
+                "multiple": true,
+                "options": [
+                  {
+                    "description": "Unit tests for core logic and utilities",
+                    "label": "Unit tests"
+                  },
+                  {
+                    "description": "Integration tests for provider connectivity",
+                    "label": "Integration tests"
+                  },
+                  {
+                    "description": "End-to-end tests simulating real sessions",
+                    "label": "E2E tests"
+                  },
+                  {
+                    "description": "Benchmark tests for startup and response times",
+                    "label": "Benchmark tests"
+                  },
+                  {
+                    "description": "Mutation tests to validate assertion quality",
+                    "label": "Mutation tests"
+                  },
+                  { "description": "Other", "label": "Type a custom option" }
+                ],
+                "question": "Which testing areas should we focus on for the test suite?",
+                "header": "Test focus areas"
+              }
+            ]
+          },
+          "status": "running"
+        },
+        "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI",
+        "id": "prt_f5ca5a126001TKFUtoYkFa2q03",
+        "type": "tool"
+      },
+      "sessionID": "ses_0a369ab35ffetdRD7zdlc3W4AI"
+    },
+    "type": "message.part.updated"
+  },
+  { "properties": [], "type": "custom.emit_events.finished" }
+]

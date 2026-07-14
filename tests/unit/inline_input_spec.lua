@@ -20,7 +20,7 @@ describe('inline_input', function()
     pcall(vim.api.nvim_buf_delete, anchor_buf, { force = true })
   end)
 
-  it('does not restore text from a previous floating input', function()
+  it('is stateless across opens (no implicit carry-over)', function()
     local first_cancelled = 0
     local second_cancelled = 0
     local submitted = 0
@@ -66,5 +66,28 @@ describe('inline_input', function()
     vim.api.nvim_set_current_win(anchor_win)
     assert.are.equal(1, second_cancelled)
     assert.are.equal(0, submitted)
+  end)
+
+  it('restores initial_text when provided', function()
+    local cancelled = 0
+
+    local input = inline_input.open({
+      win = anchor_win,
+      row = 0,
+      col = 0,
+      initial_text = 'restored draft',
+      on_submit = function() end,
+      on_cancel = function()
+        cancelled = cancelled + 1
+      end,
+    })
+    vim.wait(50, function()
+      return vim.api.nvim_get_current_win() == input.win
+    end)
+
+    assert.are.same({ 'restored draft' }, vim.api.nvim_buf_get_lines(input.buf, 0, 1, false))
+
+    vim.api.nvim_set_current_win(anchor_win)
+    assert.are.equal(1, cancelled)
   end)
 end)

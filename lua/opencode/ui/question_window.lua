@@ -208,6 +208,7 @@ function M.show_question(question_request)
   M._current_question = question_request
   M._collected_answers = {}
   M._multi_selections = {}
+  M._other_input_drafts = {}
   M._current_question_index = 1
   M._answering = false
   M._empty_confirm_armed = false
@@ -273,6 +274,7 @@ function M.clear_question()
   M._current_question_index = 1
   M._collected_answers = {}
   M._multi_selections = {}
+  M._other_input_drafts = {}
   M._answering = false
   M._empty_confirm_armed = false
   render_question()
@@ -486,10 +488,12 @@ function M._open_multi_other_input(request_id, question_index)
       row = part_data.line_start + pos.line,
       col = pos.col,
       title = 'Type your answer',
+      initial_text = M._other_input_drafts[question_index],
       on_submit = function(text)
         if M._inline_input == handle then
           M._inline_input = nil
         end
+        M._other_input_drafts[question_index] = nil
         if not is_active_question(request_id, question_index) then
           return
         end
@@ -504,6 +508,9 @@ function M._open_multi_other_input(request_id, question_index)
         if is_active_question(request_id, question_index) then
           render_question()
         end
+      end,
+      on_leave = function(text)
+        M._other_input_drafts[question_index] = text
       end,
     })
     M._inline_input = handle
@@ -699,10 +706,12 @@ local function handle_other_option_inline(index, request_id, question_index)
     row = part_data.line_start + pos.line,
     col = pos.col,
     title = 'Type your answer',
+    initial_text = M._other_input_drafts[question_index],
     on_submit = function(text)
       if M._inline_input == handle then
         M._inline_input = nil
       end
+      M._other_input_drafts[question_index] = nil
       if not is_active_question(request_id, question_index) then
         return
       end
@@ -719,6 +728,9 @@ local function handle_other_option_inline(index, request_id, question_index)
       if is_active_question(request_id, question_index) then
         render_question()
       end
+    end,
+    on_leave = function(text)
+      M._other_input_drafts[question_index] = text
     end,
   })
   M._inline_input = handle

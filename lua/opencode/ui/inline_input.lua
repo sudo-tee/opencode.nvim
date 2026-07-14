@@ -7,8 +7,10 @@ local M = {}
 ---@field min_width? integer
 ---@field max_width? integer
 ---@field title? string           -- window border title
+---@field initial_text? string
 ---@field on_submit fun(text: string)
 ---@field on_cancel fun()
+---@field on_leave? fun(text: string)
 
 ---Open a floating, prompt-buffer-backed text input anchored at a specific
 ---(row, col) inside an existing window's buffer, so it visually appears
@@ -24,6 +26,10 @@ function M.open(opts)
   vim.bo[buf].bufhidden = 'wipe'
   vim.fn.prompt_setprompt(buf, '')
 
+  if opts.initial_text then
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { opts.initial_text })
+  end
+
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'win',
     win = opts.win,
@@ -33,7 +39,7 @@ function M.open(opts)
     style = 'minimal',
     border = 'rounded',
     title = opts.title and (' ' .. opts.title .. ' ') or nil,
-    title_pos = 'left',
+    title_pos = opts.title and 'left' or nil,
     zindex = 60,
   })
 
@@ -106,7 +112,11 @@ function M.open(opts)
     buffer = buf,
     callback = function()
       if not closed then
+        local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''
         close()
+        if opts.on_leave then
+          opts.on_leave(line)
+        end
         opts.on_cancel()
       end
     end,
@@ -116,6 +126,9 @@ function M.open(opts)
     if vim.api.nvim_win_is_valid(win) then
       vim.api.nvim_set_current_win(win)
       vim.cmd.startinsert()
+      if opts.initial_text then
+        vim.api.nvim_win_set_cursor(win, { 1, vim.fn.strlen(opts.initial_text) })
+      end
     end
   end)
 

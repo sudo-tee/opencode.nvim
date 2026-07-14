@@ -564,15 +564,24 @@
       30,
       0,
       {
-        "line_hl_group": "OpencodeQuestionTabPending",
         "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
       28,
-      30,
+      31,
       0,
       {
         "ns_id": 3,
@@ -592,7 +601,7 @@
     ],
     [
       29,
-      31,
+      32,
       0,
       {
         "ns_id": 3,
@@ -638,11 +647,12 @@
     "      3. TypeScript - TypeScript programming language",
     "      4. Rust - Rust programming language",
     "      5. Other - Type your own answer",
+    "    →  Confirm - Submit selected answers",
     "",
     "Move: `j/k` or `↑/↓`",
     "Question: `h/l` or `<-/->`",
-    "Toggle: `<Tab>` or `1-5`",
-    "Submit: `<CR>`",
+    "Toggle/Edit: `<CR>` or `<Tab>` or `<Space>` or `1-5`",
+    "Submit: select Confirm and press `<CR>`",
     "Close: `<Esc>`",
     "",
     ""
@@ -650,11 +660,11 @@
   "timestamp": 1783967222,
   "window": {
     "cursor": [
-      33,
+      34,
       0
     ],
-    "effective_bottom": 33,
-    "line_count": 34,
-    "visible_bottom": 34
+    "effective_bottom": 34,
+    "line_count": 35,
+    "visible_bottom": 35
   }
 }

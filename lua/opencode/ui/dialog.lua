@@ -4,12 +4,11 @@
 ---@field on_dismiss? function() Called when dialog is dismissed
 ---@field on_navigate? function() Called when selection changes
 ---@field on_navigate_group? function(index: integer) Called when group selection changes
----@field on_submit_multi? function() Called when multi-select answers are submitted
 ---@field get_option_count function(): integer Returns the total number of options
+---@field get_shortcut_count? function(): integer Returns the options addressable by toggle and number shortcuts
 ---@field get_group_count? function(): integer Returns the total number of groups
 ---@field check_focused? function(): boolean Returns whether dialog should be active
 ---@field is_multiple? boolean Whether dialog is in multi-select mode
----@field get_has_selections? function(): boolean Returns whether any multi-select options are checked
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
@@ -20,8 +19,10 @@
 ---@field left? string[] Keys for navigating left between groups
 ---@field right? string[] Keys for navigating right between groups
 ---@field select? string Key for selecting current option (default: '<CR>')
+---@field select_aliases? string[] Additional keys for selecting the current option
 ---@field dismiss? string Key for dismissing dialog (default: '<Esc>')
 ---@field toggle? string Key for toggling multi-select options (default: '<Tab>')
+---@field toggle_aliases? string[] Additional keys for toggling multi-select options
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
 
 ---@class Dialog
@@ -168,15 +169,19 @@ function Dialog:select()
   self._config.on_select(self._selected_index)
 end
 
----Submit multi-select answers
-function Dialog:submit_multi_select()
+---Act on the current multi-select choice without activating trailing action rows.
+function Dialog:toggle()
   if not self._active or not self._config.check_focused() then
     return
   end
 
-  if self._config.on_submit_multi then
-    self._config.on_submit_multi()
+  local shortcut_count = self._config.get_shortcut_count and self._config.get_shortcut_count()
+    or self._config.get_option_count()
+  if self._selected_index < 1 or self._selected_index > shortcut_count then
+    return
   end
+
+  self._config.on_select(self._selected_index)
 end
 
 ---Dismiss the dialog
@@ -259,22 +264,27 @@ function Dialog:format_legend(output, options)
     end
 
     if self._is_multiple then
-      local toggle_text = 'Toggle: `' .. keymaps.toggle .. '`'
-      if keymaps.number_shortcuts and option_count > 0 then
-        local max_shortcut = math.min(option_count, 9)
-        toggle_text = toggle_text .. string.format(' or `1-%d`', max_shortcut)
+      local action_keys = { keymaps.select, keymaps.toggle }
+      for _, key in ipairs(keymaps.toggle_aliases or {}) do
+        if not vim.tbl_contains(action_keys, key) then
+          table.insert(action_keys, key)
+        end
       end
-      output:add_line(toggle_text)
-
-      local has_selections = self._config.get_has_selections and self._config.get_has_selections()
-      local submit_hl = has_selections and 'OpencodeQuestionKeyHint' or 'OpencodeQuestionTabPending'
-      local submit_line = output:add_line('Submit: `<CR>`')
-      local submit_idx = submit_line - 1
-      output:add_extmark(submit_idx, {
-        line_hl_group = submit_hl,
-      } --[[@as OutputExtmark]])
+      local action_text = 'Toggle/Edit: `' .. table.concat(action_keys, '` or `') .. '`'
+      local shortcut_count = self._config.get_shortcut_count and self._config.get_shortcut_count() or option_count
+      if keymaps.number_shortcuts and shortcut_count > 0 then
+        local max_shortcut = math.min(shortcut_count, 9)
+        action_text = action_text .. string.format(' or `1-%d`', max_shortcut)
+      end
+      output:add_line(action_text)
+      output:add_line('Submit: select Confirm and press `' .. keymaps.select .. '`')
     elseif keymaps.select and keymaps.select ~= '' then
-      local select_text = 'Select: `<CR>`'
+      local select_keys = { keymaps.select }
+      for _, key in ipairs(keymaps.select_aliases or {}) do
+        table.insert(select_keys, key)
+      end
+      local action = #select_keys > 1 and 'Choose/Edit' or 'Select'
+      local select_text = action .. ': `' .. table.concat(select_keys, '` or `') .. '`'
       if keymaps.number_shortcuts and option_count > 0 then
         local max_shortcut = math.min(option_count, 9)
         select_text = select_text .. string.format(' or `1-%d`', max_shortcut)
@@ -367,9 +377,13 @@ function Dialog:format_options(output, options)
     local prefix
 
     if self._is_multiple then
-      local icons = require('opencode.ui.icons')
-      local checkbox = option.checked and icons.get('checkbox_checked') or icons.get('checkbox_unchecked')
-      prefix = string.format('    %s %d. ', checkbox, i)
+      if option.confirm then
+        prefix = '    →  '
+      else
+        local icons = require('opencode.ui.icons')
+        local checkbox = option.checked and icons.get('checkbox_checked') or icons.get('checkbox_unchecked')
+        prefix = string.format('    %s %d. ', checkbox, i)
+      end
     else
       prefix = string.format('    %d. ', i)
     end
@@ -415,6 +429,23 @@ function Dialog:_setup_keymaps()
 
   local keymaps = self._config.keymaps
   local keymap_opts = { buffer = buf, silent = true }
+
+  local function map_select(key)
+    if not key or key == '' then
+      return
+    end
+    vim.keymap.set(
+      'n',
+      key,
+      function()
+        self:select()
+      end,
+      vim.tbl_extend('force', keymap_opts, {
+        desc = 'Dialog: select option',
+      })
+    )
+    table.insert(self._keymaps, key)
+  end
 
   if keymaps.up then
     for _, key in ipairs(keymaps.up) do
@@ -489,43 +520,25 @@ function Dialog:_setup_keymaps()
   end
 
   if self._is_multiple then
-    if keymaps.select and keymaps.select ~= '' then
-      vim.keymap.set(
-        'n',
-        keymaps.select,
-        function()
-          self:submit_multi_select()
-        end,
-        vim.tbl_extend('force', keymap_opts, {
-          desc = 'Dialog: submit multi-select',
-        })
-      )
-      table.insert(self._keymaps, keymaps.select)
+    map_select(keymaps.select)
+    local function map_toggle(key)
+      if not key or key == '' or key == keymaps.select then
+        return
+      end
+      vim.keymap.set('n', key, function()
+        self:toggle()
+      end, vim.tbl_extend('force', keymap_opts, { desc = 'Dialog: toggle option', nowait = true }))
+      table.insert(self._keymaps, key)
     end
-
-    vim.keymap.set(
-      'n',
-      keymaps.toggle,
-      function()
-        self:select()
-      end,
-      vim.tbl_extend('force', keymap_opts, {
-        desc = 'Dialog: toggle option',
-      })
-    )
-    table.insert(self._keymaps, keymaps.toggle)
+    map_toggle(keymaps.toggle)
+    for _, key in ipairs(keymaps.toggle_aliases or {}) do
+      map_toggle(key)
+    end
   elseif keymaps.select and keymaps.select ~= '' then
-    vim.keymap.set(
-      'n',
-      keymaps.select,
-      function()
-        self:select()
-      end,
-      vim.tbl_extend('force', keymap_opts, {
-        desc = 'Dialog: select option',
-      })
-    )
-    table.insert(self._keymaps, keymaps.select)
+    map_select(keymaps.select)
+    for _, key in ipairs(keymaps.select_aliases or {}) do
+      map_select(key)
+    end
   end
 
   if keymaps.dismiss and keymaps.dismiss ~= '' then
@@ -543,7 +556,8 @@ function Dialog:_setup_keymaps()
   end
 
   if keymaps.number_shortcuts then
-    local option_count = self._config.get_option_count()
+    local option_count = self._config.get_shortcut_count and self._config.get_shortcut_count()
+      or self._config.get_option_count()
     local number_keymap_opts = vim.tbl_extend('force', keymap_opts, { nowait = true })
     for i = 1, math.min(option_count, 9) do
       local key = tostring(i)

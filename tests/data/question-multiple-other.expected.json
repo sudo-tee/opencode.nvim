@@ -584,15 +584,24 @@
       31,
       0,
       {
-        "line_hl_group": "OpencodeQuestionTabPending",
         "ns_id": 3,
         "priority": 4096,
-        "right_gravity": true
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
       }
     ],
     [
       29,
-      31,
+      32,
       0,
       {
         "ns_id": 3,
@@ -612,7 +621,27 @@
     ],
     [
       30,
-      32,
+      33,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
+    ],
+    [
+      31,
+      34,
       0,
       {
         "ns_id": 3,
@@ -659,11 +688,13 @@
     "      4. Benchmark tests - Benchmark tests for startup and response times",
     "      5. Mutation tests - Mutation tests to validate assertion quality",
     "      6. Type a custom option - Other",
+    "      7. Other - Type your own answer",
+    "    →  Confirm - Submit selected answers",
     "",
     "Move: `j/k` or `↑/↓`",
     "Question: `h/l` or `<-/->`",
-    "Toggle: `<Tab>` or `1-6`",
-    "Submit: `<CR>`",
+    "Toggle/Edit: `<CR>` or `<Tab>` or `<Space>` or `1-7`",
+    "Submit: select Confirm and press `<CR>`",
     "Close: `<Esc>`",
     "",
     ""
@@ -671,11 +702,11 @@
   "timestamp": 1783967228,
   "window": {
     "cursor": [
-      34,
+      36,
       0
     ],
-    "effective_bottom": 34,
-    "line_count": 35,
-    "visible_bottom": 35
+    "effective_bottom": 36,
+    "line_count": 37,
+    "visible_bottom": 37
   }
 }

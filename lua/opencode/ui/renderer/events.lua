@@ -180,13 +180,14 @@ end
 
 ---Render the current question as a synthetic part at the end of the buffer
 function M.render_question_display()
-  local use_vim_ui = config.ui.questions and config.ui.questions.use_vim_ui_select
-  if use_vim_ui then
-    return
-  end
-
   local question_window = require('opencode.ui.question_window')
   local current_question = question_window._current_question
+
+  if question_window.uses_vim_ui_select(current_question) then
+    flush.queue_part_removal('question-display-part')
+    flush.queue_message_removal('question-display-message')
+    return
+  end
 
   if not question_window.has_question() or not current_question or not current_question.id then
     flush.queue_part_removal('question-display-part')
@@ -220,14 +221,8 @@ end
 
 ---Remove the question display from the buffer
 function M.clear_question_display()
-  local use_vim_ui = config.ui.questions and config.ui.questions.use_vim_ui_select
   local question_window = require('opencode.ui.question_window')
   question_window.clear_question()
-
-  if not use_vim_ui then
-    flush.queue_part_removal('question-display-part')
-    flush.queue_message_removal('question-display-message')
-  end
 end
 
 ---Handle message.updated — create the message header or update existing info

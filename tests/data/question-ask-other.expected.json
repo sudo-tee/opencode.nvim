@@ -553,6 +553,26 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -2
       }
+    ],
+    [
+      27,
+      30,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeQuestionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
     ]
   ],
   "lines": [
@@ -581,10 +601,11 @@
     "    2. SeaweedFS - S3-compatible distributed storage, good MinIO alternative",
     "    3. LocalStack S3 - AWS S3 emulator for local development",
     "    4. Other S3-compatible solution - Different S3-compatible storage backend",
+    "    5. Other - Type your own answer",
     "",
     "Move: `j/k` or `↑/↓`",
     "Question: `h/l` or `<-/->`",
-    "Select: `<CR>` or `1-4`",
+    "Choose/Edit: `<CR>` or `<Tab>` or `1-5`",
     "Close: `<Esc>`",
     "",
     ""
@@ -592,11 +613,11 @@
   "timestamp": 1779709441,
   "window": {
     "cursor": [
-      31,
+      32,
       0
     ],
-    "effective_bottom": 31,
-    "line_count": 32,
-    "visible_bottom": 32
+    "effective_bottom": 32,
+    "line_count": 33,
+    "visible_bottom": 33
   }
 }

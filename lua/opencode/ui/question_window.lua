@@ -14,12 +14,14 @@ M._collected_answers = {}
 M._multi_selections = {}
 M._answering = false
 M._dialog = nil
+M._inline_input = nil
+M._empty_confirm_armed = false
 
 ---@param index integer
 ---@return string[]|nil
 local function get_answer_for_index(index)
   local answer = M._collected_answers[index]
-  if type(answer) ~= 'table' or #answer == 0 then
+  if type(answer) ~= 'table' then
     return nil
   end
   return answer
@@ -64,6 +66,37 @@ function M.matches_active_question(question_request)
     and M._current_question ~= nil
     and question_request.id ~= nil
     and M._current_question.id == question_request.id
+end
+
+---@param question_request OpencodeQuestionRequest|nil
+---@return boolean
+function M.uses_vim_ui_select(question_request)
+  if
+    not config.ui.questions
+    or not config.ui.questions.use_vim_ui_select
+    or not question_request
+    or not question_request.questions
+    or #question_request.questions == 0
+  then
+    return false
+  end
+
+  for _, question in ipairs(question_request.questions) do
+    if question.multiple == true then
+      return false
+    end
+  end
+
+  return true
+end
+
+---@param request_id string
+---@param question_index integer
+---@return boolean
+local function is_active_question(request_id, question_index)
+  return M._current_question ~= nil
+    and M._current_question.id == request_id
+    and M._current_question_index == question_index
 end
 
 ---@param question_request OpencodeQuestionRequest|nil
@@ -160,11 +193,6 @@ local function render_question()
   require('opencode.ui.renderer.events').render_question_display()
 end
 
----Request the renderer to remove the current question display.
-local function clear_question()
-  require('opencode.ui.renderer.events').clear_question_display()
-end
-
 ---@param question_request OpencodeQuestionRequest
 function M.show_question(question_request)
   if not question_request or not question_request.questions or #question_request.questions == 0 then
@@ -175,25 +203,21 @@ function M.show_question(question_request)
     return
   end
 
+  M._clear_inline_input()
+  M._clear_dialog()
   M._current_question = question_request
   M._collected_answers = {}
   M._multi_selections = {}
   M._current_question_index = 1
+  M._answering = false
+  M._empty_confirm_armed = false
 
-  local any_multi = false
-  for _, q in ipairs(question_request.questions) do
-    if q.multiple then
-      any_multi = true
-      break
-    end
-  end
-
-  if config.ui.questions and config.ui.questions.use_vim_ui_select and not any_multi then
+  if M.uses_vim_ui_select(question_request) then
     M._show_question_with_vim_ui_select()
   else
     M._setup_dialog()
-    render_question()
   end
+  render_question()
 end
 
 ---@param session_id string|nil
@@ -243,12 +267,14 @@ end
 
 ---Reset the current question state and remove any dialog UI.
 function M.clear_question()
+  M._clear_inline_input()
   M._clear_dialog()
   M._current_question = nil
   M._current_question_index = 1
   M._collected_answers = {}
   M._multi_selections = {}
   M._answering = false
+  M._empty_confirm_armed = false
   render_question()
 end
 
@@ -268,7 +294,13 @@ function M.has_question()
 end
 
 ---@param answer_value string|string[]
-local function answer_current_question(answer_value)
+---@param request_id string
+---@param question_index integer
+local function answer_current_question(answer_value, request_id, question_index)
+  if not is_active_question(request_id, question_index) then
+    return
+  end
+
   local request = M._current_question
   if not request then
     return
@@ -283,7 +315,11 @@ local function answer_current_question(answer_value)
     M._current_question_index = get_next_unanswered_question_index() or M._current_question_index
     M._answering = false
     M._clear_dialog()
-    M._setup_dialog()
+    if M.uses_vim_ui_select(request) then
+      M._show_question_with_vim_ui_select()
+    else
+      M._setup_dialog()
+    end
   end
   render_question()
 
@@ -293,59 +329,71 @@ local function answer_current_question(answer_value)
   end)
 end
 
----@param options OpencodeQuestionOption[]
+---@param question_info OpencodeQuestionInfo
 ---@return integer|nil
-local function find_other_option(options)
-  for i, opt in ipairs(options) do
-    local label = opt.label or ''
-    local desc = opt.description or ''
-    if vim.startswith(label:lower(), 'other') or vim.startswith(desc:lower(), 'other') then
-      return i
-    end
-  end
-  return nil
+local function get_custom_option_index(question_info)
+  return question_info.custom ~= false and #question_info.options + 1 or nil
+end
+
+---@param question_info OpencodeQuestionInfo
+---@return integer
+local function get_choice_count(question_info)
+  return #question_info.options + (get_custom_option_index(question_info) and 1 or 0)
+end
+
+---@param question_info OpencodeQuestionInfo
+---@return integer|nil
+local function get_confirm_option_index(question_info)
+  return question_info.multiple == true and get_choice_count(question_info) + 1 or nil
 end
 
 ---@param question_info OpencodeQuestionInfo
 ---@return integer
 local function get_total_options(question_info)
-  local has_other = find_other_option(question_info.options) ~= nil
-  return has_other and #question_info.options or (#question_info.options + 1)
-end
-
----@param index integer
----@return boolean
-local function is_other_index(index)
-  local question_info = M.get_current_question_info()
-  if not question_info then
-    return false
-  end
-  local other_index = find_other_option(question_info.options)
-  local total_options = get_total_options(question_info)
-  return (other_index and index == other_index) or (not other_index and index == total_options)
+  return get_choice_count(question_info) + (get_confirm_option_index(question_info) and 1 or 0)
 end
 
 ---@param option_index number
-function M._answer_with_option(option_index)
+---@param request_id? string
+---@param question_index? integer
+function M._answer_with_option(option_index, request_id, question_index)
+  local request = M._current_question
+  if not request then
+    return
+  end
+
+  local reopen_backend = request_id ~= nil and question_index ~= nil
+  request_id = request_id or request.id
+  question_index = question_index or M._current_question_index
+  if not is_active_question(request_id, question_index) then
+    return
+  end
+
   local question_info = M.get_current_question_info()
   if not question_info or not question_info.options then
     return
   end
 
-  local other_index = find_other_option(question_info.options)
-  local total_options = get_total_options(question_info)
+  local custom_option_index = get_custom_option_index(question_info)
+  local total_options = get_choice_count(question_info)
 
   if option_index < 1 or option_index > total_options then
     vim.notify('Invalid option selected', vim.log.levels.WARN)
     return
   end
 
-  if (not other_index and option_index == total_options) or (other_index and option_index == other_index) then
-    M._answer_with_custom()
+  if option_index == custom_option_index then
+    M._answer_with_custom(request_id, question_index, reopen_backend)
     return
   end
 
-  answer_current_question(question_info.options[option_index].label)
+  if question_info.multiple then
+    M._toggle_multi_selection(option_index)
+    render_question()
+    return
+  end
+
+  answer_current_question(question_info.options[option_index].label, request_id, question_index)
 end
 
 ---Toggle a multi-select option on/off
@@ -357,6 +405,7 @@ function M._toggle_multi_selection(option_index)
   end
 
   local idx = M._current_question_index
+  M._empty_confirm_armed = false
   M._multi_selections[idx] = M._multi_selections[idx] or {}
 
   if M._multi_selections[idx][option_index] then
@@ -367,18 +416,24 @@ function M._toggle_multi_selection(option_index)
 end
 
 ---Submit all selected multi-select answers for the current question
-function M._submit_multi_answers()
-  local question_info = M.get_current_question_info()
-  if not question_info then
+---@param request_id string
+---@param question_index integer
+function M._submit_multi_answers(request_id, question_index)
+  if not is_active_question(request_id, question_index) then
     return
   end
 
-  local idx = M._current_question_index
-  local selections = M._multi_selections[idx] or {}
+  local request = M._current_question
+  local question_info = M.get_current_question_info()
+  if not request or not question_info then
+    return
+  end
+
+  local selections = M._multi_selections[question_index] or {}
   local labels = {}
 
-  for option_index in pairs(selections) do
-    if question_info.options[option_index] then
+  for option_index = 1, #question_info.options do
+    if selections[option_index] then
       table.insert(labels, question_info.options[option_index].label)
     end
   end
@@ -387,85 +442,137 @@ function M._submit_multi_answers()
     table.insert(labels, selections.custom_answer)
   end
 
-  if #labels == 0 then
-    vim.notify('Select at least one option', vim.log.levels.WARN)
+  if #labels == 0 and not M._empty_confirm_armed then
+    M._empty_confirm_armed = true
+    render_question()
     return
   end
 
+  M._empty_confirm_armed = false
   M._answering = true
   render_question()
-  M._clear_dialog()
 
   vim.defer_fn(function()
-    answer_current_question(labels)
+    answer_current_question(labels, request_id, question_index)
   end, 100)
 end
 
 ---Open inline input for multi-select "Other" custom answer
-function M._open_multi_other_input()
-  local question_info = M.get_current_question_info()
-  if not question_info then
+---@param request_id string
+---@param question_index integer
+function M._open_multi_other_input(request_id, question_index)
+  if not is_active_question(request_id, question_index) then
     return
   end
 
-  local idx = M._current_question_index
+  local request = M._current_question
+  local question_info = M.get_current_question_info()
+  if not request or not question_info then
+    return
+  end
+
+  M._empty_confirm_armed = false
+
   local use_inline = config.ui.questions.inline_other_input ~= false
-  local pos = use_inline and M._dialog and M._dialog:get_option_position(get_total_options(question_info))
-  local part_data = use_inline
-      and require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+  local custom_option_index = get_custom_option_index(question_info)
+  local pos = use_inline and custom_option_index and M._dialog and M._dialog:get_option_position(custom_option_index)
+  local part_data = use_inline and require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
 
   if use_inline and pos and part_data and part_data.line_start and state.windows and state.windows.output_win then
-    require('opencode.ui.inline_input').open({
+    M._clear_inline_input()
+    local handle
+    handle = require('opencode.ui.inline_input').open({
       win = state.windows.output_win,
       row = part_data.line_start + pos.line,
       col = pos.col,
       title = 'Type your answer',
       on_submit = function(text)
-        if text and text ~= '' then
-          M._multi_selections[idx] = M._multi_selections[idx] or {}
-          M._multi_selections[idx].custom_answer = text
-        elseif M._multi_selections[idx] then
-          M._multi_selections[idx].custom_answer = nil
+        if M._inline_input == handle then
+          M._inline_input = nil
         end
+        if not is_active_question(request_id, question_index) then
+          return
+        end
+        M._multi_selections[question_index] = M._multi_selections[question_index] or {}
+        M._multi_selections[question_index].custom_answer = text
         render_question()
       end,
       on_cancel = function()
-        render_question()
+        if M._inline_input == handle then
+          M._inline_input = nil
+        end
+        if is_active_question(request_id, question_index) then
+          render_question()
+        end
       end,
     })
+    M._inline_input = handle
   else
     vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
-      if input and input ~= '' then
-        M._multi_selections[idx] = M._multi_selections[idx] or {}
-        M._multi_selections[idx].custom_answer = input
-        render_question()
+      if not is_active_question(request_id, question_index) then
+        return
       end
+      if input and input ~= '' then
+        M._multi_selections[question_index] = M._multi_selections[question_index] or {}
+        M._multi_selections[question_index].custom_answer = input
+      end
+      render_question()
     end)
   end
 end
 
 ---Prompt for a free-form answer to the active question.
-function M._answer_with_custom()
+---@param request_id? string
+---@param question_index? integer
+---@param reopen_backend? boolean
+function M._answer_with_custom(request_id, question_index, reopen_backend)
+  local request = M._current_question
+  if not request then
+    return
+  end
+
+  request_id = request_id or request.id
+  question_index = question_index or M._current_question_index
+  local question_info = M.get_current_question_info()
+  if not question_info or question_info.custom == false then
+    return
+  end
+
+  if question_info.multiple then
+    M._open_multi_other_input(request_id, question_index)
+    return
+  end
+
   vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
+    if not is_active_question(request_id, question_index) then
+      return
+    end
     if input and input ~= '' then
-      answer_current_question(input)
-    elseif M._current_question.id then
-      M._send_reject(M._current_question.id)
-      M.clear_question()
+      answer_current_question(input, request_id, question_index)
+    else
+      if reopen_backend then
+        M._answering = false
+        if M.uses_vim_ui_select(request) then
+          M._show_question_with_vim_ui_select()
+        else
+          M._setup_dialog()
+        end
+      end
       render_question()
     end
   end)
 end
 
----@param options OpencodeQuestionOption[]
----@param is_multiple? boolean
+---@param question_info OpencodeQuestionInfo
 ---@return OpencodeQuestionOption[]
-local function add_other_if_missing(options)
-  if find_other_option(options) ~= nil then
-    return options
+local function get_display_options(question_info)
+  local result = vim.deepcopy(question_info.options)
+  if get_custom_option_index(question_info) then
+    table.insert(result, { label = 'Other', description = 'Type your own answer' })
   end
-  local result = vim.deepcopy(options)
-  table.insert(result, { label = 'Other', description = 'Type your own answer' })
+  if get_confirm_option_index(question_info) then
+    table.insert(result, { label = 'Confirm', description = 'Submit selected answers', confirm = true })
+  end
   return result
 end
 
@@ -535,21 +642,25 @@ function M.format_display(output)
   format_question_tabs(output)
 
   -- Prepare options
-  local options_to_display = add_other_if_missing(question_info.options)
+  local options_to_display = get_display_options(question_info)
   local selections = M._multi_selections[M._current_question_index] or {}
-  local other_display_index = find_other_option(options_to_display)
+  local custom_option_index = get_custom_option_index(question_info)
   local options = {}
   for i, option in ipairs(options_to_display) do
     local desc = option.description
-    if is_multiple and other_display_index == i then
+    local label = option.label
+    if is_multiple and custom_option_index == i then
       desc = selections.custom_answer or desc
+    elseif option.confirm and M._empty_confirm_armed then
+      label = 'Confirm empty answer'
+      desc = 'Press Enter again to submit no selections'
     end
     table.insert(options, {
-      label = option.label,
+      label = label,
       description = desc,
-      checked = is_multiple and other_display_index == i
-        and selections.custom_answer ~= nil
-        or selections[i] == true,
+      checked = not option.confirm
+        and (is_multiple and custom_option_index == i and selections.custom_answer ~= nil or selections[i] == true),
+      confirm = option.confirm,
     })
   end
 
@@ -566,14 +677,11 @@ end
 
 ---@param index integer
 ---@return boolean
-local function handle_other_option_inline(index)
+local function handle_other_option_inline(index, request_id, question_index)
   local question_info = M.get_current_question_info()
-  local other_index = question_info and find_other_option(question_info.options)
-  local total_options = question_info and get_total_options(question_info)
-  local is_other = question_info
-    and ((other_index and index == other_index) or (not other_index and index == total_options))
+  local custom_option_index = question_info and get_custom_option_index(question_info)
 
-  if not (is_other and config.ui.questions.inline_other_input ~= false) then
+  if not (index == custom_option_index and config.ui.questions.inline_other_input ~= false) then
     return false
   end
 
@@ -584,25 +692,36 @@ local function handle_other_option_inline(index)
     return false
   end
 
-  require('opencode.ui.inline_input').open({
+  M._clear_inline_input()
+  local handle
+  handle = require('opencode.ui.inline_input').open({
     win = state.windows.output_win,
     row = part_data.line_start + pos.line,
     col = pos.col,
     title = 'Type your answer',
     on_submit = function(text)
+      if M._inline_input == handle then
+        M._inline_input = nil
+      end
+      if not is_active_question(request_id, question_index) then
+        return
+      end
       if text and text ~= '' then
-        M._answering = true
-        render_question()
-        M._clear_dialog()
-        answer_current_question(text)
+        answer_current_question(text, request_id, question_index)
       else
         render_question()
       end
     end,
     on_cancel = function()
-      render_question()
+      if M._inline_input == handle then
+        M._inline_input = nil
+      end
+      if is_active_question(request_id, question_index) then
+        render_question()
+      end
     end,
   })
+  M._inline_input = handle
   return true
 end
 
@@ -619,13 +738,15 @@ function M._setup_dialog()
     return
   end
 
+  local request_id = M._current_question.id
+  local question_index = M._current_question_index
   local is_multiple = question_info.multiple == true
   local buf = state.windows.output_buf
 
   ---@return boolean
   local function check_focused()
     local ui = require('opencode.ui.ui')
-    return ui.is_opencode_focused() and M.has_question()
+    return ui.is_opencode_focused() and not M._answering and is_active_question(request_id, question_index)
   end
 
   ---@param index integer
@@ -635,14 +756,19 @@ function M._setup_dialog()
     end
 
     if is_multiple then
-      if is_other_index(index) then
+      if index == get_confirm_option_index(question_info) then
+        M._submit_multi_answers(request_id, question_index)
+        return
+      end
+      M._empty_confirm_armed = false
+      if index == get_custom_option_index(question_info) then
         local idx = M._current_question_index
         local selections = M._multi_selections[idx] or {}
         if selections.custom_answer then
           selections.custom_answer = nil
           render_question()
         else
-          M._open_multi_other_input()
+          M._open_multi_other_input(request_id, question_index)
         end
         return
       end
@@ -651,15 +777,14 @@ function M._setup_dialog()
       return
     end
 
-    if handle_other_option_inline(index) then
+    if handle_other_option_inline(index, request_id, question_index) then
       return
     end
 
     M._answering = true
     render_question()
-    M._clear_dialog()
     vim.defer_fn(function()
-      M._answer_with_option(index)
+      M._answer_with_option(index, request_id, question_index)
     end, 100)
   end
 
@@ -668,26 +793,30 @@ function M._setup_dialog()
     if not check_focused() then
       return
     end
-    M._send_reject(M._current_question.id)
+    M._send_reject(request_id)
     M.clear_question()
     render_question()
   end
 
   ---Refresh the rendered question state after navigation changes.
   local function on_navigate()
+    M._empty_confirm_armed = false
     render_question()
   end
 
   ---@param index integer
   local function on_navigate_group(index)
+    M._empty_confirm_armed = false
     M._current_question_index = index
+    M._setup_dialog()
     render_question()
   end
 
+  local question_count = #M._current_question.questions
+
   ---@return integer
   local function get_option_count()
-    local question_info = M.get_current_question_info()
-    return question_info and get_total_options(question_info) or 0
+    return get_total_options(question_info)
   end
 
   M._dialog = Dialog.new({
@@ -696,14 +825,12 @@ function M._setup_dialog()
     on_dismiss = on_dismiss,
     on_navigate = on_navigate,
     on_navigate_group = on_navigate_group,
-    on_submit_multi = M._submit_multi_answers,
     get_option_count = get_option_count,
-    get_group_count = function()
-      return M._current_question and #M._current_question.questions or 0
+    get_shortcut_count = function()
+      return get_choice_count(question_info)
     end,
-    get_has_selections = function()
-      local selections = M._multi_selections[M._current_question_index] or {}
-      return next(selections) ~= nil
+    get_group_count = function()
+      return question_count
     end,
     check_focused = check_focused,
     is_multiple = is_multiple,
@@ -711,6 +838,8 @@ function M._setup_dialog()
     keymaps = {
       left = { 'h', '<Left>' },
       right = { 'l', '<Right>' },
+      select_aliases = is_multiple and {} or { '<Tab>' },
+      toggle_aliases = is_multiple and { '<Space>' } or {},
     },
   })
 
@@ -726,6 +855,14 @@ function M._clear_dialog()
   end
 end
 
+function M._clear_inline_input()
+  if M._inline_input then
+    local handle = M._inline_input
+    M._inline_input = nil
+    handle.close()
+  end
+end
+
 ---Show question using vim.ui.select
 function M._show_question_with_vim_ui_select()
   if not M.has_question() then
@@ -737,7 +874,7 @@ function M._show_question_with_vim_ui_select()
     return
   end
 
-  local options_to_display = add_other_if_missing(question_info.options)
+  local options_to_display = get_display_options(question_info)
   local progress = ''
   if M._current_question and #M._current_question.questions > 1 then
     progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
@@ -749,33 +886,29 @@ function M._show_question_with_vim_ui_select()
     table.insert(choices, option.label)
   end
 
+  local request_id = M._current_question.id
+  local question_index = M._current_question_index
+
   vim.ui.select(choices, {
     prompt = prompt,
     format_item = function(item)
       return item
     end,
-  }, function(choice)
+  }, function(choice, selected_index)
+    if not is_active_question(request_id, question_index) then
+      return
+    end
+
     if not choice then
       -- User cancelled
-      if M._current_question and M._current_question.id then
-        M._send_reject(M._current_question.id)
-      end
+      M._send_reject(request_id)
       M.clear_question()
       return
     end
 
-    -- Find the selected option index
-    local selected_index = nil
-    for i, option in ipairs(options_to_display) do
-      if option.label == choice then
-        selected_index = i
-        break
-      end
-    end
-
     if selected_index then
       M._answering = true
-      M._answer_with_option(selected_index)
+      M._answer_with_option(selected_index, request_id, question_index)
     end
   end)
 end

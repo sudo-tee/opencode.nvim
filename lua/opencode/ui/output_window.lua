@@ -39,19 +39,6 @@ local function build_fold_state(folds)
   return fold_state
 end
 
----@param buf integer
----@return { ranges: table<{from: integer, to: integer}> }
-local function get_fold_state(buf)
-  local ok, fold_state = pcall(vim.api.nvim_buf_get_var, buf, 'opencode_folds')
-  if not ok or type(fold_state) ~= 'table' then
-    return { ranges = {} }
-  end
-  if type(fold_state.ranges) == 'table' then
-    return fold_state
-  end
-  return build_fold_state(fold_state)
-end
-
 local _update_depth = 0
 local _update_buf = nil
 
@@ -87,7 +74,7 @@ end
 function M.create_buf()
   local output_buf = vim.api.nvim_create_buf(false, true)
 
-  vim.api.nvim_buf_set_var(output_buf, 'opencode_folds', build_fold_state({}))
+  state.ui.set_output_folds(build_fold_state({}))
 
   local buffixwin = require('opencode.ui.buf_fix_win')
   buffixwin.fix_to_win(output_buf, function()
@@ -355,7 +342,7 @@ function M.fold_text()
     return vim.fn.foldtext()
   end
 
-  local folds = get_fold_state(output_buf).ranges
+    local folds = state.ui.get_output_folds().ranges
 
   local line_count = 0
   for _, range in ipairs(folds) do
@@ -381,7 +368,7 @@ function M.get_open_fold_starts(win, buf)
     return {}
   end
 
-  local prev_folds = get_fold_state(buf).ranges
+  local prev_folds = state.ui.get_output_folds().ranges
 
   local was_open = {}
   vim.api.nvim_win_call(win, function()
@@ -407,7 +394,7 @@ function M.set_folds(fold_ranges)
   local buf = windows.output_buf
   local win = windows.output_win
   local folds = build_fold_state(fold_ranges or {})
-  local prev_folds = get_fold_state(buf)
+  local prev_folds = state.ui.get_output_folds()
 
   if vim.deep_equal(prev_folds.ranges, folds.ranges) then
     return
@@ -415,7 +402,7 @@ function M.set_folds(fold_ranges)
 
   local was_open = M.get_open_fold_starts(win, buf)
   local preserve_view = not M.is_at_bottom(win)
-  vim.api.nvim_buf_set_var(buf, 'opencode_folds', folds)
+  state.ui.set_output_folds(folds)
 
   vim.api.nvim_win_call(win, function()
     local view = preserve_view and vim.fn.winsaveview() or nil
@@ -456,7 +443,7 @@ function M.shift_folds(start_line, delta)
     return
   end
   local buf = windows.output_buf
-  local fold_state = get_fold_state(buf)
+  local fold_state = state.ui.get_output_folds()
   local folds = fold_state.ranges
 
   for _, range in ipairs(folds) do
@@ -480,11 +467,6 @@ function M.shift_folds(start_line, delta)
   table.sort(folds, function(a, b)
     return a.from < b.from
   end)
-
-  fold_state.starts = {}
-  for _, range in ipairs(folds) do
-    fold_state.starts[#fold_state.starts + 1] = range.from
-  end
 end
 
 ---@return integer

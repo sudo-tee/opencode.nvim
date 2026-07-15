@@ -231,7 +231,7 @@ describe('output_window.setup', function()
     output_window.setup({ output_buf = buf, output_win = win })
     output_window.set_folds({ { from = 3, to = 5 }, { from = 1, to = 2 } })
 
-    local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
+    local folds = state.ui.get_output_folds()
 
     assert.same({
       ranges = {
@@ -247,7 +247,7 @@ describe('output_window.setup', function()
 
     output_window.shift_folds(3, 4)
 
-    local folds = vim.api.nvim_buf_get_var(buf, 'opencode_folds')
+    local folds = state.ui.get_output_folds()
     assert.same({
       ranges = { { from = 1, to = 3 } },
     }, folds)

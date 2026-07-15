@@ -3,14 +3,8 @@ local inline_input = require('opencode.ui.inline_input')
 describe('inline_input', function()
   local anchor_buf
   local anchor_win
-  local original_schedule
 
   before_each(function()
-    original_schedule = vim.schedule
-    vim.schedule = function(callback)
-      callback()
-    end
-
     local lines = {}
     for i = 1, 10 do
       lines[i] = string.rep('a', vim.o.columns)
@@ -28,7 +22,6 @@ describe('inline_input', function()
   end)
 
   after_each(function()
-    vim.schedule = original_schedule
     if vim.api.nvim_win_is_valid(anchor_win) then
       vim.api.nvim_win_close(anchor_win, true)
     end
@@ -38,7 +31,7 @@ describe('inline_input', function()
   end)
 
   local function open_input(row, col, on_submit)
-    return inline_input.open({
+    local input = inline_input.open({
       win = anchor_win,
       row = row,
       col = col,
@@ -46,6 +39,10 @@ describe('inline_input', function()
       on_submit = on_submit or function() end,
       on_cancel = function() end,
     })
+    assert.is_true(vim.wait(50, function()
+      return vim.api.nvim_get_current_win() == input.win
+    end))
+    return input
   end
 
   local function change_text(input, text)
@@ -70,9 +67,9 @@ describe('inline_input', function()
         first_cancelled = first_cancelled + 1
       end,
     })
-    vim.wait(50, function()
+    assert.is_true(vim.wait(50, function()
       return vim.api.nvim_get_current_win() == first.win
-    end)
+    end))
     vim.api.nvim_buf_set_lines(first.buf, 0, 1, false, { 'draft from first input' })
     vim.api.nvim_set_current_win(anchor_win)
 
@@ -90,9 +87,9 @@ describe('inline_input', function()
         second_cancelled = second_cancelled + 1
       end,
     })
-    vim.wait(50, function()
+    assert.is_true(vim.wait(50, function()
       return vim.api.nvim_get_current_win() == second.win
-    end)
+    end))
 
     assert.are.same({ '' }, vim.api.nvim_buf_get_lines(second.buf, 0, 1, false))
 
@@ -114,9 +111,9 @@ describe('inline_input', function()
         cancelled = cancelled + 1
       end,
     })
-    vim.wait(50, function()
+    assert.is_true(vim.wait(50, function()
       return vim.api.nvim_get_current_win() == input.win
-    end)
+    end))
 
     assert.are.same({ 'restored draft' }, vim.api.nvim_buf_get_lines(input.buf, 0, 1, false))
 

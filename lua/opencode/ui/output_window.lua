@@ -287,7 +287,7 @@ function M.setup(windows)
   end)
   window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
-  if config.ui.position ~= 'current' then
+  if windows.position ~= 'current' then
     window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
   end
   window_options.set_window_option('winfixheight', true, windows.output_win, { save_original = true })
@@ -305,7 +305,7 @@ end
 
 ---@param windows OpencodeWindowState?
 function M.update_dimensions(windows)
-  if config.ui.position == 'current' then
+  if windows and windows.position == 'current' then
     return
   end
 
@@ -313,7 +313,7 @@ function M.update_dimensions(windows)
     return
   end
 
-  if config.ui.position == 'float' then
+  if windows.position == 'float' then
     float_layout.update(windows, windows.input_win ~= nil and vim.api.nvim_win_is_valid(windows.input_win))
     return
   end

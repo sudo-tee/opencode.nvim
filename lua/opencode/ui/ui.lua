@@ -76,7 +76,7 @@ local function capture_hidden_snapshot(windows)
     output_cursor = cursor_positions.output,
     output_view = ok and type(view) == 'table' and view or nil,
     focused_window = focused,
-    position = config.ui.position,
+    position = windows.position,
     owner_tab = state.ui.are_windows_in_current_tab() and vim.api.nvim_get_current_tabpage() or nil,
   }
 end
@@ -115,7 +115,7 @@ local function close_or_restore_output_window(windows)
 
   output_window.restore_winfix_options(windows.output_win)
 
-  if config.ui.position == 'current' then
+  if windows.position == 'current' then
     if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
       pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
     end
@@ -143,7 +143,7 @@ function M.hide_visible_windows(windows)
   local snapshot = capture_hidden_snapshot(windows)
 
   -- Only save width ratio for split modes (not dialog/current mode)
-  if config.ui.position ~= 'current' then
+  if windows.position ~= 'current' then
     local total_cols = vim.o.columns
     local current_width = vim.api.nvim_win_get_width(windows.output_win)
     state.ui.set_last_window_width_ratio(current_width / total_cols)
@@ -225,21 +225,22 @@ function M.restore_hidden_windows()
     footer_buf = footer.create_buf()
   end
 
-  local win_ids = M.create_split_windows(hidden.input_buf, hidden.output_buf)
-
-  state.ui.consume_hidden_buffers()
-
-  state.ui.set_windows({
+  local windows = {
     input_buf = hidden.input_buf,
     output_buf = hidden.output_buf,
     footer_buf = footer_buf,
-    input_win = win_ids.input_win,
-    output_win = win_ids.output_win,
-    footer_win = nil,
-    output_was_at_bottom = hidden.output_was_at_bottom == true,
-    saved_width_ratio = state.last_window_width_ratio,
-  })
-  local windows = state.windows
+    position = config.ui.position,
+  }
+  local win_ids = M.create_split_windows(windows)
+
+  state.ui.consume_hidden_buffers()
+
+  windows.input_win = win_ids.input_win
+  windows.output_win = win_ids.output_win
+  windows.footer_win = nil
+  windows.output_was_at_bottom = hidden.output_was_at_bottom == true
+  windows.saved_width_ratio = state.last_window_width_ratio
+  state.ui.set_windows(windows)
 
   state.ui.set_cursor_position('input', hidden.input_cursor)
   state.ui.set_cursor_position('output', hidden.output_cursor)
@@ -318,48 +319,43 @@ local function open_split(direction, type)
   return vim.api.nvim_get_current_win()
 end
 
----@param input_buf integer
----@param output_buf integer
+---@param windows OpencodeWindowState
 ---@return { input_win: integer, output_win: integer }
-local function open_float(input_buf, output_buf)
-  local output_config, input_config =
-    float_layout.window_configs({ input_buf = input_buf, output_buf = output_buf }, true)
-  local output_win = float_layout.open_win(output_buf, true, output_config)
-  local input_win = float_layout.open_win(input_buf, true, input_config)
+local function open_float(windows)
+  local output_config, input_config = float_layout.window_configs(windows, true)
+  local output_win = float_layout.open_win(windows.output_buf, true, output_config)
+  local input_win = float_layout.open_win(windows.input_buf, true, input_config)
 
   return { input_win = input_win, output_win = output_win }
 end
 
----@param input_buf integer
----@param output_buf integer
+---@param windows OpencodeWindowState
 ---@return { input_win: integer, output_win: integer }
-function M.create_split_windows(input_buf, output_buf)
+function M.create_split_windows(windows)
   if input_window.mounted() or output_window.mounted() then
     M.close_windows(state.windows, false)
   end
-  local ui_conf = config.ui
-
-  if ui_conf.position == 'float' then
-    return open_float(input_buf, output_buf)
+  if windows.position == 'float' then
+    return open_float(windows)
   end
 
   local main_win
-  if ui_conf.position == 'current' then
+  if windows.position == 'current' then
     main_win = vim.api.nvim_get_current_win()
   else
-    main_win = open_split(ui_conf.position, 'vertical')
+    main_win = open_split(windows.position, 'vertical')
   end
   vim.api.nvim_set_current_win(main_win)
 
-  local input_win = open_split(ui_conf.input_position, 'horizontal')
+  local input_win = open_split(config.ui.input_position, 'horizontal')
   local output_win = main_win
 
-  if ui_conf.position == 'current' then
+  if windows.position == 'current' then
     pcall(vim.api.nvim_set_option_value, 'winfixbuf', false, { win = output_win })
   end
 
-  vim.api.nvim_win_set_buf(input_win, input_buf)
-  vim.api.nvim_win_set_buf(output_win, output_buf)
+  vim.api.nvim_win_set_buf(input_win, windows.input_buf)
+  vim.api.nvim_win_set_buf(output_win, windows.output_buf)
   return { input_win = input_win, output_win = output_win }
 end
 
@@ -383,16 +379,16 @@ function M.create_windows()
   end
 
   -- Create new windows from scratch
-  local buffers = M.setup_buffers()
-  local windows = buffers
-  local win_ids = M.create_split_windows(buffers.input_buf, buffers.output_buf)
+  local windows = M.setup_buffers()
+  windows.position = config.ui.position
+  local win_ids = M.create_split_windows(windows)
 
   windows.input_win = win_ids.input_win
   windows.output_win = win_ids.output_win
 
   local filetype = config.ui.output.filetype or 'opencode_output'
   vim.api.nvim_win_call(windows.output_win, function()
-    vim.api.nvim_set_option_value('filetype', filetype, { buf = buffers.output_buf })
+    vim.api.nvim_set_option_value('filetype', filetype, { buf = windows.output_buf })
   end)
 
   windows.saved_width_ratio = state.last_window_width_ratio

@@ -24,6 +24,7 @@ local store = require('opencode.state.store')
 ---@field input_buf integer|nil
 ---@field output_buf integer|nil
 ---@field output_was_at_bottom boolean|nil
+---@field position 'right'|'left'|'current'|'float'|nil
 
 ---@class OpencodeUiStateMutations
 local M = {}
@@ -449,10 +450,11 @@ function M.get_window_state()
 
   local status = status_rule and status_rule.status or 'closed'
   local current_windows = status_rule and status_rule.get_windows() or nil
+  local hidden = status == 'hidden' and read_hidden_buffers_snapshot(false) or nil
 
   return {
     status = status,
-    position = config.ui.position,
+    position = current_windows and current_windows.position or hidden and hidden.position or config.ui.position,
     windows = current_windows and vim.deepcopy(current_windows) or nil,
     cursor_positions = {
       input = M.get_window_cursor(current_windows and current_windows.input_win) or M.get_cursor_position('input'),

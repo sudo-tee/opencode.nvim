@@ -26,32 +26,34 @@ local ACTIONS = {
     if not config then
       return
     end
-    api.toggle(false)
-    config.ui.position = 'right'
-    api.toggle(false)
+    return api.toggle(false):and_then(function()
+      config.ui.position = 'right'
+      return api.toggle(false)
+    end)
   end,
   to_deep = function(api)
     local config = get_opencode_config()
     if not config then
       return
     end
-    api.toggle(false)
-    config.ui.position = 'current'
-    api.toggle(false)
+    return api.toggle(false):and_then(function()
+      config.ui.position = 'current'
+      return api.toggle(false)
+    end)
   end,
   open_side_by_side = function(api)
     local config = get_opencode_config()
     if config then
       config.ui.position = 'right'
     end
-    api.toggle(false)
+    return api.toggle(false)
   end,
   open_deep = function(api)
     local config = get_opencode_config()
     if config then
       config.ui.position = 'current'
     end
-    api.toggle(false)
+    return api.toggle(false)
   end,
 }
 
@@ -82,8 +84,7 @@ local function get_current_mode(api)
     return MODE.focused
   end
 
-  local config = get_opencode_config()
-  if config and config.ui.position == 'current' then
+  if window_state.position == 'current' then
     return MODE.deep
   end
 
@@ -103,7 +104,12 @@ local function run_transition(trigger)
   if not action then
     return
   end
-  action(api)
+  local transition = action(api)
+  if transition then
+    transition:catch(function(err)
+      vim.notify('Three-state layout transition failed: ' .. tostring(err), vim.log.levels.ERROR)
+    end)
+  end
 end
 
 -- Set up keymaps

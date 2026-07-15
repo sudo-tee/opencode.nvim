@@ -24,6 +24,7 @@ local store = require('opencode.state.store')
 ---@field input_buf integer|nil
 ---@field output_buf integer|nil
 ---@field output_was_at_bottom boolean|nil
+---@field output_folds { ranges: {from: integer, to: integer}[] }|nil
 
 ---@class OpencodeUiStateMutations
 local M = {}
@@ -37,6 +38,28 @@ end
 
 function M.clear_windows()
   return store.set('windows', nil)
+end
+
+---@param folds { ranges: {from: integer, to: integer}[] }|nil
+function M.set_output_folds(folds)
+  return store.mutate('windows', function(win)
+    if win then
+      win.output_folds = folds
+    end
+  end)
+end
+
+---@return { ranges: {from: integer, to: integer}[] }
+function M.get_output_folds()
+  local win = store.get('windows')
+  if win and win.output_folds then
+    return win.output_folds
+  end
+  return { ranges = {} }
+end
+
+function M.clear_output_folds()
+  return M.set_output_folds(nil)
 end
 
 ---@param is_opening boolean

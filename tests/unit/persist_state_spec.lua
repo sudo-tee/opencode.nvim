@@ -270,6 +270,61 @@ describe('persist_state', function()
   end)
 
   describe('hidden buffer lifecycle', function()
+    it('restores the code buffer when a current window closes after position changes', function()
+      setup_ui({ position = 'current' })
+      create_code_file()
+
+      windows = ui.create_windows()
+      state.ui.set_windows(windows)
+      config.values.ui.position = 'right'
+
+      ui.teardown_visible_windows(windows)
+
+      assert.is_true(vim.api.nvim_win_is_valid(code_win))
+      assert.equals(code_buf, vim.api.nvim_win_get_buf(code_win))
+    end)
+
+    it('records the mounted window position in a hidden snapshot', function()
+      setup_ui({ position = 'current' })
+      create_code_file()
+
+      windows = ui.create_windows()
+      state.ui.set_windows(windows)
+      config.values.ui.position = 'right'
+
+      ui.hide_visible_windows(windows)
+
+      local hidden = state.ui.inspect_hidden_buffers()
+      assert.equals('current', hidden.position)
+    end)
+
+    it('reports the hidden snapshot position after the next config position changes', function()
+      setup_ui({ position = 'current' })
+      create_code_file()
+
+      windows = ui.create_windows()
+      state.ui.set_windows(windows)
+      ui.hide_visible_windows(windows)
+      config.values.ui.position = 'right'
+
+      local window_state = api.get_window_state()
+      assert.equals('hidden', window_state.status)
+      assert.equals('current', window_state.position)
+    end)
+
+    it('uses the current config position when restoring hidden buffers into new windows', function()
+      setup_ui({ position = 'current' })
+      create_code_file()
+
+      windows = ui.create_windows()
+      state.ui.set_windows(windows)
+      config.values.ui.position = 'right'
+      ui.hide_visible_windows(windows)
+
+      assert.is_true(ui.restore_hidden_windows())
+      assert.equals('right', state.windows.position)
+    end)
+
     it('preserves and restores buffers/content, including footer', function()
       setup_ui()
       create_code_file()

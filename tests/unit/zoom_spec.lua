@@ -42,6 +42,7 @@ describe('ui zoom state', function()
       input_win = input_win,
       output_buf = output_buf,
       output_win = output_win,
+      position = 'right',
     }
     state.ui.set_windows(windows)
     state.ui.set_pre_zoom_width(nil)
@@ -341,14 +342,11 @@ describe('ui zoom state', function()
     end)
 
     it('does not save width in dialog mode (position=current)', function()
-      local original_position = config.ui.position
-      config.ui.position = 'current'
+      windows.position = 'current'
       state.ui.clear_last_window_width_ratio()
 
       ui.hide_visible_windows(windows)
       assert.is_nil(state.last_window_width_ratio)
-
-      config.ui.position = original_position
     end)
 
     it('uses saved width ratio in output_window.update_dimensions', function()

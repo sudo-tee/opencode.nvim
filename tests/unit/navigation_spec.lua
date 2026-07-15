@@ -39,7 +39,7 @@ describe('output token navigation', function()
       col = 0,
     })
 
-    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win, position = 'right' })
     state.ui.set_last_code_window(code_win)
   end)
 
@@ -518,6 +518,7 @@ describe('output token navigation', function()
       input_win = input_win,
       output_buf = output_buf,
       output_win = code_win,
+      position = 'current',
     })
     state.ui.set_last_code_window(code_win)
     state.ui.set_current_code_buf(code_buf)
@@ -570,7 +571,7 @@ describe('navigation jumplist preservation', function()
       col = 0,
     })
 
-    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win, position = 'right' })
     state.ui.set_last_code_window(code_win)
   end)
 
@@ -673,7 +674,7 @@ describe('navigation hidden-messages-notice handling', function()
       row = 0,
       col = 0,
     })
-    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win, position = 'right' })
   end)
 
   after_each(function()

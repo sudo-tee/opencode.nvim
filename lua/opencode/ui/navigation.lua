@@ -196,7 +196,7 @@ function M.navigate_to_location(path, line, col)
   end
   local target_win = best_target_win()
   local windows = state.windows
-  if config.ui.position == 'current' and windows and target_win == windows.output_win then
+  if windows and windows.position == 'current' and target_win == windows.output_win then
     require('opencode.ui.ui').hide_visible_windows(windows)
   end
   return open_at(target_win, resolved_path, line, col)

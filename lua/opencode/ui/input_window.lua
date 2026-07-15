@@ -56,7 +56,7 @@ local function calculate_height(windows)
 end
 
 local function apply_dimensions(windows, height)
-  if config.ui.position == 'current' then
+  if windows.position == 'current' then
     pcall(vim.api.nvim_win_set_height, windows.input_win, height)
     return
   end
@@ -88,7 +88,7 @@ function M._build_input_win_config()
 end
 
 function M.create_window(windows)
-  if config.ui.position == 'float' then
+  if windows.position == 'float' then
     local _, input_config = float_layout.window_configs(windows, true)
     windows.input_win = float_layout.open_win(windows.input_buf, true, input_config)
     return
@@ -277,7 +277,7 @@ function M.setup(windows)
   window_options.set_buffer_option('buflisted', false, windows.input_buf)
   window_options.set_buffer_option('swapfile', false, windows.input_buf)
 
-  if config.ui.position ~= 'current' then
+  if windows.position ~= 'current' then
     window_options.set_window_option('winfixbuf', true, windows.input_win)
   end
   window_options.set_window_option('winfixwidth', true, windows.input_win)
@@ -295,7 +295,7 @@ function M.update_dimensions(windows)
     return
   end
 
-  if config.ui.position == 'float' then
+  if windows.position == 'float' then
     float_layout.update(windows, true)
     return
   end
@@ -638,7 +638,7 @@ function M._hide()
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil
 
-  if config.ui.position == 'float' then
+  if windows.position == 'float' then
     float_layout.update(windows, false)
   end
 
@@ -680,7 +680,7 @@ function M._show()
     return
   end
 
-  if config.ui.position == 'float' then
+  if windows.position == 'float' then
     local output_config, input_config = float_layout.window_configs(windows, true)
     pcall(vim.api.nvim_win_set_config, output_win, output_config)
     windows.input_win = float_layout.open_win(windows.input_buf, true, input_config)

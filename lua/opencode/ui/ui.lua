@@ -281,6 +281,7 @@ function M.restore_hidden_windows()
   end)
 
   require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
+  require('opencode.ui.question_window').restore_active_question_ui()
 
   return true
 end

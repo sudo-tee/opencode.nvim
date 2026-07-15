@@ -221,6 +221,23 @@ function M.show_question(question_request)
   render_question()
 end
 
+---@return boolean
+function M.restore_active_question_ui()
+  local question = M._current_question
+  if
+    not question
+    or not session_scope.belongs_to_active_session(question)
+    or is_resolved_question_request(question)
+    or M.uses_vim_ui_select(question)
+  then
+    return false
+  end
+
+  M._setup_dialog()
+  render_question()
+  return true
+end
+
 ---@param session_id string|nil
 function M.restore_pending_question(session_id)
   if not state.api_client or not session_id or session_id == '' then
@@ -229,6 +246,7 @@ function M.restore_pending_question(session_id)
 
   if M.has_question() and session_scope.belongs_to_active_session(M._current_question) then
     if not is_resolved_question_request(M._current_question) then
+      M.restore_active_question_ui()
       return Promise.new():resolve(nil)
     end
 

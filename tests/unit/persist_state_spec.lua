@@ -334,6 +334,40 @@ describe('persist_state', function()
       toggle_wait('visible')
     end)
 
+    it('restores active question dialog mappings with hidden buffers', function()
+      setup_ui()
+      create_code_file()
+      state.session.set_active({ id = 'sess1' })
+      toggle_wait('visible')
+
+      local question_window = require('opencode.ui.question_window')
+      question_window.show_question({
+        id = 'question_restore_hidden',
+        sessionID = 'sess1',
+        questions = {
+          {
+            question = 'Pick one',
+            options = { { label = 'One' } },
+          },
+        },
+      })
+      require('opencode.ui.renderer.flush').flush()
+
+      toggle_wait('hidden')
+      toggle_wait('visible')
+
+      local enter_mapping
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(state.windows.output_buf, 'n')) do
+        if mapping.lhs == '<CR>' then
+          enter_mapping = mapping
+          break
+        end
+      end
+
+      assert.equals('Dialog: select option', enter_mapping and enter_mapping.desc)
+      question_window.clear_question()
+    end)
+
     it('fully closes when persist_state=false', function()
       setup_ui({ persist_state = false })
       create_code_file()

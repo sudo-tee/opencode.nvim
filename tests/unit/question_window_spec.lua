@@ -975,6 +975,37 @@ describe('question_window', function()
     show_stub:revert()
   end)
 
+  it('rebuilds an unresolved dialog when restoring its UI', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    state.jobs.set_api_client({})
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    question_window.show_question({
+      id = 'question_restore_dialog',
+      sessionID = 'sess1',
+      questions = {
+        {
+          question = 'Pick one',
+          options = { { label = 'One' } },
+        },
+      },
+    })
+    require('opencode.ui.renderer.flush').flush()
+    question_window._dialog:teardown()
+
+    question_window.restore_pending_question('sess1'):wait()
+    require('opencode.ui.renderer.flush').flush()
+
+    assert.is_true(question_window._dialog:is_active())
+    assert.is_not_nil(question_window._dialog:get_option_position(2))
+
+    question_window.clear_question()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
+  end)
+
   it('does not force-scroll on question navigation redraws', function()
     helpers.replay_setup()
     state.session.set_active({ id = 'sess1' })

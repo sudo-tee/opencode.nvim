@@ -17,7 +17,7 @@ end
 
 ---@param answer? 'once'|'always'|'reject'
 ---@param permission? OpencodePermission
-function M.actions.respond_to_permission(answer, permission)
+function M.actions.respond_to_permission(answer, permission, message)
   answer = answer or 'once'
 
   local permission_window = require('opencode.ui.permission_window')
@@ -27,8 +27,13 @@ function M.actions.respond_to_permission(answer, permission)
     return
   end
 
+  local data = { reply = answer }
+  if message and message ~= '' then
+    data.message = message
+  end
+
   state.api_client
-    :respond_to_permission(current_permission.sessionID, current_permission.id, { response = answer })
+    :reply_to_permission(current_permission.id, data)
     :catch(function(err)
       vim.schedule(function()
         vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -47,8 +52,9 @@ function M.actions.permission_accept_all(permission)
 end
 
 ---@param permission? OpencodePermission
-function M.actions.permission_deny(permission)
-  M.actions.respond_to_permission('reject', permission)
+---@param message? string
+function M.actions.permission_deny(permission, message)
+  M.actions.respond_to_permission('reject', permission, message)
 end
 
 function M.actions.question_answer()

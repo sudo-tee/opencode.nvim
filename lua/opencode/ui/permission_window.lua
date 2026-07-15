@@ -223,6 +223,7 @@ function M.format_display(output)
   local options = {
     { label = 'Allow once' },
     { label = 'Reject' },
+    { label = 'Reject with feedback' },
     { label = 'Allow always' },
   }
 
@@ -289,21 +290,55 @@ function M._setup_dialog()
       return
     end
 
-    M._processing = true
-
     local api = require('opencode.api')
-    local actions = { 'accept', 'deny', 'accept_all' }
+    local actions = { 'accept', 'deny', 'deny_with_feedback', 'accept_all' }
     local action = actions[index]
 
     vim.schedule(function()
-      if action then
+      if action == 'deny_with_feedback' then
+        local pos = M._dialog and M._dialog:get_option_position(index)
+        local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
+        local use_inline = pos and part_data and part_data.line_start and state.windows and state.windows.output_win
+
+        if use_inline then
+          require('opencode.ui.inline_input').open({
+            win = state.windows.output_win,
+            row = part_data.line_start + pos.line,
+            col = pos.col,
+            title = 'Tell OpenCode what to do differently',
+            on_submit = function(text)
+              M._processing = true
+              api.permission_deny(permission, (text ~= '') and text or nil)
+              M._processing = false
+              M.remove_permission(permission.id)
+            end,
+            on_cancel = function()
+              M._processing = true
+              api.permission_deny(permission, nil)
+              M._processing = false
+              M.remove_permission(permission.id)
+            end,
+          })
+        else
+          M._processing = true
+          vim.ui.input({ prompt = 'Tell OpenCode what to do differently: ' }, function(input)
+            local reason = (input and input ~= '') and input or nil
+            api.permission_deny(permission, reason)
+            M._processing = false
+            M.remove_permission(permission.id)
+          end)
+        end
+      elseif action then
+        M._processing = true
         local api_func = api['permission_' .. action]
         if api_func then
           api_func(permission)
         end
+        M._processing = false
+        M.remove_permission(permission.id)
+      elseif action == nil then
+        M.remove_permission(permission.id)
       end
-      M._processing = false
-      M.remove_permission(permission.id)
     end)
   end
 
@@ -312,7 +347,7 @@ function M._setup_dialog()
   end
 
   local function get_option_count()
-    return #M._permission_queue > 0 and 3 or 0 -- accept, deny, accept_all
+    return #M._permission_queue > 0 and 4 or 0 -- accept, deny, deny_with_feedback, accept_all
   end
 
   M._dialog = Dialog.new({

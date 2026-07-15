@@ -262,7 +262,7 @@ M.cancel = Promise.async(function()
     local permissions = state.pending_permissions or {}
     if #permissions > 0 and state.api_client then
       for _, permission in ipairs(permissions) do
-        state.api_client:respond_to_permission(permission.sessionID, permission.id, { response = 'reject' })
+        state.api_client:reply_to_permission(permission.id, { response = 'reject' })
       end
     end
 

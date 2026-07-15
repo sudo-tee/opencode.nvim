@@ -459,6 +459,55 @@ function M._submit_multi_answers(request_id, question_index)
   end, 100)
 end
 
+---@param request_id string
+---@param question_index integer
+---@param option_index integer|nil
+---@param on_submit fun(text: string)
+---@return boolean
+local function open_inline_other_input(request_id, question_index, option_index, on_submit)
+  if config.ui.questions.inline_other_input == false or not option_index then
+    return false
+  end
+
+  local pos = M._dialog and M._dialog:get_option_position(option_index)
+  local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+  if not (pos and part_data and part_data.line_start and state.windows and state.windows.output_win) then
+    return false
+  end
+
+  M._clear_inline_input()
+  local handle
+  handle = require('opencode.ui.inline_input').open({
+    win = state.windows.output_win,
+    row = part_data.line_start + pos.line,
+    col = pos.col,
+    title = 'Type your answer',
+    initial_text = M._other_input_drafts[question_index],
+    on_submit = function(text)
+      if M._inline_input == handle then
+        M._inline_input = nil
+      end
+      M._other_input_drafts[question_index] = nil
+      if is_active_question(request_id, question_index) then
+        on_submit(text)
+      end
+    end,
+    on_cancel = function()
+      if M._inline_input == handle then
+        M._inline_input = nil
+      end
+      if is_active_question(request_id, question_index) then
+        render_question()
+      end
+    end,
+    on_leave = function(text)
+      M._other_input_drafts[question_index] = text
+    end,
+  })
+  M._inline_input = handle
+  return true
+end
+
 ---Open inline input for multi-select "Other" custom answer
 ---@param request_id string
 ---@param question_index integer
@@ -467,65 +516,33 @@ function M._open_multi_other_input(request_id, question_index)
     return
   end
 
-  local request = M._current_question
   local question_info = M.get_current_question_info()
-  if not request or not question_info then
+  if not question_info then
     return
   end
 
   M._empty_confirm_armed = false
 
-  local use_inline = config.ui.questions.inline_other_input ~= false
-  local custom_option_index = get_custom_option_index(question_info)
-  local pos = use_inline and custom_option_index and M._dialog and M._dialog:get_option_position(custom_option_index)
-  local part_data = use_inline and require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
-
-  if use_inline and pos and part_data and part_data.line_start and state.windows and state.windows.output_win then
-    M._clear_inline_input()
-    local handle
-    handle = require('opencode.ui.inline_input').open({
-      win = state.windows.output_win,
-      row = part_data.line_start + pos.line,
-      col = pos.col,
-      title = 'Type your answer',
-      initial_text = M._other_input_drafts[question_index],
-      on_submit = function(text)
-        if M._inline_input == handle then
-          M._inline_input = nil
-        end
-        M._other_input_drafts[question_index] = nil
-        if not is_active_question(request_id, question_index) then
-          return
-        end
-        M._multi_selections[question_index] = M._multi_selections[question_index] or {}
-        M._multi_selections[question_index].custom_answer = text
-        render_question()
-      end,
-      on_cancel = function()
-        if M._inline_input == handle then
-          M._inline_input = nil
-        end
-        if is_active_question(request_id, question_index) then
-          render_question()
-        end
-      end,
-      on_leave = function(text)
-        M._other_input_drafts[question_index] = text
-      end,
-    })
-    M._inline_input = handle
-  else
-    vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
-      if not is_active_question(request_id, question_index) then
-        return
-      end
-      if input and input ~= '' then
-        M._multi_selections[question_index] = M._multi_selections[question_index] or {}
-        M._multi_selections[question_index].custom_answer = input
-      end
+  if
+    open_inline_other_input(request_id, question_index, get_custom_option_index(question_info), function(text)
+      M._multi_selections[question_index] = M._multi_selections[question_index] or {}
+      M._multi_selections[question_index].custom_answer = text
       render_question()
     end)
+  then
+    return
   end
+
+  vim.ui.input({ prompt = 'Enter your response: ' }, function(input)
+    if not is_active_question(request_id, question_index) then
+      return
+    end
+    if input and input ~= '' then
+      M._multi_selections[question_index] = M._multi_selections[question_index] or {}
+      M._multi_selections[question_index].custom_answer = input
+    end
+    render_question()
+  end)
 end
 
 ---Prompt for a free-form answer to the active question.
@@ -688,53 +705,13 @@ local function handle_other_option_inline(index, request_id, question_index)
   local question_info = M.get_current_question_info()
   local custom_option_index = question_info and get_custom_option_index(question_info)
 
-  if not (index == custom_option_index and config.ui.questions.inline_other_input ~= false) then
+  if index ~= custom_option_index then
     return false
   end
 
-  local pos = M._dialog and M._dialog:get_option_position(index)
-  local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
-
-  if not (pos and part_data and part_data.line_start and state.windows and state.windows.output_win) then
-    return false
-  end
-
-  M._clear_inline_input()
-  local handle
-  handle = require('opencode.ui.inline_input').open({
-    win = state.windows.output_win,
-    row = part_data.line_start + pos.line,
-    col = pos.col,
-    title = 'Type your answer',
-    initial_text = M._other_input_drafts[question_index],
-    on_submit = function(text)
-      if M._inline_input == handle then
-        M._inline_input = nil
-      end
-      M._other_input_drafts[question_index] = nil
-      if not is_active_question(request_id, question_index) then
-        return
-      end
-      if text and text ~= '' then
-        answer_current_question(text, request_id, question_index)
-      else
-        render_question()
-      end
-    end,
-    on_cancel = function()
-      if M._inline_input == handle then
-        M._inline_input = nil
-      end
-      if is_active_question(request_id, question_index) then
-        render_question()
-      end
-    end,
-    on_leave = function(text)
-      M._other_input_drafts[question_index] = text
-    end,
-  })
-  M._inline_input = handle
-  return true
+  return open_inline_other_input(request_id, question_index, index, function(text)
+    answer_current_question(text, request_id, question_index)
+  end)
 end
 
 ---Create the in-buffer dialog used to answer the active question.

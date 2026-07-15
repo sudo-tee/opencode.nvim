@@ -222,7 +222,7 @@ function M.show_question(question_request)
 end
 
 ---@return boolean
-function M.restore_active_question_ui()
+local function restore_active_question_ui()
   local question = M._current_question
   if
     not question
@@ -246,7 +246,7 @@ function M.restore_pending_question(session_id)
 
   if M.has_question() and session_scope.belongs_to_active_session(M._current_question) then
     if not is_resolved_question_request(M._current_question) then
-      M.restore_active_question_ui()
+      restore_active_question_ui()
       return Promise.new():resolve(nil)
     end
 

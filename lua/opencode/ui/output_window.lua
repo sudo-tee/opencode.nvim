@@ -300,7 +300,6 @@ function M.setup(windows)
   M.update_dimensions(windows)
   M.reset_scroll_tracking(windows.output_win)
   M._last_visible_bottom_by_win[windows.output_win] = M.get_visible_bottom_line(windows.output_win)
-  M.setup_keymaps(windows)
 end
 
 ---@param windows OpencodeWindowState?
@@ -681,18 +680,30 @@ function M.close()
 end
 
 ---@param windows OpencodeWindowState
-function M.setup_keymaps(windows)
+---@param preserve_existing? boolean
+function M.setup_keymaps(windows, preserve_existing)
   local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf)
+  keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf, preserve_existing)
 
   -- When lazy-render is active, gg only reaches the top of rendered content.
   -- Load all messages first so gg reaches the true start of history.
-  vim.keymap.set('n', 'gg', function()
-    local renderer = require('opencode.ui.renderer')
-    renderer.load_all_messages()
-    pcall(vim.cmd, [[noau normal! m']])
-    vim.api.nvim_win_set_cursor(0, { 1, 0 })
-  end, { buffer = windows.output_buf })
+  local has_gg = false
+  if preserve_existing then
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(windows.output_buf, 'n')) do
+      if mapping.lhs == 'gg' then
+        has_gg = true
+        break
+      end
+    end
+  end
+  if not has_gg then
+    vim.keymap.set('n', 'gg', function()
+      local renderer = require('opencode.ui.renderer')
+      renderer.load_all_messages()
+      pcall(vim.cmd, [[noau normal! m']])
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    end, { buffer = windows.output_buf })
+  end
 end
 
 ---@param windows OpencodeWindowState

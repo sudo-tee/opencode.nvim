@@ -23,7 +23,7 @@ describe('inline_input', function()
 
   after_each(function()
     if vim.api.nvim_win_is_valid(anchor_win) then
-      vim.api.nvim_win_close(anchor_win, true)
+      pcall(vim.api.nvim_win_close, anchor_win, true)
     end
     if vim.api.nvim_buf_is_valid(anchor_buf) then
       vim.api.nvim_buf_delete(anchor_buf, { force = true })
@@ -43,6 +43,17 @@ describe('inline_input', function()
       return vim.api.nvim_get_current_win() == input.win
     end))
     return input
+  end
+
+  local function use_regular_anchor()
+    vim.api.nvim_win_close(anchor_win, true)
+    anchor_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(anchor_win, anchor_buf)
+    vim.wo[anchor_win].wrap = false
+    vim.wo[anchor_win].signcolumn = 'no'
+    vim.wo[anchor_win].foldcolumn = '0'
+    vim.wo[anchor_win].number = false
+    vim.wo[anchor_win].relativenumber = false
   end
 
   local function change_text(input, text, expected_height)
@@ -162,13 +173,15 @@ describe('inline_input', function()
   end)
 
   it('shrinks its opening width before the right border reaches the editor edge', function()
+    use_regular_anchor()
     local col = vim.api.nvim_win_get_width(anchor_win) - 2
     local input = open_input(0, col)
     local anchor = vim.fn.screenpos(anchor_win, 1, col + 1)
     local width = vim.api.nvim_win_get_config(input.win).width
+    local position = vim.api.nvim_win_get_position(input.win)
 
-    assert.equals(math.min(50, vim.o.columns - anchor.col - 1), width)
-    assert.is_true(anchor.col + width + 1 <= vim.o.columns)
+    assert.equals(math.max(1, math.min(50, vim.o.columns - anchor.col - 1)), width)
+    assert.is_true(position[2] + width + 2 <= vim.o.columns)
     input.close()
   end)
 
@@ -183,6 +196,47 @@ describe('inline_input', function()
     assert.equals(max_height, vim.api.nvim_win_get_config(input.win).height)
     assert.is_true(vim.api.nvim_win_text_height(input.win, { start_row = 0, end_row = 0 }).all > max_height)
     input.close()
+  end)
+
+  it('keeps its rounded border inside the editor at the bottom-right edge', function()
+    vim.api.nvim_win_close(anchor_win, true)
+    vim.cmd('botright 10vnew')
+    vim.cmd('botright 1new')
+    anchor_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(anchor_win, anchor_buf)
+    vim.wo[anchor_win].wrap = false
+    vim.wo[anchor_win].signcolumn = 'no'
+    vim.wo[anchor_win].foldcolumn = '0'
+
+    local col = vim.api.nvim_win_get_width(anchor_win) - 3
+    local anchor = vim.fn.screenpos(anchor_win, 1, col + 1)
+    assert.equals(vim.o.lines - 2, anchor.row)
+
+    local input = open_input(0, col)
+    local position = vim.api.nvim_win_get_position(input.win)
+    local window_config = vim.api.nvim_win_get_config(input.win)
+
+    assert.is_true(
+      position[2] + window_config.width + 2 <= vim.o.columns,
+      vim.inspect({ position = position, config = window_config, columns = vim.o.columns, lines = vim.o.lines })
+    )
+    assert.is_true(
+      position[1] + window_config.height + 2 <= vim.o.lines,
+      vim.inspect({ position = position, config = window_config, columns = vim.o.columns, lines = vim.o.lines })
+    )
+    input.close()
+    vim.cmd('only')
+  end)
+
+  it('removes its WinClosed watcher after closing', function()
+    local before = #vim.api.nvim_get_autocmds({ event = 'WinClosed' })
+
+    for _ = 1, 5 do
+      local input = open_input(0, 0)
+      input.close()
+    end
+
+    assert.equals(before, #vim.api.nvim_get_autocmds({ event = 'WinClosed' }))
   end)
 
   it('resizes after multiline text changes outside insert mode', function()
@@ -226,6 +280,34 @@ describe('inline_input', function()
     vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
     vim.api.nvim_feedkeys(vim.keycode('i<C-c>'), 'x', false)
 
+    assert.equals(table.concat(lines, '\n'), draft)
+    assert.equals(1, cancelled)
+  end)
+
+  it('returns the draft and closes when its anchor window closes', function()
+    local draft
+    local cancelled = 0
+    local input = inline_input.open({
+      win = anchor_win,
+      row = 0,
+      col = 0,
+      on_submit = function() end,
+      on_cancel = function()
+        cancelled = cancelled + 1
+      end,
+      on_leave = function(text)
+        draft = text
+      end,
+    })
+    assert.is_true(vim.wait(50, function()
+      return vim.api.nvim_get_current_win() == input.win
+    end))
+
+    local lines = { 'first line', 'second line' }
+    vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
+    vim.api.nvim_win_close(anchor_win, true)
+
+    assert.is_false(vim.api.nvim_win_is_valid(input.win))
     assert.equals(table.concat(lines, '\n'), draft)
     assert.equals(1, cancelled)
   end)

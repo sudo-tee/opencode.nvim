@@ -221,6 +221,27 @@ describe('opencode.keymap', function()
 
       mock_commands.execute_parsed_intent = original_execute_parsed_intent
     end)
+
+    it('preserves existing mappings across equivalent lhs notation', function()
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local original_mapleader = vim.g.mapleader
+      vim.g.mapleader = '\\'
+
+      for _, lhs in ipairs({ '<Esc>', '<Tab>', '<C-C>', '\\x' }) do
+        original_keymap_set('n', lhs, function() end, { buffer = bufnr })
+      end
+
+      keymap.setup_window_keymaps({
+        ['<esc>'] = { function() end },
+        ['<tab>'] = { function() end },
+        ['<C-c>'] = { function() end },
+        ['<leader>x'] = { function() end },
+      }, bufnr, true)
+
+      assert.equal(0, #set_keymaps)
+      vim.g.mapleader = original_mapleader
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
   end)
 
   describe('defer_to_completion', function()

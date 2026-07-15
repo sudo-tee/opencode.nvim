@@ -18,7 +18,9 @@ local M = {}
 function M.open(opts)
   local anchor = vim.fn.screenpos(opts.win, opts.row + 1, opts.col + 1)
   local width = math.max(1, math.min(50, vim.o.columns - anchor.col - 1))
-  local max_height = math.max(1, vim.o.lines - anchor.row - 2)
+  local col_shift = math.max(0, anchor.col + width + 1 - vim.o.columns)
+  local row_shift = math.max(0, anchor.row + 3 - vim.o.lines)
+  local max_height = math.max(1, vim.o.lines - anchor.row + row_shift - 2)
   local initial_lines = opts.initial_text and vim.split(opts.initial_text, '\n', { plain = true }) or nil
 
   local buf = vim.api.nvim_create_buf(false, true)
@@ -34,6 +36,8 @@ function M.open(opts)
     relative = 'win',
     win = opts.win,
     bufpos = { opts.row, opts.col },
+    row = 1 - row_shift,
+    col = -col_shift,
     width = width,
     height = 1,
     style = 'minimal',
@@ -57,11 +61,20 @@ function M.open(opts)
   resize_height()
 
   local closed = false
+  local win_closed_autocmd
+  local function delete_win_closed_autocmd()
+    if win_closed_autocmd then
+      pcall(vim.api.nvim_del_autocmd, win_closed_autocmd)
+      win_closed_autocmd = nil
+    end
+  end
+
   local function close()
     if closed then
       return
     end
     closed = true
+    delete_win_closed_autocmd()
     if vim.api.nvim_win_is_valid(win) then
       vim.api.nvim_win_close(win, true)
     end
@@ -106,13 +119,18 @@ function M.open(opts)
     end,
   })
 
-  vim.api.nvim_create_autocmd('WinClosed', {
-    pattern = tostring(win),
-    callback = function()
+  win_closed_autocmd = vim.api.nvim_create_autocmd('WinClosed', {
+    pattern = { tostring(opts.win), tostring(win) },
+    callback = function(event)
       if closed then
         return
       end
+      if tonumber(event.match) == opts.win then
+        cancel_with_draft()
+        return
+      end
       closed = true
+      delete_win_closed_autocmd()
       if vim.api.nvim_win_is_valid(opts.win) then
         vim.api.nvim_set_current_win(opts.win)
       end

@@ -353,19 +353,67 @@ describe('persist_state', function()
       })
       require('opencode.ui.renderer.flush').flush()
 
+      question_window._dialog:set_selection(2)
+      question_window._dialog:select()
+      assert.is_true(vim.wait(100, function()
+        return question_window._inline_input ~= nil
+      end))
+      local inline_win = question_window._inline_input.win
+      local draft_lines = { 'first line', 'second line' }
+      vim.api.nvim_buf_set_lines(question_window._inline_input.buf, 0, -1, false, draft_lines)
+
       toggle_wait('hidden')
+
+      assert.is_false(vim.api.nvim_win_is_valid(inline_win))
+      assert.is_nil(question_window._inline_input)
+      assert.equals(table.concat(draft_lines, '\n'), question_window._other_input_drafts[1])
+
       toggle_wait('visible')
 
-      local enter_mapping
+      local mappings = {}
       for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(state.windows.output_buf, 'n')) do
-        if mapping.lhs == '<CR>' then
-          enter_mapping = mapping
-          break
+        mappings[mapping.lhs] = mapping
+      end
+
+      assert.equals('Dialog: select option', mappings['<CR>'] and mappings['<CR>'].desc)
+      assert.equals('Dialog: select option', mappings['<Tab>'] and mappings['<Tab>'].desc)
+      assert.equals('Dialog: dismiss', mappings['<Esc>'] and mappings['<Esc>'].desc)
+      assert.equals(2, question_window._dialog:get_selection())
+
+      question_window._dialog:select()
+      assert.is_true(vim.wait(100, function()
+        return question_window._inline_input ~= nil
+      end))
+      assert.are.same(draft_lines, vim.api.nvim_buf_get_lines(question_window._inline_input.buf, 0, -1, false))
+      question_window.clear_question()
+    end)
+
+    it('restores missing base mappings without replacing preserved mappings', function()
+      setup_ui()
+      config.keymap.output_window.a = { function() end, desc = 'Base A' }
+      create_code_file()
+      toggle_wait('visible')
+
+      local output_buf = state.windows.output_buf
+      local contextual_actions = require('opencode.ui.contextual_actions')
+      contextual_actions.show_contextual_actions_menu(output_buf, {
+        { key = 'a', text = 'Temporary A', display_line = 0 },
+      }, vim.api.nvim_create_namespace('persist-state-mapping-test'))
+
+      local function mapping_description(lhs)
+        for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(output_buf, 'n')) do
+          if mapping.lhs == lhs then
+            return mapping.desc
+          end
         end
       end
 
-      assert.equals('Dialog: select option', enter_mapping and enter_mapping.desc)
-      question_window.clear_question()
+      assert.equals('Temporary A', mapping_description('a'))
+      toggle_wait('hidden')
+      assert.is_nil(mapping_description('a'))
+
+      toggle_wait('visible')
+      assert.equals('Base A', mapping_description('a'))
     end)
 
     it('fully closes when persist_state=false', function()

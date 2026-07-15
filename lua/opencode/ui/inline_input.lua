@@ -19,14 +19,15 @@ function M.open(opts)
   local anchor = vim.fn.screenpos(opts.win, opts.row + 1, opts.col + 1)
   local width = math.max(1, math.min(50, vim.o.columns - anchor.col - 1))
   local max_height = math.max(1, vim.o.lines - anchor.row - 2)
+  local initial_lines = opts.initial_text and vim.split(opts.initial_text, '\n', { plain = true }) or nil
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].buftype = 'prompt'
   vim.bo[buf].bufhidden = 'wipe'
   vim.fn.prompt_setprompt(buf, '')
 
-  if opts.initial_text then
-    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { opts.initial_text })
+  if initial_lines then
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, initial_lines)
   end
 
   local win = vim.api.nvim_open_win(buf, true, {
@@ -48,7 +49,8 @@ function M.open(opts)
       return
     end
 
-    local height = vim.api.nvim_win_text_height(win, { start_row = 0, end_row = 0 }).all
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local height = vim.api.nvim_win_text_height(win, { start_row = 0, end_row = line_count - 1 }).all
     vim.api.nvim_win_set_config(win, { height = math.min(max_height, math.max(1, height)) })
   end
 
@@ -71,6 +73,15 @@ function M.open(opts)
     end)
   end
 
+  local function cancel_with_draft()
+    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
+    close()
+    if opts.on_leave then
+      opts.on_leave(text)
+    end
+    opts.on_cancel()
+  end
+
   vim.fn.prompt_setcallback(buf, function(text)
     close()
     if text ~= '' then
@@ -81,19 +92,17 @@ function M.open(opts)
   end)
 
   vim.keymap.set('i', '<C-c>', function()
-    close()
-    opts.on_cancel()
+    cancel_with_draft()
   end, { buffer = buf, silent = true, nowait = true })
 
   vim.keymap.set('n', '<Esc>', function()
-    close()
-    opts.on_cancel()
+    cancel_with_draft()
   end, { buffer = buf, silent = true, nowait = true })
 
-  vim.api.nvim_create_autocmd('TextChangedI', {
+  vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
     buffer = buf,
     callback = function()
-      resize_height()
+      vim.schedule(resize_height)
     end,
   })
 
@@ -118,12 +127,7 @@ function M.open(opts)
     buffer = buf,
     callback = function()
       if not closed then
-        local line = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ''
-        close()
-        if opts.on_leave then
-          opts.on_leave(line)
-        end
-        opts.on_cancel()
+        cancel_with_draft()
       end
     end,
   })
@@ -132,8 +136,9 @@ function M.open(opts)
     if vim.api.nvim_win_is_valid(win) then
       vim.api.nvim_set_current_win(win)
       vim.cmd.startinsert()
-      if opts.initial_text then
-        vim.api.nvim_win_set_cursor(win, { 1, vim.fn.strlen(opts.initial_text) })
+      if initial_lines then
+        local last_line = initial_lines[#initial_lines]
+        vim.api.nvim_win_set_cursor(win, { #initial_lines, vim.fn.strlen(last_line) })
       end
     end
   end)

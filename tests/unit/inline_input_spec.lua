@@ -45,9 +45,12 @@ describe('inline_input', function()
     return input
   end
 
-  local function change_text(input, text)
+  local function change_text(input, text, expected_height)
     vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { text })
     vim.api.nvim_exec_autocmds('TextChangedI', { buffer = input.buf, modeline = false })
+    assert.is_true(vim.wait(100, function()
+      return vim.api.nvim_win_get_config(input.win).height == expected_height
+    end))
   end
 
   it('is stateless across opens (no implicit carry-over)', function()
@@ -121,6 +124,24 @@ describe('inline_input', function()
     assert.are.equal(1, cancelled)
   end)
 
+  it('restores multiline initial_text and places the cursor at its end', function()
+    local input = inline_input.open({
+      win = anchor_win,
+      row = 0,
+      col = 0,
+      initial_text = 'first line\nsecond line',
+      on_submit = function() end,
+      on_cancel = function() end,
+    })
+    assert.is_true(vim.wait(50, function()
+      return vim.api.nvim_get_current_win() == input.win
+        and vim.deep_equal(vim.api.nvim_win_get_cursor(input.win), { 2, #'second line' })
+    end))
+
+    assert.are.same({ 'first line', 'second line' }, vim.api.nvim_buf_get_lines(input.buf, 0, -1, false))
+    input.close()
+  end)
+
   it('keeps its opening width while wrapped text grows and shrinks', function()
     local input = open_input(0, 0)
     local opening_width = vim.api.nvim_win_get_config(input.win).width
@@ -128,12 +149,12 @@ describe('inline_input', function()
     assert.equals(50, opening_width)
     assert.equals(1, vim.api.nvim_win_get_config(input.win).height)
 
-    change_text(input, string.rep('a', opening_width + 1))
+    change_text(input, string.rep('a', opening_width + 1), 2)
 
     assert.equals(opening_width, vim.api.nvim_win_get_config(input.win).width)
     assert.equals(2, vim.api.nvim_win_get_config(input.win).height)
 
-    change_text(input, 'short')
+    change_text(input, 'short', 1)
 
     assert.equals(opening_width, vim.api.nvim_win_get_config(input.win).width)
     assert.equals(1, vim.api.nvim_win_get_config(input.win).height)
@@ -157,11 +178,56 @@ describe('inline_input', function()
     local anchor = vim.fn.screenpos(anchor_win, row + 1, 1)
     local max_height = math.max(1, vim.o.lines - anchor.row - 2)
 
-    change_text(input, string.rep('a', 50 * (max_height + 1)))
+    change_text(input, string.rep('a', 50 * (max_height + 1)), max_height)
 
     assert.equals(max_height, vim.api.nvim_win_get_config(input.win).height)
     assert.is_true(vim.api.nvim_win_text_height(input.win, { start_row = 0, end_row = 0 }).all > max_height)
     input.close()
+  end)
+
+  it('resizes after multiline text changes outside insert mode', function()
+    local input = open_input(0, 0)
+    local lines = {
+      'local function one()',
+      '  print("one")',
+      'end',
+      'return one',
+    }
+
+    vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
+    vim.api.nvim_exec_autocmds('TextChanged', { buffer = input.buf, modeline = false })
+
+    assert.is_true(vim.wait(100, function()
+      return vim.api.nvim_win_get_config(input.win).height == #lines
+    end))
+    input.close()
+  end)
+
+  it('returns the full draft when cancelled with Ctrl-C', function()
+    local draft
+    local cancelled = 0
+    local input = inline_input.open({
+      win = anchor_win,
+      row = 0,
+      col = 0,
+      on_submit = function() end,
+      on_cancel = function()
+        cancelled = cancelled + 1
+      end,
+      on_leave = function(text)
+        draft = text
+      end,
+    })
+    assert.is_true(vim.wait(50, function()
+      return vim.api.nvim_get_current_win() == input.win
+    end))
+
+    local lines = { 'local value = 1', 'return value' }
+    vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
+    vim.api.nvim_feedkeys(vim.keycode('i<C-c>'), 'x', false)
+
+    assert.equals(table.concat(lines, '\n'), draft)
+    assert.equals(1, cancelled)
   end)
 
   it('submits every character from a wrapped mixed-language line', function()

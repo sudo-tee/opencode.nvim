@@ -638,7 +638,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     end
 
     if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
-      M.set_all_folds()
+      M.update_part_folds(part_id)
     end
 
     return true
@@ -647,83 +647,87 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   return false
 end
 
-function M.set_all_folds()
-  local all_folds = {}
-  ctx.part_folds = {}
-  for part_id_iter, data in pairs(ctx.formatted_parts) do
-    if data.fold_ranges then
-      local cached_part = ctx.render_state:get_part(part_id_iter)
-      if cached_part and cached_part.line_start then
-        local part_abs_folds = {}
-        for _, f in ipairs(data.fold_ranges) do
-          local abs = {
-            from = cached_part.line_start + f.from - 1,
-            to = cached_part.line_start + f.to - 1,
-          }
-          table.insert(part_abs_folds, abs)
-          table.insert(all_folds, abs)
-        end
-        ctx.part_folds[part_id_iter] = part_abs_folds
-      end
+---@param data Output
+---@param line_start integer
+---@return {from: integer, to: integer}[]
+local function compute_part_folds(data, line_start)
+  local folds = {}
+  for _, f in ipairs(data.fold_ranges) do
+    folds[#folds + 1] = {
+      from = line_start + f.from - 1,
+      to = line_start + f.to - 1,
+    }
+  end
+  return folds
+end
+
+---Self-checked rebuild from ctx.part_folds.
+---* cached.line_start mismatch -> recompute (covers shift_all)
+---* source part no longer in formatted_parts -> drop entry (covers part removal)
+local function rebuild_folds()
+  for part_id, cached in pairs(ctx.part_folds) do
+    local part = ctx.render_state:get_part(part_id)
+    local data = ctx.formatted_parts[part_id]
+    if not part or not part.line_start or not data or not data.fold_ranges then
+      ctx.part_folds[part_id] = nil
+    elseif cached.line_start ~= part.line_start then
+      ctx.part_folds[part_id] = {
+        line_start = part.line_start,
+        folds = compute_part_folds(data, part.line_start),
+      }
     end
   end
-  ctx.global_folds = all_folds
+
+  for part_id in pairs(ctx.part_folds) do
+    if not ctx.formatted_parts[part_id] then
+      ctx.part_folds[part_id] = nil
+    end
+  end
+
+  local all_folds = {}
+  for _, cached in pairs(ctx.part_folds) do
+    for _, f in ipairs(cached.folds) do
+      all_folds[#all_folds + 1] = f
+    end
+  end
+  table.sort(all_folds, function(a, b)
+    return a.from < b.from
+  end)
   output_window.set_folds(all_folds)
 end
 
-local function folds_equal(a, b)
-  if not a or not b then
-    return false
-  end
-  if #a ~= #b then
-    return false
-  end
-  for i = 1, #a do
-    if a[i].from ~= b[i].from or a[i].to ~= b[i].to then
-      return false
+function M.set_all_folds()
+  ctx.part_folds = {}
+  for part_id, data in pairs(ctx.formatted_parts) do
+    local part = ctx.render_state:get_part(part_id)
+    if part and part.line_start and data.fold_ranges then
+      ctx.part_folds[part_id] = {
+        line_start = part.line_start,
+        folds = compute_part_folds(data, part.line_start),
+      }
     end
   end
-  return true
+  rebuild_folds()
 end
 
----Update folds for a single part during streaming, avoiding a full rebuild.
 ---@param part_id string
 function M.update_part_folds(part_id)
-  local formatted_data = ctx.formatted_parts[part_id]
-  if not formatted_data or not formatted_data.fold_ranges then
+  local data = ctx.formatted_parts[part_id]
+  local part = ctx.render_state:get_part(part_id)
+
+  if not part or not part.line_start or not data or not data.fold_ranges then
     ctx.part_folds[part_id] = nil
-    M.set_all_folds()
-    return
-  end
-  local cached_part = ctx.render_state:get_part(part_id)
-  if not cached_part or not cached_part.line_start then
-    return
-  end
-
-  local new_folds = {}
-  for _, f in ipairs(formatted_data.fold_ranges) do
-    table.insert(new_folds, {
-      from = cached_part.line_start + f.from - 1,
-      to = cached_part.line_start + f.to - 1,
-    })
-  end
-
-  if folds_equal(ctx.part_folds[part_id], new_folds) then
-    return
-  end
-
-  ctx.part_folds[part_id] = new_folds
-  local new_global = {}
-  for _, pf in pairs(ctx.part_folds) do
-    for _, f in ipairs(pf) do
-      table.insert(new_global, f)
+  else
+    local cached = ctx.part_folds[part_id]
+    if not cached or cached.line_start ~= part.line_start then
+      ctx.part_folds[part_id] = {
+        line_start = part.line_start,
+        folds = compute_part_folds(data, part.line_start),
+      }
     end
   end
-  table.sort(new_global, function(a, b)
-    return a.from < b.from
-  end)
-  ctx.global_folds = new_global
-  output_window.set_folds(new_global)
+
+  rebuild_folds()
 end
 
 ---@param part_id string

@@ -29,9 +29,12 @@ local ctx = {
   bulk_buffer_lines = {},
   bulk_extmarks_by_line = {},
   bulk_folds = {},
-  ---@type {from: number, to: number}[]
-  global_folds = {},
-  ---@type table<string, {from: number, to: number}[]>
+  ---@type table<string, { line_start: integer, folds: {from: integer, to: integer}[] }>
+  ---Absolute folds per part, keyed by part_id. Used by set_all_folds /
+  ---update_part_folds to avoid recomputing folds for unchanged parts.
+  ---Invalidation is self-contained: rebuild compares cached.line_start
+  ---against render_state line_start, and clears entries whose
+  ---formatted_parts source has been removed.
   part_folds = {},
   ---@type integer|nil Number of messages to render from the end (nil = all)
   lazy_render_count = nil,
@@ -56,7 +59,6 @@ function ctx:reset()
   }
   self.flush_scheduled = false
   self.markdown_render_scheduled = false
-  self.global_folds = {}
   self.part_folds = {}
   self:bulk_reset()
 end

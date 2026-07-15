@@ -268,7 +268,7 @@ function M.get_window_cursor(win_id)
     return nil
   end
 
-  return normalize_cursor(pos)
+  return pos
 end
 
 ---@param win_type 'input'|'output'

@@ -100,7 +100,7 @@ describe('output_window.highlight_changed_lines', function()
     output_window.highlight_changed_lines(0, 1)
 
     local marks = vim.api.nvim_buf_get_extmarks(buf, output_window.debug_namespace, 0, -1, { details = true })
-    assert.equals(2, #marks)
+    assert.equals(1, #marks)
     assert.equals('OpencodeChangedLines', marks[1][4].line_hl_group)
     assert.is_function(scheduled_cb)
 

@@ -380,7 +380,7 @@ function M.on_part_updated(properties, revert_index)
   local is_new_part = not part_data
 
   local prev_last_part_id = get_last_part_for_message(message)
-  local existing_part_index = nil
+  local existing_part_index = nil ---@type integer?
   for i = #message.parts, 1, -1 do
     if message.parts[i].id == part.id then
       existing_part_index = i
@@ -391,7 +391,7 @@ function M.on_part_updated(properties, revert_index)
   -- Preserve state.input when the update omits it. MCP tool completion
   -- events sometimes arrive with an empty input table, clobbering the
   -- call arguments from the earlier running event.
-  if part.state and part.state.input and type(part.state.input) == 'table' and next(part.state.input) == nil then
+  if part.state and type(part.state.input) == 'table' and next(part.state.input) == nil then
     local old_input = nil
     if existing_part_index then
       old_input = message.parts[existing_part_index]
@@ -407,24 +407,7 @@ function M.on_part_updated(properties, revert_index)
   end
 
   -- Update the part reference in the message
-  if is_new_part then
-    if existing_part_index then
-      message.parts[existing_part_index] = part
-    else
-      table.insert(message.parts, part)
-    end
-  else
-    if existing_part_index then
-      message.parts[existing_part_index] = part
-    else
-      for i = #message.parts, 1, -1 do
-        if message.parts[i].id == part.id then
-          message.parts[i] = part
-          break
-        end
-      end
-    end
-  end
+  message.parts[existing_part_index or #message.parts + 1] = part
 
   if part.type == 'step-start' or part.type == 'step-finish' then
     if part.type == 'step-finish' and part.tokens then

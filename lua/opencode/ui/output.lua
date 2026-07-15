@@ -1,29 +1,15 @@
 local config = require('opencode.config')
 
-local Output = {}
-Output.__index = Output
-
 ---@class Output
 ---@field lines string[]
 ---@field extmarks table<number, OutputExtmark[]>
 ---@field actions OutputAction[]
 ---@field targets OutputTarget[]
----@field add_line fun(self: Output, line: string, fit?: boolean): number
----@field get_line fun(self: Output, idx: number): string?
----@field merge_line fun(self: Output, idx: number, text: string)
----@field add_lines fun(self: Output, lines: string[], prefix?: string)
----@field add_empty_line fun(self: Output): number?
----@field clear fun(self: Output)
----@field get_line_count fun(self: Output): number
----@field get_lines fun(self: Output): string[]
----@field add_extmark fun(self: Output, idx: number, extmark: OutputExtmark|fun(): OutputExtmark)
----@field get_extmarks fun(self: Output): table<number, table[]>
----@field add_actions fun(self: Output, actions: OutputAction[])
----@field add_action fun(self: Output, action: OutputAction)
----@field get_actions_for_line fun(self: Output, line: number): OutputAction[]?
----@field add_target fun(self: Output, target: OutputTarget)
----@field add_targets fun(self: Output, targets: OutputTarget[])
----@return self Output
+---@field fold_ranges {from: integer, to: integer}[]
+local Output = {}
+Output.__index = Output
+
+---@return Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}

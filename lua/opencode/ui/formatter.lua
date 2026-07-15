@@ -285,9 +285,7 @@ function M.format_message_header(message, previous_message)
     local current_mode = message.info.mode or state.current_mode
     same_mode_as_previous = previous_role == 'assistant'
       and current_mode
-      and previous_mode
       and current_mode ~= ''
-      and previous_mode ~= ''
       and current_mode == previous_mode
   end
 

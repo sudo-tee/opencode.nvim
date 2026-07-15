@@ -627,13 +627,12 @@ function M.highlight_changed_lines(start_line, end_line)
   local last = math.max(first, end_line)
 
   vim.api.nvim_buf_clear_namespace(buf, M.debug_namespace, first, last + 1)
-  for line = first, last do
-    vim.api.nvim_buf_set_extmark(buf, M.debug_namespace, line, 0, {
-      line_hl_group = 'OpencodeChangedLines',
-      hl_eol = true,
-      priority = 250,
-    })
-  end
+  vim.api.nvim_buf_set_extmark(buf, M.debug_namespace, first, 0, {
+    end_row = last,
+    line_hl_group = 'OpencodeChangedLines',
+    hl_eol = true,
+    priority = 250,
+  })
 
   vim.defer_fn(function()
     if vim.api.nvim_buf_is_valid(buf) then

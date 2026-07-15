@@ -133,10 +133,6 @@ function M.handle_submit()
 
   local input_content = table.concat(vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false), '\n')
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, {})
-  vim.api.nvim_exec_autocmds('TextChanged', {
-    buffer = windows.input_buf,
-    modeline = false,
-  })
 
   if input_content == '' then
     return false

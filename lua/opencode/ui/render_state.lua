@@ -212,12 +212,9 @@ end
 ---@param message_id string
 ---@return RenderedMessage?
 function RenderState:get_previous_message(messages, message_id)
-  for i = #messages, 1, -1 do
+  for i = #messages, 2, -1 do
     local message = messages[i]
     if message and message.info and message.info.id == message_id then
-      if i <= 1 then
-        return nil
-      end
       local previous_message = messages[i - 1]
       return previous_message and previous_message.info and self._messages[previous_message.info.id] or nil
     end

@@ -428,7 +428,7 @@ function M.set_folds(fold_ranges)
     end
 
     for _, range in ipairs(folds.ranges) do
-      if was_open[range.from] then
+      if was_open[range.from] and range.from <= line_count and range.to <= line_count then
         vim.cmd(range.from .. ',' .. range.to .. 'foldopen!')
       end
     end

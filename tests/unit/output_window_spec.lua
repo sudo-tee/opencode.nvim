@@ -252,6 +252,32 @@ describe('output_window.setup', function()
       ranges = { { from = 1, to = 3 } },
     }, folds)
   end)
+
+  it('applies every fold range in a single set_folds call', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' })
+
+    output_window.set_folds({
+      { from = 1, to = 2 },
+      { from = 4, to = 5 },
+      { from = 7, to = 8 },
+    })
+
+    local foldclosed_at = function(line)
+      return vim.api.nvim_win_call(win, function()
+        return vim.fn.foldclosed(line)
+      end)
+    end
+
+    assert.equals(1, foldclosed_at(1))
+    assert.equals(1, foldclosed_at(2))
+    assert.equals(-1, foldclosed_at(3))
+    assert.equals(4, foldclosed_at(4))
+    assert.equals(4, foldclosed_at(5))
+    assert.equals(-1, foldclosed_at(6))
+    assert.equals(7, foldclosed_at(7))
+    assert.equals(7, foldclosed_at(8))
+  end)
 end)
 
 describe('output_window extmarks', function()

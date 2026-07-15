@@ -421,16 +421,24 @@ function M.set_folds(fold_ranges)
     local view = preserve_view and vim.fn.winsaveview() or nil
 
     local line_count = vim.api.nvim_buf_line_count(buf)
+    local fold_commands = {}
     for _, range in ipairs(folds.ranges) do
       if range.from <= line_count and range.to <= line_count then
-        vim.cmd(range.from .. ',' .. range.to .. 'fold')
+        fold_commands[#fold_commands + 1] = range.from .. ',' .. range.to .. 'fold'
       end
     end
+    if #fold_commands > 0 then
+      vim.api.nvim_exec2(table.concat(fold_commands, ' | '), { output = false })
+    end
 
+    local open_commands = {}
     for _, range in ipairs(folds.ranges) do
       if was_open[range.from] and range.from <= line_count and range.to <= line_count then
-        vim.cmd(range.from .. ',' .. range.to .. 'foldopen!')
+        open_commands[#open_commands + 1] = range.from .. ',' .. range.to .. 'foldopen!'
       end
+    end
+    if #open_commands > 0 then
+      vim.api.nvim_exec2(table.concat(open_commands, ' | '), { output = false })
     end
 
     if view then

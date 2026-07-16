@@ -1,6 +1,10 @@
 local M = {}
 local commands = require('opencode.commands')
 
+local function normalize_lhs(lhs)
+  return vim.api.nvim_replace_termcodes(lhs, true, true, true)
+end
+
 local function is_completion_visible()
   return require('opencode.ui.completion').is_completion_visible()
 end
@@ -44,7 +48,8 @@ end
 ---@param keymap_config table The keymap configuration table
 ---@param default_modes table Default modes for these keymaps
 ---@param base_opts table Base options to use for all keymaps
-local function process_keymap_entry(keymap_config, default_modes, base_opts)
+---@param preserve_existing? boolean
+local function process_keymap_entry(keymap_config, default_modes, base_opts, preserve_existing)
   local command_defs = commands.get_commands()
 
   for key_binding, config_entry in pairs(keymap_config) do
@@ -56,10 +61,26 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts)
       local callback = resolve_callback(func_name, func_args)
 
       local modes = config_entry.mode or default_modes
+      if preserve_existing and base_opts.buffer then
+        local missing_modes = {}
+        for _, mode in ipairs(type(modes) == 'table' and modes or { modes }) do
+          local exists = false
+          for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(base_opts.buffer, mode)) do
+            if normalize_lhs(mapping.lhs) == normalize_lhs(key_binding) then
+              exists = true
+              break
+            end
+          end
+          if not exists then
+            table.insert(missing_modes, mode)
+          end
+        end
+        modes = missing_modes
+      end
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
       opts.desc = config_entry.desc or vim.tbl_get(command_defs, func_name, 'desc') or ''
 
-      if callback then
+      if callback and #modes > 0 then
         if config_entry.defer_to_completion then
           callback = wrap_with_completion_check(key_binding, callback)
         end
@@ -78,12 +99,13 @@ end
 
 ---@param keymap_config table Window keymap configuration
 ---@param buf_id integer Buffer ID to set keymaps for
-function M.setup_window_keymaps(keymap_config, buf_id)
+---@param preserve_existing? boolean
+function M.setup_window_keymaps(keymap_config, buf_id, preserve_existing)
   if not vim.api.nvim_buf_is_valid(buf_id) then
     return
   end
 
-  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id })
+  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id }, preserve_existing)
 end
 
 return M

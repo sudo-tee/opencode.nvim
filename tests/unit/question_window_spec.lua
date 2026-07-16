@@ -784,6 +784,87 @@ describe('question_window', function()
     require('opencode.ui.ui').close_windows(state.windows)
   end)
 
+  it('keeps separate custom drafts for each question and clears them for a new request', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    vim.api.nvim_set_current_win(state.windows.output_win)
+    local flush = require('opencode.ui.renderer.flush')
+
+    local function open_other()
+      flush.flush()
+      assert.is_not_nil(require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part'))
+      assert.is_not_nil(question_window._dialog:get_option_position(2))
+      question_window._dialog:set_selection(2)
+      question_window._dialog:select()
+      local input = question_window._inline_input
+      assert.is_not_nil(input)
+      vim.api.nvim_set_current_win(input.win)
+      return input.buf
+    end
+
+    local function leave_other(text)
+      local buf = open_other()
+      vim.api.nvim_buf_set_lines(buf, 0, 1, false, { text })
+      vim.api.nvim_set_current_win(state.windows.output_win)
+    end
+
+    local function read_other()
+      local buf = open_other()
+      return vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+    end
+
+    question_window.show_question({
+      id = 'multi-question',
+      sessionID = 'sess1',
+      questions = {
+        {
+          header = 'First',
+          question = 'First custom answer',
+          options = { { label = 'One' } },
+        },
+        {
+          header = 'Second',
+          question = 'Second custom answer',
+          options = { { label = 'Two' } },
+        },
+      },
+    })
+
+    leave_other('draft for first question')
+    question_window._dialog:navigate_group(1)
+    leave_other('draft for second question')
+
+    question_window._dialog:navigate_group(-1)
+    local first_draft = read_other()
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    question_window._dialog:navigate_group(1)
+    local second_draft = read_other()
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    question_window.show_question({
+      id = 'new-request',
+      sessionID = 'sess1',
+      questions = {
+        {
+          question = 'New custom answer',
+          options = { { label = 'Three' } },
+        },
+      },
+    })
+    local new_request_draft = read_other()
+
+    vim.api.nvim_set_current_win(state.windows.output_win)
+    question_window.clear_question()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
+
+    assert.equals('draft for first question', first_draft)
+    assert.equals('draft for second question', second_draft)
+    assert.equals('', new_request_draft)
+  end)
+
   it('does not show a question that is already completed', function()
     state.renderer.set_messages({
       {
@@ -892,6 +973,37 @@ describe('question_window', function()
     assert.stub(show_stub).was_not_called()
 
     show_stub:revert()
+  end)
+
+  it('rebuilds an unresolved dialog when restoring its UI', function()
+    helpers.replay_setup()
+    state.session.set_active({ id = 'sess1' })
+    state.jobs.set_api_client({})
+    vim.api.nvim_set_current_win(state.windows.output_win)
+
+    question_window.show_question({
+      id = 'question_restore_dialog',
+      sessionID = 'sess1',
+      questions = {
+        {
+          question = 'Pick one',
+          options = { { label = 'One' } },
+        },
+      },
+    })
+    require('opencode.ui.renderer.flush').flush()
+    question_window._dialog:teardown()
+
+    question_window.restore_pending_question('sess1'):wait()
+    require('opencode.ui.renderer.flush').flush()
+
+    assert.is_true(question_window._dialog:is_active())
+    assert.is_not_nil(question_window._dialog:get_option_position(2))
+
+    question_window.clear_question()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
   end)
 
   it('does not force-scroll on question navigation redraws', function()

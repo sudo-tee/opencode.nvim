@@ -247,6 +247,7 @@ function M.restore_hidden_windows()
 
   input_window.setup(windows)
   output_window.setup(windows)
+  output_window.setup_keymaps(windows, true)
   footer.setup(windows)
   if state.api_client and type(state.api_client.list_providers) == 'function' then
     topbar.setup()
@@ -395,6 +396,7 @@ function M.create_windows()
 
   input_window.setup(windows)
   output_window.setup(windows)
+  output_window.setup_keymaps(windows)
   footer.setup(windows)
   topbar.setup()
 

@@ -8,6 +8,9 @@ local M = {}
 M._permission_queue = {}
 M._dialog = nil
 M._processing = false
+M._deny_armed = false
+M._deny_timer = nil
+M._deny_draft = nil
 
 ---Get the tool identifiers from a permission (nested or root-level).
 ---@param permission OpencodePermission|nil
@@ -95,6 +98,12 @@ function M.add_permission(permission)
       M._setup_dialog()
       return
     end
+  end
+
+  M._deny_armed = false
+  if M._deny_timer then
+    pcall(vim.fn.timer_stop, M._deny_timer)
+    M._deny_timer = nil
   end
 
   table.insert(M._permission_queue, permission)
@@ -223,9 +232,11 @@ function M.format_display(output)
   local options = {
     { label = 'Allow once' },
     { label = 'Reject' },
-    { label = 'Reject with feedback' },
     { label = 'Allow always' },
   }
+
+  local legend_lines = M._deny_armed and { 'Release `Esc` to cancel, press again to deny' }
+    or { 'Double `Esc` to deny and stop' }
 
   local render_content = nil
   if perm_type == 'edit' and permission.metadata and permission.metadata.diff then
@@ -249,6 +260,7 @@ function M.format_display(output)
     render_content = render_content,
     options = options,
     unfocused_message = 'Focus Opencode window to respond to permission',
+    legend_lines = legend_lines,
   })
 end
 
@@ -291,35 +303,52 @@ function M._setup_dialog()
     end
 
     local api = require('opencode.api')
-    local actions = { 'accept', 'deny', 'deny_with_feedback', 'accept_all' }
+    local actions = { 'accept', 'deny', 'accept_all' }
     local action = actions[index]
 
     vim.schedule(function()
-      if action == 'deny_with_feedback' then
+      if action == 'deny' then
         local pos = M._dialog and M._dialog:get_option_position(index)
         local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
         local use_inline = pos and part_data and part_data.line_start and state.windows and state.windows.output_win
 
         if use_inline then
+          M._deny_armed = false
+          if M._deny_timer then
+            pcall(vim.fn.timer_stop, M._deny_timer)
+            M._deny_timer = nil
+          end
           require('opencode.ui.inline_input').open({
             win = state.windows.output_win,
             row = part_data.line_start + pos.line,
             col = pos.col,
             title = 'Tell OpenCode what to do differently',
+            initial_text = M._deny_draft,
             on_submit = function(text)
+              M._deny_draft = nil
               M._processing = true
               api.permission_deny(permission, (text ~= '') and text or nil)
               M._processing = false
               M.remove_permission(permission.id)
             end,
             on_cancel = function()
-              M._processing = true
-              api.permission_deny(permission, nil)
-              M._processing = false
-              M.remove_permission(permission.id)
+              M._deny_armed = false
+              M._deny_draft = nil
+              if M._deny_timer then
+                pcall(vim.fn.timer_stop, M._deny_timer)
+                M._deny_timer = nil
+              end
+            end,
+            on_leave = function(text)
+              M._deny_draft = (text ~= '') and text or nil
             end,
           })
         else
+          M._deny_armed = false
+          if M._deny_timer then
+            pcall(vim.fn.timer_stop, M._deny_timer)
+            M._deny_timer = nil
+          end
           M._processing = true
           vim.ui.input({ prompt = 'Tell OpenCode what to do differently: ' }, function(input)
             local reason = (input and input ~= '') and input or nil
@@ -347,7 +376,7 @@ function M._setup_dialog()
   end
 
   local function get_option_count()
-    return #M._permission_queue > 0 and 4 or 0 -- accept, deny, deny_with_feedback, accept_all
+    return #M._permission_queue > 0 and 3 or 0 -- accept, deny, accept_all
   end
 
   M._dialog = Dialog.new({
@@ -364,6 +393,41 @@ function M._setup_dialog()
 
   M._dialog:setup()
 
+  -- Double-escape to reject without feedback
+  local keymap_opts = { buffer = buf, nowait = true, noremap = true }
+  local esc_key = '<Esc>'
+  vim.keymap.set('n', esc_key, function()
+    if M._processing or not check_focused() then
+      return
+    end
+    local permission = M.get_current_permission()
+    if not permission then
+      return
+    end
+    if M._deny_armed then
+      -- Second escape: deny without feedback
+      M._deny_armed = false
+      if M._deny_timer then
+        pcall(vim.fn.timer_stop, M._deny_timer)
+        M._deny_timer = nil
+      end
+      M._processing = true
+      local api = require('opencode.api')
+      api.permission_deny(permission, nil)
+      M._processing = false
+      M.remove_permission(permission.id)
+    else
+      -- First escape: arm
+      M._deny_armed = true
+      require('opencode.ui.renderer.events').render_permissions_display()
+      M._deny_timer = vim.defer_fn(function()
+        M._deny_armed = false
+        M._deny_timer = nil
+        require('opencode.ui.renderer.events').render_permissions_display()
+      end, 2000) -- 2 seconds to press again
+    end
+  end, vim.tbl_extend('force', keymap_opts, { desc = 'Permission: deny (double-esc)' }))
+
   if saved_selection then
     M._dialog:set_selection(saved_selection)
   end
@@ -373,6 +437,11 @@ function M._clear_dialog()
   if M._dialog then
     M._dialog:teardown()
     M._dialog = nil
+  end
+  M._deny_armed = false
+  if M._deny_timer then
+    pcall(vim.fn.timer_stop, M._deny_timer)
+    M._deny_timer = nil
   end
 end
 

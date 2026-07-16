@@ -1333,6 +1333,26 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -2
       }
+    ],
+    [
+      58,
+      151,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodePermissionBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -2
+      }
     ]
   ],
   "lines": [
@@ -1487,17 +1507,18 @@
     "",
     "Move: `j/k` or `↑/↓`",
     "Select: `<CR>` or `1-3`",
+    "Double `Esc` to deny and stop",
     "",
     ""
   ],
   "timestamp": 1779709441,
   "window": {
     "cursor": [
-      152,
+      153,
       0
     ],
-    "effective_bottom": 152,
-    "line_count": 153,
-    "visible_bottom": 153
+    "effective_bottom": 153,
+    "line_count": 154,
+    "visible_bottom": 154
   }
 }

@@ -295,6 +295,12 @@ function Dialog:format_legend(output, options)
     if keymaps.dismiss and keymaps.dismiss ~= '' then
       output:add_line('Close: `<Esc>`')
     end
+
+    if options.legend_lines then
+      for _, line in ipairs(options.legend_lines) do
+        output:add_line(line)
+      end
+    end
   else
     local message = options.unfocused_message or 'Focus Opencode window to interact'
     output:add_line(message)
@@ -346,7 +352,7 @@ function Dialog:format_dialog(output, config)
 
   output:add_line('')
 
-  self:format_legend(output, { unfocused_message = config.unfocused_message })
+  self:format_legend(output, { unfocused_message = config.unfocused_message, legend_lines = config.legend_lines })
 
   local end_line = output:get_line_count()
 

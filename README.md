@@ -110,6 +110,9 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 }
 ```
 
+
+
+
 ## ⚙️ Configuration
 
 ```lua
@@ -433,6 +436,46 @@ Some models support multiple variants (e.g., different context window sizes or o
 - **Via slash command**: Type `/variant` in the input window
 
 When you switch variants, the plugin remembers your selection per model, so the next time you use that model, it will automatically use the last selected variant.
+
+### Buffer context pollution and blink.cmp
+
+If completion state leaks into the `opencode` input buffer and pollutes prompts, you can narrow blink.cmp behavior so it only opens completion UI on explicit trigger characters and only enables ghost text while the menu is visible.
+
+```lua
+return {
+  {
+    "saghen/blink.cmp",
+    optional = true,
+    opts = {
+      completion = {
+        menu = {
+          auto_show = function(ctx)
+            if vim.bo.filetype == "opencode" then
+              -- Only show the menu window if triggered by @, ~, or !
+              return ctx.trigger.kind == "trigger_character"
+            end
+            return true
+          end,
+        },
+        ghost_text = {
+          -- blink doesn't pass ctx here, so look up the state directly
+          enabled = function()
+            if vim.bo.filetype == "opencode" then
+              local ok, blink = pcall(require, "blink.cmp")
+              if ok then
+                -- Only allow ghost text if a completion window is actively open
+                return blink.is_visible()
+              end
+              return false
+            end
+            return true
+          end,
+        },
+      },
+    },
+  },
+}
+```
 
 ### UI icons (disable emojis or customize)
 

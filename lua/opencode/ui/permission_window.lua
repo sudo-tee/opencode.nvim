@@ -8,6 +8,56 @@ local M = {}
 M._permission_queue = {}
 M._dialog = nil
 M._processing = false
+M._interaction = nil
+
+local function is_current_permission(permission_id)
+  local permission = M._permission_queue[1]
+  return permission ~= nil and permission.id == permission_id
+end
+
+local function stop_timer(timer)
+  timer:stop()
+  timer:close()
+end
+
+local function clear_interaction()
+  local interaction = M._interaction
+  M._interaction = nil
+  if not interaction then
+    return
+  end
+
+  M._processing = false
+  if interaction.timer then
+    stop_timer(interaction.timer)
+  end
+  if interaction.feedback then
+    interaction.feedback.close()
+  end
+end
+
+local function interaction_for(permission)
+  if M._interaction and M._interaction.permission_id == permission.id then
+    return M._interaction
+  end
+
+  clear_interaction()
+  M._interaction = {
+    permission_id = permission.id,
+    deny_armed = false,
+    timer = nil,
+    feedback = nil,
+  }
+  return M._interaction
+end
+
+local function clear_deny_timer(interaction)
+  interaction.deny_armed = false
+  if interaction.timer then
+    stop_timer(interaction.timer)
+    interaction.timer = nil
+  end
+end
 
 ---Get the tool identifiers from a permission (nested or root-level).
 ---@param permission OpencodePermission|nil
@@ -60,6 +110,19 @@ local function get_permission_part(permission)
       end
     end
   end
+end
+
+---@param permission OpencodePermission|nil
+---@return string|nil
+local function get_child_session_id(permission)
+  local session_id = permission and permission.sessionID
+  local active_session = state.active_session
+  if not session_id or session_id == '' or (active_session and active_session.id == session_id) then
+    return nil
+  end
+
+  local render_state = require('opencode.ui.renderer.ctx').render_state
+  return render_state:get_task_part_by_child_session(session_id) and session_id or nil
 end
 
 ---Check whether a permission has already been resolved (completed, error, etc.)
@@ -149,6 +212,10 @@ end
 ---Remove permission from queue
 ---@param permission_id string
 function M.remove_permission(permission_id)
+  if M._interaction and M._interaction.permission_id == permission_id then
+    clear_interaction()
+  end
+
   for i, permission in ipairs(M._permission_queue) do
     if permission.id == permission_id then
       table.remove(M._permission_queue, i)
@@ -174,7 +241,7 @@ end
 ---Get permission display lines to append to output
 ---@param output Output
 function M.format_display(output)
-  if #M._permission_queue == 0 or not M._dialog or M._processing then
+  if #M._permission_queue == 0 or not M._dialog then
     return
   end
 
@@ -185,6 +252,7 @@ function M.format_display(output)
 
   local icons = require('opencode.ui.icons')
   local formatter_utils = require('opencode.ui.formatter.utils')
+  local dialog_start_line = output:get_line_count()
 
   local progress = ''
   if #M._permission_queue > 1 then
@@ -226,6 +294,10 @@ function M.format_display(output)
     { label = 'Allow always' },
   }
 
+  local interaction = interaction_for(permission)
+  local legend_lines = interaction.deny_armed and { 'Release `Esc` to cancel, press again to deny' }
+    or { 'Double `Esc` to deny and stop' }
+
   local render_content = nil
   if perm_type == 'edit' and permission.metadata and permission.metadata.diff then
     render_content = function(out)
@@ -248,7 +320,20 @@ function M.format_display(output)
     render_content = render_content,
     options = options,
     unfocused_message = 'Focus Opencode window to respond to permission',
+    legend_lines = legend_lines,
   })
+
+  local child_session_id = get_child_session_id(permission)
+  if child_session_id then
+    output:add_action({
+      text = '[S] Open this Session',
+      type = 'navigate_session_tree',
+      args = { child_session_id },
+      key = 'S',
+      display_line = dialog_start_line,
+      range = { from = dialog_start_line, to = math.max(dialog_start_line, output:get_line_count() - 1) },
+    })
+  end
 end
 
 function M._setup_dialog()
@@ -257,12 +342,15 @@ function M._setup_dialog()
     return
   end
 
+  local current_permission = M.get_current_permission()
+  local interaction = interaction_for(current_permission)
+
   local saved_selection = nil
   if M._dialog then
     saved_selection = M._dialog:get_selection()
   end
 
-  M._clear_dialog()
+  M._clear_dialog(true)
 
   if not state.windows or not state.windows.output_buf then
     return
@@ -273,6 +361,12 @@ function M._setup_dialog()
   local function check_focused()
     local ui = require('opencode.ui.ui')
     return ui.is_opencode_focused() and #M._permission_queue > 0
+  end
+
+  local function is_active_permission(permission_id)
+    return M._processing
+      and is_current_permission(permission_id)
+      and M._interaction == interaction
   end
 
   local function on_select(index)
@@ -289,21 +383,69 @@ function M._setup_dialog()
       return
     end
 
-    M._processing = true
+    local permission_id = permission.id
+    if not is_current_permission(permission_id) or M._interaction ~= interaction then
+      return
+    end
 
     local api = require('opencode.api')
     local actions = { 'accept', 'deny', 'accept_all' }
     local action = actions[index]
+    if not action then
+      return
+    end
+
+    M._processing = true
 
     vim.schedule(function()
-      if action then
+      if not is_active_permission(permission_id) then
+        return
+      end
+
+      if action == 'deny' then
+        local pos = M._dialog and M._dialog:get_option_position(index)
+        local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
+        local output_win = state.windows and state.windows.output_win
+
+        if output_win and vim.api.nvim_win_is_valid(output_win) then
+          clear_deny_timer(interaction)
+          local cursor = vim.api.nvim_win_get_cursor(output_win)
+          local row = part_data and part_data.line_start and pos and (part_data.line_start + pos.line)
+            or math.max(0, cursor[1] - 1)
+          local col = pos and pos.col or 0
+          interaction.feedback = require('opencode.ui.inline_input').open({
+            win = output_win,
+            row = row,
+            col = col,
+            title = 'Tell OpenCode what to do differently',
+            on_submit = function(text)
+              if not is_active_permission(permission_id) then
+                return
+              end
+              interaction.feedback = nil
+              api.permission_deny(permission, (text ~= '') and text or nil)
+              M.remove_permission(permission_id)
+            end,
+            on_cancel = function()
+              if M._interaction == interaction then
+                interaction.feedback = nil
+                clear_deny_timer(interaction)
+                M._processing = false
+              end
+            end,
+          })
+        else
+          clear_deny_timer(interaction)
+          M._processing = false
+          vim.notify('Cannot open permission feedback without an output window', vim.log.levels.ERROR)
+        end
+      else
         local api_func = api['permission_' .. action]
         if api_func then
           api_func(permission)
         end
+        M.remove_permission(permission_id)
       end
-      M._processing = false
-      M.remove_permission(permission.id)
     end)
   end
 
@@ -318,12 +460,38 @@ function M._setup_dialog()
   M._dialog = Dialog.new({
     buffer = buf,
     on_select = on_select,
+    on_dismiss = function()
+      if M._processing or not check_focused() or not is_current_permission(interaction.permission_id) then
+        return
+      end
+
+      if interaction.deny_armed then
+        clear_deny_timer(interaction)
+        M._processing = true
+        require('opencode.api').permission_deny(current_permission, nil)
+        M.remove_permission(interaction.permission_id)
+        return
+      end
+
+      interaction.deny_armed = true
+      require('opencode.ui.renderer.events').render_permissions_display()
+      local timer
+      timer = vim.defer_fn(function()
+        if M._interaction == interaction and interaction.timer == timer then
+          interaction.deny_armed = false
+          interaction.timer = nil
+          require('opencode.ui.renderer.events').render_permissions_display()
+        end
+      end, 2000)
+      interaction.timer = timer
+    end,
     on_navigate = on_navigate,
     get_option_count = get_option_count,
     check_focused = check_focused,
     namespace_prefix = 'opencode_permission',
+    show_dismiss_legend = false,
     keymaps = {
-      dismiss = '', -- Disable dismiss keymap and legend
+      dismiss = '<Esc>',
     },
   })
 
@@ -334,10 +502,14 @@ function M._setup_dialog()
   end
 end
 
-function M._clear_dialog()
+---@param preserve_interaction? boolean
+function M._clear_dialog(preserve_interaction)
   if M._dialog then
     M._dialog:teardown()
     M._dialog = nil
+  end
+  if not preserve_interaction then
+    clear_interaction()
   end
 end
 

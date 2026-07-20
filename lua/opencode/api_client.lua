@@ -385,7 +385,7 @@ end
 --- Respond to a permission request
 --- @param id string Session ID (required)
 --- @param permissionID string Permission ID (required)
---- @param response_data {response: "once"|"always"|"reject"} Response data
+--- @param response_data {response: "once"|"always"|"reject", message?: string} Response data
 --- @param directory string|nil Directory path
 --- @return Promise<boolean>
 function OpencodeApiClient:respond_to_permission(id, permissionID, response_data, directory)
@@ -395,6 +395,15 @@ function OpencodeApiClient:respond_to_permission(id, permissionID, response_data
     response_data,
     { directory = directory }
   )
+end
+
+--- Reply to a permission (accept/reject)
+--- @param requestID string Permission request ID (prefixed with "per")
+--- @param response_data {reply: "once"|"always"|"reject", message?: string} Response data
+--- @param directory string|nil Directory path
+--- @return Promise<boolean>
+function OpencodeApiClient:reply_to_permission(requestID, response_data, directory)
+  return self:_call('/permission/' .. requestID .. '/reply', 'POST', response_data, { directory = directory })
 end
 
 --- List all commands

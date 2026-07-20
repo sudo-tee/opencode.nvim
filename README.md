@@ -110,9 +110,6 @@ Install the plugin with your favorite package manager. See the [Configuration](#
 }
 ```
 
-
-
-
 ## ⚙️ Configuration
 
 ```lua

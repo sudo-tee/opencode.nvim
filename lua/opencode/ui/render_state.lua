@@ -2,6 +2,7 @@
 ---@field message OpencodeMessage Direct reference to message in state.messages
 ---@field line_start integer? Line where message header starts
 ---@field line_end integer? Line where message header ends
+---@field actions OutputAction[] Actions associated with this message
 
 ---@class RenderedPart
 ---@field part OpencodeMessagePart Direct reference to part in state.messages
@@ -127,6 +128,22 @@ local function range_lookup(ranges, line)
     end
   end
   return nil
+end
+
+local function range_before_or_at(ranges, line)
+  local lo, hi = 1, #ranges
+  local result = nil
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    local range = ranges[mid]
+    if range[1] <= line then
+      result = range[3]
+      lo = mid + 1
+    else
+      hi = mid - 1
+    end
+  end
+  return result
 end
 
 function RenderState:_rebuild_ranges()
@@ -345,18 +362,19 @@ end
 ---@return table[]
 function RenderState:get_actions_at_line(line)
   self:_ensure_ranges()
-  local part_id = range_lookup(self._part_ranges, line)
-  if not part_id then
-    return {}
-  end
-
-  local part_data = self._parts[part_id]
-  if not part_data or not part_data.actions then
-    return {}
-  end
-
   local actions = {}
-  for _, action in ipairs(part_data.actions) do
+
+  local message_id = range_before_or_at(self._message_ranges, line)
+  local message_data = message_id and self._messages[message_id]
+  for _, action in ipairs(message_data and message_data.actions or {}) do
+    if action.range and action.range.from <= line and action.range.to >= line then
+      actions[#actions + 1] = action
+    end
+  end
+
+  local part_id = range_lookup(self._part_ranges, line)
+  local part_data = part_id and self._parts[part_id]
+  for _, action in ipairs(part_data and part_data.actions or {}) do
     if action.range and action.range.from <= line and action.range.to >= line then
       actions[#actions + 1] = action
     end
@@ -478,6 +496,11 @@ end
 ---@return table[]
 function RenderState:get_all_actions()
   local all_actions = {}
+  for _, message_data in pairs(self._messages) do
+    for _, action in ipairs(message_data.actions or {}) do
+      all_actions[#all_actions + 1] = action
+    end
+  end
   for _, part_data in pairs(self._parts) do
     if part_data.actions then
       for _, action in ipairs(part_data.actions) do
@@ -486,6 +509,59 @@ function RenderState:get_all_actions()
     end
   end
   return all_actions
+end
+
+local function is_actionable_user_message(message)
+  local info = message and message.info
+  if not info or info.role ~= 'user' or type(info.id) ~= 'string' or info.id == '' then
+    return false
+  end
+
+  for _, part in ipairs(message.parts or {}) do
+    if part.type == 'text' and part.synthetic ~= true and type(part.text) == 'string' and vim.trim(part.text) ~= '' then
+      return true
+    end
+  end
+
+  return false
+end
+
+function RenderState:_refresh_message_actions(message_id)
+  local message_data = self._messages[message_id]
+  if not message_data or not message_data.line_start or not message_data.line_end then
+    return
+  end
+
+  if not is_actionable_user_message(message_data.message) then
+    message_data.actions = {}
+    return
+  end
+
+  local line_end = message_data.line_end
+  for _, part in ipairs(message_data.message.parts or {}) do
+    local part_data = part.id and self._parts[part.id]
+    if part_data and part_data.line_end then
+      line_end = math.max(line_end, part_data.line_end)
+    end
+  end
+
+  local id = message_data.message.info.id
+  local function action(text, action_type, key)
+    return {
+      text = text,
+      type = action_type,
+      args = { id },
+      key = key,
+      display_line = line_end,
+      range = { from = message_data.line_start, to = line_end },
+    }
+  end
+
+  message_data.actions = {
+    action('[R]evert', 'undo', 'R'),
+    action('[C]opy', 'copy_message', 'C'),
+    action('[F]ork', 'fork_session', 'F'),
+  }
 end
 
 ---@param targets RenderedTarget[]
@@ -511,6 +587,7 @@ function RenderState:set_message(message, line_start, line_end)
       message = message,
       line_start = line_start,
       line_end = line_end,
+      actions = {},
     }
   else
     existing.message = message
@@ -528,6 +605,7 @@ function RenderState:set_message(message, line_start, line_end)
       self._max_line_end = line_end
     end
   end
+  self:_refresh_message_actions(message_id)
 end
 
 ---@param part OpencodeMessagePart
@@ -579,6 +657,7 @@ function RenderState:set_part(part, line_start, line_end)
   end
 
   self:_index_task_part_child_session(part_id, part)
+  self:_refresh_message_actions(message_id)
 end
 
 ---@param part_id string
@@ -620,6 +699,8 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
     self:shift_all(old_line_end + 1, delta)
   end
 
+  self:_refresh_message_actions(part_data.message_id)
+
   return true
 end
 
@@ -640,6 +721,7 @@ function RenderState:update_part_data(part_ref)
   end
 
   self:_index_task_part_child_session(part_ref.id, part_ref)
+  self:_refresh_message_actions(rendered_part.message_id)
   return rendered_part
 end
 
@@ -659,6 +741,7 @@ function RenderState:remove_part(part_id)
 
   if not part_data.line_start or not part_data.line_end then
     self._parts[part_id] = nil
+    self:_refresh_message_actions(part_data.message_id)
     return true
   end
 
@@ -672,6 +755,7 @@ function RenderState:remove_part(part_id)
   end
 
   self:shift_all(shift_from, -line_count)
+  self:_refresh_message_actions(part_data.message_id)
   return true
 end
 
@@ -740,6 +824,7 @@ function RenderState:shift_all(from_line, delta)
   self:_rebuild_ranges()
 
   local shifted = false
+  local action_messages = {}
 
   local msg_ranges = self._message_ranges
   local first_msg = first_range_at_or_after(msg_ranges, from_line)
@@ -749,6 +834,9 @@ function RenderState:shift_all(from_line, delta)
       msg_data.line_start = msg_data.line_start + delta
       msg_data.line_end = msg_data.line_end + delta
       shifted = true
+      for _, action in ipairs(msg_data.actions or {}) do
+        shift_action(action, delta)
+      end
     end
   end
 
@@ -760,6 +848,7 @@ function RenderState:shift_all(from_line, delta)
       part_data.line_start = part_data.line_start + delta
       part_data.line_end = part_data.line_end + delta
       shifted = true
+      action_messages[part_data.message_id] = true
       for _, action in ipairs(part_data.actions) do
         shift_action(action, delta)
       end
@@ -772,6 +861,10 @@ function RenderState:shift_all(from_line, delta)
     if self._max_line_end_valid then
       self._max_line_end = self._max_line_end + delta
     end
+  end
+
+  for message_id in pairs(action_messages) do
+    self:_refresh_message_actions(message_id)
   end
 end
 

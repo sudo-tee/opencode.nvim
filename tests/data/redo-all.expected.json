@@ -2,42 +2,120 @@
   "actions": [
     {
       "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
+        "msg_a0236fd1c001TlwqL8fwvq529i"
       ],
-      "display_line": 90,
+      "display_line": 67,
       "key": "R",
       "range": {
-        "from": 90,
-        "to": 90
+        "from": 63,
+        "to": 67
       },
-      "text": "[R]evert file",
-      "type": "diff_revert_selected_file"
+      "text": "[R]evert",
+      "type": "undo"
     },
     {
       "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
+        "msg_a0236fd1c001TlwqL8fwvq529i"
       ],
-      "display_line": 90,
-      "key": "A",
+      "display_line": 67,
+      "key": "C",
       "range": {
-        "from": 90,
-        "to": 90
+        "from": 63,
+        "to": 67
       },
-      "text": "Revert [A]ll",
-      "type": "diff_revert_all"
+      "text": "[C]opy",
+      "type": "copy_message"
     },
     {
       "args": [
-        "d988cc85565b99017d40ad8baea20225165be9d5"
+        "msg_a0236fd1c001TlwqL8fwvq529i"
       ],
-      "display_line": 90,
-      "key": "D",
+      "display_line": 67,
+      "key": "F",
       "range": {
-        "from": 90,
-        "to": 90
+        "from": 63,
+        "to": 67
       },
-      "text": "[D]iff",
-      "type": "diff_open"
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "R",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "C",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "F",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
     },
     {
       "args": [
@@ -113,6 +191,45 @@
       "range": {
         "from": 56,
         "to": 56
+      },
+      "text": "[D]iff",
+      "type": "diff_open"
+    },
+    {
+      "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "R",
+      "range": {
+        "from": 90,
+        "to": 90
+      },
+      "text": "[R]evert file",
+      "type": "diff_revert_selected_file"
+    },
+    {
+      "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "A",
+      "range": {
+        "from": 90,
+        "to": 90
+      },
+      "text": "Revert [A]ll",
+      "type": "diff_revert_all"
+    },
+    {
+      "args": [
+        "d988cc85565b99017d40ad8baea20225165be9d5"
+      ],
+      "display_line": 90,
+      "key": "D",
+      "range": {
+        "from": 90,
+        "to": 90
       },
       "text": "[D]iff",
       "type": "diff_open"

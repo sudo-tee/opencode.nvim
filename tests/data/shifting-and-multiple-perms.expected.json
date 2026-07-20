@@ -1,5 +1,123 @@
 {
-  "actions": [],
+  "actions": [
+    {
+      "args": [
+        "msg_9efb39d68001J2h30a50B2774b"
+      ],
+      "display_line": 6,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_9efb39d68001J2h30a50B2774b"
+      ],
+      "display_line": 6,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_9efb39d68001J2h30a50B2774b"
+      ],
+      "display_line": 6,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_9efb50a0b001WFK7AMDV45cF8Z"
+      ],
+      "display_line": 86,
+      "key": "R",
+      "range": {
+        "from": 82,
+        "to": 86
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_9efb50a0b001WFK7AMDV45cF8Z"
+      ],
+      "display_line": 86,
+      "key": "C",
+      "range": {
+        "from": 82,
+        "to": 86
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_9efb50a0b001WFK7AMDV45cF8Z"
+      ],
+      "display_line": 86,
+      "key": "F",
+      "range": {
+        "from": 82,
+        "to": 86
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_9efb59d93001LSm9y0DS9p8cP6"
+      ],
+      "display_line": 114,
+      "key": "R",
+      "range": {
+        "from": 110,
+        "to": 114
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_9efb59d93001LSm9y0DS9p8cP6"
+      ],
+      "display_line": 114,
+      "key": "C",
+      "range": {
+        "from": 110,
+        "to": 114
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_9efb59d93001LSm9y0DS9p8cP6"
+      ],
+      "display_line": 114,
+      "key": "F",
+      "range": {
+        "from": 110,
+        "to": 114
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    }
+  ],
   "extmarks": [
     [
       1,

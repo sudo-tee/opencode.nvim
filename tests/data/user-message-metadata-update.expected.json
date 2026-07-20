@@ -1,5 +1,45 @@
 {
-  "actions": [],
+  "actions": [
+    {
+      "args": [
+        "msg_user_metadata_update"
+      ],
+      "display_line": 4,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_user_metadata_update"
+      ],
+      "display_line": 4,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_user_metadata_update"
+      ],
+      "display_line": 4,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    }
+  ],
   "extmarks": [
     [
       1,

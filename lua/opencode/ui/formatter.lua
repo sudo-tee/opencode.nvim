@@ -1012,7 +1012,7 @@ function M.format_part(part, message, is_last_part, context)
     if is_compaction_part(part) then
       format_compaction_divider(output)
       content_added = true
-    elseif part.type == 'text' and part.text then
+    elseif part.type == 'text' and type(part.text) == 'string' then
       if part.synthetic == true then
         part._message_context = message
         M._format_selection_context(output, part)

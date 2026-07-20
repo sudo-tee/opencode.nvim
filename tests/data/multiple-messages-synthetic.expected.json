@@ -1,5 +1,123 @@
 {
-  "actions": [],
+  "actions": [
+    {
+      "args": [
+        "msg_005"
+      ],
+      "display_line": 36,
+      "key": "R",
+      "range": {
+        "from": 32,
+        "to": 36
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_005"
+      ],
+      "display_line": 36,
+      "key": "C",
+      "range": {
+        "from": 32,
+        "to": 36
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_005"
+      ],
+      "display_line": 36,
+      "key": "F",
+      "range": {
+        "from": 32,
+        "to": 36
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_001"
+      ],
+      "display_line": 4,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_001"
+      ],
+      "display_line": 4,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_001"
+      ],
+      "display_line": 4,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 4
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_003"
+      ],
+      "display_line": 20,
+      "key": "R",
+      "range": {
+        "from": 16,
+        "to": 20
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_003"
+      ],
+      "display_line": 20,
+      "key": "C",
+      "range": {
+        "from": 16,
+        "to": 20
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_003"
+      ],
+      "display_line": 20,
+      "key": "F",
+      "range": {
+        "from": 16,
+        "to": 20
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    }
+  ],
   "extmarks": [
     [
       1,

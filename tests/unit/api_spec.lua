@@ -269,6 +269,39 @@ describe('opencode.api', function()
       assert.is_function(api.question_other)
 
       assert.is_function(api.open_input_new_session_with_title)
+      assert.is_function(api.copy_message)
+    end)
+
+    it('routes copy_message through the command axis with its message id', function()
+      local original_active_session = state.active_session
+      local original_messages = state.messages
+      state.session.set_active(mk_session('session-copy'))
+      state.renderer.set_messages({
+        {
+          info = { id = 'message-copy', role = 'user' },
+          parts = { { type = 'text', text = 'copy source' } },
+        },
+      })
+
+      local build_stub = stub(commands, 'build_parsed_intent').invokes(function(name, args)
+        assert.equal('copy_message', name)
+        assert.same({ 'message-copy' }, args)
+        return { ok = true, intent = {} }
+      end)
+      local execute_stub = stub(commands, 'execute_parsed_intent').invokes(function(_, action)
+        return action({ 'message-copy' })
+      end)
+      local setreg_stub = stub(vim.fn, 'setreg')
+
+      api.copy_message('message-copy')
+
+      assert.stub(execute_stub).was_called()
+      assert.stub(setreg_stub).was_called_with('+', 'copy source')
+      setreg_stub:revert()
+      execute_stub:revert()
+      build_stub:revert()
+      state.renderer.set_messages(original_messages)
+      state.session.set_active(original_active_session)
     end)
   end)
 

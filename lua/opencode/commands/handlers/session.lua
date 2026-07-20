@@ -470,6 +470,36 @@ function M.actions.undo(message_id)
   end)
 end
 
+---@param message_id string
+function M.actions.copy_message(message_id)
+  return with_active_session('No active session to copy', function(state_obj)
+    local target = find_message_in_state(state_obj, message_id)
+    if not target or not target.info or target.info.role ~= 'user' then
+      vim.notify('No user message to copy', vim.log.levels.WARN)
+      return
+    end
+
+    local text_parts = {}
+    for _, part in ipairs(target.parts or {}) do
+      if
+        part.type == 'text'
+        and part.synthetic ~= true
+        and type(part.text) == 'string'
+        and vim.trim(part.text) ~= ''
+      then
+        text_parts[#text_parts + 1] = part.text
+      end
+    end
+
+    if #text_parts == 0 then
+      vim.notify('No message text to copy', vim.log.levels.WARN)
+      return
+    end
+
+    vim.fn.setreg('+', table.concat(text_parts, '\n\n'))
+  end)
+end
+
 ---@param state_obj OpencodeState
 ---@return string|nil
 local function find_next_message_for_redo(state_obj)

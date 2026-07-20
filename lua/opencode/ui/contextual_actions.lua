@@ -5,7 +5,6 @@ local M = {}
 local namespace = vim.api.nvim_create_namespace('opencode_contextual_actions')
 local augroup = vim.api.nvim_create_augroup('OpenCodeContextualActions', { clear = true })
 local lifecycles = {}
-local refresh_contextual_actions
 
 local function buffer_mapping(buf, key)
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, 'n')) do
@@ -31,79 +30,60 @@ local function restore_mapping(buf, mapping)
   vim.api.nvim_buf_set_keymap(buf, 'n', mapping.lhs, mapping.callback and '' or mapping.rhs, options)
 end
 
-local function lifecycle_for(buf)
-  if not lifecycles[buf] then
-    lifecycles[buf] = {
-      saved_mappings = {},
-      generation = 0,
-      observing = false,
-      actions = nil,
-    }
-  end
-  return lifecycles[buf]
-end
-
-local function invalidate(buf, lifecycle)
-  if lifecycles[buf] ~= lifecycle then
+local function clear_contextual_actions(buf)
+  local lifecycle = lifecycles[buf]
+  if not lifecycle then
     return
   end
 
-  lifecycle.generation = lifecycle.generation + 1
-  if not vim.api.nvim_buf_is_valid(buf) then
-    return
-  end
-
-  vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
-  for key, snapshot in pairs(lifecycle.saved_mappings) do
-    vim.keymap.del('n', key, { buffer = buf })
-    if snapshot.mapping then
-      restore_mapping(buf, snapshot.mapping)
+  if vim.api.nvim_buf_is_valid(buf) then
+    vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
+    for key, mapping in pairs(lifecycle.saved_mappings) do
+      vim.keymap.del('n', key, { buffer = buf })
+      if mapping then
+        restore_mapping(buf, mapping)
+      end
     end
   end
   lifecycle.saved_mappings = {}
   lifecycle.actions = nil
 end
 
-function M.setup_contextual_actions(windows)
-  local buf = windows.output_buf
-  local lifecycle = lifecycle_for(buf)
-  if lifecycle.observing then
-    refresh_contextual_actions(buf)
-    return
+local function ensure_lifecycle(buf)
+  local lifecycle = lifecycles[buf]
+  if lifecycle then
+    return lifecycle
   end
 
+  lifecycle = { saved_mappings = {}, actions = nil }
   assert(vim.api.nvim_buf_attach(buf, false, {
     on_lines = function()
-      invalidate(buf, lifecycle)
+      clear_contextual_actions(buf)
     end,
     on_reload = function()
-      invalidate(buf, lifecycle)
+      clear_contextual_actions(buf)
     end,
     on_detach = function()
-      invalidate(buf, lifecycle)
-      if lifecycles[buf] == lifecycle then
-        lifecycles[buf] = nil
-      end
+      clear_contextual_actions(buf)
+      lifecycles[buf] = nil
     end,
   }))
-  lifecycle.observing = true
-  refresh_contextual_actions(buf)
+  lifecycles[buf] = lifecycle
+  return lifecycle
 end
 
 function M.show_contextual_actions_menu(buf, actions)
-  local lifecycle = lifecycle_for(buf)
-  if not actions or #actions == 0 then
-    if lifecycle.actions then
-      invalidate(buf, lifecycle)
-    end
-    return
-  end
+  local lifecycle = ensure_lifecycle(buf)
+  actions = actions and #actions > 0 and actions or nil
 
   if vim.deep_equal(lifecycle.actions, actions) then
     return
   end
 
-  invalidate(buf, lifecycle)
+  clear_contextual_actions(buf)
+  if not actions then
+    return
+  end
   lifecycle.actions = actions
 
   for _, action in ipairs(actions) do
@@ -112,18 +92,15 @@ function M.show_contextual_actions_menu(buf, actions)
       virt_text_pos = 'right_align',
       hl_mode = 'combine',
     })
-  end
 
-  for _, action in ipairs(actions) do
-    if action.key and not lifecycle.saved_mappings[action.key] then
-      lifecycle.saved_mappings[action.key] = { mapping = buffer_mapping(buf, action.key) }
-      local generation = lifecycle.generation
+    if action.key and lifecycle.saved_mappings[action.key] == nil then
+      lifecycle.saved_mappings[action.key] = buffer_mapping(buf, action.key) or false
       vim.keymap.set('n', action.key, function()
-        if lifecycles[buf] ~= lifecycle or lifecycle.generation ~= generation then
+        if lifecycles[buf] ~= lifecycle or not vim.tbl_contains(lifecycle.actions or {}, action) then
           return
         end
 
-        invalidate(buf, lifecycle)
+        clear_contextual_actions(buf)
         if action.type and action.args then
           require('opencode.api')[action.type](unpack(action.args))
         end
@@ -132,14 +109,14 @@ function M.show_contextual_actions_menu(buf, actions)
   end
 end
 
-refresh_contextual_actions = function(buf)
+local function refresh_contextual_actions(buf)
   local lifecycle = lifecycles[buf]
   if not lifecycle then
     return
   end
 
   if not state.windows or state.windows.output_buf ~= buf or vim.api.nvim_get_current_buf() ~= buf then
-    invalidate(buf, lifecycle)
+    clear_contextual_actions(buf)
     return
   end
 
@@ -147,14 +124,12 @@ refresh_contextual_actions = function(buf)
   M.show_contextual_actions_menu(buf, require('opencode.ui.renderer').get_actions_for_line(line))
 end
 
-vim.api.nvim_create_autocmd({ 'CursorHold', 'BufEnter', 'WinEnter' }, {
-  group = augroup,
-  callback = function(event)
-    refresh_contextual_actions(event.buf)
-  end,
-})
+function M.setup_contextual_actions(windows)
+  ensure_lifecycle(windows.output_buf)
+  refresh_contextual_actions(windows.output_buf)
+end
 
-vim.api.nvim_create_autocmd('CursorMoved', {
+vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorMoved', 'BufEnter', 'WinEnter' }, {
   group = augroup,
   callback = function(event)
     refresh_contextual_actions(event.buf)
@@ -164,10 +139,7 @@ vim.api.nvim_create_autocmd('CursorMoved', {
 vim.api.nvim_create_autocmd({ 'BufLeave', 'BufDelete', 'BufHidden' }, {
   group = augroup,
   callback = function(event)
-    local lifecycle = lifecycles[event.buf]
-    if lifecycle then
-      invalidate(event.buf, lifecycle)
-    end
+    clear_contextual_actions(event.buf)
   end,
 })
 

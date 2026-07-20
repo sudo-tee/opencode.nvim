@@ -357,4 +357,25 @@ describe('contextual actions', function()
     package.loaded['opencode.api'] = api
     assert.same({ undo = 'message-r', copy_message = 'message-c', fork_session = 'message-f' }, calls)
   end)
+
+  it('ignores a callback from a replaced action set', function()
+    contextual_actions.setup_contextual_actions({ output_buf = buf })
+    local api = package.loaded['opencode.api']
+    local calls = {}
+    package.loaded['opencode.api'] = {
+      undo = function(id)
+        calls[#calls + 1] = id
+      end,
+    }
+
+    contextual_actions.show_contextual_actions_menu(buf, { action('R', 'undo', { 'old-message' }) })
+    local stale_callback = mapping(buf, 'R').callback
+    contextual_actions.show_contextual_actions_menu(buf, { action('R', 'undo', { 'current-message' }) })
+    stale_callback()
+
+    assert.same({}, calls)
+    mapping(buf, 'R').callback()
+    assert.same({ 'current-message' }, calls)
+    package.loaded['opencode.api'] = api
+  end)
 end)

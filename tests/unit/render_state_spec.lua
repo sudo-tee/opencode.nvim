@@ -250,6 +250,95 @@ describe('RenderState', function()
       assert.equals('action1', line_actions[1].type)
     end)
 
+    it('owns one R/C/F set across an actionable user message block', function()
+      local message = {
+        info = { id = 'msg-user', role = 'user' },
+        parts = {
+          { id = 'text-part', messageID = 'msg-user', type = 'text', text = 'prompt' },
+          { id = 'file-part', messageID = 'msg-user', type = 'file', filename = 'file.lua' },
+        },
+      }
+      render_state:set_message(message, 20, 21)
+      render_state:set_part(message.parts[1], 22, 24)
+      render_state:set_part(message.parts[2], 25, 26)
+
+      local rendered = render_state:get_message('msg-user')
+      assert.equals(3, #rendered.actions)
+      assert.same({ from = 20, to = 26 }, rendered.actions[1].range)
+      assert.same(
+        { 'undo', 'copy_message', 'fork_session' },
+        vim.tbl_map(function(action)
+          return action.type
+        end, rendered.actions)
+      )
+
+      for line = 20, 26 do
+        local actions = render_state:get_actions_at_line(line)
+        assert.equals(3, #actions)
+        assert.same({ 'msg-user' }, actions[1].args)
+      end
+    end)
+
+    it('refreshes message actions after a header expansion shifts its parts', function()
+      local message = {
+        info = { id = 'msg-user', role = 'user' },
+        parts = {
+          { id = 'text-part', messageID = 'msg-user', type = 'text', text = 'prompt' },
+          { id = 'file-part', messageID = 'msg-user', type = 'file', filename = 'file.lua' },
+        },
+      }
+      render_state:set_message(message, 10, 11)
+      render_state:set_part(message.parts[1], 12, 13)
+      render_state:set_part(message.parts[2], 14, 15)
+
+      render_state:set_message(message, 10, 13)
+      render_state:shift_all(12, 2)
+
+      local action = render_state:get_message('msg-user').actions[1]
+      assert.same({ from = 10, to = 17 }, action.range)
+      assert.same({ 'msg-user' }, render_state:get_actions_at_line(17)[1].args)
+    end)
+
+    it('keeps message actions within the block after the closest header', function()
+      local user_one = {
+        info = { id = 'user-one', role = 'user' },
+        parts = { { id = 'user-one-text', messageID = 'user-one', type = 'text', text = 'first' } },
+      }
+      local assistant = {
+        info = { id = 'assistant', role = 'assistant' },
+        parts = { { id = 'assistant-text', messageID = 'assistant', type = 'text', text = 'reply' } },
+      }
+      local user_two = {
+        info = { id = 'user-two', role = 'user' },
+        parts = { { id = 'user-two-text', messageID = 'user-two', type = 'text', text = 'second' } },
+      }
+      render_state:set_message(user_one, 10, 11)
+      render_state:set_part(user_one.parts[1], 12, 14)
+      render_state:set_message(assistant, 15, 16)
+      render_state:set_part(assistant.parts[1], 17, 18)
+      render_state:set_message(user_two, 19, 20)
+      render_state:set_part(user_two.parts[1], 21, 23)
+
+      assert.same({ 'user-one' }, render_state:get_actions_at_line(10)[1].args)
+      assert.same({ 'user-one' }, render_state:get_actions_at_line(14)[1].args)
+      assert.same({}, render_state:get_actions_at_line(17))
+      assert.same({ 'user-two' }, render_state:get_actions_at_line(19)[1].args)
+      assert.same({ 'user-two' }, render_state:get_actions_at_line(23)[1].args)
+    end)
+
+    it('requires a non-synthetic non-empty user text part for message actions', function()
+      for _, message in ipairs({
+        { info = { id = 'assistant', role = 'assistant' }, parts = { { type = 'text', text = 'text' } } },
+        { info = { id = 'system', role = 'system' }, parts = { { type = 'text', text = 'text' } } },
+        { info = { id = '', role = 'user' }, parts = { { type = 'text', text = 'text' } } },
+        { info = { id = 'synthetic', role = 'user' }, parts = { { type = 'text', text = 'text', synthetic = true } } },
+        { info = { id = 'empty', role = 'user' }, parts = { { type = 'text', text = '  ' } } },
+      }) do
+        render_state:set_message(message, 30, 31)
+        assert.same({}, render_state:get_actions_at_line(30))
+      end
+    end)
+
     it('gets all actions from all parts', function()
       local part1 = { id = 'part1', messageID = 'msg1' }
       local part2 = { id = 'part2', messageID = 'msg1' }

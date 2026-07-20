@@ -583,4 +583,88 @@ describe('opencode.commands.handlers', function()
     assert.is_true(called_with.wrap)
     assert.equal('noop', called_with.empty_policy)
   end)
+
+  describe('copy_message', function()
+    local state
+    local active_session
+    local messages
+
+    before_each(function()
+      state = require('opencode.state')
+      active_session = state.active_session
+      messages = state.messages
+      state.session.set_active({ id = 'session-copy' })
+    end)
+
+    after_each(function()
+      state.session.set_active(active_session)
+      state.renderer.set_messages(messages)
+    end)
+
+    it('copies original non-synthetic text parts in order without trimming', function()
+      state.renderer.set_messages({
+        {
+          info = { id = 'user-message', role = 'user' },
+          parts = {
+            { type = 'text', text = '  first  ' },
+            { type = 'text', text = 'synthetic', synthetic = true },
+            { type = 'tool', text = 'tool output' },
+            { type = 'text', text = nil },
+            { type = 'text', text = 1 },
+            { type = 'text', text = 'second\nline' },
+            { type = 'text', text = '   ' },
+          },
+        },
+      })
+      local setreg_stub = stub(vim.fn, 'setreg')
+
+      require('opencode.commands.handlers.session').actions.copy_message('user-message')
+
+      assert.stub(setreg_stub).was_called_with('+', '  first  \n\nsecond\nline')
+      setreg_stub:revert()
+    end)
+
+    it('does not replace the register when no valid message text exists', function()
+      state.renderer.set_messages({
+        {
+          info = { id = 'empty-message', role = 'user' },
+          parts = {
+            { type = 'text', text = ' ', synthetic = false },
+            { type = 'text', text = nil },
+            { type = 'text', text = false },
+            { type = 'tool', text = 'tool output' },
+          },
+        },
+      })
+      local setreg_stub = stub(vim.fn, 'setreg')
+      local notify_stub = stub(vim, 'notify')
+
+      require('opencode.commands.handlers.session').actions.copy_message('empty-message')
+
+      assert.stub(setreg_stub).was_not_called()
+      assert.stub(notify_stub).was_called_with('No message text to copy', vim.log.levels.WARN)
+      notify_stub:revert()
+      setreg_stub:revert()
+    end)
+
+    it('does not copy missing or non-user messages', function()
+      state.renderer.set_messages({
+        {
+          info = { id = 'assistant-message', role = 'assistant' },
+          parts = { { type = 'text', text = 'assistant text' } },
+        },
+      })
+      local setreg_stub = stub(vim.fn, 'setreg')
+      local notify_stub = stub(vim, 'notify')
+      local session = require('opencode.commands.handlers.session')
+
+      session.actions.copy_message('missing-message')
+      session.actions.copy_message('assistant-message')
+
+      assert.stub(setreg_stub).was_not_called()
+      assert.stub(notify_stub).was_called_with('No user message to copy', vim.log.levels.WARN)
+      notify_stub:revert()
+      setreg_stub:revert()
+    end)
+  end)
 end)

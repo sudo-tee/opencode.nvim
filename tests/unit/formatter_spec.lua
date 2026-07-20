@@ -1125,5 +1125,15 @@ describe('formatter', function()
       local output = formatter.format_part(make_bash_part(), message, true)
       assert.is_true(#output.fold_ranges > 0)
     end)
+
+    describe('message actions', function()
+      it('does not assign R/C/F to an individual user text part', function()
+        local message = { info = { id = 'msg-user', role = 'user' }, parts = {} }
+        local output = formatter.format_part({ type = 'text', text = 'first\nsecond' }, message, true, {})
+
+        assert.same({ 'first', 'second', '' }, output.lines)
+        assert.same({}, output.actions)
+      end)
+    end)
   end)
 end)

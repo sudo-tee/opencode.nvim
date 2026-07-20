@@ -2,6 +2,84 @@
   "actions": [
     {
       "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_a0234c0b7001y2o9S1jMaNVZar"
+      ],
+      "display_line": 6,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 6
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "R",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "C",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_a0234e308001SKl5bQUibp5gtI"
+      ],
+      "display_line": 33,
+      "key": "F",
+      "range": {
+        "from": 29,
+        "to": 33
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    },
+    {
+      "args": [
         "1b6ba655c6c0d899965adff278ac6320d5fc3b12"
       ],
       "display_line": 22,

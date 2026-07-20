@@ -1,5 +1,45 @@
 {
-  "actions": [],
+  "actions": [
+    {
+      "args": [
+        "msg_after_user"
+      ],
+      "display_line": 8,
+      "key": "R",
+      "range": {
+        "from": 4,
+        "to": 8
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_after_user"
+      ],
+      "display_line": 8,
+      "key": "C",
+      "range": {
+        "from": 4,
+        "to": 8
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_after_user"
+      ],
+      "display_line": 8,
+      "key": "F",
+      "range": {
+        "from": 4,
+        "to": 8
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    }
+  ],
   "extmarks": [
     [
       1,

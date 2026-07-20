@@ -465,7 +465,7 @@ describe('persist_state', function()
 
       assert.equals('Temporary A', mapping_description('a'))
       toggle_wait('hidden')
-      assert.is_nil(mapping_description('a'))
+      assert.equals('Base A', mapping_description('a'))
 
       toggle_wait('visible')
       assert.equals('Base A', mapping_description('a'))

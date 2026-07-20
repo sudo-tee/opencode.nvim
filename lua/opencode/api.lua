@@ -52,6 +52,7 @@ local action_groups = {
     open_input_new_session_with_title = session.open_input_new_session_with_title,
     rename_session = session.rename_session,
     undo = session.undo,
+    copy_message = session.copy_message,
     fork_session = session.fork_session,
     toggle_session_lock = session.toggle_session_lock,
   },

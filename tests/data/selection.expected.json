@@ -1,5 +1,45 @@
 {
-  "actions": [],
+  "actions": [
+    {
+      "args": [
+        "msg_9f5b29fea001z6jYXF7CG9omHa"
+      ],
+      "display_line": 14,
+      "key": "R",
+      "range": {
+        "from": 0,
+        "to": 14
+      },
+      "text": "[R]evert",
+      "type": "undo"
+    },
+    {
+      "args": [
+        "msg_9f5b29fea001z6jYXF7CG9omHa"
+      ],
+      "display_line": 14,
+      "key": "C",
+      "range": {
+        "from": 0,
+        "to": 14
+      },
+      "text": "[C]opy",
+      "type": "copy_message"
+    },
+    {
+      "args": [
+        "msg_9f5b29fea001z6jYXF7CG9omHa"
+      ],
+      "display_line": 14,
+      "key": "F",
+      "range": {
+        "from": 0,
+        "to": 14
+      },
+      "text": "[F]ork",
+      "type": "fork_session"
+    }
+  ],
   "extmarks": [
     [
       1,

@@ -409,6 +409,29 @@ describe('opencode.services.session_runtime', function()
 
   end)
 
+  describe('cancel', function()
+    after_each(function()
+      state.renderer.set_pending_permissions({})
+      vim.g.opencode_abort_count = nil
+    end)
+
+    it('rejects pending permissions with the reply payload expected by the API', function()
+      local replies = {}
+      state.session.set_active({ id = 'session_with_permission' })
+      state.renderer.set_pending_permissions({ { id = 'per_cancel' } })
+      vim.g.opencode_abort_count = 0
+      state.api_client.reply_to_permission = function(_, permission_id, payload)
+        table.insert(replies, { permission_id = permission_id, payload = payload })
+      end
+
+      session_runtime.cancel():wait()
+
+      assert.same({
+        { permission_id = 'per_cancel', payload = { reply = 'reject' } },
+      }, replies)
+    end)
+  end)
+
   describe('child session UI guards', function()
     local input_window = require('opencode.ui.input_window')
 

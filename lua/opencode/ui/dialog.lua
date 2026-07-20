@@ -12,6 +12,7 @@
 ---@field keymaps? DialogKeymaps Custom keymap configuration
 ---@field namespace_prefix? string Prefix for vim.on_key namespace (default: 'opencode_dialog')
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
+---@field show_dismiss_legend? boolean Whether to render the generic dismiss hint (default: true)
 
 ---@class DialogKeymaps
 ---@field up? string[] Keys for navigating up (default: {'k', '<Up>'})
@@ -58,10 +59,11 @@ function Dialog.new(config)
   self._config = vim.tbl_deep_extend('force', {
     keymaps = default_keymaps,
     namespace_prefix = 'opencode_dialog',
-    check_focused = function()
-      return true
-    end,
-    hide_input = true,
+      check_focused = function()
+        return true
+      end,
+      hide_input = true,
+      show_dismiss_legend = true,
   } --[[@as DialogConfig]], config)
 
   self._keymaps = {}
@@ -292,7 +294,7 @@ function Dialog:format_legend(output, options)
       output:add_line(select_text)
     end
 
-    if keymaps.dismiss and keymaps.dismiss ~= '' then
+    if self._config.show_dismiss_legend and keymaps.dismiss and keymaps.dismiss ~= '' then
       output:add_line('Close: `<Esc>`')
     end
 

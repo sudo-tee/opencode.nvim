@@ -434,42 +434,50 @@ Some models support multiple variants (e.g., different context window sizes or o
 
 When you switch variants, the plugin remembers your selection per model, so the next time you use that model, it will automatically use the last selected variant.
 
-### Buffer context pollution and blink.cmp
+### Avoid automatic blink.cmp menus while writing prompts
 
-If completion state leaks into the `opencode` input buffer and pollutes prompts, you can narrow blink.cmp behavior so it only opens completion UI on explicit trigger characters and only enables ghost text while the menu is visible.
+If blink.cmp opens completion menus while you are writing ordinary text in an OpenCode prompt, scope its automatic presentation to the `opencode` filetype. This keeps every configured source available, including buffer, path, environment, and AI sources; it only stops them from automatically interrupting ordinary prompt text. Explicit blink.cmp trigger characters and your existing manual completion keymap continue to work.
+
+This Lazy.nvim recipe wraps your existing blink.cmp settings. Outside `opencode` buffers, it preserves your current `auto_show` and ghost-text behavior. In an OpenCode prompt, ghost text remains disabled unless you had enabled it already and the completion menu is open.
 
 ```lua
 return {
   {
     "saghen/blink.cmp",
     optional = true,
-    opts = {
-      completion = {
-        menu = {
-          auto_show = function(ctx)
-            if vim.bo.filetype == "opencode" then
-              -- Only show the menu window if triggered by @, ~, or !
-              return ctx.trigger.kind == "trigger_character"
-            end
-            return true
-          end,
-        },
-        ghost_text = {
-          -- blink doesn't pass ctx here, so look up the state directly
-          enabled = function()
-            if vim.bo.filetype == "opencode" then
-              local ok, blink = pcall(require, "blink.cmp")
-              if ok then
-                -- Only allow ghost text if a completion window is actively open
-                return blink.is_visible()
-              end
-              return false
-            end
-            return true
-          end,
-        },
-      },
-    },
+    opts = function(_, opts)
+      opts.completion = opts.completion or {}
+      opts.completion.menu = opts.completion.menu or {}
+      opts.completion.ghost_text = opts.completion.ghost_text or {}
+
+      local inherited_auto_show = opts.completion.menu.auto_show
+      local inherited_ghost_text_enabled = opts.completion.ghost_text.enabled
+
+      opts.completion.menu.auto_show = function(ctx, items)
+        if vim.bo[ctx.bufnr].filetype == "opencode" then
+          -- Do not auto-open while writing prose; explicit Blink triggers still open it.
+          return ctx.trigger.kind == "trigger_character"
+        end
+
+        if type(inherited_auto_show) == "function" then
+          return inherited_auto_show(ctx, items)
+        end
+        return inherited_auto_show ~= false
+      end
+
+      opts.completion.ghost_text.enabled = function()
+        local ghost_text_enabled = type(inherited_ghost_text_enabled) == "function"
+            and inherited_ghost_text_enabled()
+          or inherited_ghost_text_enabled == true
+
+        if vim.bo.filetype == "opencode" then
+          return ghost_text_enabled and require("blink.cmp").is_menu_visible()
+        end
+        return ghost_text_enabled
+      end
+
+      return opts
+    end,
   },
 }
 ```

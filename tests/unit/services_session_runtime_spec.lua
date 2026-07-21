@@ -656,7 +656,7 @@ describe('opencode.services.session_runtime', function()
   end)
 
   describe('markdown rendering metadata', function()
-    it('stores the markdown namespace on the output buffer before rendering', function()
+    it('renders markdown in the output window without leaking into the current tab', function()
       local output_window = require('opencode.ui.output_window')
       local buf = vim.api.nvim_create_buf(false, true)
       local win = vim.api.nvim_open_win(buf, false, {
@@ -667,9 +667,15 @@ describe('opencode.services.session_runtime', function()
         col = 0,
         style = 'minimal',
       })
+      local output_tab = vim.api.nvim_win_get_tabpage(win)
 
       state.ui.set_windows({ output_buf = buf, output_win = win })
       vim.api.nvim_buf_set_var(buf, 'opencode_markdown_namespace', 0)
+
+      vim.cmd('tabnew')
+      local current_tab = vim.api.nvim_get_current_tabpage()
+      local current_win = vim.api.nvim_get_current_win()
+      local current_tab_windows = vim.api.nvim_tabpage_list_wins(current_tab)
 
       local defer_stub = stub(vim, 'defer_fn').invokes(function(cb)
         cb()
@@ -682,17 +688,28 @@ describe('opencode.services.session_runtime', function()
         end
         return original_exists(name)
       end
-      local cmd_stub = stub(vim, 'cmd')
+      local rendered_tab
+      local rendered_win
+      local cmd_stub = stub(vim, 'cmd').invokes(function()
+        rendered_tab = vim.api.nvim_get_current_tabpage()
+        rendered_win = vim.api.nvim_get_current_win()
+      end)
 
       flush.trigger_on_data_rendered()
 
       assert.equals(output_window.markdown_namespace, vim.b[buf].opencode_markdown_namespace)
       assert.stub(cmd_stub).was_called_with(':RenderMarkdown buf_enable')
+      assert.equals(output_tab, rendered_tab)
+      assert.equals(win, rendered_win)
+      assert.equals(current_tab, vim.api.nvim_get_current_tabpage())
+      assert.equals(current_win, vim.api.nvim_get_current_win())
+      assert.same(current_tab_windows, vim.api.nvim_tabpage_list_wins(current_tab))
 
       cmd_stub:revert()
       defer_stub:revert()
       vim.fn.exists = original_exists
       state.ui.set_windows(nil)
+      vim.cmd('tabclose')
       pcall(vim.api.nvim_win_close, win, true)
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
     end)

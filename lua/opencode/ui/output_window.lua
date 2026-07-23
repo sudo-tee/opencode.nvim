@@ -732,6 +732,15 @@ function M.setup_autocmds(windows, group)
     end,
   })
 
+  vim.api.nvim_create_autocmd('TabEnter', {
+    group = group,
+    callback = function()
+      if state.ui.is_window_in_current_tab(windows.output_win) then
+        require('opencode.ui.renderer.flush').resume_deferred_rendering()
+      end
+    end,
+  })
+
   vim.api.nvim_create_autocmd('BufEnter', {
     group = group,
     buffer = windows.output_buf,

@@ -551,6 +551,9 @@ function M.scroll_to_bottom(force)
   if not vim.api.nvim_win_is_valid(output_win) then
     return
   end
+  if not state.ui.is_window_in_current_tab(output_win) then
+    return
+  end
 
   if force or config.ui.output.always_scroll_to_bottom or output_window.is_at_bottom(output_win) then
     scroll.scroll_win_to_bottom(output_win, output_buf)

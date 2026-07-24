@@ -12,6 +12,13 @@ local append = require('opencode.ui.renderer.append')
 local M = {}
 local warned_part_render_error = false
 
+local function output_window_is_in_background_tab()
+  local output_win = state.windows and state.windows.output_win
+  return output_win
+    and vim.api.nvim_win_is_valid(output_win)
+    and not state.ui.is_window_in_current_tab(output_win)
+end
+
 ---@param part_id string
 ---@param message_id string|nil
 ---@param err any
@@ -462,15 +469,27 @@ local function do_trigger_on_data_rendered()
   if not state.windows or not state.windows.output_buf or not state.windows.output_win then
     return
   end
-  vim.b[state.windows.output_buf].opencode_markdown_namespace = output_window.markdown_namespace
+  local output_buf = state.windows.output_buf
+  local output_win = state.windows.output_win
+  if
+    not vim.api.nvim_buf_is_valid(output_buf)
+    or not vim.api.nvim_win_is_valid(output_win)
+    or vim.api.nvim_win_get_buf(output_win) ~= output_buf
+  then
+    return
+  end
+  vim.b[output_buf].opencode_markdown_namespace = output_window.markdown_namespace
   if cb_type == 'function' then
-    pcall(config.ui.output.rendering.on_data_rendered, state.windows.output_buf, state.windows.output_win)
+    pcall(config.ui.output.rendering.on_data_rendered, output_buf, output_win)
+  elseif not state.ui.is_window_in_current_tab(output_win) then
+    ctx.markdown_render_scheduled = true
+    return
   elseif vim.fn.exists(':RenderMarkdown') > 0 then
-    vim.api.nvim_buf_call(state.windows.output_buf, function()
+    vim.api.nvim_win_call(output_win, function()
       vim.cmd(':RenderMarkdown buf_enable')
     end)
   elseif vim.fn.exists(':Markview') > 0 then
-    vim.cmd(':Markview render ' .. state.windows.output_buf)
+    vim.cmd(':Markview render ' .. output_buf)
   end
 end
 
@@ -507,6 +526,9 @@ end
 ---Apply the buffered bulk render output to the output window.
 function M.end_bulk_mode()
   if not ctx.bulk_mode then
+    return
+  end
+  if output_window_is_in_background_tab() then
     return
   end
   ctx.bulk_mode = false
@@ -554,11 +576,23 @@ end
 
 ---Flush all pending renderer changes to the output buffer.
 function M.flush()
+  if output_window_is_in_background_tab() then
+    return
+  end
   local pending = snapshot_pending()
   local applied = apply_pending(pending, new_formatter_context())
   if applied and not ctx.bulk_mode then
     M.request_on_data_rendered()
   end
+end
+
+---Apply renderer work deferred while the output window was in another tab.
+function M.resume_deferred_rendering()
+  M.flush()
+  if ctx.bulk_mode then
+    M.end_bulk_mode()
+  end
+  M.flush_pending_on_data_rendered()
 end
 
 return M

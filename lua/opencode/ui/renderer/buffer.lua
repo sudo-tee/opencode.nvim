@@ -584,9 +584,17 @@ function M.update_part_folds(part_id)
 
   ctx.part_folds[part_id] = new_folds
   local new_global = {}
-  for _, pf in pairs(ctx.part_folds) do
-    for _, f in ipairs(pf) do
-      table.insert(new_global, f)
+  for pid, data in pairs(ctx.formatted_parts) do
+    if data.fold_ranges then
+      local p = ctx.render_state:get_part(pid)
+      if p and p.line_start then
+        for _, f in ipairs(data.fold_ranges) do
+          table.insert(new_global, {
+            from = p.line_start + f.from - 1,
+            to = p.line_start + f.to - 1,
+          })
+        end
+      end
     end
   end
   table.sort(new_global, function(a, b)

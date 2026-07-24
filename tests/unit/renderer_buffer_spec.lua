@@ -242,8 +242,11 @@ describe('update_part_folds', function()
   end)
 
   it('merges existing folds from other parts', function()
-    ctx.part_folds['part_b'] = { { from = 5, to = 8 } }
-    ctx.global_folds = { { from = 5, to = 8 } }
+    ctx.formatted_parts['part_b'] = {
+      lines = { 'other' },
+      fold_ranges = { { from = 1, to = 4 } },
+    }
+    ctx.render_state:set_part({ id = 'part_b', messageID = 'msg_b', type = 'text' }, 5, 8)
 
     ctx.formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },

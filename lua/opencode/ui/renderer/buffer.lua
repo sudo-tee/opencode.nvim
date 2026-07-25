@@ -480,7 +480,9 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     apply_part_render_data(part_id, formatted_data, cached.line_start)
 
     if new_line_end ~= cached.line_end then
+      local delta = new_line_end - old_line_end
       ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
+      output_window.shift_folds(old_line_end + 1, delta)
     end
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, prefix_len, true)
 
@@ -622,6 +624,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
 
   local new_line_end = cached.line_end + #extra_lines
   ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
+  output_window.shift_folds(insert_at, #extra_lines)
 
   local formatted_data = ctx.formatted_parts[part_id]
   if formatted_data then
@@ -657,6 +660,7 @@ function M.remove_part_now(part_id)
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_part(part_id)
+    ctx.part_folds[part_id] = nil
     return
   end
 
@@ -665,6 +669,7 @@ function M.remove_part_now(part_id)
   local delta = -(cached.line_end - cached.line_start + 1)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_part(part_id)
+  ctx.part_folds[part_id] = nil
 end
 
 ---@param message_id string

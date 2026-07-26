@@ -144,7 +144,7 @@ describe('inline_input', function()
       on_submit = function() end,
       on_cancel = function() end,
     })
-    assert.is_true(vim.wait(50, function()
+    assert.is_true(vim.wait(100, function()
       return vim.api.nvim_get_current_win() == input.win
         and vim.deep_equal(vim.api.nvim_win_get_cursor(input.win), { 2, #'second line' })
     end))

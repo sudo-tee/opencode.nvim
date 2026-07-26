@@ -700,6 +700,17 @@ function M.setup_keymaps(windows, preserve_existing)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
     end, { buffer = windows.output_buf })
   end
+
+  vim.keymap.set('n', '<C-w>o', function()
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.api.nvim_win_is_valid(win) then
+        local buf = vim.api.nvim_win_get_buf(win)
+        if buf ~= windows.output_buf and buf ~= windows.input_buf and buf ~= (windows.footer_buf or -1) then
+          pcall(vim.api.nvim_win_close, win, true)
+        end
+      end
+    end
+  end, { buffer = windows.output_buf })
 end
 
 ---@param windows OpencodeWindowState

@@ -19,7 +19,7 @@ function M.setup_autocmds(windows)
       end
 
       local closed_win = tonumber(opts.match)
-      if vim.tbl_contains(wins, closed_win) then
+      if vim.tbl_contains(wins, closed_win) and closed_win == windows.output_win then
         vim.schedule(function()
           require('opencode.ui.ui').teardown_visible_windows(windows)
         end)

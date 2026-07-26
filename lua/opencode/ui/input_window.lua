@@ -535,6 +535,17 @@ function M.setup_keymaps(windows)
 
   local keymap = require('opencode.keymap')
   keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
+
+  vim.keymap.set('n', '<C-w>o', function()
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.api.nvim_win_is_valid(win) then
+        local buf = vim.api.nvim_win_get_buf(win)
+        if buf ~= windows.output_buf and buf ~= windows.input_buf and buf ~= (windows.footer_buf or -1) then
+          pcall(vim.api.nvim_win_close, win, true)
+        end
+      end
+    end
+  end, { buffer = windows.input_buf })
 end
 
 function M.setup_autocmds(windows, group)

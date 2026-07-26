@@ -273,9 +273,6 @@ function M.setup(windows)
   window_options.set_buffer_option('buflisted', false, windows.input_buf)
   window_options.set_buffer_option('swapfile', false, windows.input_buf)
 
-  if windows.position ~= 'current' then
-    window_options.set_window_option('winfixbuf', true, windows.input_win)
-  end
   window_options.set_window_option('winfixwidth', true, windows.input_win)
 
   M.update_dimensions(windows)

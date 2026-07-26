@@ -113,10 +113,13 @@ local function close_or_restore_output_window(windows)
     return
   end
 
+  local current_buf = vim.api.nvim_win_get_buf(windows.output_win)
+  local buffer_was_replaced = current_buf ~= windows.output_buf
+
   output_window.restore_winfix_options(windows.output_win)
 
   if windows.position == 'current' then
-    if state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
+    if not buffer_was_replaced and state.current_code_buf and vim.api.nvim_buf_is_valid(state.current_code_buf) then
       pcall(vim.api.nvim_win_set_buf, windows.output_win, state.current_code_buf)
     end
     if state.saved_window_options then
@@ -125,6 +128,10 @@ local function close_or_restore_output_window(windows)
       end
       state.ui.set_saved_window_options(nil)
     end
+    return
+  end
+
+  if buffer_was_replaced then
     return
   end
 

@@ -287,9 +287,6 @@ function M.setup(windows)
   end)
   window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
 
-  if windows.position ~= 'current' then
-    window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
-  end
   window_options.set_window_option('winfixheight', true, windows.output_win, { save_original = true })
   window_options.set_window_option('winfixwidth', true, windows.output_win, { save_original = true })
   window_options.set_window_option('signcolumn', 'yes', windows.output_win, { save_original = true })

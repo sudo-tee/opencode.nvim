@@ -97,31 +97,29 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  if require('opencode.config').ui.position == 'current' then
-    vim.api.nvim_create_autocmd('BufEnter', {
-      group = group,
-      callback = function()
-        local current_win = vim.api.nvim_get_current_win()
-        local current_buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_create_autocmd('BufEnter', {
+    group = group,
+    callback = function()
+      local current_win = vim.api.nvim_get_current_win()
+      local current_buf = vim.api.nvim_get_current_buf()
 
-        if current_win ~= windows.output_win and current_win ~= windows.input_win then
-          return
-        end
+      if current_win ~= windows.output_win and current_win ~= windows.input_win then
+        return
+      end
 
-        local is_opencode_buf = (
-          current_buf == windows.output_buf
-          or current_buf == windows.input_buf
-          or (windows.footer_buf and current_buf == windows.footer_buf)
-        )
+      local is_opencode_buf = (
+        current_buf == windows.output_buf
+        or current_buf == windows.input_buf
+        or (windows.footer_buf and current_buf == windows.footer_buf)
+      )
 
-        if not is_opencode_buf then
-          vim.schedule(function()
-            require('opencode.ui.ui').teardown_visible_windows(windows)
-          end)
-        end
-      end,
-    })
-  end
+      if not is_opencode_buf then
+        vim.schedule(function()
+          require('opencode.ui.ui').teardown_visible_windows(windows)
+        end)
+      end
+    end,
+  })
 end
 
 ---@param windows OpencodeWindowState?

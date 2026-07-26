@@ -616,22 +616,57 @@ function M.get_rendered_message(message_id)
   return ctx.render_state:get_message(message_id) or nil
 end
 
+---@param message_id string
+---@return integer?
+local function first_jump_line(message_id)
+  local best
+  for _, p in pairs(ctx.render_state._parts) do
+    if p.message_id == message_id and p.line_start and p.part then
+      local t = p.part.type
+      if t ~= 'reasoning' and t ~= 'step-start' and t ~= 'step-finish' and p.part.synthetic ~= true then
+        if not best or p.line_start < best.line_start then
+          best = p
+        end
+      end
+    end
+  end
+  return best and best.line_start or nil
+end
+
+-- Return a copy of `rendered` whose `line_start` points at the first content
+-- part of the message (skipping reasoning/step markers/synthetic). Falls back
+-- to the message header when no content part exists.
+---@param rendered RenderedMessage
+---@return RenderedMessage
+local function with_jump_line(rendered)
+  if not rendered or not rendered.message or not rendered.message.info then
+    return rendered
+  end
+  local jump_line = first_jump_line(rendered.message.info.id) or rendered.line_start
+  return {
+    message = rendered.message,
+    line_start = jump_line,
+    line_end = rendered.line_end,
+    actions = rendered.actions,
+  }
+end
+
 ---@param current_line integer
 ---@return RenderedMessage|nil
 function M.get_next_rendered_message(current_line)
-  local next_message = nil
-
   for _, message in ipairs(state.messages or {}) do
     if not is_renderer_synthetic_message(message) then
       local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
-      if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
-        next_message = rendered
-        break
+      if rendered and rendered.line_start then
+        local jump_line = first_jump_line(message.info.id) or rendered.line_start
+        if jump_line + 1 > current_line then
+          return with_jump_line(rendered)
+        end
       end
     end
   end
 
-  return next_message
+  return nil
 end
 
 ---@param current_line integer
@@ -641,8 +676,11 @@ function M.get_prev_rendered_message(current_line)
     local message = state.messages[i]
     if message and not is_renderer_synthetic_message(message) then
       local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id)
-      if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
-        return rendered
+      if rendered and rendered.line_start then
+        local jump_line = first_jump_line(message.info.id) or rendered.line_start
+        if jump_line + 1 < current_line then
+          return with_jump_line(rendered)
+        end
       end
     end
   end

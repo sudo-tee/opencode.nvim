@@ -4,6 +4,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
+# Do not load a runtime configured for another Neovim binary.
+unset VIM VIMRUNTIME
+
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'

@@ -95,13 +95,61 @@ function M.open(opts)
     opts.on_cancel()
   end
 
+  -- hist_index 0 = at the in-progress text; N >= 1 = Nth-from-newest in
+  -- vim's "input" history (shared with vim.fn.input).
+  local hist_index = 0
+  local hist_snapshot
+
+  local function buf_set(text)
+    local lines = vim.split(text or '', '\n', { plain = true })
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    if vim.api.nvim_win_is_valid(win) then
+      local last = lines[#lines] or ''
+      pcall(vim.api.nvim_win_set_cursor, win, { math.max(1, #lines), #last })
+    end
+    -- Replacing all lines can drop the editor out of insert mode; re-enter
+    -- so <C-n>/typing keeps working.
+    vim.schedule(function()
+      if not closed and vim.api.nvim_win_is_valid(win) then
+        pcall(vim.cmd.startinsert)
+      end
+    end)
+    resize_height()
+  end
+
+  local function hist_prev()
+    local entry = vim.fn.histget('input', -(hist_index + 1))
+    if entry == '' then
+      return
+    end
+    if hist_index == 0 then
+      hist_snapshot = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n')
+    end
+    hist_index = hist_index + 1
+    buf_set(entry)
+  end
+
+  local function hist_next()
+    if hist_index == 0 then
+      return
+    end
+    if hist_index == 1 then
+      buf_set(hist_snapshot or '')
+      hist_index = 0
+      hist_snapshot = nil
+      return
+    end
+    hist_index = hist_index - 1
+    buf_set(vim.fn.histget('input', -hist_index))
+  end
+
   vim.fn.prompt_setcallback(buf, function(text)
     close()
-    if text ~= '' then
-      opts.on_submit(text)
-    else
-      opts.on_cancel()
+    if text == '' then
+      return opts.on_cancel()
     end
+    vim.fn.histadd('input', text)
+    opts.on_submit(text)
   end)
 
   vim.keymap.set('i', '<C-c>', function()
@@ -111,6 +159,9 @@ function M.open(opts)
   vim.keymap.set('n', '<Esc>', function()
     cancel_with_draft()
   end, { buffer = buf, silent = true, nowait = true })
+
+  vim.keymap.set('i', '<C-p>', hist_prev, { buffer = buf, silent = true, nowait = true })
+  vim.keymap.set('i', '<C-n>', hist_next, { buffer = buf, silent = true, nowait = true })
 
   vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
     buffer = buf,

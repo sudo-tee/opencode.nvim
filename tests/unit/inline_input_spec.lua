@@ -1,4 +1,5 @@
 local inline_input = require('opencode.ui.inline_input')
+local stub = require('luassert.stub')
 
 describe('inline_input', function()
   local anchor_buf
@@ -322,5 +323,201 @@ describe('inline_input', function()
     vim.api.nvim_feedkeys(vim.keycode('i' .. text .. '<CR>'), 'x', false)
 
     assert.equals(text, submitted)
+  end)
+
+  describe('history navigation (<C-p> / <C-n>)', function()
+    local histget_stub
+    local histadd_stub
+
+    -- Build a vim.fn.histget stub that mirrors vim's "input" history: negative
+    -- indices walk from most recent backwards, and any further-out entry
+    -- returns '' (matching the real |histget()|).
+    local function with_history(history)
+      histget_stub:revert()
+      histget_stub = stub(vim.fn, 'histget')
+      histget_stub.invokes(function(history_name, idx)
+        assert.equals('input', history_name)
+        local real = idx
+        if type(real) == 'number' and real < 0 then
+          local entry = history[-real]
+          return entry or ''
+        end
+        return ''
+      end)
+
+      histadd_stub:revert()
+      histadd_stub = stub(vim.fn, 'histadd')
+      histadd_stub.returns(1)
+    end
+
+    -- Invoke the buffer-local insert-mode keymap callback directly. This
+    -- avoids headless mode quirks where nvim_buf_set_lines can drop us out
+    -- of insert mode, and lets us assert the keymap wiring + history state
+    -- machine independently of the mode state.
+    local function call_keymap(input, lhs)
+      local target = lhs:gsub('^<(.-)>$', function(k)
+        return '<' .. k:upper() .. '>'
+      end)
+      for _, m in ipairs(vim.api.nvim_buf_get_keymap(input.buf, 'i')) do
+        if m.lhs == target and m.callback then
+          m.callback()
+          return true
+        end
+      end
+      return false
+    end
+
+    local function buf_lines(input)
+      return vim.api.nvim_buf_get_lines(input.buf, 0, -1, false)
+    end
+
+    before_each(function()
+      histget_stub = stub(vim.fn, 'histget')
+      histadd_stub = stub(vim.fn, 'histadd')
+    end)
+
+    after_each(function()
+      if histget_stub then
+        histget_stub:revert()
+      end
+      if histadd_stub then
+        histadd_stub:revert()
+      end
+    end)
+
+    it('walks forward through history with <C-p>', function()
+      with_history({ [1] = 'newest', [2] = 'middle', [3] = 'oldest' })
+      local input = open_input(0, 0)
+
+      assert.is_true(call_keymap(input, '<C-p>'))
+      assert.are.same({ 'newest' }, buf_lines(input))
+
+      assert.is_true(call_keymap(input, '<C-p>'))
+      assert.are.same({ 'middle' }, buf_lines(input))
+
+      assert.is_true(call_keymap(input, '<C-p>'))
+      assert.are.same({ 'oldest' }, buf_lines(input))
+    end)
+
+    it('caps <C-p> at the oldest history entry', function()
+      with_history({ [1] = 'newest', [2] = 'middle' })
+      local input = open_input(0, 0)
+
+      for _ = 1, 5 do
+        call_keymap(input, '<C-p>')
+      end
+      assert.are.same({ 'middle' }, buf_lines(input))
+    end)
+
+    it('restores the in-progress draft with <C-n>', function()
+      with_history({ [1] = 'newest', [2] = 'middle' })
+      local input = open_input(0, 0)
+
+      vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { 'draft' })
+      call_keymap(input, '<C-p>')
+      assert.are.same({ 'newest' }, buf_lines(input))
+
+      call_keymap(input, '<C-n>')
+      assert.are.same({ 'draft' }, buf_lines(input))
+    end)
+
+    it('walks back through history with <C-n>', function()
+      with_history({ [1] = 'newest', [2] = 'middle', [3] = 'oldest' })
+      local input = open_input(0, 0)
+
+      call_keymap(input, '<C-p>')
+      call_keymap(input, '<C-p>')
+      call_keymap(input, '<C-p>')
+      assert.are.same({ 'oldest' }, buf_lines(input))
+
+      call_keymap(input, '<C-n>')
+      assert.are.same({ 'middle' }, buf_lines(input))
+
+      call_keymap(input, '<C-n>')
+      assert.are.same({ 'newest' }, buf_lines(input))
+    end)
+
+    it('is a no-op when <C-p> is pressed with empty history', function()
+      with_history({})
+      local input = open_input(0, 0)
+
+      vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { 'draft' })
+      call_keymap(input, '<C-p>')
+      assert.are.same({ 'draft' }, buf_lines(input))
+    end)
+
+    it('is a no-op when <C-n> is pressed without first entering history', function()
+      with_history({ [1] = 'newest' })
+      local input = open_input(0, 0)
+
+      vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { 'draft' })
+      call_keymap(input, '<C-n>')
+      assert.are.same({ 'draft' }, buf_lines(input))
+    end)
+
+    it('handles multi-line history entries', function()
+      with_history({ [1] = 'line1\nline2' })
+      local input = open_input(0, 0)
+
+      call_keymap(input, '<C-p>')
+      assert.are.same({ 'line1', 'line2' }, buf_lines(input))
+    end)
+
+    it('places the cursor at the end of the inserted history entry', function()
+      with_history({ [1] = 'first', [2] = 'second' })
+      local input = open_input(0, 0)
+
+      call_keymap(input, '<C-p>')
+      local cursor1 = vim.api.nvim_win_get_cursor(input.win)
+      -- Cursor lands on the last char (normal-mode clamp) or the append
+      -- position (insert-mode). Production runs in insert mode, so this
+      -- matches user-visible behavior either way.
+      assert.are.equal(1, cursor1[1])
+      assert.is_true(cursor1[2] == #('first') or cursor1[2] == #('first') - 1)
+
+      call_keymap(input, '<C-p>')
+      local cursor2 = vim.api.nvim_win_get_cursor(input.win)
+      assert.are.equal(1, cursor2[1])
+      assert.is_true(cursor2[2] == #('second') or cursor2[2] == #('second') - 1)
+    end)
+
+    it('after restoring the draft, <C-p> re-enters history from the snapshot', function()
+      with_history({ [1] = 'alpha', [2] = 'beta' })
+      local input = open_input(0, 0)
+
+      vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { 'typed' })
+      call_keymap(input, '<C-p>')
+      call_keymap(input, '<C-n>')
+      assert.are.same({ 'typed' }, buf_lines(input))
+
+      call_keymap(input, '<C-p>')
+      assert.are.same({ 'alpha' }, buf_lines(input))
+    end)
+
+    it('writes submitted text to vim\'s "input" history (shared with vim.fn.input)', function()
+      with_history({})
+
+      local submitted
+      open_input(0, 0, function(value)
+        submitted = value
+      end)
+      vim.api.nvim_feedkeys(vim.keycode('ianswer<CR>'), 'x', false)
+
+      assert.equals('answer', submitted)
+      assert.stub(histadd_stub).was_called_with('input', 'answer')
+    end)
+
+    it('does not write to history when submission is empty', function()
+      with_history({})
+
+      local submitted
+      open_input(0, 0, function(value)
+        submitted = value
+      end)
+      vim.api.nvim_feedkeys(vim.keycode('<CR>'), 'x', false)
+
+      assert.is_nil(submitted)
+      assert.stub(histadd_stub).was_not_called()
+    end)
   end)
 end)

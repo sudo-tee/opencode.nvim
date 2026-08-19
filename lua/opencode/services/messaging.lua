@@ -86,7 +86,7 @@ M.send_message = Promise.async(function(prompt, opts)
         return
       end
 
-      M.after_run(prompt)
+      M.after_run()
     end)
     :catch(function(err)
       log.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -96,12 +96,10 @@ M.send_message = Promise.async(function(prompt, opts)
     :await()
 end)
 
----@param prompt string
-function M.after_run(prompt)
+function M.after_run()
   context.unload_attachments()
   state.session.set_last_sent_context(vim.deepcopy(context.get_context()))
   context.delta_context()
-  require('opencode.history').write(prompt)
   vim.g.opencode_abort_count = 0
 end
 

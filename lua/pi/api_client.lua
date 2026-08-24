@@ -446,13 +446,8 @@ end
 --- @return Promise<{info: MessageInfo, parts: PiMessagePart[]}>
 function PiApiClient:create_message(id, message_data, directory)
   if config.backend == 'pi' then
-    local text = {}
-    for _, part in ipairs(message_data.parts or {}) do
-      if part.text and part.text ~= '' then
-        table.insert(text, part.text)
-      end
-    end
-    return require('pi.rpc_client').get():prompt(table.concat(text, '\n\n')):and_then(function()
+    local message = require('pi.prompt_adapter').parts_to_prompt(message_data.parts or {})
+    return require('pi.rpc_client').get():prompt(message):and_then(function()
       return {
         info = { id = 'pi-user-accepted', role = 'user', sessionID = id, time = { created = vim.uv.now() } },
         parts = message_data.parts or {},

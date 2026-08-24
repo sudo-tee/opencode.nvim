@@ -37,19 +37,14 @@ M.send_message = Promise.async(function(prompt, opts)
     state.context.set_current_context_config(opts.context)
     context.load()
     local parts = context.format_message(prompt, opts.context):await()
-    local text = {}
-    for _, part in ipairs(parts or {}) do
-      if part.text and part.text ~= '' then
-        table.insert(text, part.text)
-      end
-    end
+    local message = require('pi.prompt_adapter').parts_to_prompt(parts)
     local session_id = state.active_session.id
     local sent_context = vim.deepcopy(context.get_context())
     context.unload_attachments()
     local sent_message_count = vim.deepcopy(state.user_message_count)
     sent_message_count[session_id] = (sent_message_count[session_id] or 0) + 1
     state.session.set_user_message_count(sent_message_count)
-    require('pi.rpc_client').get():prompt(table.concat(text, '\n\n')):and_then(function()
+    require('pi.rpc_client').get():prompt(message):and_then(function()
       sent_message_count = vim.deepcopy(state.user_message_count)
       sent_message_count[session_id] = math.max(0, (sent_message_count[session_id] or 1) - 1)
       state.session.set_user_message_count(sent_message_count)

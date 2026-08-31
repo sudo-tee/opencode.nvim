@@ -715,6 +715,97 @@ describe('renderer unit tests', function()
     config.ui.output.max_messages = nil
   end)
 
+  describe('interactive displays with max_messages', function()
+    local function make_message(id, text, timestamp)
+      return {
+        info = {
+          id = id,
+          role = 'assistant',
+          sessionID = 'ses_123',
+          time = { created = timestamp },
+        },
+        parts = {
+          {
+            id = id .. '_part',
+            messageID = id,
+            sessionID = 'ses_123',
+            type = 'text',
+            text = text,
+          },
+        },
+      }
+    end
+
+    local function add_message(events, id, text, timestamp)
+      local message = make_message(id, text, timestamp)
+      events.on_message_updated({ info = message.info })
+      events.on_part_updated({ part = message.parts[1] })
+    end
+
+    before_each(function()
+      helpers.replay_setup()
+      config.ui.output.max_messages = 2
+      state.session.set_active({ id = 'ses_123', title = 'Session' })
+    end)
+
+    after_each(function()
+      config.ui.output.max_messages = nil
+      if state.windows then
+        ui.close_windows(state.windows)
+      end
+    end)
+
+    it('keeps permission displays visible after later messages', function()
+      local renderer = require('opencode.ui.renderer')
+      local events = require('opencode.ui.renderer.events')
+      local flush = require('opencode.ui.renderer.flush')
+
+      renderer._render_full_session_data({ make_message('msg_1', 'first', 1), make_message('msg_2', 'second', 2) })
+      events.on_permission_updated({
+        id = 'perm_1',
+        sessionID = 'ses_123',
+        permission = 'bash',
+        title = 'Run command',
+      })
+      add_message(events, 'msg_3', 'third', 3)
+      add_message(events, 'msg_4', 'fourth', 4)
+      flush.flush()
+
+      assert.is_not_nil(renderer.get_rendered_message('permission-display-message'))
+      assert.is_truthy(
+        table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+          :find('Permission Required', 1, true)
+      )
+    end)
+
+    it('keeps question displays visible after later messages', function()
+      local renderer = require('opencode.ui.renderer')
+      local events = require('opencode.ui.renderer.events')
+      local flush = require('opencode.ui.renderer.flush')
+
+      renderer._render_full_session_data({ make_message('msg_1', 'first', 1), make_message('msg_2', 'second', 2) })
+      events.on_question_asked({
+        id = 'question_1',
+        sessionID = 'ses_123',
+        questions = {
+          {
+            question = 'Pick one',
+            options = { { label = 'One' } },
+          },
+        },
+      })
+      add_message(events, 'msg_3', 'third', 3)
+      add_message(events, 'msg_4', 'fourth', 4)
+      flush.flush()
+
+      assert.is_not_nil(renderer.get_rendered_message('question-display-message'))
+      assert.is_truthy(
+        table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+          :find('Question', 1, true)
+      )
+    end)
+  end)
+
   it('ignores session.updated for non-active session IDs', function()
     local renderer = require('opencode.ui.renderer')
 

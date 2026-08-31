@@ -222,7 +222,11 @@ function M.schedule()
   end
 
   ctx.flush_scheduled = true
+  local generation = ctx.generation
   vim.schedule(function()
+    if ctx.generation ~= generation then
+      return
+    end
     ctx.flush_scheduled = false
     M.flush()
   end)

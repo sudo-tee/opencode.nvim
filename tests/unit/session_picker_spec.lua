@@ -234,6 +234,37 @@ describe('opencode.ui.session_picker', function()
     end)
   end)
 
+  it('opens the selected session in a new panel tab', function()
+    local base_picker = require('opencode.ui.base_picker')
+    local original_pick = base_picker.pick
+    local session_runtime = require('opencode.services.session_runtime')
+    local selected_session = { id = 'session-in-tab', title = 'Session in tab' }
+    local captured_action
+
+    base_picker.pick = function(opts)
+      captured_action = opts.actions.open_in_tab
+      return true
+    end
+
+    session_picker.pick({ selected_session }, function() end)
+
+    local open_stub = stub(session_runtime, 'open_session_in_tab').returns(Promise.new():resolve(selected_session))
+    local closed = false
+    captured_action
+      .fn(selected_session, {
+        close = function()
+          closed = true
+        end,
+      })
+      :wait()
+
+    assert.is_true(closed)
+    assert.stub(open_stub).was_called_with(selected_session)
+
+    open_stub:revert()
+    base_picker.pick = original_pick
+  end)
+
   -- -----------------------------------------------------------------------
   -- Integration tests: delete action triggers switch when parent/grandparent
   -- of the active session is deleted

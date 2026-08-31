@@ -42,6 +42,7 @@ function M.setup(opts)
   require('opencode.ui.highlight').setup()
 
   state = require('opencode.state')
+  state.session_tabs.setup()
   state.store.subscribe('opencode_server', on_opencode_server)
   state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)
   state.store.subscribe('pending_permissions', session_runtime._on_current_permission_change)

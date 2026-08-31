@@ -1,25 +1,30 @@
 local store = require('opencode.state.store')
+local session_tabs = require('opencode.state.session_tabs')
 
 ---@class OpencodeSessionStateMutations
 local M = {}
 
 ---@param session Session|nil
 function M.set_active(session)
-  return store.batch(function()
+  local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)
     store.set('user_message_count', {})
     return store.set('active_session', session)
   end)
+  session_tabs.sync()
+  return result
 end
 
 function M.clear_active()
-  return store.batch(function()
+  local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)
     store.set('user_message_count', {})
     return store.set('active_session', nil)
   end)
+  session_tabs.sync()
+  return result
 end
 
 ---@return boolean
@@ -34,6 +39,7 @@ function M.set_locked(value)
   else
     store.set('session_locked', value and true or false)
   end
+  session_tabs.sync()
 end
 
 ---@return boolean new_value
@@ -45,21 +51,29 @@ end
 
 ---@param points RestorePoint[]
 function M.set_restore_points(points)
-  return store.set('restore_points', points)
+  local result = store.set('restore_points', points)
+  session_tabs.sync()
+  return result
 end
 
 function M.reset_restore_points()
-  return store.set('restore_points', {})
+  local result = store.set('restore_points', {})
+  session_tabs.sync()
+  return result
 end
 
 ---@param context OpencodeContext|nil
 function M.set_last_sent_context(context)
-  return store.set('last_sent_context', context)
+  local result = store.set('last_sent_context', context)
+  session_tabs.sync()
+  return result
 end
 
 ---@param count table<string, number>
 function M.set_user_message_count(count)
-  return store.set('user_message_count', count)
+  local result = store.set('user_message_count', count)
+  session_tabs.sync()
+  return result
 end
 
 ---Increment/decrement the message count for a session, clamped to >= 0
@@ -70,6 +84,7 @@ function M.increment_user_message_count(session_id, delta)
     local new_value = (counts[session_id] or 0) + delta
     counts[session_id] = new_value >= 0 and new_value or 0
   end)
+  session_tabs.sync()
 end
 
 ---Update active_session without emitting a change event, used when a silent
@@ -78,6 +93,7 @@ end
 ---@param session Session
 function M.update_silently(session)
   store.set_raw('active_session', session)
+  session_tabs.sync()
 end
 
 return M

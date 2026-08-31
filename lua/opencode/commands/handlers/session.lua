@@ -10,8 +10,22 @@ local M = {
   actions = {},
 }
 
-local session_subcommands =
-  { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }
+local session_subcommands = {
+  'new',
+  'tab',
+  'tabs',
+  'next_tab',
+  'prev_tab',
+  'close_tab',
+  'select',
+  'navigate',
+  'compact',
+  'share',
+  'unshare',
+  'agents_init',
+  'rename',
+  'toggle_lock',
+}
 
 ---@param message string
 local function invalid_arguments(message)
@@ -100,6 +114,27 @@ function M.actions.open_input_new_session_with_title(title)
     state.session.set_active(new_session)
     return window_actions.open_input()
   end)(title)
+end
+
+---@param title? string
+function M.actions.open_session_tab(title)
+  return session_runtime.open_session_tab(title)
+end
+
+function M.actions.select_session_tab()
+  return require('opencode.ui.session_tab_picker').select()
+end
+
+function M.actions.next_session_tab()
+  return session_runtime.cycle_session_tab(1)
+end
+
+function M.actions.prev_session_tab()
+  return session_runtime.cycle_session_tab(-1)
+end
+
+function M.actions.close_session_tab()
+  return session_runtime.close_session_tab()
 end
 
 ---@param parent_id? string
@@ -651,6 +686,21 @@ local session_subcommand_actions = {
     end
     return M.actions.open_input_new_session()
   end,
+  tab = function(args)
+    return M.actions.open_session_tab(parse_title(args, 2))
+  end,
+  tabs = function()
+    return M.actions.select_session_tab()
+  end,
+  next_tab = function()
+    return M.actions.next_session_tab()
+  end,
+  prev_tab = function()
+    return M.actions.prev_session_tab()
+  end,
+  close_tab = function()
+    return M.actions.close_session_tab()
+  end,
   rename = function(args)
     return M.actions.rename_session(nil, parse_title(args, 2))
   end,
@@ -689,9 +739,43 @@ local session_subcommand_actions = {
   end,
 }
 
+local tab_subcommands = { 'next', 'new', 'previous', 'select', 'close' }
+
+---@type table<string, fun(args: string[]): any>
+local tab_subcommand_actions = {
+  next = function()
+    return M.actions.next_session_tab()
+  end,
+  new = function(args)
+    return M.actions.open_session_tab(parse_title(args, 2))
+  end,
+  previous = function()
+    return M.actions.prev_session_tab()
+  end,
+  select = function()
+    return M.actions.select_session_tab()
+  end,
+  close = function()
+    return M.actions.close_session_tab()
+  end,
+}
+
 M.command_defs = {
+  tab = {
+    desc = 'Manage Opencode panel tabs',
+    completions = tab_subcommands,
+    nested_subcommand = { allow_empty = false },
+    execute = function(args)
+      local subcommand = args[1]
+      local action = tab_subcommand_actions[subcommand]
+      if not action then
+        invalid_arguments('Invalid tab subcommand. Use: ' .. table.concat(tab_subcommands, ', '))
+      end
+      return action(args)
+    end,
+  },
   session = {
-    desc = 'Manage sessions (new/select/navigate/compact/share/unshare/rename/toggle_lock)',
+    desc = 'Manage sessions and Opencode panel tabs',
     completions = session_subcommands,
     nested_subcommand = { allow_empty = false },
     execute = function(args)
@@ -705,6 +789,28 @@ M.command_defs = {
   },
   -- action name aliases for keymap compatibility
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
+  open_session_tab = {
+    desc = 'Open a new session in an Opencode panel tab',
+    execute = function(args)
+      return M.actions.open_session_tab(parse_title(args, 1))
+    end,
+  },
+  select_session_tab = {
+    desc = 'Select an Opencode panel tab',
+    execute = M.actions.select_session_tab,
+  },
+  next_session_tab = {
+    desc = 'Switch to the next Opencode panel tab',
+    execute = M.actions.next_session_tab,
+  },
+  prev_session_tab = {
+    desc = 'Switch to the previous Opencode panel tab',
+    execute = M.actions.prev_session_tab,
+  },
+  close_session_tab = {
+    desc = 'Close the current Opencode panel tab',
+    execute = M.actions.close_session_tab,
+  },
   toggle_session_lock = {
     desc = 'Toggle session lock (preserve active session across cwd changes)',
     execute = function(args)

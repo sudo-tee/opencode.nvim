@@ -7,6 +7,7 @@ local store = require('opencode.state.store')
 ---@field input_buf integer
 ---@field output_buf integer
 ---@field footer_buf integer|nil
+---@field tab_strip_buf integer|nil
 ---@field output_was_at_bottom boolean
 ---@field input_hidden boolean
 ---@field input_cursor integer[]|nil
@@ -21,6 +22,8 @@ local store = require('opencode.state.store')
 ---@field output_win integer|nil
 ---@field footer_win integer|nil
 ---@field footer_buf integer|nil
+---@field tab_strip_win integer|nil
+---@field tab_strip_buf integer|nil
 ---@field input_buf integer|nil
 ---@field output_buf integer|nil
 ---@field output_was_at_bottom boolean|nil
@@ -113,6 +116,7 @@ function M.mark_windows_hidden(output_was_at_bottom)
     win.input_win = nil
     win.output_win = nil
     win.footer_win = nil
+    win.tab_strip_win = nil
     win.output_was_at_bottom = output_was_at_bottom
   end)
 end
@@ -340,6 +344,7 @@ local function normalize_hidden_buffers(hidden)
     input_buf = hidden.input_buf,
     output_buf = hidden.output_buf,
     footer_buf = valid_buf(hidden.footer_buf) and hidden.footer_buf or nil,
+    tab_strip_buf = valid_buf(hidden.tab_strip_buf) and hidden.tab_strip_buf or nil,
     output_was_at_bottom = hidden.output_was_at_bottom == true,
     input_hidden = hidden.input_hidden,
     input_cursor = normalize_cursor(hidden.input_cursor),

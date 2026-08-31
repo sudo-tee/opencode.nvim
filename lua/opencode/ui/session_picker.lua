@@ -338,6 +338,16 @@ function M.pick(sessions, callback, opts)
       end),
       reload = true,
     },
+    open_in_tab = {
+      key = config.keymap.session_picker.open_in_tab,
+      label = 'open in tab',
+      fn = Promise.async(function(selected, opts)
+        if opts.close then
+          opts.close()
+        end
+        return require('opencode.services.session_runtime').open_session_in_tab(selected):await()
+      end),
+    },
     fork = {
       key = config.keymap.session_picker.fork_session,
       label = 'fork',

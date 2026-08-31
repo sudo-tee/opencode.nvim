@@ -7,6 +7,7 @@ local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local agent_model = require('opencode.services.agent_model')
 local session_runtime = require('opencode.services.session_runtime')
+local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 
@@ -31,6 +32,7 @@ M.send_message = Promise.async(function(prompt, opts)
   end
 
   opts = opts or {}
+  local tab_id = state.active_session_tab
 
   opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
   state.context.set_current_context_config(opts.context)
@@ -69,6 +71,11 @@ M.send_message = Promise.async(function(prompt, opts)
   context.unload_attachments()
 
   local function update_sent_message_count(num)
+    if tab_id then
+      session_tabs.update_user_message_count(tab_id, session_id, num)
+      return
+    end
+
     local sent_message_count = vim.deepcopy(state.user_message_count)
     local new_value = (sent_message_count[session_id] or 0) + num
     sent_message_count[session_id] = new_value >= 0 and new_value or 0
@@ -84,29 +91,48 @@ M.send_message = Promise.async(function(prompt, opts)
 
       if not response or not response.info or not response.parts then
         log.notify('Invalid response from opencode: ' .. vim.inspect(response), vim.log.levels.ERROR)
-        session_runtime.cancel():await()
+        session_runtime.cancel(session_id, tab_id):await()
         return
       end
 
-      M.after_run(prompt, sent_context)
+      M.after_run(prompt, tab_id, sent_context)
     end)
     :catch(function(err)
       log.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
       update_sent_message_count(-1)
-      session_runtime.cancel():await()
+      session_runtime.cancel(session_id, tab_id):await()
     end)
     :await()
 end)
 
 ---@param prompt string
+---@param tab_id? string
 ---@param sent_context? OpencodeContext
-function M.after_run(prompt, sent_context)
-  local context_sent = vim.deepcopy(sent_context or context.get_context())
-  if not sent_context then
+function M.after_run(prompt, tab_id, sent_context)
+  if tab_id then
+    local runtime = session_tabs.get(tab_id)
+    if not runtime then
+      require('opencode.history').write(prompt)
+      vim.g.opencode_abort_count = 0
+      return
+    end
+
+    local runtime_context = vim.deepcopy(runtime.context_data or sent_context)
+    if runtime_context then
+      runtime_context.mentioned_files = {}
+      runtime_context.selections = {}
+      runtime.context_data = runtime_context
+    end
+    session_tabs.set_last_sent_context(tab_id, sent_context or runtime_context)
+
+    if session_tabs.active_id() == tab_id then
+      context.delta_context()
+    end
+  else
     context.unload_attachments()
+    state.session.set_last_sent_context(vim.deepcopy(context.get_context()))
+    context.delta_context()
   end
-  state.session.set_last_sent_context(context_sent)
-  context.delta_context()
   require('opencode.history').write(prompt)
   vim.g.opencode_abort_count = 0
 end

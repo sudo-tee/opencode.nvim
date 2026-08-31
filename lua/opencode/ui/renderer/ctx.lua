@@ -59,11 +59,25 @@ local ctx = {
   part_folds = {},
   ---@type integer|nil Number of messages to render from the end (nil = all)
   lazy_render_count = nil,
+  generation = 0,
+}
+
+local CONTEXT_KEYS = {
+  'render_state',
+  'last_part_formatted',
+  'formatted_parts',
+  'formatted_messages',
+  'pending',
+  'markdown_render_scheduled',
+  'global_folds',
+  'part_folds',
+  'lazy_render_count',
 }
 
 ---Reset all renderer caches and pending state.
 function ctx:reset()
-  self.render_state:reset()
+  self.generation = self.generation + 1
+  self.render_state = RenderState.new()
   self.last_part_formatted = { part_id = nil, formatted_data = nil }
   self.formatted_parts = {}
   self.formatted_messages = {}
@@ -86,6 +100,34 @@ function ctx:reset()
   self.global_folds = {}
   self.part_folds = {}
   self:bulk_reset()
+end
+
+---@return table
+function ctx:snapshot()
+  local snapshot = {}
+  for _, key in ipairs(CONTEXT_KEYS) do
+    snapshot[key] = self[key]
+  end
+  return snapshot
+end
+
+---@param snapshot table|nil
+---@return boolean
+function ctx:restore(snapshot)
+  self.generation = self.generation + 1
+  if not snapshot then
+    self:reset()
+    return false
+  end
+
+  for _, key in ipairs(CONTEXT_KEYS) do
+    self[key] = snapshot[key]
+  end
+
+  self.flush_scheduled = false
+  self.bulk_mode = false
+  self:bulk_reset()
+  return true
 end
 
 ---Reset the temporary bulk-render accumulators.

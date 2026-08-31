@@ -653,13 +653,20 @@ There's 3 main ways on how to change the snacks picker layout
 
 The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:
 
+Panel tabs are logical tabs inside the Opencode UI. They do not create or switch Neovim tabpages. Each tab keeps its own session state, input buffer, output buffer, and model/context state while reusing the current panel layout.
+
 | Action                                                      | Default keymap                        | Command                                     | API Function                                                           |
 | ----------------------------------------------------------- | ------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | Open opencode. Close if opened                              | `<leader>og`                          | `:Opencode`                                 | `require('opencode.api').toggle()`                                     |
 | Open input window (current session)                         | `<leader>oi`                          | `:Opencode open input`                      | `require('opencode.api').open_input()`                                 |
 | Open input window (new session)                             | `<leader>oI`                          | `:Opencode open input_new_session`          | `require('opencode.api').open_input_new_session()`                     |
+| Open a new session in a panel tab                            | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
+| Select a panel tab                                           | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
+| Switch panel tabs                                            | `<leader>o<` / `<leader>o>`            | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
+| Close the current panel tab                                 | -                                     | `:Opencode tab close`                       | `require('opencode.api').close_session_tab()`                          |
 | Open output window                                          | `<leader>oo`                          | `:Opencode open output`                     | `require('opencode.api').open_output()`                                |
 | Create and switch to a named session                        | -                                     | `:Opencode session new <name>`              | `:Opencode session new <name>` (user command)                          |
+| Open the selected session in a new panel tab                 | `<C-t>` (session picker)              | -                                           | -                                                                      |
 | Rename current session                                      | `<leader>oR`                          | `:Opencode session rename <name>`           | `:Opencode session rename <name>` (user command)                       |
 | Toggle focus opencode / last window                         | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                            | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |

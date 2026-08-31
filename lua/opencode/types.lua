@@ -138,6 +138,11 @@
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 
+---@class OpencodeSessionTab
+---@field id string Logical panel-tab identifier
+---@field active_session Session|nil Session assigned to this tab
+---@field windows OpencodeWindowState|nil UI windows owned by this tab
+
 ---@class SessionProjectInfo
 ---@field id string
 ---@field name? string
@@ -161,6 +166,7 @@
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field session_picker OpencodeSessionPickerKeymap
+---@field session_tab_picker OpencodeSessionTabPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
 ---@field history_picker OpencodeHistoryPickerKeymap
 ---@field quick_chat OpencodeQuickChatKeymap
@@ -168,9 +174,14 @@
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
+---@field open_in_tab OpencodeKeymapEntry
 ---@field rename_session OpencodeKeymapEntry
 ---@field fork_session OpencodeKeymapEntry
 ---@field toggle_scope OpencodeKeymapEntry
+
+---@class OpencodeSessionTabPickerKeymap
+---@field new_tab OpencodeKeymapEntry
+---@field close_tab OpencodeKeymapEntry
 
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry

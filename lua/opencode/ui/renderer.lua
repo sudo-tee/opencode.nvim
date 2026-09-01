@@ -13,6 +13,8 @@ local scroll = require('opencode.ui.renderer.scroll')
 local M = {}
 local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
 local HIDDEN_MESSAGES_NOTICE_PART_ID = '__opencode_hidden_messages_notice_part__'
+local PERMISSION_DISPLAY_MESSAGE_ID = 'permission-display-message'
+local QUESTION_DISPLAY_MESSAGE_ID = 'question-display-message'
 
 local LAZYRENDER_EST_LINES_PER_MSG = 5
 local LAZYRENDER_VIEWPORT_BUFFER = 1.5
@@ -44,7 +46,10 @@ end
 ---@return boolean
 local function is_renderer_synthetic_message(message)
   local message_id = message and message.info and message.info.id
-  return message_id == '__opencode_revert_message__' or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
+  return message_id == '__opencode_revert_message__'
+    or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
+    or message_id == PERMISSION_DISPLAY_MESSAGE_ID
+    or message_id == QUESTION_DISPLAY_MESSAGE_ID
 end
 
 ---@param message OpencodeMessage|nil

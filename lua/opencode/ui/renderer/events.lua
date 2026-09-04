@@ -50,6 +50,11 @@ local function find_message_in_state(message_id)
   return nil
 end
 
+local function is_session_busy(session_id)
+  local status = require('opencode.ui.loading_animation')._animation.last_status_map[session_id]
+  return status and (status.type == 'busy' or status.type == 'retry') or false
+end
+
 local function is_assistant_message(message)
   return message and message.info and message.info.role == 'assistant'
 end
@@ -229,13 +234,21 @@ end
 ---@param message {info: MessageInfo}
 ---@param revert_index? integer
 function M.on_message_updated(message, revert_index)
+  local msg = message --[[@as OpencodeMessage]]
+  if not msg or not msg.info or not msg.info.id or not msg.info.sessionID then
+    return
+  end
+
   if not state.active_session or not state.messages then
     return
   end
 
-  local msg = message --[[@as OpencodeMessage]]
-  if not msg or not msg.info or not msg.info.id or not msg.info.sessionID then
-    return
+  if msg.info.role == 'assistant' then
+    local parent = find_message_in_state(msg.info.parentID)
+    if parent and parent.info and parent.info.queued then
+      parent.info.queued = nil
+      flush.mark_message_dirty(msg.info.parentID)
+    end
   end
 
   if state.active_session.id ~= msg.info.sessionID then
@@ -262,7 +275,9 @@ function M.on_message_updated(message, revert_index)
       flush.mark_message_dirty(msg.info.id)
     end
     local error_changed = not vim.deep_equal(found_msg.info.error, msg.info.error)
+    local queued = found_msg.info.queued
     found_msg.info = msg.info
+    found_msg.info.queued = queued
 
     -- Errors arrive on the message but we display them after the last part.
     -- Re-render the last part (or the header if there are no parts) so the
@@ -276,6 +291,9 @@ function M.on_message_updated(message, revert_index)
       end
     end
   else
+    if msg.info.role == 'user' and is_session_busy(msg.info.sessionID) then
+      msg.info.queued = true
+    end
     table.insert(state.messages, msg)
     ctx.render_state:set_message(msg)
     replay_orphan_parts(msg.info.id)

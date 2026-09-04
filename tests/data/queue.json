@@ -1,0 +1,87 @@
+[
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_user",
+        "sessionID": "ses_queue",
+        "role": "user",
+        "time": {
+          "created": 1788528290000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_user_text",
+        "messageID": "msg_user",
+        "sessionID": "ses_queue",
+        "type": "text",
+        "text": "Start working on this task"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_assistant",
+        "sessionID": "ses_queue",
+        "role": "assistant",
+        "parentID": "msg_user",
+        "time": {
+          "created": 1788528291000
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_assistant_text",
+        "messageID": "msg_assistant",
+        "sessionID": "ses_queue",
+        "type": "text",
+        "text": "Working on the task..."
+      }
+    }
+  },
+  {
+    "type": "session.status",
+    "properties": {
+      "sessionID": "ses_queue",
+      "status": {
+        "type": "busy"
+      }
+    }
+  },
+  {
+    "type": "message.updated",
+    "properties": {
+      "info": {
+        "id": "msg_queued",
+        "sessionID": "ses_queue",
+        "role": "user",
+        "time": {
+          "created": 1788528292011
+        }
+      }
+    }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_queued_text",
+        "messageID": "msg_queued",
+        "sessionID": "ses_queue",
+        "type": "text",
+        "text": "This message is queued"
+      }
+    }
+  }
+]

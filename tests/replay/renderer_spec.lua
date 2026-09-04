@@ -773,7 +773,8 @@ describe('renderer unit tests', function()
 
       assert.is_not_nil(renderer.get_rendered_message('permission-display-message'))
       assert.is_truthy(
-        table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+        table
+          .concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
           :find('Permission Required', 1, true)
       )
     end)
@@ -800,8 +801,7 @@ describe('renderer unit tests', function()
 
       assert.is_not_nil(renderer.get_rendered_message('question-display-message'))
       assert.is_truthy(
-        table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
-          :find('Question', 1, true)
+        table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n'):find('Question', 1, true)
       )
     end)
   end)
@@ -858,6 +858,7 @@ describe('renderer functional tests', function()
     'multiple-question-ask',
     'shifting-and-multiple-perms',
     'message-removal',
+    'queue',
   }
 
   for _, filepath in ipairs(json_files) do

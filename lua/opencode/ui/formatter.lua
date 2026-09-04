@@ -298,15 +298,21 @@ function M.format_message_header(message, previous_message)
   end
 
   if not same_mode_as_previous then
+    local header_virt_text = {
+      { icon, role_hl },
+      { ' ' },
+      { display_name, role_hl },
+    }
+    if role == 'user' and message.info.queued then
+      table.insert(header_virt_text, { ' QUEUED', 'OpencodeQueued' })
+    end
+    vim.list_extend(header_virt_text, {
+      { ' ' },
+      { model_text, 'OpencodeHint' },
+      { debug_text, 'OpencodeHint' },
+    })
     output:add_extmark(output:get_line_count() - 1, {
-      virt_text = {
-        { icon, role_hl },
-        { ' ' },
-        { display_name, role_hl },
-        { ' ' },
-        { model_text, 'OpencodeHint' },
-        { debug_text, 'OpencodeHint' },
-      },
+      virt_text = header_virt_text,
       virt_text_win_col = -3,
       priority = 10,
     } --[[@as OutputExtmark]])

@@ -20,6 +20,20 @@ describe('formatter', function()
     })
   end)
 
+  it('marks queued user messages in the header', function()
+    local output = formatter.format_message_header({
+      info = {
+        id = 'msg_queued',
+        role = 'user',
+        sessionID = 'ses_1',
+        queued = true,
+      },
+      parts = {},
+    })
+
+    assert.are.same({ ' QUEUED', 'OpencodeQueued' }, output.extmarks[1][1].virt_text[4])
+  end)
+
   it('formats multiline question answers', function()
     local message = {
       info = {

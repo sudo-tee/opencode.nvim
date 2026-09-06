@@ -56,11 +56,11 @@ remain useful follow-up validation.
    with their callers to asynchronous operations and capture the originating session/cwd.
    API startup also retains synchronous waits in `api_client.lua:_ensure_base_url()`;
    asynchronous completion does not eliminate that startup path.
-3. **Retained promises retain callback closures.** `Promise:resolve()` and `Promise:reject()`
-   leave both callback arrays and the waiting coroutine array populated. Long-lived promises
-   can therefore retain completed coroutine stacks and captured data. Clear settlement queues
-   after scheduling their consumers, with tests for both resolution and rejection. Rejection
-   state also relies inconsistently on error truthiness, so `reject(false)` needs a defined contract.
+3. **Addressed: promise retention and falsy rejections.** Settlement clears both callback
+   queues and the waiting coroutine list after scheduling consumers. Rejection has its own
+   state flag, preserving `false` and `nil` rejection reasons consistently through chaining,
+   `finally`, synchronous waiting and coroutine awaiting. Both early and late consumers have
+   regression coverage.
 4. **Architecture remains tightly coupled.** The required topology scanner reports **5 cycles**,
    a **largest strongly connected component of 41 modules**, **18 policy violations**, and
    **11 ungrouped modules**. The HEAD-to-worktree diff adds/removes zero dependency edges and

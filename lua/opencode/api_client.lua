@@ -96,7 +96,7 @@ OpencodeApiClient._ensure_base_url = Promise.async(function(self)
   self._connecting = nil
   if not ok then
     connecting:reject(result)
-    error(result)
+    error(result, 0)
   end
   connecting:resolve(result)
   return result

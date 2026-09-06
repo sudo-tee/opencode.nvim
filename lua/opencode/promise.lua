@@ -247,7 +247,7 @@ end
 function Promise:wait(timeout, interval)
   if self._resolved then
     if self._rejected then
-      error(self._error)
+      error(self._error, 0)
     end
     return self._value
   end
@@ -264,7 +264,7 @@ function Promise:wait(timeout, interval)
   end
 
   if self._rejected then
-    error(self._error)
+    error(self._error, 0)
   end
 
   return self._value
@@ -296,7 +296,7 @@ function Promise:await()
   local value
   if self._resolved then
     if self._rejected then
-      error(self._error)
+      error(self._error, 0)
     end
     value = self._value
     ---@cast value T
@@ -316,7 +316,7 @@ function Promise:await()
   local value, err = coroutine.yield()
 
   if self._rejected then
-    error(err)
+    error(err, 0)
   end
 
   ---@cast value T

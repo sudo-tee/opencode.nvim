@@ -196,21 +196,49 @@ local function _start_server()
   return promise
 end
 
---- Ensure the opencode server is running, starting it if necessary.
---- @return Promise<OpencodeServer>
+local pending_connection
+
+---Ensure all callers share startup and health checks until the server is ready.
+---@return Promise<OpencodeServer>
 function M.ensure_server()
-  if state.opencode_server and state.opencode_server:is_running() then
-    return state.opencode_server:check_health():and_then(function(healthy)
-      if healthy then
-        return state.opencode_server
-      end
-      log.warn('ensure_server: cached server unhealthy, reconnecting')
-      state.jobs.clear_server()
-      return _start_server()
-    end)
+  if pending_connection then
+    return pending_connection
   end
 
-  return _start_server()
+  local connection = Promise.new()
+  pending_connection = connection
+  Promise.spawn(function()
+    while true do
+      local server = state.opencode_server
+      if not server or not server:is_running() then
+        return _start_server():await()
+      end
+
+      local starting = server.get_spawn_promise and server:get_spawn_promise()
+      if starting and not starting:is_resolved() then
+        return starting:await()
+      end
+
+      local healthy = server:check_health():await()
+      if state.opencode_server == server then
+        if healthy then
+          return server
+        end
+        log.warn('ensure_server: cached server unhealthy, reconnecting')
+        state.jobs.clear_server()
+        return _start_server():await()
+      end
+    end
+  end)
+    :and_then(function(server)
+      pending_connection = nil
+      connection:resolve(server)
+    end)
+    :catch(function(err)
+      pending_connection = nil
+      connection:reject(err)
+    end)
+  return connection
 end
 
 local function retry_connect(base_url, timeout, max_retries, on_success, on_failure)
@@ -296,24 +324,31 @@ end
 --- @param port? number|string Optional custom port
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
-  state.jobs.set_server(opencode_server.new())
+  local server = opencode_server.new()
+  local cwd = vim.fn.getcwd()
+  state.jobs.set_server(server)
 
   local spawn_opts = {
+    cwd = cwd,
     on_ready = function(job, base_url)
       local url_port = base_url:match(':(%d+)')
       log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
       if url_port then
         local port_num = tonumber(url_port)
-        state.jobs.set_server_port(port_num)
+        if state.opencode_server == server then
+          state.jobs.set_server_port(port_num)
+        else
+          server.port = port_num
+        end
         local server_pid = job and job.pid
-        port_mapping.register(port_num, vim.fn.getcwd(), true, 'serve', nil, server_pid)
+        port_mapping.register(port_num, cwd, true, 'serve', nil, server_pid)
         log.debug(
           'spawn_local_server: registered port %d for reference counting (server_pid=%s)',
           port_num,
           tostring(server_pid)
         )
       end
-      promise:resolve(state.opencode_server)
+      promise:resolve(server)
     end,
     on_error = function(err)
       log.notify(' Failed to start opencode server' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -333,7 +368,7 @@ function M.spawn_local_server(promise, port, hostname)
     spawn_opts.hostname = hostname
   end
 
-  state.opencode_server:spawn(spawn_opts)
+  server:spawn(spawn_opts)
 end
 
 return M

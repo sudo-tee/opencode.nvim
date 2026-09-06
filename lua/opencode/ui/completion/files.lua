@@ -17,26 +17,26 @@ local function should_keep(ignore_patterns)
 end
 
 local function run_systemlist(cmd)
-  local ok, result = pcall(vim.fn.systemlist, cmd)
-  return ok and vim.v.shell_error == 0 and result or nil
+  local args = { vim.o.shell }
+  vim.list_extend(args, vim.split(vim.o.shellcmdflag, '%s+', { trimempty = true }))
+  args[#args + 1] = cmd
+  local result = Promise.system(args, { text = true }):await()
+  return vim.split(result.stdout or '', '\n', { trimempty = true })
 end
 
 local function try_tool(tool, args, pattern, max, ignore_patterns)
-  if type(args) == 'function' then
-    local promise = args(pattern, max)
-    local result = promise and promise.and_then and promise:wait()
-
-    if result and type(result) == 'table' then
-      return vim.tbl_filter(should_keep(ignore_patterns), result)
+  local ok, result = pcall(function()
+    if type(args) == 'function' then
+      return args(pattern, max):await()
     end
-  end
-
-  if vim.fn.executable(tool) then
-    pattern = vim.fn.shellescape(pattern) or '.'
-    local result = run_systemlist(tool .. string.format(args, pattern, max))
-    if result then
-      return vim.tbl_filter(should_keep(ignore_patterns), result)
+    if vim.fn.executable(tool) == 1 then
+      return run_systemlist(tool .. string.format(args, vim.fn.shellescape(pattern), max))
     end
+  end)
+
+  if ok and type(result) == 'table' then
+    local filtered = vim.tbl_filter(should_keep(ignore_patterns), result)
+    return vim.list_slice(filtered, 1, max)
   end
   return nil
 end

@@ -398,8 +398,12 @@ function EventManager:_on_drained_events(events)
 
   local collapsed_events = {}
   local part_update_indices = {}
+  local last_permission_index = 0
 
   for i, event in ipairs(normalized_events) do
+    if event.type == 'permission.updated' or event.type == 'permission.asked' then
+      last_permission_index = i
+    end
     if event.type == 'message.part.updated' and event.properties.part then
       local part_id = event.properties.part.id
       if part_update_indices[part_id] then
@@ -408,18 +412,7 @@ function EventManager:_on_drained_events(events)
         -- Preserve ordering dependencies for permission events.
         -- Moving a later part update earlier can break correlation when
         -- permission.updated/permission.asked sits between the two updates.
-        local has_intervening_permission_event = false
-        for j = previous_index + 1, i - 1 do
-          if
-            normalized_events[j]
-            and (normalized_events[j].type == 'permission.updated' or normalized_events[j].type == 'permission.asked')
-          then
-            has_intervening_permission_event = true
-            break
-          end
-        end
-
-        if has_intervening_permission_event then
+        if last_permission_index > previous_index then
           collapsed_events[previous_index] = nil
           collapsed_events[i] = event
           part_update_indices[part_id] = i
@@ -481,7 +474,7 @@ function EventManager:emit(event_name, data)
   end
 
   if listeners then
-    for _, callback in ipairs(listeners) do
+    for _, callback in ipairs(vim.list_extend({}, listeners)) do
       local ok, result = util.pcall_trace(callback, data)
 
       if not ok then
@@ -505,6 +498,8 @@ function EventManager:start()
   end
 
   self.is_started = true
+  local lifecycle = {}
+  self._lifecycle = lifecycle
 
   if self.state_server_listener then
     state.store.unsubscribe('opencode_server', self.state_server_listener)
@@ -515,13 +510,21 @@ function EventManager:start()
       self:emit('custom.server_starting', { url = current.url })
 
       current:get_spawn_promise():and_then(function(server)
+        if self._lifecycle ~= lifecycle or state.opencode_server ~= current then
+          return
+        end
         self:emit('custom.server_ready', { url = server.url })
         vim.defer_fn(function()
-          self:_subscribe_to_server_events(server)
+          if self._lifecycle == lifecycle and state.opencode_server == current then
+            self:_subscribe_to_server_events(server)
+          end
         end, 200)
       end)
 
       current:get_shutdown_promise():and_then(function()
+        if self._lifecycle ~= lifecycle or state.opencode_server ~= current then
+          return
+        end
         self:emit('custom.server_stopped', {})
         self:_cleanup_server_subscription()
       end)
@@ -553,6 +556,7 @@ function EventManager:stop()
   end
 
   self.is_started = false
+  self._lifecycle = nil
   if self.state_server_listener then
     state.store.unsubscribe('opencode_server', self.state_server_listener)
     self.state_server_listener = nil
@@ -578,8 +582,13 @@ function EventManager:_subscribe_to_server_events(server)
   self:_cleanup_server_subscription()
 
   local api_client = state.api_client
+  local subscription = {}
+  self._subscription = subscription
 
   local emitter = function(event)
+    if self._subscription ~= subscription then
+      return
+    end
     if not event or not event.type then
       log.warn('Received malformed event from server: %s', vim.inspect(event))
       return
@@ -597,6 +606,9 @@ function EventManager:_subscribe_to_server_events(server)
 end
 
 function EventManager:_cleanup_server_subscription()
+  self._subscription = nil
+  self.throttling_emitter:clear()
+  self._parts_by_id = {}
   if self.server_subscription then
     pcall(function()
       if self.server_subscription.shutdown then

@@ -5,11 +5,24 @@ local assert = require('luassert')
 describe('opencode.opencode_server', function()
   local original_system
   local original_curl_request
+  local original_kill
+  local original_get_children
   before_each(function()
+    original_kill = vim.uv.kill
+    original_get_children = vim.api.nvim_get_proc_children
+    -- Fake job PIDs must never reach the operating system.
+    vim.uv.kill = function()
+      return true
+    end
+    vim.api.nvim_get_proc_children = function()
+      return {}
+    end
     original_system = vim.system
     original_curl_request = curl.request
   end)
   after_each(function()
+    vim.uv.kill = original_kill
+    vim.api.nvim_get_proc_children = original_get_children
     vim.system = original_system
     curl.request = original_curl_request
   end)

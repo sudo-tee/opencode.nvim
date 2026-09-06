@@ -30,8 +30,11 @@ function Timer:start()
   self._uv_timer = timer
 
   local on_tick = vim.schedule_wrap(function()
+    if self._uv_timer ~= timer then
+      return
+    end
     local ok, continue = pcall(self.on_tick, unpack(self.args))
-    if not ok or not self.repeat_timer or (continue == false) then
+    if self._uv_timer == timer and (not ok or not self.repeat_timer or (continue == false)) then
       self:stop()
     end
   end)

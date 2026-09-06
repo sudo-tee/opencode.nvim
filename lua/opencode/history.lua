@@ -13,54 +13,58 @@ local function get_history_file()
   return data_dir .. '/history.txt'
 end
 
+---@param prompt string
 M.write = function(prompt)
   local history = M.read()
   if #history > 0 and history[1] == prompt then
     return
   end
 
-  local file = io.open(get_history_file(), 'a')
-  if file then
-    -- Escape any newlines in the prompt
-    local escaped_prompt = prompt:gsub('\n', '\\n')
-    file:write(escaped_prompt .. '\n')
-    file:close()
-    -- Invalidate cache when writing new history
-    cached_history = nil
+  local path = get_history_file():gsub('%.txt$', '.jsonl')
+  if not vim.uv.fs_stat(path) then
+    return M._write_history(vim.list_extend({ prompt }, history))
   end
+  local file = io.open(path, 'a')
+  if not file then
+    return false
+  end
+  local written = file:write(vim.json.encode(prompt) .. '\n')
+  local closed = file:close()
+  cached_history = nil
+  return written ~= nil and closed ~= nil
 end
 
+---@return string[]
 M.read = function()
-  -- Return cached result if available
   if cached_history then
     return cached_history
   end
 
-  local line_by_index = {}
-  local file = io.open(get_history_file(), 'r')
-
+  local legacy_path = get_history_file()
+  local file = io.open(legacy_path:gsub('%.txt$', '.jsonl'), 'r')
+  local is_json = file ~= nil
+  file = file or io.open(legacy_path, 'r')
+  local lines = {}
   if file then
-    local lines = {}
-
-    -- Read all non-empty lines
     for line in file:lines() do
-      if line:gsub('%s', '') ~= '' then
-        -- Unescape any escaped newlines
-        local unescaped_line = line:gsub('\\n', '\n')
-        table.insert(lines, unescaped_line)
+      if is_json then
+        local ok, prompt = pcall(vim.json.decode, line)
+        if ok and type(prompt) == 'string' then
+          lines[#lines + 1] = prompt
+        end
+      elseif line:find('%S') then
+        -- Legacy records cannot distinguish literal backslashes from escaped newlines.
+        lines[#lines + 1] = line:gsub('\\n', '\n')
       end
     end
     file:close()
-
-    -- Reverse the array to have index 1 = most recent
-    for i = 1, #lines do
-      line_by_index[i] = lines[#lines - i + 1]
-    end
   end
 
-  -- Cache the result
-  cached_history = line_by_index
-  return line_by_index
+  cached_history = {}
+  for i = #lines, 1, -1 do
+    cached_history[#cached_history + 1] = lines[i]
+  end
+  return cached_history
 end
 
 M.prev = function()
@@ -110,8 +114,10 @@ M.delete = function(indices)
 
   -- Sort indices in descending order to avoid index shifting issues
   local sorted_indices = {}
+  local seen = {}
   for _, idx in ipairs(indices) do
-    if idx > 0 and idx <= #history then
+    if type(idx) == 'number' and idx % 1 == 0 and idx > 0 and idx <= #history and not seen[idx] then
+      seen[idx] = true
       table.insert(sorted_indices, idx)
     end
   end
@@ -119,6 +125,7 @@ M.delete = function(indices)
     return a > b
   end)
 
+  history = vim.list_extend({}, history)
   for _, idx in ipairs(sorted_indices) do
     table.remove(history, idx)
   end
@@ -135,23 +142,26 @@ end
 ---@param history_array table Array of history entries to write
 ---@return boolean success Whether the write operation succeeded
 M._write_history = function(history_array)
-  local file = io.open(get_history_file(), 'w')
-  if not file then
+  local path = get_history_file():gsub('%.txt$', '.jsonl')
+  local lines = {}
+  for i = #history_array, 1, -1 do
+    lines[#lines + 1] = vim.json.encode(history_array[i])
+  end
+  local content = #lines > 0 and table.concat(lines, '\n') .. '\n' or ''
+  local fd, temp_path = vim.uv.fs_mkstemp(path .. '.XXXXXX')
+  if not fd then
+    return false
+  end
+  local written = vim.uv.fs_write(fd, content, 0)
+  local closed = vim.uv.fs_close(fd)
+  if written ~= #content or not closed or not vim.uv.fs_rename(temp_path, path) then
+    vim.uv.fs_unlink(temp_path)
     return false
   end
 
-  for i = #history_array, 1, -1 do
-    local entry = history_array[i]
-    if entry and entry ~= '' then
-      local escaped_entry = entry:gsub('\n', '\\n')
-      file:write(escaped_entry .. '\n')
-    end
-  end
-
-  file:close()
-
   cached_history = nil
-
+  M.index = nil
+  prompt_before_history = nil
   return true
 end
 

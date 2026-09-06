@@ -44,12 +44,12 @@ remain useful follow-up validation.
 
 ## Remaining findings, in recommended order
 
-1. **History encoding can change prompt contents.** `lua/opencode/history.lua` encodes
-   newlines as literal `\n` without escaping existing backslashes. Reading a prompt containing
-   a literal backslash followed by `n` converts that sequence to a newline. The format is
-   ambiguous for existing records. Introduce a versioned or JSON-lines format with explicit
-   legacy reading before changing persistence. `delete()` also accepts duplicate indices,
-   which can remove an unintended additional entry.
+1. **Addressed: history encoding and deletion.** New writes use JSON lines in `history.jsonl`,
+   with legacy `history.txt` reading and migration on the first write. Existing ambiguous
+   legacy records retain their previous interpretation; the legacy file remains intact.
+   Deletion deduplicates indices and commits rewrites atomically without mutating the cache
+   on failure. Regression tests cover round trips, migration, clear, duplicate indices and
+   failed writes.
 2. **Snapshot/review operations still block.** `snapshot_git()` in both
    `lua/opencode/snapshot.lua` and `lua/opencode/git_review.lua` calls `vim.system(...):wait()`.
    Large repositories or slow storage can stall Neovim. Convert the command flows together

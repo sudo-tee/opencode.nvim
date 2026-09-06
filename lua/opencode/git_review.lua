@@ -3,397 +3,284 @@ local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
 local utils = require('opencode.util')
 local session = require('opencode.session')
-local config_file = require('opencode.config_file')
 local picker = require('opencode.ui.picker')
+local Promise = require('opencode.promise')
 
 local M = {}
+local breakpoint
+local review_cache
+local generation = 0
 
----@param cmd_args string[]
----@param opts? vim.SystemOpts
----@return string|nil, string|nil
-local function snapshot_git(cmd_args, opts)
-  if not M.__snapshot_path then
-    vim.notify('No snapshot path for the active session.')
-    return nil, nil
-  end
-  local cwd = vim.fn.getcwd()
-  local args = { 'git', '--git-dir', M.__snapshot_path, '--work-tree', cwd }
-  vim.list_extend(args, cmd_args)
-  local result = vim.system(args, opts or { cwd = cwd }):wait()
-  if result and result.code == 0 then
-    return vim.trim(result.stdout), result.stderr
-  else
-    return nil, result and result.stderr or nil
+local function is_current(context)
+  return context.generation == generation and state.active_session == context.session and vim.fn.getcwd() == context.cwd
+end
+
+local function run_snapshot(context, name, ...)
+  local args, count = { ... }, select('#', ...)
+  return snapshot
+    .with_context(function()
+      return snapshot[name](unpack(args, 1, count)):await()
+    end, context)
+    :await()
+end
+
+local function review_action(fn)
+  return function(...)
+    generation = generation + 1
+    local context = {
+      cwd = vim.fn.getcwd(),
+      session = state.active_session,
+      current_file = vim.fn.expand('%:p'),
+      generation = generation,
+      first_snapshot = M.get_first_snapshot(),
+    }
+    local args, count = { ... }, select('#', ...)
+    return Promise.spawn(function()
+      if not context.session then
+        error('No active session found.')
+      end
+      return fn(context, unpack(args, 1, count))
+    end)
   end
 end
 
-M.__snapshot_path = nil
-M.__changed_files = nil
-M.__current_file_index = nil
-M.__diff_tab = nil
-M.__current_ref = nil
-M.__last_ref = nil
-
-local git = {
-  is_project = function()
-    if M.__is_git_project ~= nil then
-      return M.__is_git_project
+---@return string|nil
+function M.get_first_snapshot()
+  if breakpoint and breakpoint.session == state.active_session and breakpoint.cwd == vim.fn.getcwd() then
+    return breakpoint.id
+  end
+  for _, msg in ipairs(state.messages or {}) do
+    local ids = session.get_message_snapshot_ids(msg)
+    if ids and #ids > 0 then
+      return ids[1]
     end
+  end
+end
 
-    local git_dir = vim.fn.getcwd() .. '/.git'
-    M.__is_git_project = vim.fn.isdirectory(git_dir) == 1
-
-    return M.__is_git_project
-  end,
-
-  list_changed_files = function()
-    if not M.__current_ref then
+local function get_changed_files(context, ref)
+  ref = ref or context.first_snapshot
+  if not ref then
+    return {}
+  end
+  local patch = run_snapshot(context, 'patch', ref)
+  local files = {}
+  for _, file in ipairs(patch and patch.files or {}) do
+    if not is_current(context) then
       return {}
     end
-    local patch = snapshot.patch(M.__current_ref)
-    return patch and patch.files or {}
-  end,
-
-  is_tracked = function(file_path)
-    local out = snapshot_git({ 'ls-files', '--error-unmatch', file_path })
-    return out ~= nil
-  end,
-}
-
----@generic T
----@param fn T
----@param silent any
----@return T
-local require_git_project = function(fn, silent)
-  return function(...)
-    if not git.is_project() then
-      if not silent then
-        vim.notify('Error: Not in a git project.')
-      end
-      return
-    end
-    if not state.active_session then
-      if not silent then
-        vim.notify('Error: No active session found.')
-      end
-      return
-    end
-    if not M.__snapshot_path then
-      M.__snapshot_path = config_file.get_workspace_snapshot_path():wait()
-    end
-
-    if not M.__snapshot_path or vim.fn.isdirectory(M.__snapshot_path) == 0 then
-      if not silent then
-        vim.notify('Error: No snapshot path for the active session.')
-      end
-      return
-    end
-    return fn(...)
+    files[#files + 1] = run_snapshot(context, 'diff_file', ref, file)
   end
-end
-
-local function get_changed_files(ref)
-  local files = {}
-
-  local git_files = git.list_changed_files()
-
-  for _, file in ipairs(git_files) do
-    if file ~= '' then
-      table.insert(files, snapshot.diff_file(ref or M.__current_ref, file))
-    end
-  end
-
-  M.__changed_files = files
-
   return files
 end
 
-local function display_file_at_index(idx)
-  local file_data = M.__changed_files[idx]
-  local file_name = vim.fn.fnamemodify(file_data.left, ':t')
-  vim.notify(string.format('Showing file %d of %d: %s', idx, #M.__changed_files, file_name))
-  diff_tab.open_diff_tab(file_data.left, file_data.right, file_data.file_type)
-end
-
----@param rev string
----@param n? number|string
----@return string|nil
-local function get_git_rev(rev, n)
-  if n and type(n) ~= 'number' then
+local function select_item(context, items, opts)
+  if not is_current(context) or #items == 0 then
     return nil
   end
-  if n == 0 or n == nil then
-    return snapshot_git({ 'rev-parse', rev })
-  elseif n < 0 then
-    return snapshot_git({ 'rev-parse', string.format('%s~%d', rev, math.abs(n)) })
+  if #items == 1 then
+    return items[1]
   end
-  return nil
+  local selected = Promise.new()
+  picker.select(items, opts, function(choice)
+    selected:resolve(choice)
+  end)
+  local choice = selected:await()
+  return is_current(context) and choice or nil
 end
 
-M.get_first_snapshot = require_git_project(function()
-  if not state.active_session then
-    vim.notify('No active session found.')
-    return nil
-  end
+local function select_file(context, files, prompt)
+  return select_item(context, files, {
+    prompt = prompt,
+    format_item = function(file)
+      return file.left
+    end,
+  })
+end
 
-  for _, msg in ipairs(state.messages or {}) do
-    local snapshots = session.get_message_snapshot_ids(msg)
-    if snapshots and #snapshots > 0 then
-      return snapshots[1]
-    end
+local function display(context, file)
+  if file and is_current(context) then
+    diff_tab.open_diff_tab(file.left, file.right, file.file_type)
   end
+end
+
+---@type fun(ref?: string): Promise<nil>
+M.review = review_action(function(context, ref)
+  local files = get_changed_files(context, ref)
+  if #files == 0 and is_current(context) then
+    vim.notify('No changes to review.')
+    return
+  end
+  display(context, select_file(context, files, 'Select a file to review:'))
 end)
 
-M.review = require_git_project(function(ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-  local files = get_changed_files()
-
+local function navigate(context, ref, direction)
+  ref = ref or context.first_snapshot
+  if
+    not review_cache
+    or review_cache.cwd ~= context.cwd
+    or review_cache.session ~= context.session
+    or review_cache.ref ~= ref
+  then
+    local files = get_changed_files(context, ref)
+    if not is_current(context) then
+      return
+    end
+    review_cache = { cwd = context.cwd, session = context.session, ref = ref, files = files }
+  end
+  local files = review_cache.files
   if #files == 0 then
     vim.notify('No changes to review.')
     return
   end
+  local index = review_cache.index or (direction == 1 and 0 or 1)
+  index = (index - 1 + direction) % #files + 1
+  review_cache.index = index
+  display(context, files[index])
+end
 
-  if #files == 1 then
-    M.__current_file_index = 1
-    diff_tab.open_diff_tab(files[1].left, files[1].right, files[1].file_type)
-  else
-    picker.select(
-      vim.tbl_map(function(f)
-        return vim.fn.fnamemodify(f.left, ':.')
-      end, files),
-      { prompt = 'Select a file to review:' },
-      function(choice, idx)
-        if not choice then
-          return
-        end
-        M.__current_file_index = idx
+---@type fun(ref?: string): Promise<nil>
+M.next_diff = review_action(function(context, ref)
+  return navigate(context, ref, 1)
+end)
+---@type fun(ref?: string): Promise<nil>
+M.prev_diff = review_action(function(context, ref)
+  return navigate(context, ref, -1)
+end)
 
-        diff_tab.open_diff_tab(files[idx].left, files[idx].right, files[idx].file_type)
+local function revert_file(context, file, ref)
+  if not is_current(context) then
+    return
+  end
+  local result = run_snapshot(context, 'revert_file', ref or context.first_snapshot, file)
+  review_cache = nil
+  if result and is_current(context) then
+    vim.cmd('checktime')
+  end
+  return result
+end
+
+---@type fun(file: string, ref?: string): Promise<table|nil>
+M.revert_file = review_action(revert_file)
+---@type fun(ref?: string): Promise<table|nil>
+M.revert_current = review_action(function(context, ref)
+  local files = get_changed_files(context, ref)
+  for _, file in ipairs(files) do
+    if file.left == context.current_file and is_current(context) then
+      if vim.fn.input('Revert current file? (y/n): '):lower() == 'y' then
+        return revert_file(context, file.left, ref)
       end
-    )
+      return
+    end
+  end
+  if is_current(context) then
+    vim.notify('No changes to revert.')
   end
 end)
 
-M.next_diff = require_git_project(function(ref, last_ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
-  if not M.__changed_files or not M.__current_file_index or M.__current_file_index >= #M.__changed_files then
-    local files = get_changed_files()
-    if #files == 0 then
-      vim.notify('No changes to review.')
-      return
-    end
-    M.__changed_files = files
-    M.__current_file_index = 1
-  else
-    M.__current_file_index = M.__current_file_index + 1
+---@type fun(ref?: string): Promise<table|nil>
+M.revert_selected_file = review_action(function(context, ref)
+  local files = get_changed_files(context, ref)
+  local file = select_file(context, files, 'Select a file to revert:')
+  if file then
+    return revert_file(context, file.left, ref)
   end
-
-  display_file_at_index(M.__current_file_index)
 end)
 
-M.prev_diff = require_git_project(function(ref, last_ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-  M.__last_ref = last_ref and get_git_rev(ref, last_ref) or 'HEAD'
-  if not M.__changed_files or #M.__changed_files == 0 then
-    local files = get_changed_files()
-    if #files == 0 then
-      vim.notify('No changes to review.')
-      return
-    end
-    M.__current_file_index = #files
-  else
-    if not M.__current_file_index or M.__current_file_index <= 1 then
-      M.__current_file_index = #M.__changed_files
-    else
-      M.__current_file_index = M.__current_file_index - 1
-    end
+---@type fun(ref?: string): Promise<table|nil>
+M.revert_all = review_action(function(context, ref)
+  local files = get_changed_files(context, ref)
+  if not is_current(context) then
+    return
   end
-
-  display_file_at_index(M.__current_file_index)
-end)
-
-M.revert_current = require_git_project(
-  ---@param current_ref? string|nil
-  ---@param last_ref? string|nil
-  function(current_ref, last_ref)
-    M.__current_ref = current_ref or M.get_first_snapshot()
-
-    local files = get_changed_files()
-    local current_file = vim.fn.expand('%:p')
-    local abs_path = vim.fn.fnamemodify(current_file, ':p')
-
-    local changed_file = nil
-    for _, file_data in ipairs(files) do
-      if file_data[1] == abs_path then
-        changed_file = file_data
-        break
-      end
-    end
-
-    if not changed_file then
-      vim.notify('No changes to revert.')
-      return
-    end
-
-    if vim.fn.input('Revert current file? (y/n): '):lower() ~= 'y' then
-      return
-    end
-
-    if M.revert_file(changed_file[1], current_ref) then
-      vim.cmd('e!')
-      vim.cmd('checktime')
-    end
-  end
-)
-
-M.revert_file = require_git_project(function(file_path, ref)
-  snapshot.revert_file(ref, file_path)
-end)
-
-M.revert_selected_file = require_git_project(function(ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-
-  local files = get_changed_files()
-
   if #files == 0 then
     vim.notify('No changes to revert.')
     return
   end
-
-  if #files == 1 then
-    if M.revert_file(files[1].left, ref) then
-      vim.cmd('checktime')
-    end
-    return
-  end
-
-  picker.select(
-    vim.tbl_map(function(f)
-      return vim.fn.fnamemodify(f.left, ':.')
-    end, files),
-    { prompt = 'Select a file to revert:' },
-    function(choice, idx)
-      if not choice then
-        return
-      end
-      local file_data = files[idx]
-      if M.revert_file(file_data.left, ref) then
-        vim.cmd('checktime')
-      end
-    end
-  )
-end)
-
-M.revert_all = require_git_project(function(ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-
-  local files = get_changed_files()
-
-  if #files == 0 then
-    vim.notify('No changes to revert.')
-    return
-  end
-
   if vim.fn.input('Revert all ' .. #files .. ' changed files? (y/n): '):lower() ~= 'y' then
     return
   end
-  snapshot.revert(M.__current_ref)
-
-  vim.notify('Reverted ' .. #files .. ' files.')
+  local result = run_snapshot(context, 'revert', ref or context.first_snapshot)
+  review_cache = nil
+  if result and is_current(context) then
+    vim.notify('Reverted ' .. #files .. ' files.')
+  end
+  return result
 end)
 
-M.restore_snapshot = require_git_project(function(ref)
-  M.__current_ref = ref or M.get_first_snapshot()
-
-  if not M.__current_ref then
-    vim.notify('No snapshot to restore.')
-    return
+local function select_restore_point(context, parent)
+  local points
+  if parent then
+    points = snapshot.get_restore_points_by_parent(parent)
+  else
+    points = snapshot.get_restore_points()
   end
-
-  M.with_restore_point(ref, function(restore_point)
-    if not restore_point then
-      vim.notify('No restore point selected.')
-      return
-    end
-
-    snapshot.restore(restore_point.id)
-    vim.cmd('checktime')
-  end)
-end)
-
-M.restore_snapshot_file = require_git_project(function(restore_point_id)
-  M.__current_ref = restore_point_id or M.get_first_snapshot()
-
-  if not M.__current_ref then
-    vim.notify('No snapshot to restore.')
-    return
-  end
-
-  M.with_restore_point(restore_point_id, function(restore_point)
-    if not restore_point then
-      vim.notify('No restore point selected.')
-      return
-    end
-    local files = get_changed_files(restore_point.id)
-
-    picker.select(
-      vim.tbl_map(function(f)
-        return vim.fn.fnamemodify(f.left, ':.')
-      end, files),
-      { prompt = 'Select a file to restore:' },
-      function(choice, idx)
-        if not choice then
-          return
-        end
-        local file_data = files[idx]
-        if snapshot.restore_file(restore_point.id, file_data.left) then
-          vim.cmd('checktime')
-        end
-      end
-    )
-  end)
-end)
-
---- Select a restore point and execute a function with it
---- @param restore_point_id string|nil
---- @param fn fun(restore_point: RestorePoint)
-function M.with_restore_point(restore_point_id, fn)
-  local restore_points = restore_point_id and snapshot.get_restore_points_by_parent(restore_point_id)
-    or snapshot.get_restore_points()
-  if #restore_points == 1 then
-    return fn(restore_points[1])
-  end
-  picker.select(restore_points, {
+  return select_item(context, points or {}, {
     prompt = 'Select a restore point to restore:',
     format_item = function(item)
-      return (require('opencode.ui.icons').get('file') .. '[+%d,-%d] %s - %s (from: %s)'):format(
-        item.files and #item.files or 0,
-        item.deleted_files and #item.deleted_files or 0,
-        item.id:sub(1, 8),
-        utils.format_time(item.created_at) or 'unknown',
-        item.from_snapshot_id and item.from_snapshot_id:sub(1, 8) or 'none'
-      )
+      return ('%s - %s'):format(item.id:sub(1, 8), utils.format_time(item.created_at) or 'unknown')
     end,
-  }, function(selected_snapshot)
-    if not selected_snapshot then
-      return
-    end
-    fn(selected_snapshot)
-    if snapshot then
-      vim.notify('Reverted restore snapshot: ' .. selected_snapshot.id, vim.log.levels.INFO)
-    else
-      vim.notify('Failed to restore to snapshot: ' .. selected_snapshot.id, vim.log.levels.ERROR)
-    end
-  end)
+  })
 end
 
-M.close_diff = function()
+---@type fun(parent?: string): Promise<boolean|nil>
+M.restore_snapshot = review_action(function(context, parent)
+  local point = select_restore_point(context, parent)
+  if not point then
+    return
+  end
+  local result = run_snapshot(context, 'restore', point.id)
+  review_cache = nil
+  if result and is_current(context) then
+    vim.cmd('checktime')
+  end
+  return result
+end)
+M.restore_snapshot_all = M.restore_snapshot
+
+---@type fun(parent?: string): Promise<boolean|nil>
+M.restore_snapshot_file = review_action(function(context, parent)
+  local point = select_restore_point(context, parent)
+  if not point then
+    return
+  end
+  local file = select_file(context, get_changed_files(context, point.id), 'Select a file to restore:')
+  if not file then
+    return
+  end
+  local result = run_snapshot(context, 'restore_file', point.id, file.left)
+  review_cache = nil
+  if result and is_current(context) then
+    vim.cmd('checktime')
+  end
+  return result
+end)
+
+---@type fun(parent: string|nil, fn: fun(point: RestorePoint): any): Promise<any>
+M.with_restore_point = review_action(function(context, parent, fn)
+  local point = select_restore_point(context, parent)
+  if point then
+    return fn(point)
+  end
+end)
+
+---@type fun(): Promise<string|nil>
+M.create_snapshot = review_action(function(context)
+  local id = run_snapshot(context, 'create')
+  if is_current(context) then
+    breakpoint = { id = id, session = context.session, cwd = context.cwd }
+    review_cache = nil
+  end
+  return id
+end)
+
+function M.close_diff()
+  generation = generation + 1
   diff_tab.close_diff_tab()
 end
 
-M.reset_git_status = function()
-  M.__is_git_project = nil
+function M.reset_git_status()
+  generation = generation + 1
+  review_cache = nil
 end
 
 return M

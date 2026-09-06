@@ -50,12 +50,14 @@ remain useful follow-up validation.
    Deletion deduplicates indices and commits rewrites atomically without mutating the cache
    on failure. Regression tests cover round trips, migration, clear, duplicate indices and
    failed writes.
-2. **Snapshot/review operations still block.** `snapshot_git()` in both
-   `lua/opencode/snapshot.lua` and `lua/opencode/git_review.lua` calls `vim.system(...):wait()`.
-   Large repositories or slow storage can stall Neovim. Convert the command flows together
-   with their callers to asynchronous operations and capture the originating session/cwd.
-   API startup also retains synchronous waits in `api_client.lua:_ensure_base_url()`;
-   asynchronous completion does not eliminate that startup path.
+2. **Addressed: snapshot/review and API startup waits.** Snapshot APIs now return promises;
+   revert operations resolve to `{ id, deleted_files }`. Callers await Git processes and
+   picker choices, and command handlers return the complete promise chain. Operations capture
+   their session/directory and serialize access to each snapshot index. Stale review results
+   are ignored. API startup and version detection yield, with cancellation available before
+   an event subscription starts. Real temporary Git repositories exercise revert and recovery;
+   mocked delayed processes exercise concurrency and workspace switches. Checkout errors no
+   longer imply that a file should be deleted, and diff previews preserve original bytes.
 3. **Addressed: promise retention and falsy rejections.** Settlement clears both callback
    queues and the waiting coroutine list after scheduling consumers. Rejection has its own
    state flag, preserving `false` and `nil` rejection reasons consistently through chaining,

@@ -1,7 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local output_window = require('opencode.ui.output_window')
-local permission_window = require('opencode.ui.permission_window')
 local reference_facts = require('opencode.ui.reference_facts')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
@@ -293,7 +292,9 @@ function M.reset()
   ctx:reset()
   reference_facts.clear()
   output_window.clear()
-  permission_window.clear_all()
+  if ctx.prompt_controllers.permission then
+    ctx.prompt_controllers.permission.clear_all()
+  end
   state.renderer.reset()
   flush.trigger_on_data_rendered()
 end
@@ -449,8 +450,13 @@ function M.render_from_cache(session_data)
   })
   local active_session = state.active_session
   if active_session and active_session.id then
-    require('opencode.ui.question_window').restore_pending_question(active_session.id)
-    permission_window.restore_pending_permissions(active_session.id)
+    local prompts = ctx.prompt_controllers
+    if prompts.question then
+      prompts.question.restore_pending_question(active_session.id)
+    end
+    if prompts.permission then
+      prompts.permission.restore_pending_permissions(active_session.id)
+    end
   end
 end
 
@@ -513,8 +519,13 @@ function M.render_full_session()
     })
     local active_session = state.active_session
     if active_session and active_session.id then
-      require('opencode.ui.question_window').restore_pending_question(active_session.id)
-      permission_window.restore_pending_permissions(active_session.id)
+      local prompts = ctx.prompt_controllers
+      if prompts.question then
+        prompts.question.restore_pending_question(active_session.id)
+      end
+      if prompts.permission then
+        prompts.permission.restore_pending_permissions(active_session.id)
+      end
     end
     return session_data
   end)
@@ -567,7 +578,8 @@ end
 
 ---Re-render the permission display when focus changes (updates shortcut hints)
 function M.on_focus_changed()
-  if not permission_window.get_all_permissions()[1] then
+  local permissions = ctx.prompt_controllers.permission
+  if not permissions or not permissions.get_all_permissions()[1] then
     return
   end
   flush.mark_part_dirty('permission-display-part', 'permission-display-message')

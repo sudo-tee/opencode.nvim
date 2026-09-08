@@ -54,9 +54,8 @@ local function active_question_reply(properties)
     return false
   end
 
-  return require('opencode.ui.question_window').matches_active_question({
-    id = properties.requestID,
-  })
+  local questions = require('opencode.ui.renderer.ctx').prompt_controllers.question
+  return questions ~= nil and questions.matches_active_question({ id = properties.requestID })
 end
 
 ---@type table<string, fun(properties: table|nil): boolean>

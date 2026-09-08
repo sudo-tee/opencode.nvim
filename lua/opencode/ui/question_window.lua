@@ -939,4 +939,15 @@ function M._send_reject(request_id)
   end
 end
 
+---@return OpencodeQuestionRequest|nil
+function M.get_current_request()
+  return M._current_question
+end
+
+require('opencode.ui.renderer.ctx').prompt_controllers.question = M
+
+require('opencode.ui.formatter.system').register('questions-display', function(output)
+  M.format_display(output)
+end)
+
 return M

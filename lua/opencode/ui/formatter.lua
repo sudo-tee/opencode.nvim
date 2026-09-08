@@ -6,7 +6,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
-local permission_window = require('opencode.ui.permission_window')
+local system_formatters = require('opencode.ui.formatter.system')
 local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tools')
 local format_utils = require('opencode.ui.formatter.utils')
@@ -1062,12 +1062,7 @@ function M.format_part(part, message, is_last_part, context)
       content_added = true
     end
   elseif role == 'system' then
-    if part.type == 'permissions-display' then
-      permission_window.format_display(output)
-      content_added = true
-    elseif part.type == 'questions-display' then
-      local question_window = require('opencode.ui.question_window')
-      question_window.format_display(output)
+    if system_formatters.format(part.type, output) then
       content_added = true
     elseif part.type == 'revert-display' then
       local revert_index = part.state and part.state.revert_index

@@ -92,7 +92,7 @@ function M.scroll_win_to_bottom(win, buf)
     return
   end
 
-  local target_line = output_window.get_effective_bottom_line(buf, line_count)
+  local target_line = output_window.get_scroll_bottom_line(buf, line_count)
   if target_line <= 0 then
     return
   end

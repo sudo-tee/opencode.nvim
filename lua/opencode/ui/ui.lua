@@ -530,40 +530,6 @@ function M.render_lines(lines)
   renderer.render_lines(lines)
 end
 
----@param sessions Session[]
----@param cb fun(session: Session|nil)
----@param opts? { scope?: 'project' | 'global' }
-function M.select_session(sessions, cb, opts)
-  local session_picker = require('opencode.ui.session_picker')
-  local util = require('opencode.util')
-  local picker = require('opencode.ui.picker')
-
-  local success = session_picker.pick(sessions, cb, opts)
-  if not success then
-    picker.select(sessions, {
-      prompt = '',
-      format_item = function(session)
-        local parts = {}
-
-        if session.title then
-          table.insert(parts, session.title)
-        else
-          table.insert(parts, session.id)
-        end
-
-        local modified = util.format_time(session.modified)
-        if modified then
-          table.insert(parts, modified)
-        end
-
-        return table.concat(parts, ' ~ ')
-      end,
-    }, function(session_choice)
-      cb(session_choice)
-    end)
-  end
-end
-
 ---Switch focus between the input and output panes.
 function M.toggle_pane()
   local current_win = vim.api.nvim_get_current_win()
@@ -575,20 +541,6 @@ function M.toggle_pane()
     end
     input_window.focus_input()
   end
-end
-
----Swap the split position and reopen the UI.
-function M.swap_position()
-  local ui_conf = config.ui
-  local new_pos = (ui_conf.position == 'left') and 'right' or 'left'
-  config.values.ui.position = new_pos
-
-  if state.windows then
-    M.close_windows(state.windows, false)
-  end
-  vim.schedule(function()
-    require('opencode.api').toggle(state.active_session == nil)
-  end)
 end
 
 ---Toggle the current Opencode window width between normal and zoomed.

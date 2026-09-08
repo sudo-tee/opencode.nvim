@@ -75,9 +75,7 @@ The following entry files still directly require `opencode.session`/`opencode.ap
 - [ ] `lua/opencode/ui/debug_helper.lua` -> `opencode.session`
 - [ ] `lua/opencode/ui/permission_window.lua` -> `opencode.api`
 - [ ] `lua/opencode/ui/contextual_actions.lua` -> `opencode.api`
-- [ ] `lua/opencode/ui/session_picker.lua` -> `opencode.api`
 - [ ] `lua/opencode/ui/timeline_picker.lua` -> `opencode.api`
-- [ ] `lua/opencode/ui/ui.lua` -> `opencode.api`
 - [ ] `lua/opencode/commands/handlers/diff.lua` -> `opencode.session`
 - [ ] `lua/opencode/commands/handlers/session.lua` -> `opencode.session`
 

@@ -143,6 +143,21 @@ describe('asynchronous snapshot operations', function()
     assert.is_false(ok)
     assert.is_false(deleted)
   end)
+  it('accepts file paths through symlink aliases', function()
+    local real = vim.fn.tempname()
+    local alias = real .. '-alias'
+    vim.fn.mkdir(real, 'p')
+    assert.is_true(vim.uv.fs_symlink(real, alias))
+    vim.fn.writefile({ 'content' }, real .. '/file.lua')
+    cwd = real
+
+    local result = snapshot.diff_file('abc123', alias .. '/file.lua'):wait()
+
+    assert.equals(alias .. '/file.lua', result.left)
+    assert.equals('abc123:file.lua', calls[1].cmd[#calls[1].cmd])
+    vim.fn.delete(alias, 'rf')
+    vim.fn.delete(real, 'rf')
+  end)
 end)
 
 describe('snapshot Git integration', function()
@@ -151,6 +166,7 @@ describe('snapshot Git integration', function()
     root, cwd = vim.fn.tempname(), vim.fn.getcwd()
     vim.fn.mkdir(root .. '/work', 'p')
     vim.fn.mkdir(root .. '/cache', 'p')
+    root = vim.fn.resolve(root)
     assert.equals(0, vim.system({ 'git', 'init', '--bare', root .. '/snapshot' }):wait().code)
     vim.cmd.cd(vim.fn.fnameescape(root .. '/work'))
     original_path = config_file.get_workspace_snapshot_path

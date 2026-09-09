@@ -27,6 +27,12 @@ local function operation_context()
   return assert(contexts[coroutine.running()], 'Snapshot operation requires an async context')
 end
 
+local function canonical_path(path)
+  local normalized = vim.fs.normalize(path)
+  local resolved = vim.fn.resolve(normalized)
+  return resolved ~= '' and vim.fs.normalize(resolved) or normalized
+end
+
 ---@param cmd_args string[]
 ---@param opts? vim.SystemOpts
 ---@return string|nil, string|nil
@@ -45,7 +51,7 @@ end
 
 local function relative_path(file)
   local cwd = operation_context().cwd
-  local absolute = vim.fs.normalize(file:sub(1, 1) == '/' and file or cwd .. '/' .. file)
+  local absolute = canonical_path(file:sub(1, 1) == '/' and file or vim.fs.joinpath(cwd, file))
   local prefix = cwd:gsub('/$', '') .. '/'
   if absolute:sub(1, #prefix) ~= prefix then
     error('Snapshot file is outside the captured workspace: ' .. file)
@@ -313,6 +319,9 @@ end
 function M.with_context(fn, captured)
   local inherited = coroutine.running() and contexts[coroutine.running()]
   local context = inherited or captured or { cwd = vim.fn.getcwd(), session = state.active_session }
+  if not inherited then
+    context.cwd = canonical_path(context.cwd)
+  end
   return Promise.spawn(function()
     local co = coroutine.running()
     contexts[co] = context

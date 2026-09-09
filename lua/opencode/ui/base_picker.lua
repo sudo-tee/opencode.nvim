@@ -63,6 +63,7 @@ local Promise = require('opencode.promise')
 ---@class BasePicker
 local M = {}
 local picker = require('opencode.ui.picker')
+local icons = require('lua.opencode.ui.icons')
 
 ---@param bufnr integer?
 ---@return PickerPreviewTarget
@@ -135,7 +136,7 @@ local function build_title(base_title, actions, support_multi)
       table.insert(legend, action.key[1] .. ' ' .. label)
     end
   end
-  return base_title .. (#legend > 0 and '' .. table.concat(legend, '') or '')
+  return base_title .. (#legend > 0 and icons.get('separator') .. table.concat(legend, icons.get('separator')) or '')
 end
 
 ---Telescope UI implementation

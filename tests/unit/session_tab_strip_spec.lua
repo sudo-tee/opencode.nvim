@@ -135,6 +135,53 @@ describe('opencode session tab strip', function()
     picker_stub:revert()
   end)
 
+  it('marks tabs with pending permissions and questions', function()
+    local first = session_tabs.ensure_current()
+    first.active_session = { id = 'session-one', title = 'One' }
+    state.session.set_active(first.active_session)
+    session_tabs.add_pending_permission(first.id, { id = 'permission-one' })
+    session_tabs.add_pending_question(first.id, { id = 'question-one' })
+
+    local second = session_tabs.create({ id = 'session-two', title = 'Two' })
+    session_tabs.add_pending_permission(second.id, { id = 'permission-two' })
+    session_tabs.add_pending_permission(second.id, { id = 'permission-three' })
+    session_tabs.activate(second)
+
+    local output_buf = vim.api.nvim_create_buf(false, true)
+    local output_win = vim.api.nvim_open_win(output_buf, false, {
+      relative = 'editor',
+      width = 40,
+      height = 10,
+      row = 1,
+      col = 1,
+    })
+    windows = {
+      output_buf = output_buf,
+      output_win = output_win,
+      tab_strip_buf = session_tab_strip.create_buf(),
+      position = 'float',
+    }
+
+    session_tab_strip.create_window(windows)
+    state.ui.set_windows(windows)
+    session_tab_strip.setup(windows)
+
+    local line = vim.api.nvim_buf_get_lines(windows.tab_strip_buf, 0, 1, false)[1]
+    assert.is_true(line:find('1 [!][?] One', 1, true) ~= nil)
+    assert.is_true(line:find('2 [!2] Two', 1, true) ~= nil)
+
+    local marks = vim.api.nvim_buf_get_extmarks(windows.tab_strip_buf, -1, 0, -1, { details = true })
+    local groups = {}
+    for _, mark in ipairs(marks) do
+      if mark[4] and mark[4].hl_group then
+        groups[mark[4].hl_group] = true
+      end
+    end
+    assert.is_true(groups.OpencodeSessionTabPendingPermission)
+    assert.is_true(groups.OpencodeSessionTabActive)
+    assert.is_true(groups.OpencodeSessionTabInactive)
+  end)
+
   it('hides the tab strip for one tab and restores it for multiple tabs', function()
     config.values.ui.hide_single_tab = true
 

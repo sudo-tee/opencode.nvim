@@ -6,6 +6,16 @@ local M = {}
 
 ---@param session Session|nil
 function M.set_active(session)
+  local previous = store.get('active_session')
+  local previous_id = type(previous) == 'table' and previous.id or nil
+  local session_id = type(session) == 'table' and session.id or nil
+  if previous_id ~= session_id then
+    local runtime = session_tabs.current()
+    if runtime then
+      session_tabs.clear_pending_prompts(runtime.id)
+    end
+  end
+
   local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)
@@ -17,6 +27,13 @@ function M.set_active(session)
 end
 
 function M.clear_active()
+  if store.get('active_session') then
+    local runtime = session_tabs.current()
+    if runtime then
+      session_tabs.clear_pending_prompts(runtime.id)
+    end
+  end
+
   local result = store.batch(function()
     store.set('restore_points', {})
     store.set('last_sent_context', nil)

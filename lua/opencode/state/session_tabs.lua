@@ -28,6 +28,8 @@ local store = require('opencode.state.store')
 ---@field messages OpencodeMessage[]|nil
 ---@field current_message OpencodeMessage|nil
 ---@field pending_permissions OpencodePermission[]
+---@field pending_prompt_permissions OpencodePermission[]
+---@field pending_questions OpencodeQuestionRequest[]
 ---@field cost number
 ---@field tokens_count number
 ---@field user_message_count table<string, number>
@@ -141,6 +143,8 @@ local function default_runtime(id)
     messages = nil,
     current_message = nil,
     pending_permissions = {},
+    pending_prompt_permissions = {},
+    pending_questions = {},
     cost = 0,
     tokens_count = 0,
     user_message_count = {},
@@ -213,6 +217,139 @@ end
 ---@return OpencodeSessionTabRuntime|nil
 function M.get(id)
   return runtimes[id]
+end
+
+---@param session_id string|nil
+---@return OpencodeSessionTabRuntime|nil
+function M.find_by_session_id(session_id)
+  if not session_id or session_id == '' then
+    return nil
+  end
+
+  for _, runtime in ipairs(M.list()) do
+    if runtime.active_session and runtime.active_session.id == session_id then
+      return runtime
+    end
+
+    local render_state = runtime.renderer_context and runtime.renderer_context.render_state
+    if render_state and render_state.get_task_part_by_child_session then
+      local ok, task_part = pcall(render_state.get_task_part_by_child_session, render_state, session_id)
+      if ok and task_part then
+        return runtime
+      end
+    end
+  end
+
+  local current = M.current()
+  if current and current.active_session and current.active_session.id then
+    local render_state = require('opencode.ui.renderer.ctx').render_state
+    if render_state:get_task_part_by_child_session(session_id) then
+      return current
+    end
+  end
+end
+
+---@param tab_id string
+---@param permission OpencodePermission
+function M.add_pending_permission(tab_id, permission)
+  local runtime = runtimes[tab_id]
+  if not runtime or not permission or not permission.id then
+    return
+  end
+
+  for index, existing in ipairs(runtime.pending_prompt_permissions) do
+    if existing.id == permission.id then
+      runtime.pending_prompt_permissions[index] = permission
+      notify_change()
+      return
+    end
+  end
+
+  table.insert(runtime.pending_prompt_permissions, permission)
+  notify_change()
+end
+
+---@param tab_id string
+---@param permission_id string
+function M.remove_pending_permission(tab_id, permission_id)
+  local runtime = runtimes[tab_id]
+  if not runtime or not permission_id then
+    return
+  end
+
+  for index, permission in ipairs(runtime.pending_prompt_permissions) do
+    if permission.id == permission_id then
+      table.remove(runtime.pending_prompt_permissions, index)
+      notify_change()
+      return
+    end
+  end
+end
+
+---@param tab_id string
+---@param question OpencodeQuestionRequest
+function M.add_pending_question(tab_id, question)
+  local runtime = runtimes[tab_id]
+  if not runtime or not question or not question.id then
+    return
+  end
+
+  for index, existing in ipairs(runtime.pending_questions) do
+    if existing.id == question.id then
+      runtime.pending_questions[index] = question
+      notify_change()
+      return
+    end
+  end
+
+  table.insert(runtime.pending_questions, question)
+  notify_change()
+end
+
+---@param tab_id string
+---@param question_id string
+function M.remove_pending_question(tab_id, question_id)
+  local runtime = runtimes[tab_id]
+  if not runtime or not question_id then
+    return
+  end
+
+  for index, question in ipairs(runtime.pending_questions) do
+    if question.id == question_id then
+      table.remove(runtime.pending_questions, index)
+      notify_change()
+      return
+    end
+  end
+end
+
+---@param tab_id string
+function M.clear_pending_prompts(tab_id)
+  local runtime = runtimes[tab_id]
+  if not runtime then
+    return
+  end
+
+  local active = M.active_id() == tab_id
+  local has_pending = #runtime.pending_permissions > 0
+    or #runtime.pending_prompt_permissions > 0
+    or #runtime.pending_questions > 0
+  if active then
+    has_pending = has_pending or #(store.get('pending_permissions') or {}) > 0
+  end
+  if not has_pending then
+    return
+  end
+
+  runtime.pending_permissions = {}
+  runtime.pending_prompt_permissions = {}
+  runtime.pending_questions = {}
+  if active then
+    store.batch(function()
+      store.set('pending_permissions', {})
+    end)
+  end
+  notify_change()
 end
 
 ---@return OpencodeSessionTabRuntime|nil
@@ -337,6 +474,8 @@ function M.create(session)
   runtime.messages = nil
   runtime.current_message = nil
   runtime.pending_permissions = {}
+  runtime.pending_prompt_permissions = {}
+  runtime.pending_questions = {}
   runtime.restore_points = {}
   runtime.last_sent_context = nil
   runtime.user_message_count = {}

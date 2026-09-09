@@ -62,6 +62,29 @@ local function tab_title(tab)
   return title
 end
 
+---@param tab OpencodeSessionTabRuntime
+---@return string marker, string|nil highlight
+local function pending_marker(tab)
+  local permission_count = #(tab.pending_prompt_permissions or {})
+  local question_count = #(tab.pending_questions or {})
+  local marker_parts = {}
+
+  if permission_count > 0 then
+    marker_parts[#marker_parts + 1] = '[!' .. (permission_count > 1 and permission_count or '') .. ']'
+  end
+  if question_count > 0 then
+    marker_parts[#marker_parts + 1] = '[?' .. (question_count > 1 and question_count or '') .. ']'
+  end
+
+  if #marker_parts == 0 then
+    return '', nil
+  end
+  if permission_count > 0 then
+    return table.concat(marker_parts), 'OpencodeSessionTabPendingPermission'
+  end
+  return table.concat(marker_parts), 'OpencodeSessionTabPendingQuestion'
+end
+
 ---@param tabs OpencodeSessionTabRuntime[]
 ---@param width integer
 ---@return string line, table[] ranges, table[] highlights
@@ -151,14 +174,16 @@ local function build_horizontal_content(tabs, width)
 
     local index_text = tostring(index)
     local prefix = index_text .. ' '
-    local title_width = segment_width - display_width(prefix)
+    local marker, marker_highlight = pending_marker(tab)
+    local marker_prefix = marker ~= '' and marker .. ' ' or ''
+    local title_width = segment_width - display_width(prefix) - display_width(marker_prefix)
     local label
     if title_width > 0 then
-      label = prefix .. truncate(tab_title(tab), title_width)
+      label = prefix .. marker_prefix .. truncate(tab_title(tab), title_width)
     else
-      label = index_text
+      label = prefix .. marker
       if display_width(label) > segment_width then
-        label = truncate(tostring(index), segment_width)
+        label = truncate(label, segment_width)
       end
     end
 
@@ -180,6 +205,14 @@ local function build_horizontal_content(tabs, width)
       start_col = start_byte,
       end_col = byte_col,
     }
+    if marker_highlight and marker ~= '' and label:find(marker, #prefix + 1, true) then
+      highlights[#highlights + 1] = {
+        group = marker_highlight,
+        start_col = start_byte + #prefix,
+        end_col = start_byte + #prefix + #marker,
+        hl_mode = 'combine',
+      }
+    end
     highlights[#highlights + 1] = {
       group = 'OpencodeSessionTabIndex',
       start_col = start_byte,

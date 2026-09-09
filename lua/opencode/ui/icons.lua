@@ -51,6 +51,7 @@ local presets = {
     running = ' ',
     checkbox_checked = ' ',
     checkbox_unchecked = ' ',
+    separator = '',
   },
   text = {
     -- headers
@@ -98,6 +99,7 @@ local presets = {
     running = '> ',
     checkbox_checked = '[*]',
     checkbox_unchecked = '[ ]',
+    separator = '|',
   },
 }
 

@@ -13,6 +13,16 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabIndex', { link = 'Number', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabSeparator', { link = 'NonText', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabOverflow', { link = 'Special', bold = true, default = true })
+    vim.api.nvim_set_hl(
+      0,
+      'OpencodeSessionTabPendingPermission',
+      { fg = '#9A3412', bg = '#FED7AA', bold = true, default = true }
+    )
+    vim.api.nvim_set_hl(
+      0,
+      'OpencodeSessionTabPendingQuestion',
+      { fg = '#1D4ED8', bg = '#DBEAFE', bold = true, default = true }
+    )
     vim.api.nvim_set_hl(0, 'OpencodeMention', { link = 'Special', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeToolBorder', { fg = '#B0BEC5', nocombine = true, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeMessageRoleAssistant', { link = 'Special', default = true })
@@ -69,6 +79,16 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabIndex', { link = 'Number', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabSeparator', { link = 'NonText', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeSessionTabOverflow', { link = 'Special', bold = true, default = true })
+    vim.api.nvim_set_hl(
+      0,
+      'OpencodeSessionTabPendingPermission',
+      { fg = '#FFD580', bg = '#5A3A00', bold = true, default = true }
+    )
+    vim.api.nvim_set_hl(
+      0,
+      'OpencodeSessionTabPendingQuestion',
+      { fg = '#9CDCFE', bg = '#1E3A5F', bold = true, default = true }
+    )
     vim.api.nvim_set_hl(0, 'OpencodeMention', { link = 'Special', default = true })
     vim.api.nvim_set_hl(0, 'OpencodeToolBorder', { fg = '#3b4261', nocombine = true, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeRevertBorder', { bg = '#FF9E3B', default = true })

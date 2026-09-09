@@ -179,6 +179,7 @@ M.defaults = {
     display_context_size = true,
     display_cost = true,
     hide_single_tab = true,
+    notify_on_background_prompt = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
     persist_state = true,
     icons = {

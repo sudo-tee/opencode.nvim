@@ -60,6 +60,7 @@ function M.setup(opts)
   require('opencode.ui.completion').setup()
   require('opencode.keymap').setup(config.keymap)
   require('opencode.event_manager').setup()
+  require('opencode.ui.session_tab_notifications').setup()
   require('opencode.context').setup()
   require('opencode.ui.context_bar').setup()
 end

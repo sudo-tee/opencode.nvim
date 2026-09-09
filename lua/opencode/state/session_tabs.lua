@@ -40,6 +40,7 @@ local store = require('opencode.state.store')
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field context_data OpencodeContext|nil
 ---@field renderer_context table|nil Renderer caches associated with the preserved output buffer
+---@field renderer_dirty boolean Cached renderer missed background session events
 
 ---@class OpencodeSessionTabStateMutations
 local M = {}
@@ -155,6 +156,7 @@ local function default_runtime(id)
     _hidden_buffers = nil,
     context_data = nil,
     renderer_context = nil,
+    renderer_dirty = false,
   }
 end
 
@@ -246,6 +248,14 @@ function M.find_by_session_id(session_id)
     if render_state:get_task_part_by_child_session(session_id) then
       return current
     end
+  end
+end
+
+---@param session_id string|nil
+function M.mark_renderer_dirty(session_id)
+  local runtime = M.find_by_session_id(session_id)
+  if runtime and runtime.id ~= M.active_id() then
+    runtime.renderer_dirty = true
   end
 end
 
@@ -402,9 +412,10 @@ function M.update_user_message_count(tab_id, session_id, delta)
     return
   end
 
-  runtime.user_message_count = runtime.user_message_count or {}
-  local next_count = (runtime.user_message_count[session_id] or 0) + delta
-  runtime.user_message_count[session_id] = math.max(0, next_count)
+  local counts = vim.deepcopy(runtime.user_message_count or {})
+  local next_count = (counts[session_id] or 0) + delta
+  counts[session_id] = math.max(0, next_count)
+  runtime.user_message_count = counts
 
   if store.get('active_session_tab') == tab_id then
     store.set('user_message_count', runtime.user_message_count)
@@ -422,6 +433,44 @@ function M.set_last_sent_context(tab_id, context_data)
   runtime.last_sent_context = vim.deepcopy(context_data)
   if store.get('active_session_tab') == tab_id then
     store.set('last_sent_context', runtime.last_sent_context)
+  end
+end
+
+---@class OpencodeSessionTabModelUpdate
+---@field model? string
+---@field mode? string
+---@field variant? string
+
+---@param tab_id string
+---@param update OpencodeSessionTabModelUpdate
+function M.update_model_state(tab_id, update)
+  local runtime = runtimes[tab_id]
+  if not runtime then
+    return
+  end
+
+  if update.model ~= nil then
+    runtime.current_model = update.model
+  end
+  if update.mode ~= nil then
+    runtime.current_mode = update.mode
+  end
+  if update.variant ~= nil then
+    runtime.current_variant = update.variant
+  end
+
+  if store.get('active_session_tab') == tab_id then
+    store.batch(function()
+      if update.model ~= nil then
+        store.set('current_model', update.model)
+      end
+      if update.mode ~= nil then
+        store.set('current_mode', update.mode)
+      end
+      if update.variant ~= nil then
+        store.set('current_variant', update.variant)
+      end
+    end)
   end
 end
 

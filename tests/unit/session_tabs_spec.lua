@@ -70,6 +70,29 @@ describe('opencode session panel tabs', function()
     assert.equals('session-two', state.active_session.id)
   end)
 
+  it('notifies active-tab subscribers when message counts change', function()
+    local first = session_tabs.ensure_current()
+    state.session.set_active({ id = 'session-one' })
+    local notifications = 0
+    local listener = function()
+      notifications = notifications + 1
+    end
+    store.subscribe('user_message_count', listener)
+
+    session_tabs.update_user_message_count(first.id, 'session-one', 1)
+    vim.wait(50, function()
+      return notifications == 1
+    end)
+    session_tabs.update_user_message_count(first.id, 'session-one', -1)
+    vim.wait(50, function()
+      return notifications == 2
+    end)
+
+    assert.equals(2, notifications)
+    assert.equals(0, state.user_message_count['session-one'])
+    store.unsubscribe('user_message_count', listener)
+  end)
+
   it('switches to a panel tab by displayed index', function()
     local session_runtime = require('opencode.services.session_runtime')
     local first = session_tabs.ensure_current()

@@ -1,13 +1,18 @@
 local event_scope = require('opencode.ui.event_scope')
 local state = require('opencode.state')
+local session_tabs = require('opencode.state.session_tabs')
+local stub = require('luassert.stub')
 
 describe('event_scope', function()
   before_each(function()
+    session_tabs.reset()
+    session_tabs.ensure_current()
     state.session.set_active({ id = 'session_active' })
   end)
 
   after_each(function()
     state.session.set_active(nil)
+    session_tabs.reset()
   end)
 
   it('has a scope policy for every renderer event subscription', function()
@@ -71,5 +76,17 @@ describe('event_scope', function()
       event_scope.scoped_callback('session.updated', callback),
       event_scope.scoped_callback('session.updated', callback)
     )
+  end)
+
+  it('marks a background tab renderer dirty when its message event is rejected', function()
+    local background = session_tabs.create({ id = 'session_other' })
+    local callback = stub.new()
+
+    event_scope.scoped_callback('message.updated', callback)({
+      info = { id = 'message_other', sessionID = 'session_other' },
+    })
+
+    assert.is_true(background.renderer_dirty)
+    assert.stub(callback).was_not_called()
   end)
 end)

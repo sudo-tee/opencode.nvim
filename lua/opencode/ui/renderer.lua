@@ -565,7 +565,16 @@ function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
+  local target_tab_id = state.active_session_tab
+  local target_session_id = state.active_session and state.active_session.id
   return fetch_session():and_then(function(session_data)
+    if
+      state.active_session_tab ~= target_tab_id
+      or not state.active_session
+      or state.active_session.id ~= target_session_id
+    then
+      return nil
+    end
     M._render_full_session_data(session_data, {
       restore_model_from_messages = true,
     })
@@ -668,6 +677,7 @@ function M.on_session_tab_changed(_, new, old)
   end
   save_tab_context(old)
   rendered_session_tab = new
+  local runtime = session_tabs.get(new)
   local restored = restore_tab_context(new)
   local prompts = ctx.prompt_controllers
   if prompts.question then
@@ -678,7 +688,7 @@ function M.on_session_tab_changed(_, new, old)
   end
   require('opencode.ui.renderer.events').render_permissions_display()
 
-  if restored then
+  if restored and not (runtime and runtime.renderer_dirty) then
     if ctx:has_pending_work() and output_window.mounted() then
       flush.schedule()
     end
@@ -694,7 +704,14 @@ function M.on_session_tab_changed(_, new, old)
   end
 
   if state.active_session then
-    M.render_full_session():and_then(save_active_tab_context)
+    M.render_full_session():and_then(function(session_data)
+      if session_data and state.active_session_tab == new then
+        if runtime then
+          runtime.renderer_dirty = false
+        end
+        save_active_tab_context()
+      end
+    end)
   end
 end
 

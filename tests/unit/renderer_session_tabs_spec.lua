@@ -72,4 +72,51 @@ describe('renderer session tab contexts', function()
     assert.same({ 'preserved output' }, vim.api.nvim_buf_get_lines(output_buf, 0, -1, false))
     render_stub:revert()
   end)
+
+  it('refreshes a dirty cached renderer context on activation', function()
+    local first = session_tabs.ensure_current()
+    first.active_session = { id = 'session-one', title = 'One' }
+    local second = session_tabs.create({ id = 'session-two', title = 'Two' })
+    second.renderer_context = renderer_ctx:snapshot()
+    second.renderer_dirty = true
+
+    output_buf = vim.api.nvim_create_buf(false, true)
+    output_win = vim.api.nvim_open_win(output_buf, false, {
+      relative = 'editor',
+      width = 60,
+      height = 10,
+      row = 1,
+      col = 1,
+    })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.jobs.set_api_client({})
+    store.set_raw('active_session_tab', second.id)
+    store.set_raw('active_session', second.active_session)
+
+    local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve({}))
+    renderer.on_session_tab_changed(nil, second.id, first.id)
+
+    assert.stub(render_stub).was_called(1)
+    vim.wait(50, function()
+      return not second.renderer_dirty
+    end)
+    assert.is_false(second.renderer_dirty)
+    render_stub:revert()
+  end)
+
+  it('does not clear dirty state when refresh cannot load messages', function()
+    local first = session_tabs.ensure_current()
+    local second = session_tabs.create({ id = 'session-two', title = 'Two' })
+    second.renderer_context = renderer_ctx:snapshot()
+    second.renderer_dirty = true
+    store.set_raw('active_session_tab', second.id)
+    store.set_raw('active_session', second.active_session)
+
+    local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve(nil))
+    renderer.on_session_tab_changed(nil, second.id, first.id)
+    vim.wait(20)
+
+    assert.is_true(second.renderer_dirty)
+    render_stub:revert()
+  end)
 end)

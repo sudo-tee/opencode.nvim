@@ -5,7 +5,6 @@ local config = require('opencode.config')
 local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
-local agent_model = require('opencode.services.agent_model')
 local session_runtime = require('opencode.services.session_runtime')
 local session_tabs = require('opencode.state.session_tabs')
 
@@ -15,11 +14,12 @@ local M = {}
 --- @param prompt string The message prompt to send.
 --- @param opts? SendMessageOpts
 M.send_message = Promise.async(function(prompt, opts)
-  if not state.active_session or not state.active_session.id then
+  local target_session = vim.deepcopy(state.active_session)
+  if not target_session or not target_session.id then
     return false
   end
 
-  if state.active_session.parentID and config.child_readonly then
+  if target_session.parentID and config.child_readonly then
     return false
   end
 
@@ -31,27 +31,41 @@ M.send_message = Promise.async(function(prompt, opts)
     return
   end
 
-  opts = opts or {}
+  opts = vim.deepcopy(opts or {})
   local tab_id = state.active_session_tab
+  local session_id = target_session.id
+  local api_client = state.api_client
+  local target_model = state.current_model
+  local target_mode = state.current_mode
+  local target_variant = state.current_variant
 
-  opts.context = vim.tbl_deep_extend('force', state.current_context_config or {}, opts.context or {})
+  opts.context = vim.tbl_deep_extend('force', {}, state.current_context_config or {}, opts.context or {})
   state.context.set_current_context_config(opts.context)
   context.load()
-  opts.model = opts.model or agent_model.initialize_current_model():await()
-  if opts.agent == nil then
-    opts.agent = state.current_mode or config.default_mode
+  local parts_promise = context.format_message(prompt, opts.context)
+  local sent_context = context.snapshot()
+  session_tabs.set_context(sent_context)
+
+  opts.model = opts.model or target_model
+  if not opts.model then
+    local opencode_config = config_file.get_opencode_config():await()
+    opts.model = opencode_config and opencode_config.model ~= '' and opencode_config.model or nil
   end
-  opts.variant = opts.variant or state.current_variant
+  if opts.agent == nil then
+    opts.agent = target_mode or config.default_mode
+  end
+  opts.variant = opts.variant or target_variant
   local params = {}
+  local model_update = {}
 
   if opts.model then
     local provider, model = opts.model:match('^(.-)/(.+)$')
     params.model = { providerID = provider, modelID = model }
-    state.model.set_model(opts.model)
+    model_update.model = opts.model
 
     if opts.variant then
       params.variant = opts.variant
-      state.model.set_variant(opts.variant)
+      model_update.variant = opts.variant
     end
   end
 
@@ -59,16 +73,38 @@ M.send_message = Promise.async(function(prompt, opts)
     params.agent = opts.agent
     local available_agents = config_file.get_opencode_agents():await()
     if vim.tbl_contains(available_agents, opts.agent) then
-      state.model.set_mode(opts.agent)
+      model_update.mode = opts.agent
     end
   end
 
-  params.parts = context.format_message(prompt, opts.context):await()
+  if tab_id then
+    session_tabs.update_model_state(tab_id, model_update)
+  else
+    if model_update.model then
+      state.model.set_model(model_update.model)
+    end
+    if model_update.mode then
+      state.model.set_mode(model_update.mode)
+    end
+    if model_update.variant then
+      state.model.set_variant(model_update.variant)
+    end
+  end
+
+  params.parts = parts_promise:await()
   params.system = opts.system or config.default_system_prompt or nil
 
-  local session_id = state.active_session.id
-  local sent_context = vim.deepcopy(context.get_context())
-  context.unload_attachments()
+  if tab_id and session_tabs.active_id() ~= tab_id then
+    local runtime = session_tabs.get(tab_id)
+    if runtime then
+      runtime.context_data = vim.deepcopy(sent_context)
+      runtime.context_data.mentioned_files = {}
+      runtime.context_data.selections = {}
+    end
+  else
+    context.unload_attachments()
+    session_tabs.set_context(context.snapshot())
+  end
 
   local function update_sent_message_count(num)
     if tab_id then
@@ -84,7 +120,7 @@ M.send_message = Promise.async(function(prompt, opts)
 
   update_sent_message_count(1)
 
-  state.api_client
+  api_client
     :create_message(session_id, params)
     :and_then(function(response)
       update_sent_message_count(-1)

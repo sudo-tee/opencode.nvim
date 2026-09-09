@@ -1,4 +1,5 @@
 local server_job = require('opencode.server_job')
+local Promise = require('opencode.promise')
 local state = require('opencode.state')
 local url_encode = require('opencode.util').url_encode
 local apply_path_map = require('opencode.util').apply_path_map
@@ -65,38 +66,41 @@ local function normalize_global_event(event)
   }
 end
 
----Ensure that base_url is set. Even thought we're subscribed to
----state.opencode_server, we still need this check because
----it's possible someone will try to make an api call in their event
----handler (e.g. event_manager or header)
----@return boolean
-function OpencodeApiClient:_ensure_base_url()
-  -- NOTE: eventhough we're subscribed opencode_server, we need this check for
-  -- base_url because the notification about opencode_server being set to
-  -- non-nil my not have gotten to us in time
+---@return Promise<boolean>
+OpencodeApiClient._ensure_base_url = Promise.async(function(self)
   if self.base_url then
     return true
   end
-
-  if not state.opencode_server then
-    -- this is last resort - try to start the server and could be blocking
-    state.jobs.set_server(server_job.ensure_server():wait() --[[@as OpencodeServer]])
-    -- shouldn't normally happen but prevents error in replay tester
-    if not state.opencode_server then
+  if self._connecting then
+    return self._connecting:await()
+  end
+  local connecting = Promise.new()
+  self._connecting = connecting
+  local ok, result = pcall(function()
+    local server = state.opencode_server or server_job.ensure_server():await()
+    if not server then
       return false
     end
-  end
-
-  if not state.opencode_server.url then
-    state.opencode_server:get_spawn_promise():wait()
-    if not state.opencode_server.url then
+    if not server.url then
+      server:get_spawn_promise():await()
+    end
+    if not server.url then
       return false
     end
+    if state.opencode_server and state.opencode_server ~= server then
+      error('Server changed while connecting')
+    end
+    self.base_url = server.url:gsub('/$', '')
+    return true
+  end)
+  self._connecting = nil
+  if not ok then
+    connecting:reject(result)
+    error(result, 0)
   end
-
-  self.base_url = state.opencode_server.url:gsub('/$', '')
-  return true
-end
+  connecting:resolve(result)
+  return result
+end)
 
 --- Make a typed API call
 --- @param endpoint string The API endpoint path
@@ -104,8 +108,12 @@ end
 --- @param body table|nil|boolean Request body
 --- @param query table|nil Query parameters
 --- @return Promise<any> promise
-function OpencodeApiClient:_call(endpoint, method, body, query)
-  if not self:_ensure_base_url() then
+OpencodeApiClient._call = Promise.async(function(self, endpoint, method, body, query)
+  if query then
+    query = vim.deepcopy(query)
+    query.directory = query.directory or state.current_cwd or vim.fn.getcwd()
+  end
+  if not self:_ensure_base_url():await() then
     return require('opencode.promise').new():reject('No server base url')
   end
   local url = self.base_url .. endpoint
@@ -137,7 +145,7 @@ function OpencodeApiClient:_call(endpoint, method, body, query)
   return server_job.call_api(url, method, body):and_then(function(result)
     return reverse_transform_paths_recursive(result)
   end)
-end
+end)
 
 -- Project endpoints
 
@@ -207,10 +215,7 @@ end
 --- directories instead of being filtered to the current cwd.
 --- @return Promise<GlobalSession[]>
 function OpencodeApiClient:list_sessions_global()
-  if not self:_ensure_base_url() then
-    return require('opencode.promise').new():reject('No server base url')
-  end
-  return server_job.call_api(self.base_url .. '/experimental/session', 'GET')
+  return self:_call('/experimental/session', 'GET')
 end
 
 --- Create a new session
@@ -527,66 +532,53 @@ end
 --- @param on_event fun(event: table) Event callback
 --- @return table The streaming job handle
 function OpencodeApiClient:subscribe_to_events(directory, on_event)
-  -- Make sure we have a base URL before attempting to subscribe. If we
-  -- cannot determine a base URL (server not running), return nil so
-  -- callers can handle the absence of a subscription without an error.
-  if not self:_ensure_base_url() then
-    return nil
-  end
-
-  local version = assert(state.opencode_cli_version):wait()
-  if is_version_greater_or_equal(version, '1.14.42') then
-    return self:_subscribe_to_global_events(directory, on_event)
-  end
-
-  local url = self.base_url .. '/event'
-  if directory then
-    local mapped_directory = apply_path_map(directory)
-    url = url .. '?directory=' .. url_encode(mapped_directory)
-  end
-
-  return server_job.stream_api(url, 'GET', nil, function(chunk)
-    chunk = chunk:gsub('^data:%s*', '')
-    local ok, event = pcall(vim.json.decode, vim.trim(chunk))
-    if ok and event then
-      local transformed_event = reverse_transform_paths_recursive(event)
-      on_event(transformed_event --[[@as table]])
-    end
-  end)
-end
-
---- Subscribe to events (streaming)
---- @param directory string|nil Directory path
---- @param on_event fun(event: table) Event callback
---- @return table The streaming job handle
-function OpencodeApiClient:_subscribe_to_global_events(directory, on_event)
-  -- Ensure base_url is available. If not, return nil instead of erroring.
-  if not self:_ensure_base_url() then
-    return nil
-  end
-
-  local version = assert(state.opencode_cli_version):wait()
-  if not is_version_greater_or_equal(version, '1.14.42') then
-    error('subscribe_to_global_events should not be called directly')
-  end
-
-  local url = self.base_url .. '/global/event'
-  if directory then
-    local mapped_directory = apply_path_map(directory)
-    url = url .. '?directory=' .. url_encode(mapped_directory)
-  end
-
-  return server_job.stream_api(url, 'GET', nil, function(chunk)
-    chunk = chunk:gsub('^data:%s*', '')
-    local ok, event = pcall(vim.json.decode, vim.trim(chunk))
-    if ok and event then
-      local normalized_event = normalize_global_event(event)
-      if normalized_event then
-        local transformed_event = reverse_transform_paths_recursive(normalized_event)
-        on_event(transformed_event --[[@as table]])
+  local stopped = false
+  local job
+  local handle = {
+    shutdown = function()
+      stopped = true
+      if job and job.shutdown then
+        job:shutdown()
       end
+    end,
+    is_running = function()
+      return not stopped and (not job or not job.is_running or job:is_running())
+    end,
+  }
+  Promise.spawn(function()
+    if not self:_ensure_base_url():await() or stopped then
+      stopped = true
+      return
     end
+    local version = assert(state.opencode_cli_version):await()
+    if stopped then
+      return
+    end
+    local global = is_version_greater_or_equal(version, '1.14.42')
+    local url = self.base_url .. (global and '/global/event' or '/event')
+    if directory then
+      url = url .. '?directory=' .. url_encode(apply_path_map(directory))
+    end
+    job = server_job.stream_api(url, 'GET', nil, function(chunk)
+      if stopped then
+        return
+      end
+      chunk = chunk:gsub('^data:%s*', '')
+      local ok, event = pcall(vim.json.decode, vim.trim(chunk))
+      if ok and event then
+        if global then
+          event = normalize_global_event(event)
+        end
+        if event then
+          on_event(reverse_transform_paths_recursive(event))
+        end
+      end
+    end)
+  end):catch(function(err)
+    stopped = true
+    require('opencode.log').notify('Failed to subscribe to events: ' .. vim.inspect(err), vim.log.levels.ERROR)
   end)
+  return handle
 end
 
 -- Skill endpoints

@@ -458,6 +458,29 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(2, cursor[1])
   end)
 
+  it('keeps a terminal fold reachable when multiple padding lines follow it', function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+      'line 1',
+      'line 2',
+      'fold line 1',
+      'fold line 2',
+      'fold line 3',
+      '',
+      '',
+    })
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_folds({ { from = 3, to = 5 } })
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    assert.equals(5, vim.api.nvim_win_get_cursor(win)[1])
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! zo')
+    end)
+    assert.equals(-1, vim.fn.foldclosed(3))
+  end)
+
   it('skips zb when the followed bottom line is already visible', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', 'line 3' })
     vim.api.nvim_win_set_height(win, 10)

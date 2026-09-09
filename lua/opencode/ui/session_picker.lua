@@ -2,7 +2,6 @@ local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local util = require('opencode.util')
-local api = require('opencode.api')
 local Promise = require('opencode.promise')
 
 ---Check whether any session id in `delete_ids` is the session itself or an ancestor
@@ -424,6 +423,39 @@ function M.pick(sessions, callback, opts)
         end)
     end,
   })
+end
+
+---@param sessions Session[]
+---@param cb fun(session: Session|nil)
+---@param opts? { scope?: 'project' | 'global' }
+function M.select(sessions, cb, opts)
+  local util = require('opencode.util')
+  local picker = require('opencode.ui.picker')
+
+  local success = M.pick(sessions, cb, opts)
+  if not success then
+    picker.select(sessions, {
+      prompt = '',
+      format_item = function(session)
+        local parts = {}
+
+        if session.title then
+          table.insert(parts, session.title)
+        else
+          table.insert(parts, session.id)
+        end
+
+        local modified = util.format_time(session.modified)
+        if modified then
+          table.insert(parts, modified)
+        end
+
+        return table.concat(parts, ' ~ ')
+      end,
+    }, function(session_choice)
+      cb(session_choice)
+    end)
+  end
 end
 
 return M

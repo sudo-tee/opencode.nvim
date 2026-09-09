@@ -364,9 +364,7 @@ function M._setup_dialog()
   end
 
   local function is_active_permission(permission_id)
-    return M._processing
-      and is_current_permission(permission_id)
-      and M._interaction == interaction
+    return M._processing and is_current_permission(permission_id) and M._interaction == interaction
   end
 
   local function on_select(index)
@@ -579,5 +577,11 @@ end
 function M.get_permission_count()
   return #M._permission_queue
 end
+
+require('opencode.ui.renderer.ctx').prompt_controllers.permission = M
+
+require('opencode.ui.formatter.system').register('permissions-display', function(output)
+  M.format_display(output)
+end)
 
 return M

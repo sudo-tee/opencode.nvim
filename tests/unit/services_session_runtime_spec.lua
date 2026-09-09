@@ -298,7 +298,7 @@ describe('opencode.services.session_runtime', function()
         return p
       end)
       local passed
-      stub(ui, 'select_session').invokes(function(sessions, cb)
+      stub(require('opencode.ui.session_picker'), 'select').invokes(function(sessions, cb)
         passed = sessions
         cb(sessions[2])
       end)
@@ -324,7 +324,7 @@ describe('opencode.services.session_runtime', function()
         return Promise.new():resolve(mock_sessions)
       end)
       local passed
-      stub(ui, 'select_session').invokes(function(sessions, cb)
+      stub(require('opencode.ui.session_picker'), 'select').invokes(function(sessions, cb)
         passed = sessions
         cb(nil)
       end)
@@ -406,7 +406,6 @@ describe('opencode.services.session_runtime', function()
       input_window._hide:revert()
       state.ui.is_visible = orig_is_visible
     end)
-
   end)
 
   describe('cancel', function()

@@ -2,8 +2,28 @@ local RenderState = require('opencode.ui.render_state')
 
 ---Shared mutable context for the renderer modules.
 ---Single instance, shared via Lua's require cache.
+---@class PermissionController
+---@field get_all_permissions fun(): OpencodePermission[]
+---@field clear_all fun()
+---@field restore_pending_permissions fun(session_id: string): Promise<any>
+---@field add_permission fun(permission: OpencodePermission)
+---@field remove_permission fun(permission_id: string)
+---@field update_permission_from_part fun(permission_id: string, part: OpencodeMessagePart)
+
+---@class QuestionController
+---@field get_current_request fun(): OpencodeQuestionRequest|nil
+---@field uses_vim_ui_select fun(request?: OpencodeQuestionRequest): boolean
+---@field has_question fun(): boolean
+---@field clear_question fun()
+---@field show_question fun(request: OpencodeQuestionRequest)
+---@field restore_pending_question fun(session_id: string): Promise<any>
+---@field matches_active_question fun(request: table): boolean
+
 ---@class RendererCtx
 local ctx = {
+  ---Controllers are registered by the entry layer during plugin setup.
+  ---@type {permission?: PermissionController, question?: QuestionController}
+  prompt_controllers = {},
   ---@type RenderState
   render_state = RenderState.new(),
   ---@type { part_id: string|nil, formatted_data: Output|nil }

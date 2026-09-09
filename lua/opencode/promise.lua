@@ -3,6 +3,7 @@
 ---@class Promise<T>
 ---@field __index Promise<T>
 ---@field _resolved boolean
+---@field _rejected boolean
 ---@field _value T
 ---@field _error any
 ---@field _then_callbacks fun(value: T)[]
@@ -47,6 +48,7 @@ end
 function Promise.new()
   local self = setmetatable({
     _resolved = false,
+    _rejected = false,
     _value = nil,
     _error = nil,
     _then_callbacks = {},
@@ -73,6 +75,9 @@ function Promise:resolve(value)
   end
 
   resume_coroutines(self._coroutines, value, nil)
+  self._then_callbacks = {}
+  self._catch_callbacks = {}
+  self._coroutines = {}
 
   return self
 end
@@ -84,6 +89,7 @@ function Promise:reject(err)
     return self
   end
   self._error = err
+  self._rejected = true
   self._resolved = true
 
   local schedule_catch = vim.schedule_wrap(function(cb, e)
@@ -94,6 +100,9 @@ function Promise:reject(err)
   end
 
   resume_coroutines(self._coroutines, nil, err)
+  self._then_callbacks = {}
+  self._catch_callbacks = {}
+  self._coroutines = {}
 
   return self
 end
@@ -128,10 +137,10 @@ function Promise:and_then(callback)
     end
   end
 
-  if self._resolved and not self._error then
+  if self._resolved and not self._rejected then
     local schedule_then = vim.schedule_wrap(handle_callback)
     schedule_then(self._value)
-  elseif self._resolved and self._error then
+  elseif self._resolved and self._rejected then
     new_promise:reject(self._error)
   else
     table.insert(self._then_callbacks, handle_callback)
@@ -172,10 +181,10 @@ function Promise:catch(error_callback)
     new_promise:resolve(value)
   end
 
-  if self._resolved and self._error then
+  if self._resolved and self._rejected then
     local schedule_catch = vim.schedule_wrap(handle_error)
     schedule_catch(self._error)
-  elseif self._resolved and not self._error then
+  elseif self._resolved and not self._rejected then
     new_promise:resolve(self._value)
   else
     table.insert(self._catch_callbacks, handle_error)
@@ -211,11 +220,11 @@ function Promise:finally(callback)
     new_promise:reject(err)
   end
 
-  if self._resolved and not self._error then
+  if self._resolved and not self._rejected then
     -- Promise already resolved successfully
     local schedule_finally = vim.schedule_wrap(handle_success)
     schedule_finally(self._value)
-  elseif self._resolved and self._error then
+  elseif self._resolved and self._rejected then
     -- Promise already rejected
     local schedule_finally = vim.schedule_wrap(handle_error)
     schedule_finally(self._error)
@@ -237,8 +246,8 @@ end
 ---@return T
 function Promise:wait(timeout, interval)
   if self._resolved then
-    if self._error then
-      error(self._error)
+    if self._rejected then
+      error(self._error, 0)
     end
     return self._value
   end
@@ -254,8 +263,8 @@ function Promise:wait(timeout, interval)
     error('Promise timed out after ' .. timeout .. 'ms')
   end
 
-  if self._error then
-    error(self._error)
+  if self._rejected then
+    error(self._error, 0)
   end
 
   return self._value
@@ -274,7 +283,7 @@ function Promise:is_resolved()
 end
 
 function Promise:is_rejected()
-  return self._resolved and self._error ~= nil
+  return self._rejected
 end
 
 ---Await the promise from within a coroutine
@@ -286,8 +295,8 @@ function Promise:await()
   -- If already resolved, return immediately
   local value
   if self._resolved then
-    if self._error then
-      error(self._error)
+    if self._rejected then
+      error(self._error, 0)
     end
     value = self._value
     ---@cast value T
@@ -306,8 +315,8 @@ function Promise:await()
   ---@diagnostic disable-next-line: await-in-sync
   local value, err = coroutine.yield()
 
-  if err then
-    error(err)
+  if self._rejected then
+    error(err, 0)
   end
 
   ---@cast value T

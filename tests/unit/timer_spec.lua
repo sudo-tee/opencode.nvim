@@ -94,6 +94,40 @@ describe('Timer', function()
     end)
   end)
 
+  it('ignores queued ticks from a stopped or replaced timer', function()
+    local count = 0
+    timer = Timer.new({
+      interval = 10,
+      on_tick = function()
+        count = count + 1
+      end,
+    })
+    timer:start()
+    local old = timer._uv_timer
+    timer:stop()
+    old:fire()
+    timer:start()
+    old:fire()
+    assert.equals(0, count)
+    timer._uv_timer:fire()
+    assert.equals(1, count)
+  end)
+
+  it('does not stop a replacement timer started inside a tick', function()
+    timer = Timer.new({
+      interval = 10,
+      on_tick = function()
+        timer:start()
+        return false
+      end,
+    })
+    timer:start()
+    local old = timer._uv_timer
+    old:fire()
+    assert.is_true(timer:is_running())
+    assert.is_not.equal(old, timer._uv_timer)
+  end)
+
   describe('Timer:start', function()
     it('starts a repeating timer', function()
       local tick_count = 0

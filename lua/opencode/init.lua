@@ -53,6 +53,8 @@ function M.setup(opts)
   local OpencodeApiClient = require('opencode.api_client')
   state.jobs.set_api_client(OpencodeApiClient.create())
 
+  require('opencode.ui.permission_window')
+  require('opencode.ui.question_window')
   require('opencode.commands').setup()
   require('opencode.ui.completion').setup()
   require('opencode.keymap').setup(config.keymap)

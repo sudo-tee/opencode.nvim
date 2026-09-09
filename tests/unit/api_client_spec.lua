@@ -126,18 +126,16 @@ describe('api_client', function()
     local received = {}
 
     server_job.stream_api = function(_, _, _, on_chunk)
-      on_chunk(
-        'data: ' .. vim.json.encode({
-          payload = {
-            id = 'evt_1',
-            type = 'session.status',
-            properties = {
-              sessionID = 'ses_1',
-              status = { type = 'busy' },
-            },
+      on_chunk('data: ' .. vim.json.encode({
+        payload = {
+          id = 'evt_1',
+          type = 'session.status',
+          properties = {
+            sessionID = 'ses_1',
+            status = { type = 'busy' },
           },
-        })
-      )
+        },
+      }))
 
       return { shutdown = function() end }
     end
@@ -170,28 +168,26 @@ describe('api_client', function()
     local received = {}
 
     server_job.stream_api = function(_, _, _, on_chunk)
-      on_chunk(
-        'data: ' .. vim.json.encode({
-          payload = {
-            type = 'sync',
-            syncEvent = {
-              id = 'evt_2',
-              type = 'message.part.updated.1',
-              data = {
+      on_chunk('data: ' .. vim.json.encode({
+        payload = {
+          type = 'sync',
+          syncEvent = {
+            id = 'evt_2',
+            type = 'message.part.updated.1',
+            data = {
+              sessionID = 'ses_1',
+              part = {
+                id = 'prt_1',
+                type = 'text',
+                text = 'hello',
+                messageID = 'msg_1',
                 sessionID = 'ses_1',
-                part = {
-                  id = 'prt_1',
-                  type = 'text',
-                  text = 'hello',
-                  messageID = 'msg_1',
-                  sessionID = 'ses_1',
-                },
               },
             },
-            id = 'evt_2',
           },
-        })
-      )
+          id = 'evt_2',
+        },
+      }))
 
       return { shutdown = function() end }
     end
@@ -219,5 +215,70 @@ describe('api_client', function()
     }, received)
 
     server_job.stream_api = original_stream_api
+  end)
+end)
+
+describe('API startup responsiveness', function()
+  local Promise = require('opencode.promise')
+  local state = require('opencode.state')
+  local server_job = require('opencode.server_job')
+  local original
+  before_each(function()
+    original = {
+      ensure = server_job.ensure_server,
+      call = server_job.call_api,
+      stream = server_job.stream_api,
+      server = state.opencode_server,
+      cwd = state.current_cwd,
+      version = state.opencode_cli_version,
+    }
+    state.jobs.clear_server()
+    state.context.set_current_cwd('/origin')
+  end)
+  after_each(function()
+    server_job.ensure_server, server_job.call_api, server_job.stream_api =
+      original.ensure, original.call, original.stream
+    state.jobs.set_server(original.server)
+    state.context.set_current_cwd(original.cwd)
+    state.jobs.set_opencode_cli_version(original.version)
+  end)
+  it('shares pending startup and captures each request directory before yielding', function()
+    local starting, calls, starts = Promise.new(), {}, 0
+    server_job.ensure_server = function()
+      starts = starts + 1
+      return starting
+    end
+    server_job.call_api = function(url)
+      calls[#calls + 1] = url
+      return Promise.new():resolve({})
+    end
+    local client = api_client.new()
+    local first, second = client:list_projects(), client:list_sessions()
+    assert.is_false(first:is_resolved())
+    assert.equals(1, starts)
+    state.context.set_current_cwd('/later')
+    starting:resolve({ url = 'http://localhost:8080' })
+    first:wait()
+    second:wait()
+    assert.equals(2, #calls)
+    for _, url in ipairs(calls) do
+      assert.matches('directory=%%2Forigin', url)
+    end
+  end)
+  it('cancels a subscription before version detection completes', function()
+    local version = Promise.new()
+    state.jobs.set_opencode_cli_version(version)
+    local calls = 0
+    server_job.stream_api = function()
+      calls = calls + 1
+    end
+    local handle = api_client.new('http://localhost:8080'):subscribe_to_events('/origin', function() end)
+    handle:shutdown()
+    version:resolve('1.14.42')
+    vim.wait(20, function()
+      return false
+    end)
+    assert.equals(0, calls)
+    assert.is_false(handle:is_running())
   end)
 end)

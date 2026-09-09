@@ -15,12 +15,13 @@ ThrottlingEmitter.__index = ThrottlingEmitter
 --- make sure we're not generating so many events that we don't overwhelm
 --- neovim, particularly treesitter.
 --- @param process_fn function Function to call for each item
---- @param drain_interval_ms number? Interval between drains in milliseconds (default 10)
+--- @param drain_interval_ms number? Interval between drains in milliseconds (default 40)
 --- @return ThrottlingEmitter
 function M.new(process_fn, drain_interval_ms)
   return setmetatable({
     queue = {},
     drain_scheduled = false,
+    _generation = 0,
     process_fn = process_fn,
     drain_interval_ms = drain_interval_ms or 40,
   }, ThrottlingEmitter)
@@ -33,7 +34,11 @@ function ThrottlingEmitter:enqueue(item)
 
   if not self.drain_scheduled then
     self.drain_scheduled = true
+    local generation = self._generation
     vim.defer_fn(function()
+      if generation ~= self._generation then
+        return
+      end
       self:_drain()
     end, self.drain_interval_ms)
   end
@@ -49,19 +54,11 @@ function ThrottlingEmitter:_drain()
   if #items_to_process > 0 then
     self.process_fn(items_to_process)
   end
-
-  -- double check that items weren't added while processing
-  if #self.queue > 0 and not self.drain_scheduled then
-    self.drain_scheduled = true
-    vim.defer_fn(function()
-      self:_drain()
-    end, self.drain_interval_ms)
-  end
-  -- end)
 end
 
 --- Clear the queue and cancel any pending drain
 function ThrottlingEmitter:clear()
+  self._generation = self._generation + 1
   self.queue = {}
   self.drain_scheduled = false
 end

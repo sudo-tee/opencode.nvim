@@ -39,6 +39,12 @@ local function build_fold_state(folds)
   return fold_state
 end
 
+local function clear_manual_folds(win)
+  vim.api.nvim_win_call(win, function()
+    vim.cmd('silent! normal! zE')
+  end)
+end
+
 local _update_depth = 0
 local _update_buf = nil
 
@@ -133,7 +139,7 @@ function M.is_at_bottom(win)
     return true
   end
 
-  local effective_bottom = M.get_effective_bottom_line(state.windows.output_buf, line_count)
+  local effective_bottom = M.get_scroll_bottom_line(state.windows.output_buf, line_count)
 
   local ok2, cursor = pcall(vim.api.nvim_win_get_cursor, win)
   if not ok2 then
@@ -141,7 +147,7 @@ function M.is_at_bottom(win)
   end
 
   local prev_line_count = M._prev_line_count_by_win[win] or line_count
-  local prev_effective_bottom = M.get_effective_bottom_line(state.windows.output_buf, prev_line_count)
+  local prev_effective_bottom = M.get_scroll_bottom_line(state.windows.output_buf, prev_line_count)
   return cursor[1] >= prev_effective_bottom or cursor[1] >= effective_bottom
 end
 
@@ -164,6 +170,32 @@ function M.get_effective_bottom_line(buf, line_count)
   end
 
   return line_count
+end
+
+---@param buf integer
+---@param line_count? integer
+---@return integer
+function M.get_scroll_bottom_line(buf, line_count)
+  local bottom = M.get_effective_bottom_line(buf, line_count)
+  line_count = line_count or vim.api.nvim_buf_line_count(buf)
+
+  if bottom >= line_count then
+    return bottom
+  end
+
+  local bottom_text = vim.api.nvim_buf_get_lines(buf, bottom - 1, bottom, false)[1]
+  if bottom_text ~= '' then
+    return bottom
+  end
+
+  -- Bulk rendering leaves an extra padding line after a terminal fold.
+  for _, range in ipairs(state.ui.get_output_folds().ranges) do
+    if range.to == bottom - 1 then
+      return range.to
+    end
+  end
+
+  return bottom
 end
 
 ---@param win? integer
@@ -405,6 +437,7 @@ function M.set_folds(fold_ranges)
 
   vim.api.nvim_win_call(win, function()
     local view = preserve_view and vim.fn.winsaveview() or nil
+    clear_manual_folds(win)
 
     local line_count = vim.api.nvim_buf_line_count(buf)
     local fold_commands = {}
@@ -819,6 +852,10 @@ end
 
 ---Clear the output buffer and all namespaces.
 function M.clear()
+  if M.mounted() then
+    clear_manual_folds(state.windows.output_win)
+  end
+  state.ui.clear_output_folds()
   M.set_lines({})
   -- clear extmarks in all namespaces as I've seen RenderMarkdown leave some
   -- extmarks behind

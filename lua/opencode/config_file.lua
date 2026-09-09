@@ -27,8 +27,11 @@ M.get_opencode_config = Promise.async(function()
   return result
 end)
 
----@type fun(): Promise<OpencodeProject|nil>
-M.get_opencode_project = Promise.async(function()
+---@type fun(directory?: string): Promise<OpencodeProject|nil>
+M.get_opencode_project = Promise.async(function(directory)
+  if directory then
+    return require('opencode.state').api_client:get_current_project(directory):await()
+  end
   if not M.project_promise then
     local state = require('opencode.state')
     M.project_promise = Promise.retry(function()
@@ -50,9 +53,10 @@ end)
 ---Get the snapshot storage path for the current workspace
 ---Matches opencode's Global.Path.data + "snapshot" + projectId + Hash.fast(worktree)
 ---Can be overridden via config.snapshot_path (base path, project_id and worktree_hash are appended)
----@type fun(): Promise<string>
-M.get_workspace_snapshot_path = Promise.async(function()
-  local project = M.get_opencode_project():await() --[[@as OpencodeProject|nil]]
+---@type fun(directory?: string): Promise<string>
+M.get_workspace_snapshot_path = Promise.async(function(directory)
+  local cwd = directory or vim.fn.getcwd()
+  local project = M.get_opencode_project(cwd):await() --[[@as OpencodeProject|nil]]
   if not project then
     return ''
   end
@@ -64,7 +68,6 @@ M.get_workspace_snapshot_path = Promise.async(function()
     end
     data_home = vim.fs.joinpath(data_home, 'opencode')
   end
-  local cwd = vim.fn.getcwd()
   local worktree_hash = sha1(cwd)
   if not worktree_hash then
     return ''

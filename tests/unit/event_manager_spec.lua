@@ -65,6 +65,22 @@ describe('EventManager', function()
     assert.is_true(callback2_called)
   end)
 
+  it('does not skip listeners when a callback unsubscribes itself', function()
+    local calls = {}
+    local first
+    first = function()
+      calls[#calls + 1] = 'first'
+      event_manager:unsubscribe('test_event', first)
+    end
+    event_manager:subscribe('test_event', first)
+    event_manager:subscribe('test_event', function()
+      calls[#calls + 1] = 'second'
+    end)
+    event_manager:emit('test_event', {})
+    event_manager:emit('test_event', {})
+    assert.same({ 'first', 'second', 'second' }, calls)
+  end)
+
   it('should unsubscribe correctly', function()
     local callback_called = false
     local callback = function(data)
@@ -327,5 +343,107 @@ describe('EventManager', function()
 
       assert.is_true(autocmd_called)
     end)
+  end)
+end)
+
+describe('EventManager subscription lifecycle', function()
+  local manager, original_client, original_defer, original_server
+
+  before_each(function()
+    manager = EventManager.new()
+    original_client = state.api_client
+    original_server = state.opencode_server
+    original_defer = vim.defer_fn
+  end)
+
+  after_each(function()
+    manager:stop()
+    manager:_cleanup_server_subscription()
+    vim.defer_fn = original_defer
+    state.jobs.set_api_client(original_client)
+    state.jobs.set_server(original_server)
+    vim.wait(10, function()
+      return false
+    end)
+  end)
+
+  it('discards buffered and late events from a replaced subscription', function()
+    local callbacks = {}
+    state.jobs.set_api_client({
+      subscribe_to_events = function(_, _, callback)
+        callbacks[#callbacks + 1] = callback
+        return { shutdown = function() end }
+      end,
+    })
+    local server = { url = 'http://example.test' }
+    manager:_subscribe_to_server_events(server)
+    callbacks[1]({ type = 'session.idle', properties = { sessionID = 'old' } })
+    manager:_subscribe_to_server_events(server)
+    callbacks[1]({ type = 'session.idle', properties = { sessionID = 'late' } })
+    callbacks[2]({ type = 'session.idle', properties = { sessionID = 'new' } })
+    assert.equals(1, #manager.throttling_emitter.queue)
+    assert.equals('new', manager.throttling_emitter.queue[1].properties.sessionID)
+  end)
+
+  it('does not reconnect from a delayed ready callback after stop', function()
+    local deferred
+    vim.defer_fn = function(callback)
+      deferred = callback
+    end
+    local calls = 0
+    manager._subscribe_to_server_events = function()
+      calls = calls + 1
+    end
+    local server = { url = 'http://example.test' }
+    server.get_spawn_promise = function()
+      return Promise.new():resolve(server)
+    end
+    server.get_shutdown_promise = function()
+      return Promise.new()
+    end
+    manager:start()
+    state.jobs.set_server(server)
+    assert.is_true(vim.wait(200, function()
+      return deferred ~= nil
+    end))
+    manager:stop()
+    deferred()
+    assert.equals(0, calls)
+  end)
+
+  it('ignores an old server shutdown after the server is replaced', function()
+    local shutdown = Promise.new()
+    local old = { url = 'http://old.test' }
+    old.get_spawn_promise = function()
+      return Promise.new():resolve(old)
+    end
+    old.get_shutdown_promise = function()
+      return shutdown
+    end
+    vim.defer_fn = function() end
+    manager:start()
+    state.jobs.set_server(old)
+    vim.wait(20, function()
+      return false
+    end)
+    local replacement = { url = 'http://new.test' }
+    replacement.get_spawn_promise = function()
+      return Promise.new()
+    end
+    replacement.get_shutdown_promise = function()
+      return Promise.new()
+    end
+    state.jobs.set_server(replacement)
+    local stopped = false
+    manager.server_subscription = {
+      shutdown = function()
+        stopped = true
+      end,
+    }
+    shutdown:resolve(true)
+    vim.wait(20, function()
+      return false
+    end)
+    assert.is_false(stopped)
   end)
 end)

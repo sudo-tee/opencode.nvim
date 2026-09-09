@@ -90,7 +90,7 @@ M.select_session = Promise.async(function(parent_id, scope)
     return
   end
 
-  ui.select_session(filtered_sessions, function(selected_session)
+  require('opencode.ui.session_picker').select(filtered_sessions, function(selected_session)
     if not selected_session then
       if state.ui.is_visible() then
         ui.focus_input()

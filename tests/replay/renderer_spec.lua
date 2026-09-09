@@ -6,7 +6,7 @@ local assert = require('luassert')
 local stub = require('luassert.stub')
 local config = require('opencode.config')
 
-local function assert_output_matches(expected, actual, name)
+local function assert_output_matches(expected, actual, name, expected_window_override)
   local normalized_extmarks = helpers.normalize_namespace_ids(actual.extmarks)
 
   local function legacy_effective_bottom(window)
@@ -131,31 +131,36 @@ local function assert_output_matches(expected, actual, name)
     )
   end
 
-  if expected.window then
-    local actual_window = actual.window or {}
-    assert.are.same(expected.window.cursor, actual_window.cursor, 'Window cursor mismatch')
-    assert.are.same(expected.window.line_count, actual_window.line_count, 'Window line_count mismatch')
+  local expected_window = expected.window
+  if expected_window_override then
+    expected_window = vim.tbl_deep_extend('force', vim.deepcopy(expected_window), expected_window_override)
+  end
 
-    local expected_has_effective_bottom = expected.window.effective_bottom ~= nil
+  if expected_window then
+    local actual_window = actual.window or {}
+    assert.are.same(expected_window.cursor, actual_window.cursor, 'Window cursor mismatch')
+    assert.are.same(expected_window.line_count, actual_window.line_count, 'Window line_count mismatch')
+
+    local expected_has_effective_bottom = expected_window.effective_bottom ~= nil
     if expected_has_effective_bottom then
       assert.are.same(
-        expected.window.effective_bottom,
+        expected_window.effective_bottom,
         actual_window.effective_bottom,
         'Window effective_bottom mismatch'
       )
       assert.is_true(
-        visible_bottom_equivalent(expected.window, actual_window),
+        visible_bottom_equivalent(expected_window, actual_window),
         string.format(
           'Window visible_bottom mismatch: expected %s, got %s (effective_bottom=%s)',
-          vim.inspect(expected.window.visible_bottom),
+          vim.inspect(expected_window.visible_bottom),
           vim.inspect(actual_window.visible_bottom),
-          vim.inspect(expected.window.effective_bottom)
+          vim.inspect(expected_window.effective_bottom)
         )
       )
     else
-      local expected_visible_bottom = expected.window.visible_bottom
+      local expected_visible_bottom = expected_window.visible_bottom
       local actual_visible_bottom = actual_window.visible_bottom
-      local expected_effective_bottom = legacy_effective_bottom(expected.window)
+      local expected_effective_bottom = legacy_effective_bottom(expected_window)
       local matches_legacy_bottom_follow = actual_visible_bottom == expected_visible_bottom
         or actual_visible_bottom == expected_effective_bottom
 
@@ -913,7 +918,7 @@ describe('renderer functional tests', function()
             end
 
             local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
-            assert_output_matches(expected, actual, name)
+            assert_output_matches(expected, actual, name, expected.session_window)
           end)
         end
       end

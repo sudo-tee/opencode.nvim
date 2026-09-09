@@ -14,8 +14,8 @@ local function with_output_open(callback, open_if_closed)
   local open_fn = open_if_closed and session_runtime.open_if_closed or session_runtime.open
   return function(...)
     local args = { ... }
-    open_fn({ new_session = false, focus = 'output' }):and_then(function()
-      callback(unpack(args))
+    return open_fn({ new_session = false, focus = 'output' }):and_then(function()
+      return callback(unpack(args))
     end)
   end
 end
@@ -43,30 +43,30 @@ end
 ---@param from_snapshot_id? string
 ---@param _to_snapshot_id? string|number
 M.actions.diff_open = with_output_open(function(from_snapshot_id, _to_snapshot_id)
-  git_review.review(extract_hash_arg(from_snapshot_id))
+  return git_review.review(extract_hash_arg(from_snapshot_id))
 end, true)
 
 M.actions.diff_next = with_output_open(function()
-  git_review.next_diff()
+  return git_review.next_diff()
 end, false)
 
 M.actions.diff_prev = with_output_open(function()
-  git_review.prev_diff()
+  return git_review.prev_diff()
 end, false)
 
 M.actions.diff_close = with_output_open(function()
-  git_review.close_diff()
+  return git_review.close_diff()
 end, false)
 
 ---@param from_snapshot_id? string
 M.actions.diff_revert_all = with_output_open(function(from_snapshot_id)
-  git_review.revert_all(from_snapshot_id)
+  return git_review.revert_all(from_snapshot_id)
 end, false)
 
 ---@param from_snapshot_id? string
 ---@param _to_snapshot_id? string
 M.actions.diff_revert_selected_file = with_output_open(function(from_snapshot_id, _to_snapshot_id)
-  git_review.revert_selected_file(from_snapshot_id)
+  return git_review.revert_selected_file(from_snapshot_id)
 end, false)
 
 ---@return string|nil
@@ -87,12 +87,12 @@ M.actions.diff_revert_all_last_prompt = with_output_open(function()
     return
   end
 
-  git_review.revert_all(snapshot_id)
+  return git_review.revert_all(snapshot_id)
 end, false)
 
 ---@param snapshot_id? string
 M.actions.diff_revert_this = with_output_open(function(snapshot_id)
-  git_review.revert_current(snapshot_id)
+  return git_review.revert_current(snapshot_id)
 end, false)
 
 M.actions.diff_revert_this_last_prompt = with_output_open(function()
@@ -101,21 +101,21 @@ M.actions.diff_revert_this_last_prompt = with_output_open(function()
     return
   end
 
-  git_review.revert_current(snapshot_id)
+  return git_review.revert_current(snapshot_id)
 end, false)
 
 ---@param restore_point_id? string
 M.actions.diff_restore_snapshot_file = with_output_open(function(restore_point_id)
-  git_review.restore_snapshot_file(restore_point_id)
+  return git_review.restore_snapshot_file(restore_point_id)
 end, false)
 
 ---@param restore_point_id? string
 M.actions.diff_restore_snapshot_all = with_output_open(function(restore_point_id)
-  git_review.restore_snapshot_all(restore_point_id)
+  return git_review.restore_snapshot_all(restore_point_id)
 end, false)
 
 M.actions.set_review_breakpoint = with_output_open(function()
-  git_review.create_snapshot()
+  return git_review.create_snapshot()
 end, false)
 
 ---@type table<string, fun(): any>

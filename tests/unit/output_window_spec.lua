@@ -278,6 +278,38 @@ describe('output_window.setup', function()
     assert.equals(7, foldclosed_at(7))
     assert.equals(7, foldclosed_at(8))
   end)
+
+  it('replaces stale manual folds when ranges change', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd', 'e', 'f' })
+
+    output_window.set_folds({ { from = 1, to = 5 } })
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    local fold_end = vim.api.nvim_win_call(win, function()
+      return vim.fn.foldclosedend(1)
+    end)
+
+    assert.equals(3, fold_end)
+  end)
+
+  it('preserves an open fold when its range changes', function()
+    output_window.setup({ output_buf = buf, output_win = win })
+    output_window.set_lines({ 'a', 'b', 'c', 'd', 'e', 'f' })
+    output_window.set_folds({ { from = 1, to = 3 } })
+
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! zo')
+    end)
+    output_window.set_folds({ { from = 1, to = 5 } })
+
+    local fold_closed = vim.api.nvim_win_call(win, function()
+      return vim.fn.foldclosed(1)
+    end)
+
+    assert.equals(-1, fold_closed)
+  end)
 end)
 
 describe('output_window extmarks', function()

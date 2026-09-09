@@ -486,7 +486,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     end
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, prefix_len, true)
 
-    if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
+    if formatted_data.fold_ranges then
       M.update_part_folds(part_id)
     end
 
@@ -670,6 +670,7 @@ function M.remove_part_now(part_id)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_part(part_id)
   ctx.part_folds[part_id] = nil
+  M.set_all_folds()
 end
 
 ---@param message_id string
@@ -692,6 +693,7 @@ function M.remove_message_now(message_id)
   local delta = -(cached.line_end - cached.line_start + 1)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_message(message_id)
+  M.set_all_folds()
 end
 
 return M

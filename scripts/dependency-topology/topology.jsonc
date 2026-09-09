@@ -48,7 +48,6 @@
 
         // UI modules that act as entry points: after user interaction,
         // they call api.lua (dispatch_action) to trigger commands.
-        "opencode.ui.session_picker",      // user picks session → api.select_session
         "opencode.ui.timeline_picker",     // user picks timeline → api.select_timeline_entry
         "opencode.ui.permission_window",   // user grants/denies → api.permission_grant/deny
         "opencode.ui.question_window",     // user answers question → handler callback
@@ -99,17 +98,12 @@
         "opencode.lsp.*",                  // LSP completion service
 
         // PR #360 services (split from core.lua)
-        "opencode.services.*",             // REVIEW: only exists on clean-code-remove-core branch.
-        //                                    Currently has 5 violations (services → UI entry),
-        //                                    same deps core.lua had — now visible because grouped.
-
-        "opencode.core",                   // REVIEW: god module (out-degree 21), being removed
-        //                                    by PR #360. Violations: core→api, core→permission_window.
+        "opencode.services.*",             // shared business operations
 
         // UI rendering & display
         "opencode.ui.ui",                  // window container management
         //                                    REVIEW: currently violates no_capabilities_to_entry
-        //                                    (→ api, autocmds, contextual_actions, session_picker).
+        //                                    (→ autocmds, contextual_actions).
         //                                    These deps should eventually be removed.
         "opencode.ui.input_window",        // input buffer management
         "opencode.ui.output_window",       // output buffer management
@@ -132,6 +126,16 @@
         "opencode.ui.mention",             // @mention UI
         "opencode.ui.file_picker",         // file browser
         "opencode.ui.picker",              // generic picker
+        "opencode.ui.session_picker",      // picker presentation; actions use session services
+        "opencode.ui.symbol_snapshot",
+        "opencode.ui.inline_input",
+        "opencode.ui.symbol_tokens",
+        "opencode.ui.reference_parser",
+        "opencode.ui.reference_facts",
+        "opencode.ui.event_scope",
+        "opencode.ui.float_layout",
+        "opencode.ui.skill_picker",
+        "opencode.ui.session_scope",
         "opencode.ui.history_picker",      // history browser
         "opencode.ui.mcp_picker",          // MCP tool browser
         "opencode.ui.permission.permission" // permission display
@@ -163,6 +167,8 @@
         "opencode.promise",                // async primitive (in-degree 28)
         "opencode.log",                    // logging
         "opencode.types",                  // type definitions (zero runtime code)
+        "opencode.auth",                   // credentials and authentication headers
+        "opencode.sha1",                   // hashing primitive
         "opencode.id",                     // ID generation
         "opencode.curl",                   // HTTP low-level wrapper
         "opencode.throttling_emitter",     // batching primitive
@@ -190,7 +196,7 @@
         "from": "entry_layer",
         "to": ["cli_infrastructure_layer"]
         // Entry should go through Dispatch/Capabilities, not call infra directly.
-        // Current violations (3): opencode→event_manager, health→opencode_server, health→server_job
+        // Startup and health entry points still call infrastructure directly.
       },
       {
         "name": "no_dispatch_to_entry",
@@ -203,16 +209,13 @@
         "from": "capabilities_layer",
         "to": ["entry_layer"]
         // Capabilities must not drive Entry UI or call api.lua.
-        // Current violations (15) — the biggest category. Root causes:
-        //   - renderer/formatter → permission_window/question_window (popup during render)
-        //   - core/renderer/ui.ui → api (capability modules triggering commands)
-        //   - ui.ui → autocmds/contextual_actions/session_picker (container knows entry modules)
+        // Remaining UI mounting and keymap wiring dependencies are tracked by scan output.
       },
       {
         "name": "no_capabilities_to_dispatch",
         "from": "capabilities_layer",
         "to": ["dispatch_layer"]
-        // Current violations (2): completion.commands→commands.slash, input_window→commands.slash
+        // completion.commands and input_window currently depend on commands.slash
         // These need slash command list for completion — may need a data-only export.
       },
       {

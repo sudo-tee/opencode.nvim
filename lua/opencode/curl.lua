@@ -110,31 +110,34 @@ end
 --- @param output string Raw curl output with headers
 --- @return table response Response object with status, headers, and body
 local function parse_response(output)
-  local lines = vim.split(output, '\n')
   local status = 200
   local headers = {}
   local body_start = 1
 
-  -- Find status line and headers
-  for i, line in ipairs(lines) do
-    if line:match('^HTTP/') then
-      status = math.floor(tonumber(line:match('HTTP/[%d%.]+%s+(%d+)')) or 200)
-    elseif line:match('^[%w%-]+:') then
+  -- curl may prepend proxy CONNECT and informational response headers.
+  while output:sub(body_start, body_start + 4) == 'HTTP/' do
+    local header_end, separator_end = output:find('\r?\n\r?\n', body_start)
+    if not header_end then
+      break
+    end
+    local block = output:sub(body_start, header_end - 1)
+    status = tonumber(block:match('^HTTP/[%d%.]+%s+(%d+)')) or 200
+    headers = {}
+    for line in block:gmatch('[^\r\n]+') do
       local key, value = line:match('^([%w%-]+):%s*(.*)$')
-      if key and value then
+      if key then
         headers[key:lower()] = value
       end
-    elseif line == '' then
-      body_start = i + 1
+    end
+    body_start = separator_end + 1
+    if
+      not (status >= 100 and status < 200 and status ~= 101)
+      and not block:match('^HTTP/[%d%.]+%s+200%s+[Cc]onnection established')
+    then
       break
     end
   end
-
-  local body_lines = {}
-  for i = body_start, #lines do
-    table.insert(body_lines, lines[i])
-  end
-  local body = table.concat(body_lines, '\n')
+  local body = output:sub(body_start)
 
   return {
     status = status,
@@ -170,16 +173,16 @@ function M.request(opts)
         if chunk then
           buffer = buffer .. chunk
 
-          -- Extract complete lines
-          while buffer:find('\n') do
-            local line, rest = buffer:match('([^\n]*\n)(.*)')
-            if line then
-              opts.stream(nil, line)
-              buffer = rest
-            else
+          local start = 1
+          while true do
+            local newline = buffer:find('\n', start, true)
+            if not newline then
               break
             end
+            opts.stream(nil, buffer:sub(start, newline))
+            start = newline + 1
           end
+          buffer = buffer:sub(start)
         end
       end,
       stderr = function(err, data)

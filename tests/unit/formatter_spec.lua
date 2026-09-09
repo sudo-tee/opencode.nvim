@@ -1022,6 +1022,29 @@ describe('formatter', function()
     assert.is_truthy(table.concat(output.lines, '\n'):find('read', 1, true))
   end)
 
+  it('marks task child-session actions to open in a tab when configured', function()
+    local original = config.values.ui.output.actions.open_in_new_tab
+    config.values.ui.output.actions.open_in_new_tab = true
+
+    local output = formatter.format_part({
+      id = 'prt_task_tab',
+      type = 'tool',
+      tool = 'task',
+      state = {
+        status = 'completed',
+        input = { description = 'inspect changes' },
+        metadata = { sessionId = 'ses_child_tab' },
+      },
+    }, {
+      info = { id = 'msg_task_tab', role = 'assistant', sessionID = 'ses_parent' },
+      parts = {},
+    }, true, { interactive = true })
+
+    config.values.ui.output.actions.open_in_new_tab = original
+
+    assert.same({ 'ses_child_tab', 'tab' }, output.actions[1].args)
+  end)
+
   describe('fold_exclude', function()
     local function make_bash_part()
       return {

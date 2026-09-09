@@ -239,8 +239,11 @@ require('opencode').setup({
       use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
       inline_other_input = true, -- If true, show an inline floating input for "Other" instead of vim.ui.input.
     },
-    output = {
-      filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
+     output = {
+       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
+       actions = {
+         open_in_new_tab = false, -- Open inline child-session and fork actions in a new panel tab
+       },
        compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
        tools = {
          show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)

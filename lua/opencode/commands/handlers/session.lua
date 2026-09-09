@@ -255,6 +255,9 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       end
       return
     end
+    if interaction == 'tab' then
+      return session_runtime.open_session_in_tab_by_id(direction)
+    end
     if interaction == 'picker' then
       return session_runtime.select_session(direction, 'project')
     end
@@ -636,7 +639,8 @@ function M.actions.timeline()
 end
 
 ---@param message_id? string
-function M.actions.fork_session(message_id)
+---@param open_in_new_tab? boolean|string
+function M.actions.fork_session(message_id, open_in_new_tab)
   return with_active_session('No active session to fork', function(state_obj)
     local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
     if not target then
@@ -657,7 +661,11 @@ function M.actions.fork_session(message_id)
         vim.schedule(function()
           if response and response.id then
             vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)
-            session_runtime.switch_session(response.id)
+            if open_in_new_tab == true or open_in_new_tab == 'tab' then
+              session_runtime.open_session_in_tab(response)
+            else
+              session_runtime.switch_session(response.id)
+            end
           else
             vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)
           end

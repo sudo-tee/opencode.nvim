@@ -30,6 +30,12 @@ describe('opencode.config', function()
     assert.is_true(config.values.ui.hide_single_tab)
   end)
 
+  it('supports opening inline output session actions in new tabs', function()
+    config.setup({ ui = { output = { actions = { open_in_new_tab = true } } } })
+
+    assert.is_true(config.values.ui.output.actions.open_in_new_tab)
+  end)
+
   it('merges user options with defaults', function()
     local custom_callback = function()
       return 'custom'

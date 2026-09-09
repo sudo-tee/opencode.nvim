@@ -285,6 +285,16 @@ M.open_session_in_tab = Promise.async(function(selected_session)
   return selected_session
 end)
 
+---@param session_id string
+---@return Promise<Session|nil>
+M.open_session_in_tab_by_id = Promise.async(function(session_id)
+  local selected_session = session.get_by_id(session_id):await()
+  if not selected_session then
+    return nil
+  end
+  return M.open_session_in_tab(selected_session):await()
+end)
+
 ---Open a new session in a logical tab inside the Opencode panel.
 ---@param title? string
 ---@return Promise<Session|nil>

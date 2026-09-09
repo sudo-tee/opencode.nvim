@@ -131,11 +131,11 @@ local function build_title(base_title, actions, support_multi)
   local legend = {}
   for _, action in pairs(actions) do
     if action.key and action.key[1] then
-      local label = action.label .. (action.multi_selection and support_multi ~= false and ' (multi)' or '')
+      local label = action.label .. (action.multi_selection and support_multi ~= false and '*' or '')
       table.insert(legend, action.key[1] .. ' ' .. label)
     end
   end
-  return base_title .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
+  return base_title .. (#legend > 0 and '' .. table.concat(legend, '') or '')
 end
 
 ---Telescope UI implementation
@@ -228,8 +228,8 @@ local function telescope_ui(opts)
       end
     end)(),
     layout_config = opts.width and {
-        width = opts.width + 7, -- extra space for telescope UI
-      } or nil,
+      width = opts.width + 7, -- extra space for telescope UI
+    } or nil,
     attach_mappings = function(prompt_bufnr, map)
       opts.close = function()
         selection_made = true
@@ -374,8 +374,8 @@ local function fzf_ui(opts)
         'start:+transform:' .. require('fzf-lua.shell').stringify_data(width_callback, opts)
       )) or nil,
       winopts = opts.width and {
-          width = opts.width + 8, -- extra space for fzf UI
-        } or nil,
+        width = opts.width + 8, -- extra space for fzf UI
+      } or nil,
       fzf_opts = {
         ['--prompt'] = opts.title .. ' > ',
         ['--multi'] = has_multi_action and true or nil,
@@ -583,13 +583,11 @@ local function mini_pick_ui(opts)
   local selection_made = false
 
   mini_pick.start({
-    window = opts.width
-        and {
-          config = {
-            width = opts.width + 2, -- extra space for mini.pick UI
-          },
-        }
-      or nil,
+    window = opts.width and {
+      config = {
+        width = opts.width + 2, -- extra space for mini.pick UI
+      },
+    } or nil,
     source = {
       items = items,
       name = opts.title,
@@ -767,7 +765,7 @@ local function select_picker_ui(opts)
     format_item = function(item)
       return opts.format_fn(item, opts.width):to_string()
     end,
-    prompt = opts.title --[[@as string]]
+    prompt = opts.title --[[@as string]],
   }, opts.callback)
 end
 

@@ -294,12 +294,16 @@
 
 ---@class OpencodeUIOutputConfig
 ---@field time_format string|nil # Custom os.date format for timestamps, e.g. '%m/%d %H:%M'. Uses fixed default when nil.
+---@field actions OpencodeUIOutputActionsConfig
 ---@field tools OpencodeUIOutputToolsConfig
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
 ---@field compact_assistant_headers boolean | 'minimal' | 'hidden' | 'full'
+
+---@class OpencodeUIOutputActionsConfig
+---@field open_in_new_tab boolean # Open inline session actions in a new panel tab
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config

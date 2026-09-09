@@ -1,6 +1,7 @@
 local state = require('opencode.state')
 local Dialog = require('opencode.ui.dialog')
 local session_scope = require('opencode.ui.session_scope')
+local formatter_utils = require('opencode.ui.formatter.utils')
 
 local M = {}
 
@@ -251,7 +252,6 @@ function M.format_display(output)
   end
 
   local icons = require('opencode.ui.icons')
-  local formatter_utils = require('opencode.ui.formatter.utils')
   local dialog_start_line = output:get_line_count()
 
   local progress = ''
@@ -328,7 +328,7 @@ function M.format_display(output)
     output:add_action({
       text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = { child_session_id },
+      args = formatter_utils.get_session_action_args(child_session_id),
       key = 'S',
       display_line = dialog_start_line,
       range = { from = dialog_start_line, to = math.max(dialog_start_line, output:get_line_count() - 1) },

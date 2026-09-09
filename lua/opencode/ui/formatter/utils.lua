@@ -15,6 +15,16 @@ function M.get_duration_text(part)
   return util.format_duration_seconds(time.start, time['end'])
 end
 
+---@param session_id string
+---@return string[]
+function M.get_session_action_args(session_id)
+  local actions = config.ui and config.ui.output and config.ui.output.actions
+  if actions and actions.open_in_new_tab then
+    return { session_id, 'tab' }
+  end
+  return { session_id }
+end
+
 ---@param icon string Icon text (result of `icons.get(key)`) or empty string
 ---@param tool_type string Tool type (e.g., 'run', 'read', 'edit', etc.)
 ---@param value string Value associated with the action (e.g., filename, command)

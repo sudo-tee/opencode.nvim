@@ -1,6 +1,7 @@
 local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
+local api = require('opencode.api')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 
@@ -262,7 +263,7 @@ function M.pick(sessions, callback, opts)
     },
     delete = {
       key = config.keymap.session_picker.delete_session,
-      label = 'delete',
+      label = 'del',
       multi_selection = true,
       fn = Promise.async(function(selected, opts)
         local state = require('opencode.state')
@@ -340,7 +341,7 @@ function M.pick(sessions, callback, opts)
     },
     open_in_tab = {
       key = config.keymap.session_picker.open_in_tab,
-      label = 'open in tab',
+      label = 'tab',
       fn = Promise.async(function(selected, opts)
         if opts.close then
           opts.close()
@@ -365,7 +366,7 @@ function M.pick(sessions, callback, opts)
     },
     toggle = {
       key = config.keymap.session_picker.toggle_scope,
-      label = 'toggle scope',
+      label = 'scope',
       fn = Promise.async(function(_, _)
         local session_runtime = require('opencode.services.session_runtime')
         local new_scope = (opts.scope == 'global') and 'project' or 'global'
@@ -439,7 +440,6 @@ end
 ---@param cb fun(session: Session|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.select(sessions, cb, opts)
-  local util = require('opencode.util')
   local picker = require('opencode.ui.picker')
 
   local success = M.pick(sessions, cb, opts)

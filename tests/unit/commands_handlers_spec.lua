@@ -645,6 +645,24 @@ describe('opencode.commands.handlers', function()
     assert.equal('noop', called_with.empty_policy)
   end)
 
+  it('navigate_session_tree opens a session in a tab when requested', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+    state.session.set_active({ id = 'parent-session' })
+
+    local opened_id
+    local original = session_runtime.open_session_in_tab_by_id
+    session_runtime.open_session_in_tab_by_id = function(session_id)
+      opened_id = session_id
+    end
+
+    session_handler.actions.navigate_session_tree('child-session', 'tab')
+
+    session_runtime.open_session_in_tab_by_id = original
+    assert.equal('child-session', opened_id)
+  end)
+
   describe('copy_message', function()
     local state
     local active_session

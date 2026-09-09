@@ -242,6 +242,7 @@
 ---@field display_model boolean
 ---@field display_context_size boolean
 ---@field display_cost boolean
+---@field hide_single_tab boolean
 ---@field window_highlight string
 ---@field icons { preset: 'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig

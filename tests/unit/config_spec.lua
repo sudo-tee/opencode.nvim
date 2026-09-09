@@ -24,6 +24,12 @@ describe('opencode.config', function()
     assert.same(config.defaults, config.values)
   end)
 
+  it('supports hiding the tab strip for a single session tab', function()
+    config.setup({ ui = { hide_single_tab = true } })
+
+    assert.is_true(config.values.ui.hide_single_tab)
+  end)
+
   it('merges user options with defaults', function()
     local custom_callback = function()
       return 'custom'

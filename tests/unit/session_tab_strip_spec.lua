@@ -2,13 +2,16 @@ local state = require('opencode.state')
 local store = require('opencode.state.store')
 local session_tabs = require('opencode.state.session_tabs')
 local session_tab_strip = require('opencode.ui.session_tab_strip')
+local config = require('opencode.config')
 
 describe('opencode session tab strip', function()
   local original_state
+  local original_config
   local windows
 
   before_each(function()
     original_state = vim.deepcopy(store.state())
+    original_config = vim.deepcopy(config.values)
     session_tabs.reset()
   end)
 
@@ -25,6 +28,7 @@ describe('opencode session tab strip', function()
     state.ui.set_windows(nil)
     windows = nil
     session_tabs.reset()
+    config.values = original_config
     for key, value in pairs(original_state) do
       store.set(key, value)
     end
@@ -71,5 +75,48 @@ describe('opencode session tab strip', function()
     end
     assert.is_true(groups.OpencodeSessionTabActive)
     assert.is_true(groups.OpencodeSessionTabInactive)
+  end)
+
+  it('hides the tab strip for one tab and restores it for multiple tabs', function()
+    config.values.ui.hide_single_tab = true
+
+    local first = session_tabs.ensure_current()
+    first.active_session = { id = 'session-one', title = 'First' }
+    state.session.set_active(first.active_session)
+
+    local output_buf = vim.api.nvim_create_buf(false, true)
+    local output_win = vim.api.nvim_open_win(output_buf, false, {
+      relative = 'editor',
+      width = 40,
+      height = 10,
+      row = 1,
+      col = 1,
+    })
+    windows = {
+      output_buf = output_buf,
+      output_win = output_win,
+      tab_strip_buf = session_tab_strip.create_buf(),
+      position = 'float',
+    }
+
+    session_tab_strip.create_window(windows)
+    state.ui.set_windows(windows)
+    session_tab_strip.setup(windows)
+
+    assert.is_nil(windows.tab_strip_win)
+
+    local second = session_tabs.create({ id = 'session-two', title = 'Second' })
+    session_tabs.activate(second)
+    state.ui.set_windows(windows)
+    vim.wait(50)
+
+    assert.is_not_nil(windows.tab_strip_win)
+    assert.is_true(vim.api.nvim_win_is_valid(windows.tab_strip_win))
+    assert.matches('Second', vim.api.nvim_buf_get_lines(windows.tab_strip_buf, 0, 1, false)[1])
+
+    session_tabs.remove(first)
+    vim.wait(50)
+
+    assert.is_nil(windows.tab_strip_win)
   end)
 end)

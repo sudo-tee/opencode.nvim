@@ -100,6 +100,12 @@ local runtimes = {}
 local next_id = 1
 local setup_done = false
 
+local function notify_change()
+  store.update('session_tabs_changed', function(current)
+    return (current or 0) + 1
+  end)
+end
+
 local function new_id()
   local id = 'tab-' .. next_id
   next_id = next_id + 1
@@ -337,6 +343,7 @@ function M.create(session)
   runtime.cost = 0
   runtime.tokens_count = 0
   runtimes[runtime.id] = runtime
+  notify_change()
   return runtime
 end
 
@@ -346,6 +353,7 @@ function M.remove(runtime)
     return
   end
   runtimes[runtime.id] = nil
+  notify_change()
   if store.get('active_session_tab') == runtime.id then
     store.set('active_session_tab', nil)
   end

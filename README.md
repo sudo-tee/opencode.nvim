@@ -228,6 +228,7 @@ require('opencode').setup({
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
+    hide_single_tab = false, -- Hide the panel tab strip when only one session tab exists
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     persist_state = true, -- Keep buffers when toggling/closing UI so window state restores quickly
     icons = {

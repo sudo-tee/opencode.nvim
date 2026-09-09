@@ -168,6 +168,7 @@ M.defaults = {
     display_model = true,
     display_context_size = true,
     display_cost = true,
+    hide_single_tab = true,
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder',
     persist_state = true,
     icons = {

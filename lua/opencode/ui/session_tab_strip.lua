@@ -1,5 +1,6 @@
 local state = require('opencode.state')
 local session_tabs = require('opencode.state.session_tabs')
+local config = require('opencode.config')
 
 local M = {}
 
@@ -109,14 +110,18 @@ end
 
 ---@param windows OpencodeWindowState
 ---@return boolean
-local function valid_windows(windows)
+local function valid_output_windows(windows)
   return windows
     and windows.output_win
-    and windows.tab_strip_win
     and windows.tab_strip_buf
     and vim.api.nvim_win_is_valid(windows.output_win)
-    and vim.api.nvim_win_is_valid(windows.tab_strip_win)
     and vim.api.nvim_buf_is_valid(windows.tab_strip_buf)
+end
+
+---@param windows OpencodeWindowState
+---@return boolean
+local function valid_windows(windows)
+  return valid_output_windows(windows) and windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win)
 end
 
 ---@param windows OpencodeWindowState
@@ -250,6 +255,9 @@ function M.create_window(windows)
   if not windows.output_win or not windows.tab_strip_buf or not vim.api.nvim_win_is_valid(windows.output_win) then
     return nil
   end
+  if windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win) then
+    return windows.tab_strip_win
+  end
 
   local output_config = vim.api.nvim_win_get_config(windows.output_win)
   if output_config.relative == '' then
@@ -267,6 +275,17 @@ function M.create_window(windows)
   return windows.tab_strip_win
 end
 
+---@param windows OpencodeWindowState
+local function close_window(windows)
+  if windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win) then
+    pcall(vim.api.nvim_win_close, windows.tab_strip_win, true)
+  end
+  windows.tab_strip_win = nil
+  if windows.tab_strip_buf then
+    ranges_by_buffer[windows.tab_strip_buf] = nil
+  end
+end
+
 ---@param windows? OpencodeWindowState
 ---@return boolean
 function M.mounted(windows)
@@ -276,8 +295,20 @@ end
 ---@param windows? OpencodeWindowState
 function M.update_window(windows)
   windows = windows or state.windows
-  if not valid_windows(windows) then
+  if not valid_output_windows(windows) then
     return
+  end
+
+  local tabs = session_tabs.list()
+  if config.ui.hide_single_tab and #tabs == 1 then
+    close_window(windows)
+    return
+  end
+
+  if not windows.tab_strip_win or not vim.api.nvim_win_is_valid(windows.tab_strip_win) then
+    if not M.create_window(windows) then
+      return
+    end
   end
 
   if vim.api.nvim_win_get_config(windows.tab_strip_win).relative ~= '' then
@@ -294,24 +325,23 @@ function M.create_buf()
 end
 
 local function on_change()
-  M.render()
+  M.update_window()
 end
 
 ---@param windows OpencodeWindowState
 function M.setup(windows)
-  if not valid_windows(windows) then
+  if not valid_output_windows(windows) then
     return false
   end
 
   if not subscribed then
     state.store.subscribe('active_session', on_change)
     state.store.subscribe('active_session_tab', on_change)
+    state.store.subscribe('session_tabs_changed', on_change)
     subscribed = true
   end
 
-  setup_window_options(windows)
-  setup_keymaps(windows.tab_strip_buf)
-  M.render(windows)
+  M.update_window(windows)
   return true
 end
 
@@ -320,20 +350,16 @@ end
 function M.close(preserve_buffer, windows)
   windows = windows or state.windows
   if windows then
-    if windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win) then
-      pcall(vim.api.nvim_win_close, windows.tab_strip_win, true)
-    end
+    close_window(windows)
     if not preserve_buffer and windows.tab_strip_buf and vim.api.nvim_buf_is_valid(windows.tab_strip_buf) then
       pcall(vim.api.nvim_buf_delete, windows.tab_strip_buf, { force = true })
-    end
-    if windows.tab_strip_buf then
-      ranges_by_buffer[windows.tab_strip_buf] = nil
     end
   end
 
   if subscribed then
     state.store.unsubscribe('active_session', on_change)
     state.store.unsubscribe('active_session_tab', on_change)
+    state.store.unsubscribe('session_tabs_changed', on_change)
     subscribed = false
   end
 end

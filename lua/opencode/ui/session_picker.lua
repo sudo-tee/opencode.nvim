@@ -1,7 +1,6 @@
 local M = {}
 local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
-local api = require('opencode.api')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 

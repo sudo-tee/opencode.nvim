@@ -107,15 +107,25 @@ M.send_message = Promise.async(function(prompt, opts)
   end
 
   local function update_sent_message_count(num)
-    if tab_id then
-      session_tabs.update_user_message_count(tab_id, session_id, num)
+    local runtime = tab_id and session_tabs.get(tab_id)
+    if tab_id and not runtime then
       return
     end
 
-    local sent_message_count = vim.deepcopy(state.user_message_count)
-    local new_value = (sent_message_count[session_id] or 0) + num
-    sent_message_count[session_id] = new_value >= 0 and new_value or 0
-    state.session.set_user_message_count(sent_message_count)
+    local counts = runtime and runtime.user_message_count or state.user_message_count
+    local old_count = counts[session_id] or 0
+    local new_count = math.max(0, old_count + num)
+    if tab_id then
+      session_tabs.update_user_message_count(tab_id, session_id, num)
+    else
+      local sent_message_count = vim.deepcopy(counts)
+      sent_message_count[session_id] = new_count
+      state.session.set_user_message_count(sent_message_count)
+    end
+
+    if old_count > 0 and new_count == 0 then
+      session_runtime.on_session_request_completed(session_id)
+    end
   end
 
   update_sent_message_count(1)

@@ -14,11 +14,28 @@ end
 
 ---@param model string|nil
 function M.set_model(model)
-  return store.set('current_model', model)
+  return store.batch(function()
+    if store.get('current_model') ~= model then
+      store.set('current_variant', M.saved_variant(model))
+    end
+    return store.set('current_model', model)
+  end)
+end
+
+---@param model string|nil
+---@return string|nil
+function M.saved_variant(model)
+  local provider, model_id
+  if model then
+    provider, model_id = model:match('^(.-)/(.+)$')
+  end
+  if provider and model_id then
+    return require('opencode.model_state').get_variant(provider, model_id)
+  end
 end
 
 function M.clear_model()
-  return store.set('current_model', nil)
+  return M.set_model(nil)
 end
 
 function M.clear()

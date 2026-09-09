@@ -450,6 +450,9 @@ function M.update_model_state(tab_id, update)
   end
 
   if update.model ~= nil then
+    if runtime.current_model ~= update.model then
+      runtime.current_variant = require('opencode.state.model').saved_variant(update.model)
+    end
     runtime.current_model = update.model
   end
   if update.mode ~= nil then
@@ -463,6 +466,7 @@ function M.update_model_state(tab_id, update)
     store.batch(function()
       if update.model ~= nil then
         store.set('current_model', update.model)
+        store.set('current_variant', runtime.current_variant)
       end
       if update.mode ~= nil then
         store.set('current_mode', update.mode)

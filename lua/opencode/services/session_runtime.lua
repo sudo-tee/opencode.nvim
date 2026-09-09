@@ -555,20 +555,22 @@ M.opencode_ok = Promise.async(function()
   return true
 end)
 
-M._on_user_message_count_change = Promise.async(function(_, new, old)
+M._on_user_message_count_change = Promise.async(function()
   require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
+end)
 
-  if config.hooks and config.hooks.on_done_thinking then
-    local all_sessions = session.get_all_workspace_sessions():await()
-    local done_sessions = vim.tbl_filter(function(s)
-      local msg_count = new[s.id] or 0
-      local old_msg_count = (old and old[s.id]) or 0
-      return msg_count == 0 and old_msg_count > 0
-    end, all_sessions or {})
+---Notify completion of the last outstanding local request for a session.
+---@param session_id string
+---@return Promise<nil>
+M.on_session_request_completed = Promise.async(function(session_id)
+  local hook = config.hooks and config.hooks.on_done_thinking
+  if not hook then
+    return
+  end
 
-    for _, done_session in ipairs(done_sessions) do
-      pcall(config.hooks.on_done_thinking, done_session)
-    end
+  local completed_session = session.get_by_id(session_id):await()
+  if completed_session then
+    pcall(hook, completed_session)
   end
 end)
 

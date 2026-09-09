@@ -602,8 +602,8 @@ describe('opencode.commands.handlers', function()
     session_handler.actions.prev_session_tab = function()
       called_with.previous = true
     end
-    session_handler.actions.select_session_tab = function()
-      called_with.select = true
+    session_handler.actions.select_session_tab = function(index)
+      called_with.select = index
     end
     session_handler.actions.close_session_tab = function()
       called_with.close = true
@@ -612,7 +612,7 @@ describe('opencode.commands.handlers', function()
     session_handler.command_defs.tab.execute({ 'next' })
     session_handler.command_defs.tab.execute({ 'new', 'named', 'tab' })
     session_handler.command_defs.tab.execute({ 'previous' })
-    session_handler.command_defs.tab.execute({ 'select' })
+    session_handler.command_defs.tab.execute({ 'select', '2' })
     session_handler.command_defs.tab.execute({ 'close' })
 
     session_handler.actions.next_session_tab = original_actions.next
@@ -624,7 +624,7 @@ describe('opencode.commands.handlers', function()
     assert.is_true(called_with.next)
     assert.equal('named tab', called_with.new)
     assert.is_true(called_with.previous)
-    assert.is_true(called_with.select)
+    assert.equal('2', called_with.select)
     assert.is_true(called_with.close)
   end)
 

@@ -318,13 +318,31 @@ M.switch_session_tab = Promise.async(function(tab_id)
   session_tabs.activate(runtime)
   context.restore(session_tabs.get_context())
 
+  local focus = state.last_focused_opencode_window == 'output' and 'output' or 'input'
   M.open({
-    focus = 'input',
+    focus = focus,
     new_session = false,
     open_action = 'restore_hidden',
   }):await()
 
   return runtime.active_session
+end)
+
+---Switch to a logical panel tab by its displayed index.
+---@param index integer|string
+---@return Promise<Session|nil>
+M.switch_session_tab_by_index = Promise.async(function(index)
+  index = tonumber(index)
+  if not index or index < 1 or index % 1 ~= 0 then
+    return nil
+  end
+
+  local runtime = session_tabs.list()[index]
+  if not runtime then
+    return nil
+  end
+
+  return M.switch_session_tab(runtime.id):await()
 end)
 
 ---Switch to the next or previous logical panel tab.

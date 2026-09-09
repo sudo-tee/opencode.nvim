@@ -70,6 +70,19 @@ describe('opencode session panel tabs', function()
     assert.equals('session-two', state.active_session.id)
   end)
 
+  it('switches to a panel tab by displayed index', function()
+    local session_runtime = require('opencode.services.session_runtime')
+    local first = session_tabs.ensure_current()
+    local second = session_tabs.create({ id = 'session-two' })
+    local switch_stub = stub(session_runtime, 'switch_session_tab').returns(Promise.new():resolve(nil))
+
+    session_runtime.switch_session_tab_by_index(2):await()
+
+    assert.stub(switch_stub).was_called_with(second.id)
+    assert.equals('tab-1', first.id)
+    switch_stub:revert()
+  end)
+
   it('mounts each tab with its own output and input buffers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local server_job = require('opencode.server_job')
@@ -129,10 +142,12 @@ describe('opencode session panel tabs', function()
     session_runtime.switch_session_tab(first_tab.id):await()
     assert.equals(first_output, state.windows.output_buf)
     assert.same({ 'first input' }, vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false))
+    assert.equals(state.windows.output_win, vim.api.nvim_get_current_win())
 
     session_runtime.switch_session_tab(second_tab.id):await()
     assert.equals(second_output, state.windows.output_buf)
     assert.same({ 'second input' }, vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false))
+    assert.equals(state.windows.input_win, vim.api.nvim_get_current_win())
 
     if state.windows then
       ui.teardown_visible_windows(state.windows)

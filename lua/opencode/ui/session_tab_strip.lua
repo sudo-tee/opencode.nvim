@@ -7,9 +7,22 @@ local M = {}
 local namespace = vim.api.nvim_create_namespace('opencode_session_tab_strip')
 local ranges_by_buffer = {}
 local subscribed = false
+local minimum_tab_width = 12
 
 local function display_width(text)
   return vim.fn.strdisplaywidth(text)
+end
+
+---@param title string
+---@return boolean
+local function is_generated_title(title)
+  local timestamp = title:match('^New session %- (.+)$')
+  if not timestamp then
+    return false
+  end
+
+  return timestamp:match('^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d%.%d+Z$') ~= nil
+    or timestamp:match('^%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%dZ$') ~= nil
 end
 
 ---@param text string
@@ -43,6 +56,9 @@ local function tab_title(tab)
   if type(title) ~= 'string' or vim.trim(title) == '' then
     return 'New session'
   end
+  if is_generated_title(title) then
+    return 'New session'
+  end
   return title
 end
 
@@ -54,32 +70,93 @@ local function build_horizontal_content(tabs, width)
     return '', {}, {}
   end
 
-  local separator = ' '
+  local separator = ' │ '
   local separator_width = display_width(separator)
-  local segment_width = math.max(3, math.floor((width - separator_width * math.max(0, #tabs - 1)) / #tabs))
   local active_id = session_tabs.active_id()
+
+  local function fit_layout(visible_count)
+    local overflow_count = #tabs - visible_count
+    local marker = overflow_count > 0 and ('+' .. overflow_count) or ''
+    local separator_count = visible_count - 1 + (overflow_count > 0 and 1 or 0)
+    local segment_width = math.max(
+      minimum_tab_width,
+      math.floor((width - separator_width * separator_count - display_width(marker)) / visible_count)
+    )
+    local total_width = segment_width * visible_count + separator_width * separator_count + display_width(marker)
+    return segment_width, total_width, overflow_count, marker
+  end
+
+  local visible_count = #tabs
+  local segment_width, total_width, overflow_count, marker = fit_layout(visible_count)
+  if total_width > width then
+    local layout_found = false
+    for candidate = #tabs - 1, 1, -1 do
+      local candidate_width, candidate_total, candidate_overflow, candidate_marker = fit_layout(candidate)
+      if candidate_total <= width then
+        visible_count = candidate
+        segment_width = candidate_width
+        total_width = candidate_total
+        overflow_count = candidate_overflow
+        marker = candidate_marker
+        layout_found = true
+        break
+      end
+    end
+    if not layout_found then
+      visible_count = 1
+      segment_width, total_width, overflow_count, marker = fit_layout(visible_count)
+    end
+  end
+
+  local active_index
+  for index, tab in ipairs(tabs) do
+    if tab.id == active_id then
+      active_index = index
+      break
+    end
+  end
+
+  local visible_tabs = {}
+  local first_count = visible_count
+  if active_index and active_index > visible_count then
+    first_count = visible_count - 1
+  end
+  for index = 1, first_count do
+    visible_tabs[#visible_tabs + 1] = { index = index, tab = tabs[index] }
+  end
+  if active_index and active_index > visible_count then
+    visible_tabs[#visible_tabs + 1] = { index = active_index, tab = tabs[active_index] }
+  end
+
   local parts = {}
   local ranges = {}
   local highlights = {}
   local byte_col = 0
   local display_col = 0
 
-  for index, tab in ipairs(tabs) do
-    if index > 1 then
+  for visible_index, entry in ipairs(visible_tabs) do
+    local index = entry.index
+    local tab = entry.tab
+    if visible_index > 1 then
+      local separator_start = byte_col
       parts[#parts + 1] = separator
       byte_col = byte_col + #separator
       display_col = display_col + separator_width
+      highlights[#highlights + 1] = {
+        group = 'OpencodeSessionTabSeparator',
+        start_col = separator_start,
+        end_col = byte_col,
+      }
     end
 
-    local marker = tab.id == active_id and '> ' or '  '
-    local prefix = marker .. '[' .. index .. ' '
-    local suffix = ']'
-    local title_width = segment_width - display_width(prefix) - display_width(suffix)
+    local index_text = tostring(index)
+    local prefix = index_text .. ' '
+    local title_width = segment_width - display_width(prefix)
     local label
     if title_width > 0 then
-      label = prefix .. truncate(tab_title(tab), title_width) .. suffix
+      label = prefix .. truncate(tab_title(tab), title_width)
     else
-      label = marker .. '[' .. index .. ']'
+      label = index_text
       if display_width(label) > segment_width then
         label = truncate(tostring(index), segment_width)
       end
@@ -101,6 +178,41 @@ local function build_horizontal_content(tabs, width)
     highlights[#highlights + 1] = {
       group = tab.id == active_id and 'OpencodeSessionTabActive' or 'OpencodeSessionTabInactive',
       start_col = start_byte,
+      end_col = byte_col,
+    }
+    highlights[#highlights + 1] = {
+      group = 'OpencodeSessionTabIndex',
+      start_col = start_byte,
+      end_col = start_byte + #index_text,
+      hl_mode = 'combine',
+    }
+  end
+
+  if overflow_count > 0 then
+    local separator_start = byte_col
+    parts[#parts + 1] = separator
+    byte_col = byte_col + #separator
+    display_col = display_col + separator_width
+    highlights[#highlights + 1] = {
+      group = 'OpencodeSessionTabSeparator',
+      start_col = separator_start,
+      end_col = byte_col,
+    }
+
+    local marker_start = byte_col
+    parts[#parts + 1] = marker
+    byte_col = byte_col + #marker
+    display_col = display_col + display_width(marker)
+    ranges[#ranges + 1] = {
+      open_picker = true,
+      start_byte = marker_start,
+      end_byte = byte_col,
+      start_display = display_col - display_width(marker),
+      end_display = display_col,
+    }
+    highlights[#highlights + 1] = {
+      group = 'OpencodeSessionTabOverflow',
+      start_col = marker_start,
       end_col = byte_col,
     }
   end
@@ -156,10 +268,10 @@ end
 ---@param buffer integer
 ---@param display_column integer
 ---@return string|nil
-local function tab_id_at_display_column(buffer, display_column)
+local function range_at_display_column(buffer, display_column)
   for _, range in ipairs(ranges_by_buffer[buffer] or {}) do
     if display_column >= range.start_display and display_column < range.end_display then
-      return range.tab_id
+      return range
     end
   end
   return nil
@@ -167,11 +279,11 @@ end
 
 ---@param buffer integer
 ---@param byte_column integer
----@return string|nil
-local function tab_id_at_byte_column(buffer, byte_column)
+---@return table|nil
+local function range_at_byte_column(buffer, byte_column)
   for _, range in ipairs(ranges_by_buffer[buffer] or {}) do
     if byte_column >= range.start_byte and byte_column < range.end_byte then
-      return range.tab_id
+      return range
     end
   end
   return nil
@@ -185,16 +297,28 @@ local function select_tab(tab_id)
   require('opencode.services.session_runtime').switch_session_tab(tab_id)
 end
 
+---@param range table|nil
+local function select_range(range)
+  if not range then
+    return
+  end
+  if range.open_picker then
+    require('opencode.ui.session_tab_picker').select()
+    return
+  end
+  select_tab(range.tab_id)
+end
+
 local function click_tab()
   local buffer = vim.api.nvim_get_current_buf()
   local mouse = vim.fn.getmousepos()
-  select_tab(tab_id_at_display_column(buffer, math.max(0, mouse.column - 1)))
+  select_range(range_at_display_column(buffer, math.max(0, mouse.column - 1)))
 end
 
 local function select_tab_under_cursor()
   local buffer = vim.api.nvim_get_current_buf()
   local cursor = vim.api.nvim_win_get_cursor(0)
-  select_tab(tab_id_at_byte_column(buffer, cursor[2]))
+  select_range(range_at_byte_column(buffer, cursor[2]))
 end
 
 ---@param buffer integer
@@ -223,6 +347,7 @@ function M.render(windows)
     vim.api.nvim_buf_set_extmark(buffer, namespace, 0, highlight.start_col, {
       end_col = highlight.end_col,
       hl_group = highlight.group,
+      hl_mode = highlight.hl_mode,
     })
   end
   vim.api.nvim_set_option_value('modifiable', false, { buf = buffer })

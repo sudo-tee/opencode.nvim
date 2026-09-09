@@ -121,7 +121,11 @@ function M.actions.open_session_tab(title)
   return session_runtime.open_session_tab(title)
 end
 
-function M.actions.select_session_tab()
+---@param index? string|number
+function M.actions.select_session_tab(index)
+  if index ~= nil then
+    return session_runtime.switch_session_tab_by_index(index)
+  end
   return require('opencode.ui.session_tab_picker').select()
 end
 
@@ -689,8 +693,8 @@ local session_subcommand_actions = {
   tab = function(args)
     return M.actions.open_session_tab(parse_title(args, 2))
   end,
-  tabs = function()
-    return M.actions.select_session_tab()
+  tabs = function(args)
+    return M.actions.select_session_tab(args[2])
   end,
   next_tab = function()
     return M.actions.next_session_tab()
@@ -752,8 +756,8 @@ local tab_subcommand_actions = {
   previous = function()
     return M.actions.prev_session_tab()
   end,
-  select = function()
-    return M.actions.select_session_tab()
+  select = function(args)
+    return M.actions.select_session_tab(args[2])
   end,
   close = function()
     return M.actions.close_session_tab()
@@ -797,7 +801,9 @@ M.command_defs = {
   },
   select_session_tab = {
     desc = 'Select an Opencode panel tab',
-    execute = M.actions.select_session_tab,
+    execute = function(args)
+      return M.actions.select_session_tab(args[1])
+    end,
   },
   next_session_tab = {
     desc = 'Switch to the next Opencode panel tab',

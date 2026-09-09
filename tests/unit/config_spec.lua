@@ -52,6 +52,19 @@ describe('opencode.config', function()
     assert.equal('jump_to_target_at_cursor', output_keymap['gd'][1])
   end)
 
+  it('provides direct keymaps for the first nine session tabs', function()
+    for index = 1, 9 do
+      local mapping = config.defaults.keymap.editor['<leader>o' .. index]
+      assert.same('select_session_tab', mapping[1])
+      assert.same({ index }, mapping[2])
+    end
+  end)
+
+  it('maps panel-tab close separately from closing the Opencode window', function()
+    assert.equal('close', config.defaults.keymap.editor['<leader>oq'][1])
+    assert.equal('close_session_tab', config.defaults.keymap.editor['<leader>oQ'][1])
+  end)
+
   describe('update_keymap_prefix', function()
     local function test_prefix_update(opts)
       config.values.keymap = vim.deepcopy(opts.given)

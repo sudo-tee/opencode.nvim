@@ -409,7 +409,6 @@ local function build_float_config(output_win)
     row = 0,
     col = 0,
     focusable = true,
-    mouse = true,
     style = 'minimal',
     border = 'none',
     zindex = 50,

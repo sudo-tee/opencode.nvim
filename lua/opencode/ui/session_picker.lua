@@ -228,6 +228,7 @@ end
 ---@param callback fun(session: Session|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.pick(sessions, callback, opts)
+  local api = require('opencode.api')
   local actions = {
     rename = {
       key = config.keymap.session_picker.rename_session,

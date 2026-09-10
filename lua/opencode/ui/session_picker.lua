@@ -342,11 +342,20 @@ function M.pick(sessions, callback, opts)
     open_in_tab = {
       key = config.keymap.session_picker.open_in_tab,
       label = 'tab',
+      multi_selection = true,
       fn = Promise.async(function(selected, opts)
+        local session_runtime = require('opencode.services.session_runtime')
+        local sessions = type(selected) == 'table' and selected.id == nil and selected or { selected }
+
         if opts.close then
           opts.close()
+          Promise.delay(0):await()
         end
-        return require('opencode.services.session_runtime').open_session_in_tab(selected):await()
+
+        for _, session in ipairs(sessions) do
+          session_runtime.open_session_in_tab(session):await()
+          Promise.delay(0):await()
+        end
       end),
     },
     fork = {

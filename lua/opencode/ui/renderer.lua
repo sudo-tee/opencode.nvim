@@ -573,6 +573,10 @@ function M.render_full_session()
       or not state.active_session
       or state.active_session.id ~= target_session_id
     then
+      local runtime = session_tabs.get(target_tab_id)
+      if runtime then
+        runtime.renderer_dirty = true
+      end
       return nil
     end
     M._render_full_session_data(session_data, {

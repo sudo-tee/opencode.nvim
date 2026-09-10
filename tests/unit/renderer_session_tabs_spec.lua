@@ -3,6 +3,7 @@ local store = require('opencode.state.store')
 local session_tabs = require('opencode.state.session_tabs')
 local renderer = require('opencode.ui.renderer')
 local renderer_ctx = require('opencode.ui.renderer.ctx')
+local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 
@@ -151,5 +152,38 @@ describe('renderer session tab contexts', function()
     assert.stub(render_stub).was_called(1)
     assert.is_false(second.renderer_dirty)
     render_stub:revert()
+  end)
+
+  it('marks an in-flight render dirty when its tab becomes inactive', function()
+    local first = session_tabs.ensure_current()
+    first.active_session = { id = 'session-one', title = 'One' }
+    local second = session_tabs.create({ id = 'session-two', title = 'Two' })
+
+    output_buf = vim.api.nvim_create_buf(false, true)
+    output_win = vim.api.nvim_open_win(output_buf, false, {
+      relative = 'editor',
+      width = 60,
+      height = 10,
+      row = 1,
+      col = 1,
+    })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.jobs.set_api_client({})
+    store.set_raw('active_session', first.active_session)
+    store.set_raw('active_session_tab', first.id)
+
+    local messages = Promise.new()
+    local messages_stub = stub(session, 'get_messages').returns(messages)
+    renderer.render_full_session()
+
+    store.set_raw('active_session', second.active_session)
+    store.set_raw('active_session_tab', second.id)
+    messages:resolve({})
+    vim.wait(50, function()
+      return first.renderer_dirty
+    end)
+
+    assert.is_true(first.renderer_dirty)
+    messages_stub:revert()
   end)
 end)

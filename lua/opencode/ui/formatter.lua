@@ -619,12 +619,22 @@ local function in_ranges(ranges, start_pos, end_pos)
   return false
 end
 
+local function available_file_list(context)
+  local files = {}
+  local seen = {}
+  for _, path in ipairs((context and context.current_files) or {}) do
+    if type(path) == 'string' and path ~= '' and not seen[path] then
+      seen[path] = true
+      files[#files + 1] = path
+    end
+  end
+  return files
+end
+
 local function available_file_set(context)
   local files = {}
-  for _, path in ipairs((context and context.current_files) or {}) do
-    if type(path) == 'string' and path ~= '' then
-      files[path] = true
-    end
+  for _, path in ipairs(available_file_list(context)) do
+    files[path] = true
   end
   return files
 end
@@ -642,14 +652,6 @@ local function resolve_available_path(path, available_files)
   end
 end
 
-local function add_candidate_file(candidates, seen, available_files, path)
-  local absolute = resolve_available_path(path, available_files)
-  if absolute and not seen[absolute] then
-    seen[absolute] = true
-    candidates[#candidates + 1] = absolute
-  end
-end
-
 local function output_range_for_absolute_range(rendered, first_output_line, start_offset, end_offset)
   local line_start = 1
   for line_idx, line in ipairs(vim.split(rendered, '\n')) do
@@ -663,43 +665,6 @@ local function output_range_for_absolute_range(rendered, first_output_line, star
     end
     line_start = line_start + #line + 1
   end
-end
-
-local function current_part_index(message, part)
-  if not (message and message.parts and part and part.id) then
-    return nil
-  end
-  for index, candidate in ipairs(message.parts) do
-    if candidate.id == part.id then
-      return index
-    end
-  end
-end
-
-local function previous_part_candidate_files(message, part, context, available_files)
-  local index = current_part_index(message, part)
-  if not index then
-    return {}
-  end
-
-  local part_index_by_id = {}
-  for part_index, message_part in ipairs(message.parts or {}) do
-    if message_part.id then
-      part_index_by_id[message_part.id] = part_index
-    end
-  end
-
-  local candidates = {}
-  local seen = {}
-  local message_id = message.info and message.info.id
-  for _, ref in ipairs((context and context.current_refs) or {}) do
-    local ref_part_index = part_index_by_id[ref.part_id]
-    if ref.message_id == message_id and ref_part_index and ref_part_index < index then
-      add_candidate_file(candidates, seen, available_files, ref.path)
-    end
-  end
-
-  return candidates
 end
 
 local function part_text_trim_offset(part, text)
@@ -829,22 +794,13 @@ local function add_file_reference_targets(output, rendered, rendered_reference_r
   end
 end
 
-local function add_symbol_reference_targets(
-  output,
-  rendered,
-  rendered_mention_ranges,
-  first_line_idx,
-  part,
-  message,
-  context
-)
+local function add_symbol_reference_targets(output, rendered, rendered_mention_ranges, first_line_idx, context)
   if not (context and context.interactive and context.symbol_cycle) then
     return {}
   end
 
   local symbol_snapshot = require('opencode.ui.symbol_snapshot')
-  local available_files = available_file_set(context)
-  local prior_part_candidates = previous_part_candidate_files(message, part, context, available_files)
+  local candidates = available_file_list(context)
   local line_start = 1
   local targeted_tokens = {}
 
@@ -859,23 +815,14 @@ local function add_symbol_reference_targets(
       local abs_start = line_start + start_pos - 1
       local abs_end = line_start + end_pos - 1
 
-      if token and not in_ranges(rendered_mention_ranges, abs_start, abs_end) then
-        local candidates = {}
-        local seen = {}
-        for _, range in ipairs(rendered_mention_ranges) do
-          if range.end_offset < abs_start then
-            add_candidate_file(candidates, seen, available_files, range.path)
-          end
-        end
-        if #candidates == 0 then
-          candidates = prior_part_candidates
-        end
-
-        if #candidates > 0 and #symbol_snapshot.targets_for_token(context.symbol_cycle, token, candidates) > 0 then
+      -- Empty-candidate guard keeps the zero-lookup contract testable here;
+      -- targets_for_token re-checks internally for other callers.
+      if token and not in_ranges(rendered_mention_ranges, abs_start, abs_end) and #candidates > 0 then
+        local targets = symbol_snapshot.targets_for_token(context.symbol_cycle, token, candidates)
+        if #targets > 0 then
           output:add_target({
             kind = 'symbol',
             token = token,
-            candidate_files = vim.deepcopy(candidates),
             range = {
               line = first_line_idx + line_idx,
               start_col = start_pos - 1,
@@ -931,7 +878,7 @@ function M._format_assistant_message(output, text, part, message, context)
   end
   add_file_reference_highlights(output, rendered, rendered_reference_ranges, first_line_idx)
   local targeted_tokens =
-    add_symbol_reference_targets(output, rendered, rendered_mention_ranges, first_line_idx, part, message, context)
+    add_symbol_reference_targets(output, rendered, rendered_mention_ranges, first_line_idx, context)
   add_symbol_reference_highlights(output, rendered, rendered_mention_ranges, targeted_tokens, first_line_idx)
 end
 

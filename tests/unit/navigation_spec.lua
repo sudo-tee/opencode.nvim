@@ -5,6 +5,7 @@ local navigation = require('opencode.ui.navigation')
 local config = require('opencode.config')
 local ui = require('opencode.ui.ui')
 local renderer = require('opencode.ui.renderer')
+local reference_facts = require('opencode.ui.reference_facts')
 local state = require('opencode.state')
 
 local existing_path = 'lua/opencode/ui/navigation.lua'
@@ -203,7 +204,6 @@ describe('output token navigation', function()
       {
         kind = 'symbol',
         token = 'foo',
-        candidate_files = { existing_path },
         part_id = 'part_1',
         message_id = 'msg_1',
       },
@@ -250,24 +250,24 @@ describe('output token navigation', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
     local original_navigate_to_location = navigation.navigate_to_location
     local navigated
-    local target_stub = stub(renderer, 'get_target_at_position').returns({
-      kind = 'symbol',
-      token = 'foo',
-      candidate_files = { existing_path },
-      part_id = 'part_1',
-      message_id = 'msg_1',
-    })
-    package.loaded['opencode.ui.symbol_snapshot'] = {
-      new_cycle = function()
-        return { cycle = 'fresh' }
-      end,
-      targets_for_token = function(cycle, token, candidate_files)
-        assert.same({ cycle = 'fresh' }, cycle)
-        assert.equal('foo', token)
-        assert.same({ existing_path }, candidate_files)
-        return { { token = 'foo', path = existing_path, line = 3, col = 1 } }
-      end,
-    }
+      local target_stub = stub(renderer, 'get_target_at_position').returns({
+        kind = 'symbol',
+        token = 'foo',
+        part_id = 'part_1',
+        message_id = 'msg_1',
+      })
+      local available_stub = stub(reference_facts, 'available_files').returns({ existing_path })
+      package.loaded['opencode.ui.symbol_snapshot'] = {
+        new_cycle = function()
+          return { cycle = 'fresh' }
+        end,
+        targets_for_token = function(cycle, token, candidate_files)
+          assert.same({ cycle = 'fresh' }, cycle)
+          assert.equal('foo', token)
+          assert.same({ existing_path }, candidate_files)
+          return { { token = 'foo', path = existing_path, line = 3, col = 1 } }
+        end,
+      }
     navigation.navigate_to_location = function(path, line, col)
       navigated = { path = path, line = line, col = col }
       return true
@@ -303,7 +303,6 @@ describe('output token navigation', function()
     local target_stub = stub(renderer, 'get_target_at_position').returns({
       kind = 'symbol',
       token = 'foo',
-      candidate_files = { existing_path },
       part_id = 'part_1',
       message_id = 'msg_1',
     })
@@ -315,12 +314,14 @@ describe('output token navigation', function()
         return {}
       end,
     }
+    local available_stub = stub(reference_facts, 'available_files').returns({ existing_path })
 
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'foo' })
     vim.api.nvim_win_set_cursor(output_win, { 1, 0 })
     navigation.jump_to_target_at_cursor()
 
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
+    available_stub:revert()
     target_stub:revert()
 
     assert.stub(notify_stub).was_called_with('No symbol target found: foo', vim.log.levels.INFO)
@@ -343,7 +344,6 @@ describe('output token navigation', function()
     local target_stub = stub(renderer, 'get_target_at_position').returns({
       kind = 'symbol',
       token = 'foo',
-      candidate_files = { existing_path },
       part_id = 'part_1',
       message_id = 'msg_1',
     })
@@ -402,7 +402,6 @@ describe('output token navigation', function()
     local source_target = {
       kind = 'symbol',
       token = 'foo',
-      candidate_files = { existing_path },
       part_id = 'part_1',
       message_id = 'msg_1',
     }

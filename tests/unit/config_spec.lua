@@ -43,6 +43,7 @@ describe('opencode.config', function()
 
     assert.equal('jump_to_file', output_keymap['gf'][1])
     assert.equal('jump_to_target_at_cursor', output_keymap['<CR>'][1])
+    assert.equal('jump_to_target_at_cursor', output_keymap['gd'][1])
   end)
 
   describe('update_keymap_prefix', function()

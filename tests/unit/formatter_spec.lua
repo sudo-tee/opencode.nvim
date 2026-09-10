@@ -519,12 +519,8 @@ describe('formatter', function()
     assert.is_nil(output.extmarks[0])
   end)
 
-  it('creates symbol targets from same-part file references before the token', function()
+  it('creates symbol targets from any available file, not only preceding references', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
-    local text = 'See `src/foo.lua` foo'
-    local ref_start, ref_end = text:find('`src/foo.lua`', 1, true)
-    local part = { id = 'part_file_ref', text = text }
-    local message = { info = { id = 'msg_file_ref' }, parts = { part } }
     package.loaded['opencode.ui.symbol_snapshot'] = {
       targets_for_token = function(_, token, candidate_files)
         assert.are.same({ vim.fn.getcwd() .. '/src/foo.lua' }, candidate_files)
@@ -536,58 +532,26 @@ describe('formatter', function()
     }
 
     local output = Output.new()
-    formatter._format_assistant_message(output, text, part, message, {
+    formatter._format_assistant_message(output, 'foo', { id = 'part_symbol_only' }, {
+      info = { id = 'msg_symbol_only', role = 'assistant', sessionID = 'ses_1' },
+      parts = {},
+    }, {
       interactive = true,
       current_files = { vim.fn.getcwd() .. '/src/foo.lua' },
-      current_refs = {
-        {
-          message_id = 'msg_file_ref',
-          part_id = 'part_file_ref',
-          path = vim.fn.getcwd() .. '/src/foo.lua',
-          source_kind = 'assistant_text',
-          raw_range = { start_offset = ref_start, end_offset = ref_end },
-        },
-      },
+      current_refs = {},
       symbol_cycle = {},
     })
 
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
 
-    local symbol_mark
-    local reference_mark
-    for _, mark in ipairs(output.extmarks[0]) do
-      if mark.hl_group == 'OpencodeSymbolReference' then
-        symbol_mark = mark
-      elseif mark.hl_group == 'OpencodeReference' then
-        reference_mark = mark
-      end
-    end
-    local trailing_foo_start = output.lines[1]:find('foo$', 1, false)
-    assert.are.equal(2, #output.extmarks[0])
-    assert.is_not_nil(reference_mark)
-    assert.is_not_nil(symbol_mark)
-    assert.are.equal(trailing_foo_start - 1, symbol_mark.start_col)
-    assert.are.equal(trailing_foo_start + 2, symbol_mark.end_col)
     assert.are.same({
-      {
-        kind = 'file',
-        path = vim.fn.getcwd() .. '/src/foo.lua',
-        range = output.targets[1].range,
-      },
       {
         kind = 'symbol',
         token = 'foo',
-        candidate_files = { vim.fn.getcwd() .. '/src/foo.lua' },
-        range = { line = 1, start_col = trailing_foo_start - 1, end_col = trailing_foo_start + 2 },
+        range = { line = 1, start_col = 0, end_col = 3 },
       },
-    }, {
-      {
-        kind = output.targets[1].kind,
-        path = output.targets[1].path,
-        range = output.targets[1].range,
-      },
-      output.targets[2],
-    })
+    }, output.targets)
+    assert.are.equal('OpencodeSymbolReference', output.extmarks[0][1].hl_group)
   end)
 
   it('does not create symbol targets without local candidate files', function()
@@ -602,7 +566,7 @@ describe('formatter', function()
     local output = Output.new()
     formatter._format_assistant_message(output, 'foo bar', { id = 'part_no_candidates' }, nil, {
       interactive = true,
-      current_files = { '/test/project/src/foo.lua' },
+      current_files = {},
       current_refs = {},
       symbol_cycle = {},
     })
@@ -614,50 +578,28 @@ describe('formatter', function()
     assert.is_nil(output.extmarks[0])
   end)
 
-  it('uses same-message previous file refs as symbol candidates', function()
+  it('does not create symbol targets when the token resolves to nothing', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
 
     package.loaded['opencode.ui.symbol_snapshot'] = {
-      targets_for_token = function(_, token, candidate_files)
-        assert.are.same({ vim.fn.getcwd() .. '/src/main.lua' }, candidate_files)
-        return token == 'foo' and { { token = 'foo', path = vim.fn.getcwd() .. '/src/main.lua', line = 1, col = 1 } }
-          or {}
+      targets_for_token = function()
+        return {}
       end,
     }
 
-    local previous_part = { id = 'tool_1', type = 'tool' }
-    local current_part = { id = 'text_1', type = 'text', text = 'foo' }
-    local message = {
-      info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' },
-      parts = { previous_part, current_part },
-    }
-
     local output = Output.new()
-    formatter._format_assistant_message(output, 'foo', current_part, message, {
+    formatter._format_assistant_message(output, 'foo bar', { id = 'part_symbol_miss' }, nil, {
       interactive = true,
-      current_files = { vim.fn.getcwd() .. '/src/main.lua' },
-      current_refs = {
-        {
-          message_id = 'msg_1',
-          part_id = 'tool_1',
-          path = 'src/main.lua',
-          source_kind = 'tool_file_path',
-        },
-      },
+      current_files = { '/test/project/src/foo.lua' },
+      current_refs = {},
       symbol_cycle = {},
     })
 
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
 
-    assert.are.same({
-      {
-        kind = 'symbol',
-        token = 'foo',
-        candidate_files = { vim.fn.getcwd() .. '/src/main.lua' },
-        range = { line = 1, start_col = 0, end_col = 3 },
-      },
-    }, output.targets)
-    assert.are.equal('OpencodeSymbolReference', output.extmarks[0][1].hl_group)
+    assert.are.equal('foo bar', output.lines[1])
+    assert.are.same({}, output.targets)
+    assert.is_nil(output.extmarks[0])
   end)
 
   it('does not highlight symbol-looking segments inside paths', function()

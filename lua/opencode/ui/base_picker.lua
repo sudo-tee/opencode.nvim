@@ -14,6 +14,7 @@ local Promise = require('opencode.promise')
 ---@field format_fn fun(item: any, width?: number): PickerItem Function to format items for display
 ---@field actions table<string, PickerAction> Available actions for the picker
 ---@field callback fun(selected: any?) Callback when item is selected
+---@field multi_select_fn? fun(selected: any[], opts: PickerOptions): any|Promise<any> Action for multiple items confirmed together
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
@@ -239,6 +240,16 @@ local function telescope_ui(opts)
 
       actions.select_default:replace(function()
         selection_made = true
+        local multi_selection = {}
+        action_utils.map_selections(prompt_bufnr, function(entry)
+          table.insert(multi_selection, entry.value)
+        end)
+        if #multi_selection > 1 and opts.multi_select_fn then
+          actions.close(prompt_bufnr)
+          opts.multi_select_fn(multi_selection, opts)
+          return
+        end
+
         local selection = action_state.get_selected_entry()
         actions.close(prompt_bufnr)
         if selection and opts.callback then
@@ -465,6 +476,17 @@ local function fzf_ui(opts)
         end
         return
       end
+      if #selected > 1 and opts.multi_select_fn then
+        local multi_selection = {}
+        for _, sel in ipairs(selected) do
+          local idx = fzf_opts.fn_fzf_index(sel --[[@as string]])
+          if idx and opts.items[idx] then
+            table.insert(multi_selection, opts.items[idx])
+          end
+        end
+        opts.multi_select_fn(multi_selection, opts)
+        return
+      end
       local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
       if idx and opts.items[idx] and opts.callback then
         opts.callback(opts.items[idx])
@@ -682,6 +704,15 @@ local function snacks_picker_ui(opts)
     actions = {
       confirm = function(_picker, item)
         selection_made = true
+        local multi_selection = _picker:selected({ fallback = true })
+        if #multi_selection > 1 and opts.multi_select_fn then
+          _picker:close()
+          vim.schedule(function()
+            opts.multi_select_fn(multi_selection, opts)
+          end)
+          return
+        end
+
         _picker:close()
         if item and opts.callback then
           vim.schedule(function()

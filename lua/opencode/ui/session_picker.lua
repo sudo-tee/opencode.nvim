@@ -395,6 +395,7 @@ function M.pick(sessions, callback, opts)
     items = sessions,
     format_fn = format_session_item,
     actions = actions,
+    multi_select_fn = actions.open_in_tab.fn,
     callback = callback,
     title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',
     width = config.ui.picker_width,

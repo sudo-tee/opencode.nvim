@@ -274,9 +274,11 @@ describe('opencode.ui.session_picker', function()
       { id = 'session-2', title = 'Second session' },
     }
     local captured_action
+    local captured_multi_select
 
     base_picker.pick = function(opts)
       captured_action = opts.actions.open_in_tab
+      captured_multi_select = opts.multi_select_fn
       return true
     end
 
@@ -296,7 +298,8 @@ describe('opencode.ui.session_picker', function()
       return table.remove(delays, 1)
     end
 
-    local action_promise = captured_action.fn(sessions, {
+    assert.equal(captured_action.fn, captured_multi_select)
+    local action_promise = captured_multi_select(sessions, {
       close = function()
         closed = true
       end,

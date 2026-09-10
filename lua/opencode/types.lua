@@ -586,7 +586,6 @@
 ---@field line? integer
 ---@field col? integer
 ---@field token? string
----@field candidate_files? string[]
 
 ---@class RenderedTarget: OutputTarget
 ---@field part_id string

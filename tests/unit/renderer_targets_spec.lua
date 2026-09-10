@@ -87,7 +87,7 @@ describe('renderer flush formatter context', function()
     local contexts = {}
 
     refs_stub = stub(reference_facts, 'current_refs').returns({})
-    files_stub = stub(reference_facts, 'current_files').returns({ '/repo/src/ok.lua' })
+    files_stub = stub(reference_facts, 'available_files').returns({ '/repo/src/ok.lua' })
     cycle_stub = stub(symbol_snapshot, 'new_cycle').returns(cycle)
     format_stub = stub(formatter, 'format_part').invokes(function(_, _, _, context)
       contexts[#contexts + 1] = context

@@ -60,6 +60,97 @@ describe('opencode.ui.reference_facts', function()
     assert.equal('src/ok.lua', reference_facts.current_refs()[1].path)
   end)
 
+  it('collects user file parts as reference facts', function()
+    reference_facts.rebuild('ses_1', {
+      {
+        info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
+        parts = {
+          { id = 'prt_user_file', type = 'file', filename = 'src/ok.lua' },
+          { id = 'user_text', type = 'text', text = 'look at this' },
+        },
+      },
+      assistant_message('msg_1', 'ses_1', {
+        { id = 'part_1', type = 'text', text = 'Call foo.' },
+      }),
+    })
+
+    local refs = reference_facts.current_refs()
+
+    assert.equal(1, #refs)
+    assert.equal('src/ok.lua', refs[1].path)
+    assert.equal('user_file_part', refs[1].source_kind)
+    assert.equal('user_1', refs[1].message_id)
+    assert.equal('prt_user_file', refs[1].part_id)
+    assert.are.same({ '/repo/src/ok.lua' }, reference_facts.current_files())
+  end)
+
+  it('keeps unreadable user file parts as refs but excludes them from current_files', function()
+    reference_facts.rebuild('ses_1', {
+      {
+        info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
+        parts = {
+          { id = 'prt_user_file', type = 'file', filename = 'src/missing.lua' },
+        },
+      },
+    })
+
+    assert.equal('src/missing.lua', reference_facts.current_refs()[1].path)
+    assert.are.same({}, reference_facts.current_files())
+  end)
+
+  it('replace_part updates user file part refs', function()
+    local message = {
+      info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
+      parts = { { id = 'prt_user_file', type = 'file', filename = 'src/missing.lua' } },
+    }
+    reference_facts.rebuild('ses_1', { message })
+
+    message.parts[1] = { id = 'prt_user_file', type = 'file', filename = 'src/ok.lua' }
+    local changed = reference_facts.replace_part('ses_1', message, message.parts[1])
+
+    assert.is_true(changed)
+    assert.equal('src/ok.lua', reference_facts.current_refs()[1].path)
+    assert.are.same({ '/repo/src/ok.lua' }, reference_facts.current_files())
+  end)
+
+  it('available_files merges readable ref files with loaded plain buffers', function()
+    local dedup_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[dedup_buf].buftype = ''
+    local buffer_only_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buffer_only_buf].buftype = ''
+    local nofile_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[nofile_buf].buftype = 'nofile'
+    local getbufinfo_stub = stub(vim.fn, 'getbufinfo').returns({
+      { bufnr = dedup_buf, name = '/repo/src/ok.lua' },
+      { bufnr = buffer_only_buf, name = '/repo/buffer_only.lua' },
+      { bufnr = nofile_buf, name = '/repo/scratch.log' },
+    })
+
+    reference_facts.rebuild('ses_1', {
+      assistant_message('msg_1', 'ses_1', {
+        { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
+      }),
+    })
+
+    local files = reference_facts.available_files()
+
+    getbufinfo_stub:revert()
+    pcall(vim.api.nvim_buf_delete, dedup_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, buffer_only_buf, { force = true })
+    pcall(vim.api.nvim_buf_delete, nofile_buf, { force = true })
+
+    assert.is_true(vim.tbl_contains(files, '/repo/src/ok.lua'))
+    assert.is_true(vim.tbl_contains(files, '/repo/buffer_only.lua'))
+    assert.is_false(vim.tbl_contains(files, '/repo/scratch.log'))
+    local ok_count = 0
+    for _, path in ipairs(files) do
+      if path == '/repo/src/ok.lua' then
+        ok_count = ok_count + 1
+      end
+    end
+    assert.equal(1, ok_count)
+  end)
+
   it('rebuilds current session assistant reference facts only', function()
     reference_facts.rebuild('ses_1', {
       {

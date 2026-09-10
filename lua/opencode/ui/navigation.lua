@@ -264,8 +264,13 @@ local function jump_to_symbol_target(target)
   end
 
   local symbol_snapshot = require('opencode.ui.symbol_snapshot')
-  local targets =
-    symbol_snapshot.targets_for_token(symbol_snapshot.new_cycle(), target.token, target.candidate_files or {})
+  -- Keypress-time lookup re-reads the current available file set; the set frozen
+  -- on the rendered target may be stale (buffers/files changed since render).
+  local targets = symbol_snapshot.targets_for_token(
+    symbol_snapshot.new_cycle(),
+    target.token,
+    require('opencode.ui.reference_facts').available_files()
+  )
   if #targets == 0 then
     vim.notify('No symbol target found: ' .. target.token, vim.log.levels.INFO)
     return

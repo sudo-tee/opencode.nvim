@@ -29,17 +29,45 @@ local function file_is_available(path)
   return false, absolute
 end
 
-local function is_current_session_assistant_message(session_id, message)
+local function is_current_session_message(session_id, message, role)
   return current_session_id == session_id
     and message
     and message.info
     and message.info.sessionID == session_id
-    and message.info.role == 'assistant'
+    and message.info.role == role
     and not (message.info.id and message.info.id:match('^__opencode_'))
 end
 
+local function is_current_session_assistant_message(session_id, message)
+  return is_current_session_message(session_id, message, 'assistant')
+end
+
+local function is_current_session_user_message(session_id, message)
+  return is_current_session_message(session_id, message, 'user')
+end
+
 local function collect_part_refs(session_id, message, part, message_order, part_order)
-  if not is_current_session_assistant_message(session_id, message) or not part or part.synthetic or not part.id then
+  if not part then
+    return {}
+  end
+
+  if is_current_session_user_message(session_id, message) and part.type == 'file' and part.filename and part.filename ~= '' then
+    if not part.id then
+      return {}
+    end
+    return {
+      {
+        session_id = session_id,
+        message_id = message.info.id,
+        part_id = part.id,
+        path = relative_path(part.filename),
+        source_kind = 'user_file_part',
+        order = message_order * 1000000 + part_order * 1000 + 1,
+      },
+    }
+  end
+
+  if not is_current_session_assistant_message(session_id, message) or part.synthetic or not part.id then
     return {}
   end
 
@@ -167,7 +195,7 @@ local function replace_part_entry(session_id, message, part)
     return false
   end
 
-  if not is_current_session_assistant_message(session_id, message) then
+  if not (is_current_session_assistant_message(session_id, message) or is_current_session_user_message(session_id, message)) then
     local entry = messages_by_id[message_id]
     if entry and entry.parts[part_id] then
       entry.parts[part_id] = nil
@@ -212,7 +240,7 @@ function M.rebuild(session_id, messages)
   reference_parser.clear_all()
 
   for message_order, message in ipairs(messages or {}) do
-    if is_current_session_assistant_message(session_id, message) then
+    if is_current_session_assistant_message(session_id, message) or is_current_session_user_message(session_id, message) then
       local entry = {
         message = message,
         order = message_order,
@@ -299,6 +327,28 @@ end
 ---@return string[]
 function M.current_files()
   return vim.deepcopy(current_files)
+end
+
+---Files eligible as symbol-search candidates: conversation refs plus all
+---currently loaded plain-file buffers (one-shot snapshot, no event subscription).
+---@return string[]
+function M.available_files()
+  local files = {}
+  local seen = {}
+  for _, path in ipairs(current_files) do
+    if not seen[path] then
+      seen[path] = true
+      files[#files + 1] = path
+    end
+  end
+  for _, bufinfo in ipairs(vim.fn.getbufinfo({ bufloaded = 1 })) do
+    local name = bufinfo.name
+    if name ~= '' and vim.bo[bufinfo.bufnr].buftype == '' and not seen[name] then
+      seen[name] = true
+      files[#files + 1] = name
+    end
+  end
+  return files
 end
 
 function M.refresh_current_files()

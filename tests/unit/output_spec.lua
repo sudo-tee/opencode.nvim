@@ -13,7 +13,6 @@ describe('Output targets', function()
       {
         kind = 'symbol',
         token = 'setup',
-        candidate_files = { 'README.md' },
         range = { line = 1, start_col = 10, end_col = 15 },
       },
     })

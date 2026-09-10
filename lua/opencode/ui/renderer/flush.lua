@@ -255,7 +255,7 @@ local function new_formatter_context()
       return ctx.render_state:get_child_session_parts(session_id)
     end,
     current_refs = reference_facts.current_refs(),
-    current_files = reference_facts.current_files(),
+    current_files = reference_facts.available_files(),
     symbol_cycle = symbol_snapshot.new_cycle(),
   }
 end

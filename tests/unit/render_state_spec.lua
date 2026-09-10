@@ -400,7 +400,7 @@ describe('RenderState', function()
     it('clears all targets for a part', function()
       render_state:add_targets('part1', {
         target('file', 1, 0, 4, { path = 'README.md' }),
-        target('symbol', 1, 5, 9, { token = 'setup', candidate_files = { 'README.md' } }),
+        target('symbol', 1, 5, 9, { token = 'setup' }),
       })
 
       render_state:clear_targets('part1')
@@ -422,7 +422,7 @@ describe('RenderState', function()
 
     it('filters targets without changing file and diff priority over symbols', function()
       render_state:add_targets('part1', {
-        target('symbol', 1, 0, 10, { token = 'setup', candidate_files = { 'README.md' } }),
+        target('symbol', 1, 0, 10, { token = 'setup' }),
         target('diff', 1, 0, 10, { path = 'README.md', line = 3 }),
       })
 

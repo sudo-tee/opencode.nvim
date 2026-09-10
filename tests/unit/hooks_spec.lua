@@ -157,6 +157,35 @@ describe('hooks', function()
         session_runtime.on_session_request_completed('test-session'):wait()
       end)
     end)
+
+    it('should call hook for idle child or externally-created sessions', function()
+      local original_manager = state.event_manager
+      local idle_callback
+      local manager = {
+        subscribe = function(_, event_name, callback)
+          if event_name == 'session.idle' then
+            idle_callback = callback
+          end
+        end,
+        unsubscribe = function() end,
+      }
+      local called_session
+      config.hooks.on_done_thinking = function(session)
+        called_session = session
+      end
+
+      state.jobs.set_event_manager(manager)
+      session_runtime.setup()
+      idle_callback({ sessionID = 'test-session' })
+
+      vim.wait(50, function()
+        return called_session ~= nil
+      end)
+
+      assert.equals('test-session', called_session.id)
+      state.jobs.set_event_manager(original_manager)
+      session_runtime.setup()
+    end)
   end)
 
   describe('on_permission_requested', function()

@@ -346,7 +346,7 @@
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
 ---@field on_session_loaded? fun(session: Session): nil
----@field on_done_thinking? fun(session: Session): nil
+---@field on_done_thinking? fun(session: Session): nil Called when a session becomes idle.
 ---@field on_permission_requested? fun(session: Session): nil
 ---@field on_command_before? OpencodeCommandDispatchHook
 ---@field on_command_after? OpencodeCommandDispatchHook

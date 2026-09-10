@@ -137,7 +137,7 @@ M.send_message = Promise.async(function(prompt, opts)
 
       if not response or not response.info or not response.parts then
         log.notify('Invalid response from opencode: ' .. vim.inspect(response), vim.log.levels.ERROR)
-        session_runtime.cancel(session_id, tab_id):await()
+        session_runtime.cancel(session_id, tab_id, { count_abort = true }):await()
         return
       end
 
@@ -146,15 +146,20 @@ M.send_message = Promise.async(function(prompt, opts)
     :catch(function(err)
       log.notify('Error sending message to session: ' .. vim.inspect(err), vim.log.levels.ERROR)
       update_sent_message_count(-1)
-      session_runtime.cancel(session_id, tab_id):await()
+      session_runtime.cancel(session_id, tab_id, { count_abort = true }):await()
     end)
     :await()
 end)
 
 ---@param prompt string
----@param tab_id? string
+---@param tab_id? string|OpencodeContext
 ---@param sent_context? OpencodeContext
 function M.after_run(prompt, tab_id, sent_context)
+  if type(tab_id) == 'table' and sent_context == nil then
+    sent_context = tab_id
+    tab_id = nil
+  end
+
   if tab_id then
     local runtime = session_tabs.get(tab_id)
     if not runtime then
@@ -175,8 +180,11 @@ function M.after_run(prompt, tab_id, sent_context)
       context.delta_context()
     end
   else
-    context.unload_attachments()
-    state.session.set_last_sent_context(vim.deepcopy(context.get_context()))
+    local context_sent = vim.deepcopy(sent_context or context.get_context())
+    if not sent_context then
+      context.unload_attachments()
+    end
+    state.session.set_last_sent_context(context_sent)
     context.delta_context()
   end
   require('opencode.history').write(prompt)

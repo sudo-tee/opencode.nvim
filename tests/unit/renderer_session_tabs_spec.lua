@@ -119,4 +119,37 @@ describe('renderer session tab contexts', function()
     assert.is_true(second.renderer_dirty)
     render_stub:revert()
   end)
+
+  it('refreshes a dirty tab after its windows are mounted', function()
+    local first = session_tabs.ensure_current()
+    first.active_session = { id = 'session-one', title = 'One' }
+    local second = session_tabs.create({ id = 'session-two', title = 'Two' })
+    second.renderer_dirty = false
+
+    store.set_raw('active_session_tab', second.id)
+    store.set_raw('active_session', second.active_session)
+    renderer.on_session_tab_changed(nil, second.id, first.id)
+    assert.is_true(second.renderer_dirty)
+
+    output_buf = vim.api.nvim_create_buf(false, true)
+    output_win = vim.api.nvim_open_win(output_buf, false, {
+      relative = 'editor',
+      width = 60,
+      height = 10,
+      row = 1,
+      col = 1,
+    })
+    state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
+    state.jobs.set_api_client({})
+
+    local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve({}))
+    renderer.on_windows_mounted()
+
+    vim.wait(20, function()
+      return not second.renderer_dirty
+    end)
+    assert.stub(render_stub).was_called(1)
+    assert.is_false(second.renderer_dirty)
+    render_stub:revert()
+  end)
 end)

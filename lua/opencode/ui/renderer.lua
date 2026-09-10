@@ -670,6 +670,36 @@ function M.on_session_changed(_, new, old)
   end
 end
 
+---@param tab_id string
+---@param runtime OpencodeSessionTabRuntime|nil
+local function refresh_tab(tab_id, runtime)
+  if not state.active_session then
+    return
+  end
+  if not output_window.mounted() or not state.api_client then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
+
+  local refresh = M.render_full_session()
+  if not refresh then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
+  refresh:and_then(function(session_data)
+    if session_data and state.active_session_tab == tab_id then
+      if runtime then
+        runtime.renderer_dirty = false
+      end
+      save_active_tab_context()
+    end
+  end)
+end
+
 ---Rebind renderer state when the selected logical panel tab changes.
 function M.on_session_tab_changed(_, new, old)
   if new == old then
@@ -678,6 +708,12 @@ function M.on_session_tab_changed(_, new, old)
   save_tab_context(old)
   rendered_session_tab = new
   local runtime = session_tabs.get(new)
+  if not output_window.mounted() then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
   local restored = restore_tab_context(new)
   local prompts = ctx.prompt_controllers
   if prompts.question then
@@ -703,15 +739,19 @@ function M.on_session_tab_changed(_, new, old)
     return
   end
 
-  if state.active_session then
-    M.render_full_session():and_then(function(session_data)
-      if session_data and state.active_session_tab == new then
-        if runtime then
-          runtime.renderer_dirty = false
-        end
-        save_active_tab_context()
-      end
-    end)
+  refresh_tab(new, runtime)
+end
+
+---Refresh a tab whose windows were mounted after the tab-change event.
+function M.on_windows_mounted()
+  local tab_id = state.active_session_tab
+  local runtime = tab_id and session_tabs.get(tab_id)
+  if not tab_id or rendered_session_tab ~= tab_id or not runtime or not state.active_session then
+    return
+  end
+
+  if runtime.renderer_dirty then
+    refresh_tab(tab_id, runtime)
   end
 end
 

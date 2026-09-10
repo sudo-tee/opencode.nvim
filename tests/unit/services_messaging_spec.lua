@@ -443,4 +443,19 @@ describe('opencode.services.messaging', function()
       context.get_context()[key] = value
     end
   end)
+
+  it('preserves a two-argument sent context passed to after_run', function()
+    state.session.set_active({ id = 'sess1' })
+    local sent_context = {
+      mentioned_files = { '/tmp/attached.lua' },
+      selections = { { content = 'selected' } },
+    }
+    local original_delta_context = context.delta_context
+    context.delta_context = function() end
+
+    messaging.after_run('hello', sent_context)
+
+    assert.same(sent_context, state.last_sent_context)
+    context.delta_context = original_delta_context
+  end)
 end)

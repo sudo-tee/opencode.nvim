@@ -115,4 +115,11 @@ describe('session tab lifecycle', function()
     state.model.set_model('provider/third')
     assert.equals('medium', state.current_variant)
   end)
+
+  it('does not close the active tab when given an unknown tab id', function()
+    local current = tabs.ensure_current()
+
+    assert.is_false(session_runtime.close_session_tab('missing-tab'))
+    assert.equals(current, tabs.current())
+  end)
 end)

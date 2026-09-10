@@ -128,7 +128,7 @@ end
 ---@param support_multi? boolean Whether multi-selection is supported
 ---@return string title The formatted title with action legend
 local function build_title(base_title, actions, support_multi)
-  local icons = require('lua.opencode.ui.icons')
+  local icons = require('opencode.ui.icons')
   local legend = {}
   for _, action in pairs(actions) do
     if action.key and action.key[1] then

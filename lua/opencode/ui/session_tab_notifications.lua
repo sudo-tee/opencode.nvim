@@ -5,7 +5,6 @@ local config = require('opencode.config')
 local M = {}
 
 local subscribed_manager = nil
-local notified = {}
 
 local function request_key(kind, request_id)
   return kind .. ':' .. request_id
@@ -44,10 +43,11 @@ local function track(kind, request)
   end
 
   local key = request_key(kind, request.id)
-  if notified[key] then
+  runtime.background_notifications = runtime.background_notifications or {}
+  if runtime.background_notifications[key] then
     return
   end
-  notified[key] = true
+  runtime.background_notifications[key] = true
 
   local label = kind == 'permission' and 'Permission required' or 'Question waiting'
   local level = kind == 'permission' and vim.log.levels.WARN or vim.log.levels.INFO
@@ -59,14 +59,20 @@ local function clear(kind, request_id)
     return
   end
 
-  for _, runtime in ipairs(session_tabs.list()) do
+  local tabs = session_tabs.list()
+  for _, runtime in ipairs(tabs) do
     if kind == 'permission' then
       session_tabs.remove_pending_permission(runtime.id, request_id)
     else
       session_tabs.remove_pending_question(runtime.id, request_id)
     end
   end
-  notified[request_key(kind, request_id)] = nil
+  local key = request_key(kind, request_id)
+  for _, runtime in ipairs(tabs) do
+    if runtime.background_notifications then
+      runtime.background_notifications[key] = nil
+    end
+  end
 end
 
 ---@param permission OpencodePermission
@@ -130,7 +136,9 @@ function M.setup()
 end
 
 function M.reset()
-  notified = {}
+  for _, runtime in ipairs(session_tabs.list()) do
+    runtime.background_notifications = {}
+  end
 end
 
 return M

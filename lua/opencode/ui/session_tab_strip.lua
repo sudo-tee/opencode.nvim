@@ -9,6 +9,14 @@ local ranges_by_buffer = {}
 local subscribed = false
 local minimum_tab_width = 12
 
+local function prune_ranges()
+  for buffer in pairs(ranges_by_buffer) do
+    if not vim.api.nvim_buf_is_valid(buffer) then
+      ranges_by_buffer[buffer] = nil
+    end
+  end
+end
+
 local function display_width(text)
   return vim.fn.strdisplaywidth(text)
 end
@@ -363,6 +371,7 @@ end
 
 ---@param windows OpencodeWindowState
 function M.render(windows)
+  prune_ranges()
   windows = windows or state.windows
   if not valid_windows(windows) then
     return
@@ -413,6 +422,9 @@ function M.create_window(windows)
   if not windows.output_win or not windows.tab_strip_buf or not vim.api.nvim_win_is_valid(windows.output_win) then
     return nil
   end
+  if config.ui.hide_single_tab and #session_tabs.list() == 1 then
+    return nil
+  end
   if windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win) then
     return windows.tab_strip_win
   end
@@ -433,6 +445,11 @@ function M.create_window(windows)
   return windows.tab_strip_win
 end
 
+---@param buffer integer
+function M.clear_buffer(buffer)
+  ranges_by_buffer[buffer] = nil
+end
+
 ---@param windows OpencodeWindowState
 local function close_window(windows)
   if windows.tab_strip_win and vim.api.nvim_win_is_valid(windows.tab_strip_win) then
@@ -440,7 +457,7 @@ local function close_window(windows)
   end
   windows.tab_strip_win = nil
   if windows.tab_strip_buf then
-    ranges_by_buffer[windows.tab_strip_buf] = nil
+    M.clear_buffer(windows.tab_strip_buf)
   end
 end
 

@@ -221,6 +221,9 @@ function M.drop_hidden_snapshot()
   if hidden then
     for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf, hidden.tab_strip_buf }) do
       if buf and vim.api.nvim_buf_is_valid(buf) then
+        if buf == hidden.tab_strip_buf then
+          session_tab_strip.clear_buffer(buf)
+        end
         pcall(vim.api.nvim_buf_delete, buf, { force = true })
       end
     end
@@ -312,6 +315,7 @@ function M.restore_hidden_windows()
   end)
 
   require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
+  renderer.on_windows_mounted()
 
   return true
 end

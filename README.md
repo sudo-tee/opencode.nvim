@@ -228,7 +228,7 @@ require('opencode').setup({
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
-    hide_single_tab = false, -- Hide the panel tab strip when only one session tab exists
+    hide_single_tab = true, -- Hide the panel tab strip when only one session tab exists
     notify_on_background_prompt = true, -- Notify when an unfocused session needs a question or permission response
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     persist_state = true, -- Keep buffers when toggling/closing UI so window state restores quickly
@@ -240,22 +240,22 @@ require('opencode').setup({
       use_vim_ui_select = false, -- If true, render questions/prompts with vim.ui.select instead of showing them inline in the output buffer.
       inline_other_input = true, -- If true, show an inline floating input for "Other" instead of vim.ui.input.
     },
-     output = {
-       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
-       actions = {
-         open_in_new_tab = false, -- Open inline child-session and fork actions in a new panel tab
-       },
-       compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
-       tools = {
-         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
-         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
-         use_folds = true, -- Use folds for tool output (default: true)
-         folding_threshold = 25, -- Number of lines to show before folding when show_output is true (default: 25)
-         fold_exclude = { -- Tools that should never be folded (default: sequential-thinking)
-           'bash', -- built-in tool name (exact match)
-           { server = 'sequential-thinking', tool = 'sequentialthinking' }, -- MCP tool (server + tool match)
-         },
-       },
+    output = {
+      filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
+      actions = {
+        open_in_new_tab = false, -- Open inline child-session and fork actions in a new panel tab
+      },
+      compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
+      tools = {
+        show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
+        show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
+        use_folds = true, -- Use folds for tool output (default: true)
+        folding_threshold = 25, -- Number of lines to show before folding when show_output is true (default: 25)
+        fold_exclude = { -- Tools that should never be folded (default: sequential-thinking)
+          'bash', -- built-in tool name (exact match)
+          { server = 'sequential-thinking', tool = 'sequentialthinking' }, -- MCP tool (server + tool match)
+        },
+      },
       rendering = {
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
         on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior
@@ -360,7 +360,7 @@ require('opencode').setup({
   hooks = {
     on_file_edited = nil, -- Called after a file is edited by opencode.
     on_session_loaded = nil, -- Called after a session is loaded.
-    on_done_thinking = nil, -- Called when opencode finishes thinking (all jobs complete).
+    on_done_thinking = nil, -- Called when a session becomes idle, including sessions started outside Neovim.
     on_permission_requested = nil, -- Called when a permission request is issued.
   },
   quick_chat = {
@@ -629,8 +629,8 @@ There's 3 main ways on how to change the snacks picker layout
    require("opencode").setup({
      ui = {
        picker = {
-        ---@module "snacks"
-        ---@type snacks.picker.layout.Config | nil
+         ---@module "snacks"
+         ---@type snacks.picker.layout.Config | nil
          snacks_layout = {
            preset = "custom_layout" -- or builtin snacks, like "select", "default", etc
          },
@@ -1219,7 +1219,7 @@ You can define custom functions to be called at specific events in Opencode:
 
 - `on_file_edited`: Called after a file is edited by Opencode.
 - `on_session_loaded`: Called after a session is loaded.
-- `on_done_thinking`: Called when Opencode finishes thinking (all user jobs complete).
+- `on_done_thinking`: Called when a session becomes idle, including sessions started outside Neovim.
 - `on_permission_requested`: Called when a permission request is issued.
 
 ```lua

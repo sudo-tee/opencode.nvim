@@ -41,6 +41,7 @@ local store = require('opencode.state.store')
 ---@field context_data OpencodeContext|nil
 ---@field renderer_context table|nil Renderer caches associated with the preserved output buffer
 ---@field renderer_dirty boolean Cached renderer missed background session events
+---@field background_notifications table<string, boolean> Notifications emitted for pending background prompts
 
 ---@class OpencodeSessionTabStateMutations
 local M = {}
@@ -157,6 +158,7 @@ local function default_runtime(id)
     context_data = nil,
     renderer_context = nil,
     renderer_dirty = false,
+    background_notifications = {},
   }
 end
 
@@ -228,7 +230,8 @@ function M.find_by_session_id(session_id)
     return nil
   end
 
-  for _, runtime in ipairs(M.list()) do
+  M.sync()
+  for _, runtime in pairs(runtimes) do
     if runtime.active_session and runtime.active_session.id == session_id then
       return runtime
     end
@@ -253,6 +256,21 @@ end
 
 ---@param session_id string|nil
 function M.mark_renderer_dirty(session_id)
+  if not session_id then
+    return
+  end
+
+  local runtime_count = 0
+  for _ in pairs(runtimes) do
+    runtime_count = runtime_count + 1
+    if runtime_count > 1 then
+      break
+    end
+  end
+  if runtime_count < 2 then
+    return
+  end
+
   local runtime = M.find_by_session_id(session_id)
   if runtime and runtime.id ~= M.active_id() then
     runtime.renderer_dirty = true

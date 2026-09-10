@@ -13,6 +13,8 @@ local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
+local subscribed_event_manager
+local idle_events_enabled = false
 
 ---@return boolean
 function M.is_session_locked()
@@ -396,6 +398,7 @@ local function delete_runtime_buffers(runtime)
   collect(runtime._hidden_buffers)
 
   for _, bufnr in ipairs(buffers) do
+    require('opencode.ui.session_tab_strip').clear_buffer(bufnr)
     if vim.api.nvim_buf_is_valid(bufnr) then
       pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
     end
@@ -406,7 +409,15 @@ end
 ---@param tab_id? string Close selected tab, or the active tab when omitted.
 ---@return boolean
 function M.close_session_tab(tab_id)
-  local runtime = tab_id and session_tabs.get(tab_id) or session_tabs.current()
+  local runtime
+  if tab_id then
+    runtime = session_tabs.get(tab_id)
+    if not runtime then
+      return false
+    end
+  else
+    runtime = session_tabs.current()
+  end
   if not runtime then
     return false
   end
@@ -464,7 +475,8 @@ end
 
 ---@param session_id? string
 ---@param tab_id? string
-M.cancel = Promise.async(function(session_id, tab_id)
+---@param opts? { count_abort?: boolean }
+M.cancel = Promise.async(function(session_id, tab_id, opts)
   local target_runtime = tab_id and session_tabs.get(tab_id) or session_tabs.current()
   local target_session = session_id and { id = session_id } or state.active_session
 
@@ -475,7 +487,7 @@ M.cancel = Promise.async(function(session_id, tab_id)
       or (state.user_message_count or {})[target_session.id]
     local request_running = tab_id and target_runtime and pending_count and pending_count > 0
       or (not tab_id and state.jobs.is_running())
-    if request_running then
+    if request_running or (opts and opts.count_abort) then
       vim.g.opencode_abort_count = (vim.g.opencode_abort_count or 0) + 1
     end
 
@@ -555,6 +567,15 @@ M.opencode_ok = Promise.async(function()
   return true
 end)
 
+---@param completed_session Session
+local function notify_done_thinking(completed_session)
+  local hook = config.hooks and config.hooks.on_done_thinking
+  if not hook or not completed_session or not completed_session.id then
+    return
+  end
+  pcall(hook, completed_session)
+end
+
 M._on_user_message_count_change = Promise.async(function()
   require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
 end)
@@ -563,16 +584,34 @@ end)
 ---@param session_id string
 ---@return Promise<nil>
 M.on_session_request_completed = Promise.async(function(session_id)
-  local hook = config.hooks and config.hooks.on_done_thinking
-  if not hook then
+  if idle_events_enabled or not session_id or not (config.hooks and config.hooks.on_done_thinking) then
     return
   end
 
   local completed_session = session.get_by_id(session_id):await()
   if completed_session then
-    pcall(hook, completed_session)
+    notify_done_thinking(completed_session)
   end
 end)
+
+---@param session_id string
+M.on_session_idle = Promise.async(function(session_id)
+  if not idle_events_enabled or not session_id or not (config.hooks and config.hooks.on_done_thinking) then
+    return
+  end
+  local completed_session = session.get_by_id(session_id):await()
+  if completed_session then
+    notify_done_thinking(completed_session)
+  end
+end)
+
+---@param properties table|nil
+local function on_session_idle(properties)
+  local session_id = properties and properties.sessionID
+  if session_id then
+    M.on_session_idle(session_id)
+  end
+end
 
 M._on_current_permission_change = Promise.async(function(_, new, old)
   local permission_requested = #old < #new
@@ -611,6 +650,23 @@ function M.paste_image_from_clipboard()
 end
 
 function M.setup()
+  local manager = state.event_manager
+  if manager == subscribed_event_manager then
+    return true
+  end
+
+  if subscribed_event_manager then
+    subscribed_event_manager:unsubscribe('session.idle', on_session_idle)
+    subscribed_event_manager = nil
+  end
+  idle_events_enabled = false
+  if not manager then
+    return true
+  end
+
+  manager:subscribe('session.idle', on_session_idle)
+  subscribed_event_manager = manager
+  idle_events_enabled = true
   return true
 end
 

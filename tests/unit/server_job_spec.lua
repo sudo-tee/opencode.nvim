@@ -1,22 +1,25 @@
 local server_job = require('opencode.server_job')
 local Promise = require('opencode.promise')
-
 local curl = require('opencode.curl')
 local assert = require('luassert')
+local log = require('opencode.log')
 
 describe('server_job', function()
   local original_curl_request
   local opencode_server = require('opencode.opencode_server')
   local original_new
+  local original_log_notify
 
   before_each(function()
     original_curl_request = curl.request
     original_new = opencode_server.new
+    original_log_notify = log.notify
   end)
 
   after_each(function()
     curl.request = original_curl_request
     opencode_server.new = original_new
+    log.notify = original_log_notify
   end)
 
   it('exposes expected public functions', function()
@@ -78,6 +81,26 @@ describe('server_job', function()
     end)
 
     assert.same({ 'part1', 'part2' }, collected)
+  end)
+
+  it('does not warn when stream shutdown is intentional', function()
+    local on_exit
+    local notifications = {}
+    log.notify = function(message, level)
+      notifications[#notifications + 1] = { message, level }
+    end
+    curl.request = function(opts)
+      on_exit = opts.on_exit
+      return { pid = 1 }
+    end
+
+    server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
+
+    on_exit(1, 15, true)
+    assert.same({}, notifications)
+
+    on_exit(1, 15, false)
+    assert.same({ { 'Streaming request exited with code 1', vim.log.levels.WARN } }, notifications)
   end)
 
   it('ensure_server spawns a new opencode server only once', function()

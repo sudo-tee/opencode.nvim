@@ -160,6 +160,7 @@ function M.request(opts)
     local buffer = ''
     -- job.pid is not cleared on process exit
     local is_running = true
+    local shutdown_requested = false
 
     local job_opts = {
       stdout = function(err, chunk)
@@ -204,7 +205,7 @@ function M.request(opts)
       end
 
       if opts.on_exit then
-        opts.on_exit(result.code, result.signal)
+        opts.on_exit(result.code, result.signal, shutdown_requested)
       end
     end)
 
@@ -216,6 +217,7 @@ function M.request(opts)
       shutdown = function()
         -- Flip state before kill so callers immediately observe shutdown.
         is_running = false
+        shutdown_requested = true
         if job and job.pid then
           pcall(function()
             job:kill(15) -- SIGTERM

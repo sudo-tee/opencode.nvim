@@ -140,8 +140,8 @@ function M.stream_api(url, method, body, on_chunk)
       end
       log.notify('Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
     end,
-    on_exit = function(code, signal)
-      if code ~= 0 then
+    on_exit = function(code, signal, shutdown_requested)
+      if code ~= 0 and not shutdown_requested then
         log.notify('Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
       end
     end,

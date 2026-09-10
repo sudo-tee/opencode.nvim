@@ -77,7 +77,16 @@ describe('e2e symbol jump with revised candidate sources', function()
         if t.token == 'SimpleMultiHeadAttention' then attention_target = t end
       end
     end
-    assert.is_true(n_sym > 0, 'symbol target must be created from buffer-only candidate')
+    assert.is_true(n_sym > 0, 'symbol targets missing: ' .. vim.inspect({
+      avail = avail,
+      ft = vim.filetype.match({ filename = tmp_lua }),
+      snap_direct = #require('opencode.ui.symbol_snapshot').targets_for_token(
+        require('opencode.ui.symbol_snapshot').new_cycle(),
+        'SimpleMultiHeadAttention',
+        avail
+      ),
+      pd_targets = pd.targets,
+    }))
     assert.is_truthy(attention_target, 'SimpleMultiHeadAttention target must exist')
 
     local row = nil

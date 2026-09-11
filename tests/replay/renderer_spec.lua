@@ -214,6 +214,10 @@ describe('renderer unit tests', function()
     }))
   end)
 
+  it('leaves post-flush scrolling to the renderer flush', function()
+    assert.is_false(vim.tbl_contains(event_subscriptions(), 'custom.emit_events.finished'))
+  end)
+
   it('unsubsribes from events correctly', function()
     local renderer = require('opencode.ui.renderer')
     local event_manager = state.event_manager
@@ -503,7 +507,15 @@ describe('renderer unit tests', function()
       return original_filereadable(path)
     end
     state.session.set_active(helpers.get_session_from_events(events, true))
+    vim.wait(0)
     renderer._render_full_session_data(helpers.load_session_from_events(events))
+    local ctx = require('opencode.ui.renderer.ctx')
+    assert.is_true(
+      vim.wait(1000, function()
+        return not ctx:has_pending_work()
+      end),
+      'Timed out waiting for deferred symbol targets'
+    )
 
     local actual = helpers.capture_output(state.windows.output_buf, output_window.namespace)
     local symbol_mark

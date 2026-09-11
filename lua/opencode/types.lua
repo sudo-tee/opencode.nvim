@@ -569,6 +569,7 @@
 
 ---@class FormatterContext
 ---@field interactive boolean
+---@field resolve_symbol_targets? boolean
 ---@field get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
 ---@field current_refs? CodeReference[]
 ---@field current_files? string[]

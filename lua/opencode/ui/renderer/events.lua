@@ -104,6 +104,7 @@ local function mark_rendered_assistant_text_parts_dirty()
       local message_data = ctx.render_state:get_message(part_data.message_id)
       local message = message_data and message_data.message or find_message_in_state(part_data.message_id)
       if is_assistant_message(message) and message.info.sessionID == active_session_id then
+        ctx.formatted_parts[part_id] = nil
         flush.mark_part_dirty(part_id, part_data.message_id)
       end
     end
@@ -117,6 +118,11 @@ local function scroll(force)
 end
 
 local M = {}
+
+function M.refresh_rendered_symbol_targets()
+  reference_facts.refresh_current_files()
+  mark_rendered_assistant_text_parts_dirty()
+end
 
 function M.invalidate_reference_targets_for_file_change()
   reference_facts.refresh_current_files()

@@ -89,8 +89,10 @@ describe('curl stream handle lifecycle', function()
 
   it('marks stream handle as stopped on shutdown', function()
     local killed = false
+    local on_complete
 
-    vim.system = function(_, _, _)
+    vim.system = function(_, _, cb)
+      on_complete = cb
       return {
         pid = 123,
         kill = function()
@@ -105,8 +107,32 @@ describe('curl stream handle lifecycle', function()
     })
 
     handle.shutdown()
+    on_complete({ code = 1, signal = 15 })
 
     assert.is_true(killed)
     assert.is_false(handle.is_running())
+  end)
+
+  it('reports whether stream exit followed an intentional shutdown', function()
+    local on_complete
+    local shutdown_requested
+
+    vim.system = function(_, _, cb)
+      on_complete = cb
+      return { pid = 123, kill = function() end }
+    end
+
+    local handle = curl.request({
+      url = 'http://127.0.0.1:1/event',
+      stream = function() end,
+      on_exit = function(_, _, requested)
+        shutdown_requested = requested
+      end,
+    })
+
+    handle.shutdown()
+    on_complete({ code = 1, signal = 15 })
+
+    assert.is_true(shutdown_requested)
   end)
 end)

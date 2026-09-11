@@ -1,6 +1,35 @@
 local M = {}
 
 local MIN_DEFINITION_TOKEN_LENGTH = 2
+local path_cache = require('opencode.lru_cache').new(256)
+
+local function timestamp_key(timestamp)
+  if type(timestamp) == 'table' then
+    return string.format('%s:%s', timestamp.sec or '', timestamp.nsec or '')
+  end
+  return tostring(timestamp or '')
+end
+
+local function source_version(path)
+  local bufnr = vim.fn.bufnr and vim.fn.bufnr(path) or -1
+  if bufnr and bufnr > 0 and vim.api.nvim_buf_is_loaded and vim.api.nvim_buf_is_loaded(bufnr) then
+    local ok, changedtick = pcall(vim.api.nvim_buf_get_changedtick, bufnr)
+    return ok and 'buffer:' .. bufnr .. ':' .. changedtick or nil
+  end
+
+  local stat = (vim.uv or vim.loop).fs_stat(path)
+  if not stat then
+    return nil
+  end
+  return table.concat({
+    'disk',
+    stat.dev or '',
+    stat.ino or '',
+    timestamp_key(stat.mtime),
+    timestamp_key(stat.ctime),
+    stat.size,
+  }, ':')
+end
 
 local function absolute_path(path)
   if path:sub(1, 1) == '/' then
@@ -126,6 +155,13 @@ local function collect_path(path)
     lang = parser_lang
   end
 
+  local version = source_version(path)
+  local cache_key = version and lang .. ':' .. version
+  local cached = path_cache:get(path)
+  if cached and cached.version == cache_key then
+    return cached.by_token
+  end
+
   local query_ok, query = pcall(function()
     if vim.treesitter and vim.treesitter.query and vim.treesitter.query.get then
       return vim.treesitter.query.get(lang, 'locals')
@@ -168,6 +204,10 @@ local function collect_path(path)
         kind = kind,
       })
     end
+  end
+
+  if cache_key then
+    path_cache:set(path, { version = cache_key, by_token = by_token })
   end
 
   return by_token

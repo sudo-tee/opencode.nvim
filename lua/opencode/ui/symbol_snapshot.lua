@@ -217,19 +217,26 @@ local function is_cycle(value)
   return type(value) == 'table' and value._symbol_snapshot_cycle == true
 end
 
-function M.new_cycle()
-  return {
-    _symbol_snapshot_cycle = true,
-    by_path = {},
-  }
-end
-
 local function collect_cycle_path(cycle, path)
   local absolute = absolute_path(path)
   if cycle.by_path[absolute] == nil then
     cycle.by_path[absolute] = collect_path(absolute)
   end
   return cycle.by_path[absolute]
+end
+
+function M.new_cycle()
+  local cycle = {
+    _symbol_snapshot_cycle = true,
+    by_path = {},
+  }
+  function cycle:warm_path(path)
+    if type(path) == 'string' then
+      collect_cycle_path(self, path)
+    end
+  end
+
+  return cycle
 end
 
 function M.targets_for_token(cycle, token, candidate_files)
@@ -243,10 +250,11 @@ function M.targets_for_token(cycle, token, candidate_files)
 
   local targets = {}
   local seen = {}
+  local variants = M.token_variants(token)
 
   for _, path in ipairs(candidate_files) do
     local path_snapshot = collect_cycle_path(cycle, path)
-    for _, variant in ipairs(M.token_variants(token)) do
+    for _, variant in ipairs(variants) do
       for _, target in ipairs(path_snapshot[variant] or {}) do
         local key = table.concat({ target.path or '', target.line or 0, target.col or 0, target.token or '' }, ':')
         if not seen[key] then

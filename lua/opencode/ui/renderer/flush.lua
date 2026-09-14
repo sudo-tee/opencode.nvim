@@ -255,7 +255,7 @@ local function new_formatter_context()
     end,
     current_refs = reference_facts.current_refs(),
     current_files = reference_facts.available_files(),
-    symbol_cycle = symbol_snapshot.new_cycle(),
+    symbol_cycle = ctx.symbol_refresh_cycle or symbol_snapshot.new_cycle(),
   }
 end
 

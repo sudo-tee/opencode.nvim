@@ -566,6 +566,7 @@
 ---@field order integer Smaller values appear earlier in the session message/part/text order.
 
 ---@class SymbolSnapshotCycle
+---@field warm_path fun(self: SymbolSnapshotCycle, path: string)
 
 ---@class FormatterContext
 ---@field interactive boolean

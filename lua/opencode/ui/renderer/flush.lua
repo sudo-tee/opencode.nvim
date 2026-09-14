@@ -14,9 +14,7 @@ local warned_part_render_error = false
 
 local function output_window_is_in_background_tab()
   local output_win = state.windows and state.windows.output_win
-  return output_win
-    and vim.api.nvim_win_is_valid(output_win)
-    and not state.ui.is_window_in_current_tab(output_win)
+  return output_win and vim.api.nvim_win_is_valid(output_win) and not state.ui.is_window_in_current_tab(output_win)
 end
 
 ---@param part_id string
@@ -251,12 +249,13 @@ end
 local function new_formatter_context()
   return {
     interactive = true,
+    resolve_symbol_targets = not ctx.bulk_mode,
     get_child_parts = function(session_id)
       return ctx.render_state:get_child_session_parts(session_id)
     end,
     current_refs = reference_facts.current_refs(),
     current_files = reference_facts.available_files(),
-    symbol_cycle = symbol_snapshot.new_cycle(),
+    symbol_cycle = ctx.symbol_refresh_cycle or symbol_snapshot.new_cycle(),
   }
 end
 
@@ -543,6 +542,7 @@ function M.resume_deferred_rendering()
   M.flush()
   if ctx.bulk_mode then
     M.end_bulk_mode()
+    require('opencode.ui.renderer.events').refresh_rendered_symbol_targets()
   end
   M.flush_pending_on_data_rendered()
 end

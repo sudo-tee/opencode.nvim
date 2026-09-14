@@ -45,6 +45,9 @@ local ctx = {
   },
   flush_scheduled = false, ---@type boolean
   markdown_render_scheduled = false, ---@type boolean
+  symbol_refresh_pending = false, ---@type boolean
+  symbol_refresh_token = 0, ---@type integer
+  symbol_refresh_cycle = nil, ---@type table?
   bulk_mode = false, ---@type boolean
   bulk_buffer_lines = {},
   bulk_extmarks_by_line = {},
@@ -77,6 +80,9 @@ function ctx:reset()
   }
   self.flush_scheduled = false
   self.markdown_render_scheduled = false
+  self.symbol_refresh_pending = false
+  self.symbol_refresh_token = self.symbol_refresh_token + 1
+  self.symbol_refresh_cycle = nil
   self.global_folds = {}
   self.part_folds = {}
   self:bulk_reset()
@@ -96,6 +102,7 @@ function ctx:has_pending_work(pending)
   pending = pending or self.pending
 
   return self.flush_scheduled
+    or self.symbol_refresh_pending
     or self.bulk_mode
     or #pending.dirty_message_order > 0
     or #pending.dirty_part_order > 0

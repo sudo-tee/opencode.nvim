@@ -795,7 +795,7 @@ local function add_file_reference_targets(output, rendered, rendered_reference_r
 end
 
 local function add_symbol_reference_targets(output, rendered, rendered_mention_ranges, first_line_idx, context)
-  if not (context and context.interactive and context.symbol_cycle) then
+  if not (context and context.interactive and context.resolve_symbol_targets ~= false and context.symbol_cycle) then
     return {}
   end
 

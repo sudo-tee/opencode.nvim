@@ -112,6 +112,7 @@ describe('persist_state', function()
     vim.fn.writefile(lines or { 'line 1', 'line 2', 'line 3', 'line 4', 'line 5' }, tmpfile)
 
     code_buf = vim.fn.bufadd(tmpfile)
+    vim.bo[code_buf].swapfile = false
     vim.fn.bufload(code_buf)
     vim.bo[code_buf].buflisted = true
 

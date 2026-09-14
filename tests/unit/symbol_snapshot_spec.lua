@@ -7,7 +7,11 @@ describe('opencode.ui.symbol_snapshot', function()
   local original_filetype
   local original_treesitter
   local original_notify
+  local original_uv
+  local original_loop
+  local original_lru_cache
   local files
+  local file_versions
   local buffers
   local captures_by_content
   local read_counts
@@ -15,6 +19,7 @@ describe('opencode.ui.symbol_snapshot', function()
   local query_available
   local parser_available
   local notify_calls
+  local cached_paths
 
   local function fake_node(text, row, col)
     return {
@@ -27,6 +32,7 @@ describe('opencode.ui.symbol_snapshot', function()
 
   local function set_file(path, lines, captures)
     files[path] = lines
+    file_versions[path] = (file_versions[path] or 0) + 1
     captures_by_content[table.concat(lines, '\n')] = captures or {}
   end
 
@@ -36,7 +42,11 @@ describe('opencode.ui.symbol_snapshot', function()
     original_filetype = vim.filetype
     original_treesitter = vim.treesitter
     original_notify = vim.notify
+    original_uv = vim.uv
+    original_loop = vim.loop
+    original_lru_cache = package.loaded['opencode.lru_cache']
     files = {}
+    file_versions = {}
     buffers = {}
     captures_by_content = {}
     read_counts = {}
@@ -44,6 +54,7 @@ describe('opencode.ui.symbol_snapshot', function()
     query_available = true
     parser_available = true
     notify_calls = {}
+    cached_paths = {}
 
     vim.fn = vim.tbl_extend('force', vim.fn or {}, {
       getcwd = function()
@@ -175,6 +186,27 @@ describe('opencode.ui.symbol_snapshot', function()
       table.insert(notify_calls, { msg = msg, level = level })
     end
 
+    local uv = {
+      fs_stat = function(path)
+        local version = file_versions[path]
+        return version and { mtime = { sec = version, nsec = 0 }, size = #table.concat(files[path], '\n') } or nil
+      end,
+    }
+    vim.uv = uv
+    vim.loop = uv
+
+    package.loaded['opencode.lru_cache'] = {
+      new = function()
+        return {
+          get = function(_, path)
+            return cached_paths[path]
+          end,
+          set = function(_, path, value)
+            cached_paths[path] = value
+          end,
+        }
+      end,
+    }
     package.loaded['opencode.ui.symbol_snapshot'] = nil
     symbol_snapshot = require('opencode.ui.symbol_snapshot')
   end)
@@ -185,7 +217,10 @@ describe('opencode.ui.symbol_snapshot', function()
     vim.filetype = original_filetype
     vim.treesitter = original_treesitter
     vim.notify = original_notify
+    vim.uv = original_uv
+    vim.loop = original_loop
     package.loaded['opencode.ui.symbol_snapshot'] = nil
+    package.loaded['opencode.lru_cache'] = original_lru_cache
   end)
 
   it('exports only the frozen public API', function()
@@ -244,6 +279,28 @@ describe('opencode.ui.symbol_snapshot', function()
 
     assert.equal(1, read_counts[path])
     assert.equal(1, parse_counts[content])
+  end)
+
+  it('reuses parsed candidate files across cycles until they change', function()
+    local path = '/test/project/src/main.lua'
+    local content = 'local function foo() end'
+    set_file(path, { content }, {
+      { id = 1, node = fake_node('foo', 0, 15) },
+    })
+
+    local first = symbol_snapshot.new_cycle()
+    local second = symbol_snapshot.new_cycle()
+    assert.equal(1, #symbol_snapshot.targets_for_token(first, 'foo', { path }))
+    assert.equal(1, #symbol_snapshot.targets_for_token(second, 'foo', { path }))
+    assert.equal(1, read_counts[path])
+    assert.equal(1, parse_counts[content])
+
+    set_file(path, { 'local function bar() end' }, {
+      { id = 1, node = fake_node('bar', 0, 15) },
+    })
+    local changed = symbol_snapshot.new_cycle()
+    assert.equal(1, #symbol_snapshot.targets_for_token(changed, 'bar', { path }))
+    assert.equal(2, read_counts[path])
   end)
 
   it('collects definition tokens from referenced readable Lua files', function()

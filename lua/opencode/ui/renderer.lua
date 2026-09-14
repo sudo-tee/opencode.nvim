@@ -283,7 +283,6 @@ function M.event_subscriptions()
     { 'file.edited', events.on_file_edited },
     { 'file.watcher.updated', events.on_file_watcher_updated },
     { 'custom.restore_point.created', events.on_restore_points },
-    { 'custom.emit_events.finished', M.on_emit_events_finished },
   }
 end
 
@@ -422,10 +421,10 @@ function M._render_full_session_data(session_data, opts)
     events.on_part_updated({ part = revert_message.parts[1] })
   end
 
-  local t_format_end = vim.uv.hrtime()
   flush.flush()
   flush.end_bulk_mode()
-  local t_flush_end = vim.uv.hrtime()
+
+  events.refresh_rendered_symbol_targets()
 
   if opts.restore_model_from_messages then
     require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
@@ -599,11 +598,6 @@ end
 
 M.reconcile_rendered_message_limit = reconcile_rendered_message_limit
 M.is_message_visible = is_message_visible
-
----Scroll to bottom after all queued events have been processed
-function M.on_emit_events_finished()
-  M.scroll_to_bottom()
-end
 
 ---Return all actions available at a given (0-indexed) line
 ---@param line integer

@@ -4,6 +4,7 @@ local ctx = require('opencode.ui.renderer.ctx')
 local prompts = ctx.prompt_controllers
 local flush = require('opencode.ui.renderer.flush')
 local reference_facts = require('opencode.ui.reference_facts')
+local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
 
 ---@param message OpencodeMessage|nil
 ---@return string|nil
@@ -85,31 +86,6 @@ local function mark_following_assistant_text_parts_dirty(message, changed_part_i
   end
 end
 
-local function mark_rendered_assistant_text_parts_dirty()
-  local active_session_id = state.active_session and state.active_session.id
-  if not active_session_id then
-    return
-  end
-
-  for part_id, part_data in pairs(ctx.render_state._parts or {}) do
-    local part = part_data.part
-    if
-      part
-      and part.type == 'text'
-      and part.text
-      and not part.synthetic
-      and part_data.line_start
-      and part_data.line_end
-    then
-      local message_data = ctx.render_state:get_message(part_data.message_id)
-      local message = message_data and message_data.message or find_message_in_state(part_data.message_id)
-      if is_assistant_message(message) and message.info.sessionID == active_session_id then
-        flush.mark_part_dirty(part_id, part_data.message_id)
-      end
-    end
-  end
-end
-
 -- Lazy require to avoid circular dependency: renderer.lua <-> events.lua
 ---@param force? boolean
 local function scroll(force)
@@ -118,9 +94,12 @@ end
 
 local M = {}
 
+function M.refresh_rendered_symbol_targets()
+  symbol_refresh.refresh()
+end
+
 function M.invalidate_reference_targets_for_file_change()
-  reference_facts.refresh_current_files()
-  mark_rendered_assistant_text_parts_dirty()
+  symbol_refresh.invalidate()
 end
 
 ---@param message_id string

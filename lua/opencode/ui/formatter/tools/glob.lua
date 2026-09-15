@@ -2,14 +2,13 @@ local icons = require('opencode.ui.icons')
 local M = {}
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  if part.tool ~= 'glob' then
+  if part.name ~= 'glob' then
     return
   end
 
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
+  local input = part.input or {}
 
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
@@ -22,17 +21,19 @@ function M.format(output, part)
     return
   end
 
-  local prefix = metadata.truncated and ' more than' or ''
-  output:add_line(string.format('Found%s `%d` file(s):', prefix, metadata.count or 0))
+  local search = part.search or {}
+  local prefix = search.truncated and ' more than' or ''
+  output:add_line(
+    search.count and string.format('Found%s `%d` file(s):', prefix, search.count) or 'File count unavailable'
+  )
 
   output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
----@param _ OpencodeMessagePart
----@param input GlobToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
-  return icons.get('search'), 'glob', input.pattern or ''
+function M.summary(part)
+  return icons.get('search'), 'glob', (part.input and part.input.pattern) or ''
 end
 
 return M

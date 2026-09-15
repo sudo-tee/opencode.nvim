@@ -1,8 +1,7 @@
-local context_module = require('opencode.context')
 local icons = require('opencode.ui.icons')
+local state = require('opencode.state')
 local util = require('opencode.util')
 local Output = require('opencode.ui.output')
-local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
@@ -21,21 +20,21 @@ M.separator = {
 local compaction_divider_text =
   '━━━━━━━━━━━━ Session compacted ━━━━━━━━━━━━'
 
----@param part OpencodeMessagePart|nil
+---@param part table|nil
 ---@return boolean
 local function is_compaction_part(part)
-  return part ~= nil and part.type == 'compaction'
+  return part ~= nil and part.kind == 'compaction'
 end
 
----@param message OpencodeMessage
+---@param message table
 ---@return boolean
 local function is_pure_compaction_message(message)
-  if not message.info or message.info.role ~= 'user' or not message.parts or #message.parts == 0 then
+  if not message or message.kind ~= 'user' or not message.content or #message.content == 0 then
     return false
   end
 
   local has_compaction = false
-  for _, part in ipairs(message.parts) do
+  for _, part in ipairs(message.content) do
     if is_compaction_part(part) then
       has_compaction = true
     else
@@ -46,19 +45,18 @@ local function is_pure_compaction_message(message)
   return has_compaction
 end
 
----@param message OpencodeMessage
+---@param message table
 ---@return boolean
 local function is_compaction_summary_message(message)
-  local info = message.info
-  if not info or info.role ~= 'assistant' then
+  if not message or message.kind ~= 'assistant' then
     return false
   end
 
-  return info.summary == true or info.mode == 'compaction' or info.agent == 'compaction'
+  return message.agent == 'compaction'
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M._format_reasoning(output, part)
   local text = vim.trim(part.text or '')
 
@@ -66,8 +64,8 @@ function M._format_reasoning(output, part)
 
   local title = 'Reasoning'
   local time = part.time
-  if time and type(time) == 'table' and time.start then
-    local duration_text = util.format_duration_seconds(time.start, time['end'])
+  if time and type(time) == 'table' and time.started then
+    local duration_text = util.format_duration_seconds(time.started, time.completed)
     if duration_text then
       title = string.format('%s %s', title, duration_text)
     end
@@ -95,12 +93,13 @@ function M._format_reasoning(output, part)
 end
 
 ---Format the revert callout with statistics
----@param session_data OpencodeMessage[] All messages in the session
+---@param session_data table[] All entries in the session
 ---@param start_idx number Index of the message where revert occurred
+---@param revert table
 ---@return Output output object representing the lines, extmarks, and actions
-function M._format_revert_message(session_data, start_idx)
+function M._format_revert_message(session_data, start_idx, revert)
   local output = Output.new()
-  local stats = format_utils.calculate_revert_stats(session_data, start_idx, state.active_session.revert)
+  local stats = format_utils.calculate_revert_stats(session_data, start_idx, revert)
   local message_text = stats.messages == 1 and 'message' or 'messages'
   local tool_text = stats.tool_calls == 1 and 'tool call' or 'tool calls'
 
@@ -182,7 +181,7 @@ local function add_action(output, text, action_type, args, key, line)
 end
 
 ---@param output Output Output object to write to
----@param part OpencodeMessagePart
+---@param part table
 function M._format_patch(output, part)
   if not part.hash then
     return
@@ -213,24 +212,27 @@ function M._format_patch(output, part)
 end
 
 ---@param output Output Output object to write to
----@param message MessageInfo
+---@param message table
 function M._format_error(output, message)
   output:add_empty_line()
   M._format_callout(output, 'ERROR', vim.inspect(message.error))
 end
 
----@param message OpencodeMessage
----@param previous_message? OpencodeMessage
+---@param message table
+---@param previous_message? table
 ---@return Output
 function M.format_message_header(message, previous_message)
+  if type(message) ~= 'table' or type(message.id) ~= 'string' or type(message.kind) ~= 'string' then
+    error('formatter requires an Entry with id and kind')
+  end
   local output = Output.new()
 
-  if message.info and message.info.id == '__opencode_revert_message__' then
+  if message.id == '__opencode_revert_message__' then
     output:add_lines(M.separator)
     return output
   end
 
-  if message.info and message.info.id == '__opencode_hidden_messages_notice__' then
+  if message.id == '__opencode_hidden_messages_notice__' then
     return output
   end
 
@@ -242,27 +244,25 @@ function M.format_message_header(message, previous_message)
     return output
   end
 
-  local role = message.info.role or 'unknown'
-  local icon = message.info.role == 'user' and icons.get('header_user') or icons.get('header_assistant')
+  local role = message.kind or 'unknown'
+  local icon = role == 'user' and icons.get('header_user') or icons.get('header_assistant')
 
-  local time = message.info.time and message.info.time.created or nil
+  local time = message.time and message.time.created or nil
   local role_hl = 'OpencodeMessageRole' .. role:sub(1, 1):upper() .. role:sub(2)
-  local model_text = message.info.providerID
-      and message.info.modelID
-      and (message.info.providerID .. '/' .. message.info.modelID)
-    or message.info.providerID
-    or message.info.modelID
+  local model_text = message.model
+      and message.model.providerID
+      and message.model.modelID
+      and (message.model.providerID .. '/' .. message.model.modelID)
+    or (message.model and (message.model.providerID or message.model.modelID))
     or ''
 
-  local debug_text = config.debug.show_ids and ' [' .. message.info.id .. ']' or ''
+  local debug_text = config.debug.show_ids and ' [' .. message.id .. ']' or ''
 
   local display_name
   if role == 'assistant' then
-    local mode = message.info.mode
+    local mode = message.agent
     if mode and mode ~= '' then
       display_name = mode:upper()
-    elseif state.current_mode and state.current_mode ~= '' then
-      display_name = state.current_mode:upper()
     else
       display_name = 'ASSISTANT'
     end
@@ -280,9 +280,9 @@ function M.format_message_header(message, previous_message)
 
   local same_mode_as_previous = false
   if (header_style == 'minimal' or header_style == 'hidden') and role == 'assistant' and previous_message then
-    local previous_role = previous_message.info and previous_message.info.role or nil
-    local previous_mode = previous_message.info and previous_message.info.mode or state.current_mode
-    local current_mode = message.info.mode or state.current_mode
+    local previous_role = previous_message.kind
+    local previous_mode = previous_message.agent
+    local current_mode = message.agent
     same_mode_as_previous = previous_role == 'assistant'
       and current_mode
       and current_mode ~= ''
@@ -303,9 +303,6 @@ function M.format_message_header(message, previous_message)
       { ' ' },
       { display_name, role_hl },
     }
-    if role == 'user' and message.info.queued then
-      table.insert(header_virt_text, { ' QUEUED', 'OpencodeQueued' })
-    end
     vim.list_extend(header_virt_text, {
       { ' ' },
       { model_text, 'OpencodeHint' },
@@ -328,14 +325,8 @@ function M.format_message_header(message, previous_message)
 
   -- Only want to show the error if we have no parts. If we have parts, they'll
   -- handle rendering the error
-  if
-    role == 'assistant'
-    and message.info.error
-    and message.info.error ~= ''
-    and (not message.parts or #message.parts == 0)
-  then
-    local error = message.info.error
-    local error_message = error.data and error.data.message or vim.inspect(error)
+  if role == 'assistant' and message.error and (not message.content or #message.content == 0) then
+    local error_message = message.error.message or message.error.type or vim.inspect(message.error)
 
     output:add_line('')
     M._format_callout(output, 'ERROR', error_message)
@@ -379,7 +370,7 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
----@param message? OpencodeMessage Optional message object to extract mentions from
+---@param message? table Optional message object to extract mentions from
 function M._format_user_prompt(output, text, message)
   local start_line = output:get_line_count()
 
@@ -390,20 +381,18 @@ function M._format_user_prompt(output, text, message)
   local end_line_extmark_offset = 0
 
   local mentions = {}
-  if message and message.parts then
-    -- message.parts will only be filled out on a re-render
-    -- we need to collect the mentions here
-    for _, part in ipairs(message.parts) do
-      if part.type == 'file' then
+  if message and message.content then
+    for _, part in ipairs(message.content) do
+      if part.kind == 'file' then
         -- we're rerendering this part and we have files, the space after the user prompt
         -- also needs an extmark
         end_line_extmark_offset = 1
-        if part.source and part.source.text then
-          table.insert(mentions, part.source.text)
+        if part.mention and part.mention.text then
+          table.insert(mentions, part.mention)
         end
-      elseif part.type == 'agent' then
-        if part.source then
-          table.insert(mentions, part.source)
+      elseif part.kind == 'agent' then
+        if part.mention and part.mention.text then
+          table.insert(mentions, part.mention)
         end
       end
     end
@@ -423,38 +412,13 @@ local function format_compaction_divider(output)
 end
 
 ---@param output Output Output object to write to
----@param part OpencodeMessagePart
+---@param part table
 function M._format_selection_context(output, part)
-  local part_message = part._message_context
-  local json = context_module.decode_json_context(part.text or '', 'selection')
-  if not json then
+  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'selection' then
     return
   end
   local start_line = output:get_line_count() + 1
-
-  if part_message and part_message.parts then
-    for i, message_part in ipairs(part_message.parts) do
-      if message_part.id == part.id then
-        local previous_part = part_message.parts[i - 1]
-        if previous_part and previous_part.type == 'text' and previous_part.synthetic then
-          local has_selection = context_module.decode_json_context(previous_part.text or '', 'selection') ~= nil
-          local has_cursor = context_module.decode_json_context(previous_part.text or '', 'cursor-data') ~= nil
-          local diagnostics = context_module.decode_json_context(previous_part.text or '', 'diagnostics')
-          local has_diagnostics = diagnostics
-            and diagnostics.content
-            and type(diagnostics.content) == 'table'
-            and #diagnostics.content > 0
-
-          if has_selection or has_cursor or has_diagnostics then
-            start_line = output:get_line_count()
-          end
-        end
-        break
-      end
-    end
-  end
-
-  output:add_lines(vim.split(json.content or '', '\n'))
+  output:add_lines(vim.split(part.text or '', '\n'))
   output:add_empty_line()
 
   local end_line = output:get_line_count()
@@ -463,15 +427,14 @@ function M._format_selection_context(output, part)
 end
 
 ---@param output Output Output object to write to
----@param part OpencodeMessagePart
+---@param part table
 function M._format_cursor_data_context(output, part)
-  local json = context_module.decode_json_context(part.text or '', 'cursor-data')
-  if not json then
+  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'cursor' then
     return
   end
   local start_line = output:get_line_count()
-  output:add_line('Line ' .. json.line .. ':')
-  output:add_lines(vim.split(json.line_content or '', '\n'))
+  output:add_line('Line ' .. tostring(part.line) .. ':')
+  output:add_lines(vim.split(part.line_content or '', '\n'))
   output:add_empty_line()
 
   local end_line = output:get_line_count()
@@ -480,14 +443,13 @@ function M._format_cursor_data_context(output, part)
 end
 
 ---@param output Output Output object to write to
----@param part OpencodeMessagePart
+---@param part table
 function M._format_diagnostics_context(output, part)
-  local json = context_module.decode_json_context(part.text or '', 'diagnostics')
-  if not json then
+  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'diagnostics' then
     return
   end
   local start_line = output:get_line_count()
-  local diagnostics = json.content --[[@as OpencodeDiagnostic[] ]]
+  local diagnostics = part.diagnostics
   if not diagnostics or type(diagnostics) ~= 'table' or #diagnostics == 0 then
     return
   end
@@ -517,18 +479,18 @@ function M._format_diagnostics_context(output, part)
   M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
----@param part OpencodeMessagePart|nil
+---@param part table|nil
 ---@return string|nil
 local function get_visible_user_part_kind(part)
   if not part then
     return nil
   end
 
-  if part.type == 'file' and part.filename and part.filename ~= '' then
+  if part.kind == 'file' and part.name and part.name ~= '' then
     return 'file'
   end
 
-  if part.type ~= 'text' or not part.text or part.text == '' then
+  if part.kind ~= 'text' or not part.text or part.text == '' then
     return nil
   end
 
@@ -536,34 +498,25 @@ local function get_visible_user_part_kind(part)
     return 'text'
   end
 
-  if context_module.decode_json_context(part.text, 'selection') then
-    return 'selection'
-  end
-
-  if context_module.decode_json_context(part.text, 'cursor-data') then
-    return 'cursor-data'
-  end
-
-  local diagnostics = context_module.decode_json_context(part.text, 'diagnostics')
-  if diagnostics and diagnostics.content and type(diagnostics.content) == 'table' and #diagnostics.content > 0 then
-    return 'diagnostics'
+  if part.kind == 'editor_context' and part.source then
+    return part.source.kind
   end
 
   return nil
 end
 
----@param message OpencodeMessage|nil
----@param part OpencodeMessagePart|nil
+---@param message table|nil
+---@param part table|nil
 ---@return string|nil previous_kind
 ---@return string|nil next_kind
 local function get_user_part_neighbors(message, part)
-  if not message or not message.parts or not part or not part.id then
+  if not message or not message.content or not part then
     return nil, nil
   end
 
   local current_index = nil
-  for i, message_part in ipairs(message.parts) do
-    if message_part.id == part.id then
+  for i, message_part in ipairs(message.content) do
+    if message_part == part then
       current_index = i
       break
     end
@@ -575,15 +528,15 @@ local function get_user_part_neighbors(message, part)
 
   local previous_kind = nil
   for i = current_index - 1, 1, -1 do
-    previous_kind = get_visible_user_part_kind(message.parts[i])
+    previous_kind = get_visible_user_part_kind(message.content[i])
     if previous_kind then
       break
     end
   end
 
   local next_kind = nil
-  for i = current_index + 1, #message.parts do
-    next_kind = get_visible_user_part_kind(message.parts[i])
+  for i = current_index + 1, #message.content do
+    next_kind = get_visible_user_part_kind(message.content[i])
     if next_kind then
       break
     end
@@ -598,10 +551,6 @@ end
 function M._format_context_file(output, path)
   if not path or path == '' then
     return
-  end
-  local cwd = vim.fn.getcwd()
-  if vim.startswith(path, cwd) then
-    path = path:sub(#cwd + 2)
   end
   return output:add_line(string.format('[`%s`](%s)', path, path))
 end
@@ -646,10 +595,16 @@ local function resolve_available_path(path, available_files)
   if path:sub(1, 1) == '/' then
     return available_files[path] and path or nil
   end
-  local absolute = (vim.fn.getcwd and vim.fn.getcwd() or '') .. '/' .. path
-  if available_files[absolute] then
-    return absolute
+  local match
+  for candidate in pairs(available_files) do
+    if candidate:sub(-#path - 1) == '/' .. path then
+      if match then
+        return nil
+      end
+      match = candidate
+    end
   end
+  return match
 end
 
 local function output_range_for_absolute_range(rendered, first_output_line, start_offset, end_offset)
@@ -678,7 +633,7 @@ local function part_text_trim_offset(part, text)
 end
 
 local function current_part_text_references(part, message, text, context)
-  if not (part and part.id and message and message.info and message.info.id and context and context.current_refs) then
+  if not (part and part.id and message and message.id and context and context.current_refs) then
     return {}
   end
 
@@ -688,7 +643,7 @@ local function current_part_text_references(part, message, text, context)
     local raw_range = ref.raw_range
     if
       ref.source_kind == 'assistant_text'
-      and ref.message_id == message.info.id
+      and ref.message_id == message.id
       and ref.part_id == part.id
       and raw_range
     then
@@ -863,8 +818,8 @@ end
 
 ---@param output Output Output object to write to
 ---@param text string
----@param part? OpencodeMessagePart
----@param message? OpencodeMessage
+---@param part? table
+---@param message? table
 ---@param context? FormatterContext
 function M._format_assistant_message(output, text, part, message, context)
   local references = current_part_text_references(part, message, text, context)
@@ -883,10 +838,10 @@ function M._format_assistant_message(output, text, part, message, context)
 end
 
 ---@param output Output Output object to write to
----@param part OpencodeMessagePart
+---@param part table
 ---@param context FormatterContext
 function M.format_tool(output, part, context)
-  local tool = part.tool
+  local tool = part.name
   if not tool or not part.state then
     return
   end
@@ -903,15 +858,12 @@ function M.format_tool(output, part, context)
     end
   end
 
-  if part.state.status == 'error' and part.state.error then
+  if part.state == 'error' and part.error then
     output:add_line('')
-    M._format_callout(output, 'ERROR', part.state.error)
-  ---@diagnostic disable-next-line: undefined-field
-  elseif part.state.input and part.state.input.error then
+    M._format_callout(output, 'ERROR', part.error.message or part.error.type or vim.inspect(part.error))
+  elseif part.input and part.input.error then
     output:add_line('')
-    ---I'm not sure about the type with state.input.error
-    ---@diagnostic disable-next-line: undefined-field
-    M._format_callout(output, 'ERROR', part.state.input.error)
+    M._format_callout(output, 'ERROR', part.input.error)
   end
 
   local end_line = output:get_line_count()
@@ -941,43 +893,46 @@ function M.add_vertical_border(output, start_line, end_line, hl_group, win_col, 
 end
 
 ---Formats a single message part and returns the resulting output object
----@param part OpencodeMessagePart The part to format
----@param message? OpencodeMessage Optional message object to extract role and mentions from
+---@param part table The part to format
+---@param message? table Optional message object to extract role and mentions from
 ---@param is_last_part? boolean Whether this is the last part in the message, used to show an error if there is one
 ---@param context FormatterContext
 ---@return Output
 function M.format_part(part, message, is_last_part, context)
   local output = Output.new()
 
-  if not message or not message.info or not message.info.role then
+  if not message or not message.kind then
     return output
   end
 
   local content_added = false
 
-  if is_compaction_summary_message(message) and part.type ~= 'text' then
+  if is_compaction_summary_message(message) and part.kind ~= 'text' then
     return output
   end
 
-  local role = message.info.role
+  local role = message.kind
 
   if role == 'user' then
     if is_compaction_part(part) then
       format_compaction_divider(output)
       content_added = true
-    elseif part.type == 'text' and type(part.text) == 'string' then
+    elseif part.kind == 'text' and type(part.text) == 'string' then
       if part.synthetic == true then
-        part._message_context = message
         M._format_selection_context(output, part)
         M._format_cursor_data_context(output, part)
         M._format_diagnostics_context(output, part)
-        part._message_context = nil
       else
         M._format_user_prompt(output, vim.trim(part.text), message)
         content_added = true
       end
-    elseif part.type == 'file' then
-      local file_line = M._format_context_file(output, part.filename)
+    elseif part.kind == 'editor_context' then
+      M._format_selection_context(output, part)
+      M._format_cursor_data_context(output, part)
+      M._format_diagnostics_context(output, part)
+      content_added = true
+    elseif part.kind == 'file' then
+      local file_line = M._format_context_file(output, part.name or (part.source and part.source.path))
       if file_line then
         local previous_kind, next_kind = get_user_part_neighbors(message, part)
         local previous_is_context = previous_kind == 'selection'
@@ -995,30 +950,30 @@ function M.format_part(part, message, is_last_part, context)
       end
     end
   elseif role == 'assistant' then
-    if part.type == 'text' and part.text then
+    if part.kind == 'text' and part.text then
       M._format_assistant_message(output, vim.trim(part.text), part, message, context)
       content_added = true
-    elseif part.type == 'reasoning' then
+    elseif part.kind == 'reasoning' then
       M._format_reasoning(output, part)
       content_added = true
-    elseif part.type == 'tool' then
+    elseif part.kind == 'tool' then
       M.format_tool(output, part, context)
       content_added = true
-    elseif part.type == 'patch' and part.hash then
+    elseif part.kind == 'patch' and part.hash then
       M._format_patch(output, part)
       content_added = true
     end
   elseif role == 'system' then
-    if system_formatters.format(part.type, output) then
+    if system_formatters.format(part.kind, output) then
       content_added = true
-    elseif part.type == 'revert-display' then
-      local revert_index = part.state and part.state.revert_index
+    elseif part.kind == 'revert_display' then
+      local revert_index = part.revert_index
       if revert_index then
-        output = M._format_revert_message(state.messages or {}, revert_index)
+        output = M._format_revert_message(message.entries or {}, revert_index, part.revert)
         content_added = output:get_line_count() > 0
       end
-    elseif part.type == 'hidden-messages-display' then
-      local hidden_count = part.state and part.state.hidden_count
+    elseif part.kind == 'hidden_messages_display' then
+      local hidden_count = part.hidden_count
       if type(hidden_count) == 'number' and hidden_count > 0 then
         output = M._format_hidden_messages_notice(hidden_count)
         content_added = output:get_line_count() > 0
@@ -1030,9 +985,8 @@ function M.format_part(part, message, is_last_part, context)
     output:add_empty_line()
   end
 
-  if is_last_part and role == 'assistant' and message.info.error and message.info.error ~= '' then
-    local error = message.info.error
-    local error_message = error.data and error.data.message or vim.inspect(error)
+  if is_last_part and role == 'assistant' and message.error then
+    local error_message = message.error.message or message.error.type or vim.inspect(message.error)
     M._format_callout(output, 'ERROR', error_message)
     output:add_empty_line()
   end

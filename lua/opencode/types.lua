@@ -209,16 +209,17 @@
 
 ---@class OpencodeServerConfig
 ---@field url string | nil -- URL/hostname of custom opencode server (e.g., "http://192.168.1.100" or "localhost")
----@field port number | 'auto' | nil -- Port number, 'auto' for random, or nil for default (4096)
+---@field port number | 'auto' | nil -- Explicit V1 port, 'auto' for an available port, or nil for source-specific discovery
 ---@field timeout number -- Timeout in seconds for health check (default: 5)
 ---@field retry_delay number -- Delay in milliseconds between health check retries (default: 2000)
----@field spawn_command? fun(port: number, url: string): number | nil -- Optional function to start the server, may return server PID
+---@field spawn_command? fun(port: number, url: string, env?: table<string, string>): number | nil -- Optional function to start the server, may return server PID
 ---@field kill_command? fun(port: number, url: string): nil -- Optional function to stop the server when auto_kill is true
 ---@field auto_kill boolean -- Kill spawned servers when nvim exits (default: true)
 ---@field path_map (string | fun(host_path: string): string) | nil -- Map host paths to server paths
 ---@field reverse_path_map (fun(server_path: string): string) | nil -- Map server paths back to host paths
 ---@field username? string | fun(): string | nil -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
----@field password? string | fun(): string | nil -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
+---@field password? string | fun(): string | nil -- Basic auth password; falls back to password_file, OPENCODE_PASSWORD, then OPENCODE_SERVER_PASSWORD
+---@field password_file? string -- File used to persist an automatically generated password for detached plugin servers
 
 ---@class OpencodeUIFloatConfig
 ---@field width number # Width in columns, or ratio when <= 1 (default: 0.95)
@@ -418,146 +419,26 @@
 ---@field quick_chat OpencodeQuickChatConfig
 ---@field snapshot_path? string -- Override base path for snapshot storage (default: $XDG_DATA_HOME/opencode). Appends /snapshot/<project_id>/<worktree_hash>
 
----@class MessagePartState
----@field input TaskToolInput|BashToolInput|FileToolInput|TodoToolInput|GlobToolInput|GrepToolInput|WebFetchToolInput|ListToolInput|QuestionToolInput|ApplyPatchToolInput Input data for the tool
----@field metadata TaskToolMetadata|ToolMetadataBase|WebFetchToolMetadata|BashToolMetadata|FileToolMetadata|GlobToolMetadata|GrepToolMetadata|ListToolMetadata|QuestionToolMetadata Metadata about the tool execution
----@field time { start: number, end: number } Timestamps for tool use
----@field status string Status of the tool use (e.g., 'running', 'completed', 'failed')
----@field title string Title of the tool use
----@field output string Output of the tool use, if applicable
----@field error? string Error message if the part failed
-
----@class ApplyPatchToolInput
----@field patchText string The patch content in unified diff format
-
----@class ApplyPatchFileResult
----@field filePath string Absolute path to the file
----@field relativePath string Relative path to the file
----@field before string File contents before the patch
----@field after string File contents after the patch
----@field additions number Number of lines added
----@field deletions number Number of lines deleted
----@field type 'add'|'edit'|'delete' Type of file operation
----@field diff string Unified diff for this file
-
----@class ApplyPatchToolMetadata: ToolMetadataBase
----@field truncated boolean Whether the output was truncated
----@field diagnostics table<string, any> Diagnostic information keyed by file path
----@field files ApplyPatchFileResult[] Per-file results
----@field diff string Combined unified diff for all files
-
----@class ToolMetadataBase
----@field error boolean|nil Whether the tool execution resulted in an error
----@field message string|nil Optional status or error message
-
----@class TaskToolMetadata: ToolMetadataBase
----@field summary TaskToolSummaryItem[]
----@field sessionId string|nil Child session ID
-
----@class WebFetchToolMetadata: ToolMetadataBase
----@field http_status number|nil HTTP response status code
----@field content_type string|nil Content type of the response
-
----@class BashToolMetadata: ToolMetadataBase
----@field output string|nil
----@field command string|nil
-
----@class FileToolMetadata: ToolMetadataBase
----@field diff string|nil The diff of changes made to the file
----@field file_type string|nil Detected file type/extension
----@field line_count number|nil Number of lines in the file
-
----@class GlobToolMetadata: ToolMetadataBase
----@field truncated boolean|nil
----@field count number|nil
-
----@class GrepToolMetadata: ToolMetadataBase
----@field truncated boolean|nil
----@field matches number|nil
-
----@class BashToolInput
----@field command string The command to execute
----@field description string Description of what the command does
-
----@class FileToolInput
----@field filePath string The path to the file
----@field content? string Content to write (for write tool)
-
----@class TodoToolInput
----@field todos { id: string, content: string, status: 'pending'|'in_progress'|'completed'|'cancelled', priority: 'high'|'medium'|'low' }[]
-
----@class ListToolInput
----@field path string The directory path to list
-
----@class ListToolMetadata: ToolMetadataBase
----@field truncated boolean|nil
----@field count number|nil
-
----@class GlobToolInput
----@field pattern string The glob pattern to match files against
----@field path? string Optional directory to search in
-
----@class ListToolOutput
----@field output string The raw output string from the list tool
-
----@class GrepToolInput
----@field pattern? string The glob pattern to match
----@field path? string Optional directory to search in
----@field include? string Optional file type to include (e.g., '*.lua')
-
----@class WebFetchToolInput
----@field url string The URL to fetch content from
----@field format 'text'|'markdown'|'html'
----@field timeout? number Optional timeout in seconds (max 120)
-
----@class TaskToolInput
----@field prompt string The subtask prompt
----@field description string Description of the subtask
----@field subagent_type string The type of specialized agent to use
-
----@class TaskToolSummaryItem
----@field id string Tool call ID
----@field tool string Tool name
----@field state { status: string, title?: string }
-
--- Question types
-
 ---@class OpencodeQuestionOption
+---@field value any Value submitted to the owning Observation
 ---@field label string Display text
 ---@field description string Explanation of choice
 
 ---@class OpencodeQuestionInfo
----@field question string Complete question
----@field header string Very short label (max 12 chars)
+---@field key string Stable key within the request
+---@field prompt string Complete question
+---@field title? string Short display label
+---@field type 'string'|'multiselect'|'boolean'|'number'|'integer'
 ---@field options OpencodeQuestionOption[] Available choices
----@field multiple? boolean Allow selecting multiple choices
 ---@field custom? boolean Allow a custom response
+---@field required? boolean
 
 ---@class OpencodeQuestionRequest
----@field id string Question request ID
----@field sessionID string Session ID
----@field questions OpencodeQuestionInfo[] Questions to ask
----@field tool? { messageID: string, callID: string }
-
----@class QuestionToolInput
----@field questions OpencodeQuestionInfo[] Questions that were asked
-
----@class QuestionToolMetadata: ToolMetadataBase
----@field answers string[][] Array of answer arrays (one per question)
----@field truncated boolean Whether the results were truncated
-
----@class MessageTokenCount
----@field reasoning number
----@field input number
----@field output number
----@field cache { write: number, read: number }
-
----@class OutputMetadata
----@field msg_idx number|nil Message index in session
----@field part_idx number|nil Part index in message
----@field role 'user'|'assistant'|'system'|nil Message role
----@field type 'text'|'tool'|'header'|'patch'|'step-start'|nil Message part type
----@field snapshot? string|nil snapshot commit hash
+---@field id string Request ID
+---@field session_id string Owning session
+---@field status 'pending'|'answered'|'rejected'
+---@field fields OpencodeQuestionInfo[]
+---@field unavailable_reason? string
 
 ---@class OutputAction
 ---@field text string Action text
@@ -588,7 +469,7 @@
 ---@class FormatterContext
 ---@field interactive boolean
 ---@field resolve_symbol_targets? boolean
----@field get_child_parts? fun(session_id: string): OpencodeMessagePart[]?
+---@field get_child_parts? fun(session_id: string): table[]?
 ---@field current_refs? CodeReference[]
 ---@field current_files? string[]
 ---@field symbol_cycle? SymbolSnapshotCycle
@@ -612,29 +493,6 @@
 
 ---@alias OutputExtmarkType vim.api.keyset.set_extmark & {start_col:0}
 ---@alias OutputExtmark OutputExtmarkType|fun():OutputExtmarkType
-
----@class OpencodeMessage
----@field info MessageInfo Metadata about the message
----@field parts OpencodeMessagePart[] Parts that make up the message
----@field references CodeReference[]|nil Parsed file references from text parts (cached)
----@field system string|nil System message content
-
----@class MessageInfo
----@field id string Unique message identifier
----@field sessionID string Unique session identifier
----@field tokens MessageTokenCount Token usage statistics
----@field system string[] System messages
----@field time { created: number, completed: number } Timestamps
----@field cost number Cost of the message
----@field path { cwd: string, root: string } Working directory paths
----@field modelID string Model identifier
----@field providerID string Provider identifier
----@field role 'user'|'assistant'|'system' Role of the message sender
----@field parentID string|nil Parent user message for assistant messages
----@field queued boolean|nil Whether prompt arrived while session was busy
----@field system_role string|nil Role defined in system messages
----@field mode string|nil Agent or mode identifier
----@field error table
 
 ---@class RestorePoint
 ---@field id string Unique restore point identifier
@@ -719,37 +577,6 @@
 ---@field name string
 ---@field extension string
 ---@field sent_at? number
-
----@class OpencodeMessagePartSourceText
----@field start number
----@field value string
----@field ['end'] number
-
----@class OpencodeMessagePartSource
----@field path string|nil
----@field type string|nil
----@field text OpencodeMessagePartSourceText|nil
----@field value string|nil
-
----@class OpencodeMessagePart
----@field type 'text'|'file'|'agent'|'tool'|'step-start'|'patch'|'reasoning'|string
----@field id string|nil Unique identifier for tool use parts
----@field text string|nil
----@field tool string|nil Name of the tool being used
----@field state MessagePartState|nil State information for tool use parts
----@field filename string|nil
----@field mime string|nil
----@field url string|nil
----@field source OpencodeMessagePartSource|nil
----@field name string|nil
----@field synthetic boolean|nil
----@field snapshot string|nil Snapshot commit hash
----@field sessionID string|nil Session identifier
----@field messageID string|nil Message identifier
----@field callID string|nil Call identifier (used for tools)
----@field hash string|nil Hash identifier for patch parts
----@field files string[]|nil List of file paths for patch parts
----@field time { start: number, end?: number }|nil Timestamps for the part
 
 ---@class OpencodeModelModalities
 ---@field input ('text'|'image'|'audio'|'video')[] Supported input modalities

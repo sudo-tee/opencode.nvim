@@ -6,17 +6,20 @@ local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local ctx = require('opencode.ui.renderer.ctx')
 
----@param messages table[]
----@param rendered table[] list of { id = string, line_start = integer, line_end = integer? }
-local function seed(messages, rendered)
-  state.renderer.set_messages(messages)
-  for _, r in ipairs(rendered) do
-    ctx.render_state:set_message({ info = { id = r.id, role = r.role } }, r.line_start, r.line_end or r.line_start)
+---@param entries table[] list of { id, kind, line_start?, line_end? }
+local function seed(entries)
+  ctx.entries = {}
+  for _, r in ipairs(entries) do
+    local entry = { id = r.id, kind = r.kind, content = {} }
+    ctx.entries[#ctx.entries + 1] = entry
+    if r.line_start then
+      ctx.render_state:set_message(entry, r.line_start, r.line_end or r.line_start)
+    end
   end
 end
 
 local function clear_render()
-  state.renderer.set_messages({})
+  ctx.entries = {}
   ctx.render_state:reset()
 end
 
@@ -57,32 +60,23 @@ describe('navigation user message jumps', function()
   describe('renderer.get_prev_user_message', function()
     it('skips assistant messages and returns previous user message before cursor', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-        { info = { id = 'a2', role = 'assistant' } },
-        { info = { id = 'u3', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
-        { id = 'a2', role = 'assistant', line_start = 60 },
-        { id = 'u3', role = 'user', line_start = 80 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
+        { id = 'a2', kind = 'assistant', line_start = 60 },
+        { id = 'u3', kind = 'user', line_start = 80 },
       })
 
       local result = renderer.get_prev_user_message(50)
 
       assert.is_not_nil(result)
-      assert.equals('u2', result.message.info.id)
+      assert.equals('u2', result.message.id)
     end)
 
     it('returns nil when only assistant messages exist before cursor', function()
       seed({
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'a2', role = 'assistant' } },
-      }, {
-        { id = 'a1', role = 'assistant', line_start = 1 },
-        { id = 'a2', role = 'assistant', line_start = 20 },
+        { id = 'a1', kind = 'assistant', line_start = 1 },
+        { id = 'a2', kind = 'assistant', line_start = 20 },
       })
 
       local result = renderer.get_prev_user_message(30)
@@ -92,53 +86,39 @@ describe('navigation user message jumps', function()
 
     it('returns the last user message before cursor when cursor is past all lines', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 10 },
-        { id = 'u2', role = 'user', line_start = 20 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 20 },
       })
 
       local result = renderer.get_prev_user_message(999)
 
       assert.is_not_nil(result)
-      assert.equals('u2', result.message.info.id)
+      assert.equals('u2', result.message.id)
     end)
   end)
 
   describe('renderer.get_next_user_message', function()
     it('skips assistant messages and returns next user message after cursor', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-        { info = { id = 'a2', role = 'assistant' } },
-        { info = { id = 'u3', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
-        { id = 'a2', role = 'assistant', line_start = 60 },
-        { id = 'u3', role = 'user', line_start = 80 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
+        { id = 'a2', kind = 'assistant', line_start = 60 },
+        { id = 'u3', kind = 'user', line_start = 80 },
       })
 
       local result = renderer.get_next_user_message(45)
 
       assert.is_not_nil(result)
-      assert.equals('u3', result.message.info.id)
+      assert.equals('u3', result.message.id)
     end)
 
     it('returns nil when only assistant messages exist after cursor', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'a2', role = 'assistant' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'a2', role = 'assistant', line_start = 40 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'a2', kind = 'assistant', line_start = 40 },
       })
 
       local result = renderer.get_next_user_message(5)
@@ -148,36 +128,26 @@ describe('navigation user message jumps', function()
 
     it('returns the last user message when cursor is before the first user line', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'u2', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 10 },
-        { id = 'u2', role = 'user', line_start = 20 },
-        { id = 'a1', role = 'assistant', line_start = 30 },
+        { id = 'u1', kind = 'user', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 20 },
+        { id = 'a1', kind = 'assistant', line_start = 30 },
       })
 
       local result = renderer.get_next_user_message(1)
 
       assert.is_not_nil(result)
-      assert.equals('u1', result.message.info.id)
+      assert.equals('u1', result.message.id)
     end)
   end)
 
   describe('navigation.goto_prev_user_message', function()
     it('jumps to the previous user message when cursor is in the middle', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-        { info = { id = 'a2', role = 'assistant' } },
-        { info = { id = 'u3', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
-        { id = 'a2', role = 'assistant', line_start = 60 },
-        { id = 'u3', role = 'user', line_start = 80 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
+        { id = 'a2', kind = 'assistant', line_start = 60 },
+        { id = 'u3', kind = 'user', line_start = 80 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 81, 0 })
@@ -189,13 +159,9 @@ describe('navigation user message jumps', function()
 
     it('notifies and does not move when already on the first user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
@@ -214,17 +180,11 @@ describe('navigation user message jumps', function()
   describe('navigation.goto_next_user_message', function()
     it('jumps to the next user message when cursor is in the middle', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-        { info = { id = 'a2', role = 'assistant' } },
-        { info = { id = 'u3', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
-        { id = 'a2', role = 'assistant', line_start = 60 },
-        { id = 'u3', role = 'user', line_start = 80 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
+        { id = 'a2', kind = 'assistant', line_start = 60 },
+        { id = 'u3', kind = 'user', line_start = 80 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
@@ -236,13 +196,9 @@ describe('navigation user message jumps', function()
 
     it('notifies and does not move when already on the last user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 41, 0 })
@@ -259,10 +215,6 @@ describe('navigation user message jumps', function()
   end)
 
   describe('lazy render interaction', function()
-    -- Under lazy render, only the most recent N messages are present in the
-    -- render_state. The jump action must force a full render first (mirroring
-    -- how `gg` in output_window.setup_keymaps handles this), otherwise the
-    -- target user message has no line_start and the jump silently no-ops.
     local original_load
 
     before_each(function()
@@ -276,10 +228,10 @@ describe('navigation user message jumps', function()
 
     it('calls load_all_messages before navigating to the previous user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {})
+        { id = 'u1', kind = 'user' },
+        { id = 'a1', kind = 'assistant' },
+        { id = 'u2', kind = 'user' },
+      })
       ctx.lazy_render_count = 0
 
       local called = 0
@@ -295,9 +247,9 @@ describe('navigation user message jumps', function()
 
     it('calls load_all_messages before navigating to the next user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {})
+        { id = 'u1', kind = 'user' },
+        { id = 'u2', kind = 'user' },
+      })
       ctx.lazy_render_count = 0
 
       local called = 0
@@ -311,39 +263,33 @@ describe('navigation user message jumps', function()
       assert.equals(1, called)
     end)
 
-    it('jumps correctly when load_all_messages fills in the previously unrendered user message', function()
-      state.renderer.set_messages({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
+    it('jumps after load_all_messages renders the target user message', function()
+      seed({
+        { id = 'u1', kind = 'user' },
+        { id = 'a1', kind = 'assistant' },
+        { id = 'u2', kind = 'user' },
       })
-      ctx.render_state:reset()
       ctx.lazy_render_count = 1
 
       renderer.load_all_messages = function()
-        ctx.render_state:set_message({ info = { id = 'u1', role = 'user' } }, 1, 1)
-        ctx.render_state:set_message({ info = { id = 'u2', role = 'user' } }, 40, 40)
+        ctx.render_state:set_message(ctx.entries[1], 1, 1)
+        ctx.render_state:set_message(ctx.entries[3], 40, 40)
         return true
       end
 
       vim.api.nvim_win_set_cursor(output_win, { 41, 0 })
       navigation.goto_prev_user_message()
 
-      local cursor = vim.api.nvim_win_get_cursor(output_win)
-      assert.equals(2, cursor[1])
+      assert.equals(2, vim.api.nvim_win_get_cursor(output_win)[1])
     end)
   end)
 
   describe('jumplist preservation', function()
     it('marks the previous position before jumping to the next user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
@@ -357,13 +303,9 @@ describe('navigation user message jumps', function()
 
     it('marks the previous position before jumping to the previous user message', function()
       seed({
-        { info = { id = 'u1', role = 'user' } },
-        { info = { id = 'a1', role = 'assistant' } },
-        { info = { id = 'u2', role = 'user' } },
-      }, {
-        { id = 'u1', role = 'user', line_start = 1 },
-        { id = 'a1', role = 'assistant', line_start = 20 },
-        { id = 'u2', role = 'user', line_start = 40 },
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+        { id = 'u2', kind = 'user', line_start = 40 },
       })
 
       vim.api.nvim_win_set_cursor(output_win, { 81, 0 })

@@ -3,11 +3,9 @@
 ---@field debug_output fun()
 ---@field debug_message fun()
 ---@field debug_session fun()
----@field save_captured_events fun(filename: string)
 local M = {}
 
 local state = require('opencode.state')
-local Promise = require('opencode.promise')
 
 function M.open_json_file(data)
   local tmpfile = vim.fn.tempname() .. '.json'
@@ -24,8 +22,12 @@ function M.open_json_file(data)
 end
 
 function M.debug_output()
-  local session_formatter = require('opencode.ui.formatter')
-  M.open_json_file(session_formatter:get_lines())
+  local bufnr = state.windows and state.windows.output_buf
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    vim.notify('Output buffer not available', vim.log.levels.WARN)
+    return
+  end
+  M.open_json_file({ lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false) })
 end
 
 function M.debug_message()
@@ -48,36 +50,13 @@ function M.debug_message()
   vim.notify('No message found in previous lines', vim.log.levels.WARN)
 end
 
-M.debug_session = Promise.async(function()
-  local session = require('opencode.session')
-
-  local session_path = session.get_workspace_session_path():await()
-  if not state.active_session then
-    print('No active session')
+function M.debug_session()
+  local observation = state.session.active_observation()
+  if not observation then
+    vim.notify('No active session observation', vim.log.levels.WARN)
     return
   end
-  if state.last_code_win_before_opencode then
-    vim.api.nvim_set_current_win(state.last_code_win_before_opencode --[[@as integer]])
-  end
-  vim.cmd('e ' .. session_path .. '/' .. state.active_session.id .. '.json')
-end)
-
-function M.save_captured_events(filename)
-  if not state.event_manager then
-    vim.notify('Event manager not initialized', vim.log.levels.ERROR)
-    return
-  end
-
-  local events = state.event_manager.captured_events
-  if not events or #events == 0 then
-    vim.notify('No captured events to save', vim.log.levels.WARN)
-    return
-  end
-
-  local json_str = vim.json.encode(events)
-  local lines = vim.split(json_str, '\n')
-  vim.fn.writefile(lines, filename)
-  vim.notify(string.format('Saved %d events to %s', #events, filename), vim.log.levels.INFO)
+  M.open_json_file(observation:read())
 end
 
 return M

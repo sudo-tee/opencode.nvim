@@ -58,34 +58,50 @@ end
 
 local function check_opencode_server()
   health.start('OpenCode Server')
-  local opencode_server = require('opencode.opencode_server').new()
-  local server = opencode_server:spawn():wait() --[[@as OpencodeServer]]
-  if server and server.url then
-    health.ok('opencode server started successfully at ' .. server.url)
-  else
-    health.error('Failed to start opencode server')
+  local server_job = require('opencode.server_job')
+  local state = require('opencode.state')
+  local previous_connection = state.opencode_server
+  local ok, server = pcall(function()
+    return server_job.ensure_server():wait()
+  end)
+  if not ok or not server or not server.url or not server.protocol then
+    health.error('Failed to establish an authenticated opencode connection: ' .. vim.inspect(server))
+    return
   end
 
-  -- Ensure the server is really running by making a simple request
-  local server_job = require('opencode.server_job')
-  local result = server_job.call_api(server.url .. '/config', 'GET', nil):wait()
-  if result and result then
-    health.ok('opencode server is reachable')
-    if result['$schema'] then
-      health.ok('opencode server configuration available')
+  health.ok(string.format('opencode %s server %s is reachable at %s', server.protocol, server.version, server.url))
+  if server:can_release_process() then
+    health.info('this Connection may release its local server process')
+  elseif server.port then
+    health.info('this Connection closes client resources only; the configured server process remains running')
+  else
+    health.info('this Connection closes client resources only; the native service remains running')
+  end
+  local result_ok, result = pcall(function()
+    return require('opencode.config_file').get_opencode_config():wait()
+  end)
+  if result_ok and result ~= nil then
+    health.ok('opencode server configuration available')
+  else
+    health.error('opencode server configuration request failed: ' .. vim.inspect(result))
+  end
+
+  local created_for_check = previous_connection == nil and state.opencode_server == server
+  if created_for_check then
+    state.jobs.clear_server()
+    local close_ok, close_promise = pcall(server.close, server)
+    if close_ok and close_promise then
+      close_promise:wait()
+      if close_promise:is_resolved() then
+        health.ok('opencode connection closed successfully')
+      else
+        health.error('Failed to close opencode connection')
+      end
     else
-      health.error('opencode server configuration not available')
+      health.error('Failed to close opencode connection: ' .. vim.inspect(close_promise))
     end
   else
-    health.error('opencode server did not respond as expected')
-  end
-
-  local shutdown_promise = server:shutdown()
-  shutdown_promise:wait()
-  if shutdown_promise:is_resolved() then
-    health.ok('opencode server shut down successfully')
-  else
-    health.error('Failed to shut down opencode server')
+    health.info('opencode server connection left running')
   end
 end
 

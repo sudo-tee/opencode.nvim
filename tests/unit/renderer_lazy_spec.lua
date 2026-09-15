@@ -6,23 +6,18 @@ local config = require('opencode.config')
 ---Create a minimal message for testing lazy render.
 ---@param id string Message ID
 ---@param role string 'user' or 'assistant'
----@return OpencodeMessage
+---@return table
 local function make_message(id, role)
   return {
-    info = {
-      id = id,
-      sessionID = 'ses_test',
-      role = role,
-      time = { created = 1000 },
-    },
-    parts = {
+    id = id,
+    session_id = 'ses_test',
+    kind = role,
+    time = { created = 1000 },
+    content = {
       {
         id = id .. '_part',
-        messageID = id,
-        sessionID = 'ses_test',
-        type = 'text',
+        kind = 'text',
         text = 'Message ' .. id,
-        state = {},
       },
     },
   }
@@ -30,7 +25,7 @@ end
 
 ---Create a list of N user/assistant message pairs.
 ---@param count integer Number of message pairs
----@return OpencodeMessage[]
+---@return table[]
 local function make_session_data(count)
   local messages = {}
   for i = 1, count do
@@ -44,8 +39,8 @@ end
 ---@return integer
 local function count_rendered_messages()
   local count = 0
-  for _, msg in ipairs(state.messages or {}) do
-    local msg_id = msg.info and msg.info.id or ''
+  for _, msg in ipairs(ctx.entries) do
+    local msg_id = msg.id or ''
     if msg_id:match('^__opencode_') then
       goto continue
     end
@@ -64,7 +59,7 @@ describe('lazy render', function()
   before_each(function()
     helpers.replay_setup()
     renderer = require('opencode.ui.renderer')
-    state.session.set_active({ id = 'ses_test', title = 'Test Session' })
+    state.session.set_active({ id = 'ses_test', location = { directory = helpers.MOCK_CWD } })
   end)
 
   after_each(function()
@@ -73,6 +68,24 @@ describe('lazy render', function()
     if state.windows then
       require('opencode.ui.ui').close_windows(state.windows)
     end
+  end)
+
+  it('renders V2 user text without turning internal records into extra user messages', function()
+    local data = {
+      {
+        id = 'msg-user',
+        session_id = 'ses_test',
+        kind = 'user',
+        time = { created = 1789387194873 },
+        content = { { id = 'content-user', kind = 'text', text = '给我讲个笑话吧' } },
+      },
+    }
+    renderer._render_full_session_data(data)
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    assert.is_truthy(table.concat(lines, '\n'):find('给我讲个笑话吧', 1, true))
+    assert.equals(1, count_rendered_messages())
+    assert.is_nil(ctx.render_state:get_message('msg-switch'))
+    assert.is_nil(ctx.render_state:get_message('msg-system'))
   end)
 
   it('truncates to lazy_render_count from the end', function()
@@ -86,11 +99,11 @@ describe('lazy render', function()
 
     -- Verify it's the LAST 10 messages rendered (not the first)
     local last_msg = session_data[#session_data]
-    local rendered = ctx.render_state:get_message(last_msg.info.id)
+    local rendered = ctx.render_state:get_message(last_msg.id)
     assert.is_truthy(rendered and rendered.line_start, 'last message should be rendered')
 
     local first_msg = session_data[1]
-    local not_rendered = ctx.render_state:get_message(first_msg.info.id)
+    local not_rendered = ctx.render_state:get_message(first_msg.id)
     assert.is_falsy(not_rendered and not_rendered.line_start, 'first message should not be rendered')
   end)
 
@@ -149,7 +162,7 @@ describe('lazy render', function()
 
     -- Record the line position of the last message (most recent)
     local last_msg = session_data[#session_data]
-    local rendered_before = ctx.render_state:get_message(last_msg.info.id)
+    local rendered_before = ctx.render_state:get_message(last_msg.id)
     local line_end_before = rendered_before and rendered_before.line_end
 
     -- Simulate load_more: increment and re-render
@@ -158,7 +171,7 @@ describe('lazy render', function()
 
     -- After loading more, the last message should have shifted down
     -- (older messages were inserted above it)
-    local rendered_after = ctx.render_state:get_message(last_msg.info.id)
+    local rendered_after = ctx.render_state:get_message(last_msg.id)
     local line_end_after = rendered_after and rendered_after.line_end
 
     assert.is_truthy(line_end_before, 'last message should be rendered before load')
@@ -317,7 +330,6 @@ describe('lazy render', function()
     end
 
     -- Simulate load_all_messages (sets count to total and re-renders).
-    -- Can't call load_all_messages directly — render_from_cache requires api_client.
     ctx.lazy_render_count = 100
     renderer._render_full_session_data(session_data)
     assert.are.equal(100, count_rendered_messages())
@@ -337,7 +349,7 @@ end)
 describe('renderer no debug logging', function()
   before_each(function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'ses_test', title = 'Test Session' })
+    state.session.set_active({ id = 'ses_test', location = { directory = helpers.MOCK_CWD } })
   end)
 
   after_each(function()
@@ -369,5 +381,147 @@ describe('renderer no debug logging', function()
         assert.is_not_match('%[e2e%]', n.msg, 'DEBUG: [e2e] notification should not be emitted: ' .. n.msg)
       end
     end
+  end)
+end)
+
+describe('older history bridge', function()
+  local renderer
+  local session_state
+  local Promise = require('opencode.promise')
+  local stub = require('luassert.stub')
+
+  before_each(function()
+    helpers.replay_setup()
+    renderer = require('opencode.ui.renderer')
+    session_state = require('opencode.state.session')
+    -- let on_session_changed from the previous test settle before stubbing
+    vim.wait(100, function() return false end)
+    stub(session_state, 'active_observation')
+    state.session.set_active({ id = 'ses_test', location = { directory = helpers.MOCK_CWD } })
+  end)
+
+  after_each(function()
+    session_state.active_observation:revert()
+    ctx:reset()
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
+  end)
+
+  ---Observation mock mirroring the real protocol layer: the cached window
+  ---lives inside the observation (entries_by_id/entry_order), and
+  ---load_older merges an older page into it, the way reconcile would see.
+  local function observation_with_older_page()
+    local older, newer = make_session_data(5), make_session_data(20)
+    local remaining_pages = 1
+    local entries_by_id, entry_order = {}, {}
+    local function set_entries(list)
+      entries_by_id, entry_order = {}, {}
+      for _, entry in ipairs(list) do
+        entries_by_id[entry.id] = entry
+        entry_order[#entry_order + 1] = entry.id
+      end
+    end
+    set_entries(newer)
+    local observation = {
+      read = function()
+        return {
+          session = { id = 'ses_test' },
+          sync = { session = { state = 'current' }, messages = { state = 'current' } },
+          entries_by_id = entries_by_id,
+          entry_order = entry_order,
+          children = { order = {}, by_id = {} },
+          permission_requests_by_id = {},
+          question_requests_by_id = {},
+          files = { revision = 0 },
+        }
+      end,
+      watch = function()
+        return function() end
+      end,
+      has_older_history = function()
+        return remaining_pages > 0
+      end,
+      load_older = function()
+        assert.is_true(remaining_pages > 0, 'load_older must not be called after history completes')
+        remaining_pages = remaining_pages - 1
+        local merged = {}
+        vim.list_extend(merged, older)
+        vim.list_extend(merged, newer)
+        set_entries(merged)
+        return Promise.new():resolve(nil)
+      end,
+      load_complete_history = function(self)
+        local function pull()
+          if not self.has_older_history() then
+            return Promise.new():resolve(nil)
+          end
+          return self.load_older():and_then(pull)
+        end
+        return pull()
+      end,
+    }
+    session_state.active_observation.returns(observation)
+    return observation, older, newer
+  end
+
+  it('load_all_messages pulls older protocol pages until the history is complete', function()
+    local observation, older, newer = observation_with_older_page()
+    ctx.observation = observation
+    ctx.entries = newer
+    ctx.lazy_render_count = 5
+    renderer._render_full_session_data(newer)
+    assert.are.equal(5, count_rendered_messages())
+
+    local started = renderer.load_all_messages()
+    assert.is_true(started, 'load_all should start the older-page pull')
+    -- the pull chain is asynchronous; drain the event loop
+    assert.is_true(vim.wait(1000, function()
+      return count_rendered_messages() >= #older + #newer
+    end))
+
+    assert.are.equal(0, observation.has_older_history() and 1 or 0, 'history should be complete')
+    local first = ctx.entries[1]
+    assert.is_truthy(ctx.render_state:get_message(first.id).line_start, 'oldest message should be rendered')
+    assert.are.equal(#older + #newer, count_rendered_messages())
+  end)
+
+  it('load_more_messages pulls an older page when the cached window is exhausted', function()
+    local observation, older, newer = observation_with_older_page()
+    ctx.observation = observation
+    ctx.entries = newer
+    -- window already covers the whole cached page
+    ctx.lazy_render_count = #newer
+    renderer._render_full_session_data(newer)
+    assert.are.equal(#newer, count_rendered_messages())
+
+    local started = renderer.load_more_messages()
+    assert.is_true(started, 'load_more should fall through to the protocol pull')
+    assert.is_true(vim.wait(1000, function()
+      return ctx.lazy_render_count > #newer
+    end), 'window should grow past the exhausted cached page')
+
+    assert.are.equal(0, observation.has_older_history() and 1 or 0, 'history should be complete')
+  end)
+
+  it('does not pull when the observation has no older history', function()
+    local newer = make_session_data(3)
+    ctx.observation = {
+      read = function()
+        return { session = { id = 'ses_test' } }
+      end,
+      has_older_history = function()
+        return false
+      end,
+      load_older = function()
+        error('load_older must not be called')
+      end,
+    }
+    ctx.entries = newer
+    ctx.lazy_render_count = #newer
+    renderer._render_full_session_data(newer)
+
+    assert.is_false(renderer.load_all_messages())
+    assert.is_false(renderer.load_more_messages())
   end)
 end)

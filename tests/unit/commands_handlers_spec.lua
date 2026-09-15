@@ -1,6 +1,30 @@
 local assert = require('luassert')
 local stub = require('luassert.stub')
 
+local function activate_session(state, session_fact, entries)
+  local entry_order = {}
+  local entries_by_id = {}
+  for _, entry in ipairs(entries or {}) do
+    entry_order[#entry_order + 1] = entry.id
+    entries_by_id[entry.id] = entry
+  end
+  local observation = {
+    read = function()
+      return { session = session_fact, entry_order = entry_order, entries_by_id = entries_by_id }
+    end,
+  }
+  local connection = { observations = {}, operations = {} }
+  function connection:is_ready()
+    return true
+  end
+  function connection:observe()
+    return observation
+  end
+  state.jobs.set_server(connection)
+  state.session.set_active(session_fact)
+  return observation
+end
+
 describe('opencode.commands.handlers', function()
   local tracked_modules = {
     'opencode.state',
@@ -227,7 +251,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    activate_session(state, { id = 'child1', parentID = 'root1', title = 'Child 1' })
     local switched_to
     local original = session_runtime.switch_session
     session_runtime.switch_session = function(session_id)
@@ -245,7 +269,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    activate_session(state, { id = 'root1', parentID = nil, title = 'Root' })
     local switched_to = nil
     local original = session_runtime.switch_session
     session_runtime.switch_session = function(session_id)
@@ -266,7 +290,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    activate_session(state, { id = 'root1', parentID = nil, title = 'Root' })
     local switched_to = nil
     local original = session_runtime.switch_session
     session_runtime.switch_session = function(session_id)
@@ -287,7 +311,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    activate_session(state, { id = 'child1', parentID = 'root1', title = 'Child 1' })
     local selected_with
     local original = session_runtime.select_session
     session_runtime.select_session = function(parent_id)
@@ -305,7 +329,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'child1', parentID = 'root1', title = 'Child 1' })
+    activate_session(state, { id = 'child1', parentID = 'root1', title = 'Child 1' })
     local selected_with
     local original = session_runtime.select_session
     session_runtime.select_session = function(parent_id)
@@ -323,7 +347,7 @@ describe('opencode.commands.handlers', function()
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
-    state.session.set_active({ id = 'root1', parentID = nil, title = 'Root' })
+    activate_session(state, { id = 'root1', parentID = nil, title = 'Root' })
     local selected_with = 'sentinel'
     local original = session_runtime.select_session
     session_runtime.select_session = function(parent_id)
@@ -365,20 +389,18 @@ describe('opencode.commands.handlers', function()
   it('navigate forward + direct switches to more recent session', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
-    local session_store = require('opencode.session')
     local state = require('opencode.state')
-    local Promise = require('opencode.promise')
 
     local sessions = {
       { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
       { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
       { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
     }
-    state.session.set_active(sessions[2])
+    activate_session(state, sessions[2])
 
-    local orig_get_all = session_store.get_all_workspace_sessions
-    session_store.get_all_workspace_sessions = function()
-      return Promise.new():resolve(sessions)
+    local orig_list = session_runtime.list_sessions_by_scope
+    session_runtime.list_sessions_by_scope = function()
+      return sessions
     end
     local switched_to
     local orig_switch = session_runtime.switch_session
@@ -391,7 +413,7 @@ describe('opencode.commands.handlers', function()
       result:wait()
     end
 
-    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.list_sessions_by_scope = orig_list
     session_runtime.switch_session = orig_switch
     assert.equal('s3', switched_to)
   end)
@@ -399,20 +421,18 @@ describe('opencode.commands.handlers', function()
   it('navigate backward + direct switches to older session', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
-    local session_store = require('opencode.session')
     local state = require('opencode.state')
-    local Promise = require('opencode.promise')
 
     local sessions = {
       { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
       { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
       { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
     }
-    state.session.set_active(sessions[2])
+    activate_session(state, sessions[2])
 
-    local orig_get_all = session_store.get_all_workspace_sessions
-    session_store.get_all_workspace_sessions = function()
-      return Promise.new():resolve(sessions)
+    local orig_list = session_runtime.list_sessions_by_scope
+    session_runtime.list_sessions_by_scope = function()
+      return sessions
     end
     local switched_to
     local orig_switch = session_runtime.switch_session
@@ -425,7 +445,7 @@ describe('opencode.commands.handlers', function()
       result:wait()
     end
 
-    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.list_sessions_by_scope = orig_list
     session_runtime.switch_session = orig_switch
     assert.equal('s1', switched_to)
   end)
@@ -433,20 +453,18 @@ describe('opencode.commands.handlers', function()
   it('navigate forward + wrap: newest session wraps to oldest', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
-    local session_store = require('opencode.session')
     local state = require('opencode.state')
-    local Promise = require('opencode.promise')
 
     local sessions = {
       { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
       { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
       { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
     }
-    state.session.set_active(sessions[1]) -- newest, index 1
+    activate_session(state, sessions[1]) -- newest, index 1
 
-    local orig_get_all = session_store.get_all_workspace_sessions
-    session_store.get_all_workspace_sessions = function()
-      return Promise.new():resolve(sessions)
+    local orig_list = session_runtime.list_sessions_by_scope
+    session_runtime.list_sessions_by_scope = function()
+      return sessions
     end
     local switched_to
     local orig_switch = session_runtime.switch_session
@@ -459,7 +477,7 @@ describe('opencode.commands.handlers', function()
       result:wait()
     end
 
-    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.list_sessions_by_scope = orig_list
     session_runtime.switch_session = orig_switch
     assert.equal('s1', switched_to) -- wrap to oldest
   end)
@@ -467,20 +485,18 @@ describe('opencode.commands.handlers', function()
   it('navigate backward + wrap: oldest session wraps to newest', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
-    local session_store = require('opencode.session')
     local state = require('opencode.state')
-    local Promise = require('opencode.promise')
 
     local sessions = {
       { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
       { id = 's2', parentID = nil, title = 'S2', time = { updated = 2000 } },
       { id = 's1', parentID = nil, title = 'S1', time = { updated = 1000 } },
     }
-    state.session.set_active(sessions[3]) -- oldest, index 3
+    activate_session(state, sessions[3]) -- oldest, index 3
 
-    local orig_get_all = session_store.get_all_workspace_sessions
-    session_store.get_all_workspace_sessions = function()
-      return Promise.new():resolve(sessions)
+    local orig_list = session_runtime.list_sessions_by_scope
+    session_runtime.list_sessions_by_scope = function()
+      return sessions
     end
     local switched_to
     local orig_switch = session_runtime.switch_session
@@ -493,7 +509,7 @@ describe('opencode.commands.handlers', function()
       result:wait()
     end
 
-    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.list_sessions_by_scope = orig_list
     session_runtime.switch_session = orig_switch
     assert.equal('s3', switched_to) -- wrap to newest
   end)
@@ -501,18 +517,16 @@ describe('opencode.commands.handlers', function()
   it('navigate forward + no-wrap + empty_policy=notify notifies at newest', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
-    local session_store = require('opencode.session')
     local state = require('opencode.state')
-    local Promise = require('opencode.promise')
 
     local sessions = {
       { id = 's3', parentID = nil, title = 'S3', time = { updated = 3000 } },
     }
-    state.session.set_active(sessions[1])
+    activate_session(state, sessions[1])
 
-    local orig_get_all = session_store.get_all_workspace_sessions
-    session_store.get_all_workspace_sessions = function()
-      return Promise.new():resolve(sessions)
+    local orig_list = session_runtime.list_sessions_by_scope
+    session_runtime.list_sessions_by_scope = function()
+      return sessions
     end
     local switched_to
     local orig_switch = session_runtime.switch_session
@@ -526,7 +540,7 @@ describe('opencode.commands.handlers', function()
       result:wait()
     end
 
-    session_store.get_all_workspace_sessions = orig_get_all
+    session_runtime.list_sessions_by_scope = orig_list
     session_runtime.switch_session = orig_switch
     assert.is_nil(switched_to)
     assert.stub(notify_stub).was_called()
@@ -666,32 +680,32 @@ describe('opencode.commands.handlers', function()
   describe('copy_message', function()
     local state
     local active_session
-    local messages
+    local active_connection
 
     before_each(function()
       state = require('opencode.state')
       active_session = state.active_session
-      messages = state.messages
-      state.session.set_active({ id = 'session-copy' })
+      active_connection = state.opencode_server
     end)
 
     after_each(function()
+      state.jobs.set_server(active_connection)
       state.session.set_active(active_session)
-      state.renderer.set_messages(messages)
     end)
 
     it('copies original non-synthetic text parts in order without trimming', function()
-      state.renderer.set_messages({
+      activate_session(state, { id = 'session-copy' }, {
         {
-          info = { id = 'user-message', role = 'user' },
-          parts = {
-            { type = 'text', text = '  first  ' },
-            { type = 'text', text = 'synthetic', synthetic = true },
-            { type = 'tool', text = 'tool output' },
-            { type = 'text', text = nil },
-            { type = 'text', text = 1 },
-            { type = 'text', text = 'second\nline' },
-            { type = 'text', text = '   ' },
+          id = 'user-message',
+          kind = 'user',
+          content = {
+            { kind = 'text', text = '  first  ' },
+            { kind = 'text', text = 'synthetic', synthetic = true },
+            { kind = 'tool', text = 'tool output' },
+            { kind = 'text', text = nil },
+            { kind = 'text', text = 1 },
+            { kind = 'text', text = 'second\nline' },
+            { kind = 'text', text = '   ' },
           },
         },
       })
@@ -704,14 +718,15 @@ describe('opencode.commands.handlers', function()
     end)
 
     it('does not replace the register when no valid message text exists', function()
-      state.renderer.set_messages({
+      activate_session(state, { id = 'session-copy' }, {
         {
-          info = { id = 'empty-message', role = 'user' },
-          parts = {
-            { type = 'text', text = ' ', synthetic = false },
-            { type = 'text', text = nil },
-            { type = 'text', text = false },
-            { type = 'tool', text = 'tool output' },
+          id = 'empty-message',
+          kind = 'user',
+          content = {
+            { kind = 'text', text = ' ', synthetic = false },
+            { kind = 'text', text = nil },
+            { kind = 'text', text = false },
+            { kind = 'tool', text = 'tool output' },
           },
         },
       })
@@ -727,10 +742,11 @@ describe('opencode.commands.handlers', function()
     end)
 
     it('does not copy missing or non-user messages', function()
-      state.renderer.set_messages({
+      activate_session(state, { id = 'session-copy' }, {
         {
-          info = { id = 'assistant-message', role = 'assistant' },
-          parts = { { type = 'text', text = 'assistant text' } },
+          id = 'assistant-message',
+          kind = 'assistant',
+          content = { { kind = 'text', text = 'assistant text' } },
         },
       })
       local setreg_stub = stub(vim.fn, 'setreg')

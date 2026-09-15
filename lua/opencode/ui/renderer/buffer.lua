@@ -226,10 +226,10 @@ local function get_message_insert_line(message_id)
     end
   end
 
-  local messages = state.messages or {}
+  local messages = ctx.entries
   local message_index = nil
   for i, message in ipairs(messages) do
-    if message.info and message.info.id == message_id then
+    if message.id == message_id then
       message_index = i
       break
     end
@@ -256,15 +256,15 @@ local function get_message_insert_line(message_id)
 
   for i = message_index + 1, #messages do
     local next_message = messages[i]
-    if next_message and next_message.info and next_message.info.id then
-      if is_pinned_bottom_message(next_message.info.id) then
-        local next_rendered = ctx.render_state:get_message(next_message.info.id)
+    if next_message and next_message.id then
+      if is_pinned_bottom_message(next_message.id) then
+        local next_rendered = ctx.render_state:get_message(next_message.id)
         if next_rendered and next_rendered.line_start then
           return next_rendered.line_start
         end
       end
 
-      local next_rendered = ctx.render_state:get_message(next_message.info.id)
+      local next_rendered = ctx.render_state:get_message(next_message.id)
       if next_rendered and next_rendered.line_start then
         return next_rendered.line_start
       end
@@ -294,8 +294,8 @@ local function get_part_insertion_line(part_id, message_id)
   local insertion_line = rendered_message.line_end + 1
   local current_part_index = nil
 
-  for i, part in ipairs(message.parts or {}) do
-    if part.id == part_id then
+  for i in ipairs(message.content or {}) do
+    if ctx.content_key(message, i) == part_id then
       current_part_index = i
       break
     end
@@ -306,9 +306,9 @@ local function get_part_insertion_line(part_id, message_id)
   end
 
   for i = current_part_index - 1, 1, -1 do
-    local previous = message.parts[i]
-    if previous and previous.id then
-      local previous_rendered = ctx.render_state:get_part(previous.id)
+    local previous = message.content[i]
+    if previous then
+      local previous_rendered = ctx.render_state:get_part(ctx.content_key(message, i))
       if previous_rendered and previous_rendered.line_end then
         return previous_rendered.line_end + 1
       end
@@ -349,30 +349,30 @@ local function apply_part_render_data(part_id, formatted_data, line_start)
   end
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return string|nil
 function M.get_last_part_for_message(message)
-  if not message or not message.parts or #message.parts == 0 then
+  if not message or not message.content or #message.content == 0 then
     return nil
   end
-  for i = #message.parts, 1, -1 do
-    local part = message.parts[i]
-    if part.type ~= 'step-start' and part.type ~= 'step-finish' and part.id then
-      return part.id
+  for i = #message.content, 1, -1 do
+    local part = message.content[i]
+    if part.kind ~= 'step_start' and part.kind ~= 'step_finish' then
+      return ctx.content_key(message, i)
     end
   end
   return nil
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return string|nil
 function M.find_text_part_for_message(message)
-  if not message or not message.parts then
+  if not message or not message.content then
     return nil
   end
-  for _, part in ipairs(message.parts) do
-    if part.type == 'text' and not part.synthetic then
-      return part.id
+  for index, part in ipairs(message.content) do
+    if part.kind == 'text' and not part.synthetic then
+      return ctx.content_key(message, index)
     end
   end
   return nil
@@ -466,7 +466,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
 
     local part_data = ctx.render_state:get_part(part_id)
     if part_data then
-      ctx.render_state:set_part(part_data.part, line_start, line_end)
+      ctx.render_state:set_part(part_data.part, message_id, part_id, line_start, line_end)
       apply_part_render_data(part_id, formatted_data, line_start)
     end
 
@@ -503,7 +503,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     local range = write_at(formatted_data.lines, insert_at, insert_at)
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     output_window.shift_folds(insert_at, #formatted_data.lines)
-    ctx.render_state:set_part(part_data.part, range.line_start, range.line_end)
+    ctx.render_state:set_part(part_data.part, message_id, part_id, range.line_start, range.line_end)
     apply_part_render_data(part_id, formatted_data, range.line_start)
     if has_extmarks(formatted_data.extmarks) then
       output_window.set_extmarks(formatted_data.extmarks, range.line_start)

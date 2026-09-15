@@ -41,27 +41,6 @@ local function format_session_item(session, width)
   return base_picker.create_time_picker_item(title, updated_time, nil, width)
 end
 
---- Normalize message order to oldest-first (chronological)
---- API may return messages in descending order; reverse if detected.
----@param messages OpencodeMessage[]
----@return OpencodeMessage[]
-local function normalize_message_order(messages)
-  if not messages or #messages <= 1 then
-    return messages or {}
-  end
-  -- Check if messages are in descending order by checking first two
-  local first_time = messages[1].info and messages[1].info.time and messages[1].info.time.created
-  local second_time = messages[2].info and messages[2].info.time and messages[2].info.time.created
-  if first_time and second_time and first_time > second_time then
-    local reversed = {}
-    for i = #messages, 1, -1 do
-      reversed[#reversed + 1] = messages[i]
-    end
-    return reversed
-  end
-  return messages
-end
-
 --- Append extmarks from source into target, offset by line_offset
 --- Uses append semantics (no overwrite of same-line marks)
 ---@param target table<number, OutputExtmark[]> Target extmark map
@@ -77,43 +56,41 @@ local function append_extmarks(target, extmarks, line_offset)
   end
 end
 
---- Filter messages for preview: keep first user message + last assistant message
---- This is a display strategy — format_messages is the rendering mechanism.
----@param messages OpencodeMessage[]
----@return OpencodeMessage[], integer omitted_count
-local function filter_preview_messages(messages)
-  if #messages <= 2 then
-    return messages, 0
+---Keep the first user entry and last assistant entry in a compact preview.
+---@param entries table[]
+---@return table[], integer omitted_count
+local function filter_preview_entries(entries)
+  if #entries <= 2 then
+    return entries, 0
   end
   local first_user_idx = nil
   local last_assistant_idx = nil
-  for i, msg in ipairs(messages) do
-    if msg.info and msg.info.role == 'user' and not first_user_idx then
+  for i, entry in ipairs(entries) do
+    if entry.kind == 'user' and not first_user_idx then
       first_user_idx = i
     end
-    if msg.info and msg.info.role == 'assistant' then
+    if entry.kind == 'assistant' then
       last_assistant_idx = i
     end
   end
   local result = {}
   if first_user_idx then
-    table.insert(result, messages[first_user_idx])
+    table.insert(result, entries[first_user_idx])
   end
   if last_assistant_idx then
-    table.insert(result, messages[last_assistant_idx])
+    table.insert(result, entries[last_assistant_idx])
   end
   if #result == 0 then
-    return messages, 0
+    return entries, 0
   end
-  local omitted = #messages - #result
+  local omitted = #entries - #result
   return result, omitted
 end
 
---- Format messages using the existing formatter, aggregating all Outputs
----@param messages OpencodeMessage[]
+---@param entries table[]
 ---@param omitted_count? integer Number of messages omitted between first and second (for preview)
 ---@return { lines: string[], extmarks: table<number, OutputExtmark[]>, fold_ranges: table<{from: integer, to: integer}> }
-local function format_messages(messages, omitted_count)
+local function format_entries(entries, omitted_count)
   local formatter = require('opencode.ui.formatter')
   local all_lines = {}
   local all_extmarks = {}
@@ -121,55 +98,42 @@ local function format_messages(messages, omitted_count)
   local line_offset = 0
   local rendered_count = 0
 
-  for _, msg in ipairs(messages) do
-    if msg.info and msg.info.role then
-      -- Insert omitted notice between first and second rendered message
-      if rendered_count == 1 and omitted_count and omitted_count > 0 then
-        local notice = string.format('  ⋯ %d message(s) omitted ⋯', omitted_count)
-        vim.list_extend(all_lines, { '', notice, '' })
-        line_offset = line_offset + 3
-      end
+  for _, entry in ipairs(entries) do
+    if rendered_count == 1 and omitted_count and omitted_count > 0 then
+      local notice = string.format('  ⋯ %d message(s) omitted ⋯', omitted_count)
+      vim.list_extend(all_lines, { '', notice, '' })
+      line_offset = line_offset + 3
+    end
 
-      -- Format message header (no previous_message: show full header in preview)
-      local header = formatter.format_message_header(msg)
-      vim.list_extend(all_lines, header.lines)
-      append_extmarks(all_extmarks, header.extmarks, line_offset)
-      for _, range in ipairs(header.fold_ranges or {}) do
+    local header = formatter.format_message_header(entry)
+    vim.list_extend(all_lines, header.lines)
+    append_extmarks(all_extmarks, header.extmarks, line_offset)
+    for _, range in ipairs(header.fold_ranges or {}) do
+      table.insert(all_fold_ranges, {
+        from = range.from + line_offset,
+        to = range.to + line_offset,
+      })
+    end
+    line_offset = line_offset + #header.lines
+
+    local content = entry.content or {}
+    for content_idx, part in ipairs(content) do
+      local part_output = formatter.format_part(part, entry, content_idx == #content, {
+        interactive = false,
+        get_child_parts = nil,
+      })
+      vim.list_extend(all_lines, part_output.lines)
+      append_extmarks(all_extmarks, part_output.extmarks, line_offset)
+      for _, range in ipairs(part_output.fold_ranges or {}) do
         table.insert(all_fold_ranges, {
           from = range.from + line_offset,
           to = range.to + line_offset,
         })
       end
-      line_offset = line_offset + #header.lines
-
-      -- Format each part
-      local parts = msg.parts or {}
-      for part_idx, part in ipairs(parts) do
-        local is_last = part_idx == #parts
-        local ok, part_output = pcall(formatter.format_part, part, msg, is_last, {
-          interactive = false,
-          get_child_parts = nil,
-        })
-        if ok and part_output then
-          vim.list_extend(all_lines, part_output.lines)
-          append_extmarks(all_extmarks, part_output.extmarks, line_offset)
-          for _, range in ipairs(part_output.fold_ranges or {}) do
-            table.insert(all_fold_ranges, {
-              from = range.from + line_offset,
-              to = range.to + line_offset,
-            })
-          end
-          line_offset = line_offset + #part_output.lines
-        elseif not ok then
-          -- Degraded: show error line for failed part
-          table.insert(all_lines, '[render error]')
-          line_offset = line_offset + 1
-        end
-        -- Note: Output.actions intentionally not collected (preview doesn't support interactive actions)
-      end
-
-      rendered_count = rendered_count + 1
+      line_offset = line_offset + #part_output.lines
     end
+
+    rendered_count = rendered_count + 1
   end
 
   return {
@@ -177,6 +141,43 @@ local function format_messages(messages, omitted_count)
     extmarks = all_extmarks,
     fold_ranges = all_fold_ranges,
   }
+end
+
+local function ready_connection()
+  local connection = require('opencode.state').opencode_server
+  if not connection or not connection:is_ready() then
+    error('Connection is not ready')
+  end
+  return connection
+end
+
+local function session_location(session)
+  if session.location ~= nil then
+    return session.location
+  end
+  if type(session.directory) == 'string' then
+    return { directory = session.directory }
+  end
+  return nil
+end
+
+local function session_ref(session)
+  if type(session) ~= 'table' or type(session.id) ~= 'string' then
+    error('Session picker requires a Session')
+  end
+  return { id = session.id, location = session_location(session) }
+end
+
+local function ordered_entries(observation)
+  local observed = observation:read()
+  local entries = {}
+  for _, entry_id in ipairs(observed.entry_order or {}) do
+    local entry = observed.entries_by_id and observed.entries_by_id[entry_id]
+    if entry then
+      entries[#entries + 1] = entry
+    end
+  end
+  return entries
 end
 
 --- Write formatted output to a preview buffer
@@ -229,6 +230,22 @@ end
 ---@param opts? { scope?: 'project' | 'global' }
 function M.pick(sessions, callback, opts)
   local api = require('opencode.api')
+  opts = opts or {}
+  local connection = ready_connection()
+  local preview_unsubscribe
+
+  local function release_preview()
+    if preview_unsubscribe then
+      preview_unsubscribe()
+      preview_unsubscribe = nil
+    end
+  end
+
+  local function finish(selected)
+    release_preview()
+    callback(selected)
+  end
+
   local actions = {
     rename = {
       key = config.keymap.session_picker.rename_session,
@@ -278,8 +295,7 @@ function M.pick(sessions, callback, opts)
 
         local deleting_current = false
         if state.active_session then
-          local session_mod = require('opencode.session')
-          local all_sessions = session_mod.get_all_workspace_sessions():await() or {}
+          local all_sessions = session_runtime.list_sessions_by_scope('project')
           deleting_current = M._is_session_or_ancestor_deleted(state.active_session.id, to_delete_ids, all_sessions)
         end
 
@@ -289,21 +305,19 @@ function M.pick(sessions, callback, opts)
           end, opts.items or {})
 
           if #remaining > 0 then
-            session_runtime.switch_session(remaining[1].id):await()
+            session_runtime.switch_session(remaining[1]):await()
           else
             vim.notify('deleting current session, creating new session')
             state.model.clear()
-            require('opencode.services.agent_model').ensure_current_mode():await()
             state.session.set_active(session_runtime.create_new_session():await())
+            require('opencode.services.agent_model').ensure_current_mode():await()
           end
         end
 
         for _, session in ipairs(sessions_to_delete) do
-          state.api_client:delete_session(session.id):catch(function(err)
-            vim.schedule(function()
-              vim.notify('Failed to delete session ' .. session.id .. ': ' .. vim.inspect(err), vim.log.levels.ERROR)
-            end)
-          end)
+          connection.operations
+            .delete_session(connection, session.id, session_location(session), util.apply_path_map)
+            :await()
 
           local idx = util.find_index_of(opts.items, function(item)
             return item.id == session.id
@@ -362,11 +376,12 @@ function M.pick(sessions, callback, opts)
       key = config.keymap.session_picker.fork_session,
       label = 'fork',
       fn = Promise.async(function(selected, opts)
-        local state = require('opencode.state')
         local session_runtime = require('opencode.services.session_runtime')
-        local new_session = state.api_client:fork_session(selected.id):await()
+        local new_session = connection.operations
+          .fork_session(connection, selected.id, session_location(selected), {}, util.apply_path_map, util.apply_reverse_path_map)
+          :await()
         if new_session then
-          session_runtime.switch_session(new_session.id):await()
+          session_runtime.switch_session(new_session):await()
           table.insert(opts.items, 1, new_session)
           return opts.items
         end
@@ -388,7 +403,6 @@ function M.pick(sessions, callback, opts)
     },
   }
 
-  -- Preview state for race condition protection
   local preview_seq = 0
 
   return base_picker.pick({
@@ -396,7 +410,7 @@ function M.pick(sessions, callback, opts)
     format_fn = format_session_item,
     actions = actions,
     multi_select_fn = actions.open_in_tab.fn,
-    callback = callback,
+    callback = finish,
     title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',
     width = config.ui.picker_width,
     layout_opts = config.ui.picker,
@@ -404,44 +418,62 @@ function M.pick(sessions, callback, opts)
     ---@param session table
     ---@param target PickerPreviewTarget
     preview_fn = function(session, target)
+      release_preview()
       preview_seq = preview_seq + 1
       local current_seq = preview_seq
       target:set_lines({ 'Loading...' })
 
-      local state = require('opencode.state')
-      local ok, request = pcall(function()
-        return state.api_client:list_messages(session.id, nil)
-      end)
-      if not ok or not request then
-        target:set_lines({ 'No messages or failed to load' })
-        return
+      local observation = connection:observe(session_ref(session))
+      local released = false
+      local unsubscribe
+      local function release()
+        if released then
+          return
+        end
+        released = true
+        if unsubscribe then
+          unsubscribe()
+        end
+        if preview_unsubscribe == release then
+          preview_unsubscribe = nil
+        end
+      end
+      local function render(observed_session)
+        if current_seq ~= preview_seq or not target:is_valid() then
+          release()
+          return
+        end
+        local observed = observed_session:read()
+        local sync = observed.sync and observed.sync.messages
+        if sync and sync.state == 'current' then
+          release()
+          local entries = ordered_entries(observed_session)
+          if #entries == 0 then
+            target:set_lines({ 'No messages' })
+            return
+          end
+          local preview_entries, omitted = filter_preview_entries(entries)
+          render_preview_buffer(target, format_entries(preview_entries, omitted))
+        elseif sync and (sync.state == 'error' or sync.state == 'unsupported') then
+          release()
+          target:set_lines({ 'Failed to load messages' })
+        end
       end
 
-      request
-        :and_then(function(messages)
-          -- Check race: another selection happened while we were loading
-          if current_seq ~= preview_seq then
-            return
-          end
-          if not target:is_valid() then
-            return
-          end
-
-          if not messages or #messages == 0 then
-            target:set_lines({ 'No messages or failed to load' })
-            return
-          end
-
-          messages = normalize_message_order(messages)
-          local preview_msgs, omitted = filter_preview_messages(messages)
-          local formatted = format_messages(preview_msgs, omitted)
-          render_preview_buffer(target, formatted)
-        end)
-        :catch(function()
-          if current_seq == preview_seq and target:is_valid() then
-            target:set_lines({ 'No messages or failed to load' })
-          end
-        end)
+      local ok, result = pcall(function()
+        return observation:watch({ 'messages' }, render)
+      end)
+      if not ok then
+        target:set_lines({ 'Failed to load messages' })
+        return
+      end
+      unsubscribe = result
+      if released then
+        unsubscribe()
+        return
+      end
+      preview_unsubscribe = release
+      render(observation)
     end,
   })
 end

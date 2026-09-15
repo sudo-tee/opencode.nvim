@@ -6,7 +6,6 @@ local ui = require('opencode.ui.ui')
 local input_window = require('opencode.ui.input_window')
 local renderer = require('opencode.ui.renderer')
 local Promise = require('opencode.promise')
-local EventManager = require('opencode.event_manager')
 local stub = require('luassert.stub')
 
 -- persist_state coverage matrix
@@ -38,62 +37,9 @@ local stub = require('luassert.stub')
 -- | API function     | has_hidden_buffers exists          | function is callable and returns boolean       |                               |
 -- +------------------+------------------------------------+-----------------------------------------------+-------------------------------+
 
-local function mock_api_client()
-  return {
-    create_message = function()
-      return Promise.new():resolve({})
-    end,
-    get_config = function()
-      return Promise.new():resolve({})
-    end,
-    list_sessions = function()
-      return Promise.new():resolve({})
-    end,
-    get_session = function()
-      return Promise.new():resolve({})
-    end,
-    create_session = function()
-      return Promise.new():resolve({})
-    end,
-    list_messages = function()
-      return Promise.new():resolve({})
-    end,
-  }
-end
-
-local function make_message(id, session_id, text)
-  return {
-    info = {
-      id = id,
-      sessionID = session_id,
-      role = 'assistant',
-      modelID = 'test-model',
-      providerID = 'test-provider',
-      time = { created = os.time(), completed = os.time() },
-      tokens = { input = 10, output = 20, reasoning = 0, cache = { read = 0, write = 0 } },
-      cost = 0.001,
-      path = { cwd = vim.fn.getcwd(), root = vim.fn.getcwd() },
-      system = {},
-      error = nil,
-      mode = '',
-    },
-    parts = {
-      {
-        id = 'part-' .. id,
-        messageID = id,
-        sessionID = session_id,
-        type = 'text',
-        text = text,
-      },
-    },
-  }
-end
-
 describe('persist_state', function()
   local windows
   local original_config
-  local original_api_client
-  local original_event_manager
   local code_buf
   local code_win
   local tmpfile
@@ -168,34 +114,40 @@ describe('persist_state', function()
     return result
   end
 
-  local function emit_message(event_manager, msg)
-    table.insert(state.messages, msg)
-    event_manager:emit('message.updated', { info = msg.info })
-    vim.wait(50)
-    event_manager:emit('message.part.updated', { part = msg.parts[1] })
-  end
-
   before_each(function()
     original_config = vim.deepcopy(config.values)
-    original_api_client = state.api_client
-    original_event_manager = state.event_manager
-
-    state.jobs.set_api_client(mock_api_client())
-    state.jobs.set_event_manager(EventManager.new())
     state.ui.set_windows(nil)
     state.ui.clear_hidden_window_state()
     store.set('current_code_view', nil)
     store.set('current_code_buf', nil)
     store.set('last_code_win_before_opencode', nil)
     state.session.set_active(nil)
-    state.renderer.set_messages({})
 
     -- Mock opencode_server to prevent spawning real process in CI
     local opencode_server = require('opencode.opencode_server')
+    local observation_state = require('opencode.protocols.observation')
     original_opencode_server_new = opencode_server.new
     local mock_server = {
       url = 'http://127.0.0.1:4000',
-      is_running = function()
+      observations = {},
+      operations = {
+        list_sessions_project = function()
+          return Promise.new():resolve({})
+        end,
+        list_sessions_global = function()
+          return Promise.new():resolve({})
+        end,
+        create_session = function()
+          return Promise.new():resolve({ id = 'persist-test-session', title = 'Persist test', time = { updated = 1 } })
+        end,
+        list_primary_agents = function()
+          return Promise.new():resolve({ 'build' })
+        end,
+        get_config = function()
+          return Promise.new():resolve({})
+        end,
+      },
+      is_ready = function()
         return true
       end,
       check_health = function()
@@ -205,8 +157,24 @@ describe('persist_state', function()
       shutdown = function()
         return Promise.new():resolve(true)
       end,
-      get_spawn_promise = function()
-        return Promise.new():resolve(mock_server)
+      observe = function(self, ref)
+        if self.observations[ref.id] then
+          return self.observations[ref.id]
+        end
+        local observed = observation_state.new_state({ id = ref.id, location = ref.location })
+        for resource in pairs(observed.sync) do
+          observed.sync[resource] = { state = 'current' }
+        end
+        local observation = {
+          read = function()
+            return observed
+          end,
+          watch = function()
+            return function() end
+          end,
+        }
+        self.observations[ref.id] = observation
+        return observation
       end,
       get_shutdown_promise = function()
         return Promise.new():resolve(true)
@@ -235,14 +203,6 @@ describe('persist_state', function()
       tmpfile = nil
     end
 
-    if state.event_manager and state.event_manager.stop then
-      pcall(function()
-        state.event_manager:stop()
-      end)
-    end
-
-    state.jobs.set_event_manager(original_event_manager)
-    state.jobs.set_api_client(original_api_client)
     config.values = original_config
     store.set('current_code_view', nil)
     store.set('current_code_buf', nil)
@@ -391,60 +351,6 @@ describe('persist_state', function()
       toggle_wait('visible')
       toggle_wait('hidden')
       toggle_wait('visible')
-    end)
-
-    it('restores active question dialog mappings with hidden buffers', function()
-      setup_ui()
-      create_code_file()
-      state.session.set_active({ id = 'sess1' })
-      toggle_wait('visible')
-
-      local question_window = require('opencode.ui.question_window')
-      question_window.show_question({
-        id = 'question_restore_hidden',
-        sessionID = 'sess1',
-        questions = {
-          {
-            question = 'Pick one',
-            options = { { label = 'One' } },
-          },
-        },
-      })
-      require('opencode.ui.renderer.flush').flush()
-
-      question_window._dialog:set_selection(2)
-      question_window._dialog:select()
-      assert.is_true(vim.wait(100, function()
-        return question_window._inline_input ~= nil
-      end))
-      local inline_win = question_window._inline_input.win
-      local draft_lines = { 'first line', 'second line' }
-      vim.api.nvim_buf_set_lines(question_window._inline_input.buf, 0, -1, false, draft_lines)
-
-      toggle_wait('hidden')
-
-      assert.is_false(vim.api.nvim_win_is_valid(inline_win))
-      assert.is_nil(question_window._inline_input)
-      assert.equals(table.concat(draft_lines, '\n'), question_window._other_input_drafts[1])
-
-      toggle_wait('visible')
-
-      local mappings = {}
-      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(state.windows.output_buf, 'n')) do
-        mappings[mapping.lhs] = mapping
-      end
-
-      assert.equals('Dialog: select option', mappings['<CR>'] and mappings['<CR>'].desc)
-      assert.equals('Dialog: select option', mappings['<Tab>'] and mappings['<Tab>'].desc)
-      assert.equals('Dialog: dismiss', mappings['<Esc>'] and mappings['<Esc>'].desc)
-      assert.equals(2, question_window._dialog:get_selection())
-
-      question_window._dialog:select()
-      assert.is_true(vim.wait(100, function()
-        return question_window._inline_input ~= nil
-      end))
-      assert.are.same(draft_lines, vim.api.nvim_buf_get_lines(question_window._inline_input.buf, 0, -1, false))
-      question_window.clear_question()
     end)
 
     it('restores missing base mappings without replacing preserved mappings', function()
@@ -666,34 +572,6 @@ describe('persist_state', function()
           end,
         },
         {
-          name = 'cursor_output',
-          setup = function()
-            local output_lines = {}
-            for i = 1, 120 do
-              output_lines[i] = 'o' .. i
-            end
-            write_lines(state.windows.output_buf, output_lines)
-            vim.api.nvim_set_current_win(state.windows.output_win)
-            vim.api.nvim_win_set_cursor(state.windows.output_win, { 40, 0 })
-            return {
-              expected_win_fn = function()
-                return state.windows.output_win
-              end,
-              expected_cursor = { 40, 0 },
-            }
-          end,
-          assert_after = function(ctx)
-            assert.equals(ctx.expected_win_fn(), vim.api.nvim_get_current_win())
-            vim.wait(200, function()
-              local pos = vim.api.nvim_win_get_cursor(ctx.expected_win_fn())
-              return pos[1] == ctx.expected_cursor[1] and pos[2] == ctx.expected_cursor[2]
-            end, 10)
-            local pos = vim.api.nvim_win_get_cursor(ctx.expected_win_fn())
-            assert.equals(ctx.expected_cursor[1], pos[1])
-            assert.equals(ctx.expected_cursor[2], pos[2])
-          end,
-        },
-        {
           name = 'cursor_input',
           setup = function()
             vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { 'i1', 'i2', 'i3' })
@@ -754,73 +632,6 @@ describe('persist_state', function()
 
         cleanup_windows()
       end
-    end)
-  end)
-
-  describe('renderer and event lifecycle safety', function()
-    it('keeps renderer stable through hide/restore, resize, and scroll operations', function()
-      setup_ui()
-      create_code_file()
-
-      -- Test subscription stability through hide/restore and resize
-      toggle_wait('visible')
-      local initial = state.event_manager:get_subscriber_count('message.updated')
-      assert.is_true(initial > 0)
-
-      toggle_wait('hidden')
-      local hidden = state.event_manager:get_subscriber_count('message.updated')
-      assert.equals(initial, hidden)
-
-      assert.has_no.errors(function()
-        vim.api.nvim_command('wincmd =')
-      end)
-
-      toggle_wait('visible')
-      local restored = state.event_manager:get_subscriber_count('message.updated')
-      assert.equals(initial, restored)
-
-      -- Test scroll_to_bottom safety while hidden
-      windows = ui.create_windows()
-      ui.close_windows(windows, true)
-      assert.has_no.errors(function()
-        renderer.scroll_to_bottom(true)
-      end)
-    end)
-  end)
-
-  describe('external message sync while hidden', function()
-    it('renders messages emitted during hidden state after restore', function()
-      setup_ui()
-      create_code_file()
-      toggle_wait('visible')
-
-      local event_manager = state.event_manager
-      local output_buf = state.windows.output_buf
-      state.session.set_active({ id = 'test-session' })
-      state.renderer.set_messages({})
-
-      toggle_wait('hidden')
-      assert.equals('test-session', state.active_session.id)
-
-      local messages = {
-        make_message('msg-1', 'test-session', 'First external message'),
-        make_message('msg-2', 'test-session', 'Second external message'),
-        make_message('msg-3', 'test-session', 'Third external message'),
-      }
-
-      for _, msg in ipairs(messages) do
-        emit_message(event_manager, msg)
-        vim.wait(50)
-      end
-
-      toggle_wait('visible')
-
-      local content = table.concat(vim.api.nvim_buf_get_lines(output_buf, 0, -1, false), '\n')
-      assert.truthy(
-        content:match('First external message')
-          or content:match('Second external message')
-          or content:match('Third external message')
-      )
     end)
   end)
 

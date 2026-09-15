@@ -763,4 +763,145 @@ function M.sort_by_priority(items, key_fn, priority_map)
   return items
 end
 
+--- Decode the UTF-8 sequence starting at `text:byte(byte)`.
+--- Returns nil when the lead byte is invalid or the sequence is truncated.
+--- @param text string
+--- @param byte number 1-based position of a lead byte
+--- @param len number #text, passed to avoid recomputation
+--- @return number|nil sequence byte length
+local function utf8_sequence_at(text, byte, len)
+  local b = text:byte(byte)
+  local sequence
+  if b < 0x80 then
+    sequence = 1
+  elseif b >= 0xC2 and b <= 0xDF then
+    sequence = 2
+  elseif b >= 0xE0 and b <= 0xEF then
+    sequence = 3
+  elseif b >= 0xF0 and b <= 0xF4 then
+    sequence = 4
+  else
+    return nil
+  end
+  if byte + sequence - 1 > len then
+    return nil
+  end
+  return sequence
+end
+
+--- Length of `text` in UTF-16 code units.
+--- Version-independent: `vim.str_utfindex(text, 'utf-16')` only accepts the
+--- encoding argument on nvim 0.11+, so we count code units ourselves.
+--- @param text string
+--- @return number|nil unit count, nil when `text` contains invalid UTF-8
+function M.utf16_length(text)
+  local units = 0
+  local byte = 1
+  local len = #text
+  while byte <= len do
+    local sequence = utf8_sequence_at(text, byte, len)
+    if not sequence then
+      return nil
+    end
+    -- a code point above the BMP is one surrogate pair = two code units
+    units = units + (sequence == 4 and 2 or 1)
+    byte = byte + sequence
+  end
+  return units
+end
+
+--- Byte index (0-based) of the `utf16_index`-th UTF-16 code unit, matching
+--- `vim.str_byteindex(text, 'utf-16', index, true)` on nvim 0.11+: an index
+--- inside a surrogate pair resolves to the byte offset after that pair.
+--- Invalid UTF-8 returns nil.
+--- @param text string
+--- @param utf16_index number
+--- @return number|nil byte index
+function M.byte_index_from_utf16(text, utf16_index)
+  if utf16_index % 1 ~= 0 or utf16_index < 0 then
+    return nil
+  end
+  local units = 0
+  local byte = 1
+  local len = #text
+  while byte <= len do
+    if units == utf16_index then
+      return byte - 1
+    end
+    local sequence = utf8_sequence_at(text, byte, len)
+    if not sequence then
+      return nil
+    end
+    if units + (sequence == 4 and 2 or 1) > utf16_index then
+      -- index starts inside a surrogate pair: resolve past it
+      return byte + sequence - 1
+    end
+    units = units + (sequence == 4 and 2 or 1)
+    byte = byte + sequence
+  end
+  if units == utf16_index then
+    return byte - 1
+  end
+  return nil
+end
+
+--- True when `utf16_index` lands exactly on a UTF-16 code unit boundary of
+--- `text`: on a unit start, not inside a surrogate pair.
+--- @param text string
+--- @param utf16_index number
+--- @return boolean
+function M.is_utf16_boundary(text, utf16_index)
+  if utf16_index % 1 ~= 0 or utf16_index < 0 then
+    return false
+  end
+  local units = 0
+  local byte = 1
+  local len = #text
+  while byte <= len do
+    if units == utf16_index then
+      return true
+    end
+    local sequence = utf8_sequence_at(text, byte, len)
+    if not sequence then
+      return false
+    end
+    units = units + (sequence == 4 and 2 or 1)
+    byte = byte + sequence
+  end
+  return units == utf16_index
+end
+
+--- UTF-16 code unit count of the prefix of `text` ending at or inside the
+--- byte sequence containing `byte_index` — equivalent to
+--- `vim.str_utfindex(text, 'utf-16', byte_index, true)` on nvim 0.11+,
+--- including its behavior of resolving an offset inside a multi-byte
+--- sequence to the end of that sequence. Invalid UTF-8 returns nil.
+--- @param text string
+--- @param byte_index number zero-based byte offset
+--- @return number|nil utf16 code unit count
+function M.utf16_index_from_byte(text, byte_index)
+  if byte_index % 1 ~= 0 or byte_index < 0 or byte_index > #text then
+    return nil
+  end
+  local units = 0
+  local byte = 1
+  local len = #text
+  while byte <= len do
+    local sequence = utf8_sequence_at(text, byte, len)
+    if not sequence then
+      return nil
+    end
+    if byte - 1 < byte_index and byte - 1 + sequence - 1 >= byte_index then
+      -- offset falls inside this sequence: count the whole sequence
+      return units + (sequence == 4 and 2 or 1)
+    end
+    if byte - 1 == byte_index then
+      return units
+    end
+    units = units + (sequence == 4 and 2 or 1)
+    byte = byte + sequence
+  end
+  return units
+end
+
 return M

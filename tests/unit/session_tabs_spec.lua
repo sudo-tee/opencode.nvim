@@ -24,24 +24,20 @@ describe('opencode session panel tabs', function()
   it('keeps session state isolated when switching logical tabs', function()
     local first = session_tabs.ensure_current()
     state.session.set_active({ id = 'session-one', title = 'One' })
-    state.renderer.set_messages({ { info = { id = 'message-one' }, parts = {} } })
     state.ui.set_input_content({ 'prompt for one' })
 
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
     session_tabs.activate(second)
-    state.renderer.set_messages({ { info = { id = 'message-two' }, parts = {} } })
     state.ui.set_input_content({ 'prompt for two' })
 
     session_tabs.activate(first)
 
     assert.equals('session-one', state.active_session.id)
-    assert.equals('message-one', state.messages[1].info.id)
     assert.same({ 'prompt for one' }, state.input_content)
 
     session_tabs.activate(second)
 
     assert.equals('session-two', state.active_session.id)
-    assert.equals('message-two', state.messages[1].info.id)
     assert.same({ 'prompt for two' }, state.input_content)
   end)
 
@@ -114,17 +110,40 @@ describe('opencode session panel tabs', function()
     local ui = require('opencode.ui.ui')
 
     local server = {
-      is_running = function()
+      is_ready = function()
         return true
+      end,
+      can_release_process = function()
+        return false
       end,
       check_health = function()
         return Promise.new():resolve(true)
       end,
-      shutdown = function() end,
+      close = function()
+        return Promise.new():resolve(true)
+      end,
+      observe = function(_, ref)
+        return {
+          read = function()
+            return {
+              session = { id = ref.id, title = ref.id },
+              sync = { session = { state = 'current' } },
+              entries_by_id = {},
+              entry_order = {},
+              children = { order = {}, by_id = {} },
+              permission_requests_by_id = {},
+              question_requests_by_id = {},
+              files = { revision = 0 },
+            }
+          end,
+          watch = function()
+            return function() end
+          end,
+        }
+      end,
     }
 
     state.jobs.set_server(server)
-    state.jobs.set_api_client({})
     state.context.set_current_cwd(vim.fn.getcwd())
 
     local create_session_stub =

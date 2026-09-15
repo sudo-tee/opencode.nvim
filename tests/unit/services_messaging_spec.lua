@@ -6,7 +6,7 @@ end
 loaded.services_messaging_spec = true
 
 local messaging = require('opencode.services.messaging')
-local session_runtime = require('opencode.services.session_runtime')
+local config = require('opencode.config')
 local config_file = require('opencode.config_file')
 local context = require('opencode.context')
 local state = require('opencode.state')
@@ -16,22 +16,30 @@ local stub = require('luassert.stub')
 local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
 
+local function successful_submission(message)
+  return Promise.new():resolve({ kind = 'reply', input_id = 'msg-user', message = message or { id = 'msg-reply' } })
+end
+
 describe('opencode.services.messaging', function()
+  local connection
+
   before_each(function()
-    support.mock_api_client()
+    connection = support.mock_connection()
   end)
 
-  it('sends a message via api_client', function()
+  it('sends frozen input through the active Observation', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
 
     local create_called = false
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       create_called = true
-      assert.equal('sess1', sid)
-      assert.truthy(params.parts)
-      return Promise.new():resolve({ id = 'm1' })
+      assert.equal('hello world', params.text)
+      assert.same({}, params.context)
+      assert.same({}, params.files)
+      assert.same({}, params.agents)
+      return successful_submission()
     end
 
     messaging.send_message('hello world')
@@ -39,7 +47,7 @@ describe('opencode.services.messaging', function()
       return create_called
     end)
     assert.True(create_called)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
   end)
 
   it('returns false when active session is missing', function()
@@ -50,19 +58,78 @@ describe('opencode.services.messaging', function()
     assert.is_false(sent)
   end)
 
+  it('does not submit before the active session fact is current', function()
+    state.session.set_active({ id = 'sess1' })
+    local observation = state.session.active_observation()
+    observation._state.session = nil
+    observation._state.sync.session = { state = 'loading' }
+    local submit = stub(observation, 'submit')
+
+    assert.is_false(messaging.send_message('hello world'):wait())
+    assert.stub(submit).was_not_called()
+    submit:revert()
+  end)
+
+  it('rejects V2 per-message settings before changing the session or submitting', function()
+    state.session.set_active({ id = 'sess-v2' })
+    connection.protocol = 'v2'
+    local calls = {}
+    connection.operations.set_session_agent = function(received, session_id, agent)
+      calls[#calls + 1] = { 'agent', received, session_id, agent }
+      return Promise.new():resolve(true)
+    end
+    connection.operations.set_session_model = function(received, session_id, model)
+      calls[#calls + 1] = { 'model', received, session_id, model }
+      return Promise.new():resolve(true)
+    end
+    local observation = state.session.active_observation()
+    local original_submit = observation.submit
+    observation.submit = function()
+      calls[#calls + 1] = { 'submit' }
+      return successful_submission()
+    end
+
+    local ok, err = pcall(function()
+      messaging.send_message('hello', { agent = 'plan', model = 'provider/model', variant = 'high' }):wait()
+    end)
+
+    assert.is_false(ok)
+    assert.matches('does not support per%-message agent', tostring(err))
+    assert.same({}, calls)
+    observation.submit = original_submit
+  end)
+
+  it('rejects a V2 default system prompt before submitting', function()
+    state.session.set_active({ id = 'sess-v2' })
+    connection.protocol = 'v2'
+    local previous = config.values.default_system_prompt
+    config.values.default_system_prompt = 'configured system prompt'
+    local observation = state.session.active_observation()
+    local submit = stub(observation, 'submit')
+
+    local ok, err = pcall(function()
+      messaging.send_message('hello'):wait()
+    end)
+
+    config.values.default_system_prompt = previous
+    assert.is_false(ok)
+    assert.matches('does not support a per%-message system prompt', tostring(err))
+    assert.stub(submit).was_not_called()
+    submit:revert()
+  end)
+
   it('persist options in state when sending message', function()
-    local orig = state.api_client.create_message
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
+    local orig = state.session.active_observation().submit
 
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     local create_called = false
-    state.api_client.create_message = function(_, sid, params)
+    state.session.active_observation().submit = function(_, params)
       create_called = true
-      assert.equal('sess1', sid)
-      assert.truthy(params.parts)
-      return Promise.new():resolve({ id = 'm1' })
+      assert.equal('hello world', params.text)
+      return successful_submission()
     end
 
     messaging.send_message(
@@ -73,7 +140,7 @@ describe('opencode.services.messaging', function()
     assert.equal(state.current_mode, 'plan')
     assert.equal(state.current_model, 'test/model')
     assert.is_true(create_called)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config_file.get_opencode_agents:revert()
   end)
 
@@ -85,10 +152,10 @@ describe('opencode.services.messaging', function()
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     local captured_params = nil
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       captured_params = params
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world', { agent = 'hidden-xyz' })
@@ -99,7 +166,7 @@ describe('opencode.services.messaging', function()
     assert.equal('build', state.current_mode)
     assert.equal('hidden-xyz', captured_params.agent)
 
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config_file.get_opencode_agents:revert()
   end)
 
@@ -111,10 +178,10 @@ describe('opencode.services.messaging', function()
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     local captured_params = nil
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       captured_params = params
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world', { agent = 'plan' })
@@ -125,30 +192,32 @@ describe('opencode.services.messaging', function()
     assert.equal('plan', state.current_mode)
     assert.equal('plan', captured_params.agent)
 
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config_file.get_opencode_agents:revert()
   end)
 
   it('returns false when active session is a child session', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    connection.session_facts.child1 = { parentID = 'parent1' }
 
     local create_called = false
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function()
       create_called = true
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     local sent = messaging.send_message('hello world'):wait()
     assert.is_false(sent)
     assert.is_false(create_called)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
   end)
 
   it('sends message to child session when child_readonly is false', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    connection.session_facts.child1 = { parentID = 'parent1' }
     local config = require('opencode.config')
     local orig_readonly = config.values.child_readonly
     config.values.child_readonly = false
@@ -156,10 +225,10 @@ describe('opencode.services.messaging', function()
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'build' }))
 
     local create_called = false
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function()
       create_called = true
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world')
@@ -167,7 +236,7 @@ describe('opencode.services.messaging', function()
       return create_called
     end)
     assert.is_true(create_called)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config.values.child_readonly = orig_readonly
     config_file.get_opencode_agents:revert()
   end)
@@ -176,15 +245,16 @@ describe('opencode.services.messaging', function()
     state.ui.set_windows({ mock = 'windows' })
     state.model.set_mode('study') -- set by switch_session inference
     state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    connection.session_facts.child1 = { parentID = 'parent1' }
     local config = require('opencode.config')
     local orig_readonly = config.values.child_readonly
     config.values.child_readonly = false
 
     local captured_params = nil
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       captured_params = params
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world')
@@ -193,13 +263,14 @@ describe('opencode.services.messaging', function()
     end)
 
     assert.equal('study', captured_params.agent)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config.values.child_readonly = orig_readonly
   end)
 
   it('respects explicit agent for child session', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    connection.session_facts.child1 = { parentID = 'parent1' }
     local config = require('opencode.config')
     local orig_readonly = config.values.child_readonly
     config.values.child_readonly = false
@@ -207,10 +278,10 @@ describe('opencode.services.messaging', function()
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'study', 'build' }))
 
     local captured_params = nil
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       captured_params = params
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world', { agent = 'study' })
@@ -219,7 +290,7 @@ describe('opencode.services.messaging', function()
     end)
 
     assert.equal('study', captured_params.agent)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config.values.child_readonly = orig_readonly
     config_file.get_opencode_agents:revert()
   end)
@@ -232,10 +303,10 @@ describe('opencode.services.messaging', function()
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'build' }))
 
     local captured_params = nil
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function(_, params)
       captured_params = params
-      return Promise.new():resolve({ id = 'm1' })
+      return successful_submission()
     end
 
     messaging.send_message('hello world')
@@ -244,7 +315,7 @@ describe('opencode.services.messaging', function()
     end)
 
     assert.equal('build', captured_params.agent)
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
     config_file.get_opencode_agents:revert()
   end)
 
@@ -256,13 +327,12 @@ describe('opencode.services.messaging', function()
     local count_before = state.user_message_count['sess1'] or 0
     local count_during = nil
 
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function()
       count_during = state.user_message_count['sess1']
-      return Promise.new():resolve({
+      return successful_submission({
         id = 'm1',
-        info = { id = 'm1' },
-        parts = {},
+        content = {},
       })
     end
 
@@ -274,7 +344,7 @@ describe('opencode.services.messaging', function()
     assert.equal(1, count_during)
     assert.equal(0, count_after)
 
-    state.api_client.create_message = orig
+    state.session.active_observation().submit = orig
   end)
 
   it('keeps an in-flight send bound to its original tab and session', function()
@@ -292,10 +362,11 @@ describe('opencode.services.messaging', function()
       stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'mode-one', 'mode-two' }))
     local sent_session
     local sent_params
-    state.api_client.create_message = function(_, session_id, params)
-      sent_session = session_id
+    local observation = state.session.active_observation()
+    observation.submit = function(_, params)
+      sent_session = observation:read().session.id
       sent_params = params
-      return Promise.new():resolve({ info = { id = 'message-one' }, parts = {} })
+      return successful_submission({ id = 'message-one', content = {} })
     end
 
     local send = messaging.send_message('hello world')
@@ -352,14 +423,11 @@ describe('opencode.services.messaging', function()
     local count_before = state.user_message_count['sess1'] or 0
     local count_during = nil
 
-    local orig = state.api_client.create_message
-    state.api_client.create_message = function(_, sid, params)
+    local orig = state.session.active_observation().submit
+    state.session.active_observation().submit = function()
       count_during = state.user_message_count['sess1']
       return Promise.new():reject('Test error')
     end
-
-    local orig_cancel = session_runtime.cancel
-    stub(session_runtime, 'cancel').returns(Promise.new():resolve(nil))
 
     messaging.send_message('hello world'):wait()
 
@@ -368,17 +436,35 @@ describe('opencode.services.messaging', function()
     assert.equal(0, count_before)
     assert.equal(1, count_during)
     assert.equal(0, count_after)
-    assert.same({}, context.get_context().mentioned_files)
-    assert.same({}, context.get_context().selections)
+    assert.same({ '/tmp/attached.lua' }, context.get_context().mentioned_files)
+    assert.equals(1, #context.get_context().selections)
 
-    state.api_client.create_message = orig
-    session_runtime.cancel = orig_cancel
+    state.session.active_observation().submit = orig
     for key, value in pairs(original_context) do
       context.get_context()[key] = value
     end
   end)
 
-  it('clears attachments before the request is sent', function()
+  it('surfaces an unknown V2 wait without consuming it as success', function()
+    state.session.set_active({ id = 'sess_v2' })
+    connection.protocol = 'v2'
+    local observation = state.session.active_observation()
+    observation.submit = function()
+      return Promise.new():resolve({ kind = 'accepted', input = { id = 'msg-user' } })
+    end
+    observation.wait_until_idle = function()
+      return Promise.new():reject('admission_unknown')
+    end
+    local after_run = stub(messaging, 'after_run')
+
+    local result = messaging.send_message('hello'):wait()
+
+    assert.is_nil(result)
+    assert.stub(after_run).was_called(1)
+    after_run:revert()
+  end)
+
+  it('keeps attachments until the submitted prompt succeeds', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
 
@@ -393,21 +479,49 @@ describe('opencode.services.messaging', function()
     }
 
     local observed_context
-    local original_create_message = state.api_client.create_message
-    state.api_client.create_message = function(_, _session_id, _params)
+    local original_create_message = state.session.active_observation().submit
+    state.session.active_observation().submit = function()
       observed_context = vim.deepcopy(context.get_context())
-      return Promise.new():resolve({ info = { id = 'm1' }, parts = {} })
+      return successful_submission()
     end
 
     messaging.send_message('hello world'):wait()
 
-    assert.same({}, observed_context.mentioned_files)
-    assert.same({}, observed_context.selections)
+    assert.same({ '/tmp/attached.lua' }, observed_context.mentioned_files)
+    assert.equals(1, #observed_context.selections)
+    assert.same({}, context.get_context().mentioned_files)
+    assert.same({}, context.get_context().selections)
 
-    state.api_client.create_message = original_create_message
+    state.session.active_observation().submit = original_create_message
     for key, value in pairs(original_context) do
       context.get_context()[key] = value
     end
+  end)
+
+  it('keeps user_message_count nonzero until an accepted submission reaches session idle', function()
+    state.session.set_active({ id = 'sess1' })
+    state.session.set_user_message_count({})
+    local done = Promise.new()
+    connection.protocol = 'v2'
+    local observation = state.session.active_observation()
+    local original_submit = observation.submit
+    observation.submit = function()
+      return Promise.new():resolve({ kind = 'accepted', input = { id = 'msg-user' } })
+    end
+    observation.wait_until_idle = function()
+      return done
+    end
+
+    local sending = messaging.send_message('hello world')
+    assert.is_true(vim.wait(100, function()
+      return state.user_message_count.sess1 == 1
+    end))
+    assert.is_false(sending:is_resolved())
+    done:resolve({ kind = 'session_idle', outcome = 'succeeded' })
+    assert.equals('session_idle', sending:wait().kind)
+    assert.equals(0, state.user_message_count.sess1)
+
+    observation.submit = original_submit
   end)
 
   it('clears sent attachments from the active context', function()

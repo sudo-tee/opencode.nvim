@@ -97,9 +97,6 @@ function M.replay_all(delay_ms)
 
   state.jobs.set_count(1)
 
-  -- This defer loop will fill the event manager throttling emitter and that
-  -- emitter will drain the events through event manager, which
-  -- will call renderer
   local function tick()
     M.replay_next()
     if M.event_index >= #M.events or M.stop then
@@ -183,11 +180,6 @@ function M.wait_for_idle(timeout_ms)
   local flush = require('opencode.ui.renderer.flush')
 
   return vim.wait(timeout_ms, function()
-    local emitter = state.event_manager and state.event_manager.throttling_emitter
-    if emitter and (#emitter.queue > 0 or emitter.drain_scheduled) then
-      return false
-    end
-
     if ctx:has_pending_work() then
       if ctx.bulk_mode then
         flush.end_bulk_mode()
@@ -390,47 +382,6 @@ function M.start(opts)
 
   M.setup_windows(opts)
 
-  -- NOTE: the index numbers will be incorrect when event collapsing happens
-  local log_event = function(type, event)
-    M.events_received = M.events_received + 1
-    local index = M.events_received
-    local count = #M.events
-    local id = event.info and event.info.id
-      or event.part and event.part.id
-      or event.id
-      or event.permissionID
-      or event.partID
-      or event.messageID
-      or ''
-    vim.notify(
-      'Event ' .. index .. '/' .. count .. ': ' .. type .. ' ' .. id,
-      vim.log.levels.INFO,
-      { id = 'replay_event_log' }
-    )
-  end
-
-  local events = {
-    'session.updated',
-    'session.compacted',
-    'session.error',
-    'session.idle',
-    'message.updated',
-    'message.removed',
-    'message.part.updated',
-    'message.removed',
-    'permission.updated',
-    'permission.replied',
-    'question.replied',
-    'question.asked',
-    'file.edited',
-    'server.connected',
-  }
-
-  for _, event_name in ipairs(events) do
-    state.event_manager:subscribe(event_name, function(event)
-      log_event(event_name, event)
-    end)
-  end
 end
 
 return M

@@ -58,7 +58,7 @@ end
 ---@param prompt string The user's instruction/prompt
 ---@param context_config? OpencodeContextConfig Optional context config
 ---@param opts? { range?: { start: integer, stop: integer } }
----@return table result { parts: OpencodeMessagePart[] }
+---@return table result { parts: table[] }
 M.format_chat_message = function(prompt, context_config, opts)
   opts = opts or {}
   opts.context_config = context_config
@@ -69,7 +69,7 @@ end
 ---@param prompt string The user's instruction/prompt
 ---@param context_config? OpencodeContextConfig Optional context config
 ---@param opts? { range?: { start: integer, stop: integer } }
----@return table result { text: string, parts: OpencodeMessagePart[] }
+---@return table result { text: string, parts: table[] }
 M.format_quick_chat_message = function(prompt, context_config, opts)
   opts = opts or {}
   opts.context_config = context_config
@@ -267,6 +267,11 @@ function M.unload_attachments()
   ChatContext.unload_attachments()
 end
 
+---@param sent OpencodeContext
+function M.consume_attachments(sent)
+  ChatContext.consume_attachments(sent)
+end
+
 function M.load()
   ChatContext.load()
 end
@@ -278,10 +283,9 @@ end
 
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil
----@return OpencodeMessagePart[]
+---@return table
 M.format_message = Promise.async(function(prompt, opts)
-  local result = ChatContext.format_message(prompt, { context_config = opts }):await()
-  return result.parts
+  return ChatContext.format_message(prompt, { context_config = opts }):await()
 end)
 
 ---@param text string
@@ -294,29 +298,30 @@ function M.decode_json_context(text, context_type)
   return result
 end
 
---- Extracts context from an OpencodeMessage (with parts)
----@param message { parts: OpencodeMessagePart[] }
+---Extract context from a user Entry.
+---@param message { content: table[] }
 ---@return { prompt: string|nil, selected_text: string|nil, current_file: string|nil, mentioned_files: string[]|nil}
 function M.extract_from_opencode_message(message)
   local ctx = { prompt = nil, selected_text = nil, current_file = nil }
 
   local handlers = {
     text = function(part)
-      ctx.prompt = ctx.prompt or part.text or ''
+      if not part.synthetic then
+        ctx.prompt = ctx.prompt or part.text or ''
+      end
     end,
-    text_context = function(part)
-      local json = M.decode_json_context(part.text, 'selection')
-      ctx.selected_text = json and json.content or ctx.selected_text
+    editor_context = function(part)
+      if part.source and part.source.kind == 'selection' then
+        ctx.selected_text = ctx.selected_text or part.text
+      end
     end,
     file = function(part)
-      if not part.source then
-        ctx.current_file = part.filename
-      end
+      ctx.current_file = ctx.current_file or (part.source and part.source.path) or part.name
     end,
   }
 
-  for _, part in ipairs(message and message.parts or {}) do
-    local handler = handlers[part.type .. (part.synthetic and '_context' or '')]
+  for _, part in ipairs(message and message.content or {}) do
+    local handler = handlers[part.kind]
     if handler then
       handler(part)
     end

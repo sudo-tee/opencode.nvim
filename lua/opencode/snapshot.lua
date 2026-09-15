@@ -17,11 +17,14 @@ local operations = {}
 local state = require('opencode.state')
 local util = require('opencode.util')
 local config_file = require('opencode.config_file')
-local session = require('opencode.session')
 local Promise = require('opencode.promise')
 
 local contexts = setmetatable({}, { __mode = 'k' })
 local pending = {}
+
+local function cache_path(session_id)
+  return vim.fs.joinpath(vim.fn.stdpath('cache'), 'opencode', 'session', session_id)
+end
 
 local function operation_context()
   return assert(contexts[coroutine.running()], 'Snapshot operation requires an async context')
@@ -122,7 +125,7 @@ function operations.save_restore_point(snapshot_id, from_snapshot_id, deleted_fi
   end
 
   local context = operation_context()
-  local cache_path = session.get_cache_path(context.session.id)
+  local session_cache = cache_path(context.session.id)
   local patch_result = M.patch(snapshot_id):await()
   local snapshot = {
     id = snapshot_id,
@@ -132,20 +135,20 @@ function operations.save_restore_point(snapshot_id, from_snapshot_id, deleted_fi
     created_at = os.time(),
   }
 
-  local path = cache_path .. 'snapshots/'
+  local path = vim.fs.joinpath(session_cache, 'snapshots')
   if vim.fn.isdirectory(path) == 0 then
     vim.fn.mkdir(path, 'p')
   end
 
-  local snapshot_file = path .. snapshot_id .. '.json'
+  local snapshot_file = vim.fs.joinpath(path, snapshot_id .. '.json')
   local ok, err = pcall(vim.fn.writefile, { vim.json.encode(snapshot) }, snapshot_file)
   if not ok then
     vim.notify('Failed to write restore point: ' .. err, vim.log.levels.ERROR)
     return nil
   end
 
-  if state.active_session == context.session and state.event_manager then
-    state.event_manager:emit('custom.restore_point.created', { restore_point = snapshot })
+  if state.active_session and state.active_session.id == context.session.id then
+    state.store.append('restore_points', snapshot)
   end
   return snapshot
 end
@@ -156,14 +159,10 @@ function M.get_restore_points()
     state.session.reset_restore_points()
     return {}
   end
-  local cache_path = session.get_cache_path(state.active_session.id)
-  if not cache_path then
-    return {}
-  end
   if state.restore_points and #state.restore_points > 0 then
     return state.restore_points
   end
-  local restore_points = util.read_json_dir(cache_path .. 'snapshots/') or {}
+  local restore_points = util.read_json_dir(vim.fs.joinpath(cache_path(state.active_session.id), 'snapshots')) or {}
   table.sort(restore_points, function(a, b)
     return a.created_at > b.created_at
   end)

@@ -43,16 +43,14 @@ describe('session tab lifecycle', function()
   it('notifies only when all requests complete, including in a background tab', function()
     local context = require('opencode.context')
     local messaging = require('opencode.services.messaging')
+    local support = require('tests.unit.services_spec_support')
     local first = tabs.ensure_current()
     state.session.set_active({ id = 'first' })
     state.model.set_model('provider/model')
     state.model.clear_mode()
     replace(context, 'load', nil)
     replace(context, 'format_message', Promise.new():resolve({}))
-    replace(context, 'unload_attachments', nil)
     replace(messaging, 'after_run', nil)
-    replace(require('opencode.config_file'), 'get_opencode_agents', Promise.new():resolve({}))
-    replace(require('opencode.session'), 'get_by_id', Promise.new():resolve({ id = 'first' }))
 
     local completed = {}
     config.hooks = {
@@ -61,13 +59,47 @@ describe('session tab lifecycle', function()
       end,
     }
     local requests = {}
-    state.jobs.set_api_client({
-      create_message = function()
-        local request = Promise.new()
-        table.insert(requests, request)
-        return request
-      end,
-    })
+    local connection = support.mock_connection()
+    connection.protocol = 'v1'
+    connection.operations.get_session = function(_, id)
+      return Promise.new():resolve({ id = id, title = id, time = { updated = 2 } })
+    end
+    -- route submits through controllable observations on the mock connection
+    local observation_for = {}
+    function connection:observe(ref)
+      local existing = observation_for[ref.id]
+      if existing then
+        return existing
+      end
+      local observation = {
+        read = function()
+          return {
+            session = { id = ref.id, title = ref.id },
+            sync = { session = { state = 'current' } },
+            entries_by_id = {},
+            entry_order = {},
+            children = { order = {}, by_id = {} },
+            permission_requests_by_id = {},
+            question_requests_by_id = {},
+            files = { revision = 0 },
+          }
+        end,
+        submit = function(_, _params)
+          local request = Promise.new()
+          table.insert(requests, request)
+          return request
+        end,
+        watch = function()
+          return function() end
+        end,
+        interrupt = function()
+          return Promise.new():resolve(true)
+        end,
+      }
+      observation_for[ref.id] = observation
+      return observation
+    end
+
     state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)
 
     local send_one = messaging.send_message('one')
@@ -78,10 +110,10 @@ describe('session tab lifecycle', function()
     vim.wait(30)
     assert.same({}, completed)
 
-    requests[1]:resolve({ info = { id = 'one' }, parts = {} })
+    requests[1]:resolve({ kind = 'accepted', input = { id = 'input-one' } })
     send_one:wait()
     assert.same({}, completed)
-    requests[2]:resolve({ info = { id = 'two' }, parts = {} })
+    requests[2]:resolve({ kind = 'accepted', input = { id = 'input-two' } })
     send_two:wait()
     vim.wait(30)
     assert.same({ 'first' }, completed)

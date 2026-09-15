@@ -31,6 +31,7 @@ _G.test_plugin_root = plugin_root
 
 -- For debugging
 vim.opt.termguicolors = true
+vim.opt.shadafile = 'NONE'
 
 require('opencode')
 

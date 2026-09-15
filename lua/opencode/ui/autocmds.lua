@@ -46,7 +46,7 @@ function M.setup_autocmds(windows)
       if args.file == '' or vim.bo[args.buf].buftype ~= '' then
         return
       end
-      require('opencode.ui.renderer.events').invalidate_reference_targets_for_file_change()
+      require('opencode.ui.renderer').invalidate_reference_targets_for_file_change()
     end,
   })
 

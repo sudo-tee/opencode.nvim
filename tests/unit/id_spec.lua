@@ -61,8 +61,42 @@ describe('ID module', function()
   it('should generate IDs with correct length structure', function()
     local session_id = id.ascending('session')
 
-    -- Should have prefix + underscore + 12 hex chars + 14 random chars
-    -- ses_ + 12 hex + 14 random = 4 + 12 + 14 = 30 total
-    assert.is_true(#session_id >= 20) -- At least prefix + some content
+    assert.equals(30, #session_id)
+    assert.matches('^ses_[0-9a-f][0-9a-f]+[0-9A-Za-z]+$', session_id)
+  end)
+
+  describe('V1 native time encoding', function()
+    local original_gettimeofday
+
+    before_each(function()
+      original_gettimeofday = vim.uv.gettimeofday
+      vim.uv.gettimeofday = function()
+        return 1700000000, 123000
+      end
+      package.loaded['opencode.id'] = nil
+      id = require('opencode.id')
+    end)
+
+    after_each(function()
+      vim.uv.gettimeofday = original_gettimeofday
+      package.loaded['opencode.id'] = nil
+      id = require('opencode.id')
+    end)
+
+    it(
+      'uses wall-clock milliseconds, a shared same-millisecond counter, and the 48-bit descending complement',
+      function()
+        local first = id.ascending('message')
+        local second = id.ascending('message')
+        local descending = id.descending('message')
+
+        assert.equals('bcfe5687b001', first:sub(5, 16))
+        assert.equals('bcfe5687b002', second:sub(5, 16))
+        assert.equals('4301a9784ffc', descending:sub(5, 16))
+        assert.is_true(first < second)
+        assert.matches('^msg_[0-9a-f][0-9a-f]+[0-9A-Za-z]+$', first)
+        assert.equals(30, #first)
+      end
+    )
   end)
 end)

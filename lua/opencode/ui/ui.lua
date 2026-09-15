@@ -279,9 +279,7 @@ function M.restore_hidden_windows()
   output_window.setup_keymaps(windows, true)
   footer.setup(windows)
   session_tab_strip.setup(windows)
-  if state.api_client and type(state.api_client.list_providers) == 'function' then
-    topbar.setup()
-  end
+  topbar.setup()
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)
@@ -478,9 +476,27 @@ function M.create_windows()
   return windows
 end
 
+---@return boolean
+function M.active_session_allows_input()
+  if not config.child_readonly or not state.active_session then
+    return true
+  end
+  local observation = state.session.active_observation()
+  if not observation then
+    return false
+  end
+  local observed = observation:read()
+  return observed.sync
+      and observed.sync.session
+      and observed.sync.session.state == 'current'
+      and observed.session
+      and not observed.session.parentID
+    or false
+end
+
 ---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
-  if state.active_session and state.active_session.parentID and config.child_readonly then
+  if not M.active_session_allows_input() then
     return
   end
 
@@ -565,17 +581,10 @@ function M.clear_output()
   -- state.restore_points = {}
 end
 
----Re-render the output buffer from cached session data, avoiding a server round-trip.
+---Re-render the output buffer from the active Observation, avoiding a server round-trip.
 ---Used for display-only toggles (show_reasoning_output, show_output, max_messages).
----Falls back to render_output() if no cached messages are available.
----@param opts? {force_scroll?: boolean}
-function M.render_output_from_cache(opts)
-  local session_data = state.messages
-  if not session_data or not next(session_data) then
-    M.render_output(false, opts)
-    return
-  end
-  renderer.render_from_cache(session_data)
+function M.render_output_from_cache()
+  renderer.render_from_cache()
 end
 
 ---Force a full rerender of the output buffer. Should be done synchronously if
@@ -583,7 +592,7 @@ end
 ---from opencode
 ---@param synchronous? boolean If true, waits until session is fully rendered
 ---@param opts? {force_scroll?: boolean}
----@return Promise<OpencodeMessage[]> | OpencodeMessage[] | nil
+---@return Promise<table[]> | table[] | nil
 function M.render_output(synchronous, opts)
   local ret = renderer.render_full_session(opts)
 
@@ -605,7 +614,7 @@ function M.toggle_pane()
   if state.windows and current_win == state.windows.input_win then
     output_window.focus_output(true)
   else
-    if state.active_session and state.active_session.parentID and config.child_readonly then
+    if not M.active_session_allows_input() then
       return
     end
     input_window.focus_input()

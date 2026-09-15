@@ -6,9 +6,9 @@ local symbol_snapshot = require('opencode.ui.symbol_snapshot')
 local M = {}
 local REFRESH_INTERVAL_MS = 1
 
-local function find_message_in_state(message_id)
-  for _, message in ipairs(state.messages or {}) do
-    if message.info and message.info.id == message_id then
+local function find_message_in_entries(message_id)
+  for _, message in ipairs(ctx.entries or {}) do
+    if message and message.id == message_id then
       return message
     end
   end
@@ -16,7 +16,7 @@ local function find_message_in_state(message_id)
 end
 
 local function is_assistant_message(message)
-  return message and message.info and message.info.role == 'assistant'
+  return message ~= nil and message.kind == 'assistant'
 end
 
 local function is_rendered_assistant_text_part(part_id, active_session_id)
@@ -24,7 +24,7 @@ local function is_rendered_assistant_text_part(part_id, active_session_id)
   local part = part_data and part_data.part
   if
     not part
-    or part.type ~= 'text'
+    or part.kind ~= 'text'
     or not part.text
     or part.synthetic
     or not part_data.line_start
@@ -34,8 +34,8 @@ local function is_rendered_assistant_text_part(part_id, active_session_id)
   end
 
   local message_data = ctx.render_state:get_message(part_data.message_id)
-  local message = message_data and message_data.message or find_message_in_state(part_data.message_id)
-  return is_assistant_message(message) and message.info.sessionID == active_session_id
+  local message = message_data and message_data.message or find_message_in_entries(part_data.message_id)
+  return is_assistant_message(message) and message.session_id == active_session_id
 end
 
 local function rendered_assistant_text_part_ids(active_session_id)

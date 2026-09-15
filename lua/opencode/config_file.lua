@@ -1,17 +1,44 @@
 local Promise = require('opencode.promise')
 local sha1 = require('opencode.sha1')
+local util = require('opencode.util')
 local M = {
   config_promise = nil,
   project_promise = nil,
   providers_promise = nil,
 }
+local cache_connection
+
+local function sync_cache_connection()
+  local connection = require('opencode.state').opencode_server
+  if connection ~= cache_connection then
+    cache_connection = connection
+    M.config_promise = nil
+    M.project_promise = nil
+    M.providers_promise = nil
+  end
+  return connection
+end
+
+local function resource(name, directory)
+  local state = require('opencode.state')
+  local connection = sync_cache_connection()
+  local operation = connection and connection.operations and connection.operations[name]
+  if type(operation) ~= 'function' then
+    return Promise.new():reject('Connection does not support ' .. name)
+  end
+  return operation(
+    connection,
+    { directory = directory or state.current_cwd or vim.fn.getcwd() },
+    util.apply_path_map,
+    util.apply_reverse_path_map
+  )
+end
 
 ---@type fun(): Promise<OpencodeConfigFile|nil>
 M.get_opencode_config = Promise.async(function()
   if not M.config_promise then
-    local state = require('opencode.state')
     M.config_promise = Promise.retry(function()
-      return state.api_client:get_config()
+      return resource('get_config')
     end, 3, 500)
   end
   local ok, result = pcall(function()
@@ -30,12 +57,11 @@ end)
 ---@type fun(directory?: string): Promise<OpencodeProject|nil>
 M.get_opencode_project = Promise.async(function(directory)
   if directory then
-    return require('opencode.state').api_client:get_current_project(directory):await()
+    return resource('get_current_project', directory):await()
   end
   if not M.project_promise then
-    local state = require('opencode.state')
     M.project_promise = Promise.retry(function()
-      return state.api_client:get_current_project()
+      return resource('get_current_project')
     end, 3, 500)
   end
   local ok, result = pcall(function()
@@ -76,28 +102,17 @@ M.get_workspace_snapshot_path = Promise.async(function(directory)
   return vim.fs.normalize(path)
 end)
 
-local _providers_render_callback = false
-
 ---@return Promise<OpencodeProvidersResponse|nil>
 function M.get_opencode_providers()
+  sync_cache_connection()
   if not M.providers_promise then
-    local state = require('opencode.state')
-    M.providers_promise = state.api_client:list_providers()
+    M.providers_promise = resource('get_model_catalog')
   end
-  local wrapped = M.providers_promise:catch(function(err)
+  return M.providers_promise:catch(function(err)
     vim.notify('Error fetching Opencode providers: ' .. vim.inspect(err), vim.log.levels.ERROR)
     M.providers_promise = nil
     return nil
   end)
-  if not _providers_render_callback then
-    _providers_render_callback = true
-    wrapped:finally(function()
-      local ok, _ = pcall(function()
-        require('opencode.ui.topbar').render()
-      end)
-    end)
-  end
-  return wrapped
 end
 
 --- Get model information for a specific provider and model
@@ -122,68 +137,17 @@ end
 
 ---@type fun(): Promise<string[]>
 M.get_opencode_agents = Promise.async(function()
-  local cfg = M.get_opencode_config():await()
-  if not cfg then
-    return {}
-  end
-  local agents = {}
-  for agent, opts in pairs(cfg.agent or {}) do
-    -- Only include agents that are enabled and have the right mode
-    if opts.disable ~= true and opts.hidden ~= true and (opts.mode == 'primary' or opts.mode == 'all') then
-      table.insert(agents, agent)
-    end
-  end
-
-  table.sort(agents)
-
-  for _, mode in ipairs({ 'plan', 'build' }) do
-    if not vim.tbl_contains(agents, mode) then
-      local mode_config = cfg.agent and cfg.agent[mode]
-      if mode_config == nil or (mode_config.disable ~= true and mode_config.hidden ~= true) then
-        table.insert(agents, 1, mode)
-      end
-    end
-  end
-  return agents
+  return resource('list_primary_agents'):await() or {}
 end)
 
 ---@type fun(): Promise<string[]>
 M.get_subagents = Promise.async(function()
-  local cfg = M.get_opencode_config():await()
-  if not cfg then
-    return {}
-  end
-
-  local subagents = {}
-  for agent, opts in pairs(cfg.agent or {}) do
-    -- Only include agents that are not disabled, not hidden, and not primary-only
-    if opts.disable ~= true and opts.hidden ~= true and (opts.mode ~= 'primary' or opts.mode == 'all') then
-      table.insert(subagents, agent)
-    end
-  end
-
-  for _, default_agent in ipairs({ 'general', 'explore' }) do
-    if not vim.tbl_contains(subagents, default_agent) then
-      local agent_config = cfg.agent and cfg.agent[default_agent]
-      if agent_config == nil or (agent_config.disable ~= true and agent_config.hidden ~= true) then
-        table.insert(subagents, 1, default_agent)
-      end
-    end
-  end
-
-  return subagents
+  return resource('list_subagents'):await() or {}
 end)
 
 ---@type fun(): Promise<table<string, table>|nil>
 M.get_user_commands = Promise.async(function()
-  local cfg = M.get_opencode_config():await()
-  return cfg and cfg.command or nil
-end)
-
----@type fun(): Promise<table<string, table>|nil>
-M.get_mcp_servers = Promise.async(function()
-  local cfg = M.get_opencode_config():await()
-  return cfg and cfg.mcp or nil
+  return resource('get_user_commands'):await()
 end)
 
 ---Does this opencode user command take arguments?

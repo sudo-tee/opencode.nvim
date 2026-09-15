@@ -1,7 +1,4 @@
 local git_review = require('opencode.git_review')
-local session_store = require('opencode.session')
----@type OpencodeState
-local state = require('opencode.state')
 local session_runtime = require('opencode.services.session_runtime')
 
 local M = {
@@ -71,8 +68,7 @@ end, false)
 
 ---@return string|nil
 local function get_last_prompt_snapshot_id_or_warn()
-  local snapshots = session_store.get_message_snapshot_ids(state.current_message)
-  local snapshot_id = snapshots and snapshots[1]
+  local snapshot_id = git_review.get_latest_snapshot()
   if not snapshot_id then
     vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
     return nil

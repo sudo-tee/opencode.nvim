@@ -14,7 +14,7 @@
 //                                 → allowed: Infrastructure, same-layer
 //                                 × forbidden: Entry, Dispatch
 //
-//   Layer 3  Infrastructure      api_client / server_job / event_manager
+//   Layer 3  Infrastructure      Connection / protocol operations / Observation / transport
 //                                 → allowed: same-layer, external
 //                                 × forbidden: Entry, Dispatch, Capabilities
 //
@@ -73,19 +73,18 @@
     // ── Layer 2: Capabilities ───────────────────────────────────────
     // Business logic, data access, rendering. Three sub-categories:
     //
-    //   CLI mirrors    — query/mutate CLI server state via api_client
+    //   CLI mirrors    — query/mutate server state through the active Connection
     //   Nvim-native    — editor-side capabilities (context, LSP, git)
     //   UI rendering   — window management, rendering pipeline, display
     //
     "capabilities_layer": {
       "modules": [
         // CLI mirrors
-        "opencode.session",                // session data query (calls state.api_client)
+        "opencode.session",                // legacy session query module
         "opencode.snapshot",               // snapshot management
-        "opencode.config_file",            // remote config fetch via api_client
+        "opencode.config_file",            // remote config facade
         //                                    REVIEW: could be Foundation (passive data source,
-        //                                    in-degree 14), but it calls state.api_client
-        //                                    which is an active Infrastructure dependency.
+        //                                    in-degree 14), but it calls active operations.
 
         // Nvim-native capabilities
         "opencode.context",                // editor context collection
@@ -132,10 +131,8 @@
         "opencode.ui.symbol_tokens",
         "opencode.ui.reference_parser",
         "opencode.ui.reference_facts",
-        "opencode.ui.event_scope",
         "opencode.ui.float_layout",
         "opencode.ui.skill_picker",
-        "opencode.ui.session_scope",
         "opencode.ui.history_picker",      // history browser
         "opencode.ui.mcp_picker",          // MCP tool browser
         "opencode.ui.permission.permission" // permission display
@@ -147,10 +144,10 @@
     // These modules should have ZERO upward dependencies.
     "cli_infrastructure_layer": {
       "modules": [
-        "opencode.api_client",             // HTTP client for REST calls
+        "opencode.transport",              // Connection-bound HTTP/SSE byte transport
+        "opencode.protocols.*",            // protocol-native operations and HTTP mechanics
         "opencode.server_job",             // server lifecycle + call_api/stream_api
         "opencode.opencode_server",        // process spawn/shutdown
-        "opencode.event_manager",          // SSE event stream consumer
         "opencode.port_mapping"            // port registry
       ]
     },

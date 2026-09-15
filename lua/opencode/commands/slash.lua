@@ -23,9 +23,9 @@ local slash_command_presets = {
   ['/variant'] = { name = 'variant' },
   ['/new'] = { name = 'session', preset_args = { 'new' } },
   ['/redo'] = { name = 'redo' },
-  ['/sessions']      = { name = 'session', preset_args = { 'select' } },
-  ['/skills']        = { name = 'skills' },
-  ['/share']         = { name = 'session', preset_args = { 'share' } },
+  ['/sessions'] = { name = 'session', preset_args = { 'select' } },
+  ['/skills'] = { name = 'skills' },
+  ['/share'] = { name = 'session', preset_args = { 'share' } },
   ['/clear_selections'] = { name = 'clear_selections' },
   ['/clear_files'] = { name = 'clear_files' },
   ['/timeline'] = { name = 'timeline' },
@@ -144,7 +144,16 @@ M.get_commands = Promise.async(function()
 
   local state = require('opencode.state')
   local ok, skills = pcall(function()
-    return state.api_client:list_skills():await()
+    local connection = assert(state.opencode_server, 'Connection is not ready')
+    local util = require('opencode.util')
+    return connection.operations
+      .list_skills(
+        connection,
+        { directory = state.current_cwd or vim.fn.getcwd() },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      )
+      :await()
   end)
   if ok and skills then
     for _, skill in ipairs(skills) do
@@ -157,9 +166,11 @@ M.get_commands = Promise.async(function()
           if args and #args > 0 then
             message = skill_content .. '\n\n' .. table.concat(args, ' ')
           end
-          require('opencode.services.session_runtime').open({ new_session = false, focus = 'output' }):and_then(function()
-            return require('opencode.services.messaging').send_message(message, {})
-          end)
+          require('opencode.services.session_runtime')
+            .open({ new_session = false, focus = 'output' })
+            :and_then(function()
+              return require('opencode.services.messaging').send_message(message, {})
+            end)
         end,
         args = true,
       })

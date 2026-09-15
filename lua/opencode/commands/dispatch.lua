@@ -1,6 +1,5 @@
 local config = require('opencode.config')
 local log = require('opencode.log')
-local state = require('opencode.state')
 
 local M = {}
 
@@ -9,13 +8,6 @@ local lifecycle_hook_keys = {
   after = 'on_command_after',
   error = 'on_command_error',
   finally = 'on_command_finally',
-}
-
-local lifecycle_event_names = {
-  before = 'custom.command.before',
-  after = 'custom.command.after',
-  error = 'custom.command.error',
-  finally = 'custom.command.finally',
 }
 
 ---@type table<OpencodeCommandLifecycleStage, { id: string, fn: OpencodeCommandDispatchHook, command_filter: table<string, true>|nil }[]>
@@ -85,15 +77,6 @@ local function should_run_hook(entry, ctx)
   return name and entry.command_filter[name] == true or false
 end
 
----@param event_name string
----@param payload table
-local function emit_lifecycle_event(event_name, payload)
-  local manager = state.event_manager
-  if manager and type(manager.emit) == 'function' then
-    pcall(manager.emit, manager, event_name, payload)
-  end
-end
-
 ---@param stage OpencodeCommandLifecycleStage
 ---@param hook_id string
 ---@param hook_fn OpencodeCommandDispatchHook
@@ -104,13 +87,13 @@ local function run_hook(stage, hook_id, hook_fn, ctx)
   if not ok then
     -- Keep observer failures isolated so command execution stays deterministic.
     local command_name = (ctx.intent and ctx.intent.name) or 'unknown'
-    log.warn('event=command_hook_error command=%s stage=%s hook_id=%s error=%s', command_name, stage, hook_id, tostring(next_ctx_or_err))
-    emit_lifecycle_event('custom.command.hook_error', {
-      stage = stage,
-      hook_id = hook_id,
-      error = tostring(next_ctx_or_err),
-      context = ctx,
-    })
+    log.warn(
+      'event=command_hook_error command=%s stage=%s hook_id=%s error=%s',
+      command_name,
+      stage,
+      hook_id,
+      tostring(next_ctx_or_err)
+    )
     return ctx
   end
 
@@ -142,7 +125,6 @@ local function run_hook_pipeline(stage, ctx)
     end
   end
 
-  emit_lifecycle_event(lifecycle_event_names[stage], next_ctx)
   return next_ctx
 end
 

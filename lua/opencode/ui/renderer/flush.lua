@@ -254,9 +254,7 @@ local function new_formatter_context()
   return {
     interactive = true,
     resolve_symbol_targets = not ctx.bulk_mode,
-    get_child_parts = function(session_id)
-      return ctx.render_state:get_child_session_parts(session_id)
-    end,
+    get_child_parts = ctx.get_child_parts,
     current_refs = reference_facts.current_refs(),
     current_files = reference_facts.available_files(),
     symbol_cycle = ctx.symbol_refresh_cycle or symbol_snapshot.new_cycle(),
@@ -273,7 +271,7 @@ local function format_message(message_id, prev)
     return nil
   end
 
-  local previous_rendered = ctx.render_state:get_previous_message(state.messages or {}, message_id)
+  local previous_rendered = ctx.render_state:get_previous_message(ctx.entries, message_id)
   local formatted = formatter.format_message_header(message, previous_rendered and previous_rendered.message or nil)
 
   if output_diff.is_unchanged(prev, formatted) then
@@ -392,12 +390,13 @@ local function apply_pending(pending, render_context)
       local dirty_parts = pending.dirty_part_by_message[message_id]
       if dirty_parts then
         local message = ctx.render_state:get_message(message_id)
-        local parts = message and message.message and message.message.parts or {}
-        for _, part in ipairs(parts or {}) do
-          if part.id and dirty_parts[part.id] then
-            apply_part(part.id, message_id, render_context)
-            dirty_parts[part.id] = nil
-            pending.dirty_parts[part.id] = nil
+        local entry = message and message.message
+        for index in ipairs(entry and entry.content or {}) do
+          local part_id = ctx.content_key(entry, index)
+          if dirty_parts[part_id] then
+            apply_part(part_id, message_id, render_context)
+            dirty_parts[part_id] = nil
+            pending.dirty_parts[part_id] = nil
           end
         end
       end
@@ -539,16 +538,6 @@ function M.flush()
   if applied and not ctx.bulk_mode then
     M.request_on_data_rendered()
   end
-end
-
----Apply renderer work deferred while the output window was in another tab.
-function M.resume_deferred_rendering()
-  M.flush()
-  if ctx.bulk_mode then
-    M.end_bulk_mode()
-    require('opencode.ui.renderer.events').refresh_rendered_symbol_targets()
-  end
-  M.flush_pending_on_data_rendered()
 end
 
 return M

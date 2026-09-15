@@ -735,7 +735,15 @@ function M.setup_autocmds(windows, group)
 
   local function has_unrendered_messages()
     local ctx = require('opencode.ui.renderer.ctx')
-    return ctx.lazy_render_count ~= nil and ctx.lazy_render_count < #(state.messages or {})
+    if ctx.lazy_render_count ~= nil and ctx.lazy_render_count < #ctx.entries then
+      return true
+    end
+    -- even with the whole cached window rendered, the protocol may hold
+    -- older pages behind its paging cursor
+    local observation = ctx.observation
+    return observation ~= nil
+      and type(observation.has_older_history) == 'function'
+      and observation:has_older_history()
   end
 
   local function viewport_is_at_rendered_top()
@@ -759,7 +767,7 @@ function M.setup_autocmds(windows, group)
     group = group,
     callback = function()
       if state.ui.is_window_in_current_tab(windows.output_win) then
-        require('opencode.ui.renderer.flush').resume_deferred_rendering()
+        require('opencode.ui.renderer').resume_deferred_rendering()
       end
     end,
   })
@@ -794,37 +802,13 @@ function M.setup_autocmds(windows, group)
   -- Lazy-render: load more messages when the viewport reaches the rendered top.
   debounced_load_more_at_top = require('opencode.util').debounce(function()
     local renderer = require('opencode.ui.renderer')
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    local top_line = M.get_visible_top_line(windows.output_win)
-    local anchor_msg_id = nil
-    local anchor_offset = 0
-
-    if top_line then
-      for _, msg in ipairs(state.messages or {}) do
-        local msg_id = msg.info and msg.info.id or ''
-        if not msg_id:match('^__opencode_') then
-          local rendered = render_state:get_message(msg_id)
-          if rendered and rendered.line_start and rendered.line_end and rendered.line_end >= top_line then
-            anchor_msg_id = msg_id
-            anchor_offset = math.max(0, top_line - rendered.line_start)
-            break
-          end
-        end
-      end
-    end
+    local anchor = renderer.capture_top_anchor()
 
     if renderer.load_more_messages() then
-      if anchor_msg_id then
-        local rendered = render_state:get_message(anchor_msg_id)
-        if rendered and rendered.line_start then
-          local restored_top = math.max(1, rendered.line_start + anchor_offset)
-          pcall(vim.api.nvim_win_set_cursor, windows.output_win, { restored_top, 0 })
-          pcall(M.restore_view_topline, windows.output_win, restored_top)
-          return
-        end
-      end
-      pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 1, 0 })
+      renderer.restore_top_anchor(anchor)
+      return
     end
+    pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 1, 0 })
   end, 150)
 
   vim.api.nvim_create_autocmd('WinScrolled', {

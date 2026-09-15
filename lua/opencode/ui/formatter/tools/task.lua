@@ -1,18 +1,16 @@
 local M = {}
 local icons = require('opencode.ui.icons')
 
----@param part OpencodeMessagePart
+---@param part table
 ---@param status string
 ---@param utils table
 ---@return string
 function M.tool_action_line(part, status, utils)
   local tool_formatters = require('opencode.ui.formatter.tools')
-  local tool = part.tool
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
+  local tool = part.name
   local formatter = tool_formatters[tool] or tool_formatters.tool
   local summary = formatter.summary or tool_formatters.tool.summary
-  local icon, tool_label, tool_value = summary(part, input, metadata)
+  local icon, tool_label, tool_value = summary(part)
 
   if status ~= 'completed' then
     icon = icons.get(status)
@@ -22,21 +20,19 @@ function M.tool_action_line(part, status, utils)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 ---@param context? FormatterContext
 function M.format(output, part, context)
-  if part.tool ~= 'task' then
+  if part.name ~= 'task' then
     return
   end
 
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
-  local tool_output = part.state and part.state.output or ''
+  local tool_output = require('opencode.ui.formatter.utils').tool_result_text(part)
 
   local start_line = output:get_line_count() + 1
 
-  local description = input.description or ''
-  local agent_type = input.subagent_type
+  local description = part.description or ''
+  local agent_type = part.input and part.input.subagent_type
   if agent_type then
     description = string.format('%s (@%s)', description, agent_type)
   end
@@ -48,7 +44,7 @@ function M.format(output, part, context)
 
   local output_start_line = output:get_line_count() + 1
   if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then
-    local child_session_id = metadata.sessionId
+    local child_session_id = part.child_session and part.child_session.id
     local child_parts = child_session_id
       and context
       and context.get_child_parts
@@ -58,8 +54,8 @@ function M.format(output, part, context)
       output:add_empty_line()
 
       for _, item in ipairs(child_parts) do
-        if item.tool then
-          local status = item.state and item.state.status or 'pending'
+        if item.kind == 'tool' then
+          local status = item.state or 'pending'
           output:add_line(' ' .. M.tool_action_line(item, status, utils))
         end
       end
@@ -84,11 +80,11 @@ function M.format(output, part, context)
   end
 
   local end_line = output:get_line_count()
-  if metadata.sessionId then
+  if part.child_session then
     output:add_action({
       text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = utils.get_session_action_args(metadata.sessionId),
+      args = utils.get_session_action_args(part.child_session.id),
       key = 'S',
       display_line = start_line,
       range = { from = start_line + 1, to = end_line + 1 },
@@ -96,11 +92,10 @@ function M.format(output, part, context)
   end
 end
 
----@param _ OpencodeMessagePart
----@param input TaskToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
-  return icons.get('task'), 'task', input.description or ''
+function M.summary(part)
+  return icons.get('task'), 'task', part.description or ''
 end
 
 return M

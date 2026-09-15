@@ -1,0 +1,274 @@
+{
+  "provenance": {
+    "server": "http://127.0.0.1:4798",
+    "path": "/openapi.json",
+    "health_version": "2.0.1"
+  },
+  "selected_event_schemas": {},
+  "schemas": {
+    "Session.Message.User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^msg_"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "time": {
+          "type": "object",
+          "properties": {
+            "created": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "created"
+          ],
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Prompt.FileAttachment"
+          }
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Prompt.AgentAttachment"
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Prompt.SkillAttachment"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "user"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "time",
+        "text",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "Session.Message.Assistant": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^msg_"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "time": {
+          "type": "object",
+          "properties": {
+            "created": {
+              "type": "number"
+            },
+            "streamed": {
+              "type": "number"
+            },
+            "completed": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "created"
+          ],
+          "additionalProperties": false
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "assistant"
+          ]
+        },
+        "agent": {
+          "type": "string"
+        },
+        "model": {
+          "$ref": "#/components/schemas/Model.Ref"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Session.Message.Assistant.Text"
+              },
+              {
+                "$ref": "#/components/schemas/Session.Message.Assistant.Reasoning"
+              },
+              {
+                "$ref": "#/components/schemas/Session.Message.Assistant.Tool"
+              }
+            ]
+          }
+        },
+        "snapshot": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "finish": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "length",
+            "tool-calls",
+            "content-filter",
+            "error",
+            "unknown"
+          ]
+        },
+        "rawFinish": {
+          "type": "string"
+        },
+        "providerState": {
+          "$ref": "#/components/schemas/Session.Message.ProviderState_4"
+        },
+        "cost": {
+          "$ref": "#/components/schemas/Money.USD"
+        },
+        "tokens": {
+          "$ref": "#/components/schemas/TokenUsage.Info"
+        },
+        "error": {
+          "$ref": "#/components/schemas/Session.StructuredError"
+        },
+        "retry": {
+          "$ref": "#/components/schemas/Session.Message.Assistant.Retry"
+        }
+      },
+      "required": [
+        "id",
+        "time",
+        "type",
+        "agent",
+        "model",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "SessionMessagesResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Session.Message.Info"
+          }
+        },
+        "cursor": {
+          "type": "object",
+          "properties": {
+            "previous": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "next": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "data",
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "Session.Inbox.User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^msg_"
+        },
+        "sessionID": {
+          "type": "string",
+          "pattern": "^ses"
+        },
+        "timeCreated": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "user"
+          ]
+        },
+        "payload": {
+          "$ref": "#/components/schemas/Session.Inbox.UserPayload"
+        },
+        "delivery": {
+          "$ref": "#/components/schemas/Session.Inbox.Delivery"
+        }
+      },
+      "required": [
+        "id",
+        "sessionID",
+        "timeCreated",
+        "type",
+        "payload",
+        "delivery"
+      ],
+      "additionalProperties": false
+    },
+    "SessionInterruptResponse": {
+      "type": "object",
+      "properties": {
+        "interrupted": {
+          "type": "boolean",
+          "description": "Whether an active execution owned by this OpenCode process was interrupted."
+        }
+      },
+      "required": [
+        "interrupted"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

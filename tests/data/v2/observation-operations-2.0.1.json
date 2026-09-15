@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "2253d4c31d",
+  "serverVersion": "2.0.1",
+  "list_active_sessions": {
+    "request": {
+      "method": "GET",
+      "path": "/api/session/active"
+    },
+    "response": {
+      "data": {
+        "ses-running": {
+          "type": "running"
+        }
+      }
+    }
+  },
+  "list_inbox": {
+    "request": {
+      "method": "GET",
+      "path": "/api/session/ses-target/inbox"
+    },
+    "response": {
+      "data": [
+        {
+          "id": "msg-user",
+          "sessionID": "ses-target",
+          "timeCreated": 1789350517411,
+          "type": "user",
+          "payload": {
+            "text": "queued input"
+          },
+          "delivery": "queue"
+        },
+        {
+          "id": "msg-move",
+          "sessionID": "ses-target",
+          "timeCreated": 1789350517412,
+          "type": "move",
+          "payload": {
+            "location": {
+              "directory": "/server/project"
+            },
+            "projectID": "project",
+            "subpath": "child"
+          },
+          "delivery": "steer"
+        }
+      ]
+    }
+  }
+}

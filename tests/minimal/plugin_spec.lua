@@ -1,12 +1,9 @@
 -- tests/minimal/plugin_spec.lua
 -- Integration tests for the full plugin (lightweight)
 
-local Promise = require('opencode.promise')
-
 describe('opencode.nvim plugin', function()
   local original_schedule
   local original_ensure_server
-  local original_api_client_new
   local original_system
   local original_executable
 
@@ -44,29 +41,6 @@ describe('opencode.nvim plugin', function()
       }
     end
 
-    -- Stub api_client constructor to return mock with needed methods
-    local api_client_mod = require('opencode.api_client')
-    original_api_client_new = api_client_mod.new
-    api_client_mod.new = function(url)
-      return {
-        url = url,
-        get_config = function()
-          return Promise.new():resolve({ agent = {} })
-        end,
-        get_current_project = function()
-          return Promise.new():resolve({ id = 'p1', name = 'TestProject', path = '/tmp' })
-        end,
-        create_session = function()
-          return Promise.new():resolve({ id = 's1' })
-        end,
-        create_message = function(_, _id, _params)
-          return Promise.new():resolve({ id = 'm1' })
-        end,
-        abort_session = function()
-          return Promise.new():resolve(true)
-        end,
-      }
-    end
   end)
 
   after_each(function()
@@ -75,9 +49,6 @@ describe('opencode.nvim plugin', function()
     vim.fn.executable = original_executable
     if original_ensure_server then
       require('opencode.server_job').ensure_server = original_ensure_server
-    end
-    if original_api_client_new then
-      require('opencode.api_client').new = original_api_client_new
     end
   end)
 

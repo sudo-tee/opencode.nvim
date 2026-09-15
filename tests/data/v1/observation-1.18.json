@@ -1,0 +1,163 @@
+{
+  "sourceCommit": "3104c1428ec91f809e5ab86631300de41eb6952e",
+  "sessionID": "ses-v1",
+  "snapshot": [
+    {
+      "info": {
+        "id": "msg-user",
+        "sessionID": "ses-v1",
+        "role": "user",
+        "time": { "created": 1700000000000 },
+        "agent": "build",
+        "model": { "providerID": "provider", "modelID": "model", "variant": "high" }
+      },
+      "parts": [
+        { "id": "prt-text", "sessionID": "ses-v1", "messageID": "msg-user", "type": "text", "text": "@main.lua @run @readme @review hello", "time": { "start": 1700000000001, "end": 1700000000002 } },
+        {
+          "id": "prt-selection",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "text",
+          "text": "{\"context_type\":\"selection\",\"content\":\"return value\",\"file\":{\"name\":\"main.lua\"},\"lines\":\"8-9\"}",
+          "synthetic": true,
+          "metadata": { "context_type": "selection" }
+        },
+        {
+          "id": "prt-diagnostics",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "text",
+          "text": "{\"context_type\":\"diagnostics\",\"content\":[{\"msg\":\"bad value\",\"severity\":2,\"pos\":\"l8:c3\"}]}",
+          "synthetic": true,
+          "metadata": { "context_type": "diagnostics" }
+        },
+        {
+          "id": "prt-invalid-context",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "text",
+          "text": "not-json",
+          "synthetic": true,
+          "metadata": { "context_type": "selection" }
+        },
+        {
+          "id": "prt-file",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "file",
+          "mime": "text/plain",
+          "filename": "main.lua",
+          "url": "file:///server/main.lua",
+          "source": { "type": "file", "path": "/server/main.lua", "text": { "value": "@main.lua", "start": 0, "end": 9 } }
+        },
+        {
+          "id": "prt-symbol",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "file",
+          "mime": "text/plain",
+          "filename": "lib.lua",
+          "url": "file:///server/lib.lua",
+          "source": { "type": "symbol", "path": "/server/lib.lua", "range": { "start": { "line": 3, "character": 2 }, "end": { "line": 3, "character": 5 } }, "name": "run", "kind": 12, "text": { "value": "@run", "start": 10, "end": 14 } }
+        },
+        {
+          "id": "prt-resource",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "file",
+          "mime": "text/markdown",
+          "filename": "readme.md",
+          "url": "mcp://docs/readme",
+          "source": { "type": "resource", "clientName": "docs", "uri": "mcp://docs/readme", "text": { "value": "@readme", "start": 15, "end": 22 } }
+        },
+        {
+          "id": "prt-agent",
+          "sessionID": "ses-v1",
+          "messageID": "msg-user",
+          "type": "agent",
+          "name": "review",
+          "source": { "value": "@review", "start": 23, "end": 30 }
+        },
+        { "id": "prt-compaction", "sessionID": "ses-v1", "messageID": "msg-user", "type": "compaction", "auto": true, "overflow": false, "tail_start_id": "msg-user" },
+        { "id": "prt-subtask", "sessionID": "ses-v1", "messageID": "msg-user", "type": "subtask", "prompt": "inspect", "description": "Inspect files", "agent": "explore", "model": { "providerID": "provider", "modelID": "model" }, "command": "check" }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg-assistant",
+        "sessionID": "ses-v1",
+        "role": "assistant",
+        "time": { "created": 1700000000100, "completed": 1700000000200 },
+        "parentID": "msg-user",
+        "providerID": "provider",
+        "modelID": "model",
+        "variant": "high",
+        "agent": "build",
+        "mode": "build",
+        "path": { "cwd": "/server", "root": "/server" },
+        "finish": "stop",
+        "cost": 0.25,
+        "tokens": { "input": 10, "output": 4, "reasoning": 2, "cache": { "read": 3, "write": 1 } }
+      },
+      "parts": [
+        { "id": "prt-reasoning", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "reasoning", "text": "thinking", "time": { "start": 1700000000100, "end": 1700000000110 } },
+        { "id": "prt-retry", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "retry", "attempt": 1, "error": { "name": "APIError", "data": { "message": "retry", "statusCode": 503, "isRetryable": true } }, "time": { "created": 1700000000111 } },
+        { "id": "prt-snapshot", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "snapshot", "snapshot": "snap-1" },
+        { "id": "prt-patch", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "patch", "hash": "patch-1", "files": ["main.lua"] },
+        { "id": "prt-step-start", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "step-start", "snapshot": "snap-start" },
+        { "id": "prt-tool-pending", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "tool", "callID": "call-pending", "tool": "read", "state": { "status": "pending", "input": {}, "raw": "{\"path\":" } },
+        { "id": "prt-tool-running", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "tool", "callID": "call-running", "tool": "bash", "state": { "status": "running", "input": { "command": "pwd" }, "title": "Run pwd", "metadata": {}, "time": { "start": 1700000000120 } } },
+        {
+          "id": "prt-tool-completed",
+          "sessionID": "ses-v1",
+          "messageID": "msg-assistant",
+          "type": "tool",
+          "callID": "call-completed",
+          "tool": "read",
+          "metadata": { "providerExecuted": true },
+          "state": {
+            "status": "completed",
+            "input": { "path": "main.lua" },
+            "output": "contents",
+            "title": "Read main.lua",
+            "metadata": {},
+            "time": { "start": 1700000000130, "end": 1700000000140, "compacted": 1700000000150 },
+            "attachments": [
+              { "id": "prt-attachment", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "file", "mime": "image/png", "filename": "result.png", "url": "file:///server/result.png" }
+            ]
+          }
+        },
+        { "id": "prt-tool-error", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "tool", "callID": "call-error", "tool": "bash", "state": { "status": "error", "input": { "command": "false" }, "error": "exit 1", "metadata": { "interrupted": true }, "time": { "start": 1700000000160, "end": 1700000000170 } } },
+        { "id": "prt-step-finish", "sessionID": "ses-v1", "messageID": "msg-assistant", "type": "step-finish", "reason": "stop", "snapshot": "snap-end", "cost": 0.25, "tokens": { "input": 10, "output": 4, "reasoning": 2, "cache": { "read": 3, "write": 1 } } }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg-error",
+        "sessionID": "ses-v1",
+        "role": "assistant",
+        "time": { "created": 1700000000300, "completed": 1700000000310 },
+        "parentID": "msg-user",
+        "providerID": "provider",
+        "modelID": "model",
+        "agent": "build",
+        "mode": "build",
+        "path": { "cwd": "/server", "root": "/server" },
+        "cost": 0,
+        "tokens": { "input": 1, "output": 0, "reasoning": 0, "cache": { "read": 0, "write": 0 } },
+        "error": { "name": "MessageAbortedError", "data": { "message": "interrupted" } }
+      },
+      "parts": []
+    }
+  ],
+  "events": {
+    "message": { "directory": "/server/project", "payload": { "id": "evt-message", "type": "message.updated", "properties": { "sessionID": "ses-v1", "info": { "id": "msg-live", "sessionID": "ses-v1", "role": "assistant", "time": { "created": 1700000000400 }, "parentID": "msg-user", "providerID": "provider", "modelID": "model", "agent": "build", "mode": "build", "path": { "cwd": "/server/project", "root": "/server/project" }, "cost": 0, "tokens": { "input": 1, "output": 0, "reasoning": 0, "cache": { "read": 0, "write": 0 } } } } } },
+    "part": { "directory": "/server/project", "payload": { "id": "evt-part", "type": "message.part.updated", "properties": { "sessionID": "ses-v1", "part": { "id": "prt-live", "sessionID": "ses-v1", "messageID": "msg-live", "type": "text", "text": "A" }, "time": 1700000000410 } } },
+    "delta": { "directory": "/server/project", "payload": { "id": "evt-delta", "type": "message.part.delta", "properties": { "sessionID": "ses-v1", "messageID": "msg-live", "partID": "prt-live", "field": "text", "delta": "B" } } },
+    "removePart": { "directory": "/server/project", "payload": { "id": "evt-remove-part", "type": "message.part.removed", "properties": { "sessionID": "ses-v1", "messageID": "msg-live", "partID": "prt-live" } } },
+    "removeMessage": { "directory": "/server/project", "payload": { "id": "evt-remove-message", "type": "message.removed", "properties": { "sessionID": "ses-v1", "messageID": "msg-live" } } },
+    "foreign": { "directory": "/server/project", "payload": { "id": "evt-foreign", "type": "message.updated", "properties": { "sessionID": "ses-other", "info": { "id": "msg-foreign", "sessionID": "ses-other", "role": "user", "time": { "created": 1700000000500 }, "agent": "build", "model": { "providerID": "provider", "modelID": "model" } } } } },
+    "foreignDirectory": { "directory": "/server/other", "payload": { "id": "evt-foreign-directory", "type": "message.updated", "properties": { "sessionID": "ses-v1", "info": { "id": "msg-live", "sessionID": "ses-v1", "role": "assistant", "time": { "created": 1700000000400 }, "parentID": "msg-user", "providerID": "provider", "modelID": "model", "agent": "build", "mode": "build", "path": { "cwd": "/server/other", "root": "/server/other" }, "cost": 0, "tokens": { "input": 1, "output": 0, "reasoning": 0, "cache": { "read": 0, "write": 0 } } } } } },
+    "missingID": { "directory": "/server/project", "payload": { "id": "evt-missing", "type": "message.part.delta", "properties": { "sessionID": "ses-v1", "messageID": "msg-live", "field": "text", "delta": "ignored" } } }
+  }
+}

@@ -3,7 +3,6 @@ local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
 local ctx = require('opencode.ui.renderer.ctx')
 local output_window = require('opencode.ui.output_window')
-local Promise = require('opencode.promise')
 
 local function make_message_events(pair_count)
   local events = {}
@@ -70,18 +69,9 @@ end
 describe('replay lazy-render upward loading', function()
   before_each(function()
     helpers.replay_setup()
-    state.jobs.set_api_client({
-      list_questions = function()
-        return Promise.new():resolve({})
-      end,
-      list_permissions = function()
-        return Promise.new():resolve({})
-      end,
-    })
   end)
 
   after_each(function()
-    state.jobs.set_api_client(nil)
     if state.windows then
       ui.close_windows(state.windows)
     end
@@ -101,7 +91,7 @@ describe('replay lazy-render upward loading', function()
     renderer._render_full_session_data(helpers.load_session_from_events(events))
 
     local initial_count = ctx.lazy_render_count
-    assert.is_true(initial_count ~= nil and initial_count < #(state.messages or {}))
+    assert.is_true(initial_count ~= nil and initial_count < #ctx.entries)
     assert.is_not_match('User message 1', output_text())
 
     vim.api.nvim_set_current_win(win)

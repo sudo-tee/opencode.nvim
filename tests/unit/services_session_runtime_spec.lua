@@ -804,6 +804,16 @@ describe('opencode.services.session_runtime', function()
       session_runtime.cancel():wait()
       assert.is_equal(1, vim.g.opencode_abort_count)
     end)
+
+    it('counts automatic cancellation even after the pending request count is cleared', function()
+      state.session.set_active({ id = 'sess1' })
+      store.set('job_count', 0)
+      vim.g.opencode_abort_count = 0
+
+      session_runtime.cancel('sess1', nil, { count_abort = true }):wait()
+
+      assert.is_equal(1, vim.g.opencode_abort_count)
+    end)
   end)
 
   describe('opencode_ok (version checks)', function()

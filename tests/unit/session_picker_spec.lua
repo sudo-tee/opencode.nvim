@@ -234,6 +234,96 @@ describe('opencode.ui.session_picker', function()
     end)
   end)
 
+  it('opens the selected session in a new panel tab', function()
+    local base_picker = require('opencode.ui.base_picker')
+    local original_pick = base_picker.pick
+    local session_runtime = require('opencode.services.session_runtime')
+    local selected_session = { id = 'session-in-tab', title = 'Session in tab' }
+    local captured_action
+
+    base_picker.pick = function(opts)
+      captured_action = opts.actions.open_in_tab
+      return true
+    end
+
+    session_picker.pick({ selected_session }, function() end)
+
+    local open_stub = stub(session_runtime, 'open_session_in_tab').returns(Promise.new():resolve(selected_session))
+    local closed = false
+    assert.is_true(captured_action.multi_selection)
+    captured_action
+      .fn(selected_session, {
+        close = function()
+          closed = true
+        end,
+      })
+      :wait()
+
+    assert.is_true(closed)
+    assert.stub(open_stub).was_called_with(selected_session)
+
+    open_stub:revert()
+    base_picker.pick = original_pick
+  end)
+
+  it('opens multiple selected sessions in panel tabs', function()
+    local base_picker = require('opencode.ui.base_picker')
+    local original_pick = base_picker.pick
+    local sessions = {
+      { id = 'session-1', title = 'First session' },
+      { id = 'session-2', title = 'Second session' },
+    }
+    local captured_action
+    local captured_multi_select
+
+    base_picker.pick = function(opts)
+      captured_action = opts.actions.open_in_tab
+      captured_multi_select = opts.multi_select_fn
+      return true
+    end
+
+    session_picker.pick(sessions, function() end)
+
+    local opened = {}
+    local open_stub = stub(session_runtime, 'open_session_in_tab').invokes(function(session)
+      opened[#opened + 1] = session
+      return Promise.new():resolve(session)
+    end)
+    local closed = false
+    local original_delay = Promise.delay
+    local close_delay = Promise.new()
+    local between_opens_delay = Promise.new()
+    local delays = { close_delay, between_opens_delay, Promise.new():resolve(true) }
+    Promise.delay = function()
+      return table.remove(delays, 1)
+    end
+
+    assert.equal(captured_action.fn, captured_multi_select)
+    local action_promise = captured_multi_select(sessions, {
+      close = function()
+        closed = true
+      end,
+    })
+    assert.is_true(closed)
+    assert.same({}, opened)
+
+    close_delay:resolve(true)
+    vim.wait(50, function()
+      return #opened == 1
+    end)
+    assert.same({ sessions[1] }, opened)
+
+    between_opens_delay:resolve(true)
+    action_promise:wait()
+    Promise.delay = original_delay
+
+    assert.same(sessions, opened)
+    assert.stub(open_stub).was_called(2)
+
+    open_stub:revert()
+    base_picker.pick = original_pick
+  end)
+
   -- -----------------------------------------------------------------------
   -- Integration tests: delete action triggers switch when parent/grandparent
   -- of the active session is deleted

@@ -54,6 +54,14 @@ describe('opencode.commands.parse', function()
     assert.same({}, result.intent.args)
   end)
 
+  it('parses panel tab subcommands', function()
+    local result = command_parse.command({ args = 'tab previous', range = 0 }, commands.get_commands())
+
+    assert.is_true(result.ok)
+    assert.equal('tab', result.intent.name)
+    assert.same({ 'previous' }, result.intent.args)
+  end)
+
   it('validates nested subcommand from command schema without hardcoded command names', function()
     local defs = {
       custom = {

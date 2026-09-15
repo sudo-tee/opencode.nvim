@@ -13,6 +13,8 @@
 ---@field targets RenderedTarget[] Targets associated with this part
 ---@field has_extmarks boolean? Whether the part currently has extmarks applied
 
+local formatter_utils = require('opencode.ui.formatter.utils')
+
 ---@class RenderState
 ---@field _messages table<string, RenderedMessage> Message ID -> rendered message
 ---@field _parts table<string, RenderedPart> Part ID -> rendered part
@@ -546,11 +548,11 @@ function RenderState:_refresh_message_actions(message_id)
   end
 
   local id = message_data.message.info.id
-  local function action(text, action_type, key)
+  local function action(text, action_type, key, args)
     return {
       text = text,
       type = action_type,
-      args = { id },
+      args = args or { id },
       key = key,
       display_line = line_end,
       range = { from = message_data.line_start, to = line_end },
@@ -560,7 +562,7 @@ function RenderState:_refresh_message_actions(message_id)
   message_data.actions = {
     action('[R]evert', 'undo', 'R'),
     action('[C]opy', 'copy_message', 'C'),
-    action('[F]ork', 'fork_session', 'F'),
+    action('[F]ork', 'fork_session', 'F', formatter_utils.get_session_action_args(id)),
   }
 end
 

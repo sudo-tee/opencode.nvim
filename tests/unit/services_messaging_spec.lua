@@ -10,6 +10,7 @@ local session_runtime = require('opencode.services.session_runtime')
 local config_file = require('opencode.config_file')
 local context = require('opencode.context')
 local state = require('opencode.state')
+local session_tabs = require('opencode.state.session_tabs')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 local assert = require('luassert')
@@ -276,6 +277,63 @@ describe('opencode.services.messaging', function()
     state.api_client.create_message = orig
   end)
 
+  it('keeps an in-flight send bound to its original tab and session', function()
+    session_tabs.reset()
+    local first = session_tabs.ensure_current()
+    state.session.set_active({ id = 'session-one' })
+    state.model.clear_model()
+    state.model.set_mode('mode-one')
+    local second = session_tabs.create({ id = 'session-two' })
+    second.current_mode = 'mode-two'
+
+    local config_promise = Promise.new()
+    local config_stub = stub(config_file, 'get_opencode_config').returns(config_promise)
+    local agents_stub =
+      stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'mode-one', 'mode-two' }))
+    local sent_session
+    local sent_params
+    state.api_client.create_message = function(_, session_id, params)
+      sent_session = session_id
+      sent_params = params
+      return Promise.new():resolve({ info = { id = 'message-one' }, parts = {} })
+    end
+
+    local send = messaging.send_message('hello world')
+    session_tabs.activate(second)
+    config_promise:resolve({ model = 'test/model' })
+    send:wait()
+
+    assert.equals('session-one', sent_session)
+    assert.equals('mode-one', sent_params.agent)
+    assert.equals('test/model', first.current_model)
+    assert.equals('mode-two', state.current_mode)
+    assert.is_nil(state.current_model)
+    assert.equals(0, first.user_message_count['session-one'])
+    assert.is_nil(second.user_message_count['session-one'])
+
+    config_stub:revert()
+    agents_stub:revert()
+    session_tabs.reset()
+  end)
+
+  it('preserves attachments when message preparation fails', function()
+    state.session.set_active({ id = 'session-one' })
+    state.model.clear_model()
+    local original_context = context.snapshot()
+    context.get_context().mentioned_files = { '/tmp/attached.lua' }
+    context.get_context().selections = {}
+    local config_stub = stub(config_file, 'get_opencode_config').returns(Promise.new():reject('config failed'))
+
+    local ok = pcall(function()
+      messaging.send_message('hello world'):wait()
+    end)
+
+    assert.is_false(ok)
+    assert.same({ '/tmp/attached.lua' }, context.get_context().mentioned_files)
+    config_stub:revert()
+    context.restore(original_context)
+  end)
+
   it('decrements user_message_count on error', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
@@ -384,5 +442,20 @@ describe('opencode.services.messaging', function()
     for key, value in pairs(original_context) do
       context.get_context()[key] = value
     end
+  end)
+
+  it('preserves a two-argument sent context passed to after_run', function()
+    state.session.set_active({ id = 'sess1' })
+    local sent_context = {
+      mentioned_files = { '/tmp/attached.lua' },
+      selections = { { content = 'selected' } },
+    }
+    local original_delta_context = context.delta_context
+    context.delta_context = function() end
+
+    messaging.after_run('hello', sent_context)
+
+    assert.same(sent_context, state.last_sent_context)
+    context.delta_context = original_delta_context
   end)
 end)

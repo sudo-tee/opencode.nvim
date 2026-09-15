@@ -10,8 +10,22 @@ local M = {
   actions = {},
 }
 
-local session_subcommands =
-  { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' }
+local session_subcommands = {
+  'new',
+  'tab',
+  'tabs',
+  'next_tab',
+  'prev_tab',
+  'close_tab',
+  'select',
+  'navigate',
+  'compact',
+  'share',
+  'unshare',
+  'agents_init',
+  'rename',
+  'toggle_lock',
+}
 
 ---@param message string
 local function invalid_arguments(message)
@@ -100,6 +114,31 @@ function M.actions.open_input_new_session_with_title(title)
     state.session.set_active(new_session)
     return window_actions.open_input()
   end)(title)
+end
+
+---@param title? string
+function M.actions.open_session_tab(title)
+  return session_runtime.open_session_tab(title)
+end
+
+---@param index? string|number
+function M.actions.select_session_tab(index)
+  if index ~= nil then
+    return session_runtime.switch_session_tab_by_index(index)
+  end
+  return require('opencode.ui.session_tab_picker').select()
+end
+
+function M.actions.next_session_tab()
+  return session_runtime.cycle_session_tab(1)
+end
+
+function M.actions.prev_session_tab()
+  return session_runtime.cycle_session_tab(-1)
+end
+
+function M.actions.close_session_tab()
+  return session_runtime.close_session_tab()
 end
 
 ---@param parent_id? string
@@ -215,6 +254,9 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
         vim.notify('No active session to navigate from', vim.log.levels.WARN)
       end
       return
+    end
+    if interaction == 'tab' then
+      return session_runtime.open_session_in_tab_by_id(direction)
     end
     if interaction == 'picker' then
       return session_runtime.select_session(direction, 'project')
@@ -597,7 +639,8 @@ function M.actions.timeline()
 end
 
 ---@param message_id? string
-function M.actions.fork_session(message_id)
+---@param open_in_new_tab? boolean|string
+function M.actions.fork_session(message_id, open_in_new_tab)
   return with_active_session('No active session to fork', function(state_obj)
     local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
     if not target then
@@ -618,7 +661,11 @@ function M.actions.fork_session(message_id)
         vim.schedule(function()
           if response and response.id then
             vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)
-            session_runtime.switch_session(response.id)
+            if open_in_new_tab == true or open_in_new_tab == 'tab' then
+              session_runtime.open_session_in_tab(response)
+            else
+              session_runtime.switch_session(response.id)
+            end
           else
             vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)
           end
@@ -650,6 +697,21 @@ local session_subcommand_actions = {
       return M.actions.open_input_new_session_with_title(title)
     end
     return M.actions.open_input_new_session()
+  end,
+  tab = function(args)
+    return M.actions.open_session_tab(parse_title(args, 2))
+  end,
+  tabs = function(args)
+    return M.actions.select_session_tab(args[2])
+  end,
+  next_tab = function()
+    return M.actions.next_session_tab()
+  end,
+  prev_tab = function()
+    return M.actions.prev_session_tab()
+  end,
+  close_tab = function()
+    return M.actions.close_session_tab()
   end,
   rename = function(args)
     return M.actions.rename_session(nil, parse_title(args, 2))
@@ -689,9 +751,43 @@ local session_subcommand_actions = {
   end,
 }
 
+local tab_subcommands = { 'next', 'new', 'previous', 'select', 'close' }
+
+---@type table<string, fun(args: string[]): any>
+local tab_subcommand_actions = {
+  next = function()
+    return M.actions.next_session_tab()
+  end,
+  new = function(args)
+    return M.actions.open_session_tab(parse_title(args, 2))
+  end,
+  previous = function()
+    return M.actions.prev_session_tab()
+  end,
+  select = function(args)
+    return M.actions.select_session_tab(args[2])
+  end,
+  close = function()
+    return M.actions.close_session_tab()
+  end,
+}
+
 M.command_defs = {
+  tab = {
+    desc = 'Manage Opencode panel tabs',
+    completions = tab_subcommands,
+    nested_subcommand = { allow_empty = false },
+    execute = function(args)
+      local subcommand = args[1]
+      local action = tab_subcommand_actions[subcommand]
+      if not action then
+        invalid_arguments('Invalid tab subcommand. Use: ' .. table.concat(tab_subcommands, ', '))
+      end
+      return action(args)
+    end,
+  },
   session = {
-    desc = 'Manage sessions (new/select/navigate/compact/share/unshare/rename/toggle_lock)',
+    desc = 'Manage sessions and Opencode panel tabs',
     completions = session_subcommands,
     nested_subcommand = { allow_empty = false },
     execute = function(args)
@@ -705,6 +801,30 @@ M.command_defs = {
   },
   -- action name aliases for keymap compatibility
   open_input_new_session = { desc = 'Open input (new session)', execute = M.actions.open_input_new_session },
+  open_session_tab = {
+    desc = 'Open a new session in an Opencode panel tab',
+    execute = function(args)
+      return M.actions.open_session_tab(parse_title(args, 1))
+    end,
+  },
+  select_session_tab = {
+    desc = 'Select an Opencode panel tab',
+    execute = function(args)
+      return M.actions.select_session_tab(args[1])
+    end,
+  },
+  next_session_tab = {
+    desc = 'Switch to the next Opencode panel tab',
+    execute = M.actions.next_session_tab,
+  },
+  prev_session_tab = {
+    desc = 'Switch to the previous Opencode panel tab',
+    execute = M.actions.prev_session_tab,
+  },
+  close_session_tab = {
+    desc = 'Close the current Opencode panel tab',
+    execute = M.actions.close_session_tab,
+  },
   toggle_session_lock = {
     desc = 'Toggle session lock (preserve active session across cwd changes)',
     execute = function(args)

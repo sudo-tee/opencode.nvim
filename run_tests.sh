@@ -82,7 +82,7 @@ strip_ansi() {
 has_failures() {
     local plain_output
     plain_output=$(strip_ansi "$1")
-    echo "$plain_output" | grep -Eq "Fail.*\|\||Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*"
+    grep -Eq "Fail.*\|\||Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" <<<"$plain_output"
 }
 
 # Run tests based on type

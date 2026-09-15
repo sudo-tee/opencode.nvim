@@ -14,6 +14,7 @@ local Promise = require('opencode.promise')
 ---@field format_fn fun(item: any, width?: number): PickerItem Function to format items for display
 ---@field actions table<string, PickerAction> Available actions for the picker
 ---@field callback fun(selected: any?) Callback when item is selected
+---@field multi_select_fn? fun(selected: any[], opts: PickerOptions): any|Promise<any> Action for multiple items confirmed together
 ---@field title string|fun(): string The picker title
 ---@field width? number Optional width for the picker (defaults to config or current window width)
 ---@field multi_selection? table<string, boolean> Actions that support multi-selection
@@ -128,14 +129,15 @@ end
 ---@param support_multi? boolean Whether multi-selection is supported
 ---@return string title The formatted title with action legend
 local function build_title(base_title, actions, support_multi)
+  local icons = require('opencode.ui.icons')
   local legend = {}
   for _, action in pairs(actions) do
     if action.key and action.key[1] then
-      local label = action.label .. (action.multi_selection and support_multi ~= false and ' (multi)' or '')
+      local label = action.label .. (action.multi_selection and support_multi ~= false and '*' or '')
       table.insert(legend, action.key[1] .. ' ' .. label)
     end
   end
-  return base_title .. (#legend > 0 and ' | ' .. table.concat(legend, ' | ') or '')
+  return base_title .. (#legend > 0 and icons.get('separator') .. table.concat(legend, icons.get('separator')) or '')
 end
 
 ---Telescope UI implementation
@@ -228,8 +230,8 @@ local function telescope_ui(opts)
       end
     end)(),
     layout_config = opts.width and {
-        width = opts.width + 7, -- extra space for telescope UI
-      } or nil,
+      width = opts.width + 7, -- extra space for telescope UI
+    } or nil,
     attach_mappings = function(prompt_bufnr, map)
       opts.close = function()
         selection_made = true
@@ -238,6 +240,16 @@ local function telescope_ui(opts)
 
       actions.select_default:replace(function()
         selection_made = true
+        local multi_selection = {}
+        action_utils.map_selections(prompt_bufnr, function(entry)
+          table.insert(multi_selection, entry.value)
+        end)
+        if #multi_selection > 1 and opts.multi_select_fn then
+          actions.close(prompt_bufnr)
+          opts.multi_select_fn(multi_selection, opts)
+          return
+        end
+
         local selection = action_state.get_selected_entry()
         actions.close(prompt_bufnr)
         if selection and opts.callback then
@@ -374,8 +386,8 @@ local function fzf_ui(opts)
         'start:+transform:' .. require('fzf-lua.shell').stringify_data(width_callback, opts)
       )) or nil,
       winopts = opts.width and {
-          width = opts.width + 8, -- extra space for fzf UI
-        } or nil,
+        width = opts.width + 8, -- extra space for fzf UI
+      } or nil,
       fzf_opts = {
         ['--prompt'] = opts.title .. ' > ',
         ['--multi'] = has_multi_action and true or nil,
@@ -462,6 +474,17 @@ local function fzf_ui(opts)
         if opts.callback then
           opts.callback(nil)
         end
+        return
+      end
+      if #selected > 1 and opts.multi_select_fn then
+        local multi_selection = {}
+        for _, sel in ipairs(selected) do
+          local idx = fzf_opts.fn_fzf_index(sel --[[@as string]])
+          if idx and opts.items[idx] then
+            table.insert(multi_selection, opts.items[idx])
+          end
+        end
+        opts.multi_select_fn(multi_selection, opts)
         return
       end
       local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
@@ -583,13 +606,11 @@ local function mini_pick_ui(opts)
   local selection_made = false
 
   mini_pick.start({
-    window = opts.width
-        and {
-          config = {
-            width = opts.width + 2, -- extra space for mini.pick UI
-          },
-        }
-      or nil,
+    window = opts.width and {
+      config = {
+        width = opts.width + 2, -- extra space for mini.pick UI
+      },
+    } or nil,
     source = {
       items = items,
       name = opts.title,
@@ -683,6 +704,15 @@ local function snacks_picker_ui(opts)
     actions = {
       confirm = function(_picker, item)
         selection_made = true
+        local multi_selection = _picker:selected({ fallback = true })
+        if #multi_selection > 1 and opts.multi_select_fn then
+          _picker:close()
+          vim.schedule(function()
+            opts.multi_select_fn(multi_selection, opts)
+          end)
+          return
+        end
+
         _picker:close()
         if item and opts.callback then
           vim.schedule(function()
@@ -767,7 +797,7 @@ local function select_picker_ui(opts)
     format_item = function(item)
       return opts.format_fn(item, opts.width):to_string()
     end,
-    prompt = opts.title --[[@as string]]
+    prompt = opts.title --[[@as string]],
   }, opts.callback)
 end
 

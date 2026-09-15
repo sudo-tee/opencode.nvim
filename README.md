@@ -228,6 +228,8 @@ require('opencode').setup({
     display_model = true, -- Display model name on top winbar
     display_context_size = true, -- Display context size in the footer
     display_cost = true, -- Display cost in the footer
+    hide_single_tab = true, -- Hide the panel tab strip when only one session tab exists
+    notify_on_background_prompt = true, -- Notify when an unfocused session needs a question or permission response
     window_highlight = 'Normal:OpencodeBackground,FloatBorder:OpencodeBorder', -- Highlight group for the opencode window
     persist_state = true, -- Keep buffers when toggling/closing UI so window state restores quickly
     icons = {
@@ -240,17 +242,20 @@ require('opencode').setup({
     },
     output = {
       filetype = 'opencode_output', -- Filetype assigned to the output buffer (default: 'opencode_output')
-       compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
-       tools = {
-         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
-         show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
-         use_folds = true, -- Use folds for tool output (default: true)
-         folding_threshold = 25, -- Number of lines to show before folding when show_output is true (default: 25)
-         fold_exclude = { -- Tools that should never be folded (default: sequential-thinking)
-           'bash', -- built-in tool name (exact match)
-           { server = 'sequential-thinking', tool = 'sequentialthinking' }, -- MCP tool (server + tool match)
-         },
-       },
+      actions = {
+        open_in_new_tab = false, -- Open inline child-session and fork actions in a new panel tab
+      },
+      compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
+      tools = {
+        show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
+        show_reasoning_output = true, -- Show reasoning/thinking steps output (default: true)
+        use_folds = true, -- Use folds for tool output (default: true)
+        folding_threshold = 25, -- Number of lines to show before folding when show_output is true (default: 25)
+        fold_exclude = { -- Tools that should never be folded (default: sequential-thinking)
+          'bash', -- built-in tool name (exact match)
+          { server = 'sequential-thinking', tool = 'sequentialthinking' }, -- MCP tool (server + tool match)
+        },
+      },
       rendering = {
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
         on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior
@@ -355,7 +360,7 @@ require('opencode').setup({
   hooks = {
     on_file_edited = nil, -- Called after a file is edited by opencode.
     on_session_loaded = nil, -- Called after a session is loaded.
-    on_done_thinking = nil, -- Called when opencode finishes thinking (all jobs complete).
+    on_done_thinking = nil, -- Called when a session becomes idle, including sessions started outside Neovim.
     on_permission_requested = nil, -- Called when a permission request is issued.
   },
   quick_chat = {
@@ -624,8 +629,8 @@ There's 3 main ways on how to change the snacks picker layout
    require("opencode").setup({
      ui = {
        picker = {
-        ---@module "snacks"
-        ---@type snacks.picker.layout.Config | nil
+         ---@module "snacks"
+         ---@type snacks.picker.layout.Config | nil
          snacks_layout = {
            preset = "custom_layout" -- or builtin snacks, like "select", "default", etc
          },
@@ -653,13 +658,21 @@ There's 3 main ways on how to change the snacks picker layout
 
 The plugin provides the following actions that can be triggered via keymaps, commands, slash commands (typed in the input window), or the Lua API:
 
+Panel tabs are logical tabs inside the Opencode UI. They do not create or switch Neovim tabpages. Each tab keeps its own session state, input buffer, output buffer, and model/context state while reusing the current panel layout.
+
 | Action                                                      | Default keymap                        | Command                                     | API Function                                                           |
 | ----------------------------------------------------------- | ------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | Open opencode. Close if opened                              | `<leader>og`                          | `:Opencode`                                 | `require('opencode.api').toggle()`                                     |
 | Open input window (current session)                         | `<leader>oi`                          | `:Opencode open input`                      | `require('opencode.api').open_input()`                                 |
 | Open input window (new session)                             | `<leader>oI`                          | `:Opencode open input_new_session`          | `require('opencode.api').open_input_new_session()`                     |
+| Open a new session in a panel tab                            | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
+| Select a panel tab                                           | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
+| Select panel tab by index                                    | `<leader>o1` ... `<leader>o9`          | `:Opencode tab select [index]`              | `require('opencode.api').select_session_tab(index)`                    |
+| Switch panel tabs                                            | `<leader>o<` / `<leader>o>`            | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
+| Close the current panel tab                                 | `<leader>oQ`                          | `:Opencode tab close`                       | `require('opencode.api').close_session_tab()`                          |
 | Open output window                                          | `<leader>oo`                          | `:Opencode open output`                     | `require('opencode.api').open_output()`                                |
 | Create and switch to a named session                        | -                                     | `:Opencode session new <name>`              | `:Opencode session new <name>` (user command)                          |
+| Open the selected session in a new panel tab                 | `<C-t>` (session picker)              | -                                           | -                                                                      |
 | Rename current session                                      | `<leader>oR`                          | `:Opencode session rename <name>`           | `:Opencode session rename <name>` (user command)                       |
 | Toggle focus opencode / last window                         | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                            | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |
@@ -1206,7 +1219,7 @@ You can define custom functions to be called at specific events in Opencode:
 
 - `on_file_edited`: Called after a file is edited by Opencode.
 - `on_session_loaded`: Called after a session is loaded.
-- `on_done_thinking`: Called when Opencode finishes thinking (all user jobs complete).
+- `on_done_thinking`: Called when a session becomes idle, including sessions started outside Neovim.
 - `on_permission_requested`: Called when a permission request is issued.
 
 ```lua

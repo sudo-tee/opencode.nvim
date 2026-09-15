@@ -5,6 +5,7 @@ local Promise = require('opencode.promise')
 
 local config = require('opencode.config')
 local session_scope = require('opencode.ui.session_scope')
+local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 
@@ -268,6 +269,10 @@ function M.restore_pending_question(session_id)
           and session_scope.belongs_to_active_session(request)
           and not is_resolved_question_request(request)
         then
+          local runtime = session_tabs.find_by_session_id(session_id)
+          if runtime then
+            session_tabs.add_pending_question(runtime.id, request)
+          end
           if M.matches_active_question(request) then
             return
           end

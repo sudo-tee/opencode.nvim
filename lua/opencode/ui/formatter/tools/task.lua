@@ -88,7 +88,7 @@ function M.format(output, part, context)
     output:add_action({
       text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = { metadata.sessionId },
+      args = utils.get_session_action_args(metadata.sessionId),
       key = 'S',
       display_line = start_line,
       range = { from = start_line + 1, to = end_line + 1 },

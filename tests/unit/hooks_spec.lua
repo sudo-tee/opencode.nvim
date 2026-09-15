@@ -119,61 +119,72 @@ describe('hooks', function()
   end)
 
   describe('on_done_thinking', function()
-    it('should call hook when thinking is done', function()
-      local called = false
-      local called_session = nil
+    local get_session
 
+    before_each(function()
+      get_session = stub(require('opencode.session'), 'get_by_id').returns(
+        require('opencode.promise').new():resolve({ id = 'test-session', title = 'Test' })
+      )
+    end)
+
+    after_each(function()
+      get_session:revert()
+    end)
+
+    it('should call hook when thinking is done', function()
+      local called_session
       config.hooks.on_done_thinking = function(session)
-        called = true
         called_session = session
       end
 
-      -- Mock session.get_all_workspace_sessions to return our test session
-      local session_module = require('opencode.session')
-      local original_get_all = session_module.get_all_workspace_sessions
-      session_module.get_all_workspace_sessions = function()
-        local promise = require('opencode.promise').new()
-        promise:resolve({ { id = 'test-session', title = 'Test' } })
-        return promise
-      end
+      session_runtime.on_session_request_completed('test-session'):wait()
 
-      state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)
-
-      -- Simulate job count change from 1 to 0 (done thinking) for a specific session
-      state.session.set_active({ id = 'test-session', title = 'Test' })
-      state.session.set_user_message_count({ ['test-session'] = 1 })
-      state.session.set_user_message_count({ ['test-session'] = 0 })
-
-      -- Wait for async notification
-      vim.wait(100, function()
-        return called
-      end)
-
-      -- Restore original function
-      session_module.get_all_workspace_sessions = original_get_all
-      state.store.unsubscribe('user_message_count', session_runtime._on_user_message_count_change)
-
-      assert.is_true(called)
-      assert.are.equal(called_session.id, 'test-session')
+      assert.equals('test-session', called_session.id)
+      assert.stub(get_session).was_called_with('test-session')
     end)
 
     it('should not error when hook is nil', function()
-      config.hooks.on_done_thinking = nil
-      state.session.set_active({ id = 'test-session', title = 'Test' })
-      state.session.set_user_message_count({ ['test-session'] = 1 })
       expect_nil_hook_no_error(function()
-        state.session.set_user_message_count({ ['test-session'] = 0 })
+        session_runtime.on_session_request_completed('test-session'):wait()
       end)
+      assert.stub(get_session).was_not_called()
     end)
 
     it('should not crash when hook throws error', function()
-      state.session.set_active({ id = 'test-session', title = 'Test' })
-      state.session.set_user_message_count({ ['test-session'] = 1 })
       expect_throwing_hook_no_crash(function(fn)
         config.hooks.on_done_thinking = fn
       end, function()
-        state.session.set_user_message_count({ ['test-session'] = 0 })
+        session_runtime.on_session_request_completed('test-session'):wait()
       end)
+    end)
+
+    it('should call hook for idle child or externally-created sessions', function()
+      local original_manager = state.event_manager
+      local idle_callback
+      local manager = {
+        subscribe = function(_, event_name, callback)
+          if event_name == 'session.idle' then
+            idle_callback = callback
+          end
+        end,
+        unsubscribe = function() end,
+      }
+      local called_session
+      config.hooks.on_done_thinking = function(session)
+        called_session = session
+      end
+
+      state.jobs.set_event_manager(manager)
+      session_runtime.setup()
+      idle_callback({ sessionID = 'test-session' })
+
+      vim.wait(50, function()
+        return called_session ~= nil
+      end)
+
+      assert.equals('test-session', called_session.id)
+      state.jobs.set_event_manager(original_manager)
+      session_runtime.setup()
     end)
   end)
 

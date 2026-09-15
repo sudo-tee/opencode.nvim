@@ -138,6 +138,11 @@
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 
+---@class OpencodeSessionTab
+---@field id string Logical panel-tab identifier
+---@field active_session Session|nil Session assigned to this tab
+---@field windows OpencodeWindowState|nil UI windows owned by this tab
+
 ---@class SessionProjectInfo
 ---@field id string
 ---@field name? string
@@ -161,6 +166,7 @@
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
 ---@field session_picker OpencodeSessionPickerKeymap
+---@field session_tab_picker OpencodeSessionTabPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap
 ---@field history_picker OpencodeHistoryPickerKeymap
 ---@field quick_chat OpencodeQuickChatKeymap
@@ -168,9 +174,14 @@
 ---@class OpencodeSessionPickerKeymap
 ---@field delete_session OpencodeKeymapEntry
 ---@field new_session OpencodeKeymapEntry
+---@field open_in_tab OpencodeKeymapEntry
 ---@field rename_session OpencodeKeymapEntry
 ---@field fork_session OpencodeKeymapEntry
 ---@field toggle_scope OpencodeKeymapEntry
+
+---@class OpencodeSessionTabPickerKeymap
+---@field new_tab OpencodeKeymapEntry
+---@field close_tab OpencodeKeymapEntry
 
 ---@class OpencodeTimelinePickerKeymap
 ---@field undo OpencodeKeymapEntry
@@ -231,6 +242,8 @@
 ---@field display_model boolean
 ---@field display_context_size boolean
 ---@field display_cost boolean
+---@field hide_single_tab boolean
+---@field notify_on_background_prompt boolean
 ---@field window_highlight string
 ---@field icons { preset: 'text'|'nerdfonts', overrides: table<string,string> }
 ---@field loading_animation OpencodeLoadingAnimationConfig
@@ -282,12 +295,16 @@
 
 ---@class OpencodeUIOutputConfig
 ---@field time_format string|nil # Custom os.date format for timestamps, e.g. '%m/%d %H:%M'. Uses fixed default when nil.
+---@field actions OpencodeUIOutputActionsConfig
 ---@field tools OpencodeUIOutputToolsConfig
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field max_messages integer|nil
 ---@field always_scroll_to_bottom boolean
 ---@field filetype string
 ---@field compact_assistant_headers boolean | 'minimal' | 'hidden' | 'full'
+
+---@class OpencodeUIOutputActionsConfig
+---@field open_in_new_tab boolean # Open inline session actions in a new panel tab
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config
@@ -329,7 +346,7 @@
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
 ---@field on_session_loaded? fun(session: Session): nil
----@field on_done_thinking? fun(session: Session): nil
+---@field on_done_thinking? fun(session: Session): nil Called when a session becomes idle.
 ---@field on_permission_requested? fun(session: Session): nil
 ---@field on_command_before? OpencodeCommandDispatchHook
 ---@field on_command_after? OpencodeCommandDispatchHook

@@ -8,6 +8,7 @@ local events = require('opencode.ui.renderer.events')
 local event_scope = require('opencode.ui.event_scope')
 local flush = require('opencode.ui.renderer.flush')
 local scroll = require('opencode.ui.renderer.scroll')
+local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
@@ -17,6 +18,52 @@ local QUESTION_DISPLAY_MESSAGE_ID = 'question-display-message'
 
 local LAZYRENDER_EST_LINES_PER_MSG = 5
 local LAZYRENDER_VIEWPORT_BUFFER = 1.5
+local rendered_session_tab = nil
+
+---@param tab_id string|nil
+local function save_tab_context(tab_id)
+  if not tab_id then
+    return
+  end
+
+  local runtime = session_tabs.get(tab_id)
+  if runtime then
+    local snapshot = ctx:snapshot()
+    local windows = tab_id == state.active_session_tab and state.windows or runtime.windows
+    snapshot.output_buf = windows and windows.output_buf or nil
+    runtime.renderer_context = snapshot
+  end
+end
+
+---@param tab_id string|nil
+---@return boolean
+local function restore_tab_context(tab_id)
+  local runtime = tab_id and session_tabs.get(tab_id)
+  if not runtime or not runtime.renderer_context then
+    ctx:restore(nil)
+    reference_facts.clear()
+    return false
+  end
+
+  local output_buf = state.windows and state.windows.output_buf
+  if runtime.renderer_context.output_buf and runtime.renderer_context.output_buf ~= output_buf then
+    ctx:restore(nil)
+    reference_facts.clear()
+    return false
+  end
+
+  ctx:restore(runtime.renderer_context)
+  if state.active_session then
+    reference_facts.rebuild(state.active_session.id, state.messages or {})
+  else
+    reference_facts.clear()
+  end
+  return true
+end
+
+local function save_active_tab_context()
+  save_tab_context(state.active_session_tab)
+end
 
 ---Calculate how many messages to render initially based on window height.
 ---@return integer
@@ -310,11 +357,15 @@ function M.setup_subscriptions(subscribe)
   subscribe = subscribe == nil and true or subscribe
 
   if subscribe then
+    rendered_session_tab = state.active_session_tab
     state.store.subscribe('is_opencode_focused', M.on_focus_changed)
     state.store.subscribe('active_session', M.on_session_changed)
+    state.store.subscribe('active_session_tab', M.on_session_tab_changed)
   else
+    rendered_session_tab = nil
     state.store.unsubscribe('is_opencode_focused', M.on_focus_changed)
     state.store.unsubscribe('active_session', M.on_session_changed)
+    state.store.unsubscribe('active_session_tab', M.on_session_tab_changed)
   end
 
   if not state.event_manager then
@@ -435,6 +486,8 @@ function M._render_full_session_data(session_data, opts)
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, state.active_session)
   end
+
+  save_active_tab_context()
 end
 
 ---Re-render from cached session data without a server round-trip.
@@ -512,7 +565,20 @@ function M.render_full_session()
   if not output_window.mounted() or not state.api_client then
     return Promise.new():resolve(nil)
   end
+  local target_tab_id = state.active_session_tab
+  local target_session_id = state.active_session and state.active_session.id
   return fetch_session():and_then(function(session_data)
+    if
+      state.active_session_tab ~= target_tab_id
+      or not state.active_session
+      or state.active_session.id ~= target_session_id
+    then
+      local runtime = session_tabs.get(target_tab_id)
+      if runtime then
+        runtime.renderer_dirty = true
+      end
+      return nil
+    end
     M._render_full_session_data(session_data, {
       restore_model_from_messages = true,
     })
@@ -528,6 +594,15 @@ function M.render_full_session()
     end
     return session_data
   end)
+end
+
+---Flush the active tab before its window and renderer context are detached.
+function M.prepare_session_tab_switch()
+  if ctx.bulk_mode then
+    flush.end_bulk_mode()
+  end
+  flush.flush()
+  save_active_tab_context()
 end
 
 ---Replace the entire output buffer with the given lines
@@ -587,12 +662,100 @@ end
 
 ---Re-render when the active session changes
 function M.on_session_changed(_, new, old)
+  if state.active_session_tab ~= rendered_session_tab then
+    return
+  end
   if (old and old.id) == (new and new.id) then
     return
   end
   M.reset()
   if new then
     M.render_full_session()
+  end
+end
+
+---@param tab_id string
+---@param runtime OpencodeSessionTabRuntime|nil
+local function refresh_tab(tab_id, runtime)
+  if not state.active_session then
+    return
+  end
+  if not output_window.mounted() or not state.api_client then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
+
+  local refresh = M.render_full_session()
+  if not refresh then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
+  refresh:and_then(function(session_data)
+    if session_data and state.active_session_tab == tab_id then
+      if runtime then
+        runtime.renderer_dirty = false
+      end
+      save_active_tab_context()
+    end
+  end)
+end
+
+---Rebind renderer state when the selected logical panel tab changes.
+function M.on_session_tab_changed(_, new, old)
+  if new == old then
+    return
+  end
+  save_tab_context(old)
+  rendered_session_tab = new
+  local runtime = session_tabs.get(new)
+  if not output_window.mounted() then
+    if runtime then
+      runtime.renderer_dirty = true
+    end
+    return
+  end
+  local restored = restore_tab_context(new)
+  local prompts = ctx.prompt_controllers
+  if prompts.question then
+    prompts.question.clear_question()
+  end
+  if prompts.permission then
+    prompts.permission.clear_all()
+  end
+  require('opencode.ui.renderer.events').render_permissions_display()
+
+  if restored and not (runtime and runtime.renderer_dirty) then
+    if ctx:has_pending_work() and output_window.mounted() then
+      flush.schedule()
+    end
+    if state.active_session and state.api_client then
+      if prompts.question and type(state.api_client.list_questions) == 'function' then
+        prompts.question.restore_pending_question(state.active_session.id)
+      end
+      if prompts.permission and type(state.api_client.list_permissions) == 'function' then
+        prompts.permission.restore_pending_permissions(state.active_session.id)
+      end
+    end
+    return
+  end
+
+  refresh_tab(new, runtime)
+end
+
+---Refresh a tab whose windows were mounted after the tab-change event.
+function M.on_windows_mounted()
+  local tab_id = state.active_session_tab
+  local runtime = tab_id and session_tabs.get(tab_id)
+  if not tab_id or rendered_session_tab ~= tab_id or not runtime or not state.active_session then
+    return
+  end
+
+  if runtime.renderer_dirty then
+    refresh_tab(tab_id, runtime)
   end
 end
 

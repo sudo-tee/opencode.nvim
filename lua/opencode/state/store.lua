@@ -42,6 +42,8 @@ local M = {}
 ---@field current_cwd string|nil
 ---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
+---@field active_session_tab string|nil
+---@field session_tabs_changed number
 
 ---@type OpencodeStateData
 local _state = {
@@ -84,6 +86,8 @@ local _state = {
   current_cwd = vim.fn.getcwd(),
   session_locked = nil,
   _hidden_buffers = nil,
+  active_session_tab = nil,
+  session_tabs_changed = 0,
 }
 
 local _listeners = {}

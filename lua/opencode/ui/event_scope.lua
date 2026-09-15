@@ -117,6 +117,26 @@ end
 
 local wrappers = {}
 
+local function event_session_id(event_name, properties)
+  if event_name == 'session.updated' then
+    return properties and properties.info and properties.info.id
+  end
+  if event_name == 'message.updated' then
+    return properties and properties.info and properties.info.sessionID
+  end
+  if event_name == 'message.part.updated' then
+    return properties and properties.part and properties.part.sessionID
+  end
+  if
+    event_name == 'session.compacted'
+    or event_name == 'session.error'
+    or event_name == 'message.removed'
+    or event_name == 'message.part.removed'
+  then
+    return properties and properties.sessionID
+  end
+end
+
 ---@param event_name string
 ---@param callback function
 ---@return function
@@ -126,6 +146,8 @@ function M.scoped_callback(event_name, callback)
     wrappers[event_name][callback] = function(properties)
       if M.should_handle(event_name, properties) then
         callback(properties)
+      else
+        require('opencode.state.session_tabs').mark_renderer_dirty(event_session_id(event_name, properties))
       end
     end
   end

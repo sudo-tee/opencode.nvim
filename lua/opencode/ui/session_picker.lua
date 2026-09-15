@@ -228,6 +228,7 @@ end
 ---@param callback fun(session: Session|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.pick(sessions, callback, opts)
+  local api = require('opencode.api')
   local actions = {
     rename = {
       key = config.keymap.session_picker.rename_session,
@@ -262,7 +263,7 @@ function M.pick(sessions, callback, opts)
     },
     delete = {
       key = config.keymap.session_picker.delete_session,
-      label = 'delete',
+      label = 'del',
       multi_selection = true,
       fn = Promise.async(function(selected, opts)
         local state = require('opencode.state')
@@ -338,6 +339,25 @@ function M.pick(sessions, callback, opts)
       end),
       reload = true,
     },
+    open_in_tab = {
+      key = config.keymap.session_picker.open_in_tab,
+      label = 'tab',
+      multi_selection = true,
+      fn = Promise.async(function(selected, opts)
+        local session_runtime = require('opencode.services.session_runtime')
+        local sessions = type(selected) == 'table' and selected.id == nil and selected or { selected }
+
+        if opts.close then
+          opts.close()
+          Promise.delay(0):await()
+        end
+
+        for _, session in ipairs(sessions) do
+          session_runtime.open_session_in_tab(session):await()
+          Promise.delay(0):await()
+        end
+      end),
+    },
     fork = {
       key = config.keymap.session_picker.fork_session,
       label = 'fork',
@@ -355,7 +375,7 @@ function M.pick(sessions, callback, opts)
     },
     toggle = {
       key = config.keymap.session_picker.toggle_scope,
-      label = 'toggle scope',
+      label = 'scope',
       fn = Promise.async(function(_, _)
         local session_runtime = require('opencode.services.session_runtime')
         local new_scope = (opts.scope == 'global') and 'project' or 'global'
@@ -375,6 +395,7 @@ function M.pick(sessions, callback, opts)
     items = sessions,
     format_fn = format_session_item,
     actions = actions,
+    multi_select_fn = actions.open_in_tab.fn,
     callback = callback,
     title = (opts and opts.scope == 'global') and 'Select A Session (all projects)' or 'Select A Session',
     width = config.ui.picker_width,
@@ -429,7 +450,6 @@ end
 ---@param cb fun(session: Session|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.select(sessions, cb, opts)
-  local util = require('opencode.util')
   local picker = require('opencode.ui.picker')
 
   local success = M.pick(sessions, cb, opts)

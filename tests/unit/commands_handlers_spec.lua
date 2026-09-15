@@ -94,11 +94,26 @@ describe('opencode.commands.handlers', function()
     assert.same({ 'accept', 'accept_all', 'deny' }, defs.permission.completions)
     assert.same({ allow_empty = false }, defs.permission.nested_subcommand)
 
-    assert.same(
-      { 'new', 'select', 'navigate', 'compact', 'share', 'unshare', 'agents_init', 'rename', 'toggle_lock' },
-      defs.session.completions
-    )
+    assert.same({
+      'new',
+      'tab',
+      'tabs',
+      'next_tab',
+      'prev_tab',
+      'close_tab',
+      'select',
+      'navigate',
+      'compact',
+      'share',
+      'unshare',
+      'agents_init',
+      'rename',
+      'toggle_lock',
+    }, defs.session.completions)
     assert.same({ allow_empty = false }, defs.session.nested_subcommand)
+
+    assert.same({ 'next', 'new', 'previous', 'select', 'close' }, defs.tab.completions)
+    assert.same({ allow_empty = false }, defs.tab.nested_subcommand)
 
     assert.same({ 'input', 'output' }, defs.open.completions)
     assert.equal('user_commands', defs.command.completion_provider_id)
@@ -567,6 +582,52 @@ describe('opencode.commands.handlers', function()
     assert.is_true(called)
   end)
 
+  it('tab subcommands route to panel tab actions', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local called_with = {}
+    local original_actions = {
+      next = session_handler.actions.next_session_tab,
+      new = session_handler.actions.open_session_tab,
+      previous = session_handler.actions.prev_session_tab,
+      select = session_handler.actions.select_session_tab,
+      close = session_handler.actions.close_session_tab,
+    }
+
+    session_handler.actions.next_session_tab = function()
+      called_with.next = true
+    end
+    session_handler.actions.open_session_tab = function(title)
+      called_with.new = title
+    end
+    session_handler.actions.prev_session_tab = function()
+      called_with.previous = true
+    end
+    session_handler.actions.select_session_tab = function(index)
+      called_with.select = index
+    end
+    session_handler.actions.close_session_tab = function()
+      called_with.close = true
+    end
+
+    session_handler.command_defs.tab.execute({ 'next' })
+    session_handler.command_defs.tab.execute({ 'new', 'named', 'tab' })
+    session_handler.command_defs.tab.execute({ 'previous' })
+    session_handler.command_defs.tab.execute({ 'select', '2' })
+    session_handler.command_defs.tab.execute({ 'close' })
+
+    session_handler.actions.next_session_tab = original_actions.next
+    session_handler.actions.open_session_tab = original_actions.new
+    session_handler.actions.prev_session_tab = original_actions.previous
+    session_handler.actions.select_session_tab = original_actions.select
+    session_handler.actions.close_session_tab = original_actions.close
+
+    assert.is_true(called_with.next)
+    assert.equal('named tab', called_with.new)
+    assert.is_true(called_with.previous)
+    assert.equal('2', called_with.select)
+    assert.is_true(called_with.close)
+  end)
+
   it('navigate_session_tree command_defs execute routes to action', function()
     local session_handler = require('opencode.commands.handlers.session')
     local called_with = {}
@@ -582,6 +643,24 @@ describe('opencode.commands.handlers', function()
     assert.equal('direct', called_with.interaction)
     assert.is_true(called_with.wrap)
     assert.equal('noop', called_with.empty_policy)
+  end)
+
+  it('navigate_session_tree opens a session in a tab when requested', function()
+    local session_handler = require('opencode.commands.handlers.session')
+    local session_runtime = require('opencode.services.session_runtime')
+    local state = require('opencode.state')
+    state.session.set_active({ id = 'parent-session' })
+
+    local opened_id
+    local original = session_runtime.open_session_in_tab_by_id
+    session_runtime.open_session_in_tab_by_id = function(session_id)
+      opened_id = session_id
+    end
+
+    session_handler.actions.navigate_session_tree('child-session', 'tab')
+
+    session_runtime.open_session_in_tab_by_id = original
+    assert.equal('child-session', opened_id)
   end)
 
   describe('copy_message', function()

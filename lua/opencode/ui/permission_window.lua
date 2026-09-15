@@ -1,6 +1,8 @@
 local state = require('opencode.state')
+local session_tabs = require('opencode.state.session_tabs')
 local Dialog = require('opencode.ui.dialog')
 local session_scope = require('opencode.ui.session_scope')
+local formatter_utils = require('opencode.ui.formatter.utils')
 
 local M = {}
 
@@ -218,6 +220,10 @@ function M.remove_permission(permission_id)
 
   for i, permission in ipairs(M._permission_queue) do
     if permission.id == permission_id then
+      local runtime = session_tabs.find_by_session_id(permission.sessionID)
+      if runtime then
+        session_tabs.remove_pending_permission(runtime.id, permission_id)
+      end
       table.remove(M._permission_queue, i)
       break
     end
@@ -251,7 +257,6 @@ function M.format_display(output)
   end
 
   local icons = require('opencode.ui.icons')
-  local formatter_utils = require('opencode.ui.formatter.utils')
   local dialog_start_line = output:get_line_count()
 
   local progress = ''
@@ -328,7 +333,7 @@ function M.format_display(output)
     output:add_action({
       text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = { child_session_id },
+      args = formatter_utils.get_session_action_args(child_session_id),
       key = 'S',
       display_line = dialog_start_line,
       range = { from = dialog_start_line, to = math.max(dialog_start_line, output:get_line_count() - 1) },
@@ -532,6 +537,10 @@ function M.restore_pending_permissions(session_id)
       for _, permission in ipairs(permissions) do
         if permission and permission.id then
           if session_scope.belongs_to_session(permission, session_id) and not is_resolved_permission(permission) then
+            local runtime = session_tabs.find_by_session_id(session_id)
+            if runtime then
+              session_tabs.add_pending_permission(runtime.id, permission)
+            end
             -- Check if already queued (avoid duplicate)
             local already_queued = false
             for _, existing in ipairs(M._permission_queue) do

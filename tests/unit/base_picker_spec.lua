@@ -135,6 +135,37 @@ describe('opencode.ui.base_picker', function()
     assert.equal(998000, item.score_add)
   end)
 
+  it('routes multiple default selections to the multi-select action', function()
+    local selected = { { name = 'first' }, { name = 'second' } }
+    local selected_by_action
+    local closed = false
+
+    base_picker.pick({
+      title = 'Select model',
+      items = selected,
+      format_fn = function(item)
+        return base_picker.create_picker_item({ { text = item.name } })
+      end,
+      actions = {},
+      callback = function() end,
+      multi_select_fn = function(items)
+        selected_by_action = items
+      end,
+    })
+
+    captured_opts.actions.confirm({
+      close = function()
+        closed = true
+      end,
+      selected = function()
+        return selected
+      end,
+    }, selected[1])
+
+    assert.is_true(closed)
+    assert.same(selected, selected_by_action)
+  end)
+
   describe('snacks preview', function()
     local function pick_with(preview, preview_fn)
       base_picker.pick({

@@ -139,7 +139,7 @@ describe('persist_state', function()
       return
     end
 
-    for _, buf in ipairs({ hb.input_buf, hb.output_buf, hb.footer_buf }) do
+    for _, buf in ipairs({ hb.input_buf, hb.output_buf, hb.footer_buf, hb.tab_strip_buf }) do
       if buf and vim.api.nvim_buf_is_valid(buf) then
         pcall(vim.api.nvim_buf_delete, buf, { force = true })
       end
@@ -333,6 +333,7 @@ describe('persist_state', function()
       windows = ui.create_windows()
       local input_buf = windows.input_buf
       local footer_buf = windows.footer_buf
+      local tab_strip_buf = windows.tab_strip_buf
 
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'preserved content' })
       ui.close_windows(windows, true)
@@ -342,12 +343,14 @@ describe('persist_state', function()
       local hidden = state.ui.inspect_hidden_buffers()
       assert.is_not_nil(hidden)
       assert.equals(footer_buf, hidden.footer_buf)
+      assert.equals(tab_strip_buf, hidden.tab_strip_buf)
       assert.is_true(vim.api.nvim_buf_is_valid(input_buf))
 
       local restored = ui.restore_hidden_windows()
       assert.is_true(restored)
       assert.equals(input_buf, state.windows.input_buf)
       assert.equals(footer_buf, state.windows.footer_buf)
+      assert.equals(tab_strip_buf, state.windows.tab_strip_buf)
       assert.is_false(ui.has_hidden_buffers())
 
       local lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)

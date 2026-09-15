@@ -36,6 +36,24 @@ function M.get_context()
   return ChatContext.context
 end
 
+---@return OpencodeContext
+function M.snapshot()
+  return vim.deepcopy(ChatContext.context)
+end
+
+---@param snapshot OpencodeContext|nil
+function M.restore(snapshot)
+  ChatContext.context = vim.deepcopy(snapshot or {
+    mentioned_files = {},
+    selections = {},
+    mentioned_subagents = {},
+    current_file = nil,
+    cursor_data = nil,
+    linter_errors = nil,
+  })
+  state.context.set_context_updated_at(vim.uv.now())
+end
+
 --- Formats context for main chat interface (new simplified API)
 ---@param prompt string The user's instruction/prompt
 ---@param context_config? OpencodeContextConfig Optional context config

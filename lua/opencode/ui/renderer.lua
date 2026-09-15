@@ -4,9 +4,8 @@ local output_window = require('opencode.ui.output_window')
 local reference_facts = require('opencode.ui.reference_facts')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
-local events = require('opencode.ui.renderer.events')
-local event_scope = require('opencode.ui.event_scope')
 local flush = require('opencode.ui.renderer.flush')
+local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
 local scroll = require('opencode.ui.renderer.scroll')
 local session_tabs = require('opencode.state.session_tabs')
 
@@ -54,7 +53,7 @@ local function restore_tab_context(tab_id)
 
   ctx:restore(runtime.renderer_context)
   if state.active_session then
-    reference_facts.rebuild(state.active_session.id, state.messages or {})
+    reference_facts.rebuild(state.active_session.id, ctx.entries or {})
   else
     reference_facts.clear()
   end
@@ -64,6 +63,13 @@ end
 local function save_active_tab_context()
   save_tab_context(state.active_session_tab)
 end
+
+local child_observations = {}
+local child_unsubscribers = {}
+local child_refs = {}
+local reconcile_observation
+local child_reconcile_scheduled = false
+local changed_child_observation
 
 ---Calculate how many messages to render initially based on window height.
 ---@return integer
@@ -88,35 +94,36 @@ local function get_max_rendered_messages()
   return math.floor(limit)
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return boolean
 local function is_renderer_synthetic_message(message)
-  local message_id = message and message.info and message.info.id
+  local message_id = message and message.id
   return message_id == '__opencode_revert_message__'
     or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
     or message_id == PERMISSION_DISPLAY_MESSAGE_ID
     or message_id == QUESTION_DISPLAY_MESSAGE_ID
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return boolean
 local function is_active_session_message(message)
-  local session_id = message and message.info and message.info.sessionID
+  local session_id = message and message.session_id
   return session_id ~= nil and state.active_session and state.active_session.id == session_id
 end
 
----@param messages OpencodeMessage[]|nil
----@return OpencodeMessage[]
+---@param messages table[]|nil
+---@return table[]
 local function get_real_session_messages(messages)
   return vim.tbl_filter(function(message)
     return is_active_session_message(message) and not is_renderer_synthetic_message(message)
   end, messages or {})
 end
 
----@param messages OpencodeMessage[]|nil
+---@param messages table[]|nil
+---@param session table|nil
 ---@return integer|nil
-local function get_revert_index(messages)
-  local revert = state.active_session and state.active_session.revert
+local function get_revert_index(messages, session)
+  local revert = session and session.revert
   local revert_message_id = revert and revert.messageID
   if not revert_message_id then
     return nil
@@ -124,7 +131,7 @@ local function get_revert_index(messages)
 
   local real_messages = get_real_session_messages(messages)
   for i, message in ipairs(real_messages) do
-    if message.info and message.info.id == revert_message_id then
+    if message.id == revert_message_id then
       return i
     end
   end
@@ -132,12 +139,13 @@ local function get_revert_index(messages)
   return nil
 end
 
----@param messages OpencodeMessage[]|nil
----@return OpencodeMessage[] visible_messages
+---@param messages table[]|nil
+---@param session table|nil
+---@return table[] visible_messages
 ---@return integer hidden_count
-local function get_visible_session_messages(messages)
+local function get_visible_session_messages(messages, session)
   local real_messages = get_real_session_messages(messages)
-  local revert_index = get_revert_index(messages)
+  local revert_index = get_revert_index(messages, session)
   if revert_index then
     real_messages = vim.list_slice(real_messages, 1, revert_index - 1)
   end
@@ -152,43 +160,26 @@ local function get_visible_session_messages(messages)
 end
 
 ---@param hidden_count integer
----@return OpencodeMessage
+---@return table
 local function build_hidden_messages_notice(hidden_count)
   local session_id = state.active_session and state.active_session.id or ''
   return {
-    info = {
-      id = HIDDEN_MESSAGES_NOTICE_MESSAGE_ID,
-      sessionID = session_id,
-      role = 'system',
-    },
-    parts = {
+    id = HIDDEN_MESSAGES_NOTICE_MESSAGE_ID,
+    session_id = session_id,
+    kind = 'synthetic',
+    content = {
       {
         id = HIDDEN_MESSAGES_NOTICE_PART_ID,
-        messageID = HIDDEN_MESSAGES_NOTICE_MESSAGE_ID,
-        sessionID = session_id,
-        type = 'hidden-messages-display',
-        state = {
-          hidden_count = hidden_count,
-        },
+        kind = 'hidden_messages_display',
+        hidden_count = hidden_count,
       },
     },
   }
 end
 
----@param message_id string
----@return OpencodeMessage|nil
-local function find_message_in_state(message_id)
-  for _, message in ipairs(state.messages or {}) do
-    if message.info and message.info.id == message_id then
-      return message
-    end
-  end
-  return nil
-end
-
----@param message OpencodeMessage
+---@param message table
 local function ensure_message_rendered(message)
-  local message_id = message.info and message.info.id
+  local message_id = message.id
   if not message_id or ctx.render_state:get_message(message_id) then
     return
   end
@@ -196,10 +187,11 @@ local function ensure_message_rendered(message)
   ctx.render_state:set_message(message)
   flush.mark_message_dirty(message_id)
 
-  for _, part in ipairs(message.parts or {}) do
-    if part.id and part.type ~= 'step-start' and part.type ~= 'step-finish' then
-      ctx.render_state:set_part(part)
-      flush.mark_part_dirty(part.id, message_id)
+  for index, part in ipairs(message.content or {}) do
+    if part.kind ~= 'step_start' and part.kind ~= 'step_finish' then
+      local part_id = ctx.content_key(message, index)
+      ctx.render_state:set_part(part, message_id, part_id)
+      flush.mark_part_dirty(part_id, message_id)
     end
   end
 end
@@ -218,7 +210,13 @@ local function upsert_hidden_messages_notice(hidden_count)
       ensure_message_rendered(notice_message)
     else
       ctx.render_state:set_message(notice_message, existing_message.line_start, existing_message.line_end)
-      ctx.render_state:set_part(notice_message.parts[1], existing_part.line_start, existing_part.line_end)
+      ctx.render_state:set_part(
+        notice_message.content[1],
+        notice_message.id,
+        HIDDEN_MESSAGES_NOTICE_PART_ID,
+        existing_part.line_start,
+        existing_part.line_end
+      )
     end
   end
 
@@ -241,22 +239,21 @@ end
 ---@param message_id string
 local function hide_rendered_message(message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
-  local message = rendered_message and rendered_message.message or find_message_in_state(message_id)
+  local message = rendered_message and rendered_message.message
   if not message then
     return
   end
 
-  ctx.render_state:clear_orphan_parts(message_id)
-  for _, part in ipairs(message.parts or {}) do
-    if part.id then
-      flush.queue_part_removal(part.id)
+  for part_id, part in pairs(ctx.render_state._parts) do
+    if part.message_id == message_id then
+      flush.queue_part_removal(part_id)
     end
   end
   flush.queue_message_removal(message_id)
 end
 
 local function reconcile_rendered_message_limit()
-  if not state.active_session or not state.messages then
+  if not ctx.observation then
     return
   end
 
@@ -268,18 +265,19 @@ local function reconcile_rendered_message_limit()
     return
   end
 
-  local visible_messages, hidden_count = get_visible_session_messages(state.messages)
+  local observation_state = ctx.observation:read()
+  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, observation_state.session)
   local visible_ids = {}
   for _, message in ipairs(visible_messages) do
-    local message_id = message.info and message.info.id
+    local message_id = message.id
     if message_id then
       visible_ids[message_id] = true
       ensure_message_rendered(message)
     end
   end
 
-  for _, message in ipairs(get_real_session_messages(state.messages)) do
-    local message_id = message.info and message.info.id
+  for _, message in ipairs(get_real_session_messages(ctx.entries)) do
+    local message_id = message.id
     if message_id and not visible_ids[message_id] and ctx.render_state:get_message(message_id) then
       hide_rendered_message(message_id)
     end
@@ -299,8 +297,9 @@ local function is_message_visible(message_id)
     return false
   end
 
-  for _, message in ipairs(select(1, get_visible_session_messages(state.messages))) do
-    if message.info and message.info.id == message_id then
+  local session = ctx.observation and ctx.observation:read().session or nil
+  for _, message in ipairs(select(1, get_visible_session_messages(ctx.entries, session))) do
+    if message.id == message_id then
       return true
     end
   end
@@ -308,29 +307,423 @@ local function is_message_visible(message_id)
   return false
 end
 
--- Expose event handlers on M so tests can call them directly and subscriptions
--- can be stubbed cleanly (e.g. stub(renderer, '_render_full_session_data'))
-M.on_session_updated = events.on_session_updated
+local function ordered_entries(observation)
+  local observed = observation:read()
+  local entries = {}
+  for _, id in ipairs(observed.entry_order or {}) do
+    local entry = observed.entries_by_id and observed.entries_by_id[id]
+    if entry then
+      entries[#entries + 1] = entry
+    end
+  end
+  return entries
+end
 
-function M.event_subscriptions()
-  return {
-    { 'session.updated', events.on_session_updated },
-    { 'session.compacted', events.on_session_compacted },
-    { 'session.error', events.on_session_error },
-    { 'message.updated', events.on_message_updated },
-    { 'message.removed', events.on_message_removed },
-    { 'message.part.updated', events.on_part_updated },
-    { 'message.part.removed', events.on_part_removed },
-    { 'permission.updated', events.on_permission_updated },
-    { 'permission.asked', events.on_permission_updated },
-    { 'permission.replied', events.on_permission_replied },
-    { 'question.asked', events.on_question_asked },
-    { 'question.replied', events.on_question_replied },
-    { 'question.rejected', events.on_question_replied },
-    { 'file.edited', events.on_file_edited },
-    { 'file.watcher.updated', events.on_file_watcher_updated },
-    { 'custom.restore_point.created', events.on_restore_points },
-  }
+local function total_tokens(tokens)
+  return (tokens.input or 0)
+    + (tokens.output or 0)
+    + (tokens.reasoning or 0)
+    + (tokens.cache and tokens.cache.read or 0)
+    + (tokens.cache and tokens.cache.write or 0)
+end
+
+ctx.get_child_parts = function(session_id)
+  local observation = child_observations[session_id]
+  if not observation then
+    return nil
+  end
+  local parts = {}
+  for _, entry in ipairs(ordered_entries(observation)) do
+    for _, content in ipairs(entry.content or {}) do
+      if content.kind == 'tool' then
+        parts[#parts + 1] = content
+      end
+    end
+  end
+  return parts
+end
+
+local function clear_child_observations()
+  for _, unsubscribe in pairs(child_unsubscribers) do
+    unsubscribe()
+  end
+  child_observations = {}
+  child_unsubscribers = {}
+  child_refs = {}
+  changed_child_observation = nil
+  child_reconcile_scheduled = false
+end
+
+local function schedule_child_reconcile(observation)
+  changed_child_observation = observation
+  if child_reconcile_scheduled then
+    return
+  end
+  child_reconcile_scheduled = true
+  vim.schedule(function()
+    child_reconcile_scheduled = false
+    local changed = changed_child_observation
+    changed_child_observation = nil
+    if ctx.observation then
+      reconcile_observation(changed or ctx.observation)
+    end
+  end)
+end
+
+local function observe_child(ref)
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    error('cannot observe child sessions without a ready Connection')
+  end
+  local observation = connection:observe(ref)
+  child_observations[ref.id] = observation
+  child_unsubscribers[ref.id] =
+    observation:watch({ 'messages', 'children', 'permissions', 'questions' }, schedule_child_reconcile)
+  return observation
+end
+
+local function sync_observation_tree(root)
+  local root_state = root:read()
+  local root_id = root_state.session and root_state.session.id
+  local observations = { root }
+  local seen = { [root_id] = true }
+  local queue = { { id = root_id, observation = root } }
+  local cursor = 1
+
+  while cursor <= #queue do
+    local node = queue[cursor]
+    cursor = cursor + 1
+    local observed = node.observation:read()
+    if observed.sync.children and observed.sync.children.state == 'current' then
+      local refs = {}
+      for _, child_id in ipairs(observed.children.order or {}) do
+        local ref = observed.children.by_id[child_id]
+        if ref then
+          refs[#refs + 1] = ref
+        end
+      end
+      child_refs[node.id] = refs
+    end
+
+    for _, ref in ipairs(child_refs[node.id] or {}) do
+      if not seen[ref.id] then
+        seen[ref.id] = true
+        local child = child_observations[ref.id] or observe_child(ref)
+        observations[#observations + 1] = child
+        queue[#queue + 1] = { id = ref.id, observation = child }
+      end
+    end
+  end
+
+  for session_id, unsubscribe in pairs(child_unsubscribers) do
+    if not seen[session_id] then
+      unsubscribe()
+      child_unsubscribers[session_id] = nil
+      child_observations[session_id] = nil
+      child_refs[session_id] = nil
+    end
+  end
+  return observations
+end
+
+local function reconcile_prompt_display(message_id, part_id, kind, visible)
+  if not visible then
+    if ctx.render_state:get_message(message_id) then
+      hide_rendered_message(message_id)
+    end
+    return
+  end
+  local session_id = state.active_session and state.active_session.id or ''
+  local content = { id = part_id, kind = kind }
+  local entry = { id = message_id, session_id = session_id, kind = 'system', content = { content } }
+  local rendered_message = ctx.render_state:get_message(message_id)
+  local rendered_part = ctx.render_state:get_part(part_id)
+  ctx.render_state:set_message(
+    entry,
+    rendered_message and rendered_message.line_start,
+    rendered_message and rendered_message.line_end
+  )
+  ctx.render_state:set_part(
+    content,
+    message_id,
+    part_id,
+    rendered_part and rendered_part.line_start,
+    rendered_part and rendered_part.line_end
+  )
+  flush.mark_message_dirty(message_id)
+  flush.mark_part_dirty(part_id, message_id)
+end
+
+function M.refresh_prompts()
+  local permission = ctx.prompt_controllers.permission
+  local question = ctx.prompt_controllers.question
+  reconcile_prompt_display(
+    PERMISSION_DISPLAY_MESSAGE_ID,
+    'permission-display-part',
+    'permissions-display',
+    permission and #permission.get_all_permissions() > 0
+  )
+  local request = question and question.get_current_request()
+  reconcile_prompt_display(
+    QUESTION_DISPLAY_MESSAGE_ID,
+    'question-display-part',
+    'questions-display',
+    question and question.has_question() and not question.uses_vim_ui_select(request)
+  )
+  flush.schedule()
+end
+
+local function sync_prompt_controllers(observations)
+  local permission = ctx.prompt_controllers.permission
+  if permission and permission.sync then
+    permission.sync(observations)
+  end
+  local question = ctx.prompt_controllers.question
+  if question and question.sync then
+    question.sync(observations)
+  end
+  M.refresh_prompts()
+end
+
+reconcile_observation = function(observation)
+  local root = ctx.observation
+  if not root then
+    return
+  end
+  if observation ~= root then
+    local session_id
+    for id, child in pairs(child_observations) do
+      if child == observation then
+        session_id = id
+        break
+      end
+    end
+    if not session_id then
+      return
+    end
+    local task_part_id = ctx.render_state:get_task_part_by_child_session(session_id)
+    if task_part_id then
+      flush.mark_part_dirty(task_part_id)
+    end
+  end
+  local observations = sync_observation_tree(root)
+  local observed = root:read()
+  local files = observed.files
+  if files and files.revision > ctx.file_revision then
+    ctx.file_revision = files.revision
+    vim.cmd('checktime')
+    if config.hooks and config.hooks.on_file_edited and files.last then
+      pcall(config.hooks.on_file_edited, files.last.path)
+    end
+  end
+  local session_current = observed.sync
+      and observed.sync.session
+      and observed.sync.session.state == 'current'
+      and observed.session
+    or nil
+  local session = session_current or { id = state.active_session and state.active_session.id }
+  local entries = ordered_entries(root)
+  ctx.entries = entries
+  if session_current and session_current.cost ~= nil and session_current.tokens then
+    state.renderer.set_stats(total_tokens(session_current.tokens), session_current.cost)
+  else
+    for index = #entries, 1, -1 do
+      local entry = entries[index]
+      if entry.cost ~= nil and entry.tokens ~= nil then
+        state.renderer.set_stats(total_tokens(entry.tokens), entry.cost)
+        break
+      end
+    end
+  end
+  reference_facts.rebuild(session.id, entries, session_current and session_current.location or nil)
+  local visible, hidden_count = get_visible_session_messages(entries, session)
+  if ctx.lazy_render_count == nil then
+    local initial = get_initial_render_count()
+    if #visible > initial then
+      ctx.lazy_render_count = initial
+    end
+  end
+  if ctx.lazy_render_count and #visible > ctx.lazy_render_count then
+    visible = vim.list_slice(visible, #visible - ctx.lazy_render_count + 1)
+  end
+  local desired = {}
+  for _, entry in ipairs(visible) do
+    desired[entry.id] = true
+  end
+  for message_id in pairs(ctx.render_state._messages) do
+    if not desired[message_id] and not is_renderer_synthetic_message({ id = message_id }) then
+      hide_rendered_message(message_id)
+    end
+  end
+  for _, entry in ipairs(visible) do
+    local previous = ctx.render_state:get_message(entry.id)
+    ctx.render_state:set_message(entry, previous and previous.line_start, previous and previous.line_end)
+    flush.mark_message_dirty(entry.id)
+    local current_parts = {}
+    for index, content in ipairs(entry.content or {}) do
+      if content.kind ~= 'step_start' and content.kind ~= 'step_finish' then
+        local part_id = ctx.content_key(entry, index)
+        current_parts[part_id] = true
+        local rendered = ctx.render_state:get_part(part_id)
+        ctx.render_state:set_part(
+          content,
+          entry.id,
+          part_id,
+          rendered and rendered.line_start,
+          rendered and rendered.line_end
+        )
+        flush.mark_part_dirty(part_id, entry.id)
+      end
+    end
+    for part_id, rendered in pairs(ctx.render_state._parts) do
+      if rendered.message_id == entry.id and not current_parts[part_id] then
+        flush.queue_part_removal(part_id)
+      end
+    end
+  end
+  if hidden_count > 0 then
+    upsert_hidden_messages_notice(hidden_count)
+  elseif ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
+    hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
+  end
+  sync_prompt_controllers(observations)
+  flush.flush()
+end
+
+---Effective size of the rendered window: `lazy_render_count` capped by the
+---cached total (nil means everything cached is rendered).
+---@return number
+local function window_size()
+  local session = ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+  local total = #get_visible_session_messages(ctx.entries, session)
+  return math.min(ctx.lazy_render_count or total, total)
+end
+
+---Grow the rendered window to `target` messages (capped at the cached
+---total) and re-render. Single write primitive for the lazy window.
+---@param target number desired window size
+---@return boolean Whether the window grew
+local function apply_window_growth(target)
+  local session = ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+  local total = #get_visible_session_messages(ctx.entries, session)
+  target = math.min(target, total)
+  local current = math.min(ctx.lazy_render_count or total, total)
+  if target <= current then
+    return false
+  end
+  ctx.lazy_render_count = target
+  M.render_from_cache()
+  return true
+end
+
+---Capture the top visible line as a message anchor so the view survives a
+---re-render that prepends older history.
+---@return table|nil { id: string, offset: number }
+function M.capture_top_anchor()
+  local win = state.windows and state.windows.output_win
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return nil
+  end
+  local top_line = output_window.get_visible_top_line(win)
+  if not top_line then
+    return nil
+  end
+  for _, entry in ipairs(ctx.entries) do
+    local rendered = ctx.render_state:get_message(entry.id)
+    if rendered and rendered.line_start and rendered.line_end and rendered.line_end >= top_line then
+      return { id = entry.id, offset = math.max(0, top_line - rendered.line_start) }
+    end
+  end
+  return nil
+end
+
+---Restore a view captured by `capture_top_anchor` after a re-render.
+---@param anchor table|nil
+function M.restore_top_anchor(anchor)
+  if not anchor then
+    return
+  end
+  local win = state.windows and state.windows.output_win
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  local rendered = ctx.render_state:get_message(anchor.id)
+  if rendered and rendered.line_start then
+    local restored = math.max(1, rendered.line_start + anchor.offset)
+    pcall(vim.api.nvim_win_set_cursor, win, { restored, 0 })
+    pcall(output_window.restore_view_topline, win, restored)
+  end
+end
+
+local function notify_history_failure(err)
+  local message = type(err) == 'table' and (err.message or err.cause) or err
+  vim.notify('Failed to load older messages: ' .. tostring(message), vim.log.levels.WARN)
+end
+
+---The cached window is exhausted but the protocol still holds older
+---pages: pull one page, grow the rendered window by one viewport past the
+---merge, and keep the view anchored where it was.
+---@return boolean Whether a page load was started
+local function grow_window_with_older_page()
+  local observation = ctx.observation
+  if
+    not observation
+    or type(observation.has_older_history) ~= 'function'
+    or type(observation.load_older) ~= 'function'
+    or not observation:has_older_history()
+  then
+    return false
+  end
+  local window_before = window_size()
+  local anchor = M.capture_top_anchor()
+  local ok, request = pcall(function()
+    return observation:load_older()
+  end)
+  if not ok then
+    return false
+  end
+  request:and_then(function()
+    if not apply_window_growth(window_before + get_initial_render_count()) then
+      -- the window already covered everything cached: drop the window limit
+      -- so the merged prefix renders, without pulling more pages
+      ctx.lazy_render_count = nil
+      M.render_from_cache()
+    end
+    M.restore_top_anchor(anchor)
+  end, notify_history_failure)
+  return true
+end
+
+---Pull the complete remaining history, render all of it, and land the
+---cursor at the true top of the session.
+---@return boolean Whether a history load was started
+local function load_complete_history_to_top()
+  local observation = ctx.observation
+  if
+    not observation
+    or type(observation.has_older_history) ~= 'function'
+    or type(observation.load_complete_history) ~= 'function'
+    or not observation:has_older_history()
+  then
+    return false
+  end
+  local win = state.windows and state.windows.output_win
+  local ok, request = pcall(function()
+    return observation:load_complete_history()
+  end)
+  if not ok then
+    return false
+  end
+  request:and_then(function()
+    M.load_all_messages()
+    if win and vim.api.nvim_win_is_valid(win) then
+      pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
+      pcall(output_window.restore_view_topline, win, 1)
+    end
+  end, notify_history_failure)
+  return true
 end
 
 ---Reset all renderer state and clear the output buffer
@@ -341,6 +734,9 @@ function M.reset()
   if ctx.prompt_controllers.permission then
     ctx.prompt_controllers.permission.clear_all()
   end
+  if ctx.prompt_controllers.question then
+    ctx.prompt_controllers.question.clear_all()
+  end
   state.renderer.reset()
   flush.trigger_on_data_rendered()
 end
@@ -348,6 +744,12 @@ end
 ---Unsubscribe from all events and reset
 function M.teardown()
   M.setup_subscriptions(false)
+  clear_child_observations()
+  if ctx.unsubscribe then
+    ctx.unsubscribe()
+    ctx.unsubscribe = nil
+  end
+  ctx.observation = nil
   M.reset()
 end
 
@@ -367,51 +769,22 @@ function M.setup_subscriptions(subscribe)
     state.store.unsubscribe('active_session', M.on_session_changed)
     state.store.unsubscribe('active_session_tab', M.on_session_tab_changed)
   end
-
-  if not state.event_manager then
-    return
-  end
-
-  for _, sub in ipairs(M.event_subscriptions()) do
-    local callback = event_scope.scoped_callback(sub[1], sub[2])
-    if subscribe then
-      state.event_manager:subscribe(sub[1], callback)
-    else
-      state.event_manager:unsubscribe(sub[1], callback)
-    end
+  if subscribe and state.active_session then
+    M.on_session_changed(nil, state.active_session, nil)
   end
 end
 
----Fetch all messages for the active session from the server
----@return Promise<OpencodeMessage[]>
-local function fetch_session()
-  local session = state.active_session
-  if not session or session == '' then
-    return Promise.new():resolve(nil)
-  end
-  return require('opencode.session').get_messages(session)
-end
-
----Render all messages and parts from session_data into the output buffer
----Called after a full session fetch or when revert state changes
----@param session_data OpencodeMessage[]
----@param opts? { restore_model_from_messages?: boolean }
-function M._render_full_session_data(session_data, opts)
-  opts = opts or {}
-  -- Read before reset() clears it
+---@param entries table[]
+---@param session? table
+function M._render_full_session_data(entries, session)
   local lazy_limit = ctx.lazy_render_count
-  local t_start = vim.uv.hrtime()
   M.reset()
-  state.renderer.set_messages(session_data or {})
-
-  if not state.active_session or not state.messages then
-    return
-  end
-
-  reference_facts.rebuild(state.active_session.id, state.messages)
-
-  local visible_messages, hidden_count = get_visible_session_messages(state.messages)
-  local revert_index = get_revert_index(state.messages)
+  ctx.entries = entries or {}
+  session = session
+    or (ctx.observation and ctx.observation:read().session)
+    or { id = state.active_session and state.active_session.id }
+  reference_facts.rebuild(session.id, ctx.entries, session.location)
+  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, session)
 
   if lazy_limit == nil then
     local initial = get_initial_render_count()
@@ -424,117 +797,56 @@ function M._render_full_session_data(session_data, opts)
     visible_messages = vim.list_slice(visible_messages, #visible_messages - lazy_limit + 1)
   end
 
-  local t_format_start = vim.uv.hrtime()
   flush.begin_bulk_mode()
 
   if hidden_count > 0 then
-    local hidden_notice = build_hidden_messages_notice(hidden_count)
-    events.on_message_updated(hidden_notice)
-    events.on_part_updated({ part = hidden_notice.parts[1] })
+    ensure_message_rendered(build_hidden_messages_notice(hidden_count))
   end
 
-  for _, msg in ipairs(visible_messages) do
-    events.on_message_updated({ info = msg.info })
-    for _, part in ipairs(msg.parts or {}) do
-      events.on_part_updated({ part = part })
-    end
+  for _, entry in ipairs(visible_messages) do
+    ensure_message_rendered(entry)
   end
-
-  for _, msg in ipairs(state.messages) do
-    if msg.info and msg.info.sessionID ~= state.active_session.id then
-      for _, part in ipairs(msg.parts or {}) do
-        events.on_part_updated({ part = part })
-      end
-    end
-  end
-
-  if revert_index then
-    local revert_message = {
-      info = {
-        id = '__opencode_revert_message__',
-        sessionID = state.active_session.id,
-        role = 'system',
-      },
-      parts = {
-        {
-          id = '__opencode_revert_part__',
-          messageID = '__opencode_revert_message__',
-          sessionID = state.active_session.id,
-          type = 'revert-display',
-          state = {
-            revert_index = revert_index,
-          },
-        },
-      },
-    }
-
-    events.on_message_updated(revert_message)
-    events.on_part_updated({ part = revert_message.parts[1] })
-  end
-
   flush.flush()
   flush.end_bulk_mode()
-
-  events.refresh_rendered_symbol_targets()
-
-  if opts.restore_model_from_messages then
-    require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
-  end
-
   M.scroll_to_bottom(true)
 
   if config.hooks and config.hooks.on_session_loaded then
-    pcall(config.hooks.on_session_loaded, state.active_session)
+    pcall(config.hooks.on_session_loaded, session)
   end
 
   save_active_tab_context()
 end
 
----Re-render from cached session data without a server round-trip.
----Used for display-only changes (toggle folds, max_messages, etc.)
----@param session_data OpencodeMessage[]
-function M.render_from_cache(session_data)
-  if not output_window.mounted() or not state.api_client then
+function M.render_from_cache()
+  if not output_window.mounted() or #ctx.entries == 0 then
     return
   end
-  M._render_full_session_data(session_data, {
-    restore_model_from_messages = true,
-  })
-  local active_session = state.active_session
-  if active_session and active_session.id then
-    local prompts = ctx.prompt_controllers
-    if prompts.question then
-      prompts.question.restore_pending_question(active_session.id)
-    end
-    if prompts.permission then
-      prompts.permission.restore_pending_permissions(active_session.id)
-    end
-  end
+  local entries = ctx.observation and ordered_entries(ctx.observation) or ctx.entries
+  local session = ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+  M._render_full_session_data(entries, session)
 end
 
 ---Load more older messages into the output buffer.
 ---Called when user scrolls to the top of the output window.
 ---@return boolean Whether more messages were loaded
 function M.load_more_messages()
-  if not state.messages then
+  if #ctx.entries == 0 then
     return false
   end
-  -- nil means no lazy limit → all messages already rendered
-  if not ctx.lazy_render_count then
-    return false
-  end
-  local total = #get_visible_session_messages(state.messages)
+  local session = ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+  local total = #get_visible_session_messages(ctx.entries, session)
   if total == 0 then
     return false
   end
-  if ctx.lazy_render_count >= total then
-    return false
-  end
 
-  -- Load another viewport's worth
-  ctx.lazy_render_count = math.min(ctx.lazy_render_count + get_initial_render_count(), total)
-  M.render_from_cache(state.messages)
-  return true
+  -- Grow within the cached window; when it is exhausted, fall through to the
+  -- protocol's older page
+  if apply_window_growth(window_size() + get_initial_render_count()) then
+    return true
+  end
+  return grow_window_with_older_page()
 end
 
 ---Load all remaining messages and re-render.
@@ -542,58 +854,27 @@ end
 ---the full history is available for navigation and search.
 ---@return boolean Whether any messages were loaded
 function M.load_all_messages()
-  if not state.messages then
+  if #ctx.entries == 0 then
     return false
   end
-  local total = #get_visible_session_messages(state.messages)
+  local session = ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+  local total = #get_visible_session_messages(ctx.entries, session)
   if total == 0 then
     return false
   end
-  -- nil means no lazy limit → all messages already rendered
-  if not ctx.lazy_render_count or ctx.lazy_render_count >= total then
-    return false
-  end
-
-  ctx.lazy_render_count = total
-  M.render_from_cache(state.messages)
-  return true
+  -- Expand to everything cached; when the cache itself is a protocol page,
+  -- the complete history is pulled and this path re-runs on the merge
+  local expanded = apply_window_growth(total)
+  return load_complete_history_to_top() or expanded
 end
 
----Fetch the active session from the server and render it
----@return Promise<OpencodeMessage[]>
+---@return Promise<table[]>
 function M.render_full_session()
-  if not output_window.mounted() or not state.api_client then
+  if not output_window.mounted() or not ctx.observation then
     return Promise.new():resolve(nil)
   end
-  local target_tab_id = state.active_session_tab
-  local target_session_id = state.active_session and state.active_session.id
-  return fetch_session():and_then(function(session_data)
-    if
-      state.active_session_tab ~= target_tab_id
-      or not state.active_session
-      or state.active_session.id ~= target_session_id
-    then
-      local runtime = session_tabs.get(target_tab_id)
-      if runtime then
-        runtime.renderer_dirty = true
-      end
-      return nil
-    end
-    M._render_full_session_data(session_data, {
-      restore_model_from_messages = true,
-    })
-    local active_session = state.active_session
-    if active_session and active_session.id then
-      local prompts = ctx.prompt_controllers
-      if prompts.question then
-        prompts.question.restore_pending_question(active_session.id)
-      end
-      if prompts.permission then
-        prompts.permission.restore_pending_permissions(active_session.id)
-      end
-    end
-    return session_data
-  end)
+  reconcile_observation(ctx.observation)
 end
 
 ---Flush the active tab before its window and renderer context are detached.
@@ -665,12 +946,34 @@ function M.on_session_changed(_, new, old)
   if state.active_session_tab ~= rendered_session_tab then
     return
   end
-  if (old and old.id) == (new and new.id) then
+  if vim.deep_equal(old, new) and ctx.observation then
     return
   end
+  clear_child_observations()
+  if ctx.unsubscribe then
+    ctx.unsubscribe()
+    ctx.unsubscribe = nil
+  end
+  ctx.observation = nil
   M.reset()
-  if new then
-    M.render_full_session()
+  if not new then
+    return
+  end
+  local observation = state.session.active_observation()
+  if not observation then
+    return
+  end
+  ctx.observation = observation
+  ctx.unsubscribe = observation:watch(
+    { 'session', 'messages', 'children', 'execution', 'permissions', 'questions', 'inbox', 'files' },
+    reconcile_observation
+  )
+  reconcile_observation(observation)
+end
+
+function M.invalidate_reference_targets_for_file_change()
+  if ctx.observation then
+    reconcile_observation(ctx.observation)
   end
 end
 
@@ -680,7 +983,7 @@ local function refresh_tab(tab_id, runtime)
   if not state.active_session then
     return
   end
-  if not output_window.mounted() or not state.api_client then
+  if not output_window.mounted() or not ctx.observation then
     if runtime then
       runtime.renderer_dirty = true
     end
@@ -726,19 +1029,12 @@ function M.on_session_tab_changed(_, new, old)
   if prompts.permission then
     prompts.permission.clear_all()
   end
-  require('opencode.ui.renderer.events').render_permissions_display()
+  require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
+  M.refresh_prompts()
 
   if restored and not (runtime and runtime.renderer_dirty) then
     if ctx:has_pending_work() and output_window.mounted() then
       flush.schedule()
-    end
-    if state.active_session and state.api_client then
-      if prompts.question and type(state.api_client.list_questions) == 'function' then
-        prompts.question.restore_pending_question(state.active_session.id)
-      end
-      if prompts.permission and type(state.api_client.list_permissions) == 'function' then
-        prompts.permission.restore_pending_permissions(state.active_session.id)
-      end
     end
     return
   end
@@ -757,6 +1053,16 @@ function M.on_windows_mounted()
   if runtime.renderer_dirty then
     refresh_tab(tab_id, runtime)
   end
+end
+
+---Apply renderer work deferred while the output window was in another tab.
+function M.resume_deferred_rendering()
+  flush.flush()
+  if ctx.bulk_mode then
+    flush.end_bulk_mode()
+    symbol_refresh.refresh()
+  end
+  flush.flush_pending_on_data_rendered()
 end
 
 M.reconcile_rendered_message_limit = reconcile_rendered_message_limit
@@ -796,8 +1102,8 @@ local function first_jump_line(message_id)
   local best
   for _, p in pairs(ctx.render_state._parts) do
     if p.message_id == message_id and p.line_start and p.part then
-      local t = p.part.type
-      if t ~= 'reasoning' and t ~= 'step-start' and t ~= 'step-finish' and p.part.synthetic ~= true then
+      local t = p.part.kind
+      if t ~= 'reasoning' and t ~= 'step_start' and t ~= 'step_finish' and p.part.synthetic ~= true then
         if not best or p.line_start < best.line_start then
           best = p
         end
@@ -813,10 +1119,10 @@ end
 ---@param rendered RenderedMessage
 ---@return RenderedMessage
 local function with_jump_line(rendered)
-  if not rendered or not rendered.message or not rendered.message.info then
+  if not rendered or not rendered.message then
     return rendered
   end
-  local jump_line = first_jump_line(rendered.message.info.id) or rendered.line_start
+  local jump_line = first_jump_line(rendered.message.id) or rendered.line_start
   return {
     message = rendered.message,
     line_start = jump_line,
@@ -828,11 +1134,11 @@ end
 ---@param current_line integer
 ---@return RenderedMessage|nil
 function M.get_next_rendered_message(current_line)
-  for _, message in ipairs(state.messages or {}) do
+  for _, message in ipairs(ctx.entries) do
     if not is_renderer_synthetic_message(message) then
-      local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id) or nil
+      local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start then
-        local jump_line = first_jump_line(message.info.id) or rendered.line_start
+        local jump_line = first_jump_line(message.id) or rendered.line_start
         if jump_line + 1 > current_line then
           return with_jump_line(rendered)
         end
@@ -846,12 +1152,12 @@ end
 ---@param current_line integer
 ---@return RenderedMessage|nil
 function M.get_prev_rendered_message(current_line)
-  for i = #(state.messages or {}), 1, -1 do
-    local message = state.messages[i]
+  for i = #ctx.entries, 1, -1 do
+    local message = ctx.entries[i]
     if message and not is_renderer_synthetic_message(message) then
-      local rendered = message.info and message.info.id and ctx.render_state:get_message(message.info.id)
+      local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start then
-        local jump_line = first_jump_line(message.info.id) or rendered.line_start
+        local jump_line = first_jump_line(message.id) or rendered.line_start
         if jump_line + 1 < current_line then
           return with_jump_line(rendered)
         end
@@ -865,9 +1171,9 @@ end
 ---@param current_line integer
 ---@return RenderedMessage|nil
 function M.get_next_user_message(current_line)
-  for _, message in ipairs(state.messages or {}) do
-    if message.info and message.info.role == 'user' then
-      local rendered = message.info.id and ctx.render_state:get_message(message.info.id) or nil
+  for _, message in ipairs(ctx.entries) do
+    if message.kind == 'user' then
+      local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start and rendered.line_start + 1 > current_line then
         return rendered
       end
@@ -880,10 +1186,10 @@ end
 ---@param current_line integer
 ---@return RenderedMessage|nil
 function M.get_prev_user_message(current_line)
-  for i = #(state.messages or {}), 1, -1 do
-    local message = state.messages[i]
-    if message and message.info and message.info.role == 'user' then
-      local rendered = message.info.id and ctx.render_state:get_message(message.info.id)
+  for i = #ctx.entries, 1, -1 do
+    local message = ctx.entries[i]
+    if message and message.kind == 'user' then
+      local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start and rendered.line_start + 1 < current_line then
         return rendered
       end

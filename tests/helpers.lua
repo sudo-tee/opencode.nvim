@@ -5,6 +5,62 @@ local M = {}
 
 M.MOCK_CWD = '/mock/project/path'
 
+local function resolved(value)
+  return require('opencode.promise').new():resolve(value)
+end
+
+local function replay_session(session_id, location)
+  return {
+    id = session_id,
+    slug = session_id,
+    projectID = 'project-replay',
+    directory = location.directory,
+    title = 'Replay session',
+    version = '1.18.30',
+    time = { created = 1, updated = 1 },
+  }
+end
+
+local function new_replay_connection()
+  local connection = require('opencode.opencode_server').from_custom('http://v1.replay')
+  connection.protocol = 'v1'
+  connection.server_identity = { version = '1.18.30' }
+  connection.credential = { username = 'opencode' }
+  connection:mark_ready()
+
+  local operations = {}
+  function operations.subscribe_events(owner, on_chunk, on_disconnect)
+    local stream = {
+      on_chunk = on_chunk,
+      on_disconnect = on_disconnect,
+      shutdown = function() end,
+    }
+    M._replay_stream = stream
+    owner:set_stream(stream)
+    return stream
+  end
+  function operations.get_session(_, session_id, location)
+    return resolved(replay_session(session_id, location))
+  end
+  function operations.list_children()
+    return resolved({})
+  end
+  function operations.list_messages()
+    return resolved({})
+  end
+  function operations.list_session_status()
+    return resolved({})
+  end
+  function operations.list_permissions()
+    return resolved({})
+  end
+  function operations.list_questions()
+    return resolved({})
+  end
+  connection.operations = operations
+  return connection
+end
+
 function M.replay_setup()
   local config = require('opencode.config')
   local config_file = require('opencode.config_file')
@@ -15,7 +71,7 @@ function M.replay_setup()
   local question_window = require('opencode.ui.question_window')
   local reference_parser = require('opencode.ui.reference_parser')
 
-  local empty_promise = require('opencode.promise').new():resolve(nil)
+  local empty_promise = resolved(nil)
   config_file.config_promise = empty_promise
   config_file.project_promise = empty_promise
   config_file.providers_promise = empty_promise
@@ -23,6 +79,15 @@ function M.replay_setup()
   if state.windows then
     ui.close_windows(state.windows)
   end
+
+  local previous_connection = state.opencode_server
+  if previous_connection and previous_connection.close then
+    previous_connection:close()
+  end
+  state.session.clear_active()
+  M._replay_stream = nil
+  M._replay_started = false
+  state.jobs.set_server(new_replay_connection())
 
   renderer.reset()
   -- Ensure replay tests render all messages (lazy-render is always active)
@@ -35,22 +100,9 @@ function M.replay_setup()
   question_window._answering = false
   reference_parser.clear_all()
 
-  ---@diagnostic disable-next-line: duplicate-set-field
-  require('opencode.session').project_id = function()
-    return nil
-  end
-
   state.model.set_mode('build') -- default mode for tests
 
-  -- we use the event manager to dispatch events, have to setup before ui.create_windows
-  require('opencode.event_manager').setup()
-
   state.ui.set_windows(ui.create_windows())
-
-  -- disable fetching session and rendering it (we'll handle it at a lower level)
-  renderer.render_full_session = function()
-    return require('opencode.promise').new():resolve(nil)
-  end
 
   M.mock_time_utils()
   M.mock_getcwd()
@@ -190,7 +242,7 @@ function M.load_test_data(filename)
   return vim.json.decode(content)
 end
 
-function M.load_session_from_events(events)
+local function native_messages_from_events(events)
   local session_data = {}
   local parts_by_id = {}
 
@@ -216,7 +268,7 @@ function M.load_session_from_events(events)
         })
       end
     elseif event.type == 'message.part.updated' and properties.part then
-      local part = properties.part
+      local part = vim.deepcopy(properties.part)
       for _, msg in ipairs(session_data) do
         if msg.info.id == part.messageID then
           local existing_part = nil
@@ -290,6 +342,26 @@ function M.load_session_from_events(events)
   return session_data
 end
 
+function M.map_v1_messages(messages, session)
+  if not session then
+    return {}
+  end
+  local connection = new_replay_connection()
+  local observation = connection:observe(session)
+  require('opencode.protocols.v1.observation').ingest_snapshot(observation, messages)
+  local observed = observation:read()
+  local entries = {}
+  for _, message_id in ipairs(observed.entry_order) do
+    entries[#entries + 1] = observed.entries_by_id[message_id]
+  end
+  connection:close()
+  return entries
+end
+
+function M.load_session_from_events(events)
+  return M.map_v1_messages(native_messages_from_events(events), M.get_session_from_events(events))
+end
+
 function M.get_session_from_events(events, with_session_updates)
   -- renderer needs a valid session id
   -- merge session.updated events and use the latest updated session
@@ -309,7 +381,9 @@ function M.get_session_from_events(events, with_session_updates)
     end
 
     if last_session_id then
-      return sessions_by_id[last_session_id]
+      local session = sessions_by_id[last_session_id]
+      session.location = session.location or { directory = session.directory or M.MOCK_CWD }
+      return session
     end
   end
   for _, event in ipairs(events) do
@@ -321,7 +395,7 @@ function M.get_session_from_events(events, with_session_updates)
 
     if session_id then
       ---@diagnostic disable-next-line: missing-fields
-      return { id = session_id }
+      return { id = session_id, location = { directory = M.MOCK_CWD } }
     end
   end
 
@@ -329,9 +403,39 @@ function M.get_session_from_events(events, with_session_updates)
 end
 
 function M.replay_event(event)
-  event = vim.deepcopy(event)
-  -- synthetic "emit" by adding the event to the throttling emitter's queue
-  require('opencode.state').event_manager.throttling_emitter:enqueue(event)
+  local state = require('opencode.state')
+  if type(event) == 'table' and type(event.payload) == 'table' then
+    event = vim.tbl_extend('force', { directory = event.directory }, event.payload)
+  end
+  if not M._replay_started then
+    local ready = vim.wait(1000, function()
+      local observation = state.session.active_observation()
+      if not observation then
+        return false
+      end
+      local messages = observation:read().sync.messages
+      return messages and messages.state == 'current' and M._replay_stream ~= nil
+    end)
+    if not ready then
+      local observation = state.session.active_observation()
+      error('V1 replay Observation did not become current: ' .. vim.inspect({
+        active = state.active_session,
+        stream = M._replay_stream ~= nil,
+        sync = observation and observation:read().sync or nil,
+      }))
+    end
+    M._replay_started = true
+  end
+  local active = assert(state.active_session, 'V1 replay requires an active session')
+  local directory = active.location and active.location.directory or M.MOCK_CWD
+  local properties = vim.deepcopy(event.properties)
+  properties.sessionID = properties.sessionID
+    or (type(properties.info) == 'table' and properties.info.sessionID)
+    or (type(properties.part) == 'table' and properties.part.sessionID)
+  M._replay_stream.on_chunk('data: ' .. vim.json.encode({
+    directory = event.directory or directory,
+    payload = { type = event.type, properties = properties },
+  }) .. '\n\n')
 end
 
 function M.replay_events(events)

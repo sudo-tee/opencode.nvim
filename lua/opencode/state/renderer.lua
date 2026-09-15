@@ -3,16 +3,6 @@ local store = require('opencode.state.store')
 ---@class OpencodeRendererStateMutations
 local M = {}
 
----@param messages OpencodeMessage[]|nil
-function M.set_messages(messages)
-  return store.set('messages', messages)
-end
-
----@param message OpencodeMessage|nil
-function M.set_current_message(message)
-  return store.set('current_message', message)
-end
-
 ---@param permissions OpencodePermission[]
 function M.set_pending_permissions(permissions)
   return store.set('pending_permissions', permissions)
@@ -38,8 +28,6 @@ end
 
 function M.reset()
   return store.batch(function()
-    store.set('messages', {})
-    store.set('current_message', nil)
     store.set('tokens_count', 0)
     store.set('pending_permissions', {})
   end)

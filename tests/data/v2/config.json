@@ -1,0 +1,959 @@
+[
+  {
+    "type": "claude",
+    "path": "/Users/oujinsai/.claude"
+  },
+  {
+    "type": "agents",
+    "path": "/Users/oujinsai/.agents"
+  },
+  {
+    "type": "document",
+    "path": "/Users/oujinsai/.config/opencode/opencode.jsonc",
+    "info": {
+      "$schema": "https://opencode.ai/config.json",
+      "shell": "zsh",
+      "model": {
+        "providerID": "kimi-for-coding",
+        "model": "kimi-for-coding"
+      },
+      "default_agent": "orchestrator",
+      "update": "auto",
+      "permissions": [
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "chmod *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "chown *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "sudo *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "mv *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "rm *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git add *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git checkout *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git cherry-pick *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git clean *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git commit *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git fetch *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git merge *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git pull *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git push *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git rebase *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git reset *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git restore *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git revert *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "git switch *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh auth status *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh help *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue list *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue status *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue view *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr checks *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr diff *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr list *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr review *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr status *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr view *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh release view *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh search *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo view *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh version *",
+          "effect": "allow"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr create *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr edit *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr merge *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr ready *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr reopen *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr update-branch *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo create *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo edit *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo fork *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo rename *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh workflow disable *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh workflow enable *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh workflow run *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh workflow watch *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "*reset --hard*",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue close *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue comment *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue create *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue delete *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue edit *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue lock *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh issue reopen *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr checkout *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr close *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh pr comment *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo clone *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh repo delete *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh secret *",
+          "effect": "ask"
+        },
+        {
+          "action": "shell",
+          "resource": "gh variable *",
+          "effect": "ask"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "ask"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "external_directory",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_get_file_contents",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_list_branches",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_list_issues",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_list_pull_requests",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_search_code",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_search_issues",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "github_search_pull_requests",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ],
+      "agents": {
+        "title": {
+          "model": {
+            "providerID": "openai",
+            "model": "gpt-5.6-luna"
+          }
+        },
+        "build": {
+          "disabled": true
+        },
+        "plan": {
+          "disabled": true
+        }
+      },
+      "watcher": {
+        "ignore": [
+          "node_modules",
+          "bun.lock",
+          "tmp",
+          "**/.git",
+          "**/.cache",
+          "**/dist",
+          "**/build",
+          "**/.next",
+          "**/__pycache__",
+          "**/.venv",
+          "**/target",
+          "**/.gradle"
+        ]
+      },
+      "formatter": false,
+      "mcp": {
+        "servers": {
+          "context7": {
+            "type": "local",
+            "command": [
+              "npx",
+              "-y",
+              "@upstash/context7-mcp",
+              "--api-key",
+              "REDACTED"
+            ],
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "gh_grep": {
+            "type": "remote",
+            "url": "https://mcp.grep.app",
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "github": {
+            "type": "remote",
+            "url": "https://api.githubcopilot.com/mcp/",
+            "headers": {
+              "Authorization": "REDACTED"
+            },
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "jupyter": {
+            "type": "local",
+            "command": [
+              "uvx",
+              "jupyter-mcp-server@latest"
+            ],
+            "environment": {
+              "ALLOW_IMG_OUTPUT": "true",
+              "JUPYTER_TOKEN": "REDACTED",
+              "JUPYTER_URL": "http://localhost:8888"
+            },
+            "disabled": true,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "read-website-fast": {
+            "type": "local",
+            "command": [
+              "npx",
+              "-y",
+              "@just-every/mcp-read-website-fast"
+            ],
+            "disabled": false,
+            "timeout": {
+              "catalog": 30000,
+              "execution": 30000
+            }
+          },
+          "sequential-thinking": {
+            "type": "local",
+            "command": [
+              "npx",
+              "-y",
+              "@modelcontextprotocol/server-sequential-thinking"
+            ],
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "tavily": {
+            "type": "local",
+            "command": [
+              "npx",
+              "-y",
+              "tavily-mcp"
+            ],
+            "environment": {
+              "TAVILY_API_KEY": "REDACTED"
+            },
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "tilth": {
+            "type": "local",
+            "command": [
+              "tilth",
+              "--mcp"
+            ],
+            "disabled": false,
+            "timeout": {
+              "catalog": 10000,
+              "execution": 10000
+            }
+          },
+          "zotero": {
+            "type": "local",
+            "command": [
+              "zotero-mcp"
+            ],
+            "environment": {
+              "no_proxy": "localhost,127.0.0.1,::1",
+              "NO_PROXY": "localhost,127.0.0.1,::1",
+              "ZOTERO_EMBEDDING_MODEL": "default",
+              "ZOTERO_LOCAL": "true"
+            },
+            "disabled": false,
+            "timeout": {
+              "catalog": 30000,
+              "execution": 30000
+            }
+          }
+        }
+      },
+      "compaction": {
+        "buffer": 5000
+      },
+      "instructions": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        ".cursor/rules/*.md"
+      ],
+      "plugins": [],
+      "providers": {
+        "kimi-for-coding": {
+          "models": {
+            "kimi-for-coding": {
+              "name": "Kimi K2.8 Preview",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "thinking": {
+                      "type": "adaptive",
+                      "display": "summarized"
+                    },
+                    "effort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "thinking": {
+                      "type": "adaptive",
+                      "display": "summarized"
+                    },
+                    "effort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "thinking": {
+                      "type": "adaptive",
+                      "display": "summarized"
+                    },
+                    "effort": "max"
+                  }
+                }
+              ],
+              "limit": {
+                "context": 1048576,
+                "output": 32768
+              }
+            }
+          }
+        },
+        "anthropic": {
+          "package": "aisdk:@ai-sdk/anthropic",
+          "settings": {
+            "baseURL": "https://stariver.top/v1"
+          }
+        },
+        "baidu": {
+          "package": "aisdk:@ai-sdk/openai-compatible",
+          "settings": {
+            "baseURL": "http://localhost:8899/v1",
+            "apiKey": "REDACTED"
+          },
+          "models": {
+            "DeepSeek-V4-Pro": {
+              "name": "DeepSeek-V4-Pro",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "reasoningEffort": "max"
+                  }
+                }
+              ]
+            },
+            "DeepSeek-V4-Flash": {
+              "name": "DeepSeek-V4-Flash",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                }
+              ]
+            },
+            "DeepSeek-V4.1-Flash": {
+              "name": "DeepSeek-V4.1-Flash",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "reasoningEffort": "max"
+                  }
+                }
+              ]
+            },
+            "GLM-5.2": {
+              "name": "GLM-5.2",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "reasoningEffort": "max"
+                  }
+                }
+              ]
+            },
+            "GLM-5.3": {
+              "name": "GLM-5.3",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "reasoningEffort": "max"
+                  }
+                }
+              ]
+            },
+            "GLM-5.3-Flash": {
+              "name": "GLM-5.3-Flash",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                },
+                {
+                  "id": "max",
+                  "settings": {
+                    "reasoningEffort": "max"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "baidu2": {
+          "package": "aisdk:@ai-sdk/anthropic",
+          "settings": {
+            "baseURL": "http://localhost:8899/anthropic/v1",
+            "apiKey": "REDACTED"
+          },
+          "models": {
+            "Opus 5": {
+              "name": "Opus 5",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 4096
+                    }
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 8192
+                    }
+                  }
+                }
+              ]
+            },
+            "Claude Sonnet 5": {
+              "name": "Claude Sonnet 5"
+            },
+            "Claude Sonnet 4.6": {
+              "name": "Claude Sonnet 4.6",
+              "settings": {
+                "thinking": {
+                  "type": "enabled",
+                  "budget_tokens": 4096
+                }
+              },
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 2048
+                    }
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 8192
+                    }
+                  }
+                }
+              ]
+            },
+            "Claude Haiku 4.5": {
+              "name": "Claude Haiku 4.5",
+              "settings": {
+                "thinking": {
+                  "type": "enabled",
+                  "budget_tokens": 2048
+                }
+              },
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 1024
+                    }
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "thinking": {
+                      "type": "enabled",
+                      "budget_tokens": 4096
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "openai": {
+          "package": "aisdk:@ai-sdk/openai",
+          "settings": {
+            "baseURL": "https://stariver.top",
+            "headerTimeout": 200000
+          },
+          "models": {
+            "gpt-5.5": {
+              "limit": {
+                "context": 400000,
+                "input": 272000,
+                "output": 128000
+              }
+            },
+            "gpt-5.6": {
+              "limit": {
+                "context": 400000,
+                "input": 272000,
+                "output": 128000
+              }
+            },
+            "gpt-5.6-luna": {
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "medium",
+                  "settings": {
+                    "reasoningEffort": "medium"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "google": {
+          "package": "aisdk:@ai-sdk/google",
+          "models": {
+            "gemini-3-flash-high": {
+              "modelID": "gemini-3-flash",
+              "name": "Gemini 3 Flash (High Thinking)",
+              "settings": {
+                "thinkingConfig": {
+                  "includeThoughts": true,
+                  "thinkingLevel": "high"
+                }
+              }
+            },
+            "gemini-3-pro-high": {
+              "modelID": "gemini-3-pro-preview",
+              "name": "Gemini 3 Pro Preview (High Thinking)",
+              "settings": {
+                "thinkingConfig": {
+                  "includeThoughts": true,
+                  "thinkingLevel": "high"
+                }
+              }
+            }
+          }
+        },
+        "xai": {
+          "package": "aisdk:@ai-sdk/openai-compatible",
+          "settings": {
+            "baseURL": "https://stariver.top/v1"
+          }
+        },
+        "rayinai": {
+          "package": "aisdk:@ai-sdk/openai",
+          "settings": {
+            "baseURL": "https://code.rayinai.com/v1"
+          },
+          "models": {
+            "glm-5.2": {
+              "name": "glm-5.2",
+              "variants": [
+                {
+                  "id": "low",
+                  "settings": {
+                    "reasoningEffort": "low"
+                  }
+                },
+                {
+                  "id": "high",
+                  "settings": {
+                    "reasoningEffort": "high"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "directory",
+    "path": "/Users/oujinsai/.config/opencode"
+  }
+]

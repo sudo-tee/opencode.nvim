@@ -13,17 +13,17 @@ describe('opencode.state (observable)', function()
       new_val = newv
       old_val = oldv
     end
-    state.store.subscribe('messages', cb)
-    state.renderer.set_messages({ { id = 'test' } })
+    state.store.subscribe('current_mode', cb)
+    state.model.set_mode('test')
     vim.wait(50, function()
       return called == true
     end)
     assert.is_true(called)
-    assert.equals('messages', changed_key)
-    assert.same({ { id = 'test' } }, new_val)
+    assert.equals('current_mode', changed_key)
+    assert.equals('test', new_val)
     -- Clean up
-    state.renderer.set_messages(nil)
-    state.store.unsubscribe('messages', cb)
+    state.model.clear_mode()
+    state.store.unsubscribe('current_mode', cb)
   end)
 
   it('notifies wildcard listeners on any key change', function()
@@ -107,26 +107,26 @@ describe('opencode.state (observable)', function()
 
   it('errors on direct state write', function()
     assert.has_error(function()
-      state.messages = {}
+      state.current_mode = 'test'
     end)
   end)
 
   it('batches notifications until commit', function()
     local calls = {}
-    local messages_cb = function(key, newv, oldv)
+    local mode_cb = function(key, newv, oldv)
       table.insert(calls, { key = key, newv = newv, oldv = oldv })
     end
     local cost_cb = function(key, newv, oldv)
       table.insert(calls, { key = key, newv = newv, oldv = oldv })
     end
 
-    state.store.subscribe('messages', messages_cb)
+    state.store.subscribe('current_mode', mode_cb)
     state.store.subscribe('cost', cost_cb)
 
     state.store.batch(function(store)
-      store.set('messages', { { id = 'batched' } })
+      store.set('current_mode', 'batched')
       store.set('cost', 12)
-      assert.same({ { id = 'batched' } }, state.messages)
+      assert.equals('batched', state.current_mode)
       assert.equals(12, state.cost)
       assert.equals(0, #calls)
     end)
@@ -135,14 +135,14 @@ describe('opencode.state (observable)', function()
       return #calls == 2
     end)
 
-    assert.same('messages', calls[1].key)
-    assert.same({ { id = 'batched' } }, calls[1].newv)
+    assert.same('current_mode', calls[1].key)
+    assert.equals('batched', calls[1].newv)
     assert.same('cost', calls[2].key)
     assert.equals(12, calls[2].newv)
 
-    state.renderer.set_messages(nil)
+    state.model.clear_mode()
     state.renderer.set_cost(0)
-    state.store.unsubscribe('messages', messages_cb)
+    state.store.unsubscribe('current_mode', mode_cb)
     state.store.unsubscribe('cost', cost_cb)
   end)
 
@@ -154,11 +154,11 @@ describe('opencode.state (observable)', function()
       received = newv
     end
 
-    state.renderer.set_messages({})
-    state.store.subscribe('messages', cb)
+    state.store.set('user_message_count', {})
+    state.store.subscribe('user_message_count', cb)
 
-    state.store.mutate('messages', function(messages)
-      table.insert(messages, { id = 'mutated' })
+    state.store.mutate('user_message_count', function(count)
+      count.ses_1 = 1
     end)
 
     vim.wait(50, function()
@@ -166,9 +166,9 @@ describe('opencode.state (observable)', function()
     end)
 
     assert.is_true(called)
-    assert.same({ { id = 'mutated' } }, received)
+    assert.same({ ses_1 = 1 }, received)
 
-    state.renderer.set_messages(nil)
-    state.store.unsubscribe('messages', cb)
+    state.store.unsubscribe('user_message_count', cb)
+    state.store.set('user_message_count', {})
   end)
 end)

@@ -1,6 +1,7 @@
 local config = require('opencode.config')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
+local util = require('opencode.util')
 local M = {}
 
 local last_successful_tool = nil
@@ -56,7 +57,15 @@ local function find_files_fast(pattern)
     rg = ' --files --no-messages --color=never | grep -i %s 2>/dev/null | head -%d',
     git = ' ls-files --cached --others --exclude-standard | grep -i %s | head -%d',
     server = function(pattern)
-      return require('opencode.state').api_client:find_files(pattern)
+      local state = require('opencode.state')
+      local connection = assert(state.opencode_server, 'Connection is not ready')
+      return connection.operations.find_files(
+        connection,
+        pattern,
+        { directory = state.current_cwd or vim.fn.getcwd() },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      )
     end,
   }
 
@@ -161,9 +170,11 @@ local file_source = {
 ---Get the list of recent files
 ---@return CompletionItem[]
 M.get_recent_files = Promise.async(function()
-  local api_client = require('opencode.state').api_client
-
-  local result = api_client:get_file_status():await()
+  local state = require('opencode.state')
+  local connection = assert(state.opencode_server, 'Connection is not ready')
+  local result = connection.operations
+    .get_file_status(connection, { directory = state.current_cwd or vim.fn.getcwd() }, util.apply_path_map, util.apply_reverse_path_map)
+    :await()
   local recent_files = {}
   if result then
     for _, file in ipairs(result) do

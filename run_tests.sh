@@ -85,6 +85,45 @@ has_failures() {
     grep -Eq "Fail.*\|\||Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" <<<"$plain_output"
 }
 
+# List spec files whose busted subprocess died outside of normal assertion
+# reporting: a header "Testing: <file>" not followed by a "Success:/Failed:"
+# summary block, or an E-prefixed nvim error emitted right after one. This
+# catches load-time crashes (e.g. requiring a deleted module) where nvim
+# exits non-zero but no "FAILED TEST" line ever appears.
+report_load_crashes() {
+    local label="$1"
+    local output="$2"
+    local plain_output
+    plain_output=$(strip_ansi "$output")
+
+    # A load crash prints an "E<digits>:" nvim error (or a Lua "module
+    # 'x' not found" traceback) without the file ever producing a
+    # Success:/Failed: summary. Report those with the file being loaded.
+    # Tail stderr replays after the last file are ignored by requiring the
+    # crash window to sit between a Testing header and that file's summary;
+    # a replayed header only reports when its file never had a summary.
+    awk -v label="$label" '
+        /^Testing: / {
+            if (!( $2 in seen_file)) {
+                current_file = $2
+                file_done = 0
+                seen_file[$2] = 1
+            } else {
+                current_file = ""
+                file_done = 1
+            }
+        }
+        /^Success: |^Failed : / { file_done = 1 }
+        ( /E[0-9]+:/ || /^Error in command line:/ || /module '\''[^'\'']+'\'' not found:/ ) && file_done == 0 {
+            printf "  %s: load error while running %s\n", label, (current_file == "" ? "(init)" : current_file)
+            print "    " $0
+            shown = 1
+        }
+        END { if (shown) exit 3 }
+    ' <<<"$plain_output"
+    return $?
+}
+
 # Run tests based on type
 minimal_output=""
 unit_output=""
@@ -189,6 +228,14 @@ if has_failures "$all_output" \
     fi
 
     echo -e "${RED}Found $failure_count failing test(s):${NC}\n"
+
+    # Surface load-time crashes so a non-zero exit code is always explainable.
+    # Each phase's output is only non-empty when it ran.
+    [ -n "$minimal_output" ] && report_load_crashes "minimal" "$minimal_output"
+    [ -n "$unit_output" ] && report_load_crashes "unit" "$unit_output"
+    [ -n "$replay_output" ] && report_load_crashes "replay" "$replay_output"
+    [ -n "$specific_output" ] && report_load_crashes "specific" "$specific_output"
+    true
 
     # Process the output line by line
     test_name=""

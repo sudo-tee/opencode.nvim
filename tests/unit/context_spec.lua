@@ -3,16 +3,18 @@ local state = require('opencode.state')
 local assert = require('luassert')
 
 describe('extract_from_opencode_message', function()
-  it('extracts prompt, selected_text, and current_file from tags in parts', function()
+  it('extracts prompt, selected_text, and current_file from Entry content', function()
     local message = {
-      parts = {
-        { type = 'text', text = 'What does this code do?' },
+      content = {
+        { id = 'text', kind = 'text', text = 'What does this code do?' },
         {
-          type = 'text',
+          id = 'selection',
+          kind = 'editor_context',
           synthetic = true,
-          text = vim.json.encode({ context_type = 'selection', content = 'print(42)' }),
+          source = { kind = 'selection', file_name = '/tmp/foo.lua', range = '1-1' },
+          text = 'print(42)',
         },
-        { type = 'file', filename = '/tmp/foo.lua' },
+        { id = 'file', kind = 'file', name = '/tmp/foo.lua' },
       },
     }
     local result = context.extract_from_opencode_message(message)
@@ -80,29 +82,19 @@ describe('format_message', function()
     context.get_context = original_get_context
   end)
 
-  it('returns a parts array with prompt as first part', function()
-    local parts = context.format_message('hello world'):wait()
-    assert.is_table(parts)
-    assert.equal('hello world', parts[1].text)
-    assert.equal('text', parts[1].type)
+  it('returns the frozen submission content shape', function()
+    local input = context.format_message('hello world'):wait()
+    assert.same({ text = 'hello world', context = {}, files = {}, agents = {} }, input)
   end)
   it('includes mentioned_files and subagents', function()
     local ChatContext = require('opencode.context.chat_context')
     ChatContext.context.mentioned_files = { '/tmp/foo.lua' }
     ChatContext.context.mentioned_subagents = { 'agent1' }
-    local parts = context.format_message('prompt @foo.lua @agent1'):wait()
-    assert.is_true(#parts > 2)
-    local found_file, found_agent = false, false
-    for _, p in ipairs(parts) do
-      if p.type == 'file' then
-        found_file = true
-      end
-      if p.type == 'agent' then
-        found_agent = true
-      end
-    end
-    assert.is_true(found_file)
-    assert.is_true(found_agent)
+    local input = context.format_message('prompt @foo.lua @agent1'):wait()
+    assert.equals('file:///tmp/foo.lua', input.files[1].server_uri)
+    assert.is_nil(input.files[1].mention)
+    assert.equals('agent1', input.agents[1].name)
+    assert.same({ start_byte = 16, end_byte = 23 }, input.agents[1].mention)
   end)
 
   it('includes selection even when current_file context is disabled', function()
@@ -127,27 +119,17 @@ describe('format_message', function()
       return { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }
     end
 
-    local parts = context
+    local input = context
       .format_message('test prompt', {
         current_file = { enabled = false },
         selection = { enabled = true },
       })
       :wait()
 
-    local selection_json = nil
-    local has_file_part = false
-    for _, part in ipairs(parts) do
-      if part.type == 'file' then
-        has_file_part = true
-      end
-      local json = context.decode_json_context(part.text or '', 'selection')
-      if json then
-        selection_json = json
-      end
-    end
-
-    assert.is_false(has_file_part)
+    local selection_json = context.decode_json_context(input.context[1].text, 'selection')
+    assert.same({}, input.files)
     assert.is_not_nil(selection_json)
+    assert.same({ kind = 'selection', file_name = 'foo.lua', range = '3, 4' }, input.context[1].source)
     assert.same({ path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }, selection_json.file)
 
     BaseContext.get_current_buf = original_get_current_buf
@@ -177,7 +159,7 @@ describe('format_message', function()
       return {}
     end
 
-    local parts = context
+    local input = context
       .format_message('follow-up prompt', {
         current_file = { enabled = false },
         selection = { enabled = false },
@@ -188,15 +170,7 @@ describe('format_message', function()
       })
       :wait()
 
-    local has_file_part = false
-    for _, part in ipairs(parts) do
-      if part.type == 'file' then
-        has_file_part = true
-        break
-      end
-    end
-
-    assert.is_false(has_file_part)
+    assert.same({}, input.files)
     assert.is_nil(ChatContext.context.current_file.sent_at)
 
     BaseContext.get_current_buf = original_get_current_buf
@@ -244,7 +218,8 @@ end)
 
 describe('delta_context', function()
   local mock_context
-  local original_get_context
+  local original_context
+  local ChatContext
 
   before_each(function()
     mock_context = {
@@ -256,14 +231,13 @@ describe('delta_context', function()
       cursor_data = nil,
     }
 
-    original_get_context = context.get_context
-    context.get_context = function()
-      return mock_context
-    end
+    ChatContext = require('opencode.context.chat_context')
+    original_context = ChatContext.context
+    ChatContext.context = mock_context
   end)
 
   after_each(function()
-    context.get_context = original_get_context
+    ChatContext.context = original_context
   end)
   it('removes current_file if unchanged', function()
     local file = { name = 'foo.lua', path = '/tmp/foo.lua', extension = 'lua' }
@@ -760,7 +734,7 @@ describe('ChatContext.load() preserves selections on file switch', function()
     }
 
     -- Mock state to indicate active session
-    state.session.set_active(true)
+    state.session.set_active({ id = 'test-session' })
     state.ui.set_opening(false)
   end)
 

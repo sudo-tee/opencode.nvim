@@ -42,7 +42,16 @@ function M.pick()
   local input_window = require('opencode.ui.input_window')
 
   local ok, skills = pcall(function()
-    return state.api_client:list_skills():await()
+    local connection = assert(state.opencode_server, 'Connection is not ready')
+    local util = require('opencode.util')
+    return connection.operations
+      .list_skills(
+        connection,
+        { directory = state.current_cwd or vim.fn.getcwd() },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      )
+      :await()
   end)
 
   if not ok or not skills then

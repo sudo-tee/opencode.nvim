@@ -2,9 +2,9 @@ local icons = require('opencode.ui.icons')
 local M = {}
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  if part.tool ~= 'todowrite' then
+  if part.name ~= 'todowrite' then
     return
   end
   local utils = require('opencode.ui.formatter.utils')
@@ -15,7 +15,7 @@ function M.format(output, part)
     output,
     icons.get('plan'),
     'plan',
-    (part.state and part.state.title or ''),
+    part.title or '',
     utils.get_duration_text(part)
   )
 
@@ -25,20 +25,19 @@ function M.format(output, part)
   end
 
   local statuses = { in_progress = '-', completed = 'x', pending = ' ' }
-  local todos = part.state and part.state.input and type(part.state.input.todos) == 'table' and part.state.input.todos
-    or {}
+  local todos = part.todos or {}
 
   for _, item in ipairs(todos) do
-    output:add_line(string.format('- [%s] %s ', statuses[item.status], item.content))
+    output:add_line(string.format('- [%s] %s ', statuses[item.state], item.text))
   end
 
   output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
----@param part OpencodeMessagePart
+---@param part table
 ---@return string, string, string
 function M.summary(part)
-  return icons.get('plan'), 'plan', part.state and part.state.title or ''
+  return icons.get('plan'), 'plan', part.title or ''
 end
 
 return M

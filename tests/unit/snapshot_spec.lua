@@ -161,7 +161,7 @@ describe('asynchronous snapshot operations', function()
 end)
 
 describe('snapshot Git integration', function()
-  local root, cwd, original_path, original_session, original_cache, session
+  local root, cwd, original_path, original_session, original_stdpath
   before_each(function()
     root, cwd = vim.fn.tempname(), vim.fn.getcwd()
     vim.fn.mkdir(root .. '/work', 'p')
@@ -171,10 +171,10 @@ describe('snapshot Git integration', function()
     vim.cmd.cd(vim.fn.fnameescape(root .. '/work'))
     original_path = config_file.get_workspace_snapshot_path
     original_session = state.active_session
-    session = require('opencode.session')
-    original_cache = session.get_cache_path
-    session.get_cache_path = function()
-      return root .. '/cache/'
+    original_stdpath = vim.fn.stdpath
+    vim.fn.stdpath = function(kind)
+      assert.equals('cache', kind)
+      return root .. '/cache'
     end
     config_file.get_workspace_snapshot_path = function()
       return Promise.new():resolve(root .. '/snapshot')
@@ -184,7 +184,7 @@ describe('snapshot Git integration', function()
   after_each(function()
     vim.cmd.cd(vim.fn.fnameescape(cwd))
     config_file.get_workspace_snapshot_path = original_path
-    session.get_cache_path = original_cache
+    vim.fn.stdpath = original_stdpath
     state.session.set_active(original_session)
     vim.fn.delete(root, 'rf')
   end)

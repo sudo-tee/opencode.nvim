@@ -9,55 +9,75 @@ local helpers = require('tests.helpers')
 describe('question_window', function()
   local original_use_vim_ui_select
   local original_inline_other_input
+  local focus_stub
+
+  local function bind_observation(replies, rejections)
+    local observation = {
+      reply_question = function(_, request_id, answers)
+        replies[#replies + 1] = { request_id = request_id, answers = answers }
+        return Promise.new():resolve(true)
+      end,
+      reject_question = function(_, request_id)
+        rejections[#rejections + 1] = request_id
+        return Promise.new():resolve(true)
+      end,
+    }
+    question_window._observations = setmetatable({}, {
+      __index = function()
+        return observation
+      end,
+    })
+  end
 
   before_each(function()
     original_use_vim_ui_select = config.ui.questions.use_vim_ui_select
     original_inline_other_input = config.ui.questions.inline_other_input
+    focus_stub = stub(require('opencode.ui.ui'), 'is_opencode_focused').returns(true)
   end)
 
   after_each(function()
     config.ui.questions.use_vim_ui_select = original_use_vim_ui_select
     config.ui.questions.inline_other_input = original_inline_other_input
     question_window._clear_inline_input()
+    if question_window._dialog and question_window._dialog.teardown then
+      question_window._clear_dialog()
+    else
+      question_window._dialog = nil
+    end
     question_window._current_question = nil
     question_window._current_question_index = 1
     question_window._collected_answers = {}
     question_window._multi_selections = {}
     question_window._answering = false
     question_window._empty_confirm_armed = false
-    question_window._dialog = nil
-    state.renderer.set_messages({})
+    question_window._observations = {}
     state.session.set_active(nil)
-    state.jobs.set_api_client(nil)
+    focus_stub:revert()
   end)
 
   it('tracks answers by question index and waits until all are answered', function()
     local replies = {}
-
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, {})
 
     question_window.show_question({
       id = 'q-multi',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          header = 'First',
-          question = 'Pick first',
+          key = 'first',
+          title = 'First',
+          prompt = 'Pick first',
+          type = 'string',
           options = {
             { label = 'One' },
           },
         },
         {
-          header = 'Second',
-          question = 'Pick second',
+          key = 'second',
+          title = 'Second',
+          prompt = 'Pick second',
+          type = 'string',
           options = {
             { label = 'Two' },
           },
@@ -75,7 +95,7 @@ describe('question_window', function()
     question_window._answer_with_option(1)
 
     assert.are.equal(1, #replies)
-    assert.are.same({ { 'One' }, { 'Two' } }, replies[1].answers)
+    assert.are.same({ first = 'One', second = 'Two' }, replies[1].answers)
     assert.is_nil(question_window._current_question)
   end)
 
@@ -84,17 +104,17 @@ describe('question_window', function()
 
     question_window._current_question = {
       id = 'q1',
-      questions = {
+      fields = {
         {
-          header = 'Color',
-          question = 'Pick a color',
+          title = 'Color',
+          prompt = 'Pick a color',
           options = {
             { label = 'Blue', description = 'cool' },
           },
         },
         {
-          header = 'Shape',
-          question = 'Pick a shape',
+          title = 'Shape',
+          prompt = 'Pick a shape',
           options = {
             { label = 'Circle', description = 'round' },
           },
@@ -123,9 +143,9 @@ describe('question_window', function()
     local captured_opts = nil
     question_window._current_question = {
       id = 'q1',
-      questions = {
+      fields = {
         {
-          question = 'How should tests run?',
+          prompt = 'How should tests run?',
           options = {
             { label = 'On save', description = 'Run tests automatically' },
           },
@@ -147,22 +167,22 @@ describe('question_window', function()
 
   it('uses each question multiple field when navigating between questions', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
 
     question_window.show_question({
       id = 'q-mode-switch',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          question = 'Pick many',
-          multiple = true,
+          prompt = 'Pick many',
+          type = 'multiselect',
           custom = false,
           options = { { label = 'One' } },
         },
         {
-          question = 'Pick one',
-          multiple = false,
+          prompt = 'Pick one',
+          type = 'string',
           custom = false,
           options = { { label = 'Two' } },
         },
@@ -185,26 +205,19 @@ describe('question_window', function()
 
   it('requires two Enter presses to submit an empty multi-select answer', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     local replies = {}
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, {})
 
     question_window.show_question({
       id = 'q-empty-multi',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          question = 'Pick any',
-          multiple = true,
+          key = 'choices',
+          prompt = 'Pick any',
+          type = 'multiselect',
           custom = false,
           options = { { label = 'One' } },
         },
@@ -243,7 +256,7 @@ describe('question_window', function()
     assert.is_true(vim.wait(200, function()
       return #replies == 1
     end))
-    assert.are.same({ {} }, replies[1].answers)
+    assert.are.same({ choices = {} }, replies[1].answers)
     assert.is_nil(question_window._current_question)
     require('opencode.ui.ui').close_windows(state.windows)
   end)
@@ -252,9 +265,9 @@ describe('question_window', function()
     local captured_opts = nil
     question_window._current_question = {
       id = 'q-no-custom',
-      questions = {
+      fields = {
         {
-          question = 'Pick one',
+          prompt = 'Pick one',
           custom = false,
           options = { { label = 'One' } },
         },
@@ -274,20 +287,14 @@ describe('question_window', function()
 
   it('submits a normal Other option by its label', function()
     local replies = {}
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, {})
     question_window._current_question = {
       id = 'q-normal-other',
-      questions = {
+      fields = {
         {
-          question = 'Pick one',
+          key = 'choice',
+          prompt = 'Pick one',
+          type = 'string',
           custom = false,
           options = { { label = 'Other choice' } },
         },
@@ -299,15 +306,15 @@ describe('question_window', function()
 
     question_window._answer_with_option(1)
 
-    assert.are.same({ { 'Other choice' } }, replies[1].answers)
+    assert.are.same({ choice = 'Other choice' }, replies[1].answers)
   end)
 
   it('uses the vim.ui.select index for a custom option with a duplicate label', function()
     question_window._current_question = {
       id = 'q-duplicate-other',
-      questions = {
+      fields = {
         {
-          question = 'Pick one',
+          prompt = 'Pick one',
           options = { { label = 'Other' } },
         },
       },
@@ -328,20 +335,11 @@ describe('question_window', function()
 
   it('submits a single custom answer and keeps a multi custom answer as a draft', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     config.ui.questions.inline_other_input = false
 
     local replies = {}
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, {})
 
     local original_input = vim.ui.input
     local input_callback
@@ -351,9 +349,10 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q-single-custom',
-      sessionID = 'sess1',
-      questions = {
-        { question = 'Pick one', options = { { label = 'One' } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
+        { key = 'choice', prompt = 'Pick one', type = 'string', options = { { label = 'One' } } },
       },
     })
     question_window._dialog:set_selection(2)
@@ -363,14 +362,15 @@ describe('question_window', function()
     end))
     input_callback('single custom')
 
-    assert.are.same({ { 'single custom' } }, replies[1].answers)
+    assert.are.same({ choice = 'single custom' }, replies[1].answers)
 
     input_callback = nil
     question_window.show_question({
       id = 'q-multi-custom',
-      sessionID = 'sess1',
-      questions = {
-        { question = 'Pick many', multiple = true, options = { { label = 'One' } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
+        { key = 'choices', prompt = 'Pick many', type = 'multiselect', options = { { label = 'One' } } },
       },
     })
     question_window._dialog:set_selection(2)
@@ -390,30 +390,21 @@ describe('question_window', function()
     assert.is_true(vim.wait(200, function()
       return #replies == 2
     end))
-    assert.are.same({ { 'multi custom' } }, replies[2].answers)
+    assert.are.same({ choices = { 'multi custom' } }, replies[2].answers)
 
-    vim.ui.input = original_input
+    question_window.clear_question()
     require('opencode.ui.ui').close_windows(state.windows)
+    vim.ui.input = original_input
   end)
 
   it('routes synchronous question actions through the current question mode', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     config.ui.questions.inline_other_input = false
 
-    local replies = 0
-    local rejections = 0
-    state.jobs.set_api_client({
-      reply_question = function()
-        replies = replies + 1
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        rejections = rejections + 1
-        return Promise.new():resolve({})
-      end,
-    })
+    local replies = {}
+    local rejections = {}
+    bind_observation(replies, rejections)
     local original_input = vim.ui.input
     local input_callback
     vim.ui.input = function(_, callback)
@@ -423,44 +414,47 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q-command-multi',
-      sessionID = 'sess1',
-      questions = { { question = 'Pick many', multiple = true, options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Pick many', type = 'multiselect', options = { { label = 'One' } } } },
     })
     actions.question_answer()
     assert.is_true(question_window._multi_selections[1][1])
-    assert.are.equal(0, replies)
+    assert.are.equal(0, #replies)
 
     actions.question_other()
     input_callback('custom')
     assert.are.equal('custom', question_window._multi_selections[1].custom_answer)
-    assert.are.equal(0, replies)
+    assert.are.equal(0, #replies)
 
     question_window.show_question({
       id = 'q-command-no-custom',
-      sessionID = 'sess1',
-      questions = { { question = 'Pick many', multiple = true, custom = false, options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Pick many', type = 'multiselect', custom = false, options = { { label = 'One' } } } },
     })
     input_callback = nil
     actions.question_other()
 
     assert.is_nil(input_callback)
-    assert.are.equal(0, replies)
-    assert.are.equal(0, rejections)
+    assert.are.equal(0, #replies)
+    assert.are.equal(0, #rejections)
 
-    vim.ui.input = original_input
+    question_window.clear_question()
     require('opencode.ui.ui').close_windows(state.windows)
+    vim.ui.input = original_input
   end)
 
   it('releases inline editors when questions are replaced or cleared', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
 
     local function open_multi_other(id)
       question_window.show_question({
         id = id,
-        sessionID = 'sess1',
-        questions = { { question = 'Pick many', multiple = true, options = { { label = 'One' } } } },
+        status = 'pending',
+        session_id = 'sess1',
+        fields = { { prompt = 'Pick many', type = 'multiselect', options = { { label = 'One' } } } },
       })
       require('opencode.ui.renderer.flush').flush()
       question_window._dialog:set_selection(2)
@@ -472,8 +466,9 @@ describe('question_window', function()
     local replaced = open_multi_other('q-inline-replaced')
     question_window.show_question({
       id = 'q2',
-      sessionID = 'sess1',
-      questions = { { question = 'Current', multiple = true, options = { { label = 'Two' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Current', type = 'multiselect', options = { { label = 'Two' } } } },
     })
 
     assert.is_false(vim.api.nvim_win_is_valid(replaced.win))
@@ -491,12 +486,12 @@ describe('question_window', function()
 
   it('releases Dialog resources before switching to vim.ui.select', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     question_window.show_question({
       id = 'q-dialog',
-      sessionID = 'sess1',
-      questions = { { question = 'Pick one', options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Pick one', options = { { label = 'One' } } } },
     })
     local old_dialog = question_window._dialog
     local flush = require('opencode.ui.renderer.flush')
@@ -507,8 +502,9 @@ describe('question_window', function()
     vim.ui.select = function() end
     question_window.show_question({
       id = 'q-selector',
-      sessionID = 'sess1',
-      questions = { { question = 'Pick one', options = { { label = 'Two' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Pick one', options = { { label = 'Two' } } } },
     })
     flush.flush()
 
@@ -528,18 +524,9 @@ describe('question_window', function()
   end)
 
   it('keeps the question open when a custom editor is cancelled', function()
-    local replies = 0
-    local rejections = 0
-    state.jobs.set_api_client({
-      reply_question = function()
-        replies = replies + 1
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        rejections = rejections + 1
-        return Promise.new():resolve({})
-      end,
-    })
+    local replies = {}
+    local rejections = {}
+    bind_observation(replies, rejections)
     local original_input = vim.ui.input
     local input_callback
     vim.ui.input = function(_, callback)
@@ -547,38 +534,28 @@ describe('question_window', function()
     end
     question_window._current_question = {
       id = 'q-custom-cancel',
-      questions = {
-        { question = 'Pick one', options = { { label = 'One' } } },
+      fields = {
+        { prompt = 'Pick one', options = { { label = 'One' } } },
       },
     }
 
     question_window._answer_with_custom()
     input_callback(nil)
 
-    assert.are.equal(0, replies)
-    assert.are.equal(0, rejections)
+    assert.are.equal(0, #replies)
+    assert.are.equal(0, #rejections)
     assert.are.equal('q-custom-cancel', question_window._current_question.id)
     vim.ui.input = original_input
   end)
 
   it('restores the triggering backend when a selected custom answer is cancelled', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     config.ui.questions.inline_other_input = false
 
-    local replies = 0
-    local rejections = 0
-    state.jobs.set_api_client({
-      reply_question = function()
-        replies = replies + 1
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        rejections = rejections + 1
-        return Promise.new():resolve({})
-      end,
-    })
+    local replies = {}
+    local rejections = {}
+    bind_observation(replies, rejections)
     local original_input = vim.ui.input
     local input_callback
     vim.ui.input = function(_, callback)
@@ -587,8 +564,9 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q-dialog-custom-cancel',
-      sessionID = 'sess1',
-      questions = { { question = 'Pick one', options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { key = 'choice', prompt = 'Pick one', type = 'string', options = { { label = 'One' } } } },
     })
     question_window._dialog:set_selection(2)
     question_window._dialog:select()
@@ -599,8 +577,8 @@ describe('question_window', function()
 
     assert.is_false(question_window._answering)
     assert.is_true(question_window._dialog:is_active())
-    assert.are.equal(0, replies)
-    assert.are.equal(0, rejections)
+    assert.are.equal(0, #replies)
+    assert.are.equal(0, #rejections)
 
     local original_select = vim.ui.select
     local callbacks = {}
@@ -611,35 +589,29 @@ describe('question_window', function()
     input_callback = nil
     question_window.show_question({
       id = 'q-select-custom-cancel',
-      questions = { { question = 'Pick one', options = { { label = 'One' } } } },
+      status = 'pending',
+      fields = { { key = 'choice', prompt = 'Pick one', type = 'string', options = { { label = 'One' } } } },
     })
     callbacks[1]('Other', 2)
     input_callback(nil)
 
     assert.is_false(question_window._answering)
     assert.are.equal(2, #callbacks)
-    assert.are.equal(0, replies)
-    assert.are.equal(0, rejections)
+    assert.are.equal(0, #replies)
+    assert.are.equal(0, #rejections)
 
     callbacks[2]('One', 1)
-    assert.are.equal(1, replies)
+    assert.are.equal(1, #replies)
 
+    question_window.clear_question()
+    require('opencode.ui.ui').close_windows(state.windows)
     vim.ui.input = original_input
     vim.ui.select = original_select
-    require('opencode.ui.ui').close_windows(state.windows)
   end)
 
   it('uses vim.ui.select for every single question and Dialog for mixed requests', function()
     local replies = {}
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function()
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, {})
     config.ui.questions.use_vim_ui_select = true
 
     local original_select = vim.ui.select
@@ -650,28 +622,29 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q-all-single',
-      questions = {
-        { question = 'First', options = { { label = 'One' } } },
-        { question = 'Second', options = { { label = 'Two' } } },
+      status = 'pending',
+      fields = {
+        { key = 'first', prompt = 'First', type = 'string', options = { { label = 'One' } } },
+        { key = 'second', prompt = 'Second', type = 'string', options = { { label = 'Two' } } },
       },
     })
     assert.are.equal(1, #callbacks)
     callbacks[1]('One', 1)
     assert.are.equal(2, #callbacks)
     callbacks[2]('Two', 1)
-    assert.are.same({ { 'One' }, { 'Two' } }, replies[1].answers)
+    assert.are.same({ first = 'One', second = 'Two' }, replies[1].answers)
 
     vim.ui.select = original_select
 
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     question_window.show_question({
       id = 'q-mixed',
-      sessionID = 'sess1',
-      questions = {
-        { question = 'First', options = { { label = 'One' } } },
-        { question = 'Second', multiple = true, options = { { label = 'Two' } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
+        { prompt = 'First', options = { { label = 'One' } } },
+        { prompt = 'Second', type = 'multiselect', options = { { label = 'Two' } } },
       },
     })
 
@@ -688,37 +661,29 @@ describe('question_window', function()
 
   it('ignores callbacks after another request replaces their question', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     config.ui.questions.inline_other_input = false
 
     local replies = {}
     local rejections = {}
-    state.jobs.set_api_client({
-      reply_question = function(_, request_id, answers)
-        table.insert(replies, { request_id = request_id, answers = answers })
-        return Promise.new():resolve({})
-      end,
-      reject_question = function(_, request_id)
-        table.insert(rejections, request_id)
-        return Promise.new():resolve({})
-      end,
-    })
+    bind_observation(replies, rejections)
 
     local function replace_with_q2()
       question_window.show_question({
         id = 'q2',
-        sessionID = 'sess1',
-        questions = {
-          { question = 'Current', multiple = true, options = { { label = 'Two' } } },
+        status = 'pending',
+        session_id = 'sess1',
+        fields = {
+          { prompt = 'Current', type = 'multiselect', options = { { label = 'Two' } } },
         },
       })
     end
 
     question_window.show_question({
       id = 'q1-option',
-      sessionID = 'sess1',
-      questions = { { question = 'Old', custom = false, options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Old', custom = false, options = { { label = 'One' } } } },
     })
     question_window._dialog:select()
     replace_with_q2()
@@ -731,8 +696,9 @@ describe('question_window', function()
     end
     question_window.show_question({
       id = 'q1-custom',
-      sessionID = 'sess1',
-      questions = { { question = 'Old', options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Old', options = { { label = 'One' } } } },
     })
     question_window._answer_with_custom()
     replace_with_q2()
@@ -740,8 +706,9 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q1-multi',
-      sessionID = 'sess1',
-      questions = { { question = 'Old', multiple = true, options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Old', type = 'multiselect', options = { { label = 'One' } } } },
     })
     question_window._dialog:set_selection(2)
     question_window._dialog:select()
@@ -750,8 +717,9 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q1-submit',
-      sessionID = 'sess1',
-      questions = { { question = 'Old', multiple = true, custom = false, options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Old', type = 'multiselect', custom = false, options = { { label = 'One' } } } },
     })
     question_window._dialog:set_selection(2)
     question_window._dialog:select()
@@ -766,8 +734,9 @@ describe('question_window', function()
     end
     question_window.show_question({
       id = 'q1-select',
-      sessionID = 'sess1',
-      questions = { { question = 'Old', options = { { label = 'One' } } } },
+      status = 'pending',
+      session_id = 'sess1',
+      fields = { { prompt = 'Old', options = { { label = 'One' } } } },
     })
     replace_with_q2()
     select_callback(nil)
@@ -779,14 +748,14 @@ describe('question_window', function()
     assert.is_true(question_window._dialog:is_active())
     assert.is_nil(question_window._multi_selections[1])
 
+    question_window.clear_question()
+    require('opencode.ui.ui').close_windows(state.windows)
     vim.ui.input = original_input
     vim.ui.select = original_select
-    require('opencode.ui.ui').close_windows(state.windows)
   end)
 
   it('keeps separate custom drafts for each question and clears them for a new request', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
     local flush = require('opencode.ui.renderer.flush')
 
@@ -815,16 +784,17 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'multi-question',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          header = 'First',
-          question = 'First custom answer',
+          title = 'First',
+          prompt = 'First custom answer',
           options = { { label = 'One' } },
         },
         {
-          header = 'Second',
-          question = 'Second custom answer',
+          title = 'Second',
+          prompt = 'Second custom answer',
           options = { { label = 'Two' } },
         },
       },
@@ -844,10 +814,11 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'new-request',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          question = 'New custom answer',
+          prompt = 'New custom answer',
           options = { { label = 'Three' } },
         },
       },
@@ -865,150 +836,67 @@ describe('question_window', function()
     assert.equals('', new_request_draft)
   end)
 
-  it('does not show a question that is already completed', function()
-    state.renderer.set_messages({
-      {
-        info = {
-          id = 'msg_question',
-          sessionID = 'sess1',
-        },
-        parts = {
-          {
-            id = 'part_question',
-            type = 'tool',
-            tool = 'question',
-            callID = 'call_question',
-            messageID = 'msg_question',
-            sessionID = 'sess1',
-            state = {
-              status = 'completed',
-              metadata = {
-                answers = {
-                  { 'Red' },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    question_window.show_question({
-      id = 'question_1',
-      sessionID = 'sess1',
-      tool = {
-        messageID = 'msg_question',
-        callID = 'call_question',
-      },
-      questions = {
-        {
-          question = 'Pick one',
-          options = {
-            { label = 'One', description = 'first' },
-          },
-        },
-      },
-    })
-
-    assert.is_nil(question_window._current_question)
-  end)
-
-  it('clears a stale completed question instead of restoring it again', function()
+  it('shows only pending forms from the Observation question facts', function()
     local request = {
       id = 'question_1',
-      sessionID = 'sess1',
-      tool = {
-        messageID = 'msg_question',
-        callID = 'call_question',
-      },
-      questions = {
-        {
-          question = 'Pick one',
-          options = {
-            { label = 'One', description = 'first' },
-          },
-        },
+      session_id = 'sess1',
+      status = 'pending',
+      fields = {
+        { key = 'choice', prompt = 'Pick one', type = 'string', options = { { label = 'One' } } },
       },
     }
-
-    state.session.set_active({ id = 'sess1' })
-    state.renderer.set_messages({
-      {
-        info = {
-          id = 'msg_question',
-          sessionID = 'sess1',
-        },
-        parts = {
-          {
-            id = 'part_question',
-            type = 'tool',
-            tool = 'question',
-            callID = 'call_question',
-            messageID = 'msg_question',
-            sessionID = 'sess1',
-            state = {
-              status = 'completed',
-              metadata = {
-                answers = {
-                  { 'Red' },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
-    question_window._current_question = request
-    state.jobs.set_api_client({
-      list_questions = function()
-        return Promise.new():resolve({ request })
+    local observation = {
+      read = function()
+        return { question_requests_by_id = { [request.id] = request } }
       end,
-    })
+    }
 
-    local show_stub = stub(question_window, 'show_question')
+    question_window.sync({ observation })
+    assert.are.equal(request, question_window.get_current_request())
 
-    question_window.restore_pending_question('sess1'):wait()
+    request.status = 'answered'
+    question_window.sync({ observation })
+    assert.is_nil(question_window.get_current_request())
 
-    assert.is_nil(question_window._current_question)
-    assert.stub(show_stub).was_not_called()
-
-    show_stub:revert()
+    question_window.sync({ observation })
+    assert.is_nil(question_window.get_current_request())
   end)
 
-  it('rebuilds an unresolved dialog when restoring its UI', function()
-    helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
-    state.jobs.set_api_client({})
-    vim.api.nvim_set_current_win(state.windows.output_win)
-
-    question_window.show_question({
-      id = 'question_restore_dialog',
-      sessionID = 'sess1',
-      questions = {
-        {
-          question = 'Pick one',
-          options = { { label = 'One' } },
-        },
-      },
-    })
-    require('opencode.ui.renderer.flush').flush()
-    question_window._dialog:teardown()
-
-    question_window.restore_pending_question('sess1'):wait()
-    require('opencode.ui.renderer.flush').flush()
-
-    assert.is_true(question_window._dialog:is_active())
-    assert.is_not_nil(question_window._dialog:get_option_position(2))
-
-    question_window.clear_question()
-    if state.windows then
-      require('opencode.ui.ui').close_windows(state.windows)
+  it('routes each observed question reply to its owning Observation', function()
+    local replies = {}
+    local function observed(session_id, request_id)
+      return {
+        read = function()
+          return {
+            question_requests_by_id = {
+              [request_id] = {
+                id = request_id,
+                session_id = session_id,
+                status = 'pending',
+                fields = { { key = 'answer', prompt = 'Answer', type = 'string', options = {} } },
+              },
+            },
+          }
+        end,
+        reply_question = function(_, id)
+          replies[#replies + 1] = session_id .. ':' .. id
+          return Promise.new():resolve(true)
+        end,
+      }
     end
+    local first = observed('ses_a', 'question_a')
+    local second = observed('ses_b', 'question_b')
+    local show = stub(question_window, 'show_question')
+    question_window.sync({ first, second })
+
+    question_window._send_reply('question_b', { answer = 'yes' }):await()
+
+    assert.are.same({ 'ses_b:question_b' }, replies)
+    show:revert()
   end)
 
   it('does not force-scroll on question navigation redraws', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
 
     local renderer = require('opencode.ui.renderer')
@@ -1024,10 +912,11 @@ describe('question_window', function()
 
     question_window.show_question({
       id = 'q-nav',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          question = 'Pick one',
+          prompt = 'Pick one',
           options = {
             { label = 'One' },
             { label = 'Two' },
@@ -1056,23 +945,23 @@ describe('question_window', function()
 
   it('navigates between questions with h and l', function()
     helpers.replay_setup()
-    state.session.set_active({ id = 'sess1' })
     vim.api.nvim_set_current_win(state.windows.output_win)
 
     question_window.show_question({
       id = 'q-nav-groups',
-      sessionID = 'sess1',
-      questions = {
+      status = 'pending',
+      session_id = 'sess1',
+      fields = {
         {
-          header = 'First',
-          question = 'Pick one',
+          title = 'First',
+          prompt = 'Pick one',
           options = {
             { label = 'One' },
           },
         },
         {
-          header = 'Second',
-          question = 'Pick two',
+          title = 'Second',
+          prompt = 'Pick two',
           options = {
             { label = 'Two' },
           },

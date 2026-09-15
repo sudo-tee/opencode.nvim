@@ -1,7 +1,7 @@
 ---@type OpencodeState
 local state = require('opencode.state')
-local session_store = require('opencode.session')
 local Promise = require('opencode.promise')
+local util = require('opencode.util')
 local window_actions = require('opencode.commands.handlers.window').actions
 local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
@@ -40,11 +40,24 @@ end
 ---@return any
 local function with_active_session(warning, callback)
   local state_obj = state
-  if not state_obj.active_session then
+  local connection = state_obj.opencode_server
+  local observation = state_obj.session.active_observation()
+  if not state_obj.active_session or not connection or not connection:is_ready() or not observation then
     vim.notify(warning, vim.log.levels.WARN)
     return
   end
-  return callback(state_obj)
+  local session_fact = observation:read().session
+  if type(session_fact) ~= 'table' or type(session_fact.id) ~= 'string' then
+    error('Active Observation has no session fact')
+  end
+  local location = session_fact.location or state_obj.active_session.location
+    or { directory = state_obj.current_cwd or vim.fn.getcwd() }
+  return callback(state_obj, observation, session_fact, connection, location)
+end
+
+local function active_session_fact()
+  local observation = state.session.active_observation()
+  return observation and observation:read().session or nil
 end
 
 ---@param promise Promise<any>
@@ -264,7 +277,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     return session_runtime.switch_session(direction)
   end
 
-  local active = state.active_session
+  local active = active_session_fact()
   if not active then
     if empty_policy == 'notify' then
       vim.notify('No active session', vim.log.levels.WARN)
@@ -292,7 +305,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
 
   -- forward / backward: flat navigation by time.updated
   return Promise.async(function()
-    local all_sessions = session_store.get_all_workspace_sessions():await()
+    local all_sessions = session_runtime.list_sessions_by_scope('project')
     if not all_sessions or #all_sessions == 0 then
       if empty_policy == 'notify' then
         vim.notify('No sessions', vim.log.levels.INFO)
@@ -322,40 +335,42 @@ end
 
 ---@param current_session? Session
 function M.actions.compact_session(current_session)
-  local state_obj = state
-  current_session = current_session or state_obj.active_session
-  if not current_session then
-    vim.notify('No active session to compact', vim.log.levels.WARN)
-    return
-  end
+  return with_active_session('No active session to compact', function(state_obj, _, active, connection, location)
+    local target = current_session or active
+    local current_model = state_obj.current_model
+    if not current_model then
+      vim.notify('No model selected', vim.log.levels.ERROR)
+      return
+    end
 
-  local current_model = state_obj.current_model
-  if not current_model then
-    vim.notify('No model selected', vim.log.levels.ERROR)
-    return
-  end
+    local provider_id, model_id = current_model:match('^(.-)/(.+)$')
+    if not provider_id or not model_id then
+      vim.notify('Invalid model format: ' .. tostring(current_model), vim.log.levels.ERROR)
+      return
+    end
 
-  local providerId, modelId = current_model:match('^(.-)/(.+)$')
-  if not providerId or not modelId then
-    vim.notify('Invalid model format: ' .. tostring(current_model), vim.log.levels.ERROR)
-    return
-  end
-
-  notify_promise(
-    state_obj.api_client:summarize_session(current_session.id, {
-      providerID = providerId,
-      modelID = modelId,
-    }),
-    function()
-      vim.notify('Session compacted successfully', vim.log.levels.INFO)
-    end,
-    'Failed to compact session: '
-  )
+    notify_promise(
+      connection.operations.summarize_session(connection, target.id, target.location or location, {
+        providerID = provider_id,
+        modelID = model_id,
+      }, util.apply_path_map),
+      function()
+        vim.notify('Session compacted successfully', vim.log.levels.INFO)
+      end,
+      'Failed to compact session: '
+    )
+  end)
 end
 
 function M.actions.share()
-  return with_active_session('No active session to share', function(state_obj)
-    notify_promise(state_obj.api_client:share_session(state_obj.active_session.id), function(response)
+  return with_active_session('No active session to share', function(_, _, session_fact, connection, location)
+    notify_promise(connection.operations.share_session(
+      connection,
+      session_fact.id,
+      location,
+      util.apply_path_map,
+      util.apply_reverse_path_map
+    ), function(response)
       if response and response.share and response.share.url then
         vim.fn.setreg('+', response.share.url)
         vim.notify('Session link copied to clipboard successfully: ' .. response.share.url, vim.log.levels.INFO)
@@ -367,8 +382,14 @@ function M.actions.share()
 end
 
 function M.actions.unshare()
-  return with_active_session('No active session to unshare', function(state_obj)
-    notify_promise(state_obj.api_client:unshare_session(state_obj.active_session.id), function()
+  return with_active_session('No active session to unshare', function(_, _, session_fact, connection, location)
+    notify_promise(connection.operations.unshare_session(
+      connection,
+      session_fact.id,
+      location,
+      util.apply_path_map,
+      util.apply_reverse_path_map
+    ), function()
       vim.notify('Session unshared successfully', vim.log.levels.INFO)
     end, 'Failed to unshare session: ')
   end)
@@ -398,11 +419,14 @@ function M.actions.initialize()
 
     state_obj.session.set_active(new_session)
     window_actions.open_input()
-    state_obj.api_client:init_session(state_obj.active_session.id, {
+    local connection = state_obj.opencode_server
+    connection.operations.init_session(connection, state_obj.active_session.id, state_obj.active_session.location or {
+      directory = state_obj.current_cwd or vim.fn.getcwd(),
+    }, {
       providerID = providerId,
       modelID = modelId,
       messageID = id.ascending('message'),
-    })
+    }, util.apply_path_map)
   end)()
 end
 
@@ -412,32 +436,32 @@ function M.actions.rename_session(current_session, new_title)
   return Promise.async(function(session_obj, requested_title)
     local promise = Promise.new()
     local state_obj = state
-    session_obj = session_obj or (state_obj.active_session and vim.deepcopy(state_obj.active_session) or nil) --[[@as Session]]
+    local connection = state_obj.opencode_server
+    local active = active_session_fact()
+    session_obj = session_obj or (active and vim.deepcopy(active) or nil) --[[@as Session]]
     if not session_obj then
       vim.notify('No active session to rename', vim.log.levels.WARN)
       promise:resolve(nil)
       return promise
     end
+    if not connection or not connection:is_ready() then
+      error('Connection is not ready')
+    end
 
     local function rename_session_with_title(title)
-      state_obj.api_client
-        :update_session(session_obj.id, { title = title })
+      local location = session_obj.location or (state_obj.active_session and state_obj.active_session.location)
+        or { directory = state_obj.current_cwd or vim.fn.getcwd() }
+      connection.operations
+        .rename_session(connection, session_obj.id, location, title, util.apply_path_map, util.apply_reverse_path_map)
         :catch(function(err)
           vim.schedule(function()
             vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
           end)
         end)
-        :and_then(Promise.async(function()
+        :and_then(function()
           session_obj.title = title
-          if state_obj.active_session and state_obj.active_session.id == session_obj.id then
-            local persisted_session = session_store.get_by_id(session_obj.id):await()
-            if persisted_session then
-              persisted_session.title = title
-              state_obj.session.set_active(vim.deepcopy(persisted_session))
-            end
-          end
           promise:resolve(session_obj)
-        end))
+        end)
     end
 
     if requested_title and requested_title ~= '' then
@@ -459,51 +483,55 @@ function M.actions.rename_session(current_session, new_title)
   end)(current_session, new_title)
 end
 
----@param state_obj OpencodeState
----@param target_id string
----@return OpencodeMessage|nil
-local function find_message_in_state(state_obj, target_id)
-  for _, m in ipairs(state_obj.messages or {}) do
-    if m.info and m.info.id == target_id then
-      return m
-    end
-  end
-  return nil
+local function find_entry(observation, target_id)
+  return observation:read().entries_by_id[target_id]
 end
 
----@param state_obj OpencodeState
----@return OpencodeMessage|nil
-local function find_last_user_message(state_obj)
-  local messages = state_obj.messages or {}
-  local revert = state_obj.active_session and state_obj.active_session.revert
-
-  local revert_index = revert
-    and require('opencode.util').find_index_of(messages, function(m)
-      return m.info and m.info.id == revert.messageID
-    end)
-
-  for i = revert_index and revert_index - 1 or #messages, 1, -1 do
-    local m = messages[i]
-    if m.info and m.info.role == 'user' then
-      return m
+local function entry_index(observation, target_id)
+  for index, id in ipairs(observation:read().entry_order) do
+    if id == target_id then
+      return index
     end
   end
-  return nil
+end
+
+local function find_last_user_entry(observation, session_fact)
+  local observed = observation:read()
+  local stop = #observed.entry_order
+  if session_fact.revert then
+    local index = entry_index(observation, session_fact.revert.messageID)
+    if not index then
+      return nil
+    end
+    stop = index - 1
+  end
+  for index = stop, 1, -1 do
+    local entry = observed.entries_by_id[observed.entry_order[index]]
+    if entry and entry.kind == 'user' then
+      return entry
+    end
+  end
 end
 
 ---@param message_id? string
 function M.actions.undo(message_id)
-  return with_active_session('No active session to undo', function(state_obj)
-    local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
-    if not target then
+  return with_active_session('No active session to undo', function(_, observation, session_fact, connection, location)
+    local target = message_id and find_entry(observation, message_id)
+      or find_last_user_entry(observation, session_fact)
+    if not target or target.kind ~= 'user' then
       vim.notify('No user message to undo', vim.log.levels.WARN)
       return
     end
 
     run_api_action_with_checktime(
-      state_obj.api_client:revert_message(state_obj.active_session.id, {
-        messageID = target.info.id,
-      }),
+      connection.operations.revert_message(
+        connection,
+        session_fact.id,
+        location,
+        { messageID = target.id },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
       'Failed to undo last message: ',
       function()
         require('opencode.ui.input_window').refill_prompt_from_message(target)
@@ -514,18 +542,19 @@ end
 
 ---@param message_id string
 function M.actions.copy_message(message_id)
-  return with_active_session('No active session to copy', function(state_obj)
-    local target = find_message_in_state(state_obj, message_id)
-    if not target or not target.info or target.info.role ~= 'user' then
+  return with_active_session('No active session to copy', function(_, observation)
+    local target = find_entry(observation, message_id)
+    if not target or target.kind ~= 'user' then
       vim.notify('No user message to copy', vim.log.levels.WARN)
       return
     end
 
     local text_parts = {}
-    for _, part in ipairs(target.parts or {}) do
+    for _, part in ipairs(target.content or {}) do
       if
-        part.type == 'text'
+        part.kind == 'text'
         and part.synthetic ~= true
+        and part.ignored ~= true
         and type(part.text) == 'string'
         and vim.trim(part.text) ~= ''
       then
@@ -542,98 +571,87 @@ function M.actions.copy_message(message_id)
   end)
 end
 
----@param state_obj OpencodeState
----@return string|nil
-local function find_next_message_for_redo(state_obj)
-  -- Redo anchor: find the revert timestamp first, then pick the first user message after that point.
-  -- If no later user message exists, caller falls back to unrevert_messages.
-  local active_session = state_obj.active_session
-  if not active_session then
-    return nil
+local function find_next_user_entry(observation, revert_message_id)
+  local observed = observation:read()
+  local index = entry_index(observation, revert_message_id)
+  if not index then
+    return nil, false
   end
-
-  local revert_time = 0
-  local revert = active_session.revert
-  if not revert then
-    return nil
-  end
-
-  for _, message in ipairs(state_obj.messages or {}) do
-    if message.info.id == revert.messageID then
-      revert_time = math.floor(message.info.time.created)
-      break
-    end
-    if revert.partID and revert.partID ~= '' then
-      for _, part in ipairs(message.parts) do
-        if part.id == revert.partID and part.state and part.state.time then
-          revert_time = math.floor(part.state.time.start)
-          break
-        end
-      end
+  for next_index = index + 1, #observed.entry_order do
+    local entry = observed.entries_by_id[observed.entry_order[next_index]]
+    if entry and entry.kind == 'user' then
+      return entry.id, true
     end
   end
-
-  for _, msg in ipairs(state_obj.messages or {}) do
-    if msg.info.role == 'user' and msg.info.time.created > revert_time then
-      return msg.info.id
-    end
-  end
-
-  return nil
+  return nil, true
 end
 
 function M.actions.redo()
-  return with_active_session('No active session to redo', function(state_obj)
-    local active_session = state_obj.active_session
-    ---@diagnostic disable-next-line: need-check-nil
-    if not active_session.revert or active_session.revert.messageID == '' then
+  return with_active_session('No active session to redo', function(_, observation, session_fact, connection, location)
+    if not session_fact.revert or session_fact.revert.messageID == '' then
       vim.notify('Nothing to redo', vim.log.levels.WARN)
       return
     end
 
-    if not state_obj.messages then
+    local next_message_id, found_boundary = find_next_user_entry(observation, session_fact.revert.messageID)
+    if not found_boundary then
+      vim.notify('Redo boundary is not loaded', vim.log.levels.WARN)
       return
     end
-
-    local next_message_id = find_next_message_for_redo(state_obj)
     if not next_message_id then
-      ---@diagnostic disable-next-line: need-check-nil
       run_api_action_with_checktime(
-        state_obj.api_client:unrevert_messages(active_session.id),
+        connection.operations.unrevert_messages(
+          connection,
+          session_fact.id,
+          location,
+          util.apply_path_map,
+          util.apply_reverse_path_map
+        ),
         'Failed to redo message: '
       )
       return
     end
 
     run_api_action_with_checktime(
-      ---@diagnostic disable-next-line: need-check-nil
-      state_obj.api_client:revert_message(active_session.id, {
-        messageID = next_message_id,
-      }),
+      connection.operations.revert_message(
+        connection,
+        session_fact.id,
+        location,
+        { messageID = next_message_id },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
       'Failed to redo message: '
     )
   end)
 end
 
 function M.actions.timeline()
-  local user_messages = {}
-  for _, msg in ipairs(state.messages or {}) do
-    local parts = msg.parts or {}
-    local is_summary = #parts == 1 and parts[1].synthetic == true
-    if msg.info.role == 'user' and not is_summary then
-      table.insert(user_messages, msg)
+  local observation = state.session.active_observation()
+  if not observation then
+    vim.notify('No active session', vim.log.levels.WARN)
+    return
+  end
+  local observed = observation:read()
+  local user_entries = {}
+  for _, id in ipairs(observed.entry_order) do
+    local entry = observed.entries_by_id[id]
+    local content = entry and entry.content or {}
+    local is_summary = #content == 1 and content[1].synthetic == true
+    if entry and entry.kind == 'user' and not is_summary then
+      table.insert(user_entries, entry)
     end
   end
 
-  if #user_messages == 0 then
+  if #user_entries == 0 then
     vim.notify('No user messages in the current session', vim.log.levels.WARN)
     return
   end
 
   local timeline_picker = require('opencode.ui.timeline_picker')
-  timeline_picker.pick(user_messages, function(selected_msg)
-    if selected_msg then
-      require('opencode.ui.navigation').goto_message_by_id(selected_msg.info.id)
+  timeline_picker.pick(user_entries, function(selected_entry)
+    if selected_entry then
+      require('opencode.ui.navigation').goto_message_by_id(selected_entry.id)
     end
   end)
 end
@@ -641,22 +659,23 @@ end
 ---@param message_id? string
 ---@param open_in_new_tab? boolean|string
 function M.actions.fork_session(message_id, open_in_new_tab)
-  return with_active_session('No active session to fork', function(state_obj)
-    local target = message_id and find_message_in_state(state_obj, message_id) or find_last_user_message(state_obj)
-    if not target then
-      vim.notify('No user message to fork from', vim.log.levels.WARN)
-      return
-    end
-    local message_to_fork = target.info.id
-    if not message_to_fork then
+  return with_active_session('No active session to fork', function(_, observation, session_fact, connection, location)
+    local target = message_id and find_entry(observation, message_id)
+      or find_last_user_entry(observation, session_fact)
+    if not target or target.kind ~= 'user' then
       vim.notify('No user message to fork from', vim.log.levels.WARN)
       return
     end
 
-    state_obj.api_client
-      :fork_session(state_obj.active_session.id, {
-        messageID = message_to_fork,
-      })
+    connection.operations
+      .fork_session(
+        connection,
+        session_fact.id,
+        location,
+        { messageID = target.id },
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      )
       :and_then(function(response)
         vim.schedule(function()
           if response and response.id then

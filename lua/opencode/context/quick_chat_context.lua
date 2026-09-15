@@ -116,7 +116,7 @@ end
 --- Unlike ChatContext, this outputs human-readable text instead of structured JSON
 ---@param prompt string The user's instruction/prompt
 ---@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig }
----@return table result { text: string, parts: OpencodeMessagePart[] }
+---@return table result { text: string, parts: table[] }
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
   local context_config = opts.context_config

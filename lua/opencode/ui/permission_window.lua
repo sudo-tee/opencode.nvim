@@ -1,7 +1,6 @@
 local state = require('opencode.state')
 local session_tabs = require('opencode.state.session_tabs')
 local Dialog = require('opencode.ui.dialog')
-local session_scope = require('opencode.ui.session_scope')
 local formatter_utils = require('opencode.ui.formatter.utils')
 
 local M = {}
@@ -11,6 +10,7 @@ M._permission_queue = {}
 M._dialog = nil
 M._processing = false
 M._interaction = nil
+M._observations = {}
 
 local function is_current_permission(permission_id)
   local permission = M._permission_queue[1]
@@ -61,63 +61,10 @@ local function clear_deny_timer(interaction)
   end
 end
 
----Get the tool identifiers from a permission (nested or root-level).
----@param permission OpencodePermission|nil
----@return string|nil call_id
----@return string|nil message_id
-local function get_tool_ids(permission)
-  if not permission then
-    return nil, nil
-  end
-  local tool = permission.tool
-  local call_id = (tool and tool.callID) or permission.callID
-  local message_id = (tool and tool.messageID) or permission.messageID
-  return call_id, message_id
-end
-
----Find the message part that corresponds to a permission request.
----@param permission OpencodePermission|nil
----@return OpencodeMessagePart|nil
-local function get_permission_part(permission)
-  local call_id, message_id = get_tool_ids(permission)
-  if not message_id or message_id == '' then
-    return nil
-  end
-
-  if state.messages then
-    for _, message in ipairs(state.messages) do
-      if message.info and message.info.id == message_id then
-        for _, part in ipairs(message.parts or {}) do
-          if call_id and call_id ~= '' then
-            if part.callID == call_id then
-              return part
-            end
-          else
-            return part
-          end
-        end
-      end
-    end
-  end
-
-  if permission and permission.sessionID and permission.sessionID ~= '' then
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    for _, part in ipairs(render_state:get_child_session_parts(permission.sessionID) or {}) do
-      if call_id and call_id ~= '' then
-        if part.callID == call_id then
-          return part
-        end
-      else
-        return part
-      end
-    end
-  end
-end
-
----@param permission OpencodePermission|nil
+---@param permission table|nil
 ---@return string|nil
 local function get_child_session_id(permission)
-  local session_id = permission and permission.sessionID
+  local session_id = permission and permission.session_id
   local active_session = state.active_session
   if not session_id or session_id == '' or (active_session and active_session.id == session_id) then
     return nil
@@ -127,30 +74,11 @@ local function get_child_session_id(permission)
   return render_state:get_task_part_by_child_session(session_id) and session_id or nil
 end
 
----Check whether a permission has already been resolved (completed, error, etc.)
----by inspecting the corresponding message part's status.
----@param permission OpencodePermission|nil
----@return boolean
-local function is_resolved_permission(permission)
-  local part = get_permission_part(permission)
-  if not part or not part.state then
-    return false
-  end
-
-  local part_status = part.state.status
-  return part_status ~= nil and part_status ~= '' and part_status ~= 'pending' and part_status ~= 'running'
-end
-
 ---Add permission to queue
----@param permission OpencodePermission
+---@param permission table
 function M.add_permission(permission)
   if not permission or not permission.id then
     return
-  end
-
-  if permission.tool then
-    permission._message_id = permission.tool.messageID
-    permission._call_id = permission.tool.callID
   end
 
   -- Update if exists, otherwise add
@@ -164,51 +92,6 @@ function M.add_permission(permission)
 
   table.insert(M._permission_queue, permission)
   M._setup_dialog()
-end
-
----Update permission from message part data
----@param permission_id string
----@param part OpencodeMessagePart
----@return boolean
-function M.update_permission_from_part(permission_id, part)
-  if not permission_id or not part then
-    return false
-  end
-
-  local permission = nil
-  for _, existing in ipairs(M._permission_queue) do
-    if existing.id == permission_id then
-      permission = existing
-      break
-    end
-  end
-
-  if not permission then
-    return false
-  end
-
-  if part.state and part.state.input then
-    local input = part.state.input
-    local updated = false
-
-    if input.description and input.description ~= '' then
-      permission._description = input.description
-      updated = true
-    end
-
-    if input.command and input.command ~= '' then
-      permission._command = input.command
-      updated = true
-    end
-
-    if updated and M._dialog then
-      M._setup_dialog()
-    end
-
-    return true
-  end
-
-  return false
 end
 
 ---Remove permission from queue
@@ -228,6 +111,7 @@ function M.remove_permission(permission_id)
       break
     end
   end
+  M._observations[permission_id] = nil
 
   if #M._permission_queue == 0 then
     M._clear_dialog()
@@ -235,11 +119,11 @@ function M.remove_permission(permission_id)
     M._setup_dialog() -- Setup dialog for next permission
   end
 
-  require('opencode.ui.renderer.events').render_permissions_display()
+  require('opencode.ui.renderer').refresh_prompts()
 end
 
 ---Get currently selected permission (always the first one now)
----@return OpencodePermission|nil
+---@return table|nil
 function M.get_current_permission()
   return M._permission_queue[1]
 end
@@ -265,16 +149,17 @@ function M.format_display(output)
   end
 
   local content = {}
-  local perm_type = permission.permission or permission.type or ''
+  local perm_type = permission.permission or permission.action or ''
+  local description = permission.message
+  local patterns = permission.patterns or permission.resources or {}
 
-  if permission._description and permission._description ~= '' then
-    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* ' .. permission._description)
-  elseif permission.title then
-    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* `' .. permission.title .. '`')
+  if description and description ~= '' then
+    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* ' .. description)
   else
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '*')
     table.insert(content, string.format('```%s', perm_type))
-    for _, pattern in ipairs(permission.patterns or {}) do
+    for _, pattern in ipairs(patterns) do
+      pattern = type(pattern) == 'string' and pattern or vim.inspect(pattern)
       for _, line in ipairs(vim.split(pattern, '\n')) do
         table.insert(content, line)
       end
@@ -283,15 +168,6 @@ function M.format_display(output)
   end
 
   table.insert(content, '')
-
-  if permission._command and permission._command ~= '' then
-    local lines = vim.split(permission._command, '\n')
-    table.insert(content, string.format('```%s', perm_type))
-    for _, line in ipairs(lines) do
-      table.insert(content, line)
-    end
-    table.insert(content, '```')
-  end
 
   local options = {
     { label = 'Allow once' },
@@ -303,26 +179,11 @@ function M.format_display(output)
   local legend_lines = interaction.deny_armed and { 'Release `Esc` to cancel, press again to deny' }
     or { 'Double `Esc` to deny and stop' }
 
-  local render_content = nil
-  if perm_type == 'edit' and permission.metadata and permission.metadata.diff then
-    render_content = function(out)
-      out:add_line(content[1])
-      if content[2] then
-        out:add_line(content[2])
-      end
-      out:add_line('')
-
-      local file_type = permission.metadata.filepath and vim.fn.fnamemodify(permission.metadata.filepath, ':e') or ''
-      formatter_utils.format_diff(out, permission.metadata.diff, file_type)
-    end
-  end
-
   M._dialog:format_dialog(output, {
     title = icons.get('warning') .. ' Permission Required' .. progress,
     title_hl = 'OpencodePermissionTitle',
     border_hl = 'OpencodePermissionBorder',
     content = content,
-    render_content = render_content,
     options = options,
     unfocused_message = 'Focus Opencode window to respond to permission',
     legend_lines = legend_lines,
@@ -339,6 +200,29 @@ function M.format_display(output)
       range = { from = dialog_start_line, to = math.max(dialog_start_line, output:get_line_count() - 1) },
     })
   end
+end
+
+---@param permission table
+---@param choice 'once'|'always'|'reject'
+---@param message? string
+function M.reply(permission, choice, message)
+  local observation = permission and M._observations[permission.id]
+  if not observation or not permission or permission.status ~= 'pending' then
+    error('permission request is not pending')
+  end
+  return observation
+    :reply_permission(permission.id, { choice = choice, message = message })
+    :and_then(function(result)
+      M.remove_permission(permission.id)
+      return result
+    end)
+    :catch(function(err)
+      M._processing = false
+      vim.schedule(function()
+        vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
+      end)
+      error(err, 0)
+    end)
 end
 
 function M._setup_dialog()
@@ -391,10 +275,9 @@ function M._setup_dialog()
       return
     end
 
-    local api = require('opencode.api')
-    local actions = { 'accept', 'deny', 'accept_all' }
-    local action = actions[index]
-    if not action then
+    local choices = { 'once', 'reject', 'always' }
+    local choice = choices[index]
+    if not choice then
       return
     end
 
@@ -405,7 +288,7 @@ function M._setup_dialog()
         return
       end
 
-      if action == 'deny' then
+      if choice == 'reject' then
         local pos = M._dialog and M._dialog:get_option_position(index)
         local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
         local output_win = state.windows and state.windows.output_win
@@ -426,8 +309,7 @@ function M._setup_dialog()
                 return
               end
               interaction.feedback = nil
-              api.permission_deny(permission, (text ~= '') and text or nil)
-              M.remove_permission(permission_id)
+              M.reply(permission, choice, (text ~= '') and text or nil)
             end,
             on_cancel = function()
               if M._interaction == interaction then
@@ -443,17 +325,13 @@ function M._setup_dialog()
           vim.notify('Cannot open permission feedback without an output window', vim.log.levels.ERROR)
         end
       else
-        local api_func = api['permission_' .. action]
-        if api_func then
-          api_func(permission)
-        end
-        M.remove_permission(permission_id)
+        M.reply(permission, choice)
       end
     end)
   end
 
   local function on_navigate()
-    require('opencode.ui.renderer.events').render_permissions_display()
+    require('opencode.ui.renderer').refresh_prompts()
   end
 
   local function get_option_count()
@@ -471,19 +349,18 @@ function M._setup_dialog()
       if interaction.deny_armed then
         clear_deny_timer(interaction)
         M._processing = true
-        require('opencode.api').permission_deny(current_permission, nil)
-        M.remove_permission(interaction.permission_id)
+        M.reply(current_permission, 'reject')
         return
       end
 
       interaction.deny_armed = true
-      require('opencode.ui.renderer.events').render_permissions_display()
+      require('opencode.ui.renderer').refresh_prompts()
       local timer
       timer = vim.defer_fn(function()
         if M._interaction == interaction and interaction.timer == timer then
           interaction.deny_armed = false
           interaction.timer = nil
-          require('opencode.ui.renderer.events').render_permissions_display()
+          require('opencode.ui.renderer').refresh_prompts()
         end
       end, 2000)
       interaction.timer = timer
@@ -516,51 +393,31 @@ function M._clear_dialog(preserve_interaction)
   end
 end
 
----Query the server for pending permissions and restore any that belong
----to the active session.  Mirrors question_window.restore_pending_question.
----@param session_id string|nil
-function M.restore_pending_permissions(session_id)
-  local Promise = require('opencode.promise')
-  if not state.api_client or not session_id or session_id == '' then
-    return Promise.new():resolve(nil)
+---@param observations table[]
+function M.sync(observations)
+  local pending = {}
+  local owners = {}
+  for _, observation in ipairs(observations or {}) do
+    for _, request in pairs(observation:read().permission_requests_by_id or {}) do
+      if request.status == 'pending' then
+        pending[#pending + 1] = request
+        owners[request.id] = observation
+      end
+    end
   end
-
-  return state.api_client
-    :list_permissions()
-    :and_then(function(permissions)
-      if not permissions or type(permissions) ~= 'table' then
-        return
-      end
-
-      local events = require('opencode.ui.renderer.events')
-
-      for _, permission in ipairs(permissions) do
-        if permission and permission.id then
-          if session_scope.belongs_to_session(permission, session_id) and not is_resolved_permission(permission) then
-            local runtime = session_tabs.find_by_session_id(session_id)
-            if runtime then
-              session_tabs.add_pending_permission(runtime.id, permission)
-            end
-            -- Check if already queued (avoid duplicate)
-            local already_queued = false
-            for _, existing in ipairs(M._permission_queue) do
-              if existing.id == permission.id then
-                already_queued = true
-                break
-              end
-            end
-            if not already_queued then
-              events.on_permission_updated(permission)
-            end
-          end
-        end
-      end
-    end)
-    :catch(function(err)
-      vim.schedule(function()
-        vim.notify('Failed to restore pending permissions: ' .. vim.inspect(err), vim.log.levels.WARN)
-      end)
-    end)
+  table.sort(pending, function(left, right)
+    if left.session_id ~= right.session_id then
+      return (left.session_id or '') < (right.session_id or '')
+    end
+    return left.id < right.id
+  end)
+  M._permission_queue = pending
+  M._observations = owners
+  if #pending == 0 then
+    M._clear_dialog()
+  else
+    M._setup_dialog()
+  end
 end
 
 ---Check if we have permissions
@@ -573,10 +430,11 @@ end
 function M.clear_all()
   M._clear_dialog()
   M._permission_queue = {}
+  M._observations = {}
 end
 
 ---Get all permissions
----@return OpencodePermission[]
+---@return table[]
 function M.get_all_permissions()
   return M._permission_queue
 end

@@ -60,7 +60,11 @@ describe('inline_input', function()
   local function change_text(input, text, expected_height)
     vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { text })
     vim.api.nvim_exec_autocmds('TextChangedI', { buffer = input.buf, modeline = false })
-    assert.is_true(vim.wait(100, function()
+    -- the resize runs through vim.schedule; under load (concurrent spec runs
+    -- on CI) it can exceed a short wait, so poll long and let the event loop
+    -- progress between checks.
+    assert.is_true(vim.wait(2000, function()
+      vim.cmd('mode')
       return vim.api.nvim_win_get_config(input.win).height == expected_height
     end))
   end

@@ -50,7 +50,7 @@ To capture new event data for testing:
 
 1. Set `capture_streamed_events = true` in your config
 2. Use OpenCode normally to generate the events you want to capture
-3. Call `:lua require('opencode.ui.debug_helper').save_captured_events('data.json')`
+3. Use `:lua require('opencode.ui.debug_helper').debug_session()` to inspect the active Observation.
 4. The captured events will be saved to `data.json` in the current directory
 5. That data can then be loaded with `:ReplayLoad`
 
@@ -59,4 +59,4 @@ To capture new event data for testing:
 - Watch the buffer updates in real-time with `:ReplayAll 500` (slower replay)
 - Use `:ReplayNext` to step through problematic events
 - Check `:messages` to see event notifications and any errors
-- Inspect `state.messages` with `:lua vim.print(require('opencode.state').messages)`
+- Inspect the active Observation with `:lua require('opencode.ui.debug_helper').debug_session()`

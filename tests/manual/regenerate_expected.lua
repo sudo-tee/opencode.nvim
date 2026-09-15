@@ -8,14 +8,13 @@ local M = {}
 
 local function wait_for_idle(timeout_ms)
   timeout_ms = timeout_ms or 5000
-
+  local ctx = require('opencode.ui.renderer.ctx')
+  local flush = require('opencode.ui.renderer.flush')
   return vim.wait(timeout_ms, function()
-    local emitter = state.event_manager and state.event_manager.throttling_emitter
-    if not emitter then
-      return true
+    if ctx:has_pending_work() then
+      flush.flush()
     end
-
-    return #emitter.queue == 0 and not emitter.drain_scheduled
+    return not ctx:has_pending_work()
   end, 10)
 end
 

@@ -16,6 +16,7 @@ M.context = {
 
 local cleared_selections = {}
 local cleared_selections_context = nil
+local set_file_sent_timestamps
 
 ---@param left OpencodeContextSelection|nil
 ---@param right OpencodeContextSelection|nil
@@ -33,12 +34,11 @@ end
 
 ---@param path string
 ---@param prompt? string
----@return OpencodeMessagePart
-local function format_file_part(path, prompt)
+---@return table
+local function capture_file(path, prompt)
   local rel_path = vim.fn.fnamemodify(path, ':~:.')
   local mention = '@' .. rel_path
-  local pos = prompt and prompt:find(mention)
-  pos = pos and pos - 1 or 0 -- convert to 0-based index
+  local pos = prompt and prompt:find(mention, 1, true)
 
   local ext = vim.fn.fnamemodify(path, ':e'):lower()
   local mime_type = 'text/plain'
@@ -52,41 +52,37 @@ local function format_file_part(path, prompt)
     mime_type = 'image/webp'
   end
 
-  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }
-  if prompt then
-    file_part.source = {
-      path = path,
-      type = 'file',
-      text = { start = pos, value = mention, ['end'] = pos + #mention },
-    }
+  local file = {
+    name = rel_path,
+    media_type = mime_type,
+    server_uri = 'file://' .. util.apply_path_map(path),
+  }
+  if pos then
+    file.mention = { start_byte = pos - 1, end_byte = pos - 1 + #mention }
   end
-  return file_part
+  return file
 end
 
 ---@param selection OpencodeContextSelection
----@return OpencodeMessagePart
-local function format_selection_part(selection)
+---@return table
+local function capture_selection(selection)
   local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
 
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'selection',
-    },
     text = vim.json.encode({
       context_type = 'selection',
       file = selection.file,
       content = string.format('`````%s\n%s\n`````', lang, selection.content),
       lines = selection.lines,
     }),
-    synthetic = true,
+    source = { kind = 'selection', file_name = selection.file and selection.file.name, range = selection.lines },
   }
 end
 
 ---@param diagnostics OpencodeDiagnostic[]
 ---@param range? { start_line: integer, end_line: integer }|nil
----@return OpencodeMessagePart
-local function format_diagnostics_part(diagnostics, range)
+---@return table
+local function capture_diagnostics(diagnostics, range)
   local diag_list = {}
   for _, diag in ipairs(diagnostics) do
     if not range or (diag.lnum >= range.start_line and diag.lnum <= range.end_line) then
@@ -98,27 +94,18 @@ local function format_diagnostics_part(diagnostics, range)
     end
   end
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'diagnostics',
-    },
     text = vim.json.encode({ context_type = 'diagnostics', content = diag_list }),
-    synthetic = true,
+    source = { kind = 'diagnostics' },
   }
 end
 
 ---@param cursor_data table
 ---@param get_current_buf fun(): integer|nil Function to get current buffer
----@return OpencodeMessagePart
-local function format_cursor_data_part(cursor_data, get_current_buf)
+---@return table
+local function capture_cursor_data(cursor_data, get_current_buf)
   local buf = (get_current_buf() or 0) --[[@as integer]]
   local lang = util.get_markdown_filetype(vim.api.nvim_buf_get_name(buf)) or ''
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'cursor-data',
-      lang = lang,
-    },
     text = vim.json.encode({
       context_type = 'cursor-data',
       line = cursor_data.line,
@@ -127,52 +114,40 @@ local function format_cursor_data_part(cursor_data, get_current_buf)
       lines_before = cursor_data.lines_before,
       lines_after = cursor_data.lines_after,
     }),
-    synthetic = true,
+    source = { kind = 'cursor' },
   }
 end
 
 ---@param agent string
 ---@param prompt string
----@return OpencodeMessagePart
-local function format_subagents_part(agent, prompt)
+---@return table
+local function capture_agent(agent, prompt)
   local mention = '@' .. agent
   local pos = prompt:find(mention)
-  pos = pos and pos - 1 or 0 -- convert to 0-based index
-
-  return {
-    type = 'agent',
-    name = agent,
-    source = { value = mention, start = pos, ['end'] = pos + #mention },
-  }
+  local result = { name = agent }
+  if pos then
+    result.mention = { start_byte = pos - 1, end_byte = pos - 1 + #mention }
+  end
+  return result
 end
 
 ---@param buf integer
----@return OpencodeMessagePart
-local function format_buffer_part(buf)
+---@return table
+local function capture_buffer(buf)
   local file = vim.api.nvim_buf_get_name(buf)
   local rel_path = vim.fn.fnamemodify(file, ':~:.')
   return {
-    type = 'text',
     text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n'),
-    metadata = {
-      context_type = 'file-content',
-      filename = rel_path,
-      mime = 'text/plain',
-    },
-    synthetic = true,
+    source = { kind = 'buffer', file_name = rel_path },
   }
 end
 
 ---@param diff_text string
----@return OpencodeMessagePart
-local function format_git_diff_part(diff_text)
+---@return table
+local function capture_git_diff(diff_text)
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'git-diff',
-    },
     text = diff_text,
-    synthetic = true,
+    source = { kind = 'git_diff' },
   }
 end
 
@@ -304,6 +279,39 @@ function M.unload_attachments(selections)
   cleared_selections_context = M.context
   M.context.mentioned_files = {}
   M.context.selections = {}
+  state.context.set_context_updated_at(vim.uv.now())
+end
+
+---@param sent OpencodeContext
+function M.consume_attachments(sent)
+  local function remove_values(current, consumed)
+    local result = {}
+    for _, value in ipairs(current or {}) do
+      if not vim.tbl_contains(consumed or {}, value) then
+        result[#result + 1] = value
+      end
+    end
+    return result
+  end
+
+  cleared_selections = vim.deepcopy(sent.selections or {})
+  cleared_selections_context = M.context
+  M.context.mentioned_files = remove_values(M.context.mentioned_files, sent.mentioned_files)
+  M.context.mentioned_subagents = remove_values(M.context.mentioned_subagents, sent.mentioned_subagents)
+  local remaining = {}
+  for _, selection in ipairs(M.context.selections or {}) do
+    local consumed = false
+    for _, sent_selection in ipairs(sent.selections or {}) do
+      consumed = consumed or is_same_selection(selection, sent_selection)
+    end
+    if not consumed then
+      remaining[#remaining + 1] = selection
+    end
+  end
+  M.context.selections = remaining
+  if is_same_selection({ file = M.context.current_file, lines = '' }, { file = sent.current_file, lines = '' }) then
+    set_file_sent_timestamps(M.context.current_file)
+  end
   state.context.set_context_updated_at(vim.uv.now())
 end
 
@@ -473,7 +481,7 @@ function M.load()
 end
 
 ---@param current_file table
-local function set_file_sent_timestamps(current_file)
+set_file_sent_timestamps = function(current_file)
   if not current_file then
     return
   end
@@ -529,29 +537,27 @@ function M.delta_context(opts)
   return ctx
 end
 
---- Formats context as structured message parts for the main chat interface
---- This is the main function that includes global state (mentioned files, selections, etc.)
+--- Capture the protocol-independent input for one submission.
 ---@param prompt string The user's instruction/prompt
 ---@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig }
----@return table result { parts: OpencodeMessagePart[] }
+---@return table
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
   local context_config = opts.context_config
   local buf, win = base_context.get_current_buf()
   local range = opts.range
-  local parts = {}
+  local captured = { text = prompt, context = {}, files = {}, agents = {} }
 
   for _, file_path in ipairs(M.context.mentioned_files or {}) do
-    table.insert(parts, format_file_part(file_path, prompt))
+    captured.files[#captured.files + 1] = capture_file(file_path, prompt)
   end
 
   for _, agent in ipairs(M.context.mentioned_subagents or {}) do
-    table.insert(parts, format_subagents_part(agent, prompt))
+    captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
   end
 
   if not buf then
-    table.insert(parts, { type = 'text', text = prompt })
-    return { parts = parts }
+    return captured
   end
 
   if
@@ -559,8 +565,7 @@ M.format_message = Promise.async(function(prompt, opts)
     and M.context.current_file
     and not M.context.current_file.sent_at
   then
-    table.insert(parts, format_file_part(M.context.current_file.path))
-    set_file_sent_timestamps(M.context.current_file)
+    captured.files[#captured.files + 1] = capture_file(M.context.current_file.path)
   end
 
   if base_context.is_context_enabled('selection', context_config) then
@@ -595,12 +600,12 @@ M.format_message = Promise.async(function(prompt, opts)
     end
 
     for _, sel in ipairs(selections) do
-      table.insert(parts, format_selection_part(sel))
+      captured.context[#captured.context + 1] = capture_selection(sel)
     end
   end
 
   if base_context.is_context_enabled('buffer', context_config) then
-    table.insert(parts, format_buffer_part(buf))
+    captured.context[#captured.context + 1] = capture_buffer(buf)
   end
 
   local diag_range = nil
@@ -609,15 +614,15 @@ M.format_message = Promise.async(function(prompt, opts)
   end
   local diagnostics = M.get_diagnostics(buf, context_config, diag_range)
   if diagnostics and #diagnostics > 0 then
-    table.insert(parts, format_diagnostics_part(diagnostics, diag_range))
+    captured.context[#captured.context + 1] = capture_diagnostics(diagnostics, diag_range)
   end
 
   if base_context.is_context_enabled('cursor_data', context_config) then
     local cursor_data = base_context.get_current_cursor_data(buf, win, context_config)
     if cursor_data then
       table.insert(
-        parts,
-        format_cursor_data_part(cursor_data, function()
+        captured.context,
+        capture_cursor_data(cursor_data, function()
           return buf
         end)
       )
@@ -627,13 +632,11 @@ M.format_message = Promise.async(function(prompt, opts)
   if base_context.is_context_enabled('git_diff', context_config) then
     local diff_text = base_context.get_git_diff(context_config):await()
     if diff_text and diff_text ~= '' then
-      table.insert(parts, format_git_diff_part(diff_text))
+      captured.context[#captured.context + 1] = capture_git_diff(diff_text)
     end
   end
 
-  table.insert(parts, { type = 'text', text = prompt })
-
-  return { parts = parts }
+  return captured
 end)
 
 return M

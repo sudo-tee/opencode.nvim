@@ -41,34 +41,26 @@ end
 
 describe('port_mapping', function()
   local original_kill_pid
-  local original_graceful_shutdown
   local original_getpid
   local original_uv_kill
   local kill_pid_calls
-  local graceful_calls
 
   before_each(function()
     os.remove(mappings_file())
 
     kill_pid_calls = {}
-    graceful_calls = {}
 
     original_kill_pid = OpencodeServer.kill_pid
-    original_graceful_shutdown = OpencodeServer.request_graceful_shutdown
     original_getpid = vim.fn.getpid
     original_uv_kill = vim.uv.kill
 
     OpencodeServer.kill_pid = function(pid)
       table.insert(kill_pid_calls, pid)
     end
-    OpencodeServer.request_graceful_shutdown = function(url)
-      table.insert(graceful_calls, url)
-    end
   end)
 
   after_each(function()
     OpencodeServer.kill_pid = original_kill_pid
-    OpencodeServer.request_graceful_shutdown = original_graceful_shutdown
     vim.fn.getpid = original_getpid
     vim.uv.kill = original_uv_kill
     os.remove(mappings_file())
@@ -88,21 +80,20 @@ describe('port_mapping', function()
   describe('register', function()
     it('creates a new mapping entry for a port', function()
       local real_pid = original_getpid()
-      port_mapping.register(9000, '/my/project', true, 'serve', 'http://127.0.0.1:9000', 55)
+      port_mapping.register(9000, '/my/project', 55, true)
 
       local m = read_mappings()
       assert.is_not_nil(m['9000'])
       assert.equals('/my/project', m['9000'].directory)
-      assert.is_true(m['9000'].started_by_nvim)
-      assert.equals('http://127.0.0.1:9000', m['9000'].url)
+      assert.is_true(m['9000'].release_process)
       assert.equals(55, m['9000'].server_pid)
       assert.equals(1, #m['9000'].nvim_pids)
       assert.equals(real_pid, m['9000'].nvim_pids[1].pid)
     end)
 
     it('does not duplicate the current pid when called twice', function()
-      port_mapping.register(9001, '/proj', true)
-      port_mapping.register(9001, '/proj', true)
+      port_mapping.register(9001, '/proj', nil, true)
+      port_mapping.register(9001, '/proj', nil, true)
 
       local m = read_mappings()
       assert.equals(1, #m['9001'].nvim_pids)
@@ -116,7 +107,7 @@ describe('port_mapping', function()
       make_pids_alive({ [real_pid] = true, [fake_pid] = true })
 
       -- Register the real nvim
-      port_mapping.register(9002, '/proj', true)
+      port_mapping.register(9002, '/proj', nil, true)
 
       -- Register as if a second nvim instance (fake_pid) wrote its entry directly
       local m = read_mappings()
@@ -126,7 +117,7 @@ describe('port_mapping', function()
       f:close()
 
       -- Re-register real nvim (should be idempotent and keep both pids alive)
-      port_mapping.register(9002, '/proj', true)
+      port_mapping.register(9002, '/proj', nil, true)
 
       m = read_mappings()
       assert.equals(2, #m['9002'].nvim_pids)
@@ -248,8 +239,9 @@ describe('port_mapping', function()
       local fake_server = {
         mode = 'serve',
         job = true,
-        shutdown = function()
+        release_process = function()
           shutdown_called = true
+          return true
         end,
       }
 
@@ -281,7 +273,33 @@ describe('port_mapping', function()
       port_mapping.unregister(6003, fake_server)
 
       assert.equals(0, #kill_pid_calls)
-      assert.equals(0, #graceful_calls)
+    end)
+
+    it('uses an explicit legacy service record over a conflicting started flag', function()
+      local real_pid = original_getpid()
+      write_mappings({
+        ['6004'] = {
+          directory = '/shared',
+          nvim_pids = { { pid = real_pid, directory = '/shared', mode = 'attach' } },
+          started_by_nvim = true,
+          ownership = 'service_attach',
+          auto_kill = true,
+          server_pid = 99,
+        },
+      })
+      local shutdown_called = false
+      local shared_server = {
+        release_process = function()
+          shutdown_called = true
+          return true
+        end,
+      }
+
+      port_mapping.unregister(6004, shared_server)
+
+      assert.is_false(shutdown_called)
+      assert.equals(0, #kill_pid_calls)
+      assert.is_nil(read_mappings()['6004'])
     end)
 
     it('does nothing when port is nil', function()
@@ -298,6 +316,7 @@ describe('port_mapping', function()
           nvim_pids = { { pid = 999998, directory = '/gone', mode = 'serve' } },
           started_by_nvim = true,
           auto_kill = true,
+          protocol = 'v1',
           server_pid = 44,
         },
       })
@@ -306,7 +325,22 @@ describe('port_mapping', function()
 
       assert.equals(1, #kill_pid_calls)
       assert.equals(44, kill_pid_calls[1])
-      assert.equals(1, #graceful_calls)
+    end)
+
+    it('releases a legacy mapping only by its recorded PID', function()
+      write_mappings({
+        ['5004'] = {
+          directory = '/unknown',
+          nvim_pids = { { pid = 999996, directory = '/unknown', mode = 'serve' } },
+          started_by_nvim = true,
+          auto_kill = true,
+          server_pid = 48,
+        },
+      })
+
+      port_mapping.find_port_for_directory('/unknown')
+
+      assert.same({ 48 }, kill_pid_calls)
     end)
 
     it('does not kill server when started_by_nvim is false', function()
@@ -323,7 +357,42 @@ describe('port_mapping', function()
       port_mapping.find_port_for_directory('/external')
 
       assert.equals(0, #kill_pid_calls)
-      assert.equals(0, #graceful_calls)
+    end)
+
+    it('does not kill explicit service ownership when legacy started_by_nvim is true', function()
+      write_mappings({
+        ['5005'] = {
+          directory = '/service',
+          nvim_pids = { { pid = 999995, directory = '/service', mode = 'attach' } },
+          started_by_nvim = true,
+          ownership = 'service_attach',
+          auto_kill = true,
+          protocol = 'v2',
+          server_pid = 49,
+        },
+      })
+
+      port_mapping.find_port_for_directory('/service')
+
+      assert.equals(0, #kill_pid_calls)
+    end)
+
+    it('does not kill a plugin server when auto_kill is false', function()
+      write_mappings({
+        ['5002'] = {
+          directory = '/shared',
+          nvim_pids = { { pid = 999997, directory = '/shared', mode = 'custom' } },
+          started_by_nvim = true,
+          auto_kill = false,
+          ownership = 'plugin_spawned',
+          protocol = 'v2',
+          server_pid = 46,
+        },
+      })
+
+      port_mapping.find_port_for_directory('/shared')
+
+      assert.equals(0, #kill_pid_calls)
     end)
   end)
 end)

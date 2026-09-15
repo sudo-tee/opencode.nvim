@@ -13,6 +13,43 @@ local stub = require('luassert.stub')
 local assert = require('luassert')
 
 describe('opencode.services.agent_model', function()
+  local original_server
+
+  local function set_observation(session, entries)
+    local observed = {
+      session = vim.deepcopy(session),
+      entry_order = {},
+      entries_by_id = {},
+    }
+    for _, entry in ipairs(entries or {}) do
+      observed.entry_order[#observed.entry_order + 1] = entry.id
+      observed.entries_by_id[entry.id] = entry
+    end
+    local observation = {
+      read = function()
+        return observed
+      end,
+    }
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return observation
+      end,
+    })
+    state.session.set_active(session)
+  end
+
+  before_each(function()
+    original_server = state.opencode_server
+  end)
+
+  after_each(function()
+    state.session.clear_active()
+    state.jobs.set_server(original_server)
+  end)
+
   it('sets current model from config file when mode has a model configured', function()
     local agents_promise = Promise.new()
     agents_promise:resolve({ 'plan', 'build', 'custom' })
@@ -33,8 +70,11 @@ describe('opencode.services.agent_model', function()
     state.store.set('current_model', nil)
     state.store.set('user_mode_model_map', {})
 
+    local original_server = state.opencode_server
+    state.jobs.set_server({ protocol = 'v1' })
     local promise = agent_model.switch_to_mode('custom')
     local success = promise:wait()
+    state.jobs.set_server(original_server)
 
     assert.is_true(success)
     assert.equal('custom', state.current_mode)
@@ -123,16 +163,6 @@ describe('opencode.services.agent_model', function()
   it('keeps the current user-selected model and mode by default', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
-    state.renderer.set_messages({
-      {
-        info = {
-          id = 'm1',
-          providerID = 'anthropic',
-          modelID = 'claude-3-opus',
-          mode = 'build',
-        },
-      },
-    })
 
     local model = agent_model.initialize_current_model():wait()
 
@@ -141,19 +171,30 @@ describe('opencode.services.agent_model', function()
     assert.equal('plan', state.current_mode)
   end)
 
+  it('uses the protocol model catalog default when config has no model', function()
+    state.model.clear()
+    stub(config_file, 'get_opencode_config').returns(Promise.new():resolve({}))
+    stub(config_file, 'get_opencode_providers').returns(Promise.new():resolve({
+      providers = {},
+      default = { anthropic = 'claude-sonnet' },
+    }))
+
+    assert.equal('anthropic/claude-sonnet', agent_model.initialize_current_model():wait())
+
+    config_file.get_opencode_config:revert()
+    config_file.get_opencode_providers:revert()
+  end)
+
   it('restores the latest session model and mode when explicitly requested', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('plan')
     stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
-
-    state.renderer.set_messages({
+    set_observation({ id = 'primary' }, {
       {
-        info = {
-          id = 'm1',
-          providerID = 'anthropic',
-          modelID = 'claude-3-opus',
-          mode = 'build',
-        },
+        id = 'm1',
+        kind = 'assistant',
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'build',
       },
     })
 
@@ -169,16 +210,12 @@ describe('opencode.services.agent_model', function()
   it('restores hidden mode from messages for child sessions', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('build')
-    state.session.set_active({ id = 'child', parentID = 'parent' })
-
-    state.renderer.set_messages({
+    set_observation({ id = 'child', parentID = 'parent' }, {
       {
-        info = {
-          id = 'm1',
-          providerID = 'anthropic',
-          modelID = 'claude-3-opus',
-          mode = 'hidden-xyz',
-        },
+        id = 'm1',
+        kind = 'assistant',
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'hidden-xyz',
       },
     })
 
@@ -187,26 +224,20 @@ describe('opencode.services.agent_model', function()
     assert.equal('anthropic/claude-3-opus', model)
     assert.equal('anthropic/claude-3-opus', state.current_model)
     assert.equal('hidden-xyz', state.current_mode)
-
-    state.session.clear_active()
   end)
 
   it('does not restore hidden mode from messages for primary sessions', function()
     state.model.set_model('openai/gpt-4.1')
     state.model.set_mode('build')
-    state.session.set_active({ id = 'primary' })
-    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
-
-    state.renderer.set_messages({
+    set_observation({ id = 'primary' }, {
       {
-        info = {
-          id = 'm1',
-          providerID = 'anthropic',
-          modelID = 'claude-3-opus',
-          mode = 'hidden-xyz',
-        },
+        id = 'm1',
+        kind = 'assistant',
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'hidden-xyz',
       },
     })
+    stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
     local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
 
@@ -215,23 +246,20 @@ describe('opencode.services.agent_model', function()
     assert.equal('build', state.current_mode)
 
     config_file.get_opencode_agents:revert()
-    state.session.clear_active()
   end)
 
   it('rejects switch_to_mode in child session', function()
-    state.session.set_active({ id = 'child1', parentID = 'parent1' })
+    set_observation({ id = 'child1', parentID = 'parent1' })
     state.model.set_mode('build')
 
     local success = agent_model.switch_to_mode('plan'):wait()
 
     assert.is_false(success)
     assert.equal('build', state.current_mode)
-
-    state.session.clear_active()
   end)
 
   it('allows switch_to_mode in parent session', function()
-    state.session.set_active({ id = 'parent1' })
+    set_observation({ id = 'parent1' })
     state.store.set('current_mode', nil)
     state.store.set('current_model', nil)
     state.store.set('user_mode_model_map', {})
@@ -246,6 +274,5 @@ describe('opencode.services.agent_model', function()
 
     config_file.get_opencode_agents:revert()
     config_file.get_opencode_config:revert()
-    state.session.clear_active()
   end)
 end)

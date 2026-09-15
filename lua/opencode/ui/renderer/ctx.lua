@@ -3,24 +3,22 @@ local RenderState = require('opencode.ui.render_state')
 ---Shared mutable context for the renderer modules.
 ---Single instance, shared via Lua's require cache.
 ---@class PermissionController
----@field get_all_permissions fun(): OpencodePermission[]
+---@field get_all_permissions fun(): table[]
 ---@field clear_all fun()
----@field restore_pending_permissions fun(session_id: string): Promise<any>
----@field add_permission fun(permission: OpencodePermission)
----@field remove_permission fun(permission_id: string)
----@field update_permission_from_part fun(permission_id: string, part: OpencodeMessagePart)
+---@field sync fun(observations: table[])
 
 ---@class QuestionController
 ---@field get_current_request fun(): OpencodeQuestionRequest|nil
 ---@field uses_vim_ui_select fun(request?: OpencodeQuestionRequest): boolean
 ---@field has_question fun(): boolean
----@field clear_question fun()
----@field show_question fun(request: OpencodeQuestionRequest)
----@field restore_pending_question fun(session_id: string): Promise<any>
----@field matches_active_question fun(request: table): boolean
+---@field clear_all fun()
+---@field sync fun(observations: table[])
 
 ---@class RendererCtx
 local ctx = {
+  observation = nil,
+  unsubscribe = nil,
+  entries = {},
   ---Controllers are registered by the entry layer during plugin setup.
   ---@type {permission?: PermissionController, question?: QuestionController}
   prompt_controllers = {},
@@ -60,6 +58,11 @@ local ctx = {
   ---@type integer|nil Number of messages to render from the end (nil = all)
   lazy_render_count = nil,
   generation = 0,
+  file_revision = 0,
+  ---@type fun(session_id: string): table[]?
+  get_child_parts = function()
+    return nil
+  end,
 }
 
 local CONTEXT_KEYS = {
@@ -99,6 +102,8 @@ function ctx:reset()
   self.symbol_refresh_cycle = nil
   self.global_folds = {}
   self.part_folds = {}
+  self.entries = {}
+  self.file_revision = 0
   self:bulk_reset()
 end
 
@@ -128,6 +133,14 @@ function ctx:restore(snapshot)
   self.bulk_mode = false
   self:bulk_reset()
   return true
+end
+
+---@param entry table
+---@param index integer
+---@return string
+function ctx.content_key(entry, index)
+  local content = entry.content[index]
+  return content.id or string.format('%s:content:%d', entry.id, index)
 end
 
 ---Reset the temporary bulk-render accumulators.

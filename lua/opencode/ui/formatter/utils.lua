@@ -4,15 +4,27 @@ local config = require('opencode.config')
 local M = {}
 
 ---Compute duration text for a tool part, returning nil when not applicable.
----@param part OpencodeMessagePart
+---@param part table
 ---@return string|nil
 function M.get_duration_text(part)
-  local status = part.state and part.state.status
+  local status = part.state
   if status == 'pending' then
     return nil
   end
-  local time = part.state and part.state.time or {}
-  return util.format_duration_seconds(time.start, time['end'])
+  local time = part.time or {}
+  return util.format_duration_seconds(time.started, time.completed)
+end
+
+---@param part table
+---@return string
+function M.tool_result_text(part)
+  local text = {}
+  for _, item in ipairs(part.result or {}) do
+    if item.kind == 'text' and type(item.text) == 'string' then
+      text[#text + 1] = item.text
+    end
+  end
+  return table.concat(text, '\n')
 end
 
 ---@param session_id string
@@ -205,7 +217,7 @@ function M.format_diff(output, code, file_type, source_path)
   output:add_line('`````')
 end
 ---Calculate statistics for reverted messages and tool calls
----@param messages {info: MessageInfo, parts: OpencodeMessagePart[]}[] All messages in the session
+---@param messages table[] All entries in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo|nil Revert information
 ---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
@@ -218,12 +230,12 @@ function M.calculate_revert_stats(messages, revert_index, revert_info)
 
   for i = revert_index, #messages do
     local msg = messages[i]
-    if msg and msg.info and msg.info.role == 'user' then
+    if msg and msg.kind == 'user' then
       stats.messages = stats.messages + 1
     end
-    if msg and msg.parts then
-      for _, part in ipairs(msg.parts) do
-        if part.type == 'tool' then
+    if msg and msg.content then
+      for _, part in ipairs(msg.content) do
+        if part.kind == 'tool' then
           stats.tool_calls = stats.tool_calls + 1
         end
       end

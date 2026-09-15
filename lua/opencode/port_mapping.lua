@@ -1,6 +1,4 @@
 local log = require('opencode.log')
-local config = require('opencode.config')
-local util = require('opencode.util')
 local OpencodeServer = require('opencode.opencode_server')
 
 local M = {}
@@ -11,15 +9,14 @@ local SIG_PID_EXISTS = 0
 --- @class PortMappingEntry
 --- @field pid number
 --- @field directory string
---- @field mode string
 
 --- @class PortMapping
 --- @field directory string
 --- @field nvim_pids PortMappingEntry[]
 --- @field auto_kill boolean
 --- @field started_by_nvim boolean
---- @field url string|nil The URL the opencode server is listening on
 --- @field server_pid number|nil The PID of the opencode server process (local servers only)
+--- @field release_process boolean|nil Whether the last registered client may release server_pid
 
 --- @return string
 local function file_path()
@@ -56,23 +53,22 @@ local function pid_alive(entry)
   return vim.fn.getpid() == entry.pid or vim.uv.kill(entry.pid, SIG_PID_EXISTS) == 0
 end
 
---- Fire-and-forget graceful shutdown request to a server with no clients.
---- Also force-kills the process if server_pid is available.
---- @param port number
---- @param server_pid number|nil
-local function kill_orphaned_server(port, server_pid)
-  local server_url = config.server.url or '127.0.0.1'
-  local normalized_url = util.normalize_url_protocol(server_url)
-  local base_url = string.format('%s:%d', normalized_url, port)
+local function can_release(mapping)
+  if mapping.release_process ~= nil then
+    return mapping.release_process
+  end
+  if mapping.ownership ~= nil then
+    return mapping.ownership == 'plugin_spawned' and mapping.auto_kill ~= false
+  end
+  return mapping.started_by_nvim == true and mapping.auto_kill ~= false
+end
 
-  log.info('port_mapping: sending shutdown to orphaned server at %s (server_pid=%s)', base_url, tostring(server_pid))
-
-  OpencodeServer.request_graceful_shutdown(base_url)
-
+---@param server_pid number|nil
+local function kill_orphaned_server(server_pid)
   if server_pid then
     OpencodeServer.kill_pid(server_pid)
   else
-    log.debug('port_mapping: no server PID available, relying on graceful shutdown only')
+    log.debug('port_mapping: no server PID available for orphaned private server')
   end
 end
 
@@ -93,11 +89,12 @@ local function clean_stale()
 
     if #mapping.nvim_pids == 0 then
       local port = tonumber(port_key)
-      if port and mapping.started_by_nvim then
-        kill_orphaned_server(port, mapping.server_pid)
+      if port and can_release(mapping) then
+        kill_orphaned_server(mapping.server_pid)
       end
       log.debug('port_mapping: removing port %s (no connected clients)', port_key)
       mappings[port_key] = nil
+      changed = true
     end
   end
 
@@ -137,38 +134,26 @@ end
 --- Record that this nvim instance is using the given port.
 --- @param port number
 --- @param directory string
---- @param started_by_nvim boolean
---- @param mode? string 'serve'|'attach'|'custom'
---- @param url? string The URL the server is listening on
 --- @param server_pid? number The PID of the server process (local servers only)
-function M.register(port, directory, started_by_nvim, mode, url, server_pid)
-  mode = mode or 'serve'
+--- @param release_process boolean Whether the last client may release the process
+function M.register(port, directory, server_pid, release_process)
   clean_stale()
 
   local mappings = load()
   local port_key = tostring(port)
   local current_pid = vim.fn.getpid()
-  local auto_kill = config.server.auto_kill
-
   if not mappings[port_key] then
     mappings[port_key] = {
       directory = directory,
       nvim_pids = {},
-      auto_kill = auto_kill,
-      started_by_nvim = started_by_nvim,
+      release_process = release_process == true,
     }
   end
 
   local mapping = mappings[port_key]
   mapping.nvim_pids = mapping.nvim_pids or {}
-  if mapping.auto_kill == nil then
-    mapping.auto_kill = auto_kill
-  end
-  if mapping.started_by_nvim == nil then
-    mapping.started_by_nvim = started_by_nvim
-  end
-  if url then
-    mapping.url = url
+  if release_process then
+    mapping.release_process = true
   end
   -- Only update server_pid if provided (don't overwrite existing PID with nil)
   if server_pid then
@@ -186,31 +171,28 @@ function M.register(port, directory, started_by_nvim, mode, url, server_pid)
   mapping.nvim_pids = updated
 
   if not pid_exists then
-    table.insert(mapping.nvim_pids, { pid = current_pid, directory = directory, mode = mode })
+    table.insert(mapping.nvim_pids, { pid = current_pid, directory = directory })
   end
 
   save(mappings)
   log.debug(
-    'port_mapping.register: port=%d dir=%s pid=%d mode=%s started_by_nvim=%s auto_kill=%s url=%s server_pid=%s',
+    'port_mapping.register: port=%d dir=%s pid=%d release_process=%s server_pid=%s',
     port,
     directory,
     current_pid,
-    mode,
-    tostring(started_by_nvim),
-    tostring(auto_kill),
-    tostring(url),
+    tostring(can_release(mapping)),
     tostring(server_pid)
   )
 end
 
 --- Remove this nvim instance from a port's client list.
 --- Shuts the server down when it was the last client and auto_kill is set.
---- Also shuts down attach-mode processes unconditionally.
 --- @param port number|nil
 --- @param server OpencodeServer instance (state.opencode_server)
+--- @return boolean handled Whether a mapping governed the release decision
 function M.unregister(port, server)
   if not port then
-    return
+    return false
   end
 
   clean_stale()
@@ -218,7 +200,7 @@ function M.unregister(port, server)
   local port_key = tostring(port)
   local mapping = mappings[port_key]
   if not mapping then
-    return
+    return false
   end
 
   local current_pid = vim.fn.getpid()
@@ -230,50 +212,35 @@ function M.unregister(port, server)
   end
   mapping.nvim_pids = remaining
 
-  local should_shutdown = #remaining == 0 and mapping.started_by_nvim and mapping.auto_kill
-
-  if server then
-    local is_last_client = #remaining == 0 and mapping.started_by_nvim
-    if server.mode == 'attach' then
-      if is_last_client then
-        log.debug('port_mapping.unregister: last attached client for port %d, killing server', port)
-        if mapping.server_pid then
-          kill_orphaned_server(port, mapping.server_pid)
-        end
-      end
-    elseif is_last_client then
-      local auto_kill_custom_server = config.server.auto_kill and config.server.kill_command
-      local server_is_owned = server.job
-      log.debug(
-        'port_mapping.unregister: last nvim instance for port %d, killing orphaned server',
-        port,
-        tostring(server_is_owned),
-        tostring(auto_kill_custom_server)
-      )
-      if auto_kill_custom_server or server_is_owned then
-        server:shutdown()
-      end
+  if #remaining == 0 and can_release(mapping) then
+    if server then
+      server:release_process()
+    else
+      kill_orphaned_server(mapping.server_pid)
     end
-  elseif should_shutdown then
-    log.debug('port_mapping.unregister: no server object, killing orphaned server for port %d', port)
-    kill_orphaned_server(port, mapping.server_pid)
   end
 
-  if should_shutdown then
+  if #remaining == 0 then
     mappings[port_key] = nil
   else
     log.debug('port_mapping.unregister: port=%d still has %d client(s)', port, #remaining)
   end
 
   save(mappings)
+  return true
 end
 
---- Return the started_by_nvim flag for a port, or false if unknown.
---- @param port number
---- @return boolean
-function M.started_by_nvim(port)
+---@param port number
+---@return (fun())|nil
+function M.capture_process_release(port)
   local mapping = load()[tostring(port)]
-  return mapping and mapping.started_by_nvim or false
+  if not mapping or not can_release(mapping) or not mapping.server_pid then
+    return nil
+  end
+  local server_pid = mapping.server_pid
+  return function()
+    OpencodeServer.kill_pid(server_pid)
+  end
 end
 
 --- Find any existing server port (regardless of directory)

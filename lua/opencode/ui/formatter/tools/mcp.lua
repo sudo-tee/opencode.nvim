@@ -35,9 +35,9 @@ local function find_content_field(input)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  local tool_name = part.tool
+  local tool_name = part.name
   if not tool_name then
     return
   end
@@ -47,7 +47,7 @@ function M.format(output, part)
     return
   end
 
-  local input = part.state and part.state.input
+  local input = part.input
   if type(input) ~= 'table' then
     input = {}
   end
@@ -97,10 +97,11 @@ function M.format(output, part)
   end
 end
 
----@param _ OpencodeMessagePart
+---@param _ table
 ---@param input table
 ---@return string, string, string
-function M.summary(_, input)
+function M.summary(part)
+  local input = part.input
   return icons.get('tool'), 'mcp', (input and (input.query or input.url)) or ''
 end
 

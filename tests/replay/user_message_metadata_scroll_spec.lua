@@ -5,18 +5,9 @@ local output_window = require('opencode.ui.output_window')
 
 local fixture_path = 'tests/data/user-message-metadata-update.json'
 
-local function wait_for_replay_queue()
-  local ok = vim.wait(1000, function()
-    local emitter = state.event_manager and state.event_manager.throttling_emitter
-    return emitter and vim.tbl_isempty(emitter.queue)
-  end)
-
-  assert.is_true(ok, 'Timed out waiting for replay queue to drain')
-end
-
 local function replay_event(event)
   helpers.replay_event(event)
-  wait_for_replay_queue()
+  require('opencode.ui.renderer.flush').flush()
 end
 
 local function capture_window()
@@ -31,10 +22,6 @@ local function format_window(window)
     vim.inspect(window.line_count),
     vim.inspect(window.effective_bottom)
   )
-end
-
-local function is_at_effective_bottom(window)
-  return window.visible_bottom == window.effective_bottom and window.cursor[1] == window.effective_bottom
 end
 
 local function move_output_away_from_bottom()
@@ -65,13 +52,6 @@ local function assert_preserved_user_away(update_kind, before, actual)
       .. format_window(before)
       .. ', actual '
       .. format_window(actual)
-  )
-end
-
-local function assert_followed_bottom(actual)
-  assert.is_true(
-    is_at_effective_bottom(actual),
-    'Expected new user message submit-follow to reach bottom; actual ' .. format_window(actual)
   )
 end
 
@@ -143,23 +123,4 @@ describe('replay user message metadata scroll behavior', function()
     assert_preserved_user_away_after_growth(before, capture_window())
   end)
 
-  it('keeps submit-follow for locally submitted new user messages', function()
-    local events = helpers.load_test_data(fixture_path)
-    local session = helpers.get_session_from_events(events)
-    state.session.set_active(session)
-
-    replay_event(events[1])
-    replay_event(events[2])
-    move_output_away_from_bottom()
-
-    state.session.set_user_message_count({ [session.id] = 1 })
-
-    local new_user_message = vim.deepcopy(events[1])
-    new_user_message.properties.info.id = 'msg_user_metadata_update_new'
-    new_user_message.properties.info.time.created = 1700000000001
-
-    replay_event(new_user_message)
-
-    assert_followed_bottom(capture_window())
-  end)
 end)

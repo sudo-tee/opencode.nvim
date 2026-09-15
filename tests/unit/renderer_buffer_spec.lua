@@ -50,7 +50,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('reapplies extmarks on the first changed line when updating a part', function()
-    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 10, 11)
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
 
     buffer.upsert_part_now('part_1', 'msg_1', {
       lines = { 'alpha', 'gamma' },
@@ -76,7 +76,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('reapplies extmarks at the correct line after unchanged leading lines', function()
-    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 20, 24)
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 20, 24)
 
     buffer.upsert_part_now('part_1', 'msg_1', {
       lines = { 'title', '', 'question', '    1. One', '    2. Two ' },
@@ -106,7 +106,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('clears extmarks before rewriting a message', function()
-    ctx.render_state:set_message({ info = { id = 'msg_1' } }, 30, 31)
+    ctx.render_state:set_message({ id = 'msg_1', kind = 'assistant' }, 30, 31)
 
     buffer.upsert_message_now('msg_1', {
       lines = { 'alpha', '' },
@@ -127,7 +127,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('only clears and reapplies appended extmarks during append-only updates', function()
-    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 10, 11)
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
     ctx.formatted_parts['part_1'] = {
       lines = { 'alpha', 'beta', 'gamma' },
       extmarks = {
@@ -160,7 +160,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('replaces rendered targets with line offset when updating a part', function()
-    ctx.render_state:set_part({ id = 'part_1', messageID = 'msg_1', type = 'text' }, 10, 10)
+    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 10)
     ctx.render_state:add_targets('part_1', {
       {
         kind = 'file',
@@ -217,7 +217,7 @@ describe('update_part_folds', function()
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
 
@@ -231,7 +231,7 @@ describe('update_part_folds', function()
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
     set_folds_stub:clear()
@@ -246,13 +246,13 @@ describe('update_part_folds', function()
       lines = { 'other' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_b', messageID = 'msg_b', type = 'text' }, 5, 8)
+    ctx.render_state:set_part({ id = 'part_b', kind = 'text' }, 'msg_b', 'part_b', 5, 8)
 
     ctx.formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', messageID = 'msg_1', type = 'text' }, 10, 14)
+    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
 

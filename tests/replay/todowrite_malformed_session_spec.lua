@@ -34,10 +34,12 @@ describe('replay malformed todowrite session fixture', function()
     end
     assert.is_true(malformed_found)
 
-    state.session.set_active({ id = session_data[1].info.sessionID })
+    local session = { id = session_data[1].info.sessionID, location = { directory = helpers.MOCK_CWD } }
+    state.session.set_active(session)
+    local entries = helpers.map_v1_messages(session_data, session)
 
     local ok, err = pcall(function()
-      renderer._render_full_session_data(session_data)
+      renderer._render_full_session_data(entries)
     end)
 
     assert.is_true(ok, tostring(err))

@@ -1,12 +1,19 @@
 local OpencodeServer = require('opencode.opencode_server')
 local curl = require('opencode.curl')
 local assert = require('luassert')
+local port_mapping = require('opencode.port_mapping')
+
+local function set_identity(server, version, pid)
+  server.version = version
+  server.server_identity = { version = version, pid = pid }
+end
 
 describe('opencode.opencode_server', function()
   local original_system
   local original_curl_request
   local original_kill
   local original_get_children
+  local original_unregister
   before_each(function()
     original_kill = vim.uv.kill
     original_get_children = vim.api.nvim_get_proc_children
@@ -19,17 +26,20 @@ describe('opencode.opencode_server', function()
     end
     original_system = vim.system
     original_curl_request = curl.request
+    original_unregister = port_mapping.unregister
   end)
   after_each(function()
     vim.uv.kill = original_kill
     vim.api.nvim_get_proc_children = original_get_children
     vim.system = original_system
     curl.request = original_curl_request
+    port_mapping.unregister = original_unregister
   end)
   -- Tests for server lifecycle behavior
 
   it('creates a new server object', function()
     local server = OpencodeServer.new()
+    server.credential = { username = 'admin', password = 'secret' }
     assert.is_table(server)
     assert.is_nil(server.job)
     assert.is_nil(server.url)
@@ -64,7 +74,6 @@ describe('opencode.opencode_server', function()
   it('spawn passes auth env vars to vim.system when password is configured', function()
     local config = require('opencode.config')
     local auth = require('opencode.auth')
-    auth.clear_cache()
     local original_password = config.values.server.password
     local original_username = config.values.server.username
     config.values.server.password = 'secret'
@@ -80,6 +89,7 @@ describe('opencode.opencode_server', function()
     end
 
     local server = OpencodeServer.new()
+    server.credential = { username = 'admin', password = 'secret' }
     server:spawn({
       cwd = '.',
       on_ready = function() end,
@@ -103,7 +113,6 @@ describe('opencode.opencode_server', function()
   it('spawn passes empty env when no password is configured', function()
     local config = require('opencode.config')
     local auth = require('opencode.auth')
-    auth.clear_cache()
     local original_password = config.values.server.password
     local original_env_password = vim.env.OPENCODE_SERVER_PASSWORD
     local original_env_username = vim.env.OPENCODE_SERVER_USERNAME
@@ -272,7 +281,7 @@ describe('opencode.opencode_server', function()
     assert.is_false(called.on_error)
   end)
 
-  it('rejects startup if the process exits before reporting the server URL', function()
+  it('reports startup failure if the process exits before reporting the server URL', function()
     local called = { on_error = nil, on_exit = false }
     local server = OpencodeServer.new()
 
@@ -285,7 +294,7 @@ describe('opencode.opencode_server', function()
       return { pid = 46, kill = function() end }
     end
 
-    local promise = server:spawn({
+    server:spawn({
       cwd = '.',
       on_ready = function()
         called.on_ready = true
@@ -298,17 +307,14 @@ describe('opencode.opencode_server', function()
       end,
     })
 
-    local ok, err = pcall(function()
-      promise:wait(100)
+    vim.wait(100, function()
+      return called.on_exit
     end)
-
-    assert.is_false(ok)
-    assert.truthy(tostring(err):match('Database migration failed'))
     assert.truthy(tostring(called.on_error):match('Database migration failed'))
     assert.is_true(called.on_exit)
   end)
 
-  it('calls on_exit and clears fields when process exits', function()
+  it('calls on_exit and preserves connection identity when process exits', function()
     local called = { on_exit = false }
     local opts_captured = {}
     vim.system = function(cmd, opts, on_exit)
@@ -338,7 +344,11 @@ describe('opencode.opencode_server', function()
     local server = OpencodeServer.new()
     server.job = { pid = 44 }
     server.url = 'http://localhost:5678'
+    server.port = 5678
     server.handle = 44
+    server.protocol = 'v2'
+    set_identity(server, '2.0.1', 44)
+    server.credential = { username = 'opencode', password = 'secret' }
     server:spawn({
       cwd = '.',
       on_ready = function() end,
@@ -348,6 +358,18 @@ describe('opencode.opencode_server', function()
         assert.equals(0, exit_opts.code)
       end,
     })
+    server:mark_ready()
+    local stream_closed = false
+    server:set_stream({
+      shutdown = function()
+        stream_closed = true
+      end,
+    })
+    local unregistered
+    port_mapping.unregister = function(port, connection)
+      unregistered = { port = port, connection = connection }
+      return true
+    end
     -- Simulate exit after job is set
     server.job.exit(0, 0)
     vim.wait(100, function()
@@ -355,8 +377,15 @@ describe('opencode.opencode_server', function()
     end)
     assert.is_true(called.on_exit)
     assert.is_nil(server.job)
-    assert.is_nil(server.url)
+    assert.equals('http://localhost:5678', server.url)
+    assert.equals('v2', server.protocol)
+    assert.equals('2.0.1', server.version)
+    assert.same({ username = 'opencode', password = 'secret' }, server.credential)
+    assert.is_true(stream_closed)
+    assert.same({ port = 5678, connection = server }, unregistered)
+    assert.is_false(server:is_ready())
     assert.is_nil(server.handle)
+    assert.is_true(server:get_shutdown_promise():is_resolved())
   end)
 
   describe('custom server support', function()
@@ -366,48 +395,98 @@ describe('opencode.opencode_server', function()
       assert.is_nil(server.job) -- No local job
       assert.equals('http://192.168.1.100:8080', server.url)
       assert.is_nil(server.handle)
-
-      -- Spawn promise should already be resolved
-      local resolved = false
-      server:get_spawn_promise():and_then(function()
-        resolved = true
-      end)
-      vim.wait(10, function()
-        return resolved
-      end)
-      assert.is_true(resolved)
     end)
 
-    it('is_running returns true for custom server with URL', function()
+    it('becomes ready only after the custom connection is published', function()
       local server = OpencodeServer.from_custom('http://localhost:8080')
-      assert.is_true(server:is_running())
+      assert.is_false(server:is_ready())
+      server.protocol = 'v1'
+      set_identity(server, '1.18.30')
+      server.credential = { username = 'opencode' }
+      server:mark_ready()
+      assert.is_true(server:is_ready())
     end)
 
-    it('is_running returns false for custom server without URL', function()
+    it('close releases SSE and rejects a later stream for an attached server', function()
       local server = OpencodeServer.from_custom('http://localhost:8080')
-      server.url = nil
-      assert.is_false(server:is_running())
-    end)
+      server.protocol = 'v2'
+      set_identity(server, '2.0.1')
+      server.credential = { username = 'opencode', password = 'secret' }
+      server:mark_ready()
+      local io_closed = false
+      server:set_stream({
+        shutdown = function()
+          io_closed = true
+        end,
+      })
 
-    it('shutdown clears custom server without killing process', function()
-      local server = OpencodeServer.from_custom('http://localhost:8080')
-      local resolved = false
-
-      server:get_shutdown_promise():and_then(function()
-        resolved = true
-      end)
-
-      server:shutdown()
-
-      vim.wait(10, function()
-        return resolved
-      end)
-
-      assert.is_true(resolved)
-      assert.is_nil(server.url)
+      assert.is_true(server:close():wait())
+      assert.is_true(io_closed)
+      assert.is_true(server:get_shutdown_promise():is_resolved())
+      assert.equals('http://localhost:8080', server.url)
+      assert.is_false(server:is_ready())
       assert.is_nil(server.handle)
-      assert.is_nil(server.job) -- Should remain nil, no process was killed
+      assert.is_nil(server.job)
+      local late_closed = false
+      assert.is_false(pcall(function()
+        server:set_stream({
+          shutdown = function()
+            late_closed = true
+          end,
+        })
+      end))
+      assert.is_true(late_closed)
     end)
+  end)
+
+  it('rejects a changed server identity without mutating the ready connection', function()
+    local server = OpencodeServer.from_custom('http://localhost:8080')
+    server.protocol = 'v2'
+    set_identity(server, '2.0.1')
+    server.credential = { username = 'opencode', password = 'secret' }
+    server:mark_ready()
+    curl.request = function(opts)
+      vim.schedule(function()
+        opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.2"}' })
+      end)
+    end
+
+    local ok, err = pcall(function()
+      server:check_health():wait()
+    end)
+
+    assert.is_false(ok)
+    assert.equals('identity_changed', err.kind)
+    assert.equals('v2', server.protocol)
+    assert.equals('2.0.1', server.version)
+    assert.equals('http://localhost:8080', server.url)
+    assert.is_true(server:is_ready())
+  end)
+
+  it('runs the acquired process release once without clearing connection identity', function()
+    local killed = {}
+    vim.uv.kill = function(pid, signal)
+      killed[#killed + 1] = { pid = pid, signal = signal }
+      return 0
+    end
+    local server = OpencodeServer.from_custom('http://localhost:8080')
+    server.protocol = 'v2'
+    set_identity(server, '2.0.1', 43210)
+    server.credential = { username = 'opencode', password = 'secret' }
+    server.custom_pid = 43210
+    server:set_process_release(function()
+      OpencodeServer.kill_pid(43210)
+    end)
+    server:mark_ready()
+
+    assert.is_true(server:close():wait())
+    assert.is_true(server:close():wait())
+
+    assert.same({ { pid = 43210, signal = 15 }, { pid = 43210, signal = 9 } }, killed)
+    assert.equals('http://localhost:8080', server.url)
+    assert.equals('v2', server.protocol)
+    assert.equals('2.0.1', server.version)
+    assert.is_false(server:is_ready())
   end)
 
   describe('kill_pid', function()
@@ -461,33 +540,6 @@ describe('opencode.opencode_server', function()
     end)
   end)
 
-  describe('request_graceful_shutdown', function()
-    it('POSTs to /global/shutdown on the given base URL', function()
-      local captured
-      curl.request = function(opts)
-        captured = opts
-      end
-
-      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
-
-      assert.is_not_nil(captured)
-      assert.equals('http://127.0.0.1:3000/global/shutdown', captured.url)
-      assert.equals('POST', captured.method)
-    end)
-
-    it('sets a short timeout and empty proxy', function()
-      local captured
-      curl.request = function(opts)
-        captured = opts
-      end
-
-      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
-
-      assert.equals(1000, captured.timeout)
-      assert.equals('', captured.proxy)
-    end)
-  end)
-
   describe('authentication headers', function()
     local config
     local auth = require('opencode.auth')
@@ -497,7 +549,6 @@ describe('opencode.opencode_server', function()
     local original_env_username
 
     before_each(function()
-      auth.clear_cache()
       config = require('opencode.config')
       original_password = config.values.server.password
       original_username = config.values.server.username
@@ -524,53 +575,31 @@ describe('opencode.opencode_server', function()
       end
     end)
 
-    it('health_check includes Authorization header when password is set', function()
+    it('connection probe includes Authorization header when password is set', function()
       config.values.server.password = 'secret'
       local captured
       curl.request = function(opts)
         captured = opts
       end
 
-      OpencodeServer.health_check('http://127.0.0.1:3000/global/health', 2000)
+      local server = OpencodeServer.from_custom('http://127.0.0.1:3000')
+      server.credential = { username = 'opencode', password = 'secret' }
+      server:probe_connection(2000)
 
       assert.is_not_nil(captured)
       assert.is_not_nil(captured.headers)
       assert.truthy(vim.startswith(captured.headers['Authorization'], 'Basic '))
     end)
 
-    it('health_check does not include Authorization header when no password', function()
+    it('connection probe does not include Authorization header when no password', function()
       local captured
       curl.request = function(opts)
         captured = opts
       end
 
-      OpencodeServer.health_check('http://127.0.0.1:3000/global/health', 2000)
-
-      assert.is_not_nil(captured)
-      assert.is_nil(captured.headers['Authorization'])
-    end)
-
-    it('request_graceful_shutdown includes Authorization header when password is set', function()
-      config.values.server.password = 'secret'
-      local captured
-      curl.request = function(opts)
-        captured = opts
-      end
-
-      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
-
-      assert.is_not_nil(captured)
-      assert.is_not_nil(captured.headers)
-      assert.truthy(vim.startswith(captured.headers['Authorization'], 'Basic '))
-    end)
-
-    it('request_graceful_shutdown does not include Authorization header when no password', function()
-      local captured
-      curl.request = function(opts)
-        captured = opts
-      end
-
-      OpencodeServer.request_graceful_shutdown('http://127.0.0.1:3000')
+      local server = OpencodeServer.from_custom('http://127.0.0.1:3000')
+      server.credential = { username = 'opencode' }
+      server:probe_connection(2000)
 
       assert.is_not_nil(captured)
       assert.is_nil(captured.headers['Authorization'])

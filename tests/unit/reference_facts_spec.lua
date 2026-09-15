@@ -6,11 +6,17 @@ describe('opencode.ui.reference_facts', function()
   local original_fn
   local original_api
 
-  local function assistant_message(id, session_id, parts)
+  local function assistant_message(id, session_id, content)
     return {
-      info = { id = id, role = 'assistant', sessionID = session_id },
-      parts = parts or {},
+      id = id,
+      kind = 'assistant',
+      session_id = session_id,
+      content = content or {},
     }
+  end
+
+  local function rebuild(messages)
+    reference_facts.rebuild('ses_1', messages, { directory = '/repo' })
   end
 
   before_each(function()
@@ -49,9 +55,9 @@ describe('opencode.ui.reference_facts', function()
     package.loaded['opencode.ui.reference_picker'] = false
 
     assert.has_no.errors(function()
-      reference_facts.rebuild('ses_1', {
+      rebuild({
         assistant_message('msg_1', 'ses_1', {
-          { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
+          { id = 'part_1', kind = 'text', text = 'See `src/ok.lua`.' },
         }),
       })
     end)
@@ -61,16 +67,18 @@ describe('opencode.ui.reference_facts', function()
   end)
 
   it('collects user file parts as reference facts', function()
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       {
-        info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
-        parts = {
-          { id = 'prt_user_file', type = 'file', filename = 'src/ok.lua' },
-          { id = 'user_text', type = 'text', text = 'look at this' },
+        id = 'user_1',
+        kind = 'user',
+        session_id = 'ses_1',
+        content = {
+          { id = 'prt_user_file', kind = 'file', name = 'src/ok.lua' },
+          { id = 'user_text', kind = 'text', text = 'look at this' },
         },
       },
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'Call foo.' },
+        { id = 'part_1', kind = 'text', text = 'Call foo.' },
       }),
     })
 
@@ -85,32 +93,19 @@ describe('opencode.ui.reference_facts', function()
   end)
 
   it('keeps unreadable user file parts as refs but excludes them from current_files', function()
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       {
-        info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
-        parts = {
-          { id = 'prt_user_file', type = 'file', filename = 'src/missing.lua' },
+        id = 'user_1',
+        kind = 'user',
+        session_id = 'ses_1',
+        content = {
+          { id = 'prt_user_file', kind = 'file', name = 'src/missing.lua' },
         },
       },
     })
 
     assert.equal('src/missing.lua', reference_facts.current_refs()[1].path)
     assert.are.same({}, reference_facts.current_files())
-  end)
-
-  it('replace_part updates user file part refs', function()
-    local message = {
-      info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
-      parts = { { id = 'prt_user_file', type = 'file', filename = 'src/missing.lua' } },
-    }
-    reference_facts.rebuild('ses_1', { message })
-
-    message.parts[1] = { id = 'prt_user_file', type = 'file', filename = 'src/ok.lua' }
-    local changed = reference_facts.replace_part('ses_1', message, message.parts[1])
-
-    assert.is_true(changed)
-    assert.equal('src/ok.lua', reference_facts.current_refs()[1].path)
-    assert.are.same({ '/repo/src/ok.lua' }, reference_facts.current_files())
   end)
 
   it('available_files merges readable ref files with loaded plain buffers', function()
@@ -126,9 +121,9 @@ describe('opencode.ui.reference_facts', function()
       { bufnr = nofile_buf, name = '/repo/scratch.log' },
     })
 
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
+        { id = 'part_1', kind = 'text', text = 'See `src/ok.lua`.' },
       }),
     })
 
@@ -152,17 +147,19 @@ describe('opencode.ui.reference_facts', function()
   end)
 
   it('rebuilds current session assistant reference facts only', function()
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       {
-        info = { id = 'user_1', role = 'user', sessionID = 'ses_1' },
-        parts = { { id = 'user_part', type = 'text', text = 'Ignore `src/user.lua`.' } },
+        id = 'user_1',
+        kind = 'user',
+        session_id = 'ses_1',
+        content = { { id = 'user_part', kind = 'text', text = 'Ignore `src/user.lua`.' } },
       },
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'See `src/ok.lua:12:3`.' },
-        { id = 'part_2', type = 'tool', state = { input = { filePath = '/repo/src/tool.lua' } } },
+        { id = 'part_1', kind = 'text', text = 'See `src/ok.lua:12:3`.' },
+        { id = 'part_2', kind = 'tool', name = 'read', state = 'completed', target = { path = '/repo/src/tool.lua' } },
       }),
       assistant_message('msg_2', 'ses_other', {
-        { id = 'part_other', type = 'text', text = 'Ignore `src/other.lua`.' },
+        { id = 'part_other', kind = 'text', text = 'Ignore `src/other.lua`.' },
       }),
     })
 
@@ -178,47 +175,14 @@ describe('opencode.ui.reference_facts', function()
     assert.equal('tool_file_path', refs[2].source_kind)
   end)
 
-  it('replace_part replaces old refs for the same part', function()
-    local message = assistant_message('msg_1', 'ses_1', {
-      { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
-    })
-    reference_facts.rebuild('ses_1', { message })
-
-    message.parts[1] = { id = 'part_1', type = 'text', text = 'See `src/loaded.lua`.' }
-    local changed = reference_facts.replace_part('ses_1', message, message.parts[1])
-    local refs = reference_facts.current_refs()
-
-    assert.is_true(changed)
-    assert.equal(1, #refs)
-    assert.equal('src/loaded.lua', refs[1].path)
-  end)
-
-  it('replace_part keeps same-key append facts and adds new refs', function()
-    local message = assistant_message('msg_1', 'ses_1', {
-      { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
-    })
-    reference_facts.rebuild('ses_1', { message })
-    local first_range = reference_facts.current_refs()[1].raw_range
-
-    message.parts[1] = { id = 'part_1', type = 'text', text = 'See `src/ok.lua`. Also `src/loaded.lua`.' }
-    local changed = reference_facts.replace_part('ses_1', message, message.parts[1])
-    local refs = reference_facts.current_refs()
-
-    assert.is_true(changed)
-    assert.equal(2, #refs)
-    assert.equal('src/ok.lua', refs[1].path)
-    assert.are.same(first_range, refs[1].raw_range)
-    assert.equal('src/loaded.lua', refs[2].path)
-  end)
-
   it('keeps duplicate path and line facts from different source parts and messages in session order', function()
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'First `src/ok.lua:12`.' },
-        { id = 'part_2', type = 'text', text = 'Second `src/ok.lua:12`.' },
+        { id = 'part_1', kind = 'text', text = 'First `src/ok.lua:12`.' },
+        { id = 'part_2', kind = 'text', text = 'Second `src/ok.lua:12`.' },
       }),
       assistant_message('msg_2', 'ses_1', {
-        { id = 'part_3', type = 'text', text = 'Third `src/ok.lua:12`.' },
+        { id = 'part_3', kind = 'text', text = 'Third `src/ok.lua:12`.' },
       }),
     })
 
@@ -235,26 +199,11 @@ describe('opencode.ui.reference_facts', function()
     assert.is_true(refs[2].order < refs[3].order)
   end)
 
-  it('remove_part and remove_message shrink current refs', function()
-    reference_facts.rebuild('ses_1', {
-      assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
-        { id = 'part_2', type = 'text', text = 'See `src/loaded.lua`.' },
-      }),
-    })
-
-    assert.is_true(reference_facts.remove_part('msg_1', 'part_1'))
-    assert.equal('src/loaded.lua', reference_facts.current_refs()[1].path)
-
-    assert.is_true(reference_facts.remove_message('msg_1'))
-    assert.are.same({}, reference_facts.current_refs())
-  end)
-
   it('maintains current_files from readable files', function()
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'See `src/ok.lua`, `src/loaded.lua`, and `src/missing.lua`.' },
-        { id = 'part_2', type = 'text', text = 'See `src/ok.lua` again.' },
+        { id = 'part_1', kind = 'text', text = 'See `src/ok.lua`, `src/loaded.lua`, and `src/missing.lua`.' },
+        { id = 'part_2', kind = 'text', text = 'See `src/ok.lua` again.' },
       }),
     })
 
@@ -267,9 +216,9 @@ describe('opencode.ui.reference_facts', function()
       return (ok_exists and path == '/repo/src/ok.lua') and 1 or 0
     end
 
-    reference_facts.rebuild('ses_1', {
+    rebuild({
       assistant_message('msg_1', 'ses_1', {
-        { id = 'part_1', type = 'text', text = 'See `src/ok.lua`.' },
+        { id = 'part_1', kind = 'text', text = 'See `src/ok.lua`.' },
       }),
     })
 
@@ -279,138 +228,5 @@ describe('opencode.ui.reference_facts', function()
     reference_facts.refresh_current_files()
 
     assert.are.same({}, reference_facts.current_files())
-  end)
-end)
-
-describe('reference facts renderer dirty propagation', function()
-  local state = require('opencode.state')
-  local ctx = require('opencode.ui.renderer.ctx')
-  local flush = require('opencode.ui.renderer.flush')
-  local events
-  local reference_facts
-  local schedule_stub
-
-  local function message_with_refs()
-    return {
-      info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' },
-      parts = {
-        { id = 'part_ref', messageID = 'msg_1', sessionID = 'ses_1', type = 'text', text = 'See `src/ok.lua`.' },
-        { id = 'part_later', messageID = 'msg_1', sessionID = 'ses_1', type = 'text', text = 'Call foo after refs.' },
-      },
-    }
-  end
-
-  local function render_message_parts(message)
-    state.renderer.set_messages({ message })
-    ctx.render_state:set_message(message)
-    ctx.render_state:set_part(message.parts[1], 1, 1)
-    ctx.render_state:set_part(message.parts[2], 2, 2)
-  end
-
-  before_each(function()
-    package.loaded['opencode.ui.reference_facts'] = nil
-    package.loaded['opencode.ui.renderer.events'] = nil
-    reference_facts = require('opencode.ui.reference_facts')
-    events = require('opencode.ui.renderer.events')
-    ctx:reset()
-    reference_facts.clear()
-    state.session.set_active({ id = 'ses_1' })
-    schedule_stub = stub(flush, 'schedule')
-  end)
-
-  after_each(function()
-    schedule_stub:revert()
-    ctx:reset()
-    reference_facts.clear()
-    package.loaded['opencode.ui.renderer.events'] = nil
-    package.loaded['opencode.ui.reference_facts'] = nil
-    state.session.clear_active()
-    state.renderer.set_messages({})
-  end)
-
-  it('dirties following assistant text parts when a ref-bearing part changes', function()
-    local message = message_with_refs()
-    state.renderer.set_messages({ message })
-    reference_facts.rebuild('ses_1', { message })
-    ctx.render_state:set_message(message)
-    ctx.render_state:set_part(message.parts[1], 1, 1)
-    ctx.render_state:set_part(message.parts[2], 2, 2)
-
-    events.on_part_updated({
-      part = {
-        id = 'part_ref',
-        messageID = 'msg_1',
-        sessionID = 'ses_1',
-        type = 'text',
-        text = 'Reference removed.',
-      },
-    })
-
-    assert.equal('msg_1', ctx.pending.dirty_parts.part_ref)
-    assert.equal('msg_1', ctx.pending.dirty_parts.part_later)
-  end)
-
-  it('dirties following assistant text parts when a ref-bearing part is removed', function()
-    local message = message_with_refs()
-    state.renderer.set_messages({ message })
-    reference_facts.rebuild('ses_1', { message })
-    ctx.render_state:set_message(message)
-    ctx.render_state:set_part(message.parts[1], 1, 1)
-    ctx.render_state:set_part(message.parts[2], 2, 2)
-
-    events.on_part_removed({ sessionID = 'ses_1', messageID = 'msg_1', partID = 'part_ref' })
-
-    assert.is_true(ctx.pending.removed_parts.part_ref)
-    assert.equal('msg_1', ctx.pending.dirty_parts.part_later)
-  end)
-
-  it('dirties rendered assistant text parts when files are edited', function()
-    local message = message_with_refs()
-    message.parts[#message.parts + 1] = {
-      id = 'part_hidden',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      type = 'text',
-      text = 'Unrendered text should wait for its normal render path.',
-    }
-    render_message_parts(message)
-
-    local original_cmd = vim.cmd
-    local refresh_stub = stub(reference_facts, 'refresh_current_files')
-    local ok, err = pcall(function()
-      vim.cmd = function(command)
-        assert.equal('checktime', command)
-      end
-
-      events.on_file_edited({ file = 'src/ok.lua' })
-
-      assert.stub(refresh_stub).was_called(1)
-      assert.equal('msg_1', ctx.pending.dirty_parts.part_ref)
-      assert.equal('msg_1', ctx.pending.dirty_parts.part_later)
-      assert.is_nil(ctx.pending.dirty_parts.part_hidden)
-    end)
-    vim.cmd = original_cmd
-    refresh_stub:revert()
-    if not ok then
-      error(err)
-    end
-  end)
-
-  it('dirties rendered assistant text parts when watched files change', function()
-    local message = message_with_refs()
-    render_message_parts(message)
-
-    local refresh_stub = stub(reference_facts, 'refresh_current_files')
-    local ok, err = pcall(function()
-      events.on_file_watcher_updated({ file = 'src/ok.lua', event = 'unlink' })
-
-      assert.stub(refresh_stub).was_called(1)
-      assert.equal('msg_1', ctx.pending.dirty_parts.part_ref)
-      assert.equal('msg_1', ctx.pending.dirty_parts.part_later)
-    end)
-    refresh_stub:revert()
-    if not ok then
-      error(err)
-    end
   end)
 end)

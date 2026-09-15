@@ -19,7 +19,7 @@ local function normalize_part(value)
   return ''
 end
 
----@param input GrepToolInput|nil
+---@param input table|nil
 ---@return string
 local function resolve_grep_string(input)
   if not input then
@@ -39,14 +39,13 @@ local function resolve_grep_string(input)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  if part.tool ~= 'grep' then
+  if part.name ~= 'grep' then
     return
   end
 
-  local metadata = part.state and part.state.metadata or {}
-  local input = part.state and part.state.input or nil
+  local input = part.input
 
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
@@ -59,19 +58,21 @@ function M.format(output, part)
     return
   end
 
-  local prefix = metadata.truncated and ' more than' or ''
+  local search = part.search or {}
+  local prefix = search.truncated and ' more than' or ''
+  local count = search.count
   output:add_line(
-    string.format('Found%s `%d` match' .. (metadata.matches ~= 1 and 'es' or ''), prefix, metadata.matches or 0)
+    count and string.format('Found%s `%d` match%s', prefix, count, count ~= 1 and 'es' or '')
+      or 'Match count unavailable'
   )
 
   output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
----@param _ OpencodeMessagePart
----@param input GrepToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
-  return icons.get('search'), 'grep', resolve_grep_string(input)
+function M.summary(part)
+  return icons.get('search'), 'grep', resolve_grep_string(part.input)
 end
 
 return M

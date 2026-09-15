@@ -1,14 +1,14 @@
 local M = {}
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  if part.tool ~= 'list' then
+  if part.name ~= 'list' then
     return
   end
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
-  local tool_output = part.state and part.state.output or ''
+  local input = part.input or {}
+  local search = part.search or {}
+  local tool_output = require('opencode.ui.formatter.utils').tool_result_text(part)
 
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
@@ -22,7 +22,7 @@ function M.format(output, part)
   end
 
   local lines = vim.split(vim.trim(tool_output), '\n')
-  if #lines < 1 or metadata.count == 0 then
+  if #lines < 1 or search.count == 0 then
     output:add_line('No files found.')
     output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
     return
@@ -36,18 +36,17 @@ function M.format(output, part)
       end
     end
   end
-  if metadata.truncated then
-    output:add_line(string.format('Results truncated, showing first %d files', metadata.count or '?'))
+  if search.truncated then
+    output:add_line(string.format('Results truncated, showing first %s files', tostring(search.count or '?')))
   end
 
   output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
----@param _ OpencodeMessagePart
----@param input ListToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
-  return icons.get('list'), 'list', input.path or ''
+function M.summary(part)
+  return icons.get('list'), 'list', (part.input and part.input.path) or ''
 end
 
 return M

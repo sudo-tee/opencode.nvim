@@ -47,6 +47,21 @@ local function join_args(args)
   return table.concat(args, ' ')
 end
 
+local function send_user_command(session, input)
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    error('Connection is not ready')
+  end
+  return connection.operations.send_command(
+    connection,
+    session.id,
+    session.location,
+    input,
+    util.apply_path_map,
+    util.apply_reverse_path_map
+  )
+end
+
 ---@param prompt string
 ---@param opts SendMessageOpts
 local function run_with_opts(prompt, opts)
@@ -282,16 +297,15 @@ M.actions.run_user_command = Promise.async(function(name, args)
       return
     end
 
-    state.api_client
-      :send_command(active_session.id, {
-        command = name,
-        arguments = join_args(args),
-        model = model,
-        agent = agent,
-      })
-      :and_then(function()
-        schedule_slash_history(name, args)
-      end)
+    send_user_command(active_session, {
+      command = name,
+      arguments = join_args(args),
+      model = model,
+      agent = agent,
+      variant = state.current_variant,
+    }):and_then(function()
+      schedule_slash_history(name, args)
+    end)
   end) --[[@as Promise<void> ]]
 end)
 
@@ -381,15 +395,15 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  state.api_client
-    :send_command(state.active_session.id, {
-      command = 'review',
-      arguments = join_args(args),
-      model = state.current_model,
-    })
-    :and_then(function()
-      schedule_slash_history('review', args)
-    end)
+  send_user_command(state.active_session, {
+    command = 'review',
+    arguments = join_args(args),
+    model = state.current_model,
+    agent = state.current_mode,
+    variant = state.current_variant,
+  }):and_then(function()
+    schedule_slash_history('review', args)
+  end)
 end)
 
 M.actions.add_visual_selection = Promise.async(

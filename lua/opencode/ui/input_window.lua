@@ -426,32 +426,32 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
----@param message OpencodeMessage|nil
+---@param entry table|nil
 ---@return { lines: string[], mention_paths: string[] }|nil
-function M.build_prompt_from_message(message)
-  if not message or not message.parts then
+function M.build_prompt_from_message(entry)
+  if not entry or type(entry.content) ~= 'table' then
     return nil
   end
 
   local lines = {}
   local mention_paths = {}
 
-  for _, part in ipairs(message.parts) do
+  for _, part in ipairs(entry.content) do
     if type(part) == 'table' then
-      if part.type == 'text' then
-        if not part.synthetic and type(part.text) == 'string' and part.text ~= '' then
+      if part.kind == 'text' then
+        if not part.synthetic and not part.ignored and type(part.text) == 'string' and part.text ~= '' then
           for _, sub in ipairs(vim.split(part.text, '\n', { plain = true })) do
             lines[#lines + 1] = sub
           end
         end
-      elseif part.type == 'file' then
-        local name = part.filename or (part.source and part.source.path) or part.name
+      elseif part.kind == 'file' then
+        local name = part.name or (part.source and part.source.path)
         if type(name) == 'string' and name ~= '' then
           lines[#lines + 1] = '@' .. name .. ' '
           table.insert(mention_paths, name)
         end
-      elseif part.type == 'agent' then
-        local name = part.name or (part.source and part.source.path)
+      elseif part.kind == 'agent' then
+        local name = part.name
         if type(name) == 'string' and name ~= '' then
           lines[#lines + 1] = '@' .. name .. ' '
           table.insert(mention_paths, name)
@@ -467,10 +467,10 @@ function M.build_prompt_from_message(message)
   return { lines = lines, mention_paths = mention_paths }
 end
 
----@param message OpencodeMessage|nil
+---@param entry table|nil
 ---@return boolean
-function M.refill_prompt_from_message(message)
-  local prompt = M.build_prompt_from_message(message)
+function M.refill_prompt_from_message(entry)
+  local prompt = M.build_prompt_from_message(entry)
   if not prompt then
     return false
   end

@@ -41,26 +41,29 @@ function M.highlight_all_mentions(buf, callback)
   end
 end
 
----Apply mention highlights from source.text data
+---Apply frozen byte ranges from protocol Content facts.
 ---@param output Output Output object to write to
 ---@param text string The full text content
----@param mentions OpencodeMessagePartSourceText[] Mention data with character offsets
+---@param mentions table[] Mention data with zero-based UTF-8 byte offsets
 ---@param start_line number The starting line index in the output (1-indexed)
 function M.highlight_mentions_in_output(output, text, mentions, start_line)
   for _, mention in ipairs(mentions) do
-    local char_start = mention.start
-    local char_end = mention['end']
+    local byte_start = mention.start_byte
+    local byte_end = mention.end_byte
+    local value = mention.text
 
-    local char_count = 0
+    if type(byte_start) ~= 'number' or type(byte_end) ~= 'number' or type(value) ~= 'string' then
+      goto continue
+    end
+
+    local byte_count = 0
 
     for i, line in ipairs(vim.split(text, '\n')) do
-      local line_start = char_count
-      local line_end = char_count + #line
+      local line_start = byte_count
+      local line_end = byte_count + #line
 
-      if char_start == 0 and string.sub(text, 0, 1) ~= '@' then
-        -- Work around Opencode bug? where mentions sometimes have a 0 start
-
-        local start_pos, end_pos = string.find(line, mention.value, 1, true)
+      if byte_start == 0 and string.sub(text, 1, 1) ~= '@' then
+        local start_pos, end_pos = string.find(line, value, 1, true)
 
         if start_pos then
           output:add_extmark(start_line + i - 1, {
@@ -72,9 +75,9 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
           break
         end
       else
-        if char_start >= line_start and char_start < line_end then
-          local col_start = char_start - line_start
-          local col_end = math.min(char_end - line_start + 1, #line)
+        if byte_start >= line_start and byte_start < line_end then
+          local col_start = byte_start - line_start
+          local col_end = math.min(byte_end - line_start, #line)
 
           output:add_extmark(start_line + i - 1, {
             start_col = col_start,
@@ -85,9 +88,10 @@ function M.highlight_mentions_in_output(output, text, mentions, start_line)
           break
         end
 
-        char_count = line_end + 1
+        byte_count = line_end + 1
       end
     end
+    ::continue::
   end
 end
 

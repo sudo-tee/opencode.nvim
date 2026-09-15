@@ -42,10 +42,15 @@ end
 function M.pick(callback)
   local state = require('opencode.state')
   local config = require('opencode.config')
+  local connection = state.opencode_server
+  local operations = connection and connection.operations
+  local location = { directory = state.current_cwd or vim.fn.getcwd() }
 
   local get_mcp_servers = Promise.async(function()
     local ok, mcp_list = pcall(function()
-      return state.api_client:list_mcp_servers():await()
+      return assert(operations, 'Connection is not ready')
+        .list_mcp_servers(connection, location, util.apply_path_map, util.apply_reverse_path_map)
+        :await()
     end)
 
     if not ok then
@@ -104,9 +109,9 @@ function M.pick(callback)
     )
 
     if is_connected then
-      state.api_client:disconnect_mcp(selected.name):await()
+      operations.disconnect_mcp(connection, selected.name, location, util.apply_path_map):await()
     else
-      state.api_client:connect_mcp(selected.name):await()
+      operations.connect_mcp(connection, selected.name, location, util.apply_path_map):await()
     end
 
     local updated_servers = get_mcp_servers():await()

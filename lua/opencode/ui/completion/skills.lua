@@ -22,13 +22,21 @@ local skill_source = {
     end
 
     local state = require('opencode.state')
-    local api_client = state and state.api_client
-    if not api_client then
+    local connection = state and state.opencode_server
+    if not connection or not connection.operations then
       return {}
     end
 
     local ok, skills = pcall(function()
-      return api_client:list_skills():await()
+      local util = require('opencode.util')
+      return connection.operations
+        .list_skills(
+          connection,
+          { directory = state.current_cwd or vim.fn.getcwd() },
+          util.apply_path_map,
+          util.apply_reverse_path_map
+        )
+        :await()
     end)
     if not ok or not skills then
       return {}

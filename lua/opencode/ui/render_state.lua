@@ -1,11 +1,11 @@
 ---@class RenderedMessage
----@field message OpencodeMessage Direct reference to message in state.messages
+---@field message table Direct reference to an Observation Entry
 ---@field line_start integer? Line where message header starts
 ---@field line_end integer? Line where message header ends
 ---@field actions OutputAction[] Actions associated with this message
 
 ---@class RenderedPart
----@field part OpencodeMessagePart Direct reference to part in state.messages
+---@field part table Direct reference to an Observation Content
 ---@field message_id string ID of parent message
 ---@field line_start integer? Line where part starts
 ---@field line_end integer? Line where part ends
@@ -36,18 +36,13 @@ end
 function RenderState:reset()
   self._messages = {}
   self._parts = {}
-  self._orphan_parts = {}
-  self._orphan_parts_index = {}
   self._part_ranges = {}
   self._message_ranges = {}
   self._ranges_valid = false
   self._max_line_end = 0
   self._max_line_end_valid = true
-  self._child_session_parts = {}
-  self._child_session_parts_index = {} -- session_id -> part_id -> list_index
   self._child_session_task_parts = {}
   self._task_part_child_sessions = {}
-  self._snapshot_id_index = {} -- snapshot_id -> OpencodeMessagePart
 end
 
 function RenderState:_recompute_max_line_end()
@@ -78,15 +73,13 @@ function RenderState:_get_max_line_end()
   return self._max_line_end
 end
 
----@param part OpencodeMessagePart?
+---@param part table?
 ---@return string?
 local function get_child_session_id_for_task_part(part)
-  if not part or part.tool ~= 'task' then
+  if not part or part.kind ~= 'tool' or part.name ~= 'task' then
     return nil
   end
-  local part_state = part.state
-  local metadata = part_state and part_state.metadata
-  return metadata and metadata.sessionId or nil
+  return part.child_session and part.child_session.id or nil
 end
 
 ---@param part_id string
@@ -102,7 +95,7 @@ function RenderState:_clear_task_part_child_session(part_id)
 end
 
 ---@param part_id string
----@param part OpencodeMessagePart
+---@param part table
 function RenderState:_index_task_part_child_session(part_id, part)
   self:_clear_task_part_child_session(part_id)
   local child_session_id = get_child_session_id_for_task_part(part)
@@ -181,15 +174,6 @@ function RenderState:_ensure_ranges()
 end
 
 ---@param session_id string
----@return OpencodeMessagePart[]?
-function RenderState:get_child_session_parts(session_id)
-  if not session_id then
-    return nil
-  end
-  return self._child_session_parts[session_id]
-end
-
----@param session_id string
 ---@return string?
 function RenderState:get_task_part_by_child_session(session_id)
   if not session_id then
@@ -198,123 +182,24 @@ function RenderState:get_task_part_by_child_session(session_id)
   return self._child_session_task_parts[session_id]
 end
 
----@param session_id string
----@param part OpencodeMessagePart
-function RenderState:upsert_child_session_part(session_id, part)
-  if not session_id or not part or not part.id then
-    return
-  end
-
-  local session_parts = self._child_session_parts[session_id]
-  if not session_parts then
-    session_parts = {}
-    self._child_session_parts[session_id] = session_parts
-    self._child_session_parts_index[session_id] = {}
-  end
-
-  local idx = self._child_session_parts_index[session_id][part.id]
-  if idx then
-    session_parts[idx] = part
-  else
-    session_parts[#session_parts + 1] = part
-    self._child_session_parts_index[session_id][part.id] = #session_parts
-  end
-end
-
 ---@param message_id string
 ---@return RenderedMessage?
 function RenderState:get_message(message_id)
   return self._messages[message_id]
 end
 
----@param messages OpencodeMessage[]
+---@param messages table[]
 ---@param message_id string
 ---@return RenderedMessage?
 function RenderState:get_previous_message(messages, message_id)
   for i = #messages, 2, -1 do
     local message = messages[i]
-    if message and message.info and message.info.id == message_id then
+    if message and message.id == message_id then
       local previous_message = messages[i - 1]
-      return previous_message and previous_message.info and self._messages[previous_message.info.id] or nil
+      return previous_message and self._messages[previous_message.id] or nil
     end
   end
   return nil
-end
-
----@param message_id string
----@param part OpencodeMessagePart
-function RenderState:upsert_orphan_part(message_id, part)
-  if not message_id or not part or not part.id then
-    return
-  end
-
-  local orphan_parts = self._orphan_parts[message_id]
-  if not orphan_parts then
-    orphan_parts = {}
-    self._orphan_parts[message_id] = orphan_parts
-    self._orphan_parts_index[message_id] = {}
-  end
-
-  local orphan_index = self._orphan_parts_index[message_id]
-  local idx = orphan_index[part.id]
-  if idx then
-    orphan_parts[idx] = part
-  else
-    orphan_parts[#orphan_parts + 1] = part
-    orphan_index[part.id] = #orphan_parts
-  end
-end
-
----@param message_id string
----@return OpencodeMessagePart[]
-function RenderState:consume_orphan_parts(message_id)
-  if not message_id then
-    return {}
-  end
-
-  local orphan_parts = self._orphan_parts[message_id] or {}
-  self._orphan_parts[message_id] = nil
-  self._orphan_parts_index[message_id] = nil
-  return orphan_parts
-end
-
----@param message_id string
----@param part_id string
----@return boolean
-function RenderState:remove_orphan_part(message_id, part_id)
-  local orphan_parts = message_id and self._orphan_parts[message_id]
-  local orphan_index = message_id and self._orphan_parts_index[message_id]
-  local idx = orphan_index and orphan_index[part_id]
-  if not idx then
-    return false
-  end
-
-  table.remove(orphan_parts, idx)
-  orphan_index[part_id] = nil
-
-  for i = idx, #orphan_parts do
-    local part = orphan_parts[i]
-    if part and part.id then
-      orphan_index[part.id] = i
-    end
-  end
-
-  if #orphan_parts == 0 then
-    self._orphan_parts[message_id] = nil
-    self._orphan_parts_index[message_id] = nil
-  end
-
-  return true
-end
-
----@param message_id string
-function RenderState:clear_orphan_parts(message_id)
-  if not message_id then
-    return
-  end
-
-  self._orphan_parts[message_id] = nil
-  self._orphan_parts_index[message_id] = nil
 end
 
 ---@param line integer 1-indexed
@@ -343,21 +228,12 @@ end
 ---@param message_id string
 ---@return string?
 function RenderState:get_part_by_call_id(call_id, message_id)
-  local rendered_message = self._messages[message_id]
-  if rendered_message and rendered_message.message and rendered_message.message.parts then
-    for _, part in ipairs(rendered_message.message.parts) do
-      if part.callID == call_id then
-        return part.id
-      end
+  for part_id, rendered in pairs(self._parts) do
+    if rendered.message_id == message_id and rendered.part and rendered.part.call_id == call_id then
+      return part_id
     end
   end
   return nil
-end
-
----@param snapshot_id string
----@return OpencodeMessagePart?
-function RenderState:get_part_by_snapshot_id(snapshot_id)
-  return self._snapshot_id_index[snapshot_id]
 end
 
 ---@param line integer
@@ -514,13 +390,12 @@ function RenderState:get_all_actions()
 end
 
 local function is_actionable_user_message(message)
-  local info = message and message.info
-  if not info or info.role ~= 'user' or type(info.id) ~= 'string' or info.id == '' then
+  if not message or message.kind ~= 'user' or type(message.id) ~= 'string' or message.id == '' then
     return false
   end
 
-  for _, part in ipairs(message.parts or {}) do
-    if part.type == 'text' and part.synthetic ~= true and type(part.text) == 'string' and vim.trim(part.text) ~= '' then
+  for _, part in ipairs(message.content or {}) do
+    if part.kind == 'text' and part.synthetic ~= true and type(part.text) == 'string' and vim.trim(part.text) ~= '' then
       return true
     end
   end
@@ -540,14 +415,13 @@ function RenderState:_refresh_message_actions(message_id)
   end
 
   local line_end = message_data.line_end
-  for _, part in ipairs(message_data.message.parts or {}) do
-    local part_data = part.id and self._parts[part.id]
-    if part_data and part_data.line_end then
+  for _, part_data in pairs(self._parts) do
+    if part_data.message_id == message_id and part_data.line_end then
       line_end = math.max(line_end, part_data.line_end)
     end
   end
 
-  local id = message_data.message.info.id
+  local id = message_data.message.id
   local function action(text, action_type, key, args)
     return {
       text = text,
@@ -574,14 +448,14 @@ local function shift_targets(targets, delta)
   end
 end
 
----@param message OpencodeMessage
+---@param message table
 ---@param line_start integer?
 ---@param line_end integer?
 function RenderState:set_message(message, line_start, line_end)
-  if not message or not message.info or not message.info.id then
+  if not message or not message.id then
     return
   end
-  local message_id = message.info.id
+  local message_id = message.id
 
   local existing = self._messages[message_id]
   if not existing then
@@ -610,15 +484,15 @@ function RenderState:set_message(message, line_start, line_end)
   self:_refresh_message_actions(message_id)
 end
 
----@param part OpencodeMessagePart
+---@param part table
+---@param message_id string
+---@param part_id string
 ---@param line_start integer?
 ---@param line_end integer?
-function RenderState:set_part(part, line_start, line_end)
-  if not part or not part.id then
+function RenderState:set_part(part, message_id, part_id, line_start, line_end)
+  if not part or not message_id or not part_id then
     return
   end
-  local part_id = part.id
-  local message_id = part.messageID or 'special'
 
   local existing = self._parts[part_id]
   if not existing then
@@ -652,10 +526,6 @@ function RenderState:set_part(part, line_start, line_end)
     if self._max_line_end_valid and line_end > self._max_line_end then
       self._max_line_end = line_end
     end
-  end
-
-  if part.type == 'patch' and part.hash then
-    self._snapshot_id_index[part.hash] = part
   end
 
   self:_index_task_part_child_session(part_id, part)
@@ -706,37 +576,12 @@ function RenderState:update_part_lines(part_id, new_line_start, new_line_end)
   return true
 end
 
----@param part_ref OpencodeMessagePart
----@return RenderedPart?
-function RenderState:update_part_data(part_ref)
-  if not part_ref or not part_ref.id then
-    return
-  end
-  local rendered_part = self._parts[part_ref.id]
-  if not rendered_part then
-    return
-  end
-  rendered_part.part = part_ref
-
-  if part_ref.type == 'patch' and part_ref.hash then
-    self._snapshot_id_index[part_ref.hash] = part_ref
-  end
-
-  self:_index_task_part_child_session(part_ref.id, part_ref)
-  self:_refresh_message_actions(rendered_part.message_id)
-  return rendered_part
-end
-
 ---@param part_id string
 ---@return boolean
 function RenderState:remove_part(part_id)
   local part_data = self._parts[part_id]
   if not part_data then
     return false
-  end
-
-  if part_data.part and part_data.part.type == 'patch' and part_data.part.hash then
-    self._snapshot_id_index[part_data.part.hash] = nil
   end
 
   self:_clear_task_part_child_session(part_id)

@@ -2,7 +2,6 @@ local state = require('opencode.state')
 local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
 local utils = require('opencode.util')
-local session = require('opencode.session')
 local picker = require('opencode.ui.picker')
 local Promise = require('opencode.promise')
 
@@ -10,6 +9,32 @@ local M = {}
 local breakpoint
 local review_cache
 local generation = 0
+
+local function entry_snapshot_ids(entry)
+  local result = {}
+  local seen = {}
+  for _, content in ipairs(entry and entry.content or {}) do
+    if content.kind == 'patch' and content.hash and not seen[content.hash] then
+      seen[content.hash] = true
+      result[#result + 1] = content.hash
+    end
+  end
+  return result
+end
+
+local function observed_entries()
+  local observation = state.session.active_observation()
+  local observed = observation and observation:read() or nil
+  local entries = {}
+  for _, id in ipairs(observed and observed.entry_order or {}) do
+    local entry = observed.entries_by_id[id]
+    if not entry then
+      error('Observation entry order contains an unknown id: ' .. id)
+    end
+    entries[#entries + 1] = entry
+  end
+  return entries
+end
 
 local function is_current(context)
   return context.generation == generation and state.active_session == context.session and vim.fn.getcwd() == context.cwd
@@ -49,9 +74,20 @@ function M.get_first_snapshot()
   if breakpoint and breakpoint.session == state.active_session and breakpoint.cwd == vim.fn.getcwd() then
     return breakpoint.id
   end
-  for _, msg in ipairs(state.messages or {}) do
-    local ids = session.get_message_snapshot_ids(msg)
-    if ids and #ids > 0 then
+  for _, entry in ipairs(observed_entries()) do
+    local ids = entry_snapshot_ids(entry)
+    if #ids > 0 then
+      return ids[1]
+    end
+  end
+end
+
+---@return string|nil
+function M.get_latest_snapshot()
+  local entries = observed_entries()
+  for index = #entries, 1, -1 do
+    local ids = entry_snapshot_ids(entries[index])
+    if #ids > 0 then
       return ids[1]
     end
   end

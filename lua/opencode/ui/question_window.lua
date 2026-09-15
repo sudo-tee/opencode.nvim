@@ -1,10 +1,9 @@
 local state = require('opencode.state')
 local icons = require('opencode.ui.icons')
 local Dialog = require('opencode.ui.dialog')
-local Promise = require('opencode.promise')
 
 local config = require('opencode.config')
-local session_scope = require('opencode.ui.session_scope')
+local formatter_utils = require('opencode.ui.formatter.utils')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
@@ -17,6 +16,7 @@ M._answering = false
 M._dialog = nil
 M._inline_input = nil
 M._empty_confirm_armed = false
+M._observations = {}
 
 ---@param index integer
 ---@return string[]|nil
@@ -31,7 +31,7 @@ end
 ---@return boolean
 local function has_all_answers()
   local request = M._current_question
-  local questions = request and request.questions or {}
+  local questions = request and request.fields or {}
   if #questions == 0 then
     return false
   end
@@ -48,7 +48,7 @@ end
 ---@return integer|nil
 local function get_next_unanswered_question_index()
   local request = M._current_question
-  local questions = request and request.questions or {}
+  local questions = request and request.fields or {}
   if #questions == 0 then
     return nil
   end
@@ -76,14 +76,14 @@ function M.uses_vim_ui_select(question_request)
     not config.ui.questions
     or not config.ui.questions.use_vim_ui_select
     or not question_request
-    or not question_request.questions
-    or #question_request.questions == 0
+    or not question_request.fields
+    or #question_request.fields == 0
   then
     return false
   end
 
-  for _, question in ipairs(question_request.questions) do
-    if question.multiple == true then
+  for _, question in ipairs(question_request.fields) do
+    if question.type == 'multiselect' then
       return false
     end
   end
@@ -100,107 +100,18 @@ local function is_active_question(request_id, question_index)
     and M._current_question_index == question_index
 end
 
----@param question_request OpencodeQuestionRequest|nil
----@return boolean
-local function has_tool_identifiers(question_request)
-  local tool = question_request and question_request.tool
-  return tool ~= nil and ((tool.callID and tool.callID ~= '') or (tool.messageID and tool.messageID ~= ''))
-end
-
----@param part OpencodeMessagePart|nil
----@param question_request OpencodeQuestionRequest|nil
----@return boolean
-local function question_part_matches_request(part, question_request)
-  if not part or part.tool ~= 'question' or not question_request then
-    return false
-  end
-
-  local tool = question_request.tool
-  if not tool then
-    return false
-  end
-
-  if tool.callID and tool.callID ~= '' and part.callID ~= tool.callID then
-    return false
-  end
-
-  if tool.messageID and tool.messageID ~= '' and part.messageID ~= tool.messageID then
-    return false
-  end
-
-  return true
-end
-
----@param parts OpencodeMessagePart[]|nil
----@param question_request OpencodeQuestionRequest|nil
----@return OpencodeMessagePart|nil
-local function find_matching_question_part(parts, question_request)
-  for _, part in ipairs(parts or {}) do
-    if question_part_matches_request(part, question_request) then
-      return part
-    end
-  end
-end
-
----@param question_request OpencodeQuestionRequest|nil
----@return OpencodeMessagePart|nil
-local function get_question_part(question_request)
-  if not has_tool_identifiers(question_request) then
-    return nil
-  end
-
-  local tool = question_request.tool
-  local tool_message_id = tool and tool.messageID
-
-  if tool_message_id and state.messages then
-    for _, message in ipairs(state.messages) do
-      if message.info and message.info.id == tool_message_id then
-        local part = find_matching_question_part(message.parts, question_request)
-        if part then
-          return part
-        end
-      end
-    end
-  end
-
-  if question_request and question_request.sessionID and question_request.sessionID ~= '' then
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    return find_matching_question_part(
-      render_state:get_child_session_parts(question_request.sessionID),
-      question_request
-    )
-  end
-end
-
----@param question_request OpencodeQuestionRequest|nil
----@return boolean
-local function is_resolved_question_request(question_request)
-  local part = get_question_part(question_request)
-  if not part or not part.state then
-    return false
-  end
-
-  local metadata = part.state.metadata
-  if metadata and metadata.answers and #metadata.answers > 0 then
-    return true
-  end
-
-  local status = part.state.status
-  return status ~= nil and status ~= '' and status ~= 'pending' and status ~= 'running'
-end
-
 ---Request the renderer to show the current question display.
 local function render_question()
-  require('opencode.ui.renderer.events').render_question_display()
+  require('opencode.ui.renderer').refresh_prompts()
 end
 
 ---@param question_request OpencodeQuestionRequest
 function M.show_question(question_request)
-  if not question_request or not question_request.questions or #question_request.questions == 0 then
+  if not question_request or not question_request.fields or #question_request.fields == 0 then
     return
   end
 
-  if is_resolved_question_request(question_request) then
+  if question_request.status ~= 'pending' or question_request.unavailable_reason then
     return
   end
 
@@ -222,75 +133,7 @@ function M.show_question(question_request)
   render_question()
 end
 
----@return boolean
-local function restore_active_question_ui()
-  local question = M._current_question
-  if
-    not question
-    or not session_scope.belongs_to_active_session(question)
-    or is_resolved_question_request(question)
-    or M.uses_vim_ui_select(question)
-  then
-    return false
-  end
-
-  M._setup_dialog()
-  render_question()
-  return true
-end
-
----@param session_id string|nil
-function M.restore_pending_question(session_id)
-  if not state.api_client or not session_id or session_id == '' then
-    return Promise.new():resolve(nil)
-  end
-
-  if M.has_question() and session_scope.belongs_to_active_session(M._current_question) then
-    if not is_resolved_question_request(M._current_question) then
-      restore_active_question_ui()
-      return Promise.new():resolve(nil)
-    end
-
-    M.clear_question()
-  end
-
-  return state.api_client
-    :list_questions()
-    :and_then(function(requests)
-      if not requests or type(requests) ~= 'table' then
-        return
-      end
-
-      for _, request in ipairs(requests) do
-        if
-          request
-          and request.questions
-          and #request.questions > 0
-          and session_scope.belongs_to_active_session(request)
-          and not is_resolved_question_request(request)
-        then
-          local runtime = session_tabs.find_by_session_id(session_id)
-          if runtime then
-            session_tabs.add_pending_question(runtime.id, request)
-          end
-          if M.matches_active_question(request) then
-            return
-          end
-
-          M.show_question(request)
-          return
-        end
-      end
-    end)
-    :catch(function(err)
-      vim.schedule(function()
-        vim.notify('Failed to restore pending question: ' .. vim.inspect(err), vim.log.levels.WARN)
-      end)
-    end)
-end
-
----Reset the current question state and remove any dialog UI.
-function M.clear_question()
+local function reset_question()
   M._clear_inline_input()
   M._clear_dialog()
   M._current_question = nil
@@ -300,15 +143,25 @@ function M.clear_question()
   M._other_input_drafts = {}
   M._answering = false
   M._empty_confirm_armed = false
+end
+
+---Reset the current question state and remove any dialog UI.
+function M.clear_question()
+  reset_question()
   render_question()
+end
+
+function M.clear_all()
+  reset_question()
+  M._observations = {}
 end
 
 ---@return OpencodeQuestionInfo|nil
 function M.get_current_question_info()
-  if not M._current_question or not M._current_question.questions then
+  if not M._current_question or not M._current_question.fields then
     return nil
   end
-  local questions = M._current_question.questions
+  local questions = M._current_question.fields
   local idx = M._current_question_index
   return (idx > 0 and idx <= #questions) and questions[idx] or nil
 end
@@ -334,7 +187,12 @@ local function answer_current_question(answer_value, request_id, question_index)
   M._collected_answers[M._current_question_index] = type(answer_value) == 'table' and answer_value or { answer_value }
 
   if has_all_answers() then
-    M._send_reply(request.id, M._collected_answers)
+    local answers = {}
+    for index, field in ipairs(request.fields) do
+      local answer = M._collected_answers[index]
+      answers[field.key] = field.type == 'multiselect' and answer or answer[1]
+    end
+    M._send_reply(request.id, answers)
     M.clear_question()
   else
     M._current_question_index = get_next_unanswered_question_index() or M._current_question_index
@@ -369,7 +227,7 @@ end
 ---@param question_info OpencodeQuestionInfo
 ---@return integer|nil
 local function get_confirm_option_index(question_info)
-  return question_info.multiple == true and get_choice_count(question_info) + 1 or nil
+  return question_info.type == 'multiselect' and get_choice_count(question_info) + 1 or nil
 end
 
 ---@param question_info OpencodeQuestionInfo
@@ -412,13 +270,14 @@ function M._answer_with_option(option_index, request_id, question_index)
     return
   end
 
-  if question_info.multiple then
+  if question_info.type == 'multiselect' then
     M._toggle_multi_selection(option_index)
     render_question()
     return
   end
 
-  answer_current_question(question_info.options[option_index].label, request_id, question_index)
+  local option = question_info.options[option_index]
+  answer_current_question(option.value or option.label, request_id, question_index)
 end
 
 ---Toggle a multi-select option on/off
@@ -585,7 +444,7 @@ function M._answer_with_custom(request_id, question_index, reopen_backend)
     return
   end
 
-  if question_info.multiple then
+  if question_info.type == 'multiselect' then
     M._open_multi_other_input(request_id, question_index)
     return
   end
@@ -626,15 +485,15 @@ end
 ---@param output Output
 local function format_question_tabs(output)
   local request = M._current_question
-  if not request or #request.questions <= 1 then
+  if not request or #request.fields <= 1 then
     return
   end
 
   local line = ''
   local segments = {}
 
-  for i, question in ipairs(request.questions) do
-    local label = question.header ~= '' and question.header or ('Q' .. i)
+  for i, question in ipairs(request.fields) do
+    local label = question.title ~= '' and question.title or ('Q' .. i)
     local is_active = i == M._current_question_index
     local is_done = get_answer_for_index(i) ~= nil
     local marker = is_done and icons.get('completed') or ' '
@@ -679,11 +538,11 @@ function M.format_display(output)
 
   local icons = require('opencode.ui.icons')
 
-  local is_multiple = question_info.multiple == true
+  local is_multiple = question_info.type == 'multiselect'
 
   local progress = ''
-  if M._current_question and #M._current_question.questions > 1 then
-    progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
+  if M._current_question and #M._current_question.fields > 1 then
+    progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.fields)
   end
 
   format_question_tabs(output)
@@ -716,7 +575,7 @@ function M.format_display(output)
     title = icons.get('question') .. ' Question' .. progress,
     title_hl = 'OpencodeQuestionTitle',
     border_hl = 'OpencodeQuestionBorder',
-    content = vim.split(question_info.question, '\n'),
+    content = vim.split(question_info.prompt, '\n'),
     options = options,
     unfocused_message = 'Focus Opencode window to answer question',
   })
@@ -752,7 +611,7 @@ function M._setup_dialog()
 
   local request_id = M._current_question.id
   local question_index = M._current_question_index
-  local is_multiple = question_info.multiple == true
+  local is_multiple = question_info.type == 'multiselect'
   local buf = state.windows.output_buf
 
   ---@return boolean
@@ -824,7 +683,7 @@ function M._setup_dialog()
     render_question()
   end
 
-  local question_count = #M._current_question.questions
+  local question_count = #M._current_question.fields
 
   ---@return integer
   local function get_option_count()
@@ -888,11 +747,11 @@ function M._show_question_with_vim_ui_select()
 
   local options_to_display = get_display_options(question_info)
   local progress = ''
-  if M._current_question and #M._current_question.questions > 1 then
-    progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.questions)
+  if M._current_question and #M._current_question.fields > 1 then
+    progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.fields)
   end
 
-  local prompt = question_info.question .. progress
+  local prompt = question_info.prompt .. progress
   local choices = {}
   for i, option in ipairs(options_to_display) do
     table.insert(choices, option.label)
@@ -926,22 +785,67 @@ function M._show_question_with_vim_ui_select()
 end
 
 ---@param request_id string
----@param answers string[][]
+---@param answers table<string, any>
 function M._send_reply(request_id, answers)
-  if state.api_client then
-    state.api_client:reply_question(request_id, answers):catch(function(err)
-      vim.notify('Failed to reply to question: ' .. vim.inspect(err), vim.log.levels.ERROR)
-    end)
+  local observation = M._observations[request_id]
+  if not observation then
+    error('question request has no Observation')
   end
+  return observation:reply_question(request_id, answers):catch(function(err)
+    vim.notify('Failed to reply to question: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    error(err, 0)
+  end)
 end
 
 ---@param request_id string
 function M._send_reject(request_id)
-  if state.api_client then
-    state.api_client:reject_question(request_id):catch(function(err)
-      vim.notify('Failed to reject question: ' .. vim.inspect(err), vim.log.levels.ERROR)
-    end)
+  local observation = M._observations[request_id]
+  if not observation then
+    error('question request has no Observation')
   end
+  return observation:reject_question(request_id):catch(function(err)
+    vim.notify('Failed to reject question: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    error(err, 0)
+  end)
+end
+
+---@param observations table[]
+function M.sync(observations)
+  local pending = {}
+  local owners = {}
+  for _, observation in ipairs(observations or {}) do
+    for _, request in pairs(observation:read().question_requests_by_id or {}) do
+      if request.status == 'pending' and not request.unavailable_reason then
+        pending[#pending + 1] = request
+        owners[request.id] = observation
+        if request.session_id then
+          local runtime = session_tabs.find_by_session_id(request.session_id)
+          if runtime then
+            session_tabs.add_pending_question(runtime.id, request)
+          end
+        end
+      end
+    end
+  end
+  M._observations = owners
+  table.sort(pending, function(left, right)
+    if left.session_id ~= right.session_id then
+      return (left.session_id or '') < (right.session_id or '')
+    end
+    return left.id < right.id
+  end)
+  local next_request = pending[1]
+  if not next_request then
+    if M._current_question then
+      M.clear_question()
+    end
+    return
+  end
+  if M._current_question and M._current_question.id == next_request.id then
+    M._current_question = next_request
+    return
+  end
+  M.show_question(next_request)
 end
 
 ---@return OpencodeQuestionRequest|nil

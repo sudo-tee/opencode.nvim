@@ -7,140 +7,81 @@ local M = {}
 M._animation = {
   frames = nil,
   text = 'Thinking... ',
-  status_data = nil,
-  status_session_id = nil,
+  execution = nil,
+  session_id = nil,
   current_frame = 1,
   timer = nil,
   fps = 10,
   extmark_id = nil,
   ns_id = vim.api.nvim_create_namespace('opencode_loading_animation'),
-  status_event_manager = nil,
-  last_status_map = {},
+  unsubscribe = nil,
 }
 
----@param status table|nil
+---@param execution table|nil
 ---@return string|nil
-function M._format_status_text(status)
-  if type(status) ~= 'table' then
+function M._format_execution_text(execution)
+  if type(execution) ~= 'table' then
     return nil
   end
 
-  local status_type = status.type
-
-  if status_type == 'busy' then
+  if execution.activity == 'running' then
     return M._animation.text
   end
 
-  if status_type == 'idle' then
+  if execution.activity ~= 'retrying' then
     return nil
   end
 
-  if status_type == 'retry' then
-    local message = status.message or 'Retrying request'
-    local details = {}
-
-    if type(status.attempt) == 'number' then
-      table.insert(details, 'retry ' .. status.attempt)
-    end
-
-    if type(status.next) == 'number' then
-      local now_ms = os.time() * 1000
-      local seconds = math.max(0, math.ceil((status.next - now_ms) / 1000))
-      table.insert(details, 'in ' .. seconds .. 's')
-    end
-
-    if #details > 0 then
-      return string.format('%s (%s)... ', message, table.concat(details, ', '))
-    end
-
-    return message .. '... '
+  local retry = execution.retry or {}
+  local message = retry.message
+    or (type(retry.error) == 'table' and retry.error.message)
+    or 'Retrying request'
+  local details = {}
+  if type(retry.attempt) == 'number' then
+    table.insert(details, 'retry ' .. retry.attempt)
   end
-
-  if type(status.message) == 'string' and status.message ~= '' then
-    return status.message .. '... '
+  if type(retry.scheduled_at) == 'number' then
+    local now_ms = os.time() * 1000
+    local seconds = math.max(0, math.ceil((retry.scheduled_at - now_ms) / 1000))
+    table.insert(details, 'in ' .. seconds .. 's')
   end
-
-  return M._animation.text
+  if #details > 0 then
+    return string.format('%s (%s)... ', message, table.concat(details, ', '))
+  end
+  return message .. '... '
 end
 
-local function unsubscribe_session_status_event(manager)
-  if manager and M._animation.status_event_manager == manager then
-    manager:unsubscribe('session.status', M.on_session_status)
-    M._animation.status_event_manager = nil
+local function release_observation()
+  if M._animation.unsubscribe then
+    M._animation.unsubscribe()
+    M._animation.unsubscribe = nil
   end
 end
 
-local function subscribe_session_status_event(manager)
-  if not manager then
-    return
-  end
-
-  if M._animation.status_event_manager and M._animation.status_event_manager ~= manager then
-    unsubscribe_session_status_event(M._animation.status_event_manager)
-  end
-
-  if M._animation.status_event_manager == manager then
-    return
-  end
-
-  manager:subscribe('session.status', M.on_session_status)
-  M._animation.status_event_manager = manager
-end
-
-function M.on_session_status(properties)
-  if not properties or type(properties) ~= 'table' then
-    return
-  end
-
-  if not properties.sessionID or not properties.status then
-    return
-  end
-
-  M._animation.last_status_map[properties.sessionID] = properties.status
-
-  local active_session = state.active_session
-  if active_session and active_session.id == properties.sessionID then
-    M._animation.status_data = properties.status
-    M._animation.status_session_id = properties.sessionID
-    M.refresh()
-  end
-  M.render(state.windows)
-end
-
-local function replay_status_for(session_id)
-  local status = M._animation.last_status_map[session_id]
-  if not status then
-    return
-  end
-  local active_session = state.active_session
-  if not active_session or active_session.id ~= session_id then
-    return
-  end
-  M._animation.status_data = status
-  M._animation.status_session_id = session_id
+local function read_execution(observation)
+  local observed = observation:read()
+  M._animation.execution = observed.execution
+  M._animation.session_id = observed.session and observed.session.id or nil
   M.refresh()
   M.render(state.windows)
 end
 
-M._on_active_session_change = function(_, new_session, old_session)
-  local new_id = new_session and new_session.id
-  local old_id = old_session and old_session.id
-  if old_id and old_id ~= new_id then
-    M._animation.status_data = nil
-    M._animation.status_session_id = nil
+M._on_active_session_change = function()
+  release_observation()
+  M._animation.execution = nil
+  M._animation.session_id = nil
+  local observation = state.session.active_observation()
+  if observation then
+    M._animation.unsubscribe = observation:watch({ 'execution' }, read_execution)
+    read_execution(observation)
+  else
+    M.refresh()
+    M.render(state.windows)
   end
-  if new_id then
-    replay_status_for(new_id)
-  end
-end
-
-local function on_event_manager_change(_, new_manager, old_manager)
-  unsubscribe_session_status_event(old_manager)
-  subscribe_session_status_event(new_manager)
 end
 
 function M._get_display_text()
-  return M._format_status_text(M._animation.status_data) or M._animation.text
+  return M._format_execution_text(M._animation.execution) or M._animation.text
 end
 
 function M._get_frames()
@@ -233,42 +174,15 @@ function M.stop()
 end
 
 function M._should_animate()
-  local status = M._animation.status_data
-  if not status or status.type == 'idle' then
+  local execution = M._animation.execution
+  if not execution or (execution.activity ~= 'running' and execution.activity ~= 'retrying') then
     return false
   end
   local active_session = state.active_session
   if not active_session then
     return false
   end
-  return M._animation.status_session_id == active_session.id
-end
-
-function M.sync_from_server()
-  local api_client = state.api_client
-  if not api_client or not api_client.list_session_status then
-    return
-  end
-
-  api_client
-    :list_session_status(state.current_cwd or vim.fn.getcwd())
-    :and_then(function(status_map)
-      if type(status_map) ~= 'table' then
-        return
-      end
-      for session_id, status in pairs(status_map) do
-        if not M._animation.last_status_map[session_id] then
-          M._animation.last_status_map[session_id] = status
-        end
-      end
-      local active_session = state.active_session
-      if active_session then
-        replay_status_for(active_session.id)
-      end
-    end)
-    :catch(function(err)
-      require('opencode.log').debug('loading_animation.sync_from_server failed: %s', tostring(err))
-    end)
+  return M._animation.session_id == active_session.id
 end
 
 function M.is_running()
@@ -289,21 +203,15 @@ function M.refresh()
 end
 
 function M.setup()
-  state.store.subscribe('job_count', M.refresh)
   state.store.subscribe('active_session', M._on_active_session_change)
-  state.store.subscribe('event_manager', on_event_manager_change)
-  subscribe_session_status_event(state.event_manager)
-  M.sync_from_server()
+  M._on_active_session_change()
 end
 
 function M.teardown()
-  state.store.unsubscribe('job_count', M.refresh)
   state.store.unsubscribe('active_session', M._on_active_session_change)
-  state.store.unsubscribe('event_manager', on_event_manager_change)
-  unsubscribe_session_status_event(M._animation.status_event_manager)
-  M._animation.last_status_map = {}
-  M._animation.status_data = nil
-  M._animation.status_session_id = nil
+  release_observation()
+  M._animation.execution = nil
+  M._animation.session_id = nil
   M._clear_animation_timer()
 end
 

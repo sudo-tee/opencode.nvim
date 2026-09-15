@@ -2,113 +2,43 @@ local server_job = require('opencode.server_job')
 local Promise = require('opencode.promise')
 local curl = require('opencode.curl')
 local assert = require('luassert')
-local log = require('opencode.log')
 
 describe('server_job', function()
   local original_curl_request
   local opencode_server = require('opencode.opencode_server')
   local original_new
-  local original_log_notify
+  local original_state_server
+  local original_system
 
   before_each(function()
+    original_system = Promise.system
+    Promise.system = function(args)
+      assert.equals('--help', args[2])
+      return Promise.new():resolve({ stdout = 'Commands:\n  opencode serve  starts a headless server', code = 0 })
+    end
     original_curl_request = curl.request
     original_new = opencode_server.new
-    original_log_notify = log.notify
+    original_state_server = require('opencode.state').opencode_server
+    require('opencode.state').jobs.clear_server()
   end)
 
   after_each(function()
+    Promise.system = original_system
     curl.request = original_curl_request
     opencode_server.new = original_new
-    log.notify = original_log_notify
+    require('opencode.state').jobs.set_server(original_state_server)
   end)
 
   it('exposes expected public functions', function()
-    assert.is_function(server_job.call_api)
-    assert.is_function(server_job.stream_api)
     assert.is_function(server_job.ensure_server)
-  end)
-
-  it('call_api resolves with decoded json and toggles is_job_running', function()
-    local state = require('opencode.state')
-    curl.request = function(opts)
-      -- simulate async callback
-      vim.schedule(function()
-        assert.equal(1, state.job_count)
-        opts.callback({ status = 200, body = '{"hello":"world"}' })
-      end)
-    end
-
-    local result = server_job.call_api('http://localhost:1234/test', 'GET'):wait()
-    assert.same({ hello = 'world' }, result)
-    assert.equal(0, state.job_count) -- reset
-  end)
-
-  it('call_api rejects on non 2xx', function()
-    curl.request = function(opts)
-      vim.schedule(function()
-        opts.callback({ status = 500, body = '{"error":"boom"}' })
-      end)
-    end
-
-    local ok, err = pcall(function()
-      server_job.call_api('http://localhost:1234/test', 'GET'):wait()
-    end)
-    assert.is_false(ok)
-    if type(err) == 'table' then
-      assert.equals('boom', err.error)
-    else
-      assert.truthy(err:match('boom'))
-    end
-  end)
-
-  it('stream_api forwards chunks', function()
-    local collected = {}
-    curl.request = function(opts)
-      -- simulate streaming by calling stream multiple times
-      vim.schedule(function()
-        opts.stream(nil, 'part1')
-        opts.stream(nil, 'part2')
-      end)
-      return { pid = 1 }
-    end
-
-    server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function(chunk)
-      table.insert(collected, chunk)
-    end)
-
-    vim.wait(50, function()
-      return #collected == 2
-    end)
-
-    assert.same({ 'part1', 'part2' }, collected)
-  end)
-
-  it('does not warn when stream shutdown is intentional', function()
-    local on_exit
-    local notifications = {}
-    log.notify = function(message, level)
-      notifications[#notifications + 1] = { message, level }
-    end
-    curl.request = function(opts)
-      on_exit = opts.on_exit
-      return { pid = 1 }
-    end
-
-    server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
-
-    on_exit(1, 15, true)
-    assert.same({}, notifications)
-
-    on_exit(1, 15, false)
-    assert.same({ { 'Streaming request exited with code 1', vim.log.levels.WARN } }, notifications)
   end)
 
   it('ensure_server spawns a new opencode server only once', function()
     local spawn_count = 0
     local fake = {
       url = 'http://127.0.0.1:4000',
-      is_running = function()
-        return spawn_count > 0
+      is_ready = function(self)
+        return self._ready == true
       end,
       spawn = function(self, opts)
         spawn_count = spawn_count + 1
@@ -117,8 +47,17 @@ describe('server_job', function()
         end)
       end,
       shutdown = function() end,
+      probe_connection = function()
+        return Promise.new():resolve({ protocol = 'v1', response = { healthy = true, version = '1.18.30' } })
+      end,
       check_health = function()
         return Promise.new():resolve(true)
+      end,
+      mark_ready = function(self)
+        self._ready = true
+      end,
+      can_release_process = function()
+        return true
       end,
     }
     opencode_server.new = function()
@@ -142,7 +81,6 @@ describe('server_job', function()
     local original_opencode_server
     local original_find_any_existing_port
     local original_find_port_for_directory
-    local original_started_by_nvim
     local original_register
 
     before_each(function()
@@ -157,13 +95,9 @@ describe('server_job', function()
 
       original_find_any_existing_port = port_mapping.find_any_existing_port
       original_find_port_for_directory = port_mapping.find_port_for_directory
-      original_started_by_nvim = port_mapping.started_by_nvim
       original_register = port_mapping.register
 
       port_mapping.register = function() end
-      port_mapping.started_by_nvim = function()
-        return false
-      end
 
       state.jobs.clear_server()
     end)
@@ -176,7 +110,6 @@ describe('server_job', function()
 
       port_mapping.find_any_existing_port = original_find_any_existing_port
       port_mapping.find_port_for_directory = original_find_port_for_directory
-      port_mapping.started_by_nvim = original_started_by_nvim
       port_mapping.register = original_register
     end)
 
@@ -187,7 +120,7 @@ describe('server_job', function()
 
       curl.request = function(opts)
         vim.schedule(function()
-          opts.callback({ status = 200, body = '{"ok":true}' })
+          opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1"}' })
         end)
       end
 
@@ -195,6 +128,7 @@ describe('server_job', function()
       assert.is_not_nil(result)
       assert.equal('http://192.168.1.100:4321', result.url)
       assert.equal(4321, result.port)
+      assert.equal('v2', result.protocol)
     end)
 
     it('resolves url with default port from find_any_existing_port when port is nil', function()
@@ -208,7 +142,7 @@ describe('server_job', function()
 
       curl.request = function(opts)
         vim.schedule(function()
-          opts.callback({ status = 200, body = '{"ok":true}' })
+          opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1"}' })
         end)
       end
 
@@ -231,8 +165,8 @@ describe('server_job', function()
       local fake_local = {
         url = 'http://127.0.0.1:5000',
         port = nil,
-        is_running = function(self)
-          return spawn_count > 0
+        is_ready = function(self)
+          return self._ready == true
         end,
         spawn = function(self, opts)
           spawn_count = spawn_count + 1
@@ -241,6 +175,15 @@ describe('server_job', function()
           end)
         end,
         shutdown = function() end,
+        probe_connection = function()
+          return Promise.new():resolve({ protocol = 'v1', response = { healthy = true, version = '1.18.30' } })
+        end,
+        mark_ready = function(self)
+          self._ready = true
+        end,
+        can_release_process = function()
+          return true
+        end,
       }
       opencode_server.new = function()
         return fake_local
@@ -251,10 +194,99 @@ describe('server_job', function()
       assert.same(fake_local, result._value or result)
     end)
 
-    it('falls back to local spawn when health check fails and no spawn_command', function()
+    it('generates and reuses a credential when custom spawn has no configured password', function()
+      local original_password = config.values.server.password
+      local original_username = config.values.server.username
+      local original_retry_delay = config.values.server.retry_delay
+      local original_password_file = config.values.server.password_file
+      config.values.server.url = 'http://127.0.0.1'
+      config.values.server.port = 4789
+      config.values.server.password = nil
+      config.values.server.username = nil
+      config.values.server.retry_delay = 0
+      config.values.server.password_file = vim.fn.tempname()
+
+      local spawned_env
+      config.values.server.spawn_command = function(_, _, env)
+        spawned_env = env
+      end
+
+      local request_count = 0
+      curl.request = function(opts)
+        request_count = request_count + 1
+        vim.schedule(function()
+          if request_count == 1 then
+            opts.on_error({ message = 'connection refused' })
+          else
+            opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1"}' })
+          end
+        end)
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.is_not_nil(spawned_env)
+      assert.is_string(spawned_env.OPENCODE_PASSWORD)
+      assert.equals(spawned_env.OPENCODE_PASSWORD, result.credential.password)
+      assert.equals('v2', result.protocol)
+      assert.equals(spawned_env.OPENCODE_PASSWORD, vim.fn.readfile(config.values.server.password_file)[1])
+
+      config.values.server.password = original_password
+      config.values.server.username = original_username
+      config.values.server.retry_delay = original_retry_delay
+      config.values.server.password_file = original_password_file
+    end)
+
+    it('persists an environment credential before a custom launcher starts', function()
+      local original_password = config.values.server.password
+      local original_password_file = config.values.server.password_file
+      local original_env_password = vim.env.OPENCODE_PASSWORD
+      local original_retry_delay = config.values.server.retry_delay
+      config.values.server.url = 'http://127.0.0.1'
+      config.values.server.port = 4789
+      config.values.server.password = nil
+      config.values.server.password_file = vim.fn.tempname()
+      config.values.server.retry_delay = 0
+      vim.env.OPENCODE_PASSWORD = 'environment-password'
+
+      local spawned_env
+      config.values.server.spawn_command = function(_, _, env)
+        spawned_env = env
+      end
+
+      local request_count = 0
+      curl.request = function(opts)
+        request_count = request_count + 1
+        vim.schedule(function()
+          if request_count == 1 then
+            opts.on_error({ message = 'connection refused' })
+          else
+            opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1"}' })
+          end
+        end)
+      end
+
+      local result = server_job.ensure_server():wait()
+      assert.equals('environment-password', spawned_env.OPENCODE_PASSWORD)
+      assert.equals('environment-password', result.credential.password)
+      assert.equals('environment-password', vim.fn.readfile(config.values.server.password_file)[1])
+      assert.equals('rw-------', vim.fn.getfperm(config.values.server.password_file))
+
+      config.values.server.password = original_password
+      config.values.server.password_file = original_password_file
+      config.values.server.retry_delay = original_retry_delay
+      vim.env.OPENCODE_PASSWORD = original_env_password
+    end)
+
+    it('surfaces external server failure when health check fails and no spawn_command', function()
+      local original_retry_delay = config.values.server.retry_delay
+      local original_defer_fn = vim.defer_fn
       config.values.server.url = 'http://192.168.1.100'
       config.values.server.port = 7777
       config.values.server.spawn_command = nil
+      config.values.server.retry_delay = 0
+      vim.defer_fn = function(fn, _delay)
+        vim.schedule(fn)
+      end
 
       curl.request = function(opts)
         vim.schedule(function()
@@ -266,31 +298,16 @@ describe('server_job', function()
         end)
       end
 
-      local spawn_count = 0
-      local fake_local = {
-        url = 'http://127.0.0.1:8080',
-        port = nil,
-        is_running = function(self)
-          return spawn_count > 0
-        end,
-        spawn = function(self, opts)
-          spawn_count = spawn_count + 1
-          vim.schedule(function()
-            opts.on_ready({}, self.url)
-          end)
-        end,
-        shutdown = function() end,
-      }
-      opencode_server.new = function()
-        return fake_local
-      end
-
-      local result = server_job.ensure_server():wait()
-      assert.equal(1, spawn_count)
-      assert.same(fake_local, result._value or result)
+      local ok, err = pcall(function()
+        server_job.ensure_server():wait()
+      end)
+      assert.is_false(ok)
+      assert.equals('health probe HTTP 503', err)
+      config.values.server.retry_delay = original_retry_delay
+      vim.defer_fn = original_defer_fn
     end)
 
-    it('retries and connects when auto_kill=false and health check eventually succeeds', function()
+    it('retries transport failures and connects when the server becomes reachable', function()
       local original_auto_kill = config.values.server.auto_kill
       local original_retry_delay = config.values.server.retry_delay
       local original_defer_fn = vim.defer_fn
@@ -311,25 +328,17 @@ describe('server_job', function()
         vim.schedule(function()
           request_count = request_count + 1
           if request_count <= 2 then
-            -- First two attempts fail (initial + first retry)
-            opts.callback({ status = 503, body = '{}' })
+            opts.on_error({ message = 'connection refused' })
           else
-            -- Third attempt succeeds
-            opts.callback({ status = 200, body = '{"ok":true}' })
+            opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1"}' })
           end
         end)
-      end
-
-      local registered_mode
-      port_mapping.register = function(_port, _dir, _started, mode)
-        registered_mode = mode
       end
 
       local result = server_job.ensure_server():wait()
       assert.is_not_nil(result)
       assert.equal('http://192.168.1.100:5555', result.url)
       assert.equal(5555, result.port)
-      assert.equal('attach', registered_mode)
       assert.is_true(request_count >= 3)
 
       config.values.server.auto_kill = original_auto_kill
@@ -337,7 +346,7 @@ describe('server_job', function()
       vim.defer_fn = original_defer_fn
     end)
 
-    it('rejects after exhausting retries when auto_kill=false', function()
+    it('rejects after exhausting transport retries', function()
       local original_auto_kill = config.values.server.auto_kill
       local original_retry_delay = config.values.server.retry_delay
       local original_defer_fn = vim.defer_fn
@@ -352,10 +361,9 @@ describe('server_job', function()
         vim.schedule(fn)
       end
 
-      -- All attempts fail
       curl.request = function(opts)
         vim.schedule(function()
-          opts.callback({ status = 503, body = '{}' })
+          opts.on_error({ message = 'connection refused' })
         end)
       end
 
@@ -364,7 +372,9 @@ describe('server_job', function()
       end)
 
       assert.is_false(ok)
-      assert.truthy(tostring(err):match('Failed to connect to external server'))
+      assert.is_table(err)
+      assert.equals('transport', err.kind)
+      assert.equals('connection refused', err.cause.message)
 
       config.values.server.auto_kill = original_auto_kill
       config.values.server.retry_delay = original_retry_delay
@@ -398,7 +408,7 @@ describe('server_job', function()
         return {
           url = 'http://127.0.0.1:8080',
           port = nil,
-          is_running = function()
+          is_ready = function()
             return spawn_count > 0
           end,
           spawn = function(self, opts)
@@ -423,104 +433,6 @@ describe('server_job', function()
     end)
   end)
 
-  describe('authentication headers', function()
-    local config = require('opencode.config')
-    local auth = require('opencode.auth')
-    local original_password
-    local original_username
-    local original_env_password
-    local original_env_username
-
-    before_each(function()
-      auth.clear_cache()
-      original_password = config.values.server.password
-      original_username = config.values.server.username
-      original_env_password = vim.env.OPENCODE_SERVER_PASSWORD
-      original_env_username = vim.env.OPENCODE_SERVER_USERNAME
-      config.values.server.password = nil
-      config.values.server.username = nil
-      vim.env.OPENCODE_SERVER_PASSWORD = nil
-      vim.env.OPENCODE_SERVER_USERNAME = nil
-    end)
-
-    after_each(function()
-      config.values.server.password = original_password
-      config.values.server.username = original_username
-      if original_env_password then
-        vim.env.OPENCODE_SERVER_PASSWORD = original_env_password
-      else
-        vim.env.OPENCODE_SERVER_PASSWORD = nil
-      end
-      if original_env_username then
-        vim.env.OPENCODE_SERVER_USERNAME = original_env_username
-      else
-        vim.env.OPENCODE_SERVER_USERNAME = nil
-      end
-    end)
-
-    it('call_api includes Authorization header when password is set', function()
-      config.values.server.password = 'secret'
-      config.values.server.username = 'testuser'
-
-      local captured_opts
-      curl.request = function(opts)
-        captured_opts = opts
-        vim.schedule(function()
-          opts.callback({ status = 200, body = '{}' })
-        end)
-      end
-
-      server_job.call_api('http://localhost:1234/test', 'GET'):wait()
-
-      assert.is_not_nil(captured_opts)
-      assert.is_not_nil(captured_opts.headers)
-      assert.truthy(vim.startswith(captured_opts.headers['Authorization'], 'Basic '))
-    end)
-
-    it('call_api does not include Authorization header when no password', function()
-      local captured_opts
-      curl.request = function(opts)
-        captured_opts = opts
-        vim.schedule(function()
-          opts.callback({ status = 200, body = '{}' })
-        end)
-      end
-
-      server_job.call_api('http://localhost:1234/test', 'GET'):wait()
-
-      assert.is_not_nil(captured_opts)
-      assert.is_nil(captured_opts.headers['Authorization'])
-    end)
-
-    it('stream_api includes Authorization header when password is set', function()
-      config.values.server.password = 'secret'
-
-      local captured_opts
-      curl.request = function(opts)
-        captured_opts = opts
-        return { pid = 1 }
-      end
-
-      server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
-
-      assert.is_not_nil(captured_opts)
-      assert.is_not_nil(captured_opts.headers)
-      assert.truthy(vim.startswith(captured_opts.headers['Authorization'], 'Basic '))
-    end)
-
-    it('stream_api does not include Authorization header when no password', function()
-      local captured_opts
-      curl.request = function(opts)
-        captured_opts = opts
-        return { pid = 1 }
-      end
-
-      server_job.stream_api('http://localhost:1234/stream', 'GET', nil, function() end)
-
-      assert.is_not_nil(captured_opts)
-      assert.is_nil(captured_opts.headers['Authorization'])
-    end)
-  end)
 end)
 
 describe('concurrent server startup', function()
@@ -533,23 +445,42 @@ describe('concurrent server startup', function()
     original = {
       server = state.opencode_server,
       new = OpencodeServer.new,
+      probe = OpencodeServer.probe_connection,
       register = port_mapping.register,
       url = config.values.server.url,
+      system = Promise.system,
     }
     starts, spawned, callbacks = 0, {}, {}
+    Promise.system = function(args)
+      assert.equals('--help', args[2])
+      return Promise.new():resolve({ stdout = 'Commands:\n  opencode serve  starts a headless server', code = 0 })
+    end
+    OpencodeServer.probe_connection = function()
+      return Promise.new():resolve({ protocol = 'v1', response = { healthy = true, version = '1.18.30' } })
+    end
     config.values.server.url = nil
     state.jobs.clear_server()
     port_mapping.register = function() end
     OpencodeServer.new = function()
-      local server = { spawn_promise = Promise.new(), url = nil }
-      server.is_running = function(self)
-        return self.job ~= nil
+      local server = { url = nil, _ready = false }
+      server.probe_connection = function(self, timeout)
+        return OpencodeServer.probe_connection(self, timeout)
       end
-      server.get_spawn_promise = function(self)
-        return self.spawn_promise
+      server.is_ready = function(self)
+        return self._ready
       end
       server.check_health = function()
         error('startup must finish before health checks run')
+      end
+      server.mark_ready = function(self)
+        self._ready = true
+      end
+      server.can_release_process = function()
+        return true
+      end
+      server.set_process_release = function() end
+      server.release_process = function()
+        return true
       end
       server.spawn = function(self, opts)
         starts = starts + 1
@@ -561,45 +492,57 @@ describe('concurrent server startup', function()
   end)
   after_each(function()
     state.jobs.set_server(original.server)
-    OpencodeServer.new, port_mapping.register = original.new, original.register
+    Promise.system = original.system
+    OpencodeServer.new, OpencodeServer.probe_connection, port_mapping.register =
+      original.new, original.probe, original.register
     config.values.server.url = original.url
   end)
   local function ready(index)
     local server = spawned[index]
     server.url = 'http://127.0.0.1:4096'
-    server.spawn_promise:resolve(server)
     callbacks[index].on_ready(server.job, server.url)
   end
-  it('shares a single startup between API initialization and panel opening', function()
-    local client = require('opencode.api_client').new()
-    local api = client:_ensure_base_url()
+  it('shares a single startup between lifecycle callers', function()
     local panel = server_job.ensure_server()
     local another_panel = server_job.ensure_server()
+    assert.is_true(vim.wait(1000, function()
+      return starts == 1
+    end))
     assert.equals(1, starts)
     assert.equals(panel, another_panel)
-    assert.is_false(api:is_resolved())
     assert.is_false(panel:is_resolved())
     ready(1)
-    assert.is_true(api:wait())
     assert.equals(spawned[1], panel:wait())
   end)
-  it('joins a directly spawned process before health checking it', function()
+  it('publishes a directly spawned process only after protocol probe succeeds', function()
+    local probe = Promise.new()
+    OpencodeServer.probe_connection = function()
+      return probe
+    end
     local direct = Promise.new()
     server_job.spawn_local_server(direct)
-    local panel = server_job.ensure_server()
     assert.equals(1, starts)
     ready(1)
+    assert.is_nil(state.opencode_server)
+    assert.is_false(direct:is_resolved())
+    probe:resolve({ protocol = 'v1', response = { healthy = true, version = '1.18.30' } })
     assert.equals(spawned[1], direct:wait())
-    assert.equals(spawned[1], panel:wait())
+    assert.equals(spawned[1], state.opencode_server)
   end)
   it('releases failed startup so the next request can retry', function()
     local first = server_job.ensure_server()
+    assert.is_true(vim.wait(1000, function()
+      return starts == 1
+    end))
     spawned[1].job = nil
     callbacks[1].on_error('address already in use')
     assert.is_false(pcall(function()
       first:wait()
     end))
     local second = server_job.ensure_server()
+    assert.is_true(vim.wait(1000, function()
+      return starts == 2
+    end))
     assert.equals(2, starts)
     ready(2)
     assert.equals(spawned[2], second:wait())

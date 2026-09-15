@@ -3,9 +3,38 @@ local store = require('opencode.state.store')
 local session_tabs = require('opencode.state.session_tabs')
 local renderer = require('opencode.ui.renderer')
 local renderer_ctx = require('opencode.ui.renderer.ctx')
-local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
+
+local function mock_connection()
+  local connection = { protocol = 'v1', operations = {}, observations = {} }
+  function connection:is_ready()
+    return true
+  end
+  function connection:observe(ref)
+    local observation = {
+      _ref = ref,
+      read = function()
+        return {
+          session = { id = ref.id, title = ref.id },
+          sync = { session = { state = 'current' } },
+          entries_by_id = {},
+          entry_order = {},
+          children = { order = {}, by_id = {} },
+          permission_requests_by_id = {},
+          question_requests_by_id = {},
+          files = { revision = 0 },
+        }
+      end,
+      watch = function()
+        return function() end
+      end,
+    }
+    return observation
+  end
+  state.jobs.set_server(connection)
+  return connection
+end
 
 describe('renderer session tab contexts', function()
   local original_state
@@ -58,12 +87,12 @@ describe('renderer session tab contexts', function()
       row = 1,
       col = 1,
     })
+    vim.api.nvim_win_set_buf(output_win, output_buf)
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'preserved output' })
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
 
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
-    store.set_raw('messages', {})
 
     local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve(nil))
     renderer.on_session_tab_changed(nil, second.id, first.id)
@@ -89,10 +118,12 @@ describe('renderer session tab contexts', function()
       row = 1,
       col = 1,
     })
+    vim.api.nvim_win_set_buf(output_win, output_buf)
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
-    state.jobs.set_api_client({})
+    mock_connection()
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
+    renderer.on_session_changed(nil, second.active_session, nil)
 
     local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve({}))
     renderer.on_session_tab_changed(nil, second.id, first.id)
@@ -140,8 +171,10 @@ describe('renderer session tab contexts', function()
       row = 1,
       col = 1,
     })
+    vim.api.nvim_win_set_buf(output_win, output_buf)
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
-    state.jobs.set_api_client({})
+    mock_connection()
+    renderer.on_session_changed(nil, second.active_session, nil)
 
     local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve({}))
     renderer.on_windows_mounted()
@@ -154,7 +187,7 @@ describe('renderer session tab contexts', function()
     render_stub:revert()
   end)
 
-  it('marks an in-flight render dirty when its tab becomes inactive', function()
+  it('saves the renderer context of the tab being left before switching', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
@@ -167,23 +200,24 @@ describe('renderer session tab contexts', function()
       row = 1,
       col = 1,
     })
+    vim.api.nvim_win_set_buf(output_win, output_buf)
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
-    state.jobs.set_api_client({})
+    mock_connection()
     store.set_raw('active_session', first.active_session)
     store.set_raw('active_session_tab', first.id)
+    renderer.on_session_changed(nil, first.active_session, nil)
+    renderer_ctx.formatted_messages = { saved = true }
 
-    local messages = Promise.new()
-    local messages_stub = stub(session, 'get_messages').returns(messages)
-    renderer.render_full_session()
+    renderer.on_session_tab_changed(nil, second.id, first.id)
 
-    store.set_raw('active_session', second.active_session)
-    store.set_raw('active_session_tab', second.id)
-    messages:resolve({})
-    vim.wait(50, function()
-      return first.renderer_dirty
-    end)
-
-    assert.is_true(first.renderer_dirty)
-    messages_stub:revert()
+    -- the left tab keeps its renderer context for a later restore
+    assert.is_not_nil(first.renderer_context)
+    assert.same({ saved = true }, first.renderer_context.formatted_messages)
+    -- switching back restores it without rerendering
+    local render_stub = stub(renderer, 'render_full_session').returns(Promise.new():resolve(nil))
+    renderer.on_session_tab_changed(nil, first.id, second.id)
+    assert.same({ saved = true }, renderer_ctx.formatted_messages)
+    assert.stub(render_stub).was_not_called()
+    render_stub:revert()
   end)
 end)

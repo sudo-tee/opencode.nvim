@@ -26,37 +26,6 @@ local function mk_session(id)
   }
 end
 
----@return OpencodeApiClient
-local function mk_api_client_for_test()
-  ---@type OpencodeApiClient
-  local client = {
-    base_url = 'http://127.0.0.1:4000',
-    create_message = function(_, _, _)
-      local promise = Promise.new()
-      promise:resolve({
-        info = {
-          id = 'message-1',
-          sessionID = 'session-1',
-          tokens = { reasoning = 0, input = 0, output = 0, cache = { write = 0, read = 0 } },
-          system = {},
-          time = { created = 0, completed = 0 },
-          cost = 0,
-          path = { cwd = '/mock/workspace', root = '/mock/workspace' },
-          modelID = 'model',
-          providerID = 'provider',
-          role = 'assistant',
-          system_role = nil,
-          mode = nil,
-          error = {},
-        },
-        parts = { { type = 'text', text = 'ok' } },
-      })
-      return promise
-    end,
-  }
-  return client
-end
-
 ---@generic T
 ---@param value T
 ---@return Promise<T>
@@ -102,13 +71,11 @@ end
 local function with_model_runtime_snapshot(fn)
   local original_model = state.current_model
   local original_mode = state.current_mode
-  local original_messages = state.messages
 
   local ok, err = pcall(fn)
 
   state.model.set_model(original_model)
   state.model.set_mode(original_mode)
-  state.renderer.set_messages(original_messages)
 
   if not ok then
     error(err)
@@ -116,14 +83,12 @@ local function with_model_runtime_snapshot(fn)
 end
 
 ---@param fn fun()
-local function with_session_client_snapshot(fn)
+local function with_session_snapshot(fn)
   local original_active_session = state.active_session
-  local original_api_client = state.api_client
 
   local ok, err = pcall(fn)
 
   state.session.set_active(original_active_session)
-  state.jobs.set_api_client(original_api_client)
 
   if not ok then
     error(err)
@@ -222,6 +187,7 @@ describe('opencode.api', function()
 
       notify_stub:revert()
     end)
+
   end)
 
   describe('setup', function()
@@ -274,14 +240,27 @@ describe('opencode.api', function()
 
     it('routes copy_message through the command axis with its message id', function()
       local original_active_session = state.active_session
-      local original_messages = state.messages
+      local original_server = state.opencode_server
+      local original_observation = state.session.active_observation
       state.session.set_active(mk_session('session-copy'))
-      state.renderer.set_messages({
-        {
-          info = { id = 'message-copy', role = 'user' },
-          parts = { { type = 'text', text = 'copy source' } },
-        },
-      })
+      state.jobs.set_server({ is_ready = function() return true end })
+      state.session.active_observation = function()
+        return {
+          read = function()
+            return {
+              session = { id = 'session-copy' },
+              entry_order = { 'message-copy' },
+              entries_by_id = {
+                ['message-copy'] = {
+                  id = 'message-copy',
+                  kind = 'user',
+                  content = { { kind = 'text', text = 'copy source' } },
+                },
+              },
+            }
+          end,
+        }
+      end
 
       local build_stub = stub(commands, 'build_parsed_intent').invokes(function(name, args)
         assert.equal('copy_message', name)
@@ -300,8 +279,9 @@ describe('opencode.api', function()
       setreg_stub:revert()
       execute_stub:revert()
       build_stub:revert()
-      state.renderer.set_messages(original_messages)
+      state.session.active_observation = original_observation
       state.session.set_active(original_active_session)
+      state.jobs.set_server(original_server)
     end)
   end)
 
@@ -342,10 +322,9 @@ describe('opencode.api', function()
     end)
 
     it('routes submit_input_prompt through handle_submit, send_message, and after_run', function()
-      with_session_client_snapshot(function()
+      with_session_snapshot(function()
         with_model_runtime_snapshot(function()
           state.session.set_active(mk_session('session-1'))
-          state.jobs.set_api_client(mk_api_client_for_test())
 
           stub(context, 'get_context').returns({ mentioned_files = {} })
           stub(context, 'load')
@@ -509,20 +488,19 @@ describe('opencode.api', function()
             agent = 'tester',
           },
         }, function()
-          with_session_client_snapshot(function()
+          with_session_snapshot(function()
             state.session.set_active(mk_session('test-session'))
 
             local send_command_calls = {}
-            state.jobs.set_api_client({
-              base_url = 'http://127.0.0.1:4000',
-              send_command = function(_self, session_id, command_data)
-                table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
-                return {
-                  and_then = function()
-                    return {}
-                  end,
-                }
-              end,
+            local original_server = state.opencode_server
+            state.jobs.set_server({
+              is_ready = function() return true end,
+              operations = {
+                send_command = function(_self, session_id, _location, command_data)
+                  table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
+                  return resolved(true)
+                end,
+              },
             })
 
             local slash_commands = slash.get_commands():wait()
@@ -537,6 +515,7 @@ describe('opencode.api', function()
             assert.equal('', send_command_calls[1].command_data.arguments)
             assert.equal('openai/gpt-4', send_command_calls[1].command_data.model)
             assert.equal('tester', send_command_calls[1].command_data.agent)
+            state.jobs.set_server(original_server)
           end)
         end)
       end)
@@ -580,7 +559,6 @@ describe('opencode.api', function()
       with_model_runtime_snapshot(function()
         state.model.clear_model()
         state.model.clear_mode()
-        state.renderer.set_messages(nil)
 
         with_opencode_config({ model = 'testmodel' }, function()
           local model = api.current_model():wait()
@@ -593,16 +571,6 @@ describe('opencode.api', function()
       with_model_runtime_snapshot(function()
         state.model.set_model('openai/gpt-4.1')
         state.model.set_mode('plan')
-        state.renderer.set_messages({
-          {
-            info = {
-              id = 'm1',
-              providerID = 'anthropic',
-              modelID = 'claude-3-opus',
-              mode = 'build',
-            },
-          },
-        })
 
         local model = api.current_model():wait()
 

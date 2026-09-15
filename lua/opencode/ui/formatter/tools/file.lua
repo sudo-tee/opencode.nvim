@@ -10,12 +10,7 @@ local function resolve_file_name(file_path)
     return ''
   end
 
-  local cwd = vim.fn.getcwd()
-  local absolute = vim.fn.fnamemodify(file_path, ':p')
-  if vim.startswith(absolute, cwd .. '/') then
-    return absolute:sub(#cwd + 2)
-  end
-  return absolute
+  return file_path
 end
 
 ---@param file_path string
@@ -47,17 +42,16 @@ local function resolve_display_file_name(file_path, tool_output)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
-  local tool_output = part.state and part.state.output or ''
-  local tool_type = part.tool
+  local tool_output = require('opencode.ui.formatter.utils').tool_result_text(part)
+  local tool_type = part.name
+  local target = part.target or {}
 
-  local file_name = tool_type == 'read' and resolve_display_file_name(input.filePath or '', tool_output)
-    or resolve_file_name(input.filePath or '')
+  local file_name = tool_type == 'read' and resolve_display_file_name(target.path or '', tool_output)
+    or resolve_file_name(target.path or '')
 
-  local file_type = input.filePath and util.get_markdown_filetype(input.filePath) or ''
+  local file_type = target.path and util.get_markdown_filetype(target.path) or ''
 
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
@@ -65,12 +59,12 @@ function M.format(output, part)
   local icon_text = icons.get(tool_type)
   utils.format_action(output, icon_text, tool_type, file_name, utils.get_duration_text(part))
 
-  if file_name ~= '' and input.filePath then
+  if file_name ~= '' and target.path then
     local action_line = output:get_line_count()
     local line_content = output:get_line(action_line)
     output:add_target({
       kind = 'file',
-      path = input.filePath,
+      path = target.path,
       range = {
         line = action_line,
         start_col = 0,
@@ -84,25 +78,24 @@ function M.format(output, part)
     return
   end
 
-  if tool_type == 'edit' and metadata.diff then
-    utils.format_diff(output, metadata.diff, file_type, input.filePath)
-  elseif tool_type == 'write' and input.content then
-    utils.format_code(output, vim.split(input.content, '\n'), file_type)
+  local change = part.changes and part.changes[1]
+  if tool_type == 'edit' and change and change.diff then
+    utils.format_diff(output, change.diff, file_type, change.path)
+  elseif tool_type == 'write' and target.content then
+    utils.format_code(output, vim.split(target.content, '\n'), file_type)
   end
 
   output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
 end
 
----@param part OpencodeMessagePart
----@param input FileToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(part, input)
-  local tool = part.tool
+function M.summary(part)
+  local tool = part.name
   if tool == 'read' then
-    local tool_output = part.state and part.state.output or nil
-    return icons.get('read'), 'read', resolve_display_file_name(input.filePath, tool_output)
+    return icons.get('read'), 'read', resolve_display_file_name(part.target and part.target.path, '')
   end
-  return icons.get(tool), tool, resolve_file_name(input.filePath)
+  return icons.get(tool), tool, resolve_file_name(part.target and part.target.path)
 end
 
 return M

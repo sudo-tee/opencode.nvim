@@ -272,14 +272,15 @@ describe('output token navigation', function()
       navigated = { path = path, line = line, col = col }
       return true
     end
-    state.renderer.set_messages(setmetatable({}, {
+    local ctx = require('opencode.ui.renderer.ctx')
+    ctx.entries = setmetatable({}, {
       __pairs = function()
-        error('symbol target navigation must not scan state.messages')
+        error('symbol target navigation must not scan renderer entries')
       end,
       __ipairs = function()
-        error('symbol target navigation must not scan state.messages')
+        error('symbol target navigation must not scan renderer entries')
       end,
-    }))
+    })
 
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'foo' })
     local ok, err = pcall(function()
@@ -289,7 +290,7 @@ describe('output token navigation', function()
 
     navigation.navigate_to_location = original_navigate_to_location
     package.loaded['opencode.ui.symbol_snapshot'] = original_symbol_snapshot
-    state.renderer.set_messages({})
+    ctx.entries = {}
     target_stub:revert()
 
     assert.is_true(ok, err)
@@ -596,10 +597,10 @@ describe('navigation jumplist preservation', function()
   it('marks the output cursor before goto_next_message moves', function()
     local renderer = require('opencode.ui.renderer')
     local ctx = require('opencode.ui.renderer.ctx')
-    state.renderer.set_messages({
+    ctx.entries = {
       { info = { id = 'm1', role = 'user' } },
       { info = { id = 'm2', role = 'assistant' } },
-    })
+    }
     ctx.render_state:set_message({ info = { id = 'm1', role = 'user' } }, 1, 1)
     ctx.render_state:set_message({ info = { id = 'm2', role = 'assistant' } }, 20, 20)
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 40))
@@ -616,10 +617,10 @@ describe('navigation jumplist preservation', function()
   it('marks the output cursor before goto_prev_message moves', function()
     local renderer = require('opencode.ui.renderer')
     local ctx = require('opencode.ui.renderer.ctx')
-    state.renderer.set_messages({
+    ctx.entries = {
       { info = { id = 'm1', role = 'user' } },
       { info = { id = 'm2', role = 'assistant' } },
-    })
+    }
     ctx.render_state:set_message({ info = { id = 'm1', role = 'user' } }, 1, 1)
     ctx.render_state:set_message({ info = { id = 'm2', role = 'assistant' } }, 20, 20)
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 40))
@@ -690,19 +691,19 @@ describe('navigation hidden-messages-notice handling', function()
 
   it('does not jump [[ to the hidden-messages notice when max_messages truncates', function()
     local ctx = require('opencode.ui.renderer.ctx')
-    -- Simulate `on_message_updated` appending the hidden notice to `state.messages` after a `max_messages` truncation.
-    state.renderer.set_messages({
-      { info = { id = 'real_old', role = 'assistant', sessionID = 's1' } },
-      { info = { id = 'real_mid', role = 'user', sessionID = 's1' } },
-      { info = { id = '__opencode_hidden_messages_notice__', role = 'system', sessionID = 's1' } },
-    })
+    -- Simulate a renderer entry list containing the hidden notice after truncation.
+    ctx.entries = {
+      { id = 'real_old', kind = 'assistant', session_id = 's1' },
+      { id = 'real_mid', kind = 'user', session_id = 's1' },
+      { id = '__opencode_hidden_messages_notice__', kind = 'synthetic', session_id = 's1' },
+    }
     ctx.render_state:set_message(
-      { info = { id = '__opencode_hidden_messages_notice__', role = 'system', sessionID = 's1' } },
+      { id = '__opencode_hidden_messages_notice__', kind = 'synthetic', session_id = 's1' },
       1,
       2
     )
-    ctx.render_state:set_message({ info = { id = 'real_old', role = 'assistant', sessionID = 's1' } }, 4, 8)
-    ctx.render_state:set_message({ info = { id = 'real_mid', role = 'user', sessionID = 's1' } }, 10, 18)
+    ctx.render_state:set_message({ id = 'real_old', kind = 'assistant', session_id = 's1' }, 4, 8)
+    ctx.render_state:set_message({ id = 'real_mid', kind = 'user', session_id = 's1' }, 10, 18)
 
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 25))
     -- Without the fix, [[ from line 11 would match the notice (line 1) instead of `real_old` (line 4).

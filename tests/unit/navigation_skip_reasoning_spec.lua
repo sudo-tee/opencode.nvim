@@ -5,21 +5,20 @@ local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local ctx = require('opencode.ui.renderer.ctx')
 
----@param messages table[]
----@param rendered_messages table[] list of { id, role, line_start, line_end? }
----@param parts table[] list of { id, message_id, type, line_start, line_end }
-local function seed(messages, rendered_messages, parts)
-  state.renderer.set_messages(messages)
-  for _, r in ipairs(rendered_messages) do
-    ctx.render_state:set_message(
-      { info = { id = r.id, role = r.role } },
-      r.line_start,
-      r.line_end or r.line_start
-    )
+---@param entries table[] list of { id, kind, line_start, line_end? }
+---@param parts table[] list of { id, message_id, kind, line_start, line_end }
+local function seed(entries, parts)
+  ctx.entries = {}
+  for _, r in ipairs(entries) do
+    local entry = { id = r.id, kind = r.kind, content = {} }
+    ctx.entries[#ctx.entries + 1] = entry
+    ctx.render_state:set_message(entry, r.line_start, r.line_end or r.line_start)
   end
   for _, p in ipairs(parts or {}) do
     ctx.render_state:set_part(
-      { id = p.id, messageID = p.message_id, type = p.type, synthetic = p.synthetic },
+      { id = p.id, kind = p.kind, synthetic = p.synthetic },
+      p.message_id,
+      p.id,
       p.line_start,
       p.line_end or p.line_start
     )
@@ -27,7 +26,7 @@ local function seed(messages, rendered_messages, parts)
 end
 
 local function clear_render()
-  state.renderer.set_messages({})
+  ctx.entries = {}
   ctx.render_state:reset()
 end
 
@@ -67,65 +66,43 @@ describe('navigation skip-reasoning default', function()
 
   describe('renderer.get_next_rendered_message', function()
     it('skips the reasoning part and lands on the next text part of the next message', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-          { info = { id = 'u2', role = 'user' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-          { id = 'u2', role = 'user', line_start = 60 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-          { id = 'tool1', message_id = 'a1', type = 'tool', line_start = 45 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 60 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+        { id = 'tool1', message_id = 'a1', kind = 'tool', line_start = 45 },
+      })
 
       local result = renderer.get_next_rendered_message(5)
 
       assert.is_not_nil(result)
-      assert.equals('a1', result.message.info.id)
+      assert.equals('a1', result.message.id)
       assert.equals(30, result.line_start)
     end)
 
     it('falls back to message header when the next message has only reasoning', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 20 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 22 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 22 },
+      })
 
       local result = renderer.get_next_rendered_message(5)
 
       assert.is_not_nil(result)
-      assert.equals('a1', result.message.info.id)
+      assert.equals('a1', result.message.id)
       assert.equals(20, result.line_start)
     end)
 
     it('preserves the header fallback when no parts are registered for the next message', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 20 },
-        },
-        {}
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+      }, {})
 
       local result = renderer.get_next_rendered_message(5)
 
@@ -134,20 +111,13 @@ describe('navigation skip-reasoning default', function()
     end)
 
     it('skips synthetic parts', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-        },
-        {
-          { id = 'syn1', message_id = 'a1', type = 'text', synthetic = true, line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 20 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+      }, {
+        { id = 'syn1', message_id = 'a1', kind = 'text', synthetic = true, line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 20 },
+      })
 
       local result = renderer.get_next_rendered_message(5)
 
@@ -155,23 +125,16 @@ describe('navigation skip-reasoning default', function()
       assert.equals(20, result.line_start)
     end)
 
-    it('skips step-start and step-finish parts', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-        },
-        {
-          { id = 's_start', message_id = 'a1', type = 'step-start', line_start = 11 },
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 13 },
-          { id = 's_end', message_id = 'a1', type = 'step-finish', line_start = 18 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 20 },
-        }
-      )
+    it('skips step_start and step_finish parts', function()
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+      }, {
+        { id = 's_start', message_id = 'a1', kind = 'step_start', line_start = 11 },
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 13 },
+        { id = 's_end', message_id = 'a1', kind = 'step_finish', line_start = 18 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 20 },
+      })
 
       local result = renderer.get_next_rendered_message(5)
 
@@ -180,76 +143,52 @@ describe('navigation skip-reasoning default', function()
     end)
 
     it('lands on current message content when cursor sits above the first content part', function()
-      -- Cursor on the message header (line 11, line_start=10) or inside a
-      -- reasoning part (line 16, reasoning ls=15) — `o` must land on the
-      -- CURRENT message's first content part, not skip to the next message.
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-          { info = { id = 'u2', role = 'user' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-          { id = 'u2', role = 'user', line_start = 80 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 15 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      -- Cursor on the message header or inside reasoning must land on the
+      -- current message's first visible content part.
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 80 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 15 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
 
       local from_header = renderer.get_next_rendered_message(11)
       assert.is_not_nil(from_header)
-      assert.equals('a1', from_header.message.info.id)
+      assert.equals('a1', from_header.message.id)
       assert.equals(30, from_header.line_start)
 
       local from_reasoning = renderer.get_next_rendered_message(16)
       assert.is_not_nil(from_reasoning)
-      assert.equals('a1', from_reasoning.message.info.id)
+      assert.equals('a1', from_reasoning.message.id)
       assert.equals(30, from_reasoning.line_start)
     end)
   end)
 
   describe('renderer.get_prev_rendered_message', function()
     it('skips the reasoning part and lands on the first content part of the previous message', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-          { info = { id = 'u2', role = 'user' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-          { id = 'u2', role = 'user', line_start = 80 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 80 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
 
       local result = renderer.get_prev_rendered_message(70)
 
       assert.is_not_nil(result)
-      assert.equals('a1', result.message.info.id)
+      assert.equals('a1', result.message.id)
       assert.equals(30, result.line_start)
     end)
 
     it('returns nil when no message exists before cursor', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 30 },
-        },
-        {}
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 30 },
+      }, {})
 
       local result = renderer.get_prev_rendered_message(2)
 
@@ -257,47 +196,32 @@ describe('navigation skip-reasoning default', function()
     end)
 
     it('skips the current message and lands on previous message content when cursor is on reasoning', function()
-      -- Cursor on the reasoning part of a1 (line 16, reasoning ls=15) —
-      -- `p` must skip a1 and land on u1's content, not on a1's content.
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 15 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      -- From a1 reasoning, `p` must skip a1 and land on u1's content.
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 15 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
 
       local result = renderer.get_prev_rendered_message(16)
 
       assert.is_not_nil(result)
-      assert.equals('u1', result.message.info.id)
+      assert.equals('u1', result.message.id)
       assert.equals(1, result.line_start)
     end)
   end)
 
   describe('navigation.goto_next_message', function()
     it('lands on the text part when reasoning opens the assistant message', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
 
       vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
       navigation.goto_next_message()
@@ -307,19 +231,12 @@ describe('navigation skip-reasoning default', function()
     end)
 
     it('falls back to message header when reasoning is the only part', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 20 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 22 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 20 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 22 },
+      })
 
       vim.api.nvim_win_set_cursor(output_win, { 2, 0 })
       navigation.goto_next_message()
@@ -331,22 +248,14 @@ describe('navigation skip-reasoning default', function()
 
   describe('navigation.goto_prev_message', function()
     it('lands on the first content part of the previous message', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-          { info = { id = 'u2', role = 'user' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-          { id = 'u2', role = 'user', line_start = 80 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 80 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
 
       vim.api.nvim_win_set_cursor(output_win, { 70, 0 })
       navigation.goto_prev_message()
@@ -357,26 +266,16 @@ describe('navigation skip-reasoning default', function()
   end)
 
   describe('jumplist preservation with reasoning present', function()
-    -- The two navigation_spec.lua jumplist tests above cover plain-message
-    -- cases. The new skip-reasoning code path (`apply_skip_reasoning`) runs
-    -- only when a message has parts, so it must also leave the mark intact.
+    -- The content-aware jump must preserve the previous position too.
     it('marks the previous position before jumping past reasoning', function()
-      seed(
-        {
-          { info = { id = 'u1', role = 'user' } },
-          { info = { id = 'a1', role = 'assistant' } },
-          { info = { id = 'u2', role = 'user' } },
-        },
-        {
-          { id = 'u1', role = 'user', line_start = 1 },
-          { id = 'a1', role = 'assistant', line_start = 10 },
-          { id = 'u2', role = 'user', line_start = 80 },
-        },
-        {
-          { id = 'r1', message_id = 'a1', type = 'reasoning', line_start = 12 },
-          { id = 't1', message_id = 'a1', type = 'text', line_start = 30 },
-        }
-      )
+      seed({
+        { id = 'u1', kind = 'user', line_start = 1 },
+        { id = 'a1', kind = 'assistant', line_start = 10 },
+        { id = 'u2', kind = 'user', line_start = 80 },
+      }, {
+        { id = 'r1', message_id = 'a1', kind = 'reasoning', line_start = 12 },
+        { id = 't1', message_id = 'a1', kind = 'text', line_start = 30 },
+      })
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, vim.fn['repeat']({ 'line' }, 100))
       vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
       vim.api.nvim_buf_set_mark(output_buf, "'", 1, 0, {})

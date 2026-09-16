@@ -11,6 +11,8 @@ local LABELS = {
   NEW_SESSION_TITLE = 'New session',
 }
 
+local render_scheduled = false
+
 local function format_token_info()
   local parts = {}
 
@@ -68,7 +70,12 @@ local function get_session_desc()
 end
 
 function M.render()
+  if render_scheduled then
+    return
+  end
+  render_scheduled = true
   vim.schedule(function()
+    render_scheduled = false
     if not state.windows then
       return
     end
@@ -76,8 +83,6 @@ function M.render()
     if not win or not vim.api.nvim_win_is_valid(win) then
       return
     end
-
-    vim.wo[win].winbar = ' '
 
     local desc = get_session_desc():gsub('%%', '%%%%')
     local token_info = format_token_info()

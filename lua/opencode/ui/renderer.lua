@@ -328,6 +328,19 @@ local function total_tokens(tokens)
     + (tokens.cache and tokens.cache.write or 0)
 end
 
+local function update_stats(tokens, cost)
+  local count = total_tokens(tokens)
+  if count > 0 then
+    if type(cost) == 'number' then
+      state.renderer.set_stats(count, cost)
+    else
+      state.renderer.set_tokens_count(count)
+    end
+  elseif type(cost) == 'number' and cost > 0 then
+    state.renderer.set_cost(cost)
+  end
+end
+
 ctx.get_child_parts = function(session_id)
   local observation = child_observations[session_id]
   if not observation then
@@ -595,12 +608,12 @@ reconcile_observation = function(observation, resource)
     require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
   end
   if session_current and session_current.cost ~= nil and session_current.tokens then
-    state.renderer.set_stats(total_tokens(session_current.tokens), session_current.cost)
+    update_stats(session_current.tokens, session_current.cost)
   else
     for index = #entries, 1, -1 do
       local entry = entries[index]
       if entry.cost ~= nil and entry.tokens ~= nil then
-        state.renderer.set_stats(total_tokens(entry.tokens), entry.cost)
+        update_stats(entry.tokens, entry.cost)
         break
       end
     end

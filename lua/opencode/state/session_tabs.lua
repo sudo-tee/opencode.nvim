@@ -181,6 +181,16 @@ local function clear_ui(runtime)
   end
 end
 
+local function normalize_session(session)
+  if type(session) ~= 'table' or session.location ~= nil or type(session.directory) ~= 'string' then
+    return session
+  end
+
+  local normalized = vim.deepcopy(session)
+  normalized.location = { directory = normalized.directory }
+  return normalized
+end
+
 local function runtime_from_current(id, preserve_ui)
   local runtime = default_runtime(id)
   copy_from_store(runtime)
@@ -541,7 +551,7 @@ end
 ---@return OpencodeSessionTabRuntime
 function M.create(session)
   local runtime = runtime_from_current(new_id(), false)
-  runtime.active_session = session
+  runtime.active_session = normalize_session(session)
   runtime.messages = nil
   runtime.current_message = nil
   runtime.pending_permissions = {}

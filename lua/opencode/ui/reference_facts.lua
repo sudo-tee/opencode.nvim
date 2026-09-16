@@ -6,6 +6,7 @@ local current_session_id = nil
 local current_refs = {}
 local current_files = {}
 local current_directory = nil
+local part_refs = {}
 
 local function relative_path(path)
   if path:sub(1, 1) ~= '/' or not current_directory or not vim.startswith(path, current_directory .. '/') then
@@ -128,6 +129,7 @@ function M.clear()
   current_refs = {}
   current_files = {}
   current_directory = nil
+  part_refs = {}
   reference_parser.clear_all()
 end
 
@@ -135,16 +137,51 @@ end
 ---@param messages table[]
 ---@param location? table
 function M.rebuild(session_id, messages, location)
+  local directory = location and location.directory or nil
+  if current_session_id ~= session_id or current_directory ~= directory then
+    M.clear()
+  end
   current_session_id = session_id
-  current_directory = location and location.directory or nil
+  current_directory = directory
+  local previous_refs = current_refs
   current_refs = {}
-  reference_parser.clear_all()
+  local seen = {}
 
   for message_order, message in ipairs(messages or {}) do
     if is_current_session_assistant_message(session_id, message) or is_current_session_user_message(session_id, message) then
       for part_order, part in ipairs(message.content or {}) do
         if part.id then
-          local refs = collect_part_refs(session_id, message, part, message_order, part_order)
+          seen[part.id] = true
+          local source = {
+            kind = part.kind,
+            text = part.text,
+            synthetic = part.synthetic,
+            path = part.target and part.target.path,
+            source_path = part.source and part.source.path,
+            name = part.name,
+            message_id = message.id,
+            role = message.kind,
+            session_id = message.session_id,
+          }
+          local cached = part_refs[part.id]
+          if not cached or not vim.deep_equal(cached.source, source) then
+            cached = {
+              source = source,
+              refs = collect_part_refs(session_id, message, part, message_order, part_order),
+              message_order = message_order,
+              part_order = part_order,
+            }
+            part_refs[part.id] = cached
+          elseif cached.message_order ~= message_order or cached.part_order ~= part_order then
+            local delta = (message_order - cached.message_order) * 1000000
+              + (part_order - cached.part_order) * 1000
+            for _, ref in ipairs(cached.refs) do
+              ref.order = ref.order + delta
+            end
+            cached.message_order = message_order
+            cached.part_order = part_order
+          end
+          local refs = cached.refs
           for _, ref in ipairs(refs) do
             current_refs[#current_refs + 1] = ref
           end
@@ -153,7 +190,15 @@ function M.rebuild(session_id, messages, location)
     end
   end
 
-  rebuild_current_files()
+  for part_id in pairs(part_refs) do
+    if not seen[part_id] then
+      part_refs[part_id] = nil
+      reference_parser.clear(part_id)
+    end
+  end
+  if not vim.deep_equal(previous_refs, current_refs) then
+    rebuild_current_files()
+  end
 end
 
 ---@return CodeReference[]

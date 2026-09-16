@@ -850,7 +850,7 @@ function M.format_tool(output, part, context)
 
   local formatter = tool_formatters[tool] or (tool:match('_') and tool_formatters.mcp) or tool_formatters.tool
   local fold_count = #output.fold_ranges
-  formatter.format(output, part, context)
+  formatter.format(output, part, context, tool_formatters)
 
   if not format_utils.should_fold_tool(tool) then
     for idx = #output.fold_ranges, fold_count + 1, -1 do

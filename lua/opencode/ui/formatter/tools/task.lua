@@ -4,9 +4,10 @@ local icons = require('opencode.ui.icons')
 ---@param part table
 ---@param status string
 ---@param utils table
+---@param tool_formatters table registry of tool formatters (passed in by the
+--- dispatch site; requiring the registry module here would form a cycle)
 ---@return string
-function M.tool_action_line(part, status, utils)
-  local tool_formatters = require('opencode.ui.formatter.tools')
+function M.tool_action_line(part, status, utils, tool_formatters)
   local tool = part.name
   local formatter = tool_formatters[tool] or tool_formatters.tool
   local summary = formatter.summary or tool_formatters.tool.summary
@@ -22,7 +23,8 @@ end
 ---@param output Output
 ---@param part table
 ---@param context? FormatterContext
-function M.format(output, part, context)
+---@param tool_formatters? table registry passed in by the dispatch site
+function M.format(output, part, context, tool_formatters)
   if part.name ~= 'task' then
     return
   end
@@ -56,7 +58,7 @@ function M.format(output, part, context)
       for _, item in ipairs(child_parts) do
         if item.kind == 'tool' then
           local status = item.state or 'pending'
-          output:add_line(' ' .. M.tool_action_line(item, status, utils))
+          output:add_line(' ' .. M.tool_action_line(item, status, utils, tool_formatters))
         end
       end
 

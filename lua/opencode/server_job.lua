@@ -169,10 +169,11 @@ local try_native_service = Promise.async(function()
       -- In particular, never include the password command's stdout in an error.
       error('OpenCode command failed: ' .. table.concat(args, ' '), 0)
     end
-    return vim.trim(result.stdout or '')
+    return vim.trim(result.stdout or ''), vim.trim(result.stderr or '')
   end
 
-  local help = command('--help')
+  local help, help_stderr = command('--help')
+  help = non_empty(help) or help_stderr
   if help == '' then
     error('OpenCode returned empty command help', 0)
   end

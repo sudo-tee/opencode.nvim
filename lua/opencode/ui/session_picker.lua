@@ -143,14 +143,6 @@ local function format_entries(entries, omitted_count)
   }
 end
 
-local function ready_connection()
-  local connection = require('opencode.state').opencode_server
-  if not connection or not connection:is_ready() then
-    error('Connection is not ready')
-  end
-  return connection
-end
-
 local function session_location(session)
   if session.location ~= nil then
     return session.location
@@ -231,7 +223,7 @@ end
 function M.pick(sessions, callback, opts)
   local api = require('opencode.api')
   opts = opts or {}
-  local connection = ready_connection()
+  local connection = require('opencode.state').opencode_server
   local preview_unsubscribe
 
   local function release_preview()
@@ -295,7 +287,7 @@ function M.pick(sessions, callback, opts)
 
         local deleting_current = false
         if state.active_session then
-          local all_sessions = session_runtime.list_sessions_by_scope('project')
+          local all_sessions = Promise.wrap(session_runtime.list_sessions_by_scope('project')):await()
           deleting_current = M._is_session_or_ancestor_deleted(state.active_session.id, to_delete_ids, all_sessions)
         end
 
@@ -394,7 +386,7 @@ function M.pick(sessions, callback, opts)
       fn = Promise.async(function(_, _)
         local session_runtime = require('opencode.services.session_runtime')
         local new_scope = (opts.scope == 'global') and 'project' or 'global'
-        local new_sessions = session_runtime.list_sessions_by_scope(new_scope)
+        local new_sessions = Promise.wrap(session_runtime.list_sessions_by_scope(new_scope)):await()
         local filtered_sessions = session_runtime.filter_pickable_sessions(new_sessions, nil)
         opts.scope = new_scope
         return filtered_sessions

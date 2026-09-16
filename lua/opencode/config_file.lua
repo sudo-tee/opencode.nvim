@@ -1,6 +1,7 @@
 local Promise = require('opencode.promise')
 local sha1 = require('opencode.sha1')
 local util = require('opencode.util')
+local server_job = require('opencode.server_job')
 local M = {
   config_promise = nil,
   project_promise = nil,
@@ -19,12 +20,13 @@ local function sync_cache_connection()
   return connection
 end
 
-local function resource(name, directory)
+local resource = Promise.async(function(name, directory)
   local state = require('opencode.state')
-  local connection = sync_cache_connection()
+  local connection = server_job.ensure_server():await()
+  sync_cache_connection()
   local operation = connection and connection.operations and connection.operations[name]
   if type(operation) ~= 'function' then
-    return Promise.new():reject('Connection does not support ' .. name)
+    error('Connection does not support ' .. name)
   end
   return operation(
     connection,
@@ -32,10 +34,11 @@ local function resource(name, directory)
     util.apply_path_map,
     util.apply_reverse_path_map
   )
-end
+end)
 
 ---@type fun(): Promise<OpencodeConfigFile|nil>
 M.get_opencode_config = Promise.async(function()
+  sync_cache_connection()
   if not M.config_promise then
     M.config_promise = Promise.retry(function()
       return resource('get_config')
@@ -56,6 +59,7 @@ end)
 
 ---@type fun(directory?: string): Promise<OpencodeProject|nil>
 M.get_opencode_project = Promise.async(function(directory)
+  sync_cache_connection()
   if directory then
     return resource('get_current_project', directory):await()
   end

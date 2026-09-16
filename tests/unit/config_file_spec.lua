@@ -1,13 +1,22 @@
 local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local state = require('opencode.state')
+local stub = require('luassert.stub')
 
 describe('config_file.setup', function()
   local original_schedule
   local original_server
 
   local function set_operations(operations)
-    state.jobs.set_server({ operations = operations })
+    state.jobs.set_server({
+      operations = operations,
+      is_ready = function()
+        return true
+      end,
+      check_health = function()
+        return Promise.new():resolve(true)
+      end,
+    })
   end
 
   before_each(function()
@@ -80,6 +89,28 @@ describe('config_file.setup', function()
       })
       assert.same({ 'explore', 'coder' }, config_file.get_subagents():await())
     end):wait()
+  end)
+
+  it('starts the server before fetching a resource', function()
+    local server_job = require('opencode.server_job')
+    local original_server = state.opencode_server
+    local connection = {
+      operations = {
+        list_primary_agents = function()
+          return Promise.new():resolve({ 'build' })
+        end,
+      },
+    }
+    local ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+    state.jobs.clear_server()
+
+    local agents = config_file.get_opencode_agents():wait()
+
+    assert.same({ 'build' }, agents)
+    assert.stub(ensure_server).was_called()
+
+    ensure_server:revert()
+    state.jobs.set_server(original_server)
   end)
 
   it('get_opencode_project returns project', function()

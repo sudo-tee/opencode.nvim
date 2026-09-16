@@ -1,5 +1,6 @@
 local base_picker = require('opencode.ui.base_picker')
 local Promise = require('opencode.promise')
+local server_job = require('opencode.server_job')
 
 local M = {}
 
@@ -36,13 +37,13 @@ local function preview_skill(skill, target)
 end
 
 ---Show skills picker
-function M.pick()
+M.pick = Promise.async(function()
   local state = require('opencode.state')
   local ui = require('opencode.ui.ui')
   local input_window = require('opencode.ui.input_window')
 
   local ok, skills = pcall(function()
-    local connection = assert(state.opencode_server, 'Connection is not ready')
+    local connection = server_job.ensure_server():await()
     local util = require('opencode.util')
     return connection.operations
       .list_skills(
@@ -84,6 +85,6 @@ function M.pick()
     preview = 'custom',
     preview_fn = preview_skill,
   })
-end
+end)
 
 return M

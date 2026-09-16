@@ -117,12 +117,12 @@ end)
 
 M.actions.mcp = Promise.async(function()
   local mcp_picker = require('opencode.ui.mcp_picker')
-  mcp_picker.pick()
+  mcp_picker.pick():await()
 end)
 
 M.actions.skills = Promise.async(function()
   local skill_picker = require('opencode.ui.skill_picker')
-  skill_picker.pick()
+  skill_picker.pick():await()
 end)
 
 M.command_defs = {

@@ -13,7 +13,7 @@ local function active_session_fact()
 end
 
 function M.configure_provider()
-  require('opencode.model_picker').select(function(selection)
+  return require('opencode.model_picker').select(function(selection)
     if not selection then
       if state.ui.is_visible() then
         ui.focus_input()
@@ -36,7 +36,7 @@ function M.configure_provider()
 end
 
 function M.configure_variant()
-  require('opencode.variant_picker').select(function(selection)
+  return require('opencode.variant_picker').select(function(selection)
     if not selection then
       if state.ui.is_visible() then
         ui.focus_input()
@@ -66,6 +66,7 @@ M.cycle_variant = Promise.async(function()
   end
 
   local config_file = require('opencode.config_file')
+  config_file.get_opencode_providers():await()
   local model_info = config_file.get_model_info(provider, model)
 
   if not model_info or not model_info.variants then

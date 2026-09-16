@@ -3,6 +3,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
+local server_job = require('opencode.server_job')
 local CursorSpinner = require('opencode.quick_chat.spinner')
 local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
@@ -464,10 +465,7 @@ M.quick_chat = Promise.async(function(message, options, range)
       state.session.set_active(quick_chat_session)
     end
 
-    local connection = state.opencode_server
-    if not connection or not connection:is_ready() then
-      error('Connection is not ready')
-    end
+    local connection = server_job.ensure_server():await()
     local session_ref = {
       id = quick_chat_session.id,
       location = quick_chat_session.location or (quick_chat_session.directory and {

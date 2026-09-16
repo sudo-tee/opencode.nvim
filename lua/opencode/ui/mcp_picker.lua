@@ -3,6 +3,7 @@ local base_picker = require('opencode.ui.base_picker')
 local icons = require('opencode.ui.icons')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
+local server_job = require('opencode.server_job')
 
 ---Format MCP server item for picker
 ---@param mcp_item table MCP server definition
@@ -39,10 +40,10 @@ end
 
 ---Show MCP servers picker with connect/disconnect actions
 ---@param callback function?
-function M.pick(callback)
+M.pick = Promise.async(function(callback)
   local state = require('opencode.state')
   local config = require('opencode.config')
-  local connection = state.opencode_server
+  local connection = server_job.ensure_server():await()
   local operations = connection and connection.operations
   local location = { directory = state.current_cwd or vim.fn.getcwd() }
 
@@ -185,6 +186,6 @@ function M.pick(callback)
     width = 65,
     layout_opts = config.ui.picker,
   })
-end
+end)
 
 return M

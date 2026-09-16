@@ -289,6 +289,21 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
+  describe('list_sessions_by_scope', function()
+    it('starts the server when listing sessions before the panel opens', function()
+      local server_job = require('opencode.server_job')
+      local connection = state.opencode_server
+      local ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      state.jobs.clear_server()
+
+      local sessions = session_runtime.list_sessions_by_scope('project'):wait()
+
+      assert.is_table(sessions)
+      assert.stub(ensure_server).was_called()
+      ensure_server:revert()
+    end)
+  end)
+
   describe('switch_session', function()
     local input_window = require('opencode.ui.input_window')
 

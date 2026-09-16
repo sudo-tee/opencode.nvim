@@ -104,6 +104,9 @@ describe('session tab lifecycle', function()
 
     local send_one = messaging.send_message('one')
     local send_two = messaging.send_message('two')
+    assert.is_true(vim.wait(100, function()
+      return #requests == 2
+    end))
     assert.equals(2, #requests)
     local second = tabs.create({ id = 'second' })
     tabs.activate(second)

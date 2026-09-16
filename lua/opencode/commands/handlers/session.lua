@@ -305,7 +305,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
 
   -- forward / backward: flat navigation by time.updated
   return Promise.async(function()
-    local all_sessions = session_runtime.list_sessions_by_scope('project')
+    local all_sessions = Promise.wrap(session_runtime.list_sessions_by_scope('project')):await()
     if not all_sessions or #all_sessions == 0 then
       if empty_policy == 'notify' then
         vim.notify('No sessions', vim.log.levels.INFO)

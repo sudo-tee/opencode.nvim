@@ -75,7 +75,7 @@ describe('native V2 service discovery', function()
     local original = {
       executable = vim.fn.executable,
       system = vim.system,
-      kill_pid = require('opencode.opencode_server').kill_pid,
+      kill_pid = require('opencode.util').kill_pid,
       start = health_api.start,
       ok = health_api.ok,
       error = health_api.error,
@@ -98,7 +98,7 @@ describe('native V2 service discovery', function()
         end,
       }
     end
-    require('opencode.opencode_server').kill_pid = function()
+    require('opencode.util').kill_pid = function()
       killed = true
     end
     curl.request = function(opts)
@@ -123,7 +123,7 @@ describe('native V2 service discovery', function()
 
     vim.fn.executable = original.executable
     vim.system = original.system
-    require('opencode.opencode_server').kill_pid = original.kill_pid
+    require('opencode.util').kill_pid = original.kill_pid
     for _, name in ipairs({ 'start', 'ok', 'error', 'warn', 'info' }) do
       health_api[name] = original[name]
     end

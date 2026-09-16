@@ -1,5 +1,5 @@
 local log = require('opencode.log')
-local OpencodeServer = require('opencode.opencode_server')
+local util = require('opencode.util')
 
 local M = {}
 
@@ -66,7 +66,7 @@ end
 ---@param server_pid number|nil
 local function kill_orphaned_server(server_pid)
   if server_pid then
-    OpencodeServer.kill_pid(server_pid)
+    util.kill_pid(server_pid)
   else
     log.debug('port_mapping: no server PID available for orphaned private server')
   end
@@ -239,7 +239,7 @@ function M.capture_process_release(port)
   end
   local server_pid = mapping.server_pid
   return function()
-    OpencodeServer.kill_pid(server_pid)
+    util.kill_pid(server_pid)
   end
 end
 

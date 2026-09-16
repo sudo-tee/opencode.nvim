@@ -1,5 +1,5 @@
 local assert = require('luassert')
-local OpencodeServer = require('opencode.opencode_server')
+local util = require('opencode.util')
 
 -- port_mapping writes/reads a JSON file via vim.fn.stdpath('data').
 -- Redirect it to a temp path so tests are isolated.
@@ -50,17 +50,20 @@ describe('port_mapping', function()
 
     kill_pid_calls = {}
 
-    original_kill_pid = OpencodeServer.kill_pid
+    original_kill_pid = util.kill_pid
+    util.kill_pid = function(pid)
+      table.insert(kill_pid_calls, pid)
+    end
     original_getpid = vim.fn.getpid
     original_uv_kill = vim.uv.kill
 
-    OpencodeServer.kill_pid = function(pid)
+    util.kill_pid(pid)
       table.insert(kill_pid_calls, pid)
     end
   end)
 
   after_each(function()
-    OpencodeServer.kill_pid = original_kill_pid
+    util.kill_pid = original_kill_pid
     vim.fn.getpid = original_getpid
     vim.uv.kill = original_uv_kill
     os.remove(mappings_file())

@@ -475,7 +475,7 @@ describe('opencode.opencode_server', function()
     server.credential = { username = 'opencode', password = 'secret' }
     server.custom_pid = 43210
     server:set_process_release(function()
-      OpencodeServer.kill_pid(43210)
+      require('opencode.util').kill_pid(43210)
     end)
     server:mark_ready()
 
@@ -502,7 +502,7 @@ describe('opencode.opencode_server', function()
         return {}
       end
 
-      OpencodeServer.kill_pid(42)
+      require('opencode.util').kill_pid(42)
 
       vim.uv.kill = original_kill
       vim.api.nvim_get_proc_children = original_children
@@ -524,7 +524,7 @@ describe('opencode.opencode_server', function()
         return { 10, 11 }
       end
 
-      OpencodeServer.kill_pid(99)
+      require('opencode.util').kill_pid(99)
 
       vim.uv.kill = original_kill
       vim.api.nvim_get_proc_children = original_children

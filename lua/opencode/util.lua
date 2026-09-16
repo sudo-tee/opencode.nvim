@@ -904,4 +904,21 @@ function M.utf16_index_from_byte(text, byte_index)
   return units
 end
 
+
+--- Kill a process tree by PID (children first, then parent).
+--- SIGTERM is sent first, then SIGKILL immediately after as a backup.
+--- @param pid number
+function M.kill_pid(pid)
+  local ok, children = pcall(vim.api.nvim_get_proc_children, pid)
+  if ok and children and #children > 0 then
+    for _, cid in ipairs(children) do
+      pcall(vim.uv.kill, cid, 15)
+      pcall(vim.uv.kill, cid, 9)
+    end
+  end
+
+  pcall(vim.uv.kill, pid, 15)
+  pcall(vim.uv.kill, pid, 9)
+end
+
 return M

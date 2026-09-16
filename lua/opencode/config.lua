@@ -1,5 +1,4 @@
 -- Default and user-provided settings for opencode.nvim
-
 ---@type OpencodeConfigModule
 ---@diagnostic disable-next-line: missing-fields
 local M = {}

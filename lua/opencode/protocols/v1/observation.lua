@@ -1551,7 +1551,8 @@ function M.new(connection, ref)
   observation._v1_history_complete = false
   observation._v1_history_limit = 50
   observation._v1_older_loading = false
-  function observation:submit(input)
+  function observation:submit(input, opts)
+    opts = opts or {}
     if input and input.model ~= nil then
       if
         type(input.model) ~= 'table'
@@ -1576,7 +1577,12 @@ function M.new(connection, ref)
       parts = submit_parts(input),
     }
     local finish = self:_begin_local_operation()
-    local ok, request = pcall(connection.operations.submit, connection, self._session_id, self._session_ref.location, body)
+    local operation = opts.async and connection.operations.submit_async or connection.operations.submit
+    if type(operation) ~= 'function' then
+      finish()
+      fail('submit async is not supported')
+    end
+    local ok, request = pcall(operation, connection, self._session_id, self._session_ref.location, body)
     if not ok then
       finish()
       error(request, 0)
@@ -1584,6 +1590,12 @@ function M.new(connection, ref)
     local result = request:and_then(function(response)
       if not self:_is_current() then
         fail('submit response arrived after Observation release')
+      end
+      if opts.async then
+        if response ~= true then
+          fail('invalid async submit response')
+        end
+        return { kind = 'accepted', input = { id = message_id } }
       end
       if type(response) ~= 'table' or type(response.info) ~= 'table' or type(response.parts) ~= 'table' then
         fail('invalid submit response')

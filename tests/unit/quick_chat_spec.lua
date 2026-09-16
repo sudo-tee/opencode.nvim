@@ -6,15 +6,29 @@ describe('quick chat reply ownership', function()
   local bufnr
   local notifications
 
-  local function load_quick_chat(result, wait_result)
-    local observation = {
-      submit = function()
+  local function load_quick_chat(result, wait_result, protocol, create_session, spinner)
+    local submitted = {}
+    local observation
+    observation = {
+      read = function()
+        return observation.state
+      end,
+      watch = function(_, _, callback)
+        observation.callback = callback
+        return function()
+          observation.callback = nil
+        end
+      end,
+      submit = function(_, input, opts)
+        submitted.input = vim.deepcopy(input)
+        submitted.async = opts and opts.async
         return Promise.new():resolve(vim.deepcopy(result))
       end,
       interrupt = function()
         return Promise.new():resolve(true)
       end,
     }
+    observation.state = { entry_order = {}, entries_by_id = {} }
     if wait_result then
       observation.wait_until_idle = function()
         return Promise.new():resolve(vim.deepcopy(wait_result))
@@ -29,6 +43,7 @@ describe('quick chat reply ownership', function()
       is_ready = function()
         return true
       end,
+      protocol = protocol,
     }
     state.jobs.set_server(connection)
 
@@ -39,8 +54,8 @@ describe('quick chat reply ownership', function()
       quick_chat = {},
     }
     package.loaded['opencode.context'] = {
-      format_quick_chat_message = function()
-        return Promise.new():resolve({ text = 'request' })
+      format_quick_chat_message = function(prompt)
+        return Promise.new():resolve({ text = prompt })
       end,
     }
     package.loaded['opencode.util'] = {
@@ -53,6 +68,9 @@ describe('quick chat reply ownership', function()
     }
     package.loaded['opencode.services.session_runtime'] = {
       create_new_session = function()
+        if create_session then
+          return create_session()
+        end
         return Promise.new():resolve({ id = 'quick-session', directory = '/workspace' })
       end,
     }
@@ -64,13 +82,27 @@ describe('quick chat reply ownership', function()
         return Promise.new():resolve(false)
       end,
     }
-    package.loaded['opencode.quick_chat.spinner'] = {
+    package.loaded['opencode.quick_chat.spinner'] = spinner or {
       new = function()
         return { stop = function() end }
       end,
     }
     package.loaded['opencode.quick_chat'] = nil
-    return require('opencode.quick_chat')
+    if protocol == 'v1' and result.kind == 'accepted' then
+      vim.schedule(function()
+        observation.state.entry_order = { 'reply-1' }
+        observation.state.entries_by_id['reply-1'] = {
+          kind = 'assistant',
+          parent_message_id = result.input.id,
+          finish = 'stop',
+          content = { { kind = 'text', text = 'local answer = true' } },
+        }
+        if observation.callback then
+          observation.callback(observation)
+        end
+      end)
+    end
+    return require('opencode.quick_chat'), submitted
   end
 
   before_each(function()
@@ -161,5 +193,58 @@ describe('quick chat reply ownership', function()
 
     assert.same({ 'old code' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
     assert.matches('cannot associate the completed reply', notifications[#notifications])
+  end)
+
+  it('submits quick chat using the protocol-independent input shape', function()
+    local quick_chat, submitted = load_quick_chat({
+      kind = 'reply',
+      input_id = 'input-1',
+      message = {
+        id = 'reply-1',
+        kind = 'assistant',
+        parent_message_id = 'input-1',
+        finish = 'stop',
+        content = { { id = 'text-1', kind = 'text', text = 'local answer = true' } },
+      },
+    })
+
+    quick_chat.quick_chat('replace it'):wait()
+
+    assert.is_string(submitted.input.text)
+    assert.matches('replace it', submitted.input.text, 1, true)
+    assert.same({}, submitted.input.context)
+    assert.same({}, submitted.input.files)
+    assert.same({}, submitted.input.agents)
+    assert.is_nil(submitted.input.parts)
+  end)
+
+  it('waits for a V1 assistant reply after an accepted submit', function()
+    local quick_chat, submitted = load_quick_chat({ kind = 'accepted', input = { id = 'input-1' } }, nil, 'v1')
+
+    quick_chat.quick_chat('replace it'):wait()
+
+    assert.is_true(submitted.async)
+    assert.same({ 'local answer = true' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  end)
+
+  it('stops the spinner when session startup fails', function()
+    local spinner_stopped = false
+    local spinner = {
+      new = function()
+        return {
+          stop = function()
+            spinner_stopped = true
+          end,
+        }
+      end,
+    }
+    local quick_chat = load_quick_chat(nil, nil, nil, function()
+      return Promise.new():reject('server unavailable')
+    end, spinner)
+
+    quick_chat.quick_chat('replace it'):wait()
+
+    assert.is_true(spinner_stopped)
+    assert.matches('server unavailable', notifications[#notifications])
   end)
 end)

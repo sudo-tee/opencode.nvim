@@ -213,6 +213,39 @@ describe('V1 protocol operations', function()
     end
   end)
 
+  it('submits asynchronous prompts through the V1 prompt_async endpoint', function()
+    local connection = ready_connection()
+    local location = { directory = '/host/workspace' }
+    local calls = {}
+    transport.request = function(passed_connection, request)
+      calls[#calls + 1] = { connection = passed_connection, request = request }
+      return Promise.new():resolve({ status = 204, headers = {}, body = '' })
+    end
+
+    assert.is_true(
+      operations
+        .submit_async(
+          connection,
+          'ses-1',
+          location,
+          { messageID = 'msg-1', parts = { { type = 'text', text = 'hello' } } },
+          function(path)
+            return path:gsub('^/host', '/server')
+          end
+        )
+        :wait()
+    )
+
+    assert.equals(connection, calls[1].connection)
+    assert.equals('POST', calls[1].request.method)
+    assert.equals('/session/ses-1/prompt_async', calls[1].request.path)
+    assert.equals('directory=%2Fserver%2Fworkspace', calls[1].request.query)
+    assert.same(
+      { messageID = 'msg-1', parts = { { type = 'text', text = 'hello' } } },
+      vim.json.decode(calls[1].request.body)
+    )
+  end)
+
   it('interprets V1 config resources inside the V1 protocol', function()
     local config = {
       agent = {

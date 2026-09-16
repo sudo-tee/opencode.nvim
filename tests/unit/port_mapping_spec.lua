@@ -56,10 +56,6 @@ describe('port_mapping', function()
     end
     original_getpid = vim.fn.getpid
     original_uv_kill = vim.uv.kill
-
-    util.kill_pid(pid)
-      table.insert(kill_pid_calls, pid)
-    end
   end)
 
   after_each(function()

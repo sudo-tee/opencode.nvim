@@ -21,9 +21,14 @@ def init_policy(rules: List[Dict[str, Any]]) -> None:
     _POLICY_RULES = rules or []
 
 
-def edge_rule(src_group: str, dst_group: str) -> str | None:
+def edge_rule(src_group: str, dst_group: str, src_module: str = "", dst_module: str = "") -> str | None:
     for r in _POLICY_RULES:
         if r.get("from") == src_group and dst_group in r.get("to", []):
+            # a rule may explicitly allow specific module edges; an allowed
+            # edge is a documented exception, not a violation
+            for pair in r.get("allowed", []):
+                if pair.get("src") == src_module and pair.get("dst") == dst_module:
+                    return None
             return r["name"]
     return None
 
@@ -74,7 +79,7 @@ def classify_policy_violations(edge_rows: List[Dict[str, str]]) -> Tuple[Dict[st
     summary: Dict[str, int] = {"total_violations": 0}
 
     for row in edge_rows:
-        rule = edge_rule(row["src_group"], row["dst_group"])
+        rule = edge_rule(row["src_group"], row["dst_group"], row.get("src", ""), row.get("dst", ""))
         if not rule:
             continue
         v = dict(row)

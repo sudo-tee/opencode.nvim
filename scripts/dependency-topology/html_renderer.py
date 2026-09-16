@@ -48,9 +48,9 @@ def match_group(module: str, groups: Dict[str, Any]) -> str:
     return "ungrouped"
 
 
-def _edge_rule(src_group: str, dst_group: str) -> str:
+def _edge_rule(src_group: str, dst_group: str, src_module: str = "", dst_module: str = "") -> str:
     """Thin wrapper: normalise scan_analysis.edge_rule None -> empty string."""
-    return _edge_rule_impl(src_group, dst_group) or ""
+    return _edge_rule_impl(src_group, dst_group, src_module, dst_module) or ""
 
 
 def auto_cluster_graph(
@@ -99,8 +99,8 @@ def auto_cluster_graph(
             # Check violation on original edge
             src_grp = match_group(src, groups)
             dst_grp = match_group(dst, groups)
-            rule = _edge_rule(src_grp, dst_grp)
-            
+            rule = _edge_rule(src_grp, dst_grp, src, dst)
+
             if key not in edge_counts:
                 edge_counts[key] = (0, False, "")
             cnt, is_vio, existing_rule = edge_counts[key]
@@ -168,8 +168,8 @@ def render_html(payload: dict, groups: Dict[str, Any], cluster_depth: int = 2) -
                 'src': src,
                 'dst': dst,
                 'isViolation': bool(match_group(src, groups) and
-                    _edge_rule(match_group(src, groups), match_group(dst, groups))),
-                'rule': _edge_rule(match_group(src, groups), match_group(dst, groups)),
+                    _edge_rule(match_group(src, groups), match_group(dst, groups), src, dst)),
+                'rule': _edge_rule(match_group(src, groups), match_group(dst, groups), src, dst),
             }
             for src, dst in edge_list
         ]

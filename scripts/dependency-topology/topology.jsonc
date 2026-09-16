@@ -195,9 +195,13 @@
       {
         "name": "no_entry_to_infra",
         "from": "entry_layer",
-        "to": ["cli_infrastructure_layer"]
+        "to": ["cli_infrastructure_layer"],
+        "allowed": [
+          { "src": "opencode.health", "dst": "opencode.server_job" }
+        ]
         // Entry should go through Dispatch/Capabilities, not call infra directly.
-        // Startup and health entry points still call infrastructure directly.
+        // :checkhealth is the documented exception: a diagnostic entry must
+        // drive the real connection lifecycle to verify what it reports.
       },
       {
         "name": "no_dispatch_to_entry",

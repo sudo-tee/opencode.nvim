@@ -7,7 +7,7 @@ local server_job = require('opencode.server_job')
 local assert = require('luassert')
 
 describe('native V2 service discovery', function()
-  local saved, commands, replies, status, request_headers
+  local saved, commands, replies, status, request_headers, help_on_stderr
   before_each(function()
     saved = {
       system = Promise.system,
@@ -20,6 +20,7 @@ describe('native V2 service discovery', function()
     state.jobs.clear_server()
     config.values.server = { timeout = 1, auto_kill = true, password = 'wrong-explicit-password' }
     commands = {}
+    help_on_stderr = false
     replies = {
       ['--help'] = 'SUBCOMMANDS\n  service   Manage the background server',
       ['service status'] = 'http://127.0.0.1:49374',
@@ -31,6 +32,9 @@ describe('native V2 service discovery', function()
       local command = table.concat(args, ' ', 2)
       commands[#commands + 1] = command
       assert.is_not_nil(replies[command])
+      if command == '--help' and help_on_stderr then
+        return Promise.new():resolve({ code = 0, stdout = '', stderr = replies[command] .. '\n' })
+      end
       return Promise.new():resolve({ code = 0, stdout = replies[command] .. '\n' })
     end
     curl.request = function(opts)
@@ -164,6 +168,18 @@ describe('native V2 service discovery', function()
     server_job.spawn_local_server = function(promise)
       promise:resolve(legacy)
     end
+    assert.equals(legacy, server_job.ensure_server():wait())
+    assert.same({ '--help' }, commands)
+  end)
+
+  it('detects V1 help when the CLI writes it to stderr', function()
+    help_on_stderr = true
+    replies['--help'] = 'Commands:\n  opencode serve  starts a headless server'
+    local legacy = {}
+    server_job.spawn_local_server = function(promise)
+      promise:resolve(legacy)
+    end
+
     assert.equals(legacy, server_job.ensure_server():wait())
     assert.same({ '--help' }, commands)
   end)

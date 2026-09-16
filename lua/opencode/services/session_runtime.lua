@@ -247,7 +247,13 @@ M.open = Promise.async(function(opts)
     ui.focus_output({ restore_position = are_windows_closed })
   end
 
-  local server = server_job.ensure_server():await()
+  local server_ok, server = pcall(function()
+    return server_job.ensure_server():await()
+  end)
+  if not server_ok then
+    state.ui.set_opening(false)
+    return Promise.new():reject(server)
+  end
 
   if not server then
     state.ui.set_opening(false)

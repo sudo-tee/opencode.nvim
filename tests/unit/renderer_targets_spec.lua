@@ -229,11 +229,66 @@ describe('renderer child observations', function()
       end,
     })
     state.session.set_active({ id = 'ses_root' })
-
     renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
 
     assert.equals(150, state.store.get('tokens_count'))
     assert.equals(2.5, state.store.get('cost'))
+  end)
+
+  it('keeps completed stats while a V1 assistant message reports zero usage', function()
+    local root = observation({
+      session = { id = 'ses_root', location = { directory = '/repo' } },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { order = {}, by_id = {} },
+      entry_order = { 'msg_done' },
+      entries_by_id = {
+        msg_done = {
+          id = 'msg_done',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1.25,
+          tokens = { input = 10, output = 20, reasoning = 30, cache = { read = 40, write = 50 } },
+          content = {},
+        },
+        msg_streaming = {
+          id = 'msg_streaming',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 0,
+          tokens = { input = 0, output = 0, reasoning = 0, cache = { read = 0, write = 0 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return root
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+    vim.wait(100, function()
+      return false
+    end)
+
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
+
+    root.read().entry_order = { 'msg_done', 'msg_streaming' }
+    root.watchers[1].changed(root, 'messages')
+    vim.wait(100, function()
+      return false
+    end)
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
   end)
 end)
 

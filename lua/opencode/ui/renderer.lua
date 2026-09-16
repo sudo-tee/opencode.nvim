@@ -662,21 +662,21 @@ local function notify_history_failure(err)
   vim.notify('Failed to load older messages: ' .. tostring(message), vim.log.levels.WARN)
 end
 
----The cached window is exhausted but the protocol still holds older
+---The cached window is exhausted but the protocol may still hold older
 ---pages: pull one page, grow the rendered window by one viewport past the
----merge, and keep the view anchored where it was.
+---merge, and keep the view anchored where it was. The protocol short-circuits
+---to a no-op when the history is already complete, so no pre-check is needed.
 ---@return boolean Whether a page load was started
 local function grow_window_with_older_page()
   local observation = ctx.observation
   if
     not observation
-    or type(observation.has_older_history) ~= 'function'
     or type(observation.load_older) ~= 'function'
-    or not observation:has_older_history()
   then
     return false
   end
   local window_before = window_size()
+  local entries_before = #ordered_entries(observation)
   local anchor = M.capture_top_anchor()
   local ok, request = pcall(function()
     return observation:load_older()
@@ -685,6 +685,11 @@ local function grow_window_with_older_page()
     return false
   end
   request:and_then(function()
+    -- nothing merged (complete history or a concurrent pull elsewhere):
+    -- leave the window alone
+    if #ordered_entries(observation) <= entries_before then
+      return
+    end
     if not apply_window_growth(window_before + get_initial_render_count()) then
       -- the window already covered everything cached: drop the window limit
       -- so the merged prefix renders, without pulling more pages
@@ -703,9 +708,7 @@ local function load_complete_history_to_top()
   local observation = ctx.observation
   if
     not observation
-    or type(observation.has_older_history) ~= 'function'
     or type(observation.load_complete_history) ~= 'function'
-    or not observation:has_older_history()
   then
     return false
   end
@@ -717,7 +720,9 @@ local function load_complete_history_to_top()
     return false
   end
   request:and_then(function()
-    M.load_all_messages()
+    -- grow to the merged total only; the rendering primitive does not
+    -- touch the protocol, so this callback cannot re-enter the pull
+    apply_window_growth(math.huge)
     if win and vim.api.nvim_win_is_valid(win) then
       pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
       pcall(output_window.restore_view_topline, win, 1)

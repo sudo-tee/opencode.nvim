@@ -1636,10 +1636,6 @@ function M.new(connection, ref)
 
   ---True when the server still has message pages older than the cached
   ---window (v2 pages backwards through `cursor.next`).
-  function observation:has_older_history()
-    return self._v2_older_cursor ~= nil and not self._v2_history_complete
-  end
-
   function observation:load_older()
     if self._v2_older_loading then
       fail('load_older is already in progress')
@@ -1686,7 +1682,7 @@ function M.new(connection, ref)
   ---protocol details; callers only declare how much history they need.
   function observation:load_complete_history()
     local function pull()
-      if not self:has_older_history() then
+      if self._v2_history_complete or not self._v2_older_cursor then
         return resolved(nil)
       end
       return self:load_older():and_then(pull)

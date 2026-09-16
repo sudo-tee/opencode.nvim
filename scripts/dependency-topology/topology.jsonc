@@ -125,7 +125,10 @@
         "opencode.ui.mention",             // @mention UI
         "opencode.ui.file_picker",         // file browser
         "opencode.ui.picker",              // generic picker
-        "opencode.ui.session_picker",      // picker presentation; actions use session services
+        "opencode.ui.session_picker",      // history browser/picker presentation; actions use session services
+        "opencode.ui.session_tab_picker",  // logical-tab picker; actions via session_runtime
+        "opencode.ui.session_tab_strip",   // logical-tab strip rendering
+        "opencode.ui.session_tab_notifications", // tab lifecycle notifications
         "opencode.ui.symbol_snapshot",
         "opencode.ui.inline_input",
         "opencode.ui.symbol_tokens",
@@ -170,6 +173,7 @@
         "opencode.curl",                   // HTTP low-level wrapper
         "opencode.throttling_emitter",     // batching primitive
         "opencode.model_state",            // local model state file I/O
+        "opencode.lru_cache",              // generic LRU container (pure data structure)
 
         // UI primitives — pure data or framework, no business logic
         "opencode.ui.icons",               // icon data map (in-degree 26)

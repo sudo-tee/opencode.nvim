@@ -1605,12 +1605,6 @@ function M.new(connection, ref)
     return result:finally(finish)
   end
 
-  ---True when the server may still serve messages older than the cached
-  ---window (v1 grows the fetch limit until a short page arrives).
-  function observation:has_older_history()
-    return not self._v1_history_complete
-  end
-
   function observation:load_older()
     if self._v1_older_loading then
       fail('load_older is already in progress')
@@ -1657,7 +1651,7 @@ function M.new(connection, ref)
   ---protocol details; callers only declare how much history they need.
   function observation:load_complete_history()
     local function pull()
-      if not self:has_older_history() then
+      if self._v1_history_complete then
         return Promise.new():resolve(nil)
       end
       return self:load_older():and_then(pull)

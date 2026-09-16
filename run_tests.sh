@@ -103,7 +103,7 @@ report_load_crashes() {
     # crash window to sit between a Testing header and that file's summary;
     # a replayed header only reports when its file never had a summary.
     awk -v label="$label" '
-        /^Testing: / {
+        /^Testing: |^Scheduling: / {
             if (!( $2 in seen_file)) {
                 current_file = $2
                 file_done = 0
@@ -114,7 +114,7 @@ report_load_crashes() {
             }
         }
         /^Success: |^Failed : / { file_done = 1 }
-        ( /E[0-9]+:/ || /^Error in command line:/ || /module '\''[^'\'']+'\'' not found:/ ) && file_done == 0 {
+        ( /E[0-9]+:/ || /^Error in command line:/ || /module '\''[^'\'']+'\'' not found:/ || /\.lua:[0-9]+: .*near/ ) && file_done == 0 {
             printf "  %s: load error while running %s\n", label, (current_file == "" ? "(init)" : current_file)
             print "    " $0
             shown = 1

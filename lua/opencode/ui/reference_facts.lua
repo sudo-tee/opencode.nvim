@@ -228,11 +228,13 @@ function M.available_files()
       files[#files + 1] = path
     end
   end
-  for _, bufinfo in ipairs(vim.fn.getbufinfo({ bufloaded = 1 })) do
-    local name = bufinfo.name
-    if name ~= '' and vim.bo[bufinfo.bufnr].buftype == '' and not seen[name] then
-      seen[name] = true
-      files[#files + 1] = name
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buftype == '' then
+      local name = vim.api.nvim_buf_get_name(buf)
+      if name ~= '' and not seen[name] then
+        seen[name] = true
+        files[#files + 1] = name
+      end
     end
   end
   return files

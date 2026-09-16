@@ -285,8 +285,8 @@
 ---@field markdown_debounce_ms number
 ---@field on_data_rendered (fun(buf: integer, win: integer)|boolean)|nil
 ---@field markdown_on_idle boolean
----@field event_throttle_ms number
----@field event_collapsing boolean
+---@field event_throttle_ms number -- Minimum batching interval for streaming message renders; 0 disables the delay
+---@field event_collapsing boolean -- Coalesce streaming notifications within the batching interval
 
 ---@class OpencodeUIOutputToolsConfig
 ---@field show_output boolean

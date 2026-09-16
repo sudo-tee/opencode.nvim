@@ -440,7 +440,10 @@ function M.replay_event(event)
   vim.schedule(function()
     rendered = true
   end)
-  assert(vim.wait(1000, function() return rendered end), 'scheduled replay render did not finish')
+  assert(vim.wait(1000, function()
+    local ctx = require('opencode.ui.renderer.ctx')
+    return rendered and not ctx.reconcile_scheduled and not ctx.flush_scheduled
+  end), 'scheduled replay render did not finish')
 end
 
 function M.replay_events(events)

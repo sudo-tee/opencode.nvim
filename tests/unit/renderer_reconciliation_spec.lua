@@ -9,7 +9,7 @@ local stub = require('luassert.stub')
 local spy = require('luassert.spy')
 
 describe('renderer incremental reconciliation', function()
-  local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages
+  local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages, throttle_ms, collapsing, defer_stub, files_stub, model_stub
 
   local function notify(resource)
     changed(observation, resource)
@@ -18,13 +18,16 @@ describe('renderer incremental reconciliation', function()
       done = true
     end)
     assert.is_true(vim.wait(1000, function()
-      return done
+      return done and not ctx.reconcile_scheduled and not ctx.flush_scheduled
     end))
   end
 
   before_each(function()
     helpers.replay_setup()
+    model_stub = stub(require('opencode.services.agent_model'), 'initialize_current_model')
     max_messages = config.ui.output.max_messages
+    throttle_ms = config.ui.output.rendering.event_throttle_ms
+    collapsing = config.ui.output.rendering.event_collapsing
     controllers = ctx.prompt_controllers
     ctx.prompt_controllers = {}
     observed = {
@@ -60,6 +63,11 @@ describe('renderer incremental reconciliation', function()
 
   after_each(function()
     config.ui.output.max_messages = max_messages
+    config.ui.output.rendering.event_throttle_ms = throttle_ms
+    config.ui.output.rendering.event_collapsing = collapsing
+    if defer_stub then defer_stub:revert(); defer_stub = nil end
+    if files_stub then files_stub:revert(); files_stub = nil end
+    model_stub:revert()
     writes:revert()
     markdown:revert()
     dirty_part:revert()
@@ -128,6 +136,82 @@ describe('renderer incremental reconciliation', function()
     notify('messages')
     assert.spy(dirty_message).was_not_called()
     assert.spy(dirty_part).was_not_called()
+    assert.stub(writes).was_not_called()
+    assert.stub(markdown).was_not_called()
+  end)
+
+  it('does not collect candidate files for empty flushes or header-only updates', function()
+    files_stub = stub(require('opencode.ui.reference_facts'), 'available_files').returns({})
+    flush.flush()
+    flush.flush()
+    flush.mark_message_dirty('msg_one')
+    flush.flush()
+    assert.stub(files_stub).was_not_called()
+    assert.stub(writes).was_not_called()
+  end)
+
+  it('renders a streaming burst once at a fixed deadline using the latest data', function()
+    local callbacks = {}
+    config.ui.output.rendering.event_throttle_ms = 40
+    config.ui.output.rendering.event_collapsing = true
+    defer_stub = stub(vim, 'defer_fn').invokes(function(callback, delay)
+      assert.equals(40, delay)
+      callbacks[#callbacks + 1] = callback
+    end)
+    for index = 1, 100 do
+      observed.entries_by_id.msg_two.content[1].text = 'streaming delta ' .. index
+      changed(observation, 'messages')
+    end
+    assert.equals(1, #callbacks)
+    assert.is_true(ctx.reconcile_scheduled)
+    assert.stub(writes).was_not_called()
+    callbacks[1]()
+    assert.is_false(ctx.reconcile_scheduled)
+    assert.stub(writes).was_called(1)
+    assert.spy(dirty_part).was_called(1)
+    assert.equals('streaming delta 100', ctx.formatted_parts.part_2.lines[1])
+  end)
+
+  it('discards a delayed render after its context is reset', function()
+    local callback
+    defer_stub = stub(vim, 'defer_fn').invokes(function(fn) callback = fn end)
+    config.ui.output.rendering.event_throttle_ms = 40
+    config.ui.output.rendering.event_collapsing = true
+    observed.entries_by_id.msg_two.content[1].text = 'old context update'
+    changed(observation, 'messages')
+    assert.is_not_nil(callback)
+    ctx:reset()
+    callback()
+    assert.stub(writes).was_not_called()
+    assert.is_false(ctx.reconcile_scheduled)
+  end)
+
+  it('flushes the latest delayed text before detaching a session tab', function()
+    local callback
+    defer_stub = stub(vim, 'defer_fn').invokes(function(fn) callback = fn end)
+    config.ui.output.rendering.event_throttle_ms = 40
+    config.ui.output.rendering.event_collapsing = true
+    observed.entries_by_id.msg_two.content[1].text = 'latest text before switching'
+    changed(observation, 'messages')
+    renderer.prepare_session_tab_switch()
+    assert.equals('latest text before switching', ctx.formatted_parts.part_2.lines[1])
+    assert.stub(writes).was_called(1)
+    callback()
+    assert.stub(writes).was_called(1)
+  end)
+
+  it('can disable the streaming delay', function()
+    config.ui.output.rendering.event_throttle_ms = 0
+    defer_stub = stub(vim, 'defer_fn')
+    observed.entries_by_id.msg_two.content[1].text = 'immediate update'
+    notify('messages')
+    assert.stub(defer_stub).was_not_called()
+    assert.stub(writes).was_called(1)
+  end)
+
+  it('refreshes symbols without rewriting unchanged conversation text', function()
+    require('opencode.ui.renderer.symbol_refresh').invalidate()
+    flush.flush()
     assert.stub(writes).was_not_called()
     assert.stub(markdown).was_not_called()
   end)

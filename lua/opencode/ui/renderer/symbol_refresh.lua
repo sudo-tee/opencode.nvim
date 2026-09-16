@@ -54,7 +54,6 @@ local function mark_part_dirty(part_id, active_session_id)
   end
 
   local part_data = ctx.render_state:get_part(part_id)
-  ctx.formatted_parts[part_id] = nil
   flush.mark_part_dirty(part_id, part_data.message_id)
 end
 

@@ -47,6 +47,8 @@ M.send_message = Promise.async(function(prompt, opts)
   local connection = state.opencode_server
   local per_message_settings = connection.protocol == 'v1'
   local session_id = session_fact.id
+  local session_model = not per_message_settings and state.current_model or nil
+  local session_variant = not per_message_settings and state.current_variant or nil
 
   if not per_message_settings then
     local system = opts.system
@@ -140,6 +142,18 @@ M.send_message = Promise.async(function(prompt, opts)
   update_sent_message_count(1)
   local admitted = false
   local ok, result = pcall(function()
+    if session_model then
+      local provider, model = session_model:match('^(.-)/(.+)$')
+      if provider and model then
+        connection.operations
+          .set_session_model(connection, session_id, {
+            providerID = provider,
+            id = model,
+            variant = session_variant,
+          })
+          :await()
+      end
+    end
     local response = observation:submit(params):await()
     if type(response) ~= 'table' or (response.kind ~= 'reply' and response.kind ~= 'accepted') then
       error('Invalid prompt result from opencode: ' .. vim.inspect(response))

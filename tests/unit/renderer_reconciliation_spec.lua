@@ -116,6 +116,17 @@ describe('renderer incremental reconciliation', function()
     assert.spy(writes).was_called(1)
   end)
 
+  it('promotes an observed session title into active and tab state', function()
+    local active_tab = require('opencode.state.session_tabs').ensure_current()
+    state.session.update_active_metadata({ id = 'ses_incremental', title = '' })
+    observed.session.title = 'Generated title'
+
+    notify('session')
+
+    assert.equals('Generated title', state.active_session.title)
+    assert.equals('Generated title', active_tab.active_session.title)
+  end)
+
   it('keeps the hidden-history notice above messages in the initial batch', function()
     writes:revert()
     ctx:reset()

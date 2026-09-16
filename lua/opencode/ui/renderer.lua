@@ -575,6 +575,9 @@ reconcile_observation = function(observation, resource)
       and observed.sync.session.state == 'current'
       and observed.session
     or nil
+  if observation == root and session_current then
+    state.session.update_active_metadata(session_current)
+  end
   local session = session_current or { id = state.active_session and state.active_session.id }
   local entries = ordered_entries(root)
   ctx.entries = entries
@@ -1009,7 +1012,12 @@ function M.on_session_changed(_, new, old)
   if state.active_session_tab ~= rendered_session_tab then
     return
   end
-  if vim.deep_equal(old, new) and ctx.observation then
+  if
+    ctx.observation
+    and type(old) == 'table'
+    and type(new) == 'table'
+    and old.id == new.id
+  then
     return
   end
   clear_child_observations()

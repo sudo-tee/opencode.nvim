@@ -36,6 +36,28 @@ function M.set_active(session)
   return result
 end
 
+---@param session Session
+---@return table|nil
+function M.update_active_metadata(session)
+  local active = store.get('active_session')
+  if type(active) ~= 'table' or type(session) ~= 'table' or active.id ~= session.id then
+    return active
+  end
+
+  local location = session.location
+  if location == nil and type(session.directory) == 'string' then
+    location = { directory = session.directory }
+  end
+  local updated = { id = active.id, location = vim.deepcopy(location or active.location), title = session.title }
+  if vim.deep_equal(active, updated) then
+    return active
+  end
+
+  local result = store.set('active_session', updated)
+  session_tabs.sync()
+  return result
+end
+
 ---@return table|nil
 function M.active_observation()
   local ref = store.get('active_session')

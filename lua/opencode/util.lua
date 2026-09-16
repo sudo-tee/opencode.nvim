@@ -907,13 +907,15 @@ end
 
 --- Kill a process tree by PID (children first, then parent).
 --- SIGTERM is sent first, then SIGKILL immediately after as a backup.
+--- Recursion is required: the running server spawns MCP/tool processes that
+--- spawn children of their own (measured: serve -> node MCP -> node worker),
+--- so a flat one-level walk leaks grandchildren as orphans.
 --- @param pid number
 function M.kill_pid(pid)
   local ok, children = pcall(vim.api.nvim_get_proc_children, pid)
   if ok and children and #children > 0 then
     for _, cid in ipairs(children) do
-      pcall(vim.uv.kill, cid, 15)
-      pcall(vim.uv.kill, cid, 9)
+      M.kill_pid(cid)
     end
   end
 

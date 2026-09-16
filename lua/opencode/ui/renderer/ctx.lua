@@ -30,6 +30,8 @@ local ctx = {
   formatted_parts = {},
   ---@type table<string, Output>
   formatted_messages = {},
+  message_snapshots = {}, ---@type table<string, table>
+  part_snapshots = {}, ---@type table<string, table>
   pending = {
     dirty_message_order = {}, ---@type string[]
     dirty_messages = {}, ---@type table<string, boolean>
@@ -70,6 +72,10 @@ local CONTEXT_KEYS = {
   'last_part_formatted',
   'formatted_parts',
   'formatted_messages',
+  'message_snapshots',
+  'part_snapshots',
+  'entries',
+  'file_revision',
   'pending',
   'markdown_render_scheduled',
   'global_folds',
@@ -84,6 +90,8 @@ function ctx:reset()
   self.last_part_formatted = { part_id = nil, formatted_data = nil }
   self.formatted_parts = {}
   self.formatted_messages = {}
+  self.message_snapshots = {}
+  self.part_snapshots = {}
   self.pending = {
     dirty_message_order = {},
     dirty_messages = {},

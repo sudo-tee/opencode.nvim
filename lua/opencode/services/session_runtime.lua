@@ -269,7 +269,7 @@ M.open = Promise.async(function(opts)
         if not state.active_session then
           state.session.set_active(M.create_new_session():await())
         end
-      elseif not state.display_route and are_windows_closed and not restoring_hidden then
+      elseif not state.display_route and are_windows_closed and not restoring_hidden and ui.is_output_empty() then
         ui.render_output()
       end
     end

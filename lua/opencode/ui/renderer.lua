@@ -5,6 +5,7 @@ local reference_facts = require('opencode.ui.reference_facts')
 local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
 local flush = require('opencode.ui.renderer.flush')
+local rendered_entries = require('opencode.ui.renderer.entries')
 local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
 local scroll = require('opencode.ui.renderer.scroll')
 local session_tabs = require('opencode.state.session_tabs')
@@ -69,7 +70,7 @@ local child_unsubscribers = {}
 local child_refs = {}
 local reconcile_observation
 local child_reconcile_scheduled = false
-local changed_child_observation
+local changed_child_observations = {}
 
 ---Calculate how many messages to render initially based on window height.
 ---@return integer
@@ -350,22 +351,41 @@ local function clear_child_observations()
   child_observations = {}
   child_unsubscribers = {}
   child_refs = {}
-  changed_child_observation = nil
+  changed_child_observations = {}
   child_reconcile_scheduled = false
 end
 
-local function schedule_child_reconcile(observation)
-  changed_child_observation = observation
+local function schedule_child_reconcile(observation, resource)
+  local sync = resource and observation:read().sync[resource]
+  if sync and sync.state == 'loading' then
+    return
+  end
+  local resources = changed_child_observations[observation] or {}
+  resources[resource or 'children'] = true
+  changed_child_observations[observation] = resources
   if child_reconcile_scheduled then
     return
   end
   child_reconcile_scheduled = true
+  local generation = ctx.generation
   vim.schedule(function()
     child_reconcile_scheduled = false
-    local changed = changed_child_observation
-    changed_child_observation = nil
-    if ctx.observation then
-      reconcile_observation(changed or ctx.observation)
+    if generation ~= ctx.generation then
+      changed_child_observations = {}
+      return
+    end
+    local changed = changed_child_observations
+    changed_child_observations = {}
+    for child, resources in pairs(changed) do
+      if ctx.observation then
+        if resources.messages or resources.children then
+          reconcile_observation(child, 'children')
+        else
+          for resource_name in pairs(resources) do
+            reconcile_observation(child, resource_name)
+          end
+        end
+      end
     end
   end)
 end
@@ -419,6 +439,10 @@ local function sync_observation_tree(root)
     if not seen[session_id] then
       unsubscribe()
       child_unsubscribers[session_id] = nil
+      local evicted = child_observations[session_id]
+      if evicted then
+        changed_child_observations[evicted] = nil
+      end
       child_observations[session_id] = nil
       child_refs[session_id] = nil
     end
@@ -485,9 +509,23 @@ local function sync_prompt_controllers(observations)
   M.refresh_prompts()
 end
 
-reconcile_observation = function(observation)
+reconcile_observation = function(observation, resource)
   local root = ctx.observation
   if not root then
+    return
+  end
+  local notification = observation:read()
+  local sync = resource and notification.sync and notification.sync[resource]
+  if sync and sync.state == 'loading' then
+    return
+  end
+  if resource == 'execution' or resource == 'inbox' then
+    flush.flush_pending_on_data_rendered()
+    return
+  end
+  if resource == 'permissions' or resource == 'questions' then
+    sync_prompt_controllers(sync_observation_tree(root))
+    flush.flush()
     return
   end
   if observation ~= root then
@@ -509,12 +547,28 @@ reconcile_observation = function(observation)
   local observations = sync_observation_tree(root)
   local observed = root:read()
   local files = observed.files
-  if files and files.revision > ctx.file_revision then
+  local files_changed = files and files.revision > ctx.file_revision
+  if files_changed then
     ctx.file_revision = files.revision
     vim.cmd('checktime')
     if config.hooks and config.hooks.on_file_edited and files.last then
       pcall(config.hooks.on_file_edited, files.last.path)
     end
+  end
+  if files_changed then
+    reference_facts.refresh_current_files()
+  end
+  if resource == 'files' then
+    if not files_changed then
+      return
+    end
+    for part_id, rendered in pairs(ctx.render_state._parts) do
+      if rendered.part.kind == 'text' then
+        flush.mark_part_dirty(part_id, rendered.message_id)
+      end
+    end
+    flush.flush()
+    return
   end
   local session_current = observed.sync
       and observed.sync.session
@@ -535,7 +589,9 @@ reconcile_observation = function(observation)
       end
     end
   end
+  local previous_refs = reference_facts.current_refs()
   reference_facts.rebuild(session.id, entries, session_current and session_current.location or nil)
+  local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
   local visible, hidden_count = get_visible_session_messages(entries, session)
   if ctx.lazy_render_count == nil then
     local initial = get_initial_render_count()
@@ -555,39 +611,25 @@ reconcile_observation = function(observation)
       hide_rendered_message(message_id)
     end
   end
-  for _, entry in ipairs(visible) do
-    local previous = ctx.render_state:get_message(entry.id)
-    ctx.render_state:set_message(entry, previous and previous.line_start, previous and previous.line_end)
-    flush.mark_message_dirty(entry.id)
-    local current_parts = {}
-    for index, content in ipairs(entry.content or {}) do
-      if content.kind ~= 'step_start' and content.kind ~= 'step_finish' then
-        local part_id = ctx.content_key(entry, index)
-        current_parts[part_id] = true
-        local rendered = ctx.render_state:get_part(part_id)
-        ctx.render_state:set_part(
-          content,
-          entry.id,
-          part_id,
-          rendered and rendered.line_start,
-          rendered and rendered.line_end
-        )
-        flush.mark_part_dirty(part_id, entry.id)
-      end
-    end
-    for part_id, rendered in pairs(ctx.render_state._parts) do
-      if rendered.message_id == entry.id and not current_parts[part_id] then
-        flush.queue_part_removal(part_id)
-      end
-    end
+  local initial_render = #visible > 0
+    and next(ctx.render_state._messages) == nil
+    and output_window.mounted()
+    and state.ui.is_window_in_current_tab(state.windows.output_win)
+    and not ctx.bulk_mode
+  if initial_render then
+    flush.begin_bulk_mode()
   end
   if hidden_count > 0 then
     upsert_hidden_messages_notice(hidden_count)
   elseif ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
     hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
   end
+  rendered_entries.reconcile(visible, references_changed or files_changed or false)
   sync_prompt_controllers(observations)
-  flush.flush()
+  flush.flush({ resolve_symbol_targets = initial_render })
+  if initial_render then
+    flush.end_bulk_mode()
+  end
 end
 
 ---Effective size of the rendered window: `lazy_render_count` capped by the
@@ -969,9 +1011,39 @@ function M.on_session_changed(_, new, old)
     return
   end
   ctx.observation = observation
+  local pending_resources = {}
+  local scheduled = false
+  local function changed(_, resource)
+    local sync = resource and observation:read().sync[resource]
+    if sync and sync.state == 'loading' then
+      return
+    end
+    pending_resources[resource or 'all'] = true
+    if scheduled then
+      return
+    end
+    scheduled = true
+    local generation = ctx.generation
+    vim.schedule(function()
+      scheduled = false
+      if ctx.generation ~= generation or ctx.observation ~= observation then
+        pending_resources = {}
+        return
+      end
+      local resources = pending_resources
+      pending_resources = {}
+      if resources.all or resources.messages or resources.session or resources.children then
+        reconcile_observation(observation)
+      else
+        for resource_name in pairs(resources) do
+          reconcile_observation(observation, resource_name)
+        end
+      end
+    end)
+  end
   ctx.unsubscribe = observation:watch(
     { 'session', 'messages', 'children', 'execution', 'permissions', 'questions', 'inbox', 'files' },
-    reconcile_observation
+    changed
   )
   reconcile_observation(observation)
 end

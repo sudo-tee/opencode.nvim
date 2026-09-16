@@ -158,8 +158,6 @@ function M.mark_message_dirty(message_id)
   ctx.pending.removed_messages[message_id] = nil
   enqueue_once(ctx.pending.dirty_message_order, ctx.pending.dirty_messages, message_id)
   ctx.pending.dirty_messages[message_id] = true
-  -- Clear cached formatted data so the message gets fully re-rendered
-  ctx.formatted_messages[message_id] = nil
   M.schedule()
 end
 
@@ -198,6 +196,7 @@ function M.queue_part_removal(part_id)
   enqueue_once(ctx.pending.removed_part_order, ctx.pending.removed_parts, part_id)
   ctx.pending.removed_parts[part_id] = true
   ctx.formatted_parts[part_id] = nil
+  ctx.part_snapshots[part_id] = nil
   M.schedule()
 end
 
@@ -212,6 +211,7 @@ function M.queue_message_removal(message_id)
   enqueue_once(ctx.pending.removed_message_order, ctx.pending.removed_messages, message_id)
   ctx.pending.removed_messages[message_id] = true
   ctx.formatted_messages[message_id] = nil
+  ctx.message_snapshots[message_id] = nil
   M.schedule()
 end
 
@@ -249,11 +249,12 @@ local function snapshot_pending()
   return pending
 end
 
+---@param opts? {resolve_symbol_targets?: boolean}
 ---@return FormatterContext
-local function new_formatter_context()
+local function new_formatter_context(opts)
   return {
     interactive = true,
-    resolve_symbol_targets = not ctx.bulk_mode,
+    resolve_symbol_targets = not ctx.bulk_mode or (opts ~= nil and opts.resolve_symbol_targets == true),
     get_child_parts = ctx.get_child_parts,
     current_refs = reference_facts.current_refs(),
     current_files = reference_facts.available_files(),
@@ -309,24 +310,32 @@ local function format_part(part_id, render_context)
 end
 
 ---@param message_id string
+---@return boolean
 local function apply_message(message_id)
   local previous = ctx.formatted_messages[message_id]
   local formatted = format_message(message_id, previous)
   if not formatted then
-    return
+    return false
   end
-  buffer.upsert_message_now(message_id, formatted, previous)
+  return buffer.upsert_message_now(message_id, formatted, previous)
 end
 
 ---@param part_id string
 ---@param message_id string|nil
 ---@param render_context FormatterContext
+---@return boolean
 local function apply_part(part_id, message_id, render_context)
   local previous = ctx.formatted_parts[part_id]
   local formatted = nil
   formatted, message_id = format_part(part_id, render_context)
   if not formatted or not message_id then
-    return
+    return false
+  end
+
+  if output_diff.is_unchanged(previous, formatted) then
+    ctx.formatted_parts[part_id] = formatted
+    buffer.refresh_part_metadata(part_id, formatted, previous)
+    return false
   end
 
   local cached = ctx.render_state:get_part(part_id)
@@ -335,22 +344,22 @@ local function apply_part(part_id, message_id, render_context)
     and cached.line_start
     and cached.line_end
     and output_diff.is_append_only(previous.lines or {}, formatted.lines or {})
+    and output_diff.unchanged_prefix_extmarks(previous, formatted) >= #previous.lines
 
   ctx.formatted_parts[part_id] = formatted
   ctx.last_part_formatted = { part_id = part_id, formatted_data = formatted }
 
   if can_append then
     local tail_offset = #(previous.lines or {})
-    buffer.append_part_now(
+    return buffer.append_part_now(
       part_id,
       output_diff.slice_lines(formatted.lines, tail_offset + 1),
       output_diff.slice_extmarks(formatted.extmarks, tail_offset),
       previous
     )
-    return
   end
 
-  buffer.upsert_part_now(part_id, message_id, formatted, previous)
+  return buffer.upsert_part_now(part_id, message_id, formatted, previous)
 end
 
 ---@param pending RendererCtx['pending']
@@ -368,23 +377,24 @@ local function apply_pending(pending, render_context)
     return false
   end
 
+  local changed = false
   local scroll_snapshot = scroll.pre_flush(buf)
   with_suppressed_output_autocmds(function()
     for _, part_id in ipairs(pending.removed_part_order) do
       if pending.removed_parts[part_id] then
-        buffer.remove_part_now(part_id)
+        changed = buffer.remove_part_now(part_id) or changed
       end
     end
 
     for _, message_id in ipairs(pending.removed_message_order) do
       if pending.removed_messages[message_id] then
-        buffer.remove_message_now(message_id)
+        changed = buffer.remove_message_now(message_id) or changed
       end
     end
 
     for _, message_id in ipairs(pending.dirty_message_order) do
       if pending.dirty_messages[message_id] then
-        apply_message(message_id)
+        changed = apply_message(message_id) or changed
       end
 
       local dirty_parts = pending.dirty_part_by_message[message_id]
@@ -394,7 +404,7 @@ local function apply_pending(pending, render_context)
         for index in ipairs(entry and entry.content or {}) do
           local part_id = ctx.content_key(entry, index)
           if dirty_parts[part_id] then
-            apply_part(part_id, message_id, render_context)
+            changed = apply_part(part_id, message_id, render_context) or changed
             dirty_parts[part_id] = nil
             pending.dirty_parts[part_id] = nil
           end
@@ -405,13 +415,15 @@ local function apply_pending(pending, render_context)
     for _, part_id in ipairs(pending.dirty_part_order) do
       local message_id = pending.dirty_parts[part_id]
       if message_id then
-        apply_part(part_id, message_id, render_context)
+        changed = apply_part(part_id, message_id, render_context) or changed
       end
     end
   end)
 
-  scroll.post_flush(scroll_snapshot, buf)
-  return true
+  if changed then
+    scroll.post_flush(scroll_snapshot, buf)
+  end
+  return changed
 end
 
 ---Trigger post-render markdown callbacks or commands.
@@ -529,12 +541,13 @@ function M.end_bulk_mode()
 end
 
 ---Flush all pending renderer changes to the output buffer.
-function M.flush()
+---@param opts? {resolve_symbol_targets?: boolean}
+function M.flush(opts)
   if output_window_is_in_background_tab() then
     return
   end
   local pending = snapshot_pending()
-  local applied = apply_pending(pending, new_formatter_context())
+  local applied = apply_pending(pending, new_formatter_context(opts))
   if applied and not ctx.bulk_mode then
     M.request_on_data_rendered()
   end

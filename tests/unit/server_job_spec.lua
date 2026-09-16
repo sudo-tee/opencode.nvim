@@ -514,6 +514,28 @@ describe('concurrent server startup', function()
     ready(1)
     assert.equals(spawned[1], panel:wait())
   end)
+  it('reuses the successful startup probe for immediately following operations', function()
+    local connection = server_job.ensure_server()
+    assert.is_true(vim.wait(1000, function() return starts == 1 end))
+    ready(1)
+    assert.equals(spawned[1], connection:wait())
+    assert.equals(spawned[1], server_job.ensure_server():wait())
+  end)
+
+  for _, kind in ipairs({ 'transport', 'identity_changed' }) do
+    it('reconnects after a cached server reports ' .. kind, function()
+      state.jobs.set_server({
+        is_ready = function() return true end,
+        check_health = function() return Promise.new():reject({ kind = kind }) end,
+      })
+      local connection = server_job.ensure_server({ force_health_check = true })
+      assert.is_true(vim.wait(1000, function() return starts == 1 end))
+      ready(1)
+      assert.equals(spawned[1], connection:wait())
+      assert.equals(1, starts)
+    end)
+  end
+
   it('publishes a directly spawned process only after protocol probe succeeds', function()
     local probe = Promise.new()
     OpencodeServer.probe_connection = function()
@@ -546,5 +568,84 @@ describe('concurrent server startup', function()
     assert.equals(2, starts)
     ready(2)
     assert.equals(spawned[2], second:wait())
+  end)
+end)
+
+describe('cached connection health', function()
+  local state = require('opencode.state')
+  local config = require('opencode.config')
+  local original_server, original_ttl, server, probes, health
+
+  before_each(function()
+    original_server = state.opencode_server
+    original_ttl = config.values.server.health_check_ttl_ms
+    config.values.server.health_check_ttl_ms = 5000
+    probes = 0
+    health = Promise.new():resolve(true)
+    server = {
+      is_ready = function() return true end,
+      check_health = function()
+        probes = probes + 1
+        return health
+      end,
+    }
+    state.jobs.set_server(server)
+  end)
+
+  after_each(function()
+    state.jobs.set_server(original_server)
+    config.values.server.health_check_ttl_ms = original_ttl
+  end)
+
+  it('reuses a recently checked connection without probing again', function()
+    assert.equals(server, server_job.ensure_server():wait())
+    assert.equals(server, server_job.ensure_server():wait())
+    assert.equals(1, probes)
+  end)
+
+  it('allows an explicit health check before the TTL expires', function()
+    server_job.ensure_server():wait()
+    assert.equals(server, server_job.ensure_server({ force_health_check = true }):wait())
+    assert.equals(2, probes)
+  end)
+
+  it('shares an expired health check between callers', function()
+    server_job.ensure_server():wait()
+    config.values.server.health_check_ttl_ms = 0
+    health = Promise.new()
+    local first = server_job.ensure_server()
+    local second = server_job.ensure_server()
+    assert.equals(first, second)
+    assert.is_true(vim.wait(1000, function() return probes == 2 end))
+    health:resolve(true)
+    assert.equals(server, first:wait())
+    assert.equals(2, probes)
+  end)
+
+  it('validates a replacement connection when the server changes during a health check', function()
+    health = Promise.new()
+    local connection = server_job.ensure_server()
+    assert.is_true(vim.wait(1000, function() return probes == 1 end))
+    local replacement_probes = 0
+    local replacement = {
+      is_ready = function() return true end,
+      check_health = function()
+        replacement_probes = replacement_probes + 1
+        return Promise.new():resolve(true)
+      end,
+    }
+    state.jobs.set_server(replacement)
+    health:reject({ kind = 'credentials', message = 'old connection failed' })
+    assert.equals(replacement, connection:wait())
+    assert.equals(1, replacement_probes)
+    assert.equals(replacement, state.opencode_server)
+  end)
+
+  it('keeps credential failures visible', function()
+    health = Promise.new():reject({ kind = 'credentials', message = 'unauthorized' })
+    local ok, err = pcall(function() server_job.ensure_server():wait() end)
+    assert.is_false(ok)
+    assert.equals('credentials', err.kind)
+    assert.equals(server, state.opencode_server)
   end)
 end)

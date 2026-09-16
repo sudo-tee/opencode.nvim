@@ -43,6 +43,9 @@ describe('quick chat reply ownership', function()
       is_ready = function()
         return true
       end,
+      check_health = function()
+        return Promise.new():resolve(true)
+      end,
       protocol = protocol,
     }
     state.jobs.set_server(connection)

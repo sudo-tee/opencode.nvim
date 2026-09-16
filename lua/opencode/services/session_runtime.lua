@@ -12,13 +12,6 @@ local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
-local function ready_connection()
-  local connection = state.opencode_server
-  if not connection or not connection:is_ready() then
-    error('Connection is not ready')
-  end
-  return connection
-end
 
 local function current_location()
   return { directory = state.current_cwd or vim.fn.getcwd() }
@@ -61,9 +54,9 @@ end
 
 ---List sessions in the given scope. Always returns a non-nil array.
 ---@param scope? 'project' | 'global' defaults to project-scoped
----@return Session[]|GlobalSession[]
-function M.list_sessions_by_scope(scope)
-  local connection = ready_connection()
+---@return Promise<Session[]|GlobalSession[]>
+M.list_sessions_by_scope = Promise.async(function(scope)
+  local connection = server_job.ensure_server():await()
   local sessions
   if scope == 'global' then
     sessions = connection.operations.list_sessions_global(connection, util.apply_reverse_path_map):await()
@@ -84,16 +77,16 @@ function M.list_sessions_by_scope(scope)
     end, sessions)
   end
   return sessions
-end
+end)
 
-local function last_workspace_session()
-  for _, session_fact in ipairs(M.list_sessions_by_scope('project')) do
+local last_workspace_session = Promise.async(function()
+  for _, session_fact in ipairs(M.list_sessions_by_scope('project'):await()) do
     if session_fact.parentID == nil then
       return session_fact
     end
   end
   return nil
-end
+end)
 
 ---Keep only pickable sessions: non-empty title and matching parent_id.
 ---@param sessions Session[]|GlobalSession[]
@@ -128,7 +121,7 @@ end
 ---@param parent_id string?
 ---@param scope? 'project' | 'global' when nil, defaults to project-scoped
 M.select_session = Promise.async(function(parent_id, scope)
-  local all_sessions = M.list_sessions_by_scope(scope)
+  local all_sessions = M.list_sessions_by_scope(scope):await()
   ---@cast all_sessions Session[]
 
   local filtered_sessions = M.filter_pickable_sessions(all_sessions, parent_id)
@@ -159,7 +152,7 @@ M.switch_session = Promise.async(function(session_or_id)
     local active_fact = active and active:read().session or nil
     local location = (active_fact and active_fact.location) or (state.active_session and state.active_session.location)
       or current_location()
-    local connection = ready_connection()
+    local connection = server_job.ensure_server():await()
     selected_session = connection.operations
       .get_session(connection, session_or_id, location, util.apply_path_map, util.apply_reverse_path_map)
       :await()
@@ -272,7 +265,7 @@ M.open = Promise.async(function(opts)
     else
       agent_model.ensure_current_mode():await()
       if not state.active_session then
-        state.session.set_active(last_workspace_session())
+        state.session.set_active(last_workspace_session():await())
         if not state.active_session then
           state.session.set_active(M.create_new_session():await())
         end
@@ -304,10 +297,7 @@ M.create_new_session = Promise.async(function(title_or_opts)
     session_request = title_or_opts
   end
 
-  local connection = state.opencode_server
-  if not connection or not connection:is_ready() then
-    connection = server_job.ensure_server():await()
-  end
+  local connection = server_job.ensure_server():await()
   local location = current_location()
   local session_response = connection.operations
     .create_session(connection, location, session_request, util.apply_path_map, util.apply_reverse_path_map)
@@ -361,10 +351,7 @@ end)
 ---@param session_id string
 ---@return Promise<Session|nil>
 M.open_session_in_tab_by_id = Promise.async(function(session_id)
-  local connection = state.opencode_server
-  if not connection or not connection:is_ready() then
-    return nil
-  end
+  local connection = server_job.ensure_server():await()
   local selected_session = connection.operations
     .get_session(connection, session_id, current_location(), util.apply_path_map, util.apply_reverse_path_map)
     :await()
@@ -710,7 +697,7 @@ M.handle_directory_change = Promise.async(function()
   state.session.clear_active()
   context.unload_attachments()
 
-  state.session.set_active(last_workspace_session() or M.create_new_session():await())
+  state.session.set_active(last_workspace_session():await() or M.create_new_session():await())
 
   log.debug('Loaded session for new working dir ' .. vim.inspect({ session = state.active_session }))
 end)

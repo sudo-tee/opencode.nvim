@@ -5,6 +5,7 @@ local config = require('opencode.config')
 local config_file = require('opencode.config_file')
 local model_state = require('opencode.model_state')
 local util = require('opencode.util')
+local Promise = require('opencode.promise')
 
 ---Get variants for the current model
 ---@return table[] variants Array of variant items
@@ -47,7 +48,8 @@ end
 
 ---Show variant picker
 ---@param callback fun(selection: table?) Callback when variant is selected
-function M.select(callback)
+M.select = Promise.async(function(callback)
+  config_file.get_opencode_providers():await()
   local variants = get_current_model_variants()
 
   if #variants == 0 then
@@ -109,6 +111,6 @@ function M.select(callback)
       end
     end,
   })
-end
+end)
 
 return M

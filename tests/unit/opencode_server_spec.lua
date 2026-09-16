@@ -520,8 +520,8 @@ describe('opencode.opencode_server', function()
         return true
       end
       local original_children = vim.api.nvim_get_proc_children
-      vim.api.nvim_get_proc_children = function(_)
-        return { 10, 11 }
+      vim.api.nvim_get_proc_children = function(pid)
+        return pid == 99 and { 10, 11 } or {}
       end
 
       require('opencode.util').kill_pid(99)
@@ -537,6 +537,33 @@ describe('opencode.opencode_server', function()
       assert.same({ pid = 11, signal = 9 }, kill_order[4])
       assert.same({ pid = 99, signal = 15 }, kill_order[5])
       assert.same({ pid = 99, signal = 9 }, kill_order[6])
+    end)
+    it('kills grandchildren before children before the parent', function()
+      local kill_order = {}
+      local original_kill = vim.uv.kill
+      vim.uv.kill = function(pid, signal)
+        table.insert(kill_order, { pid = pid, signal = signal })
+        return true
+      end
+      local original_children = vim.api.nvim_get_proc_children
+      local tree = { [99] = { 10, 11 }, [10] = { 55 } }
+      vim.api.nvim_get_proc_children = function(pid)
+        return tree[pid] or {}
+      end
+
+      require('opencode.util').kill_pid(99)
+
+      vim.uv.kill = original_kill
+      vim.api.nvim_get_proc_children = original_children
+
+      -- 55 (grandchild) before 10 before 99; 11 has no children
+      local order_pids = {}
+      for _, entry in ipairs(kill_order) do
+        if entry.signal == 15 then
+          order_pids[#order_pids + 1] = entry.pid
+        end
+      end
+      assert.same({ 55, 10, 11, 99 }, order_pids)
     end)
   end)
 

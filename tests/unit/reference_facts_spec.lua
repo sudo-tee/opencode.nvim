@@ -51,6 +51,28 @@ describe('opencode.ui.reference_facts', function()
     package.loaded['opencode.ui.reference_parser'] = nil
   end)
 
+  it('parses only changed reference sources and drops removed parts', function()
+    local parser = require('opencode.ui.reference_parser')
+    local parse = require('luassert.spy').on(parser, 'parse_references')
+    local messages = {
+      assistant_message('msg_1', 'ses_1', {
+        { id = 'part_1', kind = 'text', text = 'See `src/ok.lua`.' },
+        { id = 'part_2', kind = 'text', text = 'See `src/tool.lua`.' },
+      }),
+    }
+    rebuild(messages)
+    rebuild(messages)
+    assert.spy(parse).was_called(2)
+    messages[1].content[1].text = 'See `src/tool.lua` instead.'
+    rebuild(messages)
+    assert.spy(parse).was_called(3)
+    table.remove(messages[1].content, 2)
+    rebuild(messages)
+    assert.equals(1, #reference_facts.current_refs())
+    assert.equals('part_1', reference_facts.current_refs()[1].part_id)
+    parse:revert()
+  end)
+
   it('owns session facts without loading the picker UI', function()
     package.loaded['opencode.ui.reference_picker'] = false
 

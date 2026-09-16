@@ -363,20 +363,28 @@ local function apply_part(part_id, message_id, render_context)
 end
 
 ---@param pending RendererCtx['pending']
----@param render_context FormatterContext
+---@param opts? {resolve_symbol_targets?: boolean}
 ---@return boolean
-local function apply_pending(pending, render_context)
+local function apply_pending(pending, opts)
   local buf = state.windows and state.windows.output_buf
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return false
   end
 
-  local has_updates = ctx:has_pending_work(pending)
+  local has_updates = #pending.dirty_message_order > 0
+    or #pending.dirty_part_order > 0
+    or #pending.removed_part_order > 0
+    or #pending.removed_message_order > 0
 
   if not has_updates then
     return false
   end
 
+  local render_context
+  local function apply_dirty_part(part_id, message_id)
+    render_context = render_context or new_formatter_context(opts)
+    return apply_part(part_id, message_id, render_context)
+  end
   local changed = false
   local scroll_snapshot = scroll.pre_flush(buf)
   with_suppressed_output_autocmds(function()
@@ -404,7 +412,7 @@ local function apply_pending(pending, render_context)
         for index in ipairs(entry and entry.content or {}) do
           local part_id = ctx.content_key(entry, index)
           if dirty_parts[part_id] then
-            changed = apply_part(part_id, message_id, render_context) or changed
+            changed = apply_dirty_part(part_id, message_id) or changed
             dirty_parts[part_id] = nil
             pending.dirty_parts[part_id] = nil
           end
@@ -415,7 +423,7 @@ local function apply_pending(pending, render_context)
     for _, part_id in ipairs(pending.dirty_part_order) do
       local message_id = pending.dirty_parts[part_id]
       if message_id then
-        changed = apply_part(part_id, message_id, render_context) or changed
+        changed = apply_dirty_part(part_id, message_id) or changed
       end
     end
   end)
@@ -547,7 +555,7 @@ function M.flush(opts)
     return
   end
   local pending = snapshot_pending()
-  local applied = apply_pending(pending, new_formatter_context(opts))
+  local applied = apply_pending(pending, opts)
   if applied and not ctx.bulk_mode then
     M.request_on_data_rendered()
   end

@@ -44,6 +44,8 @@ local ctx = {
     removed_messages = {}, ---@type table<string, boolean>
   },
   flush_scheduled = false, ---@type boolean
+  reconcile_scheduled = false, ---@type boolean
+  cancel_pending_reconcile = nil, ---@type fun()|nil Consumes a deferred reconcile without running it
   markdown_render_scheduled = false, ---@type boolean
   symbol_refresh_pending = false, ---@type boolean
   symbol_refresh_token = 0, ---@type integer
@@ -81,8 +83,8 @@ local CONTEXT_KEYS = {
   'markdown_render_scheduled',
   'global_folds',
   'part_folds',
-  'model_restored_session_id',
   'lazy_render_count',
+  'model_restored_session_id',
 }
 
 ---Reset all renderer caches and pending state.
@@ -106,15 +108,17 @@ function ctx:reset()
     removed_messages = {},
   }
   self.flush_scheduled = false
+  self.reconcile_scheduled = false
+  self.cancel_pending_reconcile = nil
   self.markdown_render_scheduled = false
   self.symbol_refresh_pending = false
   self.symbol_refresh_token = self.symbol_refresh_token + 1
   self.symbol_refresh_cycle = nil
   self.global_folds = {}
   self.part_folds = {}
-  self.model_restored_session_id = nil
   self.entries = {}
   self.file_revision = 0
+  self.model_restored_session_id = nil
   self:bulk_reset()
 end
 
@@ -141,6 +145,8 @@ function ctx:restore(snapshot)
   end
 
   self.flush_scheduled = false
+  self.reconcile_scheduled = false
+  self.cancel_pending_reconcile = nil
   self.bulk_mode = false
   self:bulk_reset()
   return true
@@ -167,7 +173,8 @@ end
 function ctx:has_pending_work(pending)
   pending = pending or self.pending
 
-  return self.flush_scheduled
+  return self.reconcile_scheduled
+    or self.flush_scheduled
     or self.symbol_refresh_pending
     or self.bulk_mode
     or #pending.dirty_message_order > 0

@@ -188,6 +188,11 @@ function RenderState:get_message(message_id)
   return self._messages[message_id]
 end
 
+---@return boolean
+function RenderState:has_messages()
+  return next(self._messages) ~= nil
+end
+
 ---@param messages table[]
 ---@param message_id string
 ---@return RenderedMessage?

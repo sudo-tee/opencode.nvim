@@ -137,11 +137,9 @@ describe('opencode.ui.reference_facts', function()
     vim.bo[buffer_only_buf].buftype = ''
     local nofile_buf = vim.api.nvim_create_buf(false, true)
     vim.bo[nofile_buf].buftype = 'nofile'
-    local getbufinfo_stub = stub(vim.fn, 'getbufinfo').returns({
-      { bufnr = dedup_buf, name = '/repo/src/ok.lua' },
-      { bufnr = buffer_only_buf, name = '/repo/buffer_only.lua' },
-      { bufnr = nofile_buf, name = '/repo/scratch.log' },
-    })
+    vim.api.nvim_buf_set_name(dedup_buf, '/repo/src/ok.lua')
+    vim.api.nvim_buf_set_name(buffer_only_buf, '/repo/buffer_only.lua')
+    vim.api.nvim_buf_set_name(nofile_buf, '/repo/scratch.log')
 
     rebuild({
       assistant_message('msg_1', 'ses_1', {
@@ -151,7 +149,6 @@ describe('opencode.ui.reference_facts', function()
 
     local files = reference_facts.available_files()
 
-    getbufinfo_stub:revert()
     pcall(vim.api.nvim_buf_delete, dedup_buf, { force = true })
     pcall(vim.api.nvim_buf_delete, buffer_only_buf, { force = true })
     pcall(vim.api.nvim_buf_delete, nofile_buf, { force = true })

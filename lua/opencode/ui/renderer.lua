@@ -939,6 +939,9 @@ end
 
 ---Flush the active tab before its window and renderer context are detached.
 function M.prepare_session_tab_switch()
+  if ctx.reconcile_scheduled and ctx.observation then
+    reconcile_observation(ctx.observation)
+  end
   if ctx.bulk_mode then
     flush.end_bulk_mode()
   end
@@ -1036,13 +1039,15 @@ function M.on_session_changed(_, new, old)
       return
     end
     scheduled = true
+    ctx.reconcile_scheduled = true
     local generation = ctx.generation
-    vim.schedule(function()
+    local function apply_changes()
       scheduled = false
       if ctx.generation ~= generation or ctx.observation ~= observation then
         pending_resources = {}
         return
       end
+      ctx.reconcile_scheduled = false
       local resources = pending_resources
       pending_resources = {}
       if resources.all or resources.messages or resources.session or resources.children then
@@ -1052,7 +1057,14 @@ function M.on_session_changed(_, new, old)
           reconcile_observation(observation, resource_name)
         end
       end
-    end)
+    end
+    local rendering = config.ui.output.rendering
+    local delay = rendering.event_collapsing ~= false and rendering.event_throttle_ms or 0
+    if resource == 'messages' and next(ctx.render_state._messages) and delay > 0 then
+      vim.defer_fn(apply_changes, delay)
+    else
+      vim.schedule(apply_changes)
+    end
   end
   ctx.unsubscribe = observation:watch(
     { 'session', 'messages', 'children', 'execution', 'permissions', 'questions', 'inbox', 'files' },

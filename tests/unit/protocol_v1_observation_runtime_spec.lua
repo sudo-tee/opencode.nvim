@@ -536,6 +536,41 @@ describe('V1 protocol Observation runtime', function()
     assert.same({}, observation:read().entry_order)
   end)
 
+  describe('server completion ordering', function()
+    local original_gettimeofday
+
+    before_each(function()
+      original_gettimeofday = vim.uv.gettimeofday
+      vim.uv.gettimeofday = function()
+        return 1789581400, 0
+      end
+    end)
+
+    after_each(function()
+      vim.uv.gettimeofday = original_gettimeofday
+    end)
+
+    it('orders sync and async prompt IDs before a later native assistant ID so the server can stop', function()
+      local connection, server = runtime()
+      local observation = observe(connection, 'ses-ordering')
+      local first = observation:submit({ text = 'A', context = {}, files = {}, agents = {} })
+      local second = observation:submit({ text = 'B', context = {}, files = {}, agents = {} }, { async = true })
+      local first_id = server.submits[1].input.messageID
+      local second_id = server.async_submits[1].input.messageID
+      local assistant_id = 'msg_0ab5de325001er63OUZBWZc0oj'
+
+      -- V1 servers use user.id < assistant.id to exit after a terminal response.
+      assert.is_true(first_id < second_id)
+      assert.is_true(first_id < assistant_id)
+      assert.is_true(second_id < assistant_id)
+
+      server.submits[1].request:resolve(response('ses-ordering', assistant_id, first_id, 'assistant', 1789581457189, 'stop'))
+      server.async_submits[1].request:resolve(true)
+      assert.equals('reply', first:wait().kind)
+      assert.equals('accepted', second:wait().kind)
+    end)
+  end)
+
   it('returns reply only for the generated input parent and a terminal V1 response', function()
     local connection, server = runtime()
     local observation = observe(connection, 'ses-submit')

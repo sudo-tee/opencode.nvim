@@ -1567,7 +1567,7 @@ function M.new(connection, ref)
         fail('invalid submit ' .. option)
       end
     end
-    local message_id = id.descending('message')
+    local message_id = id.ascending('message')
     local body = {
       messageID = message_id,
       model = vim.deepcopy(input and input.model),

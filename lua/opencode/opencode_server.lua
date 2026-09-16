@@ -315,32 +315,6 @@ function OpencodeServer:check_health()
   end)
 end
 
-local function kill_process(pid, signal, desc)
-  local log = require('opencode.log')
-  local ok, err = pcall(vim.uv.kill, pid, signal)
-  log.debug('shutdown: %s pid=%d sig=%d ok=%s err=%s', desc, pid, signal, tostring(ok), tostring(err))
-  return ok, err
-end
-
---- Kill a process tree by PID (children first, then parent).
---- SIGTERM is sent first, then SIGKILL immediately after as a backup.
---- @param pid number
-function OpencodeServer.kill_pid(pid)
-  local log = require('opencode.log')
-
-  local ok, children = pcall(vim.api.nvim_get_proc_children, pid)
-  if ok and children and #children > 0 then
-    log.debug('kill_pid: pid=%d has %d children (%s)', pid, #children, vim.inspect(children))
-    for _, cid in ipairs(children) do
-      kill_process(cid, 15, 'SIGTERM child')
-      kill_process(cid, 9, 'SIGKILL child')
-    end
-  end
-
-  kill_process(pid, 15, 'SIGTERM')
-  kill_process(pid, 9, 'SIGKILL')
-end
-
 function OpencodeServer:close()
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
@@ -430,7 +404,7 @@ function OpencodeServer:spawn(opts)
   if config.server.auto_kill then
     self:set_process_release(function()
       if self.job and self.job.pid then
-        OpencodeServer.kill_pid(self.job.pid)
+        require('opencode.util').kill_pid(self.job.pid)
       end
     end)
   end

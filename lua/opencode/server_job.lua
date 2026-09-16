@@ -347,7 +347,7 @@ function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port,
           end)
         elseif pid then
           server:set_process_release(function()
-            opencode_server.kill_pid(pid)
+            require('opencode.util').kill_pid(pid)
           end)
         end
       end

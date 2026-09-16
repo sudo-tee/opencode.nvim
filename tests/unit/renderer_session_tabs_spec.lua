@@ -152,6 +152,72 @@ describe('renderer session tab contexts', function()
     render_stub:revert()
   end)
 
+  it('restores the last model when session messages finish loading', function()
+    local model = require('opencode.state.model')
+    local previous_model = state.current_model
+    local callbacks = {}
+    local observed = {
+      session = { id = 'session-one', title = 'One' },
+      sync = {
+        session = { state = 'current' },
+        messages = { state = 'loading' },
+        children = { state = 'current' },
+      },
+      entries_by_id = {},
+      entry_order = {},
+      children = { order = {}, by_id = {} },
+      files = { revision = 0 },
+    }
+    local observation = {
+      read = function()
+        return observed
+      end,
+      watch = function(_, _, callback)
+        callbacks[#callbacks + 1] = callback
+        return function() end
+      end,
+    }
+    local connection = {
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return observation
+      end,
+    }
+
+    model.set_model('openai/old-model')
+    session_tabs.ensure_current()
+    store.set_raw('active_session', observed.session)
+    state.jobs.set_server(connection)
+
+    renderer.setup_subscriptions()
+
+    observed.sync.messages = { state = 'current' }
+    observed.entry_order = { 'message-one' }
+    observed.entries_by_id['message-one'] = {
+      id = 'message-one',
+      session_id = 'session-one',
+      kind = 'assistant',
+      model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+      content = {},
+    }
+    callbacks[1](observation, 'messages')
+
+    assert.is_true(vim.wait(100, function()
+      return state.current_model == 'anthropic/claude-3-opus'
+    end))
+    assert.equals('anthropic/claude-3-opus', state.current_model)
+
+    model.set_model('openai/new-model')
+    callbacks[1](observation, 'messages')
+    vim.wait(100)
+    assert.equals('openai/new-model', state.current_model)
+
+    renderer.setup_subscriptions(false)
+    model.set_model(previous_model)
+  end)
+
   it('refreshes a dirty tab after its windows are mounted', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }

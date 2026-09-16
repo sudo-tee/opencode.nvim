@@ -59,6 +59,7 @@ local ctx = {
   part_folds = {},
   ---@type integer|nil Number of messages to render from the end (nil = all)
   lazy_render_count = nil,
+  model_restored_session_id = nil, ---@type string|nil
   generation = 0,
   file_revision = 0,
   ---@type fun(session_id: string): table[]?
@@ -80,6 +81,7 @@ local CONTEXT_KEYS = {
   'markdown_render_scheduled',
   'global_folds',
   'part_folds',
+  'model_restored_session_id',
   'lazy_render_count',
 }
 
@@ -110,6 +112,7 @@ function ctx:reset()
   self.symbol_refresh_cycle = nil
   self.global_folds = {}
   self.part_folds = {}
+  self.model_restored_session_id = nil
   self.entries = {}
   self.file_revision = 0
   self:bulk_reset()

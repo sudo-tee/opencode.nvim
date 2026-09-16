@@ -446,6 +446,7 @@ local function do_trigger_on_data_rendered()
   elseif vim.fn.exists(':Markview') > 0 then
     vim.cmd(':Markview render ' .. output_buf)
   end
+  require('opencode.ui.image').schedule_refresh_output(true)
 end
 
 M.trigger_on_data_rendered =
@@ -516,6 +517,7 @@ function M.end_bulk_mode()
     end
 
     output_window.set_folds(ctx.bulk_folds)
+    require('opencode.ui.image').schedule_refresh_output(true)
   end, debug.traceback)
 
   ctx:bulk_reset()
@@ -537,6 +539,7 @@ function M.flush()
   local pending = snapshot_pending()
   local applied = apply_pending(pending, new_formatter_context())
   if applied and not ctx.bulk_mode then
+    require('opencode.ui.image').schedule_refresh_output(true)
     M.request_on_data_rendered()
   end
 end

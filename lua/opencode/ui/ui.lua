@@ -99,6 +99,9 @@ end
 
 ---Clear Opencode-specific autocmds and shared UI state before closing windows.
 local function prepare_window_close()
+  require('opencode.ui.image').hide_output()
+  require('opencode.ui.image').clear_preview()
+
   if M.is_opencode_focused() then
     M.return_to_last_code_win()
   end
@@ -307,6 +310,7 @@ function M.restore_hidden_windows()
           vim.fn.winrestview(hidden.output_view)
         end)
       end
+      require('opencode.ui.image').refresh_output()
     end
 
     if not hidden.input_hidden then

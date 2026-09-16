@@ -114,6 +114,8 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   output_window._prev_line_count_by_win[win] = line_count
+  require('opencode.ui.image').refresh_output()
+  require('opencode.ui.image').schedule_refresh_output()
 end
 
 ---@param buf integer|nil

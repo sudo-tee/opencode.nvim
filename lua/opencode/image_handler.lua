@@ -142,11 +142,27 @@ end
 --- @param name string
 --- @return string?
 function M.restore_img_path(name)
-  if not cached_temp_dir or not name:find('^pasted_image_') then
+  if
+    type(name) ~= 'string'
+    or name ~= vim.fn.fnamemodify(name, ':t')
+    or not name:match('^pasted_image_[%w_%-]+%.[%w]+$')
+  then
     return nil
   end
-  local path = cached_temp_dir .. '/' .. name
-  return is_valid_file(path) and path or nil
+
+  if cached_temp_dir then
+    local path = cached_temp_dir .. '/' .. name
+    if is_valid_file(path) then
+      return path
+    end
+  end
+
+  local temp_root = vim.fn.fnamemodify(vim.fn.tempname(), ':h')
+  local matches = vim.fn.globpath(temp_root, '**/' .. name, false, true)
+  if #matches > 0 and is_valid_file(matches[1]) then
+    cached_temp_dir = vim.fn.fnamemodify(matches[1], ':h')
+    return matches[1]
+  end
 end
 
 --- Handle clipboard image data by saving it to a file and adding it to context

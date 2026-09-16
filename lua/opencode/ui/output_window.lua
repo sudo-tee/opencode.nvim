@@ -784,6 +784,7 @@ function M.setup_autocmds(windows, group)
       if pos then
         state.ui.set_cursor_position('output', pos)
       end
+      require('opencode.ui.image').schedule_refresh_output(true)
 
       if debounced_load_more_at_top and has_unrendered_messages() and viewport_is_at_rendered_top() then
         debounced_load_more_at_top()
@@ -832,6 +833,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       M.sync_cursor_with_viewport(windows.output_win)
+      require('opencode.ui.image').schedule_refresh_output(true)
       if debounced_load_more_at_top and has_unrendered_messages() and viewport_is_at_rendered_top() then
         debounced_load_more_at_top()
       end
@@ -852,6 +854,7 @@ end
 
 ---Clear the output buffer and all namespaces.
 function M.clear()
+  require('opencode.ui.image').clear_output()
   if M.mounted() then
     clear_manual_folds(state.windows.output_win)
   end

@@ -51,6 +51,7 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Usage](#-usage)
 - [Permissions](#-permissions)
 - [Context](#-context)
+- [Image Support](#image-support)
 - [Agents](#-agents)
 - [Custom/External Server Configuration](#-customexternal-server-configuration)
 - [User Commands and Slash Commands](#user-commands-and-slash-commands)
@@ -245,6 +246,12 @@ require('opencode').setup({
       actions = {
         open_in_new_tab = false, -- Open inline child-session and fork actions in a new panel tab
       },
+      images = {
+        enabled = true, -- Use vim.ui.img when available
+        width = 20, -- Display width in terminal cells
+        height = nil, -- Optional fixed height; nil preserves PNG aspect ratio
+        zindex = 50, -- Terminal image stacking order
+      },
       compact_assistant_headers = false, -- 'full' (default), 'minimal' (compact if same mode), or 'hidden' (no headers for assistant)
       tools = {
         show_output = true, -- Show tools output [diffs, cmd output, etc.] (default: true)
@@ -370,6 +377,19 @@ require('opencode').setup({
   },
 })
 ```
+
+### Image Support
+
+Image pasting uses the `<M-v>` input mapping or `<leader>ov`. Pasted PNGs are added as `pasted_image_*` mentions.
+
+When `vim.ui.img` is available and the terminal supports the Kitty graphics protocol:
+
+- Hovering a pasted-image mention shows a preview above the mention in the input window.
+- Submitted images render inline below their attachment link in the output window.
+- Output placement follows scrolling and reserves rows so images do not cover later content.
+- Restored sessions resolve persisted `pasted_image_*` filenames when their temporary files still exist.
+
+`vim.ui.img` is experimental and currently supports PNG images. Set `ui.output.images.height` to a number for fixed dimensions. Leave it `nil` to preserve the image aspect ratio. Use `:checkhealth opencode` to inspect Neovim, terminal, and clipboard support.
 
 ### Keymap Configuration
 

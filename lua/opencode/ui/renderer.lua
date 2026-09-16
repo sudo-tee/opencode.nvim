@@ -709,6 +709,7 @@ function M.on_session_tab_changed(_, new, old)
   if new == old then
     return
   end
+  require('opencode.ui.image').clear_output()
   save_tab_context(old)
   rendered_session_tab = new
   local runtime = session_tabs.get(new)
@@ -729,6 +730,7 @@ function M.on_session_tab_changed(_, new, old)
   require('opencode.ui.renderer.events').render_permissions_display()
 
   if restored and not (runtime and runtime.renderer_dirty) then
+    require('opencode.ui.image').rebuild_output()
     if ctx:has_pending_work() and output_window.mounted() then
       flush.schedule()
     end

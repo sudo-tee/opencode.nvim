@@ -296,6 +296,7 @@
 ---@class OpencodeUIOutputConfig
 ---@field time_format string|nil # Custom os.date format for timestamps, e.g. '%m/%d %H:%M'. Uses fixed default when nil.
 ---@field actions OpencodeUIOutputActionsConfig
+---@field images OpencodeUIOutputImagesConfig
 ---@field tools OpencodeUIOutputToolsConfig
 ---@field rendering OpencodeUIOutputRenderingConfig
 ---@field max_messages integer|nil
@@ -305,6 +306,12 @@
 
 ---@class OpencodeUIOutputActionsConfig
 ---@field open_in_new_tab boolean # Open inline session actions in a new panel tab
+
+---@class OpencodeUIOutputImagesConfig
+---@field enabled boolean # Use Neovim's experimental vim.ui.img API when available
+---@field width integer # Display width in terminal cells
+---@field height? integer # Display height in terminal cells; derived from PNG dimensions when omitted
+---@field zindex integer # Terminal image stacking order
 
 ---@class OpencodeUIPickerConfig
 ---@field snacks_layout? snacks.picker.layout.Config

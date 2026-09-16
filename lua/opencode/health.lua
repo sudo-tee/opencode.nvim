@@ -8,6 +8,10 @@ local function command_exists(cmd)
   return vim.fn.executable(cmd) == 1
 end
 
+local function valid_positive_number(value)
+  return type(value) == 'number' and value == value and value > 0 and value < math.huge
+end
+
 local function get_opencode_version()
   if not command_exists(config.opencode_executable) then
     return nil, 'opencode command not found'
@@ -174,6 +178,91 @@ local function check_environment()
   end
 end
 
+local function check_image_support()
+  health.start('Image Support')
+
+  local images = config.ui and config.ui.output and config.ui.output.images or {}
+  if images.enabled == false then
+    health.info('Image rendering disabled by ui.output.images.enabled')
+  else
+    local ok, img = pcall(function()
+      return vim.ui and vim.ui.img
+    end)
+
+    if not ok or type(img) ~= 'table' or type(img.set) ~= 'function' or type(img.del) ~= 'function' then
+      health.warn('vim.ui.img is unavailable; image previews are disabled', {
+        'Use a Neovim build that includes the experimental vim.ui.img API',
+      })
+    else
+      health.ok('vim.ui.img API available')
+
+      if type(img._supported) == 'function' then
+        local support_ok, supported, message = pcall(img._supported, { timeout = 100 })
+        if support_ok and supported then
+          health.ok('Terminal supports Kitty graphics')
+        elseif support_ok then
+          health.warn('Terminal does not support Kitty graphics', {
+            message and ('Terminal response: ' .. tostring(message)) or 'Use Kitty or a compatible terminal',
+          })
+        else
+          health.warn('Could not query terminal Kitty graphics support', {
+            'Use Kitty or a compatible terminal',
+          })
+        end
+      else
+        health.info('vim.ui.img backend does not expose terminal capability detection')
+      end
+    end
+  end
+
+  if not valid_positive_number(images.width) then
+    health.warn('Invalid ui.output.images.width', { 'Set width to a positive terminal-cell count' })
+  else
+    health.ok(string.format('Image width: %s cells', images.width))
+  end
+
+  if images.height ~= nil then
+    if not valid_positive_number(images.height) then
+      health.warn('Invalid ui.output.images.height', {
+        'Set height to a positive terminal-cell count or nil for aspect-ratio sizing',
+      })
+    else
+      health.ok(string.format('Image height: %s cells', images.height))
+    end
+  else
+    health.ok('Image height derived from PNG dimensions')
+  end
+
+  local sysname = vim.uv.os_uname().sysname
+  local clipboard_commands
+  if vim.fn.exists('$WSL_DISTRO_NAME') == 1 or sysname == 'Windows_NT' then
+    clipboard_commands = { 'powershell.exe' }
+  elseif sysname == 'Darwin' then
+    clipboard_commands = { 'osascript' }
+  elseif sysname == 'Linux' then
+    clipboard_commands = { 'wl-paste', 'xclip' }
+  end
+
+  if clipboard_commands then
+    local clipboard_command
+    for _, command in ipairs(clipboard_commands) do
+      if command_exists(command) then
+        clipboard_command = command
+        break
+      end
+    end
+    if clipboard_command then
+      health.ok('Clipboard image command found: ' .. clipboard_command)
+    else
+      health.warn('No clipboard image command found', {
+        'Install wl-paste or xclip on Linux, osascript on macOS, or PowerShell on Windows/WSL',
+      })
+    end
+  else
+    health.info('Clipboard image command check unavailable for operating system')
+  end
+end
+
 local function check_integrations()
   health.start('Optional Integrations')
 
@@ -247,6 +336,7 @@ function M.check()
   check_opencode_server()
   check_configuration()
   check_environment()
+  check_image_support()
   check_integrations()
   check_finder_cli_tools()
 end

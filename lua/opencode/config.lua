@@ -196,6 +196,11 @@ M.defaults = {
       actions = {
         open_in_new_tab = false,
       },
+      images = {
+        enabled = true,
+        width = 20,
+        zindex = 50,
+      },
       rendering = {
         markdown_debounce_ms = 250,
         on_data_rendered = nil,

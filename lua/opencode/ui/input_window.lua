@@ -548,6 +548,7 @@ function M.setup_autocmds(windows, group)
       M.refresh_placeholder(windows)
       state.ui.set_last_focused_window('input')
       require('opencode.ui.context_bar').render()
+      require('opencode.ui.mention').update_image_preview(windows)
     end,
   })
 
@@ -571,6 +572,7 @@ function M.setup_autocmds(windows, group)
       then
         M._hide()
       end
+      require('opencode.ui.image').clear_preview()
     end,
   })
 
@@ -582,10 +584,11 @@ function M.setup_autocmds(windows, group)
       M.refresh_placeholder(windows, input_lines)
       require('opencode.ui.context_bar').render()
       M.schedule_resize(windows)
+      require('opencode.ui.mention').update_image_preview(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd('CursorMoved', {
+  vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
     group = group,
     buffer = windows.input_buf,
     callback = function()
@@ -593,6 +596,15 @@ function M.setup_autocmds(windows, group)
       if pos then
         state.ui.set_cursor_position('input', pos)
       end
+      require('opencode.ui.mention').update_image_preview(windows)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+    group = group,
+    buffer = windows.input_buf,
+    callback = function()
+      require('opencode.ui.mention').update_image_preview(windows)
     end,
   })
 end
@@ -621,6 +633,7 @@ function M._hide()
   end
 
   local output_window = require('opencode.ui.output_window')
+  require('opencode.ui.image').clear_preview()
   local was_at_bottom = output_window.is_at_bottom(windows.output_win)
 
   M._hidden = true

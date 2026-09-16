@@ -2,6 +2,7 @@ local ctx = require('opencode.ui.renderer.ctx')
 local state = require('opencode.state')
 local output_window = require('opencode.ui.output_window')
 local diff = require('opencode.ui.renderer.output_diff')
+local image = require('opencode.ui.image')
 
 local M = {}
 
@@ -334,7 +335,8 @@ end
 ---@param part_id string
 ---@param formatted_data Output
 ---@param line_start integer
-local function apply_part_render_data(part_id, formatted_data, line_start)
+---@param refresh? boolean
+local function apply_part_render_data(part_id, formatted_data, line_start, refresh)
   ctx.render_state:clear_actions(part_id)
   if has_actions(formatted_data.actions) then
     ctx.render_state:add_actions(part_id, vim.deepcopy(formatted_data.actions), line_start)
@@ -347,6 +349,10 @@ local function apply_part_render_data(part_id, formatted_data, line_start)
   if part_data then
     part_data.has_extmarks = has_extmarks(formatted_data.extmarks)
   end
+  if refresh == nil then
+    refresh = not ctx.bulk_mode
+  end
+  image.set_output_images(part_id, formatted_data.images, line_start, refresh)
 end
 
 ---@param message OpencodeMessage|nil
@@ -423,6 +429,7 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     if delta ~= 0 then
       ctx.render_state:shift_all(old_line_end + 1, delta)
       output_window.shift_folds(old_line_end + 1, delta)
+      image.schedule_refresh_output()
     end
     return true
   end
@@ -437,6 +444,7 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
 
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     output_window.shift_folds(insert_at, #formatted_data.lines)
+    image.schedule_refresh_output()
     ctx.render_state:set_message(message_data.message, range.line_start, range.line_end)
     return true
   end
@@ -477,7 +485,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   if cached and cached.line_start and cached.line_end then
     local prefix_len, old_line_end, new_line_end = write_in_place(cached, previous_formatted, formatted_data)
 
-    apply_part_render_data(part_id, formatted_data, cached.line_start)
+    apply_part_render_data(part_id, formatted_data, cached.line_start, false)
 
     if new_line_end ~= cached.line_end then
       local delta = new_line_end - old_line_end
@@ -489,6 +497,8 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     if formatted_data.fold_ranges then
       M.update_part_folds(part_id)
     end
+
+    image.refresh_output(true)
 
     return true
   end
@@ -650,6 +660,8 @@ end
 
 ---@param part_id string
 function M.remove_part_now(part_id)
+  image.clear_output_part(part_id)
+
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
     -- Just track that this part should be excluded
@@ -671,6 +683,7 @@ function M.remove_part_now(part_id)
   ctx.render_state:remove_part(part_id)
   ctx.part_folds[part_id] = nil
   M.set_all_folds()
+  image.schedule_refresh_output()
 end
 
 ---@param message_id string
@@ -694,6 +707,7 @@ function M.remove_message_now(message_id)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_message(message_id)
   M.set_all_folds()
+  image.schedule_refresh_output()
 end
 
 return M

@@ -6,6 +6,7 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local snapshot = require('opencode.snapshot')
 local mention = require('opencode.ui.mention')
+local image = require('opencode.ui.image')
 local system_formatters = require('opencode.ui.formatter.system')
 local symbol_tokens = require('opencode.ui.symbol_tokens')
 local tool_formatters = require('opencode.ui.formatter.tools')
@@ -979,6 +980,14 @@ function M.format_part(part, message, is_last_part, context)
     elseif part.type == 'file' then
       local file_line = M._format_context_file(output, part.filename)
       if file_line then
+        local image_path = image.path_for_part(part)
+        if image_path and image.is_available() then
+          output:add_image({ path = image_path, line = file_line, mime = part.mime })
+          for _ = 1, image.get_height(image_path) do
+            output:add_line('')
+          end
+        end
+
         local previous_kind, next_kind = get_user_part_neighbors(message, part)
         local previous_is_context = previous_kind == 'selection'
           or previous_kind == 'cursor-data'

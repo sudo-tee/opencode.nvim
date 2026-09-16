@@ -1,11 +1,9 @@
 local M = {}
 
 local mentions_namespace = vim.api.nvim_create_namespace('OpencodeMentions')
+local mention_pattern = '@[%w_%-%./][%w_%-%./]*'
 
 function M.highlight_all_mentions(buf, callback)
-  -- Pattern for mentions
-  local mention_pattern = '@[%w_%-%./][%w_%-%./]*'
-
   -- Clear existing extmarks
   pcall(vim.api.nvim_buf_clear_namespace, buf, mentions_namespace, 0, -1)
 
@@ -39,6 +37,55 @@ function M.highlight_all_mentions(buf, callback)
       start_idx = mention_end + 1
     end
   end
+end
+
+---@param buf integer
+---@param row integer 1-based line
+---@param col integer 0-based byte column
+---@return { name: string, start_col: integer, end_col: integer }?
+function M.get_at_position(buf, row, col)
+  local lines = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)
+  local line = lines[1]
+  if not line then
+    return nil
+  end
+
+  local start_idx = 1
+  while true do
+    local mention_start, mention_end = line:find(mention_pattern, start_idx)
+    if not mention_start then
+      return nil
+    end
+
+    local start_col = mention_start - 1
+    local end_col = mention_end
+    if col >= start_col and col < end_col then
+      return {
+        name = line:sub(mention_start + 1, mention_end),
+        start_col = start_col,
+        end_col = end_col,
+      }
+    end
+    start_idx = mention_end + 1
+  end
+end
+
+---@param windows OpencodeWindowState
+function M.update_image_preview(windows)
+  local image = require('opencode.ui.image')
+  if not windows or not windows.input_win or not vim.api.nvim_win_is_valid(windows.input_win) then
+    image.clear_preview()
+    return
+  end
+
+  local row, col = unpack(vim.api.nvim_win_get_cursor(windows.input_win))
+  local mention = M.get_at_position(windows.input_buf, row, col)
+  if not mention then
+    image.clear_preview()
+    return
+  end
+
+  image.show_preview(mention.name, windows.input_win, row, mention.start_col + 1)
 end
 
 ---Apply mention highlights from source.text data

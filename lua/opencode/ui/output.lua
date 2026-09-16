@@ -3,17 +3,25 @@ local config = require('opencode.config')
 ---@class Output
 ---@field lines string[]
 ---@field extmarks table<number, OutputExtmark[]>
+---@field images OutputImage[]
 ---@field actions OutputAction[]
 ---@field targets OutputTarget[]
 ---@field fold_ranges {from: integer, to: integer}[]
 local Output = {}
 Output.__index = Output
 
+---@class OutputImage
+---@field path string
+---@field line integer 1-based output-local line containing image anchor
+---@field col? integer 1-based output-local column containing image anchor
+---@field mime? string
+
 ---@return Output
 function Output.new()
   local self = setmetatable({}, Output)
   self.lines = {}
   self.extmarks = {}
+  self.images = {}
   self.actions = {}
   self.targets = {}
   self.fold_ranges = {}
@@ -87,6 +95,7 @@ end
 function Output:clear()
   self.lines = {}
   self.extmarks = {}
+  self.images = {}
   self.actions = {}
   self.targets = {}
 end
@@ -145,6 +154,16 @@ end
 ---@return table<number, table[]>
 function Output:get_extmarks()
   return vim.deepcopy(self.extmarks)
+end
+
+---@param image OutputImage
+function Output:add_image(image)
+  table.insert(self.images, image)
+end
+
+---@return OutputImage[]
+function Output:get_images()
+  return vim.deepcopy(self.images)
 end
 
 ---Add contextual actions

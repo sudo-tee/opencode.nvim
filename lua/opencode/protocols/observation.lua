@@ -52,6 +52,13 @@ function Observation:read()
   return self._state
 end
 
+---Submit one prompt to a fresh, exclusively owned session and await its response.
+---@param input table Protocol-independent submission input
+---@return OpencodeReplyRequest
+function Observation:request_reply(input)
+  return require('opencode.protocols.reply').start(self, input, self._connection.protocol)
+end
+
 function Observation:_is_current()
   return self._connection:is_ready() and self._connection.observations[self._session_id] == self
 end

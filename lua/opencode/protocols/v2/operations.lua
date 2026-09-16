@@ -325,10 +325,21 @@ local function prompt_body(input, path_map)
   if type(input.tools) == 'table' and next(input.tools) ~= nil then
     error('V2 submit does not support per-message tool selection')
   end
-  for _, setting in ipairs({ 'model', 'agent', 'variant' }) do
-    if input[setting] ~= nil then
-      error('V2 submit does not support per-message ' .. setting)
-    end
+  if
+    input.model ~= nil
+    and (
+      type(input.model) ~= 'table'
+      or type(input.model.providerID) ~= 'string'
+      or type(input.model.modelID) ~= 'string'
+    )
+  then
+    error('V2 submit requires model providerID and modelID')
+  end
+  if input.agent ~= nil and (type(input.agent) ~= 'string' or input.agent == '') then
+    error('V2 submit requires a non-empty agent')
+  end
+  if input.variant ~= nil and (type(input.variant) ~= 'string' or input.model == nil) then
+    error('V2 submit requires a model for its variant')
   end
 
   local context_text = {}
@@ -429,7 +440,20 @@ end
 
 function M.submit(connection, session_id, input, path_map, reverse_path_map)
   local body = prompt_body(input, path_map)
-  return json_request(connection, 'V2 submit', 'POST', '/api/session/' .. session_id .. '/prompt', nil, body, path_map):and_then(
+  return Promise.async(function()
+    if input.agent then
+      M.set_session_agent(connection, session_id, input.agent):await()
+    end
+    if input.model then
+      M.set_session_model(connection, session_id, {
+        providerID = input.model.providerID,
+        id = input.model.modelID,
+        variant = input.variant,
+      }):await()
+    end
+    return json_request(connection, 'V2 submit', 'POST', '/api/session/' .. session_id .. '/prompt', nil, body, path_map)
+      :await()
+  end)():and_then(
     function(value)
       local admission = unwrap_data('V2 submit', value, reverse_path_map)
       if type(admission) ~= 'table' or type(admission.id) ~= 'string' then

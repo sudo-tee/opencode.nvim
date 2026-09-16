@@ -201,62 +201,6 @@ local function is_safe_reply(message)
   return true
 end
 
----@param observation table
----@param input_id string
----@return table|nil
-local function find_v1_reply(observation, input_id)
-  local observed = observation:read()
-  for _, message_id in ipairs(observed.entry_order or {}) do
-    local message = observed.entries_by_id[message_id]
-    if message and message.parent_message_id == input_id then
-      if message.error or is_safe_reply(message) then
-        return message
-      end
-    end
-  end
-end
-
----@param observation table
----@return table waiter
-local function start_v1_reply_waiter(observation)
-  local input_id
-  local reply = Promise.new()
-  local active = true
-
-  local function check()
-    if not active or not input_id or reply:is_resolved() then
-      return
-    end
-    local message = find_v1_reply(observation, input_id)
-    if message then
-      if message.error then
-        reply:reject(message.error.message or 'Assistant returned an error')
-      else
-        reply:resolve(message)
-      end
-    end
-  end
-
-  local unsubscribe = observation:watch({ 'messages' }, check)
-  return {
-    set_input_id = function(id)
-      input_id = id
-      check()
-    end,
-    promise = reply,
-    stop = function(reason)
-      if not active then
-        return
-      end
-      active = false
-      unsubscribe()
-      if reason then
-        reply:reject(reason)
-      end
-    end,
-  }
-end
-
 --- Applies raw code response to buffer (simple replacement)
 ---@param buf integer Buffer handle
 ---@param response_text string The raw code response
@@ -453,7 +397,6 @@ M.quick_chat = Promise.async(function(message, options, range)
   local quick_chat_session
   local quick_chat_session_id
   local quick_chat_session_info
-  local v1_reply_waiter
   local success, err = pcall(function()
     quick_chat_session = session_runtime.create_new_session(title):await()
     if not quick_chat_session then
@@ -490,40 +433,17 @@ M.quick_chat = Promise.async(function(message, options, range)
 
     setup_global_keymaps()
 
-    if connection.protocol == 'v1' then
-      v1_reply_waiter = start_v1_reply_waiter(observation)
-      running_sessions[quick_chat_session.id].reply_waiter = v1_reply_waiter
-    end
-
     local context_config =
       vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
     local params = create_message(message, buf, range, context_config, options):await()
-    local result = observation:submit(params, v1_reply_waiter and { async = true } or nil):await()
-    if result.kind == 'accepted' then
-      if v1_reply_waiter then
-        v1_reply_waiter.set_input_id(result.input.id)
-        result = { kind = 'reply', message = v1_reply_waiter.promise:await() }
-      elseif type(observation.wait_until_idle) ~= 'function' then
-        error('Quick chat did not receive a safe reply for its input')
-      else
-        local completion = observation:wait_until_idle():await()
-        if completion.outcome ~= 'succeeded' then
-          error('Quick chat completion failed: ' .. vim.inspect(completion))
-        end
-        error('Quick chat cannot associate the completed reply with its input')
-      end
-    end
-    if
-      result.kind ~= 'reply' or not process_response(running_sessions[quick_chat_session.id], result.message, range)
-    then
+    local request = observation:request_reply(params)
+    quick_chat_session_info.reply_waiter = request
+    local response = request.promise:await()
+    if not process_response(running_sessions[quick_chat_session.id], response, range) then
       error('Quick chat did not receive a safe reply for its input')
     end
     cleanup_session(running_sessions[quick_chat_session.id], quick_chat_session.id)
   end)
-
-  if v1_reply_waiter then
-    v1_reply_waiter.stop()
-  end
 
   if not success then
     local session_info = quick_chat_session_id and running_sessions[quick_chat_session_id]

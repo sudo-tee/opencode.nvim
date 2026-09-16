@@ -282,7 +282,61 @@ describe('V2 protocol operations', function()
     assert.same({ command = 'review', text = 'staged changes' }, vim.json.decode(calls[3].body))
   end)
 
-  it('rejects unsupported single-message settings before business HTTP', function()
+  it('applies shared submission settings before the native V2 prompt', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request
+      if request.path:match('/prompt$') then
+        return Promise.new():resolve({ status = 200, body = '{"data":{"id":"input-1"}}' })
+      end
+      return Promise.new():resolve({ status = 204, body = '' })
+    end
+    local input = {
+      text = 'hello',
+      context = {},
+      files = {},
+      agents = {},
+      model = { providerID = 'provider', modelID = 'model' },
+      agent = 'build',
+      variant = 'high',
+    }
+    local original = vim.deepcopy(input)
+
+    local admission = operations.submit(ready_connection(), 'ses-1', input):wait()
+
+    assert.equals('input-1', admission.id)
+    assert.equals(3, #calls)
+    assert.equals('/api/session/ses-1/agent', calls[1].path)
+    assert.same({ agent = 'build' }, vim.json.decode(calls[1].body))
+    assert.equals('/api/session/ses-1/model', calls[2].path)
+    assert.same({ model = { providerID = 'provider', id = 'model', variant = 'high' } }, vim.json.decode(calls[2].body))
+    assert.equals('/api/session/ses-1/prompt', calls[3].path)
+    assert.same({ text = 'hello' }, vim.json.decode(calls[3].body))
+    assert.same(original, input)
+  end)
+
+  it('does not submit a prompt when a session setting fails', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request.path
+      return Promise.new():resolve({ status = 500, body = '{}' })
+    end
+
+    local ok = pcall(function()
+      operations.submit(ready_connection(), 'ses-1', {
+        text = 'hello',
+        context = {},
+        files = {},
+        agents = {},
+        model = { providerID = 'provider', modelID = 'model' },
+      }):wait()
+    end)
+
+    assert.is_false(ok)
+    assert.same({ '/api/session/ses-1/model' }, calls)
+  end)
+
+  it('rejects unsupported or invalid submission settings before business HTTP', function()
     local calls = 0
     transport.request = function()
       calls = calls + 1
@@ -319,7 +373,7 @@ describe('V2 protocol operations', function()
           context = {},
           files = {},
           agents = {},
-          model = { providerID = 'provider', modelID = 'model' },
+          model = { providerID = 'provider' },
         })
         :wait()
     end)
@@ -328,7 +382,7 @@ describe('V2 protocol operations', function()
     assert.is_false(ok_tools)
     assert.matches('tool selection', tostring(tools_error))
     assert.is_false(ok_model)
-    assert.matches('per%-message model', tostring(model_error))
+    assert.matches('model providerID and modelID', tostring(model_error))
     assert.equals(0, calls)
     assert.is_nil(operations.list_children)
   end)

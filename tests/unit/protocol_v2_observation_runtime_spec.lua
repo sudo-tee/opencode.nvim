@@ -412,6 +412,67 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('requests a reply without requiring the caller to watch messages or manage admissions', function()
+    local value = connection()
+    local streams = install_operations(value, {
+      submit = function()
+        return resolved({ id = 'msg-local', delivery = 'queue' })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local request = observed:request_reply({ text = 'hello', context = {}, files = {}, agents = {} })
+    flush(function()
+      return observed:read().sync.messages.state == 'current'
+        and observed._v2_admissions['msg-local'] ~= nil
+    end)
+
+    emit(streams[1], event('ses-main', 'session.inbox.enqueued', {
+      inboxID = 'msg-local',
+      item = { type = 'user', payload = { text = 'hello' }, delivery = 'queue' },
+    }, 11))
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 12))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 13))
+    emit(streams[1], event('ses-main', 'session.step.started', {
+      assistantMessageID = 'reply-1', agent = 'build',
+    }, 14))
+    emit(streams[1], event('ses-main', 'session.text.started', {
+      assistantMessageID = 'reply-1', ordinal = 0,
+    }, 15))
+    emit(streams[1], event('ses-main', 'session.text.ended', {
+      assistantMessageID = 'reply-1', ordinal = 0, text = 'local answer = true',
+    }, 16))
+    emit(streams[1], event('ses-main', 'session.step.ended', {
+      assistantMessageID = 'reply-1', finish = 'stop',
+    }, 17))
+    emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 18))
+
+    local reply = request.promise:wait()
+    assert.equals('reply-1', reply.id)
+    assert.equals('local answer = true', reply.content[1].text)
+    assert.is_false(observed:_watches('messages'))
+  end)
+
+  it('releases the message subscription when a reply request is cancelled', function()
+    local value = connection()
+    install_operations(value, {
+      submit = function()
+        return Promise.new()
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local request = observed:request_reply({ text = 'hello', context = {}, files = {}, agents = {} })
+    assert.is_true(observed:_watches('messages'))
+
+    request.stop('Cancelled by caller')
+
+    local ok, err = pcall(function()
+      request.promise:wait()
+    end)
+    assert.is_false(ok)
+    assert.matches('Cancelled by caller', tostring(err))
+    assert.is_false(observed:_watches('messages'))
+  end)
+
   it('correlates only a delivered admission with the following same-session terminal', function()
     local value = connection()
     local admission = Promise.new()

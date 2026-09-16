@@ -94,12 +94,16 @@ local function decode(operation, response)
 end
 
 function M.json_request(connection, operation, method, path, query, body, path_map)
+  local mapped_body = body ~= nil and M.map_paths(body, path_map) or nil
+  if type(mapped_body) == 'table' and next(mapped_body) == nil then
+    mapped_body = vim.empty_dict()
+  end
   return transport
     .request(connection, {
       method = method,
       path = path,
       query = query and M.query_string(query) or nil,
-      body = body ~= nil and vim.json.encode(M.map_paths(body, path_map)) or nil,
+      body = mapped_body ~= nil and vim.json.encode(mapped_body) or nil,
     })
     :and_then(function(response)
       return decode(operation, response)

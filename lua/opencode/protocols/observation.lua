@@ -73,7 +73,7 @@ function Observation:_notify(resource)
     end
   end
   for _, changed in ipairs(callbacks) do
-    changed(self)
+    changed(self, resource)
   end
 end
 

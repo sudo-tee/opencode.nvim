@@ -436,6 +436,11 @@ function M.replay_event(event)
     directory = event.directory or directory,
     payload = { type = event.type, properties = properties },
   }) .. '\n\n')
+  local rendered = false
+  vim.schedule(function()
+    rendered = true
+  end)
+  assert(vim.wait(1000, function() return rendered end), 'scheduled replay render did not finish')
 end
 
 function M.replay_events(events)

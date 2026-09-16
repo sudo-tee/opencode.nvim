@@ -607,6 +607,19 @@ function M.update_part_folds(part_id)
 end
 
 ---@param part_id string
+---@param formatted_data Output
+function M.refresh_part_metadata(part_id, formatted_data, previous)
+  local cached = ctx.render_state:get_part(part_id)
+  if not cached or cached.line_start == nil then
+    return
+  end
+  apply_part_render_data(part_id, formatted_data, cached.line_start)
+  if not vim.deep_equal(previous and previous.fold_ranges or {}, formatted_data.fold_ranges or {}) then
+    M.update_part_folds(part_id)
+  end
+end
+
+---@param part_id string
 ---@param extra_lines string[]
 ---@param extra_extmarks table<number, OutputExtmark[]>|nil
 ---@param previous_formatted Output|nil
@@ -649,19 +662,20 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
 end
 
 ---@param part_id string
+---@return boolean
 function M.remove_part_now(part_id)
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
     -- Just track that this part should be excluded
     ctx.render_state:remove_part(part_id)
-    return
+    return false
   end
 
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_part(part_id)
     ctx.part_folds[part_id] = nil
-    return
+    return false
   end
 
   output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
@@ -671,21 +685,23 @@ function M.remove_part_now(part_id)
   ctx.render_state:remove_part(part_id)
   ctx.part_folds[part_id] = nil
   M.set_all_folds()
+  return true
 end
 
 ---@param message_id string
+---@return boolean
 function M.remove_message_now(message_id)
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
     -- Just track that this message should be excluded
     ctx.render_state:remove_message(message_id)
-    return
+    return false
   end
 
   local cached = ctx.render_state:get_message(message_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_message(message_id)
-    return
+    return false
   end
 
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
@@ -694,6 +710,7 @@ function M.remove_message_now(message_id)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_message(message_id)
   M.set_all_folds()
+  return true
 end
 
 return M

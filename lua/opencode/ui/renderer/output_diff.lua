@@ -136,7 +136,17 @@ function M.is_unchanged(previous, formatted)
   if M.unchanged_prefix_lines(previous, formatted) ~= #previous.lines then
     return false
   end
-  return M.unchanged_prefix_extmarks(previous, formatted) >= #previous.lines
+  for line, marks in pairs(previous.extmarks or {}) do
+    if not marks_equal(marks, (formatted.extmarks or {})[line]) then
+      return false
+    end
+  end
+  for line, marks in pairs(formatted.extmarks or {}) do
+    if not marks_equal(marks, (previous.extmarks or {})[line]) then
+      return false
+    end
+  end
+  return true
 end
 
 ---@param old_lines string[]

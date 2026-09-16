@@ -578,6 +578,19 @@ reconcile_observation = function(observation, resource)
   local session = session_current or { id = state.active_session and state.active_session.id }
   local entries = ordered_entries(root)
   ctx.entries = entries
+  local messages_sync = observed.sync and observed.sync.messages
+  local session_id = session_current and session_current.id or nil
+  if
+    observation == root
+    and session_id
+    and messages_sync
+    and messages_sync.state == 'current'
+    and (resource == 'messages' or resource == 'session' or not resource)
+    and ctx.model_restored_session_id ~= session_id
+  then
+    ctx.model_restored_session_id = session_id
+    require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
+  end
   if session_current and session_current.cost ~= nil and session_current.tokens then
     state.renderer.set_stats(total_tokens(session_current.tokens), session_current.cost)
   else

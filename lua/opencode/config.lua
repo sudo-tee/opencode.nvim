@@ -18,6 +18,7 @@ M.defaults = {
     port = nil,
     timeout = 5,
     retry_delay = 2000,
+    health_check_ttl_ms = 5000,
     spawn_command = nil,
     kill_command = nil,
     auto_kill = true,

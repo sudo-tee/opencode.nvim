@@ -8,6 +8,7 @@ local util = require('opencode.util')
 local auth = require('opencode.auth')
 
 local M = {}
+local health_checked_at = setmetatable({}, { __mode = 'k' })
 local generate_spawn_password
 
 local function non_empty(value)
@@ -200,6 +201,7 @@ local try_native_service = Promise.async(function()
   end
   apply_probe(server, probe)
   server:mark_ready()
+  health_checked_at[server] = (vim.uv or vim.loop).now()
   -- The native service owns its lifecycle and never enters plugin port bookkeeping.
   state.jobs.set_server(server)
   return server
@@ -247,41 +249,63 @@ end
 
 local pending_connection
 
+local function has_recent_health_check(server, opts)
+  if not server or not server:is_ready() or (opts and opts.force_health_check) then
+    return false
+  end
+  local checked_at = health_checked_at[server]
+  local ttl = config.server.health_check_ttl_ms or 5000
+  return checked_at ~= nil and (vim.uv or vim.loop).now() - checked_at < ttl
+end
+
+local function validate_cached_server(server)
+  local ok, result = pcall(function()
+    return server:check_health():await()
+  end)
+  if state.opencode_server ~= server then
+    return false
+  end
+  if ok then
+    return result
+  end
+  if type(result) == 'table' and (result.kind == 'transport' or result.kind == 'identity_changed') then
+    return false
+  end
+  error(result, 0)
+end
+
+local function connect_ready_server()
+  local server = state.opencode_server
+  while server and server:is_ready() do
+    if validate_cached_server(server) then
+      return server
+    end
+    if state.opencode_server == server then
+      log.warn('ensure_server: cached server unavailable or replaced, reconnecting')
+      state.jobs.clear_server()
+      break
+    end
+    server = state.opencode_server
+  end
+  return _start_server():await()
+end
+
 ---Ensure all callers share startup and health checks until the server is ready.
+---@param opts? {force_health_check?: boolean}
 ---@return Promise<OpencodeServer>
-function M.ensure_server()
+function M.ensure_server(opts)
   if pending_connection then
     return pending_connection
+  end
+  if has_recent_health_check(state.opencode_server, opts) then
+    return Promise.new():resolve(state.opencode_server)
   end
 
   local connection = Promise.new()
   pending_connection = connection
-  Promise.spawn(function()
-    while true do
-      local server = state.opencode_server
-      if not server or not server:is_ready() then
-        return _start_server():await()
-      end
-      local ok, healthy = pcall(function()
-        return server:check_health():await()
-      end)
-      if state.opencode_server == server then
-        if ok and healthy then
-          return server
-        end
-        local reconnectable = not ok
-          and type(healthy) == 'table'
-          and (healthy.kind == 'transport' or healthy.kind == 'identity_changed')
-        if reconnectable or (ok and not healthy) then
-          log.warn('ensure_server: cached server unavailable or replaced, reconnecting')
-          state.jobs.clear_server()
-          return _start_server():await()
-        end
-        error(healthy, 0)
-      end
-    end
-  end)
+  Promise.spawn(connect_ready_server)
     :and_then(function(server)
+      health_checked_at[server] = (vim.uv or vim.loop).now()
       pending_connection = nil
       connection:resolve(server)
     end)
@@ -294,6 +318,7 @@ end
 
 local function publish_custom_server(server, server_pid)
   server:mark_ready()
+  health_checked_at[server] = (vim.uv or vim.loop).now()
   port_mapping.register(server.port, vim.fn.getcwd(), server_pid, server:can_release_process())
   state.jobs.set_server(server)
   return server

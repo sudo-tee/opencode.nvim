@@ -211,6 +211,7 @@
 ---@field url string | nil -- URL/hostname of custom opencode server (e.g., "http://192.168.1.100" or "localhost")
 ---@field port number | 'auto' | nil -- Explicit V1 port, 'auto' for an available port, or nil for source-specific discovery
 ---@field timeout number -- Timeout in seconds for health check (default: 5)
+---@field health_check_ttl_ms number -- Cached connection health lifetime in milliseconds (default: 5000)
 ---@field retry_delay number -- Delay in milliseconds between health check retries (default: 2000)
 ---@field spawn_command? fun(port: number, url: string, env?: table<string, string>): number | nil -- Optional function to start the server, may return server PID
 ---@field kill_command? fun(port: number, url: string): nil -- Optional function to stop the server when auto_kill is true

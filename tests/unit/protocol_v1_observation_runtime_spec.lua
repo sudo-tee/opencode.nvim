@@ -29,6 +29,7 @@ local function runtime()
     statuses = {},
     questions = {},
     submits = {},
+    async_submits = {},
     actions = {},
   }
   local operations = {}
@@ -87,6 +88,17 @@ local function runtime()
   function operations.submit(_, session_id, location, input)
     local request = deferred()
     state.submits[#state.submits + 1] = {
+      session_id = session_id,
+      location = location,
+      input = input,
+      request = request,
+    }
+    return request
+  end
+
+  function operations.submit_async(_, session_id, location, input)
+    local request = deferred()
+    state.async_submits[#state.async_submits + 1] = {
       session_id = session_id,
       location = location,
       input = input,
@@ -547,6 +559,21 @@ describe('V1 protocol Observation runtime', function()
     assert.same({ type = 'text', text = 'A' }, server.submits[1].input.parts[1])
     assert.not_equals(first_id, second_id)
     assert.is_nil(connection.observations['ses-submit'])
+  end)
+
+  it('returns accepted after an asynchronous V1 prompt is admitted', function()
+    local connection, server = runtime()
+    local observation = observe(connection, 'ses-submit-async')
+    local result = observation:submit({ text = 'hello', context = {}, files = {}, agents = {} }, { async = true })
+
+    assert.equals(1, #server.async_submits)
+    assert.equals(0, #server.submits)
+    local input_id = server.async_submits[1].input.messageID
+    server.async_submits[1].request:resolve(true)
+
+    local response = result:wait()
+    assert.equals('accepted', response.kind)
+    assert.equals(input_id, response.input.id)
   end)
 
   it('encodes frozen submit content and explicit V1 send options before the operation', function()

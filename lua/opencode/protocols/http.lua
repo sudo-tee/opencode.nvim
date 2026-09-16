@@ -110,6 +110,29 @@ function M.json_request(connection, operation, method, path, query, body, path_m
     end)
 end
 
+function M.empty_request(connection, operation, method, path, query, body, path_map)
+  local mapped_body = body ~= nil and M.map_paths(body, path_map) or nil
+  if type(mapped_body) == 'table' and next(mapped_body) == nil then
+    mapped_body = vim.empty_dict()
+  end
+  return transport
+    .request(connection, {
+      method = method,
+      path = path,
+      query = query and M.query_string(query) or nil,
+      body = mapped_body ~= nil and vim.json.encode(mapped_body) or nil,
+    })
+    :and_then(function(response)
+      if response.status < 200 or response.status >= 300 then
+        error(string.format('%s HTTP %d: %s', operation, response.status, response.body), 0)
+      end
+      if response.status ~= 204 or response.body ~= '' then
+        error(operation .. ' returned an invalid empty response', 0)
+      end
+      return true
+    end)
+end
+
 function M.require_table(operation, value)
   if type(value) ~= 'table' then
     error(operation .. ' returned an invalid response', 0)

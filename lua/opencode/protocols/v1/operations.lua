@@ -8,6 +8,7 @@ local function directory(location, path_map)
 end
 
 local json_request = http.json_request
+local empty_request = http.empty_request
 local map_paths = http.map_paths
 local require_table = http.require_table
 
@@ -241,6 +242,18 @@ function M.submit(connection, session_id, location, input, path_map, reverse_pat
     end
     return map_paths(value, reverse_path_map)
   end)
+end
+
+function M.submit_async(connection, session_id, location, input, path_map)
+  return empty_request(
+    connection,
+    'V1 submit async',
+    'POST',
+    '/session/' .. session_id .. '/prompt_async',
+    { directory = directory(location, path_map) },
+    input,
+    path_map
+  )
 end
 
 function M.send_command(connection, session_id, location, input, path_map, reverse_path_map)

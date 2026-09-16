@@ -304,7 +304,10 @@ M.create_new_session = Promise.async(function(title_or_opts)
     session_request = title_or_opts
   end
 
-  local connection = ready_connection()
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    connection = server_job.ensure_server():await()
+  end
   local location = current_location()
   local session_response = connection.operations
     .create_session(connection, location, session_request, util.apply_path_map, util.apply_reverse_path_map)

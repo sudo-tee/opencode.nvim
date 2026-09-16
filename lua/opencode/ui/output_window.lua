@@ -733,19 +733,6 @@ end
 function M.setup_autocmds(windows, group)
   local debounced_load_more_at_top
 
-  local function has_unrendered_messages()
-    local ctx = require('opencode.ui.renderer.ctx')
-    if ctx.lazy_render_count ~= nil and ctx.lazy_render_count < #ctx.entries then
-      return true
-    end
-    -- even with the whole cached window rendered, the protocol may hold
-    -- older pages behind its paging cursor
-    local observation = ctx.observation
-    return observation ~= nil
-      and type(observation.has_older_history) == 'function'
-      and observation:has_older_history()
-  end
-
   local function viewport_is_at_rendered_top()
     local top_line = M.get_visible_top_line(windows.output_win)
     return top_line ~= nil and top_line <= 3
@@ -793,7 +780,7 @@ function M.setup_autocmds(windows, group)
         state.ui.set_cursor_position('output', pos)
       end
 
-      if debounced_load_more_at_top and has_unrendered_messages() and viewport_is_at_rendered_top() then
+      if debounced_load_more_at_top and viewport_is_at_rendered_top() then
         debounced_load_more_at_top()
       end
     end,
@@ -816,7 +803,7 @@ function M.setup_autocmds(windows, group)
     buffer = windows.output_buf,
     callback = function()
       M.sync_cursor_with_viewport(windows.output_win)
-      if debounced_load_more_at_top and has_unrendered_messages() and viewport_is_at_rendered_top() then
+      if debounced_load_more_at_top and viewport_is_at_rendered_top() then
         debounced_load_more_at_top()
       end
     end,

@@ -439,9 +439,6 @@ describe('older history bridge', function()
       watch = function()
         return function() end
       end,
-      has_older_history = function()
-        return remaining_pages > 0
-      end,
       load_older = function()
         assert.is_true(remaining_pages > 0, 'load_older must not be called after history completes')
         remaining_pages = remaining_pages - 1
@@ -453,7 +450,7 @@ describe('older history bridge', function()
       end,
       load_complete_history = function(self)
         local function pull()
-          if not self.has_older_history() then
+          if remaining_pages <= 0 then
             return Promise.new():resolve(nil)
           end
           return self.load_older():and_then(pull)
@@ -462,11 +459,13 @@ describe('older history bridge', function()
       end,
     }
     session_state.active_observation.returns(observation)
-    return observation, older, newer
+    return observation, older, newer, function()
+      return remaining_pages
+    end
   end
 
   it('load_all_messages pulls older protocol pages until the history is complete', function()
-    local observation, older, newer = observation_with_older_page()
+    local observation, older, newer, pages_left = observation_with_older_page()
     ctx.observation = observation
     ctx.entries = newer
     ctx.lazy_render_count = 5
@@ -480,14 +479,14 @@ describe('older history bridge', function()
       return count_rendered_messages() >= #older + #newer
     end))
 
-    assert.are.equal(0, observation.has_older_history() and 1 or 0, 'history should be complete')
+    assert.are.equal(0, pages_left(), 'history should be complete')
     local first = ctx.entries[1]
     assert.is_truthy(ctx.render_state:get_message(first.id).line_start, 'oldest message should be rendered')
     assert.are.equal(#older + #newer, count_rendered_messages())
   end)
 
   it('load_more_messages pulls an older page when the cached window is exhausted', function()
-    local observation, older, newer = observation_with_older_page()
+    local observation, older, newer, pages_left = observation_with_older_page()
     ctx.observation = observation
     ctx.entries = newer
     -- window already covers the whole cached page
@@ -501,27 +500,50 @@ describe('older history bridge', function()
       return ctx.lazy_render_count > #newer
     end), 'window should grow past the exhausted cached page')
 
-    assert.are.equal(0, observation.has_older_history() and 1 or 0, 'history should be complete')
+    assert.are.equal(0, pages_left(), 'history should be complete')
   end)
 
-  it('does not pull when the observation has no older history', function()
+  it('does not grow the window when the protocol history is already complete', function()
     local newer = make_session_data(3)
-    ctx.observation = {
+    local observation = {
       read = function()
-        return { session = { id = 'ses_test' } }
+        local by_id, order = {}, {}
+        for _, entry in ipairs(newer) do
+          by_id[entry.id] = entry
+          order[#order + 1] = entry.id
+        end
+        return {
+          session = { id = 'ses_test' },
+          sync = { session = { state = 'current' }, messages = { state = 'current' } },
+          entries_by_id = by_id,
+          entry_order = order,
+          children = { order = {}, by_id = {} },
+          permission_requests_by_id = {},
+          question_requests_by_id = {},
+          files = { revision = 0 },
+        }
       end,
-      has_older_history = function()
-        return false
+      watch = function()
+        return function() end
       end,
       load_older = function()
-        error('load_older must not be called')
+        -- real protocols short-circuit to a no-op when history is complete
+        return Promise.new():resolve(nil)
       end,
     }
+    session_state.active_observation.returns(observation)
+    ctx.observation = observation
     ctx.entries = newer
     ctx.lazy_render_count = #newer
     renderer._render_full_session_data(newer)
 
+    -- no load_complete_history: the gg path never starts a protocol pull
     assert.is_false(renderer.load_all_messages())
-    assert.is_false(renderer.load_more_messages())
+    -- the scroll path issues the (no-op) pull; the window must not change
+    assert.is_true(renderer.load_more_messages())
+    assert.are.equal(#newer, ctx.lazy_render_count)
+    assert.are.equal(#newer, count_rendered_messages())
+    assert.is_true(vim.wait(100, function() return false end, 50) == false)
+    assert.are.equal(#newer, count_rendered_messages(), 'no-op pull must not grow the window')
   end)
 end)

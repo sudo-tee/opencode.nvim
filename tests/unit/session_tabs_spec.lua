@@ -54,17 +54,23 @@ describe('opencode session panel tabs', function()
   end)
 
   it('normalizes V1 session directories before activating a tab', function()
-    local connection = require('opencode.opencode_server').from_custom('http://v1.test')
-    connection.protocol = 'v1'
-    connection.server_identity = { version = '1.18.30' }
-    connection.credential = { username = 'opencode' }
-    state.jobs.set_server(connection:mark_ready())
+    local observed_ref
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function(_, ref)
+        observed_ref = ref
+        return {}
+      end,
+    })
 
     local runtime = session_tabs.create({ id = 'legacy-session', directory = '/workspace' })
     session_tabs.activate(runtime)
 
     assert.same({ directory = '/workspace' }, state.active_session.location)
     assert.is_not_nil(state.session.active_observation())
+    assert.same({ directory = '/workspace' }, observed_ref.location)
   end)
 
   it('updates a background tab message count without changing the active tab', function()

@@ -50,7 +50,9 @@ function M.mock_connection()
         sync = { session = { state = 'current' } },
       },
       submit = function(_, _input)
-        return Promise.new():resolve({ kind = 'reply', input_id = 'msg-user', message = { id = 'msg-reply' } })
+        local result = { kind = 'reply', input_id = 'msg-user', message = { id = 'msg-reply' } }
+        result.completion = Promise.new():resolve(vim.tbl_extend('force', {}, result))
+        return Promise.new():resolve(result)
       end,
       interrupt = function()
         return Promise.new():resolve(true)

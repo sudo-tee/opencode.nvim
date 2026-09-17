@@ -56,7 +56,7 @@ end
 ---@param input table Protocol-independent submission input
 ---@return OpencodeReplyRequest
 function Observation:request_reply(input)
-  return require('opencode.protocols.reply').start(self, input, self._connection.protocol)
+  return require('opencode.protocols.reply').start(self, input)
 end
 
 function Observation:_is_current()

@@ -392,6 +392,9 @@ local function tool_content(part, prompt, location)
   if type(part.metadata) == 'table' and type(part.metadata.providerExecuted) == 'boolean' then
     content.executed = part.metadata.providerExecuted
   end
+  if type(state.metadata) == 'table' and type(state.metadata.interrupted) == 'boolean' then
+    content.interrupted = state.metadata.interrupted
+  end
   local specialized, specialized_diagnostics = tool_specialized_fields(part, location)
   for key, value in pairs(specialized) do
     content[key] = value
@@ -668,7 +671,33 @@ local function question_fact(request)
   }
 end
 
+---@param entry table
+---@return boolean
+local function is_terminal_reply(entry)
+  if entry.kind ~= 'assistant' or type(entry.time) ~= 'table' or type(entry.time.completed) ~= 'number' then
+    return false
+  end
+  if entry.error ~= nil then
+    return true
+  end
+  if
+    type(entry.finish) ~= 'string'
+    or entry.finish == ''
+    or entry.finish == 'tool-calls'
+    or entry.finish == 'unknown'
+  then
+    return false
+  end
+  for _, content in ipairs(entry.content) do
+    if content.kind == 'tool' and not content.executed and not (content.state == 'error' and content.interrupted) then
+      return false
+    end
+  end
+  return true
+end
+
 return {
+  is_terminal_reply = is_terminal_reply,
   prompt_from_content = prompt_from_content,
   valid_native_mention = valid_native_mention,
   mapped_mention = mapped_mention,

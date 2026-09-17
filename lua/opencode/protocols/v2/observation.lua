@@ -1,3 +1,4 @@
+local submission = require('opencode.protocols.submission')
 local facts = require('opencode.protocols.v2.facts')
 local mapped_error = facts.mapped_error
 local mapped_tokens = facts.mapped_tokens
@@ -344,36 +345,25 @@ function M.ingest_event(observation, event)
   return true
 end
 
-local function release_admission(observation, admission)
-  local release = admission.release
-  if not release then
-    return
+local function mark_admissions_unknown(observation, reason)
+  observation._v2_delivered = {}
+  local pending = vim.tbl_values(observation._v2_admissions)
+  for _, admission in ipairs(pending) do
+    admission.finish(nil, 'V2 observation: admission_unknown: ' .. tostring(reason))
   end
-  admission.release = nil
-  release()
 end
 
-local function mark_admissions_unknown(observation, reason)
-  local message = 'V2 observation: admission_unknown: ' .. tostring(reason)
-  local consumed = {}
-  for id, admission in pairs(observation._v2_admissions) do
-    if not admission.terminal and not admission.unknown then
-      admission.unknown = { kind = 'admission_unknown', message = message }
-    end
-    if admission.unknown and #admission.waiters > 0 then
-      for _, waiter in ipairs(admission.waiters) do
-        waiter:reject(admission.unknown.message)
-      end
-      admission.waiters = {}
-      consumed[#consumed + 1] = id
-    end
-    if admission.unknown then
-      release_admission(observation, admission)
-    end
+local function complete_admission(admission, terminal)
+  if terminal.ambiguous then
+    admission.finish(nil, 'V2 observation: admission_unknown: multiple inputs delivered in one execution')
+    return
   end
-  for _, id in ipairs(consumed) do
-    observation._v2_admissions[id] = nil
-  end
+  admission.finish({
+    kind = 'session_idle',
+    outcome = terminal.outcome,
+    idle_at = terminal.idle_at,
+    error = terminal.error,
+  })
 end
 
 local function remove_from_order(order, id)
@@ -518,33 +508,20 @@ local function terminal_inbox(observation, id, status, created)
   observation._v2_inbox_terminal[id] = vim.deepcopy(item)
 end
 
-local function settle_waiters(observation, terminal)
-  local consumed = {}
-  for id, admission in pairs(observation._v2_admissions) do
-    if
-      admission.delivered_serial
-      and not admission.terminal
-      and not admission.unknown
-      and terminal.serial > admission.delivered_serial
-    then
-      admission.terminal = terminal
-      for _, waiter in ipairs(admission.waiters) do
-        waiter:resolve({
-          kind = 'session_idle',
-          outcome = terminal.outcome,
-          idle_at = terminal.idle_at,
-          error = terminal.error,
-        })
-      end
-      if #admission.waiters > 0 then
-        consumed[#consumed + 1] = id
-      end
-      admission.waiters = {}
-      release_admission(observation, admission)
+local function settle_admissions(observation, terminal)
+  local deliveries = 0
+  for _, delivery in pairs(observation._v2_delivered) do
+    if not delivery.terminal then
+      delivery.terminal = terminal
+      deliveries = deliveries + 1
     end
   end
-  for _, id in ipairs(consumed) do
-    observation._v2_admissions[id] = nil
+  terminal.ambiguous = deliveries > 1
+  local pending = vim.tbl_values(observation._v2_admissions)
+  for _, admission in ipairs(pending) do
+    if admission.delivery and admission.delivery.terminal == terminal then
+      complete_admission(admission, terminal)
+    end
   end
 end
 
@@ -554,8 +531,6 @@ local function execution_event(observation, event)
     return false
   end
   local state = observation:read()
-  observation._v2_event_serial = observation._v2_event_serial + 1
-  local serial = observation._v2_event_serial
   if event.type == 'session.execution.started' then
     if observation._v2_execution_event_active then
       state.execution = {
@@ -581,14 +556,12 @@ local function execution_event(observation, event)
     observation._v2_execution_event_active = false
     local outcome = event.type:match('%.([^.]+)$')
     local terminal = {
-      serial = serial,
       outcome = outcome,
       idle_at = event.created,
       error = event.type == 'session.execution.failed' and mapped_error(data.error) or nil,
     }
     state.execution = { activity = 'idle', last_outcome = outcome, last_idle = event.created }
-    observation._v2_last_terminal = terminal
-    settle_waiters(observation, terminal)
+    settle_admissions(observation, terminal)
   else
     return false
   end
@@ -610,8 +583,6 @@ local function inbox_event(observation, event)
     return false
   end
   local state = observation:read()
-  observation._v2_event_serial = observation._v2_event_serial + 1
-  local serial = observation._v2_event_serial
   if type(data.inboxID) ~= 'string' then
     record_diagnostic(observation, 'inbox', event.type .. ' is missing inboxID')
     return false
@@ -638,14 +609,11 @@ local function inbox_event(observation, event)
     local status = event.type == 'session.inbox.delivered' and 'delivered' or 'cancelled'
     terminal_inbox(observation, data.inboxID, status, event.created)
     if status == 'delivered' then
-      observation._v2_delivered[data.inboxID] = serial
+      local delivery = observation._v2_delivered[data.inboxID] or {}
+      observation._v2_delivered[data.inboxID] = delivery
       local admission = observation._v2_admissions[data.inboxID]
       if admission then
-        admission.delivered_serial = serial
-        local terminal = observation._v2_last_terminal
-        if terminal and terminal.serial > serial then
-          settle_waiters(observation, terminal)
-        end
+        admission.delivery = delivery
       end
     end
   elseif event.type == 'session.inbox.delivery.changed' then
@@ -777,8 +745,8 @@ local function session_event(observation, event)
     state.session.cost = data.cost
     state.session.tokens = tokens
   elseif event.type == 'session.deleted' then
-      state.sync.session = lifecycle.sync_error('session_deleted', 'session was deleted')
-      return true
+    state.sync.session = lifecycle.sync_error('session_deleted', 'session was deleted')
+    return true
   else
     return false
   end
@@ -811,10 +779,7 @@ local function children_event(observation, event)
 end
 
 local function file_event(observation, event)
-  if
-    event.type ~= 'filesystem.changed'
-    and event.type ~= 'file.edited'
-  then
+  if event.type ~= 'filesystem.changed' and event.type ~= 'file.edited' then
     return false
   end
   local data = event.data
@@ -993,6 +958,26 @@ local function valid_answer(field, value)
   return false
 end
 
+local function find_reply(observation, input_id)
+  local state = observation:read()
+  local input_found, reply = false, nil
+  for _, id in ipairs(state.entry_order) do
+    local entry = state.entries_by_id[id]
+    if entry.kind == 'user' then
+      if input_found or entry.id ~= input_id then
+        return nil
+      end
+      input_found = true
+    elseif entry.kind == 'assistant' then
+      if not input_found then
+        return nil
+      end
+      reply = entry
+    end
+  end
+  return input_found and reply or nil
+end
+
 ---@param connection table
 ---@param ref {id: string, location?: table}
 ---@return table
@@ -1008,6 +993,7 @@ function M.new(connection, ref)
   local state = lifecycle.new_state(session)
   local observation = lifecycle.attach(connection, session, state, {
     name = 'V2',
+    find_reply = find_reply,
     local_resource = function(resource)
       return resource == 'files'
     end,
@@ -1037,8 +1023,6 @@ function M.new(connection, ref)
   observation._v2_delivered = {}
   observation._v2_admissions = {}
   observation._v2_stream_generation = 0
-  observation._v2_event_serial = 0
-  observation._v2_last_terminal = nil
   observation._v2_terminal_seen_since_start = false
   observation._v2_horizon_ambiguous = false
   observation._v2_execution_event_active = false
@@ -1046,6 +1030,8 @@ function M.new(connection, ref)
   observation._v2_history_complete = false
   observation._v2_older_loading = false
 
+  ---@param input table
+  ---@return Promise<OpencodeSubmission>
   function observation:submit(input)
     if type(input) ~= 'table' then
       fail('submit requires input')
@@ -1069,78 +1055,29 @@ function M.new(connection, ref)
       if type(admission) ~= 'table' or type(admission.id) ~= 'string' then
         fail('invalid submit admission')
       end
-      local record = {
-        admission = vim.deepcopy(admission),
-        delivered_serial = self._v2_delivered[admission.id],
-        release = self:_begin_local_operation(),
-        waiters = {},
-      }
+      if self._v2_admissions[admission.id] then
+        fail('duplicate submit admission')
+      end
+      local release = self:_begin_local_operation()
+      local record = { delivery = self._v2_delivered[admission.id] }
+      local handle, complete = submission.new({ kind = 'accepted', input = vim.deepcopy(admission) }, function()
+        if self._v2_admissions[admission.id] == record then
+          self._v2_admissions[admission.id] = nil
+        end
+        release()
+      end)
+      record.finish = complete
       self._v2_admissions[admission.id] = record
-      local terminal = self._v2_last_terminal
       if self._v2_stream_generation ~= stream_generation then
-        record.unknown = {
-          kind = 'admission_unknown',
-          message = 'V2 observation: admission_unknown: event stream continuity was lost during submit',
-        }
+        complete(nil, 'V2 observation: admission_unknown: event stream continuity was lost during submit')
       elseif self._v2_horizon_ambiguous then
-        record.unknown = {
-          kind = 'admission_unknown',
-          message = 'V2 observation: admission_unknown: overlapping execution horizons',
-        }
-      elseif record.delivered_serial and terminal and terminal.serial > record.delivered_serial then
-        record.terminal = terminal
+        complete(nil, 'V2 observation: admission_unknown: overlapping execution horizons')
+      elseif record.delivery and record.delivery.terminal then
+        complete_admission(record, record.delivery.terminal)
       end
-      if record.unknown then
-        release_admission(self, record)
-      end
-      return { kind = 'accepted', input = vim.deepcopy(admission) }
+      return handle
     end)
     return result:finally(finish)
-  end
-
-  function observation:wait_until_idle()
-    local selected_id
-    local selected
-    for id, admission in pairs(self._v2_admissions) do
-      if not admission.claimed then
-        if selected then
-          return Promise.new():reject('V2 observation: multiple admissions cannot be assigned to one execution')
-        end
-        selected_id = id
-        selected = admission
-      end
-    end
-    if not selected then
-      if self._v2_horizon_ambiguous then
-        return Promise.new():reject('V2 observation: overlapping execution horizons')
-      end
-      return Promise.new():reject('V2 observation: no accepted admission to wait for')
-    end
-    selected.claimed = true
-    if selected.unknown then
-      release_admission(self, selected)
-      self._v2_admissions[selected_id] = nil
-      return Promise.new():reject(selected.unknown.message)
-    end
-    if selected.terminal then
-      release_admission(self, selected)
-      self._v2_admissions[selected_id] = nil
-      return resolved({
-        kind = 'session_idle',
-        outcome = selected.terminal.outcome,
-        idle_at = selected.terminal.idle_at,
-        error = selected.terminal.error,
-      })
-    end
-    local finish = self:_begin_local_operation()
-    local ok, err = pcall(lifecycle.ensure_stream, connection, self)
-    if not ok then
-      finish()
-      error(err, 0)
-    end
-    local waiter = Promise.new()
-    selected.waiters[#selected.waiters + 1] = waiter
-    return waiter:finally(finish)
   end
 
   ---True when the server still has message pages older than the cached

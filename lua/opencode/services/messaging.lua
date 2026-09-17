@@ -175,10 +175,7 @@ M.send_message = Promise.async(function(prompt, opts)
       end
     end
 
-    if response.kind == 'accepted' and observation.wait_until_idle then
-      return observation:wait_until_idle():await()
-    end
-    return response
+    return response.completion:await()
   end)
   update_sent_message_count(-1)
   if not ok then

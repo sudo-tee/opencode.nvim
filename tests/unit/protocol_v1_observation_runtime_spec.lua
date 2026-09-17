@@ -177,6 +177,89 @@ local function history_message(session_id, message_id, parent_id, finish)
 end
 
 describe('V1 protocol Observation runtime', function()
+  it('waits for a completed matching streamed reply, including non-stop terminal finishes', function()
+    local connection, server = runtime()
+    local observation = observe(connection, 'ses-reply')
+    local request = observation:request_reply({ text = 'hello', context = {}, files = {}, agents = {} })
+    assert.is_true(vim.wait(500, function()
+      return #server.submits == 1
+    end))
+    local input_id = server.submits[1].input.messageID
+    server.submits[1].request:resolve(response('ses-reply', 'msg-answer', input_id, 'assistant', nil, 'stop'))
+    assert.is_true(vim.wait(500, function()
+      return next(observation._v1_submissions) ~= nil
+    end))
+    assert.is_false(request.promise:is_resolved())
+
+    emit(server.streams[1], '/server/project', 'message.updated', {
+      sessionID = 'ses-reply',
+      info = response('ses-reply', 'msg-other', 'another-input', 'assistant', 2, 'stop').info,
+    })
+    assert.is_false(request.promise:is_resolved())
+    emit(server.streams[1], '/server/project', 'message.updated', {
+      sessionID = 'ses-reply',
+      info = response('ses-reply', 'msg-answer', input_id, 'assistant', 3, 'length').info,
+    })
+    assert.equals('msg-answer', request.promise:wait().id)
+    assert.same({}, observation._v1_submissions)
+    assert.is_nil(connection.observations['ses-reply'])
+  end)
+
+  it('uses the same tool-loop terminal rules for HTTP responses and streamed updates', function()
+    local connection, server = runtime()
+    local observation = observe(connection, 'ses-tools')
+    local pending = observation:submit({ text = 'hello', context = {}, files = {}, agents = {} })
+    local input_id = server.submits[1].input.messageID
+    local tool = {
+      id = 'part-tool',
+      sessionID = 'ses-tools',
+      messageID = 'msg-tools',
+      type = 'tool',
+      callID = 'call-tool',
+      tool = 'read',
+      state = { status = 'completed', input = {}, output = 'done' },
+    }
+    server.submits[1].request:resolve(response('ses-tools', 'msg-tools', input_id, 'assistant', 2, 'stop', { tool }))
+    local accepted = pending:wait()
+    assert.equals('accepted', accepted.kind)
+    assert.is_false(accepted.completion:is_resolved())
+    tool.state = { status = 'error', input = {}, error = 'interrupted', metadata = { interrupted = true } }
+    emit(server.streams[1], '/server/project', 'message.part.updated', {
+      sessionID = 'ses-tools',
+      part = tool,
+    })
+    local completed = accepted.completion:wait()
+    assert.equals('reply', completed.kind)
+    assert.equals(input_id, completed.input_id)
+    assert.is_true(completed.message.content[1].interrupted)
+    assert.is_nil(connection.observations['ses-tools'])
+  end)
+
+  for _, ending in ipairs({ 'cancel', 'disconnect', 'close' }) do
+    it('releases an accepted submission on ' .. ending, function()
+      local connection, server = runtime()
+      local observation = observe(connection, 'ses-cancel')
+      local pending = observation:submit({ text = 'hello', context = {}, files = {}, agents = {} }, { async = true })
+      server.async_submits[1].request:resolve(true)
+      local accepted = pending:wait()
+      if ending == 'cancel' then
+        accepted.stop('cancelled')
+        accepted.stop('cancelled again')
+      elseif ending == 'disconnect' then
+        server.streams[1].on_disconnect('lost stream')
+      else
+        connection:close():wait()
+      end
+      assert.is_false(pcall(function()
+        accepted.completion:wait()
+      end))
+      assert.same({}, observation._v1_submissions)
+      assert.equals(0, observation._local_operations)
+      assert.is_nil(connection.observations['ses-cancel'])
+      assert.equals(1, server.streams[1].shutdown_count)
+    end)
+  end
+
   it('shares one event stream across Observations and stops it after the last watcher', function()
     local connection, server = runtime()
     local first = observe(connection, 'ses-first')
@@ -564,7 +647,9 @@ describe('V1 protocol Observation runtime', function()
       assert.is_true(first_id < assistant_id)
       assert.is_true(second_id < assistant_id)
 
-      server.submits[1].request:resolve(response('ses-ordering', assistant_id, first_id, 'assistant', 1789581457189, 'stop'))
+      server.submits[1].request:resolve(
+        response('ses-ordering', assistant_id, first_id, 'assistant', 1789581457189, 'stop')
+      )
       server.async_submits[1].request:resolve(true)
       assert.equals('reply', first:wait().kind)
       assert.equals('accepted', second:wait().kind)
@@ -593,6 +678,9 @@ describe('V1 protocol Observation runtime', function()
     assert.equals('/server/project', server.submits[1].location.directory)
     assert.same({ type = 'text', text = 'A' }, server.submits[1].input.parts[1])
     assert.not_equals(first_id, second_id)
+    assert.equals(observation, connection.observations['ses-submit'])
+    assert.is_false(first_result.completion:is_resolved())
+    first_result.stop()
     assert.is_nil(connection.observations['ses-submit'])
   end)
 

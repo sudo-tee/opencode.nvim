@@ -315,6 +315,26 @@ describe('lazy render', function()
     load_more_stub:revert()
   end)
 
+  it('restores the top viewport without moving the cursor', function()
+    local session_data = make_session_data(50)
+
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    vim.api.nvim_set_current_win(win)
+    vim.api.nvim_win_set_cursor(win, { 5, 0 })
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! zz')
+    end)
+
+    local anchor = renderer.capture_top_anchor()
+    vim.api.nvim_win_set_cursor(win, { 6, 0 })
+    renderer.restore_top_anchor(anchor)
+
+    assert.are.equal(6, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
   it('load_all_messages renders everything and makes it searchable', function()
     local session_data = make_session_data(50) -- 100 messages total
 

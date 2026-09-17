@@ -175,7 +175,12 @@ function M.ingest_snapshot(observation, messages)
   end
   local entries, order = {}, {}
   for _, entry in ipairs(mapped) do
-    entries[entry.id] = replace_entry(state.entries_by_id[entry.id], entry)
+    local existing = state.entries_by_id[entry.id]
+    if existing then
+      entry.cost = entry.cost ~= nil and entry.cost or existing.cost
+      entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+    end
+    entries[entry.id] = replace_entry(existing, entry)
     order[#order + 1] = entry.id
   end
   state.entries_by_id = entries
@@ -251,6 +256,10 @@ function M.ingest_event(observation, event)
     end
     local existing = state.entries_by_id[entry.id]
     entry.content = existing and existing.content or {}
+    if existing then
+      entry.cost = entry.cost ~= nil and entry.cost or existing.cost
+      entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+    end
     state.entries_by_id[entry.id] = replace_entry(existing, entry)
     if not existing then
       state.entry_order[#state.entry_order + 1] = entry.id

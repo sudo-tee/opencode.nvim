@@ -44,11 +44,24 @@ describe('renderer incremental reconciliation', function()
         content = { { id = 'part_' .. index, kind = 'text', text = 'message ' .. index } },
       }
     end
+    local watchers = {}
     observation = {
       read = function() return observed end,
       watch = function(_, _, callback)
-        changed = callback
-        return function() end
+        watchers[#watchers + 1] = callback
+        changed = function(source, resource)
+          for _, watcher in ipairs(watchers) do
+            watcher(source, resource)
+          end
+        end
+        return function()
+          for index = #watchers, 1, -1 do
+            if watchers[index] == callback then
+              table.remove(watchers, index)
+              break
+            end
+          end
+        end
       end,
     }
     state.jobs.set_server({ is_ready = function() return true end, observe = function() return observation end })

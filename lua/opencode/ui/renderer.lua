@@ -336,8 +336,30 @@ local function update_stats(tokens, cost)
     else
       state.renderer.set_tokens_count(count)
     end
+    return true
   elseif type(cost) == 'number' and cost > 0 then
     state.renderer.set_cost(cost)
+    return true
+  end
+  return false
+end
+
+local function update_observation_stats(observation)
+  local observed = observation:read()
+  local session = observed.sync
+      and observed.sync.session
+      and observed.sync.session.state == 'current'
+      and observed.session
+    or nil
+  if session and session.cost ~= nil and session.tokens and update_stats(session.tokens, session.cost) then
+    return
+  end
+
+  for index = #(observed.entry_order or {}), 1, -1 do
+    local entry = observed.entries_by_id and observed.entries_by_id[observed.entry_order[index]]
+    if entry and entry.cost ~= nil and entry.tokens ~= nil and update_stats(entry.tokens, entry.cost) then
+      return
+    end
   end
 end
 
@@ -607,17 +629,7 @@ reconcile_observation = function(observation, resource)
     ctx.model_restored_session_id = session_id
     require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
   end
-  if session_current and session_current.cost ~= nil and session_current.tokens then
-    update_stats(session_current.tokens, session_current.cost)
-  else
-    for index = #entries, 1, -1 do
-      local entry = entries[index]
-      if entry.cost ~= nil and entry.tokens ~= nil then
-        update_stats(entry.tokens, entry.cost)
-        break
-      end
-    end
-  end
+  update_observation_stats(root)
   local previous_refs = reference_facts.current_refs()
   reference_facts.rebuild(session.id, entries, session_current and session_current.location or nil)
   local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
@@ -837,11 +849,13 @@ function M.setup_subscriptions(subscribe)
   if subscribe then
     rendered_session_tab = state.active_session_tab
     state.store.subscribe('is_opencode_focused', M.on_focus_changed)
+    state.store.subscribe('last_focused_opencode_window', M.on_focus_changed)
     state.store.subscribe('active_session', M.on_session_changed)
     state.store.subscribe('active_session_tab', M.on_session_tab_changed)
   else
     rendered_session_tab = nil
     state.store.unsubscribe('is_opencode_focused', M.on_focus_changed)
+    state.store.unsubscribe('last_focused_opencode_window', M.on_focus_changed)
     state.store.unsubscribe('active_session', M.on_session_changed)
     state.store.unsubscribe('active_session_tab', M.on_session_tab_changed)
   end
@@ -855,6 +869,9 @@ end
 function M._render_full_session_data(entries, session)
   local lazy_limit = ctx.lazy_render_count
   M.reset()
+  if ctx.observation then
+    update_observation_stats(ctx.observation)
+  end
   ctx.entries = entries or {}
   session = session
     or (ctx.observation and ctx.observation:read().session)
@@ -1012,6 +1029,9 @@ end
 
 ---Re-render the permission display when focus changes (updates shortcut hints)
 function M.on_focus_changed()
+  if ctx.observation then
+    update_observation_stats(ctx.observation)
+  end
   local permissions = ctx.prompt_controllers.permission
   if not permissions or not permissions.get_all_permissions()[1] then
     return
@@ -1021,15 +1041,18 @@ function M.on_focus_changed()
 end
 
 ---Re-render when the active session changes
-function M.on_session_changed(_, new, old)
+function M.on_session_changed(_, new, _old)
   if state.active_session_tab ~= rendered_session_tab then
     return
   end
+  local observed_session = ctx.observation and ctx.observation:read().session
+  local active_observation = ctx.observation and state.session.active_observation()
   if
-    ctx.observation
-    and type(old) == 'table'
+    ctx.unsubscribe
+    and active_observation == ctx.observation
+    and observed_session
     and type(new) == 'table'
-    and old.id == new.id
+    and observed_session.id == new.id
   then
     return
   end

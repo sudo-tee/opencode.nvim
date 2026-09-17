@@ -137,4 +137,51 @@ describe('protocol Observation lifecycle', function()
     unsubscribe()
     assert.same({}, connection.observations)
   end)
+
+  for _, protocol in ipairs({ 'v1', 'v2' }) do
+    for _, outcome in ipairs({ 'resolve', 'reject', 'throw' }) do
+      it('releases ' .. protocol .. ' actions after ' .. outcome .. ' without releasing a replacement', function()
+        local connection = ready_connection(protocol)
+        local ref = { id = 'ses-action', location = { directory = '/remote/project' } }
+        local observation = connection:observe(ref)
+        local pending = Promise.new()
+        connection.operations = {
+          interrupt = function(current, session_id, location)
+            assert.equals(connection, current)
+            assert.equals(ref.id, session_id)
+            assert.same(protocol == 'v1' and ref.location or nil, location)
+            assert.equals(1, observation._local_operations)
+            if outcome == 'throw' then
+              error('action failed', 0)
+            end
+            return pending
+          end,
+        }
+
+        if outcome == 'throw' then
+          assert.has_error(function()
+            observation:interrupt()
+          end, 'action failed')
+          assert.is_nil(connection.observations[ref.id])
+        else
+          local result = observation:interrupt()
+          assert.equals(observation, connection.observations[ref.id])
+          connection.observations[ref.id] = nil
+          local replacement = connection:observe(ref)
+          if outcome == 'resolve' then
+            pending:resolve(true)
+            assert.is_true(result:wait())
+          else
+            pending:reject('action failed')
+            assert.has_error(function()
+              result:wait()
+            end, 'action failed')
+          end
+          assert.equals(replacement, connection.observations[ref.id])
+        end
+        assert.equals(0, observation._local_operations)
+        connection:close():wait()
+      end)
+    end
+  end
 end)

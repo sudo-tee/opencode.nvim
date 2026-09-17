@@ -1672,13 +1672,7 @@ function M.new(connection, ref)
   end
 
   function observation:interrupt()
-    local finish = self:_begin_local_operation()
-    local ok, request = pcall(connection.operations.interrupt, connection, self._session_id, self._session_ref.location)
-    if not ok then
-      finish()
-      error(request, 0)
-    end
-    return request:finally(finish)
+    return self:_start_action(connection.operations.interrupt, self._session_id, self._session_ref.location)
   end
 
   function observation:reply_permission(request_id, answer)
@@ -1692,16 +1686,10 @@ function M.new(connection, ref)
     then
       fail('invalid permission answer')
     end
-    local finish = self:_begin_local_operation()
-    local ok, request = pcall(connection.operations.reply_permission, connection, request_id, self._session_ref.location, {
+    return self:_start_action(connection.operations.reply_permission, request_id, self._session_ref.location, {
       reply = answer.choice,
       message = answer.message,
     })
-    if not ok then
-      finish()
-      error(request, 0)
-    end
-    return request:finally(finish)
   end
 
   function observation:reply_question(request_id, answers)
@@ -1730,14 +1718,12 @@ function M.new(connection, ref)
         native_answers[index] = { answer }
       end
     end
-    local finish = self:_begin_local_operation()
-    local ok, promise =
-      pcall(connection.operations.reply_question, connection, request_id, self._session_ref.location, native_answers)
-    if not ok then
-      finish()
-      error(promise, 0)
-    end
-    return promise:finally(finish)
+    return self:_start_action(
+      connection.operations.reply_question,
+      request_id,
+      self._session_ref.location,
+      native_answers
+    )
   end
 
   function observation:reject_question(request_id)
@@ -1745,13 +1731,7 @@ function M.new(connection, ref)
     if not request_fact or request_fact.status ~= 'pending' then
       fail('question request is not pending')
     end
-    local finish = self:_begin_local_operation()
-    local ok, request = pcall(connection.operations.reject_question, connection, request_id, self._session_ref.location)
-    if not ok then
-      finish()
-      error(request, 0)
-    end
-    return request:finally(finish)
+    return self:_start_action(connection.operations.reject_question, request_id, self._session_ref.location)
   end
 
   return observation

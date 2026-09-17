@@ -1474,16 +1474,6 @@ local function valid_answer(field, value)
   return false
 end
 
-local function start_action(observation, operation, ...)
-  local finish = observation:_begin_local_operation()
-  local ok, request = pcall(operation, observation._connection, ...)
-  if not ok then
-    finish()
-    error(request, 0)
-  end
-  return request:finally(finish)
-end
-
 ---@param connection table
 ---@param ref {id: string, location?: table}
 ---@return table
@@ -1691,7 +1681,7 @@ function M.new(connection, ref)
   end
 
   function observation:interrupt()
-    return start_action(self, connection.operations.interrupt, self._session_id)
+    return self:_start_action(connection.operations.interrupt, self._session_id)
   end
 
   function observation:reply_permission(request_id, answer)
@@ -1706,7 +1696,7 @@ function M.new(connection, ref)
     if not supported or (answer.message ~= nil and type(answer.message) ~= 'string') then
       fail('invalid permission answer')
     end
-    return start_action(self, connection.operations.reply_permission, self._session_id, request_id, {
+    return self:_start_action(connection.operations.reply_permission, self._session_id, request_id, {
       reply = answer.choice,
       message = answer.message,
     })
@@ -1729,7 +1719,7 @@ function M.new(connection, ref)
         fail('unknown question field ' .. tostring(key))
       end
     end
-    return start_action(self, connection.operations.reply_question, self._session_id, request_id, answers)
+    return self:_start_action(connection.operations.reply_question, self._session_id, request_id, answers)
   end
 
   function observation:reject_question(request_id)
@@ -1737,7 +1727,7 @@ function M.new(connection, ref)
     if not request or request.status ~= 'pending' then
       fail('question request is not pending')
     end
-    return start_action(self, connection.operations.cancel_question, self._session_id, request_id)
+    return self:_start_action(connection.operations.cancel_question, self._session_id, request_id)
   end
   return observation
 end

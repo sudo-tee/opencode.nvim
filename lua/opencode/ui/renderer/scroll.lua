@@ -19,10 +19,40 @@ local function get_text_width(win)
   return math.max(1, width - textoff)
 end
 
+---@param buf integer
+---@param win integer
+---@param target_line integer
+---@return integer
+local function get_bottom_aligned_topline(buf, win, target_line)
+  local height = vim.api.nvim_win_get_height(win)
+  local text_width = get_text_width(win)
+
+  return vim.api.nvim_win_call(win, function()
+    local rows = 0
+    local line = target_line
+
+    while line >= 1 and rows < height do
+      local fold_start = vim.fn.foldclosed(line)
+      if fold_start ~= -1 then
+        rows = rows + 1
+        line = fold_start - 1
+      else
+        local text = vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or ''
+        local display_width = math.max(1, vim.fn.strdisplaywidth(text))
+        rows = rows + math.max(1, math.ceil(display_width / text_width))
+        line = line - 1
+      end
+    end
+
+    return math.max(1, line + 1)
+  end)
+end
+
+---@param buf integer
 ---@param win integer
 ---@param line integer
-local function restore_view_with_line_at_bottom(win, line)
-  output_window.restore_view_topline(win, line - vim.api.nvim_win_get_height(win) + 1)
+local function restore_view_with_line_at_bottom(buf, win, line)
+  output_window.restore_view_topline(win, get_bottom_aligned_topline(buf, win, line))
 end
 
 ---@param buf integer
@@ -111,7 +141,7 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   if needs_bottom_align then
-    restore_view_with_line_at_bottom(win, target_line)
+    restore_view_with_line_at_bottom(buf, win, target_line)
   end
 
   output_window._prev_line_count_by_win[win] = line_count

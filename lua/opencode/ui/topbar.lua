@@ -12,17 +12,41 @@ local LABELS = {
 }
 
 local render_scheduled = false
+local model_catalog_requested_for = nil
+
+local function get_model_info()
+  if not state.current_model then
+    return nil
+  end
+  local provider, model = state.current_model:match('^(.-)/(.+)$')
+  if not provider or not model then
+    return nil
+  end
+  local ok, model_info = pcall(config_file.get_model_info, provider, model)
+  return ok and model_info or nil
+end
+
+local function ensure_model_catalog()
+  local model = state.current_model
+  if not config.ui.display_context_size or not model or get_model_info() or model_catalog_requested_for == model then
+    return
+  end
+
+  model_catalog_requested_for = model
+  config_file.get_opencode_providers():and_then(function()
+    if model_catalog_requested_for == model and get_model_info() then
+      model_catalog_requested_for = nil
+      M.render()
+    end
+  end)
+end
 
 local function format_token_info()
   local parts = {}
 
   if state.current_model then
     if config.ui.display_context_size then
-      local provider, model = state.current_model:match('^(.-)/(.+)$')
-      local ok, model_info = pcall(config_file.get_model_info, provider, model)
-      if not ok then
-        model_info = nil
-      end
+      local model_info = get_model_info()
       local limit = state.tokens_count and model_info and model_info.limit and model_info.limit.context or 0
       local formatted_count = util.format_number(state.tokens_count)
       if formatted_count then
@@ -70,6 +94,7 @@ local function get_session_desc()
 end
 
 function M.render()
+  ensure_model_catalog()
   if render_scheduled then
     return
   end
@@ -103,6 +128,7 @@ function M.setup()
   state.store.subscribe('active_session', on_change)
   state.store.subscribe('active_session_tab', on_change)
   state.store.subscribe('is_opencode_focused', on_change)
+  state.store.subscribe('last_focused_opencode_window', on_change)
   state.store.subscribe('tokens_count', on_change)
   state.store.subscribe('cost', on_change)
   state.store.subscribe('is_opening', on_change)
@@ -115,7 +141,9 @@ function M.close()
   state.store.unsubscribe('active_session', on_change)
   state.store.unsubscribe('active_session_tab', on_change)
   state.store.unsubscribe('is_opencode_focused', on_change)
+  state.store.unsubscribe('last_focused_opencode_window', on_change)
   state.store.unsubscribe('tokens_count', on_change)
   state.store.unsubscribe('cost', on_change)
+  model_catalog_requested_for = nil
 end
 return M

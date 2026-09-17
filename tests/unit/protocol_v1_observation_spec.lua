@@ -326,6 +326,38 @@ describe('V1 protocol Observation interpretation', function()
     assert.same({}, observed:read().entry_order)
   end)
 
+  it('keeps usage when a later message update omits cost and tokens', function()
+    local contract = fixture()
+    local observed = observation(contract.sessionID)
+    observation_module.ingest_snapshot(observed, { contract.snapshot[2] })
+
+    local partial = {
+      directory = '/server/project',
+      payload = {
+        type = 'message.updated',
+        properties = {
+          sessionID = contract.sessionID,
+          info = vim.deepcopy(contract.snapshot[2].info),
+        },
+      },
+    }
+    partial.payload.properties.info.cost = nil
+    partial.payload.properties.info.tokens = nil
+
+    assert.is_true(observation_module.ingest_event(observed, partial))
+    local assistant = observed:read().entries_by_id['msg-assistant']
+    assert.equals(0.25, assistant.cost)
+    assert.equals(3, assistant.tokens.cache.read)
+
+    local partial_snapshot = vim.deepcopy(contract.snapshot[2])
+    partial_snapshot.info.cost = nil
+    partial_snapshot.info.tokens = nil
+    observation_module.ingest_snapshot(observed, { partial_snapshot })
+    assistant = observed:read().entries_by_id['msg-assistant']
+    assert.equals(0.25, assistant.cost)
+    assert.equals(3, assistant.tokens.cache.read)
+  end)
+
   it('resolves file and agent mentions when native parts arrive before the prompt text', function()
     local contract = fixture()
     local observed = observation(contract.sessionID)

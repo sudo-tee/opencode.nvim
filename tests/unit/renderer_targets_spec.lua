@@ -160,6 +160,67 @@ describe('renderer child observations', function()
     assert.is_false(child.watchers[1].active)
   end)
 
+  it('keeps root usage stats when a child observation changes', function()
+    local child = observation({
+      session = { id = 'ses_child' },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { by_id = {}, order = {} },
+      entry_order = { 'msg_child' },
+      entries_by_id = {
+        msg_child = {
+          id = 'msg_child',
+          session_id = 'ses_child',
+          kind = 'assistant',
+          cost = 2,
+          tokens = { input = 70, output = 80, reasoning = 0, cache = { read = 0, write = 0 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+    })
+    local root = observation({
+      session = { id = 'ses_root', location = { directory = '/repo' } },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = {
+        order = { 'ses_child' },
+        by_id = { ses_child = { id = 'ses_child', parentID = 'ses_root' } },
+      },
+      entry_order = { 'msg_root' },
+      entries_by_id = {
+        msg_root = {
+          id = 'msg_root',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1,
+          tokens = { input = 10, output = 20, reasoning = 0, cache = { read = 0, write = 0 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function(_, ref)
+        return ref.id == 'ses_root' and root or child
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+
+    child.watchers[1].changed(child, 'messages')
+    vim.wait(100, function()
+      return false
+    end)
+
+    assert.equals(30, state.store.get('tokens_count'))
+    assert.equals(1, state.store.get('cost'))
+  end)
+
   it('uses session usage facts for renderer stats', function()
     local root = observation({
       session = {
@@ -281,11 +342,140 @@ describe('renderer child observations', function()
     assert.equals(150, state.store.get('tokens_count'))
     assert.equals(1.25, state.store.get('cost'))
 
+    state.renderer.reset()
     root.read().entry_order = { 'msg_done', 'msg_streaming' }
-    root.watchers[1].changed(root, 'messages')
+    renderer.on_focus_changed()
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
+  end)
+
+  it('restores usage stats when focus follows a renderer reset', function()
+    local root = observation({
+      session = { id = 'ses_root', location = { directory = '/repo' } },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { order = {}, by_id = {} },
+      entry_order = { 'msg_done' },
+      entries_by_id = {
+        msg_done = {
+          id = 'msg_done',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1.25,
+          tokens = { input = 10, output = 20, reasoning = 30, cache = { read = 40, write = 50 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return root
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+    state.renderer.reset()
+
+    renderer.setup_subscriptions()
+    state.ui.set_last_focused_window('input')
+    state.ui.set_last_focused_window('output')
     vim.wait(100, function()
       return false
     end)
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
+  end)
+
+  it('keeps usage stats across a full cache render', function()
+    local root = observation({
+      session = { id = 'ses_root', location = { directory = '/repo' } },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { order = {}, by_id = {} },
+      entry_order = { 'msg_done' },
+      entries_by_id = {
+        msg_done = {
+          id = 'msg_done',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1.25,
+          tokens = { input = 10, output = 20, reasoning = 30, cache = { read = 40, write = 50 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return root
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+
+    renderer.render_from_cache()
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
+  end)
+
+  it('ignores a stale same-session notification when the latest entry has no usage', function()
+    local root = observation({
+      session = { id = 'ses_root', location = { directory = '/repo' } },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { order = {}, by_id = {} },
+      entry_order = { 'msg_done' },
+      entries_by_id = {
+        msg_done = {
+          id = 'msg_done',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1.25,
+          tokens = { input = 10, output = 20, reasoning = 30, cache = { read = 40, write = 50 } },
+          content = {},
+        },
+        msg_user = {
+          id = 'msg_user',
+          session_id = 'ses_root',
+          kind = 'user',
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return root
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+    vim.wait(100, function()
+      return false
+    end)
+
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+
+    assert.equals(150, state.store.get('tokens_count'))
+    assert.equals(1.25, state.store.get('cost'))
+
+    root.read().entry_order = { 'msg_user' }
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
 
     assert.equals(150, state.store.get('tokens_count'))
     assert.equals(1.25, state.store.get('cost'))

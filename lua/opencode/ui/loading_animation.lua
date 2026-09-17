@@ -4,6 +4,10 @@ local config = require('opencode.config')
 local Timer = require('opencode.ui.timer')
 local M = {}
 
+local function render_footer()
+  require('opencode.ui.footer').render()
+end
+
 M._animation = {
   frames = nil,
   text = 'Thinking... ',
@@ -163,6 +167,7 @@ function M.start(windows)
   end
   M._start_animation_timer(windows)
   M.render(windows)
+  render_footer()
 end
 
 function M.stop()
@@ -171,6 +176,7 @@ function M.stop()
   if state.windows and state.windows.footer_buf and vim.api.nvim_buf_is_valid(state.windows.footer_buf) then
     pcall(vim.api.nvim_buf_clear_namespace, state.windows.footer_buf, M._animation.ns_id, 0, -1)
   end
+  render_footer()
 end
 
 function M._should_animate()

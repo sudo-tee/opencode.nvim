@@ -1,10 +1,12 @@
 local state = require('opencode.state')
 local loading_animation = require('opencode.ui.loading_animation')
+local footer = require('opencode.ui.footer')
 local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
 
 describe('loading_animation', function()
   local original
+  local original_footer_render
   local connection
 
   local function observed_execution(session_id, execution)
@@ -36,6 +38,7 @@ describe('loading_animation', function()
 
   before_each(function()
     original = support.snapshot_state()
+    original_footer_render = footer.render
     loading_animation.teardown()
     state.store.set_raw('windows', nil)
     state.session.clear_active()
@@ -44,10 +47,12 @@ describe('loading_animation', function()
     loading_animation._animation.session_id = nil
     loading_animation._animation.current_frame = 1
     loading_animation._animation.extmark_id = nil
+    footer.render = function() end
   end)
 
   after_each(function()
     loading_animation.teardown()
+    footer.render = original_footer_render
     support.restore_state(original)
   end)
 
@@ -109,6 +114,23 @@ describe('loading_animation', function()
       change({ activity = 'idle' })
       assert.equals('idle', loading_animation._animation.execution.activity)
       assert.is_false(loading_animation.is_running())
+    end)
+
+    it('rerenders the footer when execution becomes idle', function()
+      local _, change = observed_execution('ses_a', { activity = 'running' })
+      local footer_renders = 0
+      footer.render = function()
+        footer_renders = footer_renders + 1
+      end
+      state.session.set_active({ id = 'ses_a' })
+      state.store.set_raw('windows', { output_buf = 1, footer_buf = 1 })
+
+      loading_animation.setup()
+      local renders_before_idle = footer_renders
+
+      change({ activity = 'idle' })
+
+      assert.is_true(footer_renders > renders_before_idle)
     end)
 
     it('releases the old watch and binds the newly active session', function()

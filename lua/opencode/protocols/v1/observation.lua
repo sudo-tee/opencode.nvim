@@ -1,3 +1,4 @@
+local submission = require('opencode.protocols.submission')
 local facts = require('opencode.protocols.v1.facts')
 local prompt_from_content = facts.prompt_from_content
 local valid_native_mention = facts.valid_native_mention
@@ -853,30 +854,61 @@ local function merge_older(observation, messages)
     or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
 end
 
-local function response_is_terminal(response)
-  local info = response.info
-  if type(info.time) ~= 'table' or type(info.time.completed) ~= 'number' then
-    return false
-  end
-  if info.error ~= nil then
-    return true
-  end
-  if type(info.finish) ~= 'string' or info.finish == '' or info.finish == 'tool-calls' or info.finish == 'unknown' then
-    return false
-  end
-  for _, part in ipairs(response.parts) do
-    if part.type == 'tool' then
-      local provider_executed = type(part.metadata) == 'table' and part.metadata.providerExecuted == true
-      local interrupted = type(part.state) == 'table'
-        and part.state.status == 'error'
-        and type(part.state.metadata) == 'table'
-        and part.state.metadata.interrupted == true
-      if not provider_executed and not interrupted then
-        return false
-      end
+local function find_reply(observation, input_id)
+  local state = observation:read()
+  for _, entry_id in ipairs(state.entry_order) do
+    local entry = state.entries_by_id[entry_id]
+    if entry.parent_message_id == input_id and facts.is_terminal_reply(entry) then
+      return entry
     end
   end
-  return true
+end
+
+local function fail_submissions(observation, reason)
+  local pending = vim.tbl_values(observation._v1_submissions)
+  for _, finish in ipairs(pending) do
+    finish(nil, reason)
+  end
+end
+
+local function track_submission(observation, result)
+  if result.kind == 'reply' then
+    local value = vim.tbl_extend('force', {}, result)
+    local handle, finish = submission.new(result)
+    finish(value)
+    return handle
+  end
+
+  local unsubscribe
+  local release = observation:_begin_local_operation()
+  local handle, finish
+  handle, finish = submission.new(result, function()
+    observation._v1_submissions[handle] = nil
+    if unsubscribe then
+      unsubscribe()
+      unsubscribe = nil
+    end
+    release()
+  end)
+  observation._v1_submissions[handle] = finish
+  local function check_reply()
+    local message = find_reply(observation, result.input.id)
+    if message then
+      finish({ kind = 'reply', message = message, input_id = result.input.id })
+    end
+  end
+  local ok, err = pcall(function()
+    unsubscribe = observation:watch({ 'messages' }, function()
+      if unsubscribe then
+        check_reply()
+      end
+    end)
+    check_reply()
+  end)
+  if not ok then
+    finish(nil, err)
+  end
+  return handle
 end
 
 ---@param connection table
@@ -916,14 +948,24 @@ function M.new(connection, ref)
       end
     end,
     on_unused = clear_unresolved_mentions,
-    on_close = clear_unresolved_mentions,
+    on_stream_error = function(current, message)
+      fail_submissions(current, 'V1 reply completion is unknown: ' .. message)
+    end,
+    on_close = function(current)
+      fail_submissions(current, 'connection closed')
+      clear_unresolved_mentions(current)
+    end,
   })
+  observation._v1_submissions = {}
   observation._v1_permission_terminal = {}
   observation._v1_question_terminal = {}
   observation._v1_unresolved_mentions = {}
   observation._v1_history_complete = false
   observation._v1_history_limit = 50
   observation._v1_older_loading = false
+  ---@param input table
+  ---@param opts? {async?: boolean}
+  ---@return Promise<OpencodeSubmission>
   function observation:submit(input, opts)
     opts = opts or {}
     if input and input.model ~= nil then
@@ -968,7 +1010,7 @@ function M.new(connection, ref)
         if response ~= true then
           fail('invalid async submit response')
         end
-        return { kind = 'accepted', input = { id = message_id } }
+        return track_submission(self, { kind = 'accepted', input = { id = message_id } })
       end
       if type(response) ~= 'table' or type(response.info) ~= 'table' or type(response.parts) ~= 'table' then
         fail('invalid submit response')
@@ -981,11 +1023,11 @@ function M.new(connection, ref)
       if
         response.info.role == 'assistant'
         and response.info.parentID == message_id
-        and response_is_terminal(response)
+        and facts.is_terminal_reply(entry)
       then
-        return { kind = 'reply', message = entry, input_id = message_id }
+        return track_submission(self, { kind = 'reply', message = entry, input_id = message_id })
       end
-      return { kind = 'accepted', input = { id = message_id } }
+      return track_submission(self, { kind = 'accepted', input = { id = message_id } })
     end)
     return result:finally(finish)
   end

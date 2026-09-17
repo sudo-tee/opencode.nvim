@@ -17,7 +17,9 @@ local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
 
 local function successful_submission(message)
-  return Promise.new():resolve({ kind = 'reply', input_id = 'msg-user', message = message or { id = 'msg-reply' } })
+  local result = { kind = 'reply', input_id = 'msg-user', message = message or { id = 'msg-reply' } }
+  result.completion = Promise.new():resolve(vim.tbl_extend('force', {}, result))
+  return Promise.new():resolve(result)
 end
 
 describe('opencode.services.messaging', function()
@@ -483,10 +485,11 @@ describe('opencode.services.messaging', function()
     connection.protocol = 'v2'
     local observation = state.session.active_observation()
     observation.submit = function()
-      return Promise.new():resolve({ kind = 'accepted', input = { id = 'msg-user' } })
-    end
-    observation.wait_until_idle = function()
-      return Promise.new():reject('admission_unknown')
+      return Promise.new():resolve({
+        kind = 'accepted',
+        input = { id = 'msg-user' },
+        completion = Promise.new():reject('admission_unknown'),
+      })
     end
     local after_run = stub(messaging, 'after_run')
 
@@ -539,10 +542,7 @@ describe('opencode.services.messaging', function()
     local observation = state.session.active_observation()
     local original_submit = observation.submit
     observation.submit = function()
-      return Promise.new():resolve({ kind = 'accepted', input = { id = 'msg-user' } })
-    end
-    observation.wait_until_idle = function()
-      return done
+      return Promise.new():resolve({ kind = 'accepted', input = { id = 'msg-user' }, completion = done })
     end
 
     local sending = messaging.send_message('hello world')

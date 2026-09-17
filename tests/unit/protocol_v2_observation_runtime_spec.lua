@@ -142,57 +142,57 @@ describe('V2 protocol Observation runtime', function()
     assert.equals('error', observed:read().sync.files.state)
     assert.equals(2, observed:read().files.revision)
     stop()
+  end)
+
+  it('updates session usage and notifies session watchers', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local notifications = 0
+    local stop = observed:watch({ 'session' }, function()
+      notifications = notifications + 1
+    end)
+    local before = notifications
+
+    emit(
+      streams[1],
+      event('ses-main', 'session.usage.updated', {
+        cost = 1.25,
+        tokens = {
+          input = 10,
+          output = 20,
+          reasoning = 30,
+          cache = { read = 40, write = 50 },
+        },
+      }, 20)
+    )
+
+    assert.equals(1.25, observed:read().session.cost)
+    assert.same({
+      input = 10,
+      output = 20,
+      reasoning = 30,
+      cache = { read = 40, write = 50 },
+    }, observed:read().session.tokens)
+    assert.is_true(notifications > before)
+    stop()
+  end)
+
+  it('records a diagnostic for invalid session usage without raising', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local stop = observed:watch({ 'session' }, function() end)
+
+    local ok, err = pcall(function()
+      emit(streams[1], event('ses-main', 'session.usage.updated', { cost = 'invalid', tokens = {} }, 20))
     end)
 
-    it('updates session usage and notifies session watchers', function()
-      local value = connection()
-      local streams = install_operations(value)
-      local observed = value:observe({ id = 'ses-main' })
-      local notifications = 0
-      local stop = observed:watch({ 'session' }, function()
-        notifications = notifications + 1
-      end)
-      local before = notifications
-
-      emit(
-        streams[1],
-        event('ses-main', 'session.usage.updated', {
-          cost = 1.25,
-          tokens = {
-            input = 10,
-            output = 20,
-            reasoning = 30,
-            cache = { read = 40, write = 50 },
-          },
-        }, 20)
-      )
-
-      assert.equals(1.25, observed:read().session.cost)
-      assert.same({
-        input = 10,
-        output = 20,
-        reasoning = 30,
-        cache = { read = 40, write = 50 },
-      }, observed:read().session.tokens)
-      assert.is_true(notifications > before)
-      stop()
-    end)
-
-    it('records a diagnostic for invalid session usage without raising', function()
-      local value = connection()
-      local streams = install_operations(value)
-      local observed = value:observe({ id = 'ses-main' })
-      local stop = observed:watch({ 'session' }, function() end)
-
-      local ok, err = pcall(function()
-        emit(streams[1], event('ses-main', 'session.usage.updated', { cost = 'invalid', tokens = {} }, 20))
-      end)
-
-      assert.is_true(ok, tostring(err))
-      assert.equals('error', observed:read().sync.session.state)
-      assert.equals('protocol_contract', observed:read().sync.session.error.kind)
-      stop()
-    end)
+    assert.is_true(ok, tostring(err))
+    assert.equals('error', observed:read().sync.session.state)
+    assert.equals('protocol_contract', observed:read().sync.session.error.kind)
+    stop()
+  end)
 
   it('reads each resource independently and keeps one failure scoped to that resource', function()
     local value = connection()
@@ -422,28 +422,47 @@ describe('V2 protocol Observation runtime', function()
     local observed = value:observe({ id = 'ses-main' })
     local request = observed:request_reply({ text = 'hello', context = {}, files = {}, agents = {} })
     flush(function()
-      return observed:read().sync.messages.state == 'current'
-        and observed._v2_admissions['msg-local'] ~= nil
+      return observed:read().sync.messages.state == 'current' and observed._v2_admissions['msg-local'] ~= nil
     end)
 
-    emit(streams[1], event('ses-main', 'session.inbox.enqueued', {
-      inboxID = 'msg-local',
-      item = { type = 'user', payload = { text = 'hello' }, delivery = 'queue' },
-    }, 11))
+    emit(
+      streams[1],
+      event('ses-main', 'session.inbox.enqueued', {
+        inboxID = 'msg-local',
+        item = { type = 'user', payload = { text = 'hello' }, delivery = 'queue' },
+      }, 11)
+    )
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 12))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 13))
-    emit(streams[1], event('ses-main', 'session.step.started', {
-      assistantMessageID = 'reply-1', agent = 'build',
-    }, 14))
-    emit(streams[1], event('ses-main', 'session.text.started', {
-      assistantMessageID = 'reply-1', ordinal = 0,
-    }, 15))
-    emit(streams[1], event('ses-main', 'session.text.ended', {
-      assistantMessageID = 'reply-1', ordinal = 0, text = 'local answer = true',
-    }, 16))
-    emit(streams[1], event('ses-main', 'session.step.ended', {
-      assistantMessageID = 'reply-1', finish = 'stop',
-    }, 17))
+    emit(
+      streams[1],
+      event('ses-main', 'session.step.started', {
+        assistantMessageID = 'reply-1',
+        agent = 'build',
+      }, 14)
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.started', {
+        assistantMessageID = 'reply-1',
+        ordinal = 0,
+      }, 15)
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'session.text.ended', {
+        assistantMessageID = 'reply-1',
+        ordinal = 0,
+        text = 'local answer = true',
+      }, 16)
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'session.step.ended', {
+        assistantMessageID = 'reply-1',
+        finish = 'stop',
+      }, 17)
+    )
     emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 18))
 
     local reply = request.promise:wait()
@@ -501,12 +520,151 @@ describe('V2 protocol Observation runtime', function()
     assert.equals('accepted', result.kind)
     assert.equals('msg-local', result.input.id)
     assert.equals('delivered', observed:read().inbox.items_by_id['msg-local'].status)
-    local idle = observed:wait_until_idle():wait()
+    local idle = result.completion:wait()
     assert.equals('session_idle', idle.kind)
     assert.equals('succeeded', idle.outcome)
     assert.equals(14, idle.idle_at)
     assert.is_nil(observed._v2_admissions['msg-local'])
     stop()
+  end)
+
+  it('keeps completion attached to each of two queued submissions', function()
+    local value = connection()
+    local next_id = 0
+    local streams = install_operations(value, {
+      submit = function()
+        next_id = next_id + 1
+        return resolved({ id = 'msg-' .. next_id, delivery = 'queue' })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local first = observed:submit({ text = 'first' }):wait()
+    local second = observed:submit({ text = 'second' }):wait()
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-1' }, 10))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 11))
+    emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 12))
+    assert.equals(12, first.completion:wait().idle_at)
+    assert.is_false(second.completion:is_resolved())
+    assert.equals(observed, value.observations['ses-main'])
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-2' }, 20))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 21))
+    emit(streams[1], event('ses-main', 'session.execution.failed', { error = { message = 'failed' } }, 22))
+    assert.equals('failed', second.completion:wait().outcome)
+    assert.equals('succeeded', first.completion:wait().outcome)
+    assert.same({}, observed._v2_admissions)
+    assert.is_nil(value.observations['ses-main'])
+    assert.is_true(streams[1].handle.stopped)
+  end)
+
+  it('rejects ambiguous delivery even when the HTTP admissions arrive after the terminal', function()
+    local value = connection()
+    local http = { Promise.new(), Promise.new() }
+    local next_id = 0
+    local streams = install_operations(value, {
+      submit = function()
+        next_id = next_id + 1
+        return http[next_id]
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local first = observed:submit({ text = 'first' })
+    local second = observed:submit({ text = 'second' })
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-1' }, 10))
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-2' }, 11))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 12))
+    emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 13))
+    http[1]:resolve({ id = 'msg-1' })
+    http[2]:resolve({ id = 'msg-2' })
+    for _, pending in ipairs({ first, second }) do
+      local accepted = pending:wait()
+      local ok, err = pcall(function()
+        accepted.completion:wait()
+      end)
+      assert.is_false(ok)
+      assert.matches('multiple inputs delivered', tostring(err))
+    end
+    assert.same({}, observed._v2_admissions)
+    assert.is_nil(value.observations['ses-main'])
+  end)
+
+  it('retains each delivery outcome when several executions finish before HTTP returns', function()
+    local value = connection()
+    local http = { Promise.new(), Promise.new() }
+    local next_id = 0
+    local streams = install_operations(value, {
+      submit = function()
+        next_id = next_id + 1
+        return http[next_id]
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local first = observed:submit({ text = 'first' })
+    local second = observed:submit({ text = 'second' })
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-1' }, 10))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 11))
+    emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 12))
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-2' }, 20))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 21))
+    emit(streams[1], event('ses-main', 'session.execution.interrupted', {}, 22))
+    http[2]:resolve({ id = 'msg-2' })
+    local second_result = second:wait().completion:wait()
+    http[1]:resolve({ id = 'msg-1' })
+    local first_result = first:wait().completion:wait()
+    assert.equals('succeeded', first_result.outcome)
+    assert.equals(12, first_result.idle_at)
+    assert.equals('interrupted', second_result.outcome)
+    assert.equals(22, second_result.idle_at)
+    assert.is_nil(value.observations['ses-main'])
+  end)
+
+  it('cancels local waiting without releasing another submission', function()
+    local value = connection()
+    local next_id = 0
+    local streams = install_operations(value, {
+      submit = function()
+        next_id = next_id + 1
+        return resolved({ id = 'msg-' .. next_id })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local first = observed:submit({ text = 'first' }):wait()
+    local second = observed:submit({ text = 'second' }):wait()
+    first.stop('cancelled')
+    first.stop('cancelled again')
+    assert.has_error(function()
+      first.completion:wait()
+    end, 'cancelled')
+    assert.is_false(second.completion:is_resolved())
+    assert.is_nil(observed._v2_admissions['msg-1'])
+    assert.is_not_nil(observed._v2_admissions['msg-2'])
+    assert.is_false(streams[1].handle.stopped)
+    second.stop()
+    assert.equals(0, observed._local_operations)
+    assert.is_nil(value.observations['ses-main'])
+    assert.is_true(streams[1].handle.stopped)
+  end)
+
+  it('releases a cancelled reply admission that arrives after cancellation', function()
+    local value = connection()
+    local http = Promise.new()
+    local streams = install_operations(value, {
+      submit = function()
+        return http
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local request = observed:request_reply({ text = 'hello' })
+    request.stop('cancelled')
+    http:resolve({ id = 'msg-local' })
+    assert.has_error(function()
+      request.promise:wait()
+    end, 'cancelled')
+    flush(function()
+      return observed._local_operations == 0
+    end)
+    assert.same({}, observed._v2_admissions)
+    assert.is_nil(value.observations['ses-main'])
+    assert.is_true(streams[1].handle.stopped)
   end)
 
   it('rejects an active admission waiter when event continuity is lost', function()
@@ -518,10 +676,10 @@ describe('V2 protocol Observation runtime', function()
     })
     local observed = value:observe({ id = 'ses-main' })
     local stop = observed:watch({ 'inbox', 'execution' }, function() end)
-    observed:submit({ text = 'hello' }):wait()
+    local accepted = observed:submit({ text = 'hello' }):wait()
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 10))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 11))
-    local waiting = observed:wait_until_idle()
+    local waiting = accepted.completion
 
     streams[1].disconnect('network lost')
     local ok, err = pcall(function()
@@ -542,7 +700,7 @@ describe('V2 protocol Observation runtime', function()
     })
     local observed = value:observe({ id = 'ses-main' })
     local stop = observed:watch({ 'inbox', 'execution' }, function() end)
-    observed:submit({ text = 'hello' }):wait()
+    local accepted = observed:submit({ text = 'hello' }):wait()
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 10))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 11))
     streams[1].disconnect('network lost')
@@ -552,7 +710,7 @@ describe('V2 protocol Observation runtime', function()
     emit(streams[2], event('ses-main', 'session.execution.succeeded', {}, 12))
 
     local ok, err = pcall(function()
-      observed:wait_until_idle():wait()
+      accepted.completion:wait()
     end)
     assert.is_false(ok)
     assert.matches('admission_unknown', tostring(err))
@@ -585,7 +743,7 @@ describe('V2 protocol Observation runtime', function()
     emit(streams[2], event('ses-main', 'session.execution.succeeded', {}, 12))
 
     local ok, err = pcall(function()
-      observed:wait_until_idle():wait()
+      accepted.completion:wait()
     end)
     assert.is_false(ok)
     assert.matches('admission_unknown', tostring(err))
@@ -602,9 +760,9 @@ describe('V2 protocol Observation runtime', function()
     })
     local observed = value:observe({ id = 'ses-main' })
     observed:watch({ 'inbox', 'execution' }, function() end)
-    observed:submit({ text = 'hello' }):wait()
+    local accepted = observed:submit({ text = 'hello' }):wait()
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 10))
-    local waiting = observed:wait_until_idle()
+    local waiting = accepted.completion
 
     value:close():wait()
     local ok, err = pcall(function()
@@ -615,7 +773,7 @@ describe('V2 protocol Observation runtime', function()
     assert.same({}, value.observations)
   end)
 
-  it('removes each admission record after its successful idle result is consumed', function()
+  it('removes each admission record when its completion settles', function()
     local value = connection()
     local next_id = 0
     local streams = install_operations(value, {
@@ -629,11 +787,11 @@ describe('V2 protocol Observation runtime', function()
 
     for index = 1, 2 do
       local id = 'msg-' .. index
-      observed:submit({ text = id }):wait()
+      local accepted = observed:submit({ text = id }):wait()
       emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = id }, index * 10))
       emit(streams[1], event('ses-main', 'session.execution.started', {}, index * 10 + 1))
       emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, index * 10 + 2))
-      local idle = observed:wait_until_idle():wait()
+      local idle = accepted.completion:wait()
       assert.equals('session_idle', idle.kind)
       assert.equals('succeeded', idle.outcome)
       assert.is_nil(observed._v2_admissions[id])
@@ -663,7 +821,7 @@ describe('V2 protocol Observation runtime', function()
     assert.is_nil(value.observations['ses-main'])
     assert.is_true(streams[1].handle.stopped)
 
-    local idle = observed:wait_until_idle():wait()
+    local idle = accepted.completion:wait()
     assert.equals('session_idle', idle.kind)
     assert.equals('succeeded', idle.outcome)
     assert.is_nil(observed._v2_admissions['msg-local'])
@@ -707,12 +865,12 @@ describe('V2 protocol Observation runtime', function()
     })
     local observed = value:observe({ id = 'ses-main' })
     local stop = observed:watch({ 'inbox', 'execution' }, function() end)
-    observed:submit({ text = 'x' }):wait()
+    local accepted = observed:submit({ text = 'x' }):wait()
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 10))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 11))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 12))
     local ok, err = pcall(function()
-      observed:wait_until_idle():wait()
+      accepted.completion:wait()
     end)
     assert.is_false(ok)
     assert.matches('overlapping execution horizons', tostring(err))

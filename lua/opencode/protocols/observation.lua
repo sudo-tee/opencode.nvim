@@ -162,6 +162,19 @@ function Observation:_begin_local_operation()
   end
 end
 
+---@param operation function
+---@param ... any Operation arguments after the connection
+---@return Promise
+function Observation:_start_action(operation, ...)
+  local finish = self:_begin_local_operation()
+  local ok, request = pcall(operation, self._connection, ...)
+  if not ok then
+    finish()
+    error(request, 0)
+  end
+  return request:finally(finish)
+end
+
 function Observation:_fail_watched(source, message)
   for resource, sync in pairs(self._state.sync) do
     if self:_watches(resource) and sync.state ~= 'unsupported' then

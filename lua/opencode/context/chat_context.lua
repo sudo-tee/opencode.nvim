@@ -283,7 +283,10 @@ function M.unload_attachments(selections)
 end
 
 ---@param sent OpencodeContext
-function M.consume_attachments(sent)
+---@param target? OpencodeContext
+function M.consume_attachments(sent, target)
+  target = target or M.context
+
   local function remove_values(current, consumed)
     local result = {}
     for _, value in ipairs(current or {}) do
@@ -294,12 +297,14 @@ function M.consume_attachments(sent)
     return result
   end
 
-  cleared_selections = vim.deepcopy(sent.selections or {})
-  cleared_selections_context = M.context
-  M.context.mentioned_files = remove_values(M.context.mentioned_files, sent.mentioned_files)
-  M.context.mentioned_subagents = remove_values(M.context.mentioned_subagents, sent.mentioned_subagents)
+  if target == M.context then
+    cleared_selections = vim.deepcopy(sent.selections or {})
+    cleared_selections_context = M.context
+  end
+  target.mentioned_files = remove_values(target.mentioned_files, sent.mentioned_files)
+  target.mentioned_subagents = remove_values(target.mentioned_subagents, sent.mentioned_subagents)
   local remaining = {}
-  for _, selection in ipairs(M.context.selections or {}) do
+  for _, selection in ipairs(target.selections or {}) do
     local consumed = false
     for _, sent_selection in ipairs(sent.selections or {}) do
       consumed = consumed or is_same_selection(selection, sent_selection)
@@ -308,11 +313,13 @@ function M.consume_attachments(sent)
       remaining[#remaining + 1] = selection
     end
   end
-  M.context.selections = remaining
-  if is_same_selection({ file = M.context.current_file, lines = '' }, { file = sent.current_file, lines = '' }) then
-    set_file_sent_timestamps(M.context.current_file)
+  target.selections = remaining
+  if is_same_selection({ file = target.current_file, lines = '' }, { file = sent.current_file, lines = '' }) then
+    set_file_sent_timestamps(target.current_file)
   end
-  state.context.set_context_updated_at(vim.uv.now())
+  if target == M.context then
+    state.context.set_context_updated_at(vim.uv.now())
+  end
 end
 
 function M.get_mentioned_files()

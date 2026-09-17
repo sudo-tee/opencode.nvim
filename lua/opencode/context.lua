@@ -268,8 +268,9 @@ function M.unload_attachments()
 end
 
 ---@param sent OpencodeContext
-function M.consume_attachments(sent)
-  ChatContext.consume_attachments(sent)
+---@param target? OpencodeContext
+function M.consume_attachments(sent, target)
+  ChatContext.consume_attachments(sent, target)
 end
 
 function M.load()

@@ -471,8 +471,8 @@ describe('opencode.services.messaging', function()
     assert.equal(0, count_before)
     assert.equal(1, count_during)
     assert.equal(0, count_after)
-    assert.same({ '/tmp/attached.lua' }, context.get_context().mentioned_files)
-    assert.equals(1, #context.get_context().selections)
+    assert.same({}, context.get_context().mentioned_files)
+    assert.same({}, context.get_context().selections)
 
     state.session.active_observation().submit = orig
     for key, value in pairs(original_context) do
@@ -500,12 +500,17 @@ describe('opencode.services.messaging', function()
     after_run:revert()
   end)
 
-  it('keeps attachments until the submitted prompt succeeds', function()
+  it('clears attachments before submitting the prompt', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })
 
     local original_context = vim.deepcopy(context.get_context())
-    context.get_context().mentioned_files = { '/tmp/attached.lua' }
+    context.get_context().mentioned_files = { '/tmp/attached.lua', '/tmp/pasted_image_123.png' }
+    context.get_context().current_file = {
+      path = '/tmp/current.lua',
+      name = 'current.lua',
+      extension = 'lua',
+    }
     context.get_context().selections = {
       {
         file = { path = '/tmp/attached.lua', name = 'attached.lua', extension = 'lua' },
@@ -523,8 +528,9 @@ describe('opencode.services.messaging', function()
 
     messaging.send_message('hello world'):wait()
 
-    assert.same({ '/tmp/attached.lua' }, observed_context.mentioned_files)
-    assert.equals(1, #observed_context.selections)
+    assert.same({}, observed_context.mentioned_files)
+    assert.same({}, observed_context.selections)
+    assert.is_not_nil(observed_context.current_file.sent_at)
     assert.same({}, context.get_context().mentioned_files)
     assert.same({}, context.get_context().selections)
 

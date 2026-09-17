@@ -117,6 +117,19 @@ M.send_message = Promise.async(function(prompt, opts)
 
   params.system = opts.system or config.default_system_prompt or nil
 
+  if tab_id and session_tabs.active_id() ~= tab_id then
+    local runtime = session_tabs.get(tab_id)
+    if runtime then
+      runtime.context_data = vim.deepcopy(sent_context)
+      context.consume_attachments(sent_context, runtime.context_data)
+    end
+  else
+    context.consume_attachments(sent_context)
+    if tab_id then
+      session_tabs.set_context(context.snapshot())
+    end
+  end
+
   local function update_sent_message_count(num)
     local runtime = tab_id and session_tabs.get(tab_id)
     if tab_id and not runtime then
@@ -205,7 +218,6 @@ function M.after_run(prompt, tab_id, sent_context)
 
     local runtime_context = vim.deepcopy(runtime.context_data or sent_context)
     if runtime_context then
-      context.consume_attachments(runtime_context)
       runtime.context_data = runtime_context
     end
     session_tabs.set_last_sent_context(tab_id, sent_context or runtime_context)
@@ -216,9 +228,8 @@ function M.after_run(prompt, tab_id, sent_context)
   else
     local context_sent = vim.deepcopy(sent_context or context.get_context())
     if not sent_context then
-      context_sent = vim.deepcopy(context.get_context())
+      context.consume_attachments(context_sent)
     end
-    context.consume_attachments(context_sent)
     state.session.set_last_sent_context(context_sent)
     context.delta_context()
   end

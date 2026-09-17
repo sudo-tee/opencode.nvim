@@ -342,7 +342,13 @@ local function prompt_body(input, path_map)
     error('V2 submit requires a model for its variant')
   end
 
-  local context_text = {}
+  -- Editor context travels as named file attachments, never inside the
+  -- visible text: the wire has no metadata-carrying text parts (V1 expressed
+  -- this as synthetic parts with metadata.context_type), and text-embedded
+  -- payloads render as raw JSON to humans. The "editor-context:" name prefix
+  -- lets the reading side map attachments back onto the same contract entry
+  -- V1 produces.
+  local body = { files = {} }
   for _, item in ipairs(input.context) do
     if type(item) ~= 'table' or type(item.text) ~= 'string' or type(item.source) ~= 'table' then
       error('V2 submit received invalid context')
@@ -351,22 +357,20 @@ local function prompt_body(input, path_map)
     if not vim.tbl_contains({ 'selection', 'diagnostics', 'cursor', 'buffer', 'git_diff' }, source.kind) then
       error('V2 submit received invalid context kind')
     end
-    local label = '[context kind=' .. source.kind
+    local name = 'editor-context:' .. source.kind
     if source.file_name ~= nil then
-      label = label .. ' file=' .. tostring(source.file_name)
+      name = name .. ':' .. tostring(source.file_name)
     end
     if source.range ~= nil then
-      label = label .. ' range=' .. tostring(source.range)
+      name = name .. ':' .. tostring(source.range)
     end
-    context_text[#context_text + 1] = label .. ']\n' .. item.text
+    body.files[#body.files + 1] = {
+      uri = 'data:text/plain;base64,' .. vim.base64.encode(item.text),
+      name = name,
+    }
   end
 
-  local prefix = #context_text > 0 and table.concat(context_text, '\n\n') .. '\n\n' or ''
-  local text = prefix .. input.text
-  local prefix_units = util.utf16_index_from_byte(prefix, #prefix)
-  if not prefix_units then
-    error('V2 submit received non-UTF-8 context text', 0)
-  end
+  local text = input.text
   local function mention(value)
     if value == nil then
       return nil
@@ -394,15 +398,17 @@ local function prompt_body(input, path_map)
       error('V2 submit mention must use UTF-8 codepoint boundaries')
     end
     return {
-      start = prefix_units + start,
-      ['end'] = prefix_units + finish,
+      start = start,
+      ['end'] = finish,
       text = input.text:sub(value.start_byte + 1, value.end_byte),
     }
   end
 
-  local body = { text = text }
+  if #body.files == 0 then
+    body.files = nil
+  end
+  body.text = text
   if #input.files > 0 then
-    body.files = {}
     for _, file in ipairs(input.files) do
       if
         type(file) ~= 'table'

@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local shared_decode_editor_context = require('opencode.protocols.observation').decode_editor_context
 
 local function fail(message)
   error('V2 observation: ' .. message, 0)
@@ -262,8 +263,26 @@ local function mapped_message(session_id, info)
       fail('invalid user message')
     end
     entry.content[#entry.content + 1] = { kind = 'text', text = info.text }
+    local attachment_index = 0
     for _, file in ipairs(info.files or {}) do
-      entry.content[#entry.content + 1] = mapped_file(file, info.text)
+      attachment_index = attachment_index + 1
+      local context_name = type(file.name) == 'string' and file.name:match('^editor%-context:(%a+)') or nil
+      if context_name then
+        -- our own editor-context attachments come back as files; map them onto
+        -- the same contract entry V1 produces from its synthetic parts
+        local context_entry, decode_err =
+          shared_decode_editor_context(context_name, vim.base64.decode(file.data), file.name, true, file.ignored)
+        if decode_err then
+          fail(decode_err)
+        end
+        if not context_entry then
+          fail('invalid ' .. tostring(context_name) .. ' editor context attachment')
+        end
+        context_entry.id = file.name .. '#' .. attachment_index
+        entry.content[#entry.content + 1] = context_entry
+      else
+        entry.content[#entry.content + 1] = mapped_file(file, info.text)
+      end
     end
     for _, agent in ipairs(info.agents or {}) do
       if type(agent) ~= 'table' or type(agent.name) ~= 'string' then

@@ -475,27 +475,16 @@ local function invalidate_text_references()
   end
 end
 
----Adopt an observation's state as the displayed session state. Metadata and the
----restored model follow the displayed root only, and only from a current snapshot.
+---Read the current conversation for display.
 ---@param observation table
----@param is_root_change boolean The changed observation is the displayed root
 ---@return table session
 ---@return table[] entries
-local function adopt_session_state(observation, is_root_change)
+local function read_conversation(observation)
   local observed = observation:read()
   local sync = observed.sync or {}
   local synced_session = sync.session and sync.session.state == 'current' and observed.session or nil
-  if is_root_change and synced_session then
-    state.session.update_active_metadata(synced_session)
-  end
   local entries = ordered_entries(observation)
   ctx.entries = entries
-  local session_id = synced_session and synced_session.id
-  local messages_current = sync.messages and sync.messages.state == 'current'
-  if is_root_change and session_id and messages_current and ctx.model_restored_session_id ~= session_id then
-    ctx.model_restored_session_id = session_id
-    require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
-  end
   update_observation_stats(observation)
   return synced_session or { id = state.active_session and state.active_session.id }, entries
 end
@@ -596,7 +585,7 @@ local function reconcile_observation(observation, resources)
   if affected.conversation or affected.prompts or files_changed then
     local initial_render = false
     if affected.conversation then
-      local session, entries = adopt_session_state(root, observation == root)
+      local session, entries = read_conversation(root)
       initial_render = reconcile_conversation(session, entries, files_changed)
     elseif files_changed then
       invalidate_text_references()

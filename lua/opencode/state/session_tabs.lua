@@ -40,6 +40,7 @@ local store = require('opencode.state.store')
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field context_data OpencodeContext|nil
 ---@field renderer_context table|nil Renderer caches associated with the preserved output buffer
+---@field model_restored_session_id string|nil Session whose saved model has been adopted
 ---@field renderer_dirty boolean Cached renderer missed background session events
 ---@field background_notifications table<string, boolean> Notifications emitted for pending background prompts
 

@@ -13,6 +13,97 @@ local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 
+local active_binding
+
+local function release_active_observation()
+  local previous = active_binding
+  active_binding = nil
+  if previous and previous.unsubscribe then
+    previous.unsubscribe()
+  end
+end
+
+local function observe_active_session()
+  local observation = state.session.active_observation()
+  local runtime = session_tabs.current()
+  if active_binding and active_binding.observation == observation and active_binding.runtime == runtime then
+    return
+  end
+  release_active_observation()
+  -- Releasing the last watcher can remove the observation from the connection.
+  observation = state.session.active_observation()
+  if not observation then
+    return
+  end
+
+  local binding = { observation = observation, runtime = runtime }
+  active_binding = binding
+  local session_id = observation:read().session.id
+  local connection = state.opencode_server
+  local tab_id = state.active_session_tab
+  local function is_current()
+    return active_binding == binding
+      and state.opencode_server == connection
+      and connection:is_ready()
+      and state.active_session_tab == tab_id
+      and state.active_session ~= nil
+      and state.active_session.id == session_id
+  end
+  local function changed()
+    if not is_current() then
+      return
+    end
+    local observed = observation:read()
+    local sync = observed.sync or {}
+    if not (sync.session and sync.session.state == 'current') then
+      return
+    end
+    state.session.update_active_metadata(observed.session)
+    local owner = runtime or binding
+    if
+      sync.messages
+      and sync.messages.state == 'current'
+      and not binding.restoring_model
+      and owner.model_restored_session_id ~= session_id
+    then
+      binding.restoring_model = true
+      agent_model
+        .initialize_current_model({ restore_from_messages = true, is_current = is_current })
+        :and_then(function()
+          if is_current() then
+            owner.model_restored_session_id = session_id
+          end
+        end)
+        :catch(function(err)
+          log.debug('Failed to restore session model', { session_id = session_id, error = err })
+        end)
+        :finally(function()
+          binding.restoring_model = false
+        end)
+    end
+  end
+  binding.unsubscribe = observation:watch({ 'session', 'messages' }, changed)
+  changed()
+end
+
+---Keep active-session metadata and model selection current independently of rendering.
+---Disabling releases the observation; enabling also adopts already-loaded facts.
+---@param subscribe? boolean Defaults to true
+function M.setup_subscriptions(subscribe)
+  for _, key in ipairs({ 'active_session', 'active_session_tab', 'opencode_server' }) do
+    if subscribe == false then
+      state.store.unsubscribe(key, observe_active_session)
+    else
+      state.store.subscribe(key, observe_active_session)
+    end
+  end
+  if subscribe == false then
+    release_active_observation()
+  else
+    observe_active_session()
+  end
+end
+
 local function current_location()
   return { directory = state.current_cwd or vim.fn.getcwd() }
 end

@@ -174,11 +174,18 @@ end)
 
 ---@class InitializeCurrentModelOpts
 ---@field restore_from_messages? boolean Restore model/mode from the most recent session message
+---@field is_current? fun(): boolean Prevent writes after the requesting session is detached
 
 ---@param opts? InitializeCurrentModelOpts
 ---@return string|nil The current model
 M.initialize_current_model = Promise.async(function(opts)
   opts = opts or {}
+  local function is_current()
+    return not opts.is_current or opts.is_current()
+  end
+  if not is_current() then
+    return
+  end
 
   local observation = state.session.active_observation()
   local observed = observation and observation:read() or nil
@@ -193,18 +200,22 @@ M.initialize_current_model = Promise.async(function(opts)
       local entry = observed.entries_by_id[order[i]]
       if entry and entry.model and entry.model.modelID and entry.model.providerID then
         local model_str = entry.model.providerID .. '/' .. entry.model.modelID
-        if state.current_model ~= model_str then
-          state.model.set_model(model_str)
-        end
+        local should_restore_mode = false
         if entry.agent and state.current_mode ~= entry.agent then
-          local should_restore_mode = is_child
+          should_restore_mode = is_child
           if not should_restore_mode then
             local available_agents = config_file.get_opencode_agents():await()
             should_restore_mode = vim.tbl_contains(available_agents, entry.agent)
           end
-          if should_restore_mode then
-            state.model.set_mode(entry.agent)
-          end
+        end
+        if not is_current() then
+          return
+        end
+        if state.current_model ~= model_str then
+          state.model.set_model(model_str)
+        end
+        if should_restore_mode then
+          state.model.set_mode(entry.agent)
         end
         return state.current_model
       end
@@ -216,10 +227,16 @@ M.initialize_current_model = Promise.async(function(opts)
   end
 
   local cfg = config_file.get_opencode_config():await()
+  if not is_current() then
+    return
+  end
   if cfg and cfg.model and cfg.model ~= '' then
     state.model.set_model(cfg.model)
   else
     local catalog = config_file.get_opencode_providers():await()
+    if not is_current() then
+      return
+    end
     local providers = vim.tbl_keys(catalog and catalog.default or {})
     table.sort(providers)
     local provider = providers[1]

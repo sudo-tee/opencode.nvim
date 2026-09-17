@@ -3,7 +3,7 @@
 ## The proposition
 
 One writable fact store per session — the Observation. Protocol adapters are
-the only writers; the presentation layer is the only reader. Everything below
+the only writers; session coordination and presentation read it. Everything below
 follows from this: the layer shape, the contract at the read/write line,
 where protocol differences die, and how far the current code is from it.
 
@@ -48,6 +48,12 @@ measured distance is in the last section. The old middle layer
 Session tabs (logical tabs per session, from upstream) keep one renderer
 context per tab and re-attach through the Observation path, not a parallel
 event scope.
+
+`services/session_runtime` watches the active session's metadata and messages.
+It adopts the title/location into tab state and restores the model once per
+session in that tab. Renderer reconciliation only reads these facts for display;
+resetting its caches does not reset model selection. A detached session cannot
+finish restoring its model into the newly active tab.
 
 ## The contract
 
@@ -98,12 +104,12 @@ The same store/reader split names the boundary still missing in the middle:
 Domain (services) and Presentation (ui) form one tangled layer today. The
 `dependency-topology` scanner measures the distance:
 
-- one 40-module strongly-connected component spanning entry to ui, glued
+- one 42-module strongly-connected component spanning entry to ui, glued
   mainly by services calling ui containers (`session_runtime`,
   `agent_model` → `ui.ui`, `input_window`)
 - 8 policy violations (windows bind keymaps, pickers call `api` directly,
   `ui.ui` wires autocmds and contextual actions)
-- 3 two-module cycles, each one edge away from acyclic
+- one additional two-module cycle (`image_handler` / `ui.mention`)
 
 Convergence is incremental, not a rewrite: mechanical violation fixes first,
 then the Domain/Presentation split as three local decisions (orchestration

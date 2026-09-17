@@ -59,7 +59,6 @@ local ctx = {
   part_folds = {},
   ---@type integer|nil Number of messages to render from the end (nil = all)
   lazy_render_count = nil,
-  model_restored_session_id = nil, ---@type string|nil
   generation = 0,
   file_revision = 0,
   ---@type fun(session_id: string): table[]?
@@ -82,7 +81,6 @@ local CONTEXT_KEYS = {
   'global_folds',
   'part_folds',
   'lazy_render_count',
-  'model_restored_session_id',
 }
 
 ---Reset all renderer caches and pending state.
@@ -115,7 +113,6 @@ function ctx:reset()
   self.part_folds = {}
   self.entries = {}
   self.file_revision = 0
-  self.model_restored_session_id = nil
   self:bulk_reset()
 end
 

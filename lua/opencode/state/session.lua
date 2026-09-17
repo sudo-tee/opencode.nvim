@@ -22,6 +22,7 @@ function M.set_active(session)
   if previous_id ~= (ref and ref.id or nil) then
     local runtime = session_tabs.current()
     if runtime then
+      runtime.model_restored_session_id = nil
       session_tabs.clear_pending_prompts(runtime.id)
     end
   end
@@ -72,6 +73,7 @@ function M.clear_active()
   if store.get('active_session') then
     local runtime = session_tabs.current()
     if runtime then
+      runtime.model_restored_session_id = nil
       session_tabs.clear_pending_prompts(runtime.id)
     end
   end

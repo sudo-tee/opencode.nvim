@@ -670,6 +670,7 @@ reconcile_observation = function(observation, resource)
   flush.flush({ resolve_symbol_targets = initial_render })
   if initial_render then
     flush.end_bulk_mode()
+    M.scroll_to_bottom(true)
   end
 end
 
@@ -752,10 +753,7 @@ end
 ---@return boolean Whether a page load was started
 local function grow_window_with_older_page()
   local observation = ctx.observation
-  if
-    not observation
-    or type(observation.load_older) ~= 'function'
-  then
+  if not observation or type(observation.load_older) ~= 'function' then
     return false
   end
   local window_before = window_size()
@@ -789,10 +787,7 @@ end
 ---@return boolean Whether a history load was started
 local function load_complete_history_to_top()
   local observation = ctx.observation
-  if
-    not observation
-    or type(observation.load_complete_history) ~= 'function'
-  then
+  if not observation or type(observation.load_complete_history) ~= 'function' then
     return false
   end
   local win = state.windows and state.windows.output_win
@@ -1145,6 +1140,7 @@ local function refresh_tab(tab_id, runtime)
   end
   refresh:and_then(function(session_data)
     if session_data and state.active_session_tab == tab_id then
+      M.scroll_to_bottom(true)
       if runtime then
         runtime.renderer_dirty = false
       end
@@ -1179,6 +1175,7 @@ function M.on_session_tab_changed(_, new, old)
   M.refresh_prompts()
 
   if restored and not (runtime and runtime.renderer_dirty) then
+    M.scroll_to_bottom(true)
     if ctx:has_pending_work() and output_window.mounted() then
       flush.schedule()
     end

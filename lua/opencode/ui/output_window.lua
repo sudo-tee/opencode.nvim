@@ -148,6 +148,12 @@ function M.is_at_bottom(win)
 
   local prev_line_count = M._prev_line_count_by_win[win] or line_count
   local prev_effective_bottom = M.get_scroll_bottom_line(state.windows.output_buf, prev_line_count)
+  -- buffer writes are suppressing WinScrolled autocmds.
+  local visible_bottom = M.get_visible_bottom_line(win)
+  M._last_visible_bottom_by_win[win] = visible_bottom
+  if visible_bottom and visible_bottom < prev_effective_bottom then
+    return false
+  end
   return cursor[1] >= prev_effective_bottom or cursor[1] >= effective_bottom
 end
 
@@ -793,9 +799,7 @@ function M.setup_autocmds(windows, group)
 
     if renderer.load_more_messages() then
       renderer.restore_top_anchor(anchor)
-      return
     end
-    pcall(vim.api.nvim_win_set_cursor, windows.output_win, { 1, 0 })
   end, 150)
 
   vim.api.nvim_create_autocmd('WinScrolled', {

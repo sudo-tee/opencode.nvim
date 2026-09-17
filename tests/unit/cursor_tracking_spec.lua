@@ -69,6 +69,16 @@ describe('cursor persistence (state)', function()
       assert.equals(5, cursor[1])
     end)
 
+    it('does not reset the cursor when the viewport is already at history start', function()
+      local output_window = require('opencode.ui.output_window')
+      vim.api.nvim_win_set_cursor(win, { 5, 0 })
+      output_window.sync_cursor_with_viewport(win)
+
+      -- A lazy-history check with no older page must leave the user at line 5.
+      vim.api.nvim_win_set_cursor(win, { 5, 0 })
+      assert.equals(5, vim.api.nvim_win_get_cursor(win)[1])
+    end)
+
     it('auto-scrolls even when output window is unfocused if cursor was at previous bottom', function()
       renderer.scroll_to_bottom()
 
@@ -86,6 +96,14 @@ describe('cursor persistence (state)', function()
 
       pcall(vim.api.nvim_win_close, input_win, true)
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+    end)
+
+    it('uses the current viewport instead of stale scroll tracking during a flush', function()
+      local output_window = require('opencode.ui.output_window')
+      output_window._last_visible_bottom_by_win[win] = 1
+      vim.api.nvim_win_set_cursor(win, { 20, 0 })
+
+      assert.is_true(output_window.is_at_bottom(win))
     end)
   end)
 

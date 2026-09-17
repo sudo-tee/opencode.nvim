@@ -103,6 +103,7 @@ function M.scroll_win_to_bottom(win, buf)
   end
   local visible_bottom = output_window.get_visible_bottom_line(win)
   vim.api.nvim_win_set_cursor(win, { target_line, #target_text })
+  state.ui.set_cursor_position('output', { target_line, #target_text })
 
   local needs_bottom_align = not visible_bottom or target_line > visible_bottom
   if not needs_bottom_align and window_wraps(win) then

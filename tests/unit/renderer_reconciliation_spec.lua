@@ -9,7 +9,7 @@ local stub = require('luassert.stub')
 local spy = require('luassert.spy')
 
 describe('renderer incremental reconciliation', function()
-  local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages, throttle_ms, collapsing, defer_stub, files_stub, model_stub
+  local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages, throttle_ms, collapsing, defer_stub, files_stub
 
   local function notify(resource)
     changed(observation, resource)
@@ -24,7 +24,6 @@ describe('renderer incremental reconciliation', function()
 
   before_each(function()
     helpers.replay_setup()
-    model_stub = stub(require('opencode.services.agent_model'), 'initialize_current_model')
     max_messages = config.ui.output.max_messages
     throttle_ms = config.ui.output.rendering.event_throttle_ms
     collapsing = config.ui.output.rendering.event_collapsing
@@ -80,7 +79,6 @@ describe('renderer incremental reconciliation', function()
     config.ui.output.rendering.event_collapsing = collapsing
     if defer_stub then defer_stub:revert(); defer_stub = nil end
     if files_stub then files_stub:revert(); files_stub = nil end
-    model_stub:revert()
     writes:revert()
     markdown:revert()
     dirty_part:revert()
@@ -127,17 +125,6 @@ describe('renderer incremental reconciliation', function()
     assert.is_false(ctx.bulk_mode)
     notify('messages')
     assert.spy(writes).was_called(1)
-  end)
-
-  it('promotes an observed session title into active and tab state', function()
-    local active_tab = require('opencode.state.session_tabs').ensure_current()
-    state.session.update_active_metadata({ id = 'ses_incremental', title = '' })
-    observed.session.title = 'Generated title'
-
-    notify('session')
-
-    assert.equals('Generated title', state.active_session.title)
-    assert.equals('Generated title', active_tab.active_session.title)
   end)
 
   it('keeps the hidden-history notice above messages in the initial batch', function()

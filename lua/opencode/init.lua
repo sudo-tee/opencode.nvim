@@ -26,10 +26,10 @@ function M.setup(opts)
 
   state = require('opencode.state')
   state.session_tabs.setup()
+  session_runtime.setup_subscriptions()
   state.store.subscribe('opencode_server', on_opencode_server)
   state.store.subscribe('user_message_count', session_runtime._on_user_message_count_change)
   state.store.subscribe('pending_permissions', session_runtime._on_current_permission_change)
-  state.store.subscribe('current_model', on_current_model_change)
 
   vim.schedule(function()
     session_runtime.opencode_ok()

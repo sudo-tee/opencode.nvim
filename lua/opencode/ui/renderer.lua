@@ -674,7 +674,6 @@ function M.restore_top_anchor(anchor)
   local rendered = ctx.render_state:get_message(anchor.id)
   if rendered and rendered.line_start then
     local restored = math.max(1, rendered.line_start + anchor.offset)
-    pcall(vim.api.nvim_win_set_cursor, win, { restored, 0 })
     pcall(output_window.restore_view_topline, win, restored)
   end
 end

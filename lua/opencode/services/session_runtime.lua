@@ -542,6 +542,7 @@ end
 ---@param opts? { count_abort?: boolean }
 M.cancel = Promise.async(function(session_id, tab_id, opts)
   local target_runtime = tab_id and session_tabs.get(tab_id) or session_tabs.current()
+  local target_session = target_runtime and target_runtime.active_session or (not tab_id and state.active_session)
   local observation = session_id and state.opencode_server and state.opencode_server:observe({ id = session_id })
     or state.session.active_observation()
 

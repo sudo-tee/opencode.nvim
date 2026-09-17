@@ -354,3 +354,45 @@ describe('V2 protocol Observation interpretation', function()
     assert.matches('no assistant message', observed:read().sync.messages.error.message)
   end)
 end)
+
+describe('V2 protocol editor-context attachments', function()
+  it('maps editor-context file attachments onto the shared contract entry instead of plain files', function()
+    local observed = observation('ses-target')
+    local payload =
+      vim.base64.encode(vim.json.encode({ context_type = 'selection', file = { name = 'test.py' }, content = 'selected code', lines = '1-2' }))
+    observation_module.ingest_snapshot(observed, {
+      {
+        id = 'msg-user',
+        type = 'user',
+        time = { created = 100 },
+        text = 'review this',
+        files = {
+          {
+            data = payload,
+            mime = 'text/plain',
+            source = { type = 'inline' },
+            name = 'editor-context:selection:test.py:1-2',
+          },
+          { data = 'YQ==', mime = 'text/plain', source = { type = 'inline' }, name = 'plain-note.txt' },
+        },
+        agents = {},
+        skills = {},
+      },
+    })
+    local state = observed:read()
+    local entry = state.entries_by_id['msg-user']
+    local kinds = {}
+    for _, content in ipairs(entry.content) do
+      kinds[#kinds + 1] = content.kind
+    end
+    assert.same({ 'text', 'editor_context', 'file' }, kinds)
+
+    local context_entry = entry.content[2]
+    assert.same('editor_context', context_entry.kind)
+    assert.is_true(context_entry.synthetic)
+    assert.same('selection', context_entry.source.kind)
+    assert.same('test.py', context_entry.source.file_name)
+    assert.same('1-2', context_entry.source.range)
+    assert.same('selected code', context_entry.text)
+  end)
+end)

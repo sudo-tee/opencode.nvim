@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local shared_decode_editor_context = require('opencode.protocols.observation').decode_editor_context
 
 local function fail(message)
   error('V1 observation: ' .. message, 0)
@@ -53,72 +54,16 @@ local function context_content(part)
   if context_type == nil then
     return nil
   end
-
-  local base = { id = part.id, kind = 'editor_context', synthetic = part.synthetic, ignored = part.ignored }
-  if context_type == 'file-content' then
-    base.source = { kind = 'buffer', file_name = metadata.filename, media_type = metadata.mime }
-    base.text = part.text
-    return base
-  end
-  if context_type == 'git-diff' then
-    base.source = { kind = 'git_diff' }
-    base.text = part.text
-    return base
-  end
-  if context_type ~= 'selection' and context_type ~= 'diagnostics' and context_type ~= 'cursor-data' then
-    return nil, 'unsupported editor context type: ' .. tostring(context_type)
-  end
-
-  local ok, decoded = pcall(vim.json.decode, part.text)
-  if not ok or type(decoded) ~= 'table' or decoded.context_type ~= context_type then
-    return nil, 'invalid ' .. context_type .. ' editor context JSON'
-  end
-  local file_name = type(decoded.file) == 'table' and (decoded.file.name or decoded.file.path) or nil
-  if context_type == 'selection' then
-    if type(decoded.content) ~= 'string' or (decoded.lines ~= nil and type(decoded.lines) ~= 'string') then
-      return nil, 'invalid selection editor context'
+  if context_type == 'file-content' and type(metadata.mime) == 'string' then
+    -- V1 carries the buffer media type in part metadata
+    local entry, err = shared_decode_editor_context(context_type, part.text, part.id, part.synthetic, part.ignored)
+    if not entry then
+      return entry, err
     end
-    base.source = { kind = 'selection', file_name = file_name, range = decoded.lines }
-    base.text = decoded.content
-    return base
+    entry.source.media_type = metadata.mime
+    return entry
   end
-  if context_type == 'diagnostics' then
-    if type(decoded.content) ~= 'table' then
-      return nil, 'invalid diagnostics editor context'
-    end
-    local diagnostics = {}
-    for _, item in ipairs(decoded.content) do
-      if
-        type(item) ~= 'table'
-        or type(item.msg) ~= 'string'
-        or type(item.severity) ~= 'number'
-        or type(item.pos) ~= 'string'
-      then
-        return nil, 'invalid diagnostics editor context'
-      end
-      diagnostics[#diagnostics + 1] = { message = item.msg, severity = item.severity, position = item.pos }
-    end
-    base.source = { kind = 'diagnostics', file_name = file_name }
-    base.diagnostics = diagnostics
-    return base
-  end
-
-  if
-    type(decoded.line) ~= 'number'
-    or type(decoded.column) ~= 'number'
-    or type(decoded.line_content) ~= 'string'
-    or (decoded.lines_before ~= nil and type(decoded.lines_before) ~= 'table')
-    or (decoded.lines_after ~= nil and type(decoded.lines_after) ~= 'table')
-  then
-    return nil, 'invalid cursor editor context'
-  end
-  base.source = { kind = 'cursor', file_name = file_name }
-  base.line = decoded.line
-  base.column = decoded.column
-  base.line_content = decoded.line_content
-  base.lines_before = vim.deepcopy(decoded.lines_before)
-  base.lines_after = vim.deepcopy(decoded.lines_after)
-  return base
+  return shared_decode_editor_context(context_type, part.text, part.id, part.synthetic, part.ignored)
 end
 
 local utf16_length = util.utf16_length

@@ -211,12 +211,16 @@ describe('V2 protocol operations', function()
     )
     assert.equals('/api/session/ses-1/prompt', calls[6].request.path)
     assert.same({
-      text = '[context kind=selection file=main.lua range=1-2]\nselected\n\nhello @main.lua',
+      text = 'hello @main.lua',
       files = {
+        {
+          uri = 'data:text/plain;base64,c2VsZWN0ZWQ=',
+          name = 'editor-context:selection:main.lua:1-2',
+        },
         {
           uri = 'file:///server/project/main.lua',
           name = 'main.lua',
-          mention = { start = 65, ['end'] = 74, text = '@main.lua' },
+          mention = { start = 6, ['end'] = 15, text = '@main.lua' },
         },
       },
     }, vim.json.decode(calls[6].request.body))

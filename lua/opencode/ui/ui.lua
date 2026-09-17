@@ -587,19 +587,10 @@ function M.render_output_from_cache()
   renderer.render_from_cache()
 end
 
----Force a full rerender of the output buffer. Should be done synchronously if
----called before submitting input or doing something that might generate events
----from opencode
----@param synchronous? boolean If true, waits until session is fully rendered
----@param opts? {force_scroll?: boolean}
----@return Promise<table[]> | table[] | nil
-function M.render_output(synchronous, opts)
-  local ret = renderer.render_full_session(opts)
-
-  if ret and synchronous then
-    ret:wait()
-  end
-  return ret
+---Render the current observation synchronously without a server round-trip.
+---@return boolean rendered
+function M.render_output()
+  return renderer.render_full_session()
 end
 
 ---@param lines string[]

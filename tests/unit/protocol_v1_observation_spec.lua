@@ -27,6 +27,31 @@ local function content_by_id(entry, id)
 end
 
 describe('V1 protocol Observation interpretation', function()
+  it('validates a complete snapshot before replacing existing entries', function()
+    local observed = observation(fixture().sessionID)
+    local message = fixture().snapshot[2]
+    observation_module.ingest_snapshot(observed, { message })
+    local state = observed:read()
+    local entry = state.entries_by_id['msg-assistant']
+    local previous = vim.deepcopy(entry)
+    local replacement = vim.deepcopy(message)
+    replacement.info.cost = 99
+    assert.has_error(function()
+      observation_module.ingest_snapshot(observed, { replacement, vim.deepcopy(replacement) })
+    end)
+    assert.equals(entry, state.entries_by_id['msg-assistant'])
+    assert.same(previous, entry)
+    assert.same({ 'msg-assistant' }, state.entry_order)
+    assert.has_error(function()
+      observation_module.ingest_snapshot(observed, { replacement, { info = {} } })
+    end)
+    assert.same(previous, entry)
+    assert.same({ 'msg-assistant' }, state.entry_order)
+    observation_module.ingest_snapshot(observed, { replacement })
+    assert.equals(entry, state.entries_by_id['msg-assistant'])
+    assert.equals(99, entry.cost)
+  end)
+
   it('projects fixed WithParts snapshots into ordered Entry and Content facts', function()
     local contract = fixture()
     local observed = observation(contract.sessionID)

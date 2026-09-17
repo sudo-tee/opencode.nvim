@@ -139,6 +139,112 @@ describe('protocol Observation lifecycle', function()
   end)
 
   for _, protocol in ipairs({ 'v1', 'v2' }) do
+    it('keeps ' .. protocol .. ' snapshot errors separate from watcher failures', function()
+      local connection = ready_connection(protocol)
+      local observed = connection:observe({ id = 'ses-watcher-error', location = { directory = '/project' } })
+      local pending, notifications = Promise.new(), 0
+      connection.operations.list_messages = function()
+        return pending
+      end
+      local stop = observed:watch({ 'messages' }, function(current, resource)
+        notifications = notifications + 1
+        if current:read().sync[resource].state == 'current' then
+          error('watcher failed', 0)
+        end
+      end)
+      pending:resolve(protocol == 'v1' and {} or { data = {}, cursor = {} })
+      assert.is_true(vim.wait(500, function()
+        return notifications == 2
+      end))
+      vim.wait(20)
+      assert.equals('current', observed:read().sync.messages.state)
+      assert.is_nil(observed:read().sync.messages.error)
+      assert.equals(2, notifications)
+      stop()
+    end)
+
+    it('does not start a ' .. protocol .. ' read after a loading watcher closes the connection', function()
+      local connection = ready_connection(protocol)
+      local observed = connection:observe({ id = 'ses-loading-close', location = { directory = '/project' } })
+      local reads = 0
+      connection.operations.list_messages = function()
+        reads = reads + 1
+        return Promise.new()
+      end
+      observed:watch({ 'messages' }, function(current, resource)
+        if current:read().sync[resource].state == 'loading' then
+          connection:close()
+        end
+      end)
+      assert.equals(0, reads)
+      assert.is_false(observed:_is_current())
+    end)
+
+    it('does not start a ' .. protocol .. ' read after replacement during loading', function()
+      local connection = ready_connection(protocol)
+      local ref = { id = 'ses-loading-replace', location = { directory = '/project' } }
+      local observed = connection:observe(ref)
+      local reads, replacement = 0, nil
+      connection.operations.list_messages = function()
+        reads = reads + 1
+        return Promise.new()
+      end
+      observed:watch({ 'messages' }, function()
+        connection.observations[ref.id] = nil
+        replacement = connection:observe(ref)
+      end)
+      assert.equals(0, reads)
+      assert.equals(replacement, connection.observations[ref.id])
+      observed:_start_resource('messages')
+      assert.equals(0, reads)
+      connection:close():wait()
+    end)
+  end
+
+  for _, protocol in ipairs({ 'v1', 'v2' }) do
+    for _, outcome in ipairs({ 'resolve', 'reject' }) do
+      it('ignores a late ' .. protocol .. ' ' .. outcome .. ' after rewatching the same resource', function()
+        local connection = ready_connection(protocol)
+        local observation = connection:observe({ id = 'ses-rewatch', location = { directory = '/project' } })
+        local requests = {}
+        connection.operations = vim.tbl_extend('force', connection.operations, {
+          list_messages = function()
+            local request = Promise.new()
+            requests[#requests + 1] = request
+            return request
+          end,
+        })
+        local keep_alive = observation:watch({ 'files' }, function() end)
+        local stop = observation:watch({ 'messages' }, function() end)
+        local also_stop = observation:watch({ 'messages' }, function() end)
+        assert.equals(1, #requests)
+        stop()
+        also_stop()
+        assert.equals('unread', observation:read().sync.messages.state)
+
+        stop = observation:watch({ 'messages' }, function() end)
+        assert.equals(2, #requests)
+        local snapshot = protocol == 'v1' and {} or { data = {}, cursor = {} }
+        if outcome == 'resolve' then
+          requests[1]:resolve(snapshot)
+        else
+          requests[1]:reject('old request failed')
+        end
+        vim.wait(20)
+        assert.equals('loading', observation:read().sync.messages.state)
+        assert.equals(2, #requests)
+
+        requests[2]:resolve(snapshot)
+        assert.is_true(vim.wait(500, function()
+          return observation:read().sync.messages.state == 'current'
+        end))
+        stop()
+        keep_alive()
+      end)
+    end
+  end
+
+  for _, protocol in ipairs({ 'v1', 'v2' }) do
     for _, outcome in ipairs({ 'resolve', 'reject', 'throw' }) do
       it('releases ' .. protocol .. ' actions after ' .. outcome .. ' without releasing a replacement', function()
         local connection = ready_connection(protocol)

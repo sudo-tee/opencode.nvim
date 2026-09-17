@@ -11,9 +11,36 @@ local resource_names = {
   files = true,
 }
 
+---@alias OpencodeObservedResource 'session'|'children'|'messages'|'inbox'|'execution'|'permissions'|'questions'|'files'
+
+---Adapters interpret native payloads; the shared lifecycle owns requests and publication.
+---@class OpencodeObservationRuntime
+---@field name string
+---@field request_resource fun(observation: OpencodeObservation, resource: OpencodeObservedResource): Promise
+---@field apply_resource fun(observation: OpencodeObservation, resource: OpencodeObservedResource, value: any) Validate and commit a snapshot; must not publish it
+---@field route_event fun(connection: table, event: table) Commit native event data, then call _event_changed for affected resources
+---@field refresh_after_event fun(resource: OpencodeObservedResource, sync: table): boolean Whether published events leave the resource needing a fresh snapshot
+---@field find_reply fun(observation: OpencodeObservation, input_id: string): table|nil
+---@field local_resource? fun(resource: OpencodeObservedResource): boolean
+---@field stream_resource? fun(resource: OpencodeObservedResource): boolean
+---@field operations_need_stream? boolean Defaults to true
+---@field on_release_resource? fun(observation: OpencodeObservation, resource: OpencodeObservedResource)
+---@field on_unused? fun(observation: OpencodeObservation)
+---@field on_stream_error? fun(observation: OpencodeObservation, message: string)
+---@field on_close? fun(observation: OpencodeObservation)
+
+---@class OpencodeObservation
+---@field _connection table
+---@field _session_id string
+---@field _session_ref table
+---@field _state table Mutable normalized state, owned by this observation
+---@field _runtime OpencodeObservationRuntime
+---@field _watchers table<table, boolean>
+---@field _local_operations integer Operations retain the observation even without watchers
+---@field _loading table<OpencodeObservedResource, {revision: integer}> One active snapshot token per resource
+---@field _event_revisions table<OpencodeObservedResource, integer>
 local Observation = {}
 Observation.__index = Observation
-
 
 --- Decode an editor-context payload (selection / diagnostics / cursor-data /
 --- file-content / git-diff) into the protocol-neutral contract entry.
@@ -41,11 +68,7 @@ function M.decode_editor_context(context_type, text, part_id, synthetic, ignored
     base.text = text
     return base
   end
-  if
-    context_type ~= 'selection'
-    and context_type ~= 'diagnostics'
-    and context_type ~= 'cursor-data'
-  then
+  if context_type ~= 'selection' and context_type ~= 'diagnostics' and context_type ~= 'cursor-data' then
     return nil, 'unsupported editor context type: ' .. tostring(context_type)
   end
 
@@ -116,6 +139,34 @@ function M.sync_error(source, err)
   }
 end
 
+---Empty state per resource. A new state seeds itself from these and releasing a
+---resource restores them, so the two cannot drift apart. `session` is absent: its
+---empty value is the observation's own session reference.
+---@type table<OpencodeObservedResource, fun(state: table)>
+local clear_state = {
+  children = function(state)
+    state.children = { by_id = {}, order = {} }
+  end,
+  messages = function(state)
+    state.entries_by_id, state.entry_order = {}, {}
+  end,
+  inbox = function(state)
+    state.inbox = { items_by_id = {}, order = {} }
+  end,
+  execution = function(state)
+    state.execution = { activity = 'unknown' }
+  end,
+  permissions = function(state)
+    state.permission_requests_by_id = {}
+  end,
+  questions = function(state)
+    state.question_requests_by_id = {}
+  end,
+  files = function(state)
+    state.files = { revision = 0 }
+  end,
+}
+
 ---@param session table
 ---@param unsupported? table<string, string>
 function M.new_state(session, unsupported)
@@ -124,20 +175,15 @@ function M.new_state(session, unsupported)
     local reason = unsupported and unsupported[resource]
     sync[resource] = reason and { state = 'unsupported', error = reason } or M.unread_sync()
   end
-  return {
-    session = session,
-    entries_by_id = {},
-    entry_order = {},
-    children = { by_id = {}, order = {} },
-    inbox = { items_by_id = {}, order = {} },
-    execution = { activity = 'unknown' },
-    permission_requests_by_id = {},
-    question_requests_by_id = {},
-    files = { revision = 0 },
-    sync = sync,
-  }
+  local state = { session = session, sync = sync }
+  for _, clear in pairs(clear_state) do
+    clear(state)
+  end
+  return state
 end
 
+---Borrow the current state. Consumers must not mutate it or use identity to detect changes.
+---@return table
 function Observation:read()
   return self._state
 end
@@ -174,6 +220,16 @@ function Observation:_notify(resource)
   end
 end
 
+---Publish committed event data before evaluating the protocol's refresh policy.
+---@param resource OpencodeObservedResource
+function Observation:_event_changed(resource)
+  self._event_revisions[resource] = self._event_revisions[resource] + 1
+  self:_notify(resource)
+  if self._runtime.refresh_after_event(resource, self._state.sync[resource]) then
+    self:_start_resource(resource)
+  end
+end
+
 local function stream_resource(observation, resource)
   local select_resource = observation._runtime.stream_resource
   return not select_resource or select_resource(resource)
@@ -184,15 +240,13 @@ local function has_stream_demand(connection)
     return false
   end
   for _, observation in pairs(connection.observations) do
-    if observation._runtime then
-      if observation._local_operations > 0 and observation._runtime.operations_need_stream ~= false then
-        return true
-      end
-      for watcher in pairs(observation._watchers) do
-        for resource in pairs(watcher.resources) do
-          if stream_resource(observation, resource) then
-            return true
-          end
+    if observation._local_operations > 0 and observation._runtime.operations_need_stream ~= false then
+      return true
+    end
+    for watcher in pairs(observation._watchers) do
+      for resource in pairs(watcher.resources) do
+        if stream_resource(observation, resource) then
+          return true
         end
       end
     end
@@ -268,7 +322,6 @@ end
 function Observation:_fail_watched(source, message)
   for resource, sync in pairs(self._state.sync) do
     if self:_watches(resource) and sync.state ~= 'unsupported' then
-      self._resource_generations[resource] = self._resource_generations[resource] + 1
       self._loading[resource] = nil
       self._state.sync[resource] = M.sync_error(source, message)
       self:_notify(resource)
@@ -287,12 +340,10 @@ local function stream_failure(connection, owner, reason)
   local message = type(reason) == 'table' and tostring(reason.message or reason.code or 'event stream disconnected')
     or tostring(reason or 'event stream disconnected')
   for _, observation in pairs(connection.observations) do
-    if observation._runtime then
-      if observation._runtime.on_stream_error then
-        observation._runtime.on_stream_error(observation, message)
-      end
-      observation:_fail_watched('event_stream', message)
+    if observation._runtime.on_stream_error then
+      observation._runtime.on_stream_error(observation, message)
     end
+    observation:_fail_watched('event_stream', message)
   end
   schedule_stream_recovery(connection)
 end
@@ -361,53 +412,59 @@ function M.ensure_stream(connection, observation)
   ensure_stream(connection, observation._runtime)
 end
 
+local RECOVERY_DELAY_MS = 100
+
+---Reopen the shared stream for a connection that still has demand.
+---@return boolean reopened Whether watched resources should be reloaded
+local function retry_stream(connection)
+  if not has_stream_demand(connection) or connection._observation_stream then
+    return false
+  end
+  local _, observation = next(connection.observations)
+  if not (observation and pcall(M.ensure_stream, connection, observation)) then
+    schedule_stream_recovery(connection)
+    return false
+  end
+  return true
+end
+
+local function reload_watched_resources(connection)
+  for _, observation in pairs(connection.observations) do
+    for resource in pairs(resource_names) do
+      if observation:_watches(resource) then
+        observation:_start_resource(resource)
+      end
+    end
+  end
+end
+
 schedule_stream_recovery = function(connection)
   if not has_stream_demand(connection) or connection._observation_retry then
     return
   end
   local timer = vim.uv.new_timer()
   connection._observation_retry = timer
-  timer:start(100, 0, vim.schedule_wrap(function()
-    if connection._observation_retry ~= timer then
-      return
-    end
-    connection._observation_retry = nil
-    timer:stop()
-    timer:close()
-    if not has_stream_demand(connection) or connection._observation_stream then
-      return
-    end
-    local observation
-    for _, candidate in pairs(connection.observations) do
-      if candidate._runtime then
-        observation = candidate
-        break
+  timer:start(
+    RECOVERY_DELAY_MS,
+    0,
+    vim.schedule_wrap(function()
+      if connection._observation_retry ~= timer then
+        return
       end
-    end
-    local ok = observation and pcall(M.ensure_stream, connection, observation)
-    if not ok then
-      schedule_stream_recovery(connection)
-      return
-    end
-    for _, candidate in pairs(connection.observations) do
-      if candidate._runtime then
-        for resource in pairs(candidate._resource_generations) do
-          if candidate:_watches(resource) then
-            candidate:_start_resource(resource)
-          end
-        end
+      connection._observation_retry = nil
+      timer:stop()
+      timer:close()
+      if retry_stream(connection) then
+        reload_watched_resources(connection)
       end
-    end
-  end))
-end
-
-local function can_apply_resource(observation, resource, generation)
-  return observation:_is_current()
-    and observation:_watches(resource)
-    and observation._resource_generations[resource] == generation
+    end)
+  )
 end
 
 function Observation:_start_resource(resource)
+  if not self:_is_current() then
+    return
+  end
   local sync = self._state.sync[resource]
   if not sync or sync.state == 'unsupported' or self._loading[resource] or not self:_watches(resource) then
     return
@@ -417,26 +474,39 @@ function Observation:_start_resource(resource)
     self:_notify(resource)
     return
   end
-  self._resource_generations[resource] = self._resource_generations[resource] + 1
-  local generation = self._resource_generations[resource]
-  local event_revision = self._event_revisions[resource]
-  self._loading[resource] = generation
+
+  -- Only the token still stored in `_loading` may commit its response. Release and
+  -- stream loss clear it, so holding it also proves a watcher still wants the snapshot.
+  local token = { revision = self._event_revisions[resource] }
+  self._loading[resource] = token
+  local function owns_request()
+    return self:_is_current() and self._loading[resource] == token
+  end
+  local function failed(err)
+    if owns_request() then
+      self._loading[resource] = nil
+      self._state.sync[resource] = M.sync_error('operation', err)
+      self:_notify(resource)
+    end
+  end
+
   self._state.sync[resource] = { state = 'loading' }
   self:_notify(resource)
+  if not owns_request() then
+    return
+  end
   local ok, request = pcall(self._runtime.request_resource, self, resource)
   if not ok then
-    self._loading[resource] = nil
-    self._state.sync[resource] = M.sync_error('operation', request)
-    self:_notify(resource)
+    failed(request)
     return
   end
   request
     :and_then(function(value)
-      if not can_apply_resource(self, resource, generation) then
+      if not owns_request() then
         return
       end
       self._loading[resource] = nil
-      if self._event_revisions[resource] ~= event_revision then
+      if self._event_revisions[resource] ~= token.revision then
         self._state.sync[resource] = { state = 'stale' }
         self:_notify(resource)
         self:_start_resource(resource)
@@ -450,38 +520,19 @@ function Observation:_start_resource(resource)
       end
       self:_notify(resource)
     end)
-    :catch(function(err)
-      if can_apply_resource(self, resource, generation) then
-        self._loading[resource] = nil
-        self._state.sync[resource] = M.sync_error('operation', err)
-        self:_notify(resource)
-      end
-    end)
+    :catch(failed)
 end
 
 function Observation:_release_resource(resource)
   if self._state.sync[resource].state == 'unsupported' then
     return
   end
-  self._resource_generations[resource] = self._resource_generations[resource] + 1
   self._loading[resource] = nil
   local state = self._state
   if resource == 'session' then
     state.session = vim.deepcopy(self._session_ref)
-  elseif resource == 'children' then
-    state.children = { by_id = {}, order = {} }
-  elseif resource == 'messages' then
-    state.entries_by_id, state.entry_order = {}, {}
-  elseif resource == 'inbox' then
-    state.inbox = { items_by_id = {}, order = {} }
-  elseif resource == 'execution' then
-    state.execution = { activity = 'unknown' }
-  elseif resource == 'permissions' then
-    state.permission_requests_by_id = {}
-  elseif resource == 'questions' then
-    state.question_requests_by_id = {}
-  elseif resource == 'files' then
-    state.files = { revision = 0 }
+  else
+    clear_state[resource](state)
   end
   if self._runtime.on_release_resource then
     self._runtime.on_release_resource(self, resource)
@@ -489,17 +540,23 @@ function Observation:_release_resource(resource)
   state.sync[resource] = M.unread_sync()
 end
 
+---The last unsubscribe for a resource clears its state and invalidates its pending snapshot.
+---@param resources OpencodeObservedResource[]
+---@param changed fun(observation: OpencodeObservation, resource: OpencodeObservedResource)
+---@return fun() unsubscribe
 function Observation:watch(resources, changed)
   if type(resources) ~= 'table' or type(changed) ~= 'function' then
     error('watch requires resources and a changed callback')
   end
-  local selected, previous = {}, {}
+  local selected, to_start = {}, {}
   for _, resource in ipairs(resources) do
     if not resource_names[resource] then
       error('unsupported Observation resource: ' .. tostring(resource))
     end
+    if not selected[resource] and not self:_watches(resource) then
+      to_start[#to_start + 1] = resource
+    end
     selected[resource] = true
-    previous[resource] = self:_watches(resource)
   end
   local watcher = { resources = selected, changed = changed }
   self._watchers[watcher] = true
@@ -507,10 +564,8 @@ function Observation:watch(resources, changed)
     if has_stream_demand(self._connection) then
       M.ensure_stream(self._connection, self)
     end
-    for resource in pairs(previous) do
-      if not previous[resource] then
-        self:_start_resource(resource)
-      end
+    for _, resource in ipairs(to_start) do
+      self:_start_resource(resource)
     end
   end)
   if not ok then
@@ -525,7 +580,7 @@ function Observation:watch(resources, changed)
     end
     subscribed = false
     self._watchers[watcher] = nil
-    for resource in pairs(previous) do
+    for resource in pairs(selected) do
       if not self:_watches(resource) then
         self:_release_resource(resource)
       end
@@ -538,11 +593,12 @@ end
 ---@param connection table
 ---@param session table
 ---@param state table
----@param runtime table
+---@param runtime OpencodeObservationRuntime
+---@return OpencodeObservation
 function M.attach(connection, session, state, runtime)
-  local generations, revisions = {}, {}
+  local revisions = {}
   for resource in pairs(resource_names) do
-    generations[resource], revisions[resource] = 0, 0
+    revisions[resource] = 0
   end
   return setmetatable({
     _connection = connection,
@@ -553,7 +609,6 @@ function M.attach(connection, session, state, runtime)
     _watchers = {},
     _local_operations = 0,
     _loading = {},
-    _resource_generations = generations,
     _event_revisions = revisions,
   }, Observation)
 end
@@ -561,7 +616,7 @@ end
 function M.close(connection)
   close_stream(connection)
   for _, observation in pairs(connection.observations) do
-    if observation._runtime and observation._runtime.on_close then
+    if observation._runtime.on_close then
       observation._runtime.on_close(observation)
     end
   end

@@ -271,17 +271,26 @@ describe('V2 protocol Observation runtime', function()
       end,
     })
     local observed = value:observe({ id = 'ses-main' })
-    local stop = observed:watch({ 'messages' }, function() end)
+    local notifications = 0
+    local stop = observed:watch({ 'messages' }, function()
+      notifications = notifications + 1
+    end)
     assert.equals('loading', observed:read().sync.messages.state)
 
-    emit(
-      streams[1],
-      event('ses-main', 'session.step.started', {
-        assistantMessageID = 'msg-live',
-        agent = 'build',
-        model = { providerID = 'p', id = 'm' },
-      }, 20)
-    )
+    for _ = 1, 100 do
+      emit(
+        streams[1],
+        event('ses-main', 'session.step.started', {
+          assistantMessageID = 'msg-live',
+          agent = 'build',
+          model = { providerID = 'p', id = 'm' },
+        }, 20)
+      )
+    end
+    flush(function()
+      return notifications == 101
+    end)
+    assert.equals(1, count)
     requests[1]:resolve({ data = { user('msg-old', 'old') }, cursor = {} })
     flush(function()
       return count == 2
@@ -292,6 +301,8 @@ describe('V2 protocol Observation runtime', function()
       return observed:read().sync.messages.state == 'current'
     end)
     assert.same({ 'msg-authority' }, observed:read().entry_order)
+    assert.equals(104, notifications)
+    assert.equals(2, count)
 
     stop()
     assert.same({}, observed:read().entry_order)

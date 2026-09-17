@@ -41,7 +41,7 @@ function M.highlight_all_mentions(buf, callback)
   end
 end
 
----Apply frozen byte ranges from protocol Content facts.
+---Apply frozen byte ranges from normalized protocol Content.
 ---@param output Output Output object to write to
 ---@param text string The full text content
 ---@param mentions table[] Mention data with zero-based UTF-8 byte offsets

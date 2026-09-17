@@ -1,14 +1,16 @@
+local entries = require('opencode.protocols.entries')
+local replace_entry = entries.replace
 local submission = require('opencode.protocols.submission')
-local facts = require('opencode.protocols.v2.facts')
-local mapped_error = facts.mapped_error
-local mapped_tokens = facts.mapped_tokens
-local mapped_model = facts.mapped_model
-local mapped_tool_result = facts.mapped_tool_result
-local mapped_message = facts.mapped_message
-local session_fact = facts.session_fact
-local inbox_fact = facts.inbox_fact
-local permission_fact = facts.permission_fact
-local question_fact = facts.question_fact
+local normalize = require('opencode.protocols.v2.normalize')
+local mapped_error = normalize.mapped_error
+local mapped_tokens = normalize.mapped_tokens
+local mapped_model = normalize.mapped_model
+local mapped_tool_result = normalize.mapped_tool_result
+local mapped_message = normalize.mapped_message
+local session_fact = normalize.session_fact
+local inbox_fact = normalize.inbox_fact
+local permission_fact = normalize.permission_fact
+local question_fact = normalize.question_fact
 
 local lifecycle = require('opencode.protocols.observation')
 local Promise = require('opencode.promise')
@@ -21,19 +23,6 @@ end
 
 local function record_diagnostic(observation, resource, message)
   observation:read().sync[resource] = lifecycle.sync_error('protocol_contract', message)
-end
-
-local function replace_entry(existing, replacement)
-  if not existing then
-    return replacement
-  end
-  for key in pairs(existing) do
-    existing[key] = nil
-  end
-  for key, value in pairs(replacement) do
-    existing[key] = value
-  end
-  return existing
 end
 
 local function content_key(kind, ordinal)
@@ -85,30 +74,20 @@ function M.ingest_snapshot(observation, messages, merge)
   end
   if not merge then
     local state = observation:read()
-    local entries, order = {}, {}
+    local entries_by_id, order = {}, {}
     for _, entry in ipairs(mapped) do
-      entries[entry.id] = replace_entry(state.entries_by_id[entry.id], entry)
+      entries_by_id[entry.id] = replace_entry(state.entries_by_id[entry.id], entry)
       order[#order + 1] = entry.id
     end
-    state.entries_by_id = entries
-    state.entry_order = order
+    state.entries_by_id, state.entry_order = entries_by_id, order
     observation._v2_content_by_message = {}
     for _, entry in ipairs(mapped) do
-      rebuild_content_index(observation, entries[entry.id])
+      rebuild_content_index(observation, entries_by_id[entry.id])
     end
   else
-    local prefix = {}
-    for _, entry in ipairs(mapped) do
-      if not observation:read().entries_by_id[entry.id] then
-        observation:read().entries_by_id[entry.id] = entry
-        rebuild_content_index(observation, entry)
-        prefix[#prefix + 1] = entry.id
-      end
-    end
-    if #prefix > 0 then
-      vim.list_extend(prefix, observation:read().entry_order)
-      observation:read().entry_order = prefix
-    end
+    entries.prepend(observation:read(), mapped, function(entry)
+      rebuild_content_index(observation, entry)
+    end)
   end
   observation:read().sync.messages = { state = 'current' }
 end
@@ -834,11 +813,7 @@ local function route_event(connection, event)
       changed.questions = true
     end
     for resource in pairs(changed) do
-      observation._event_revisions[resource] = observation._event_revisions[resource] + 1
-      observation:_notify(resource)
-      if resource ~= 'files' and observation:read().sync[resource].state == 'error' then
-        observation:_start_resource(resource)
-      end
+      observation:_event_changed(resource)
     end
   end
 end
@@ -996,6 +971,9 @@ function M.new(connection, ref)
     find_reply = find_reply,
     local_resource = function(resource)
       return resource == 'files'
+    end,
+    refresh_after_event = function(resource, sync)
+      return resource ~= 'files' and sync.state == 'error'
     end,
     request_resource = request_resource,
     apply_resource = apply_resource,

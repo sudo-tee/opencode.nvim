@@ -51,6 +51,32 @@ local function event(session_id, kind, data, created)
 end
 
 describe('V2 protocol Observation interpretation', function()
+  it('validates a complete snapshot before replacing existing entries', function()
+    local observed = observation('ses-target')
+    local message = assistant('msg-assistant')
+    observation_module.ingest_snapshot(observed, { message })
+    local state = observed:read()
+    local entry = state.entries_by_id['msg-assistant']
+    local previous = vim.deepcopy(entry)
+    local replacement = vim.deepcopy(message)
+    replacement.cost = 99
+
+    assert.has_error(function()
+      observation_module.ingest_snapshot(observed, { replacement, vim.deepcopy(replacement) })
+    end)
+    assert.equals(entry, state.entries_by_id['msg-assistant'])
+    assert.same(previous, entry)
+    assert.same({ 'msg-assistant' }, state.entry_order)
+    assert.has_error(function()
+      observation_module.ingest_snapshot(observed, { { id = 'msg-invalid', type = 'assistant' }, replacement })
+    end)
+    assert.same(previous, entry)
+    assert.same({ 'msg-assistant' }, state.entry_order)
+    observation_module.ingest_snapshot(observed, { replacement })
+    assert.equals(entry, state.entries_by_id['msg-assistant'])
+    assert.equals(99, entry.cost)
+  end)
+
   it('projects newest-first native snapshots into chronological frozen facts', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

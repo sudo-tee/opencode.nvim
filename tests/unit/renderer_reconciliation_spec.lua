@@ -224,6 +224,30 @@ describe('renderer incremental reconciliation', function()
     assert.stub(writes).was_called(1)
   end)
 
+  it('does not let a drained callback consume a newer batch', function()
+    local callbacks = {}
+    defer_stub = stub(vim, 'defer_fn').invokes(function(callback)
+      callbacks[#callbacks + 1] = callback
+    end)
+    config.ui.output.rendering.event_throttle_ms = 40
+    config.ui.output.rendering.event_collapsing = true
+    observed.entries_by_id.msg_two.content[1].text = 'before detach'
+    changed(observation, 'messages')
+    renderer.prepare_session_tab_switch()
+    assert.is_false(ctx.reconcile_scheduled)
+    assert.stub(writes).was_called(1)
+
+    observed.entries_by_id.msg_two.content[1].text = 'new batch'
+    changed(observation, 'messages')
+    callbacks[1]()
+    assert.is_true(ctx.reconcile_scheduled)
+    assert.stub(writes).was_called(1)
+    callbacks[2]()
+    assert.is_false(ctx.reconcile_scheduled)
+    assert.stub(writes).was_called(2)
+    assert.equals('new batch', ctx.formatted_parts.part_2.lines[1])
+  end)
+
   it('can disable the streaming delay', function()
     config.ui.output.rendering.event_throttle_ms = 0
     defer_stub = stub(vim, 'defer_fn')
@@ -281,6 +305,41 @@ describe('renderer incremental reconciliation', function()
     }
     notify('permissions')
     assert.spy(sync).was_called(1)
+    assert.spy(dirty_message).was_not_called()
+    assert.spy(dirty_part).was_not_called()
+    assert.stub(writes).was_not_called()
+  end)
+
+  it('renders observed data synchronously and reports when no output can be rendered', function()
+    observed.entries_by_id.msg_two.content[1].text = 'synchronous update'
+    assert.is_true(renderer.render_full_session())
+    assert.equals('synchronous update', ctx.formatted_parts.part_2.lines[1])
+    assert.stub(writes).was_called(1)
+    ctx.observation = nil
+    assert.is_false(renderer.render_full_session())
+    ctx.observation = observation
+    assert.stub(writes).was_called(1)
+  end)
+
+  it('handles both prompt resources once when they share a batch', function()
+    local permission_sync, question_sync = spy.new(function() end), spy.new(function() end)
+    ctx.prompt_controllers = {
+      permission = {
+        sync = permission_sync,
+        clear_all = function() end,
+        get_all_permissions = function() return {} end,
+      },
+      question = {
+        sync = question_sync,
+        clear_all = function() end,
+        get_current_request = function() return nil end,
+        has_question = function() return false end,
+      },
+    }
+    changed(observation, 'permissions')
+    notify('questions')
+    assert.spy(permission_sync).was_called(1)
+    assert.spy(question_sync).was_called(1)
     assert.spy(dirty_message).was_not_called()
     assert.spy(dirty_part).was_not_called()
     assert.stub(writes).was_not_called()

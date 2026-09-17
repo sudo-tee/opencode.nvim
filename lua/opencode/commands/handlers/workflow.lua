@@ -234,7 +234,7 @@ end
 M.actions.submit_input_prompt = Promise.async(function()
   if state.display_route then
     state.ui.clear_display_route()
-    ui.render_output(true)
+    ui.render_output()
   end
 
   local message_sent = input_window.handle_submit()

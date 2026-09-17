@@ -17,7 +17,6 @@ local RenderState = require('opencode.ui.render_state')
 ---@class RendererCtx
 local ctx = {
   observation = nil,
-  unsubscribe = nil,
   entries = {},
   ---Controllers are registered by the entry layer during plugin setup.
   ---@type {permission?: PermissionController, question?: QuestionController}
@@ -45,7 +44,6 @@ local ctx = {
   },
   flush_scheduled = false, ---@type boolean
   reconcile_scheduled = false, ---@type boolean
-  cancel_pending_reconcile = nil, ---@type fun()|nil Consumes a deferred reconcile without running it
   markdown_render_scheduled = false, ---@type boolean
   symbol_refresh_pending = false, ---@type boolean
   symbol_refresh_token = 0, ---@type integer
@@ -109,7 +107,6 @@ function ctx:reset()
   }
   self.flush_scheduled = false
   self.reconcile_scheduled = false
-  self.cancel_pending_reconcile = nil
   self.markdown_render_scheduled = false
   self.symbol_refresh_pending = false
   self.symbol_refresh_token = self.symbol_refresh_token + 1
@@ -146,7 +143,6 @@ function ctx:restore(snapshot)
 
   self.flush_scheduled = false
   self.reconcile_scheduled = false
-  self.cancel_pending_reconcile = nil
   self.bulk_mode = false
   self:bulk_reset()
   return true

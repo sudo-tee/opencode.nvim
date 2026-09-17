@@ -2,8 +2,8 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local output_window = require('opencode.ui.output_window')
 local reference_facts = require('opencode.ui.reference_facts')
-local Promise = require('opencode.promise')
 local ctx = require('opencode.ui.renderer.ctx')
+local RenderSession = require('opencode.ui.renderer.session')
 local flush = require('opencode.ui.renderer.flush')
 local rendered_entries = require('opencode.ui.renderer.entries')
 local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
@@ -65,12 +65,16 @@ local function save_active_tab_context()
   save_tab_context(state.active_session_tab)
 end
 
-local child_observations = {}
-local child_unsubscribers = {}
-local child_refs = {}
-local reconcile_observation
-local child_reconcile_scheduled = false
-local changed_child_observations = {}
+---@type OpencodeRenderSession|nil
+local render_session
+
+local function detach_render_session()
+  if render_session then
+    render_session:close()
+    render_session = nil
+  end
+  ctx.observation = nil
+end
 
 ---Calculate how many messages to render initially based on window height.
 ---@return integer
@@ -158,6 +162,18 @@ local function get_visible_session_messages(messages, session)
 
   local start_index = #real_messages - limit + 1
   return vim.list_slice(real_messages, start_index, #real_messages), start_index - 1
+end
+
+---@return table session The observed session, or the active session's id alone
+---when no observation is bound yet.
+local function current_session()
+  return ctx.observation and ctx.observation:read().session
+    or { id = state.active_session and state.active_session.id }
+end
+
+---@return integer Messages the current session would show at full window size.
+local function visible_message_count()
+  return #get_visible_session_messages(ctx.entries, current_session())
 end
 
 ---@param hidden_count integer
@@ -298,8 +314,7 @@ local function is_message_visible(message_id)
     return false
   end
 
-  local session = ctx.observation and ctx.observation:read().session or nil
-  for _, message in ipairs(select(1, get_visible_session_messages(ctx.entries, session))) do
+  for _, message in ipairs(get_visible_session_messages(ctx.entries, current_session())) do
     if message.id == message_id then
       return true
     end
@@ -364,7 +379,7 @@ local function update_observation_stats(observation)
 end
 
 ctx.get_child_parts = function(session_id)
-  local observation = child_observations[session_id]
+  local observation = render_session and render_session:child(session_id)
   if not observation then
     return nil
   end
@@ -377,112 +392,6 @@ ctx.get_child_parts = function(session_id)
     end
   end
   return parts
-end
-
-local function clear_child_observations()
-  for _, unsubscribe in pairs(child_unsubscribers) do
-    unsubscribe()
-  end
-  child_observations = {}
-  child_unsubscribers = {}
-  child_refs = {}
-  changed_child_observations = {}
-  child_reconcile_scheduled = false
-end
-
-local function schedule_child_reconcile(observation, resource)
-  local sync = resource and observation:read().sync[resource]
-  if sync and sync.state == 'loading' then
-    return
-  end
-  local resources = changed_child_observations[observation] or {}
-  resources[resource or 'children'] = true
-  changed_child_observations[observation] = resources
-  if child_reconcile_scheduled then
-    return
-  end
-  child_reconcile_scheduled = true
-  local generation = ctx.generation
-  vim.schedule(function()
-    child_reconcile_scheduled = false
-    if generation ~= ctx.generation then
-      changed_child_observations = {}
-      return
-    end
-    local changed = changed_child_observations
-    changed_child_observations = {}
-    for child, resources in pairs(changed) do
-      if ctx.observation then
-        if resources.messages or resources.children then
-          reconcile_observation(child, 'children')
-        else
-          for resource_name in pairs(resources) do
-            reconcile_observation(child, resource_name)
-          end
-        end
-      end
-    end
-  end)
-end
-
-local function observe_child(ref)
-  local connection = state.opencode_server
-  if not connection or not connection:is_ready() then
-    error('cannot observe child sessions without a ready Connection')
-  end
-  local observation = connection:observe(ref)
-  child_observations[ref.id] = observation
-  child_unsubscribers[ref.id] =
-    observation:watch({ 'messages', 'children', 'permissions', 'questions' }, schedule_child_reconcile)
-  return observation
-end
-
-local function sync_observation_tree(root)
-  local root_state = root:read()
-  local root_id = root_state.session and root_state.session.id
-  local observations = { root }
-  local seen = { [root_id] = true }
-  local queue = { { id = root_id, observation = root } }
-  local cursor = 1
-
-  while cursor <= #queue do
-    local node = queue[cursor]
-    cursor = cursor + 1
-    local observed = node.observation:read()
-    if observed.sync.children and observed.sync.children.state == 'current' then
-      local refs = {}
-      for _, child_id in ipairs(observed.children.order or {}) do
-        local ref = observed.children.by_id[child_id]
-        if ref then
-          refs[#refs + 1] = ref
-        end
-      end
-      child_refs[node.id] = refs
-    end
-
-    for _, ref in ipairs(child_refs[node.id] or {}) do
-      if not seen[ref.id] then
-        seen[ref.id] = true
-        local child = child_observations[ref.id] or observe_child(ref)
-        observations[#observations + 1] = child
-        queue[#queue + 1] = { id = ref.id, observation = child }
-      end
-    end
-  end
-
-  for session_id, unsubscribe in pairs(child_unsubscribers) do
-    if not seen[session_id] then
-      unsubscribe()
-      child_unsubscribers[session_id] = nil
-      local evicted = child_observations[session_id]
-      if evicted then
-        changed_child_observations[evicted] = nil
-      end
-      child_observations[session_id] = nil
-      child_refs[session_id] = nil
-    end
-  end
-  return observations
 end
 
 local function reconcile_prompt_display(message_id, part_id, kind, visible)
@@ -544,94 +453,56 @@ local function sync_prompt_controllers(observations)
   M.refresh_prompts()
 end
 
-reconcile_observation = function(observation, resource)
-  local root = ctx.observation
-  if not root then
-    return
-  end
-  local notification = observation:read()
-  local sync = resource and notification.sync and notification.sync[resource]
-  if sync and sync.state == 'loading' then
-    return
-  end
-  if resource == 'execution' or resource == 'inbox' then
-    flush.flush_pending_on_data_rendered()
-    return
-  end
-  if resource == 'permissions' or resource == 'questions' then
-    sync_prompt_controllers(sync_observation_tree(root))
-    flush.flush()
-    return
-  end
-  if observation ~= root then
-    local session_id
-    for id, child in pairs(child_observations) do
-      if child == observation then
-        session_id = id
-        break
-      end
-    end
-    if not session_id then
-      return
-    end
-    local task_part_id = ctx.render_state:get_task_part_by_child_session(session_id)
-    if task_part_id then
-      flush.mark_part_dirty(task_part_id)
-    end
-  end
-  local observations = sync_observation_tree(root)
-  local observed = root:read()
+local function apply_file_changes(observed)
   local files = observed.files
-  local files_changed = files and files.revision > ctx.file_revision
-  if files_changed then
-    ctx.file_revision = files.revision
-    vim.cmd('checktime')
-    if config.hooks and config.hooks.on_file_edited and files.last then
-      pcall(config.hooks.on_file_edited, files.last.path)
+  if not files or files.revision <= ctx.file_revision then
+    return false
+  end
+  ctx.file_revision = files.revision
+  vim.cmd('checktime')
+  if config.hooks and config.hooks.on_file_edited and files.last then
+    pcall(config.hooks.on_file_edited, files.last.path)
+  end
+  reference_facts.refresh_current_files()
+  return true
+end
+
+local function invalidate_text_references()
+  for part_id, rendered in pairs(ctx.render_state._parts) do
+    if rendered.part.kind == 'text' then
+      flush.mark_part_dirty(part_id, rendered.message_id)
     end
   end
-  if files_changed then
-    reference_facts.refresh_current_files()
+end
+
+---Adopt an observation's state as the displayed session state. Metadata and the
+---restored model follow the displayed root only, and only from a current snapshot.
+---@param observation table
+---@param is_root_change boolean The changed observation is the displayed root
+---@return table session
+---@return table[] entries
+local function adopt_session_state(observation, is_root_change)
+  local observed = observation:read()
+  local sync = observed.sync or {}
+  local synced_session = sync.session and sync.session.state == 'current' and observed.session or nil
+  if is_root_change and synced_session then
+    state.session.update_active_metadata(synced_session)
   end
-  if resource == 'files' then
-    if not files_changed then
-      return
-    end
-    for part_id, rendered in pairs(ctx.render_state._parts) do
-      if rendered.part.kind == 'text' then
-        flush.mark_part_dirty(part_id, rendered.message_id)
-      end
-    end
-    flush.flush()
-    return
-  end
-  local session_current = observed.sync
-      and observed.sync.session
-      and observed.sync.session.state == 'current'
-      and observed.session
-    or nil
-  if observation == root and session_current then
-    state.session.update_active_metadata(session_current)
-  end
-  local session = session_current or { id = state.active_session and state.active_session.id }
-  local entries = ordered_entries(root)
+  local entries = ordered_entries(observation)
   ctx.entries = entries
-  local messages_sync = observed.sync and observed.sync.messages
-  local session_id = session_current and session_current.id or nil
-  if
-    observation == root
-    and session_id
-    and messages_sync
-    and messages_sync.state == 'current'
-    and (resource == 'messages' or resource == 'session' or not resource)
-    and ctx.model_restored_session_id ~= session_id
-  then
+  local session_id = synced_session and synced_session.id
+  local messages_current = sync.messages and sync.messages.state == 'current'
+  if is_root_change and session_id and messages_current and ctx.model_restored_session_id ~= session_id then
     ctx.model_restored_session_id = session_id
     require('opencode.services.agent_model').initialize_current_model({ restore_from_messages = true })
   end
-  update_observation_stats(root)
+  update_observation_stats(observation)
+  return synced_session or { id = state.active_session and state.active_session.id }, entries
+end
+
+local function reconcile_conversation(session, entries, files_changed)
   local previous_refs = reference_facts.current_refs()
-  reference_facts.rebuild(session.id, entries, session_current and session_current.location or nil)
+  reference_facts.rebuild(session.id, entries, session.location)
   local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
   local visible, hidden_count = get_visible_session_messages(entries, session)
   if ctx.lazy_render_count == nil then
@@ -665,12 +536,83 @@ reconcile_observation = function(observation, resource)
   elseif ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
     hide_rendered_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
   end
-  rendered_entries.reconcile(visible, references_changed or files_changed or false)
-  sync_prompt_controllers(observations)
-  flush.flush({ resolve_symbol_targets = initial_render })
-  if initial_render then
-    flush.end_bulk_mode()
-    M.scroll_to_bottom(true)
+  rendered_entries.reconcile(visible, references_changed or files_changed)
+  return initial_render
+end
+
+---Which areas of the display a set of changed resources affects. `activity` names
+---no area: execution and inbox render nothing, they only release held-back writes.
+---@param resources? table<string, boolean> Omitted for an explicit full refresh
+---@return {conversation: boolean, prompts: boolean, files: boolean, activity: boolean}
+local function affected_areas(resources)
+  if not resources then
+    return { conversation = true, prompts = false, files = false, activity = false }
+  end
+  return {
+    conversation = resources.messages or resources.session or resources.children or false,
+    prompts = resources.permissions or resources.questions or false,
+    files = resources.files or false,
+    activity = resources.execution or resources.inbox or false,
+  }
+end
+
+---A child's conversation is visible only through its task part in the root.
+---@param observation table
+---@return boolean rendered Whether the child still has somewhere to render
+local function mark_child_task_dirty(observation)
+  local session_id = render_session and render_session:child_id(observation)
+  if not session_id then
+    return false
+  end
+  local task_part_id = ctx.render_state:get_task_part_by_child_session(session_id)
+  if task_part_id then
+    flush.mark_part_dirty(task_part_id)
+  end
+  return true
+end
+
+---@param observation table The observation that changed, root or descendant
+---@param resources? table<string, boolean> Omitted for an explicit full refresh
+local function reconcile_observation(observation, resources)
+  local root = ctx.observation
+  if not root then
+    return
+  end
+  local affected = affected_areas(resources)
+
+  -- Nothing on screen depends on this change; only held-back writes need releasing.
+  if not (affected.conversation or affected.prompts or affected.files) then
+    flush.flush_pending_on_data_rendered()
+    return
+  end
+
+  if affected.conversation and observation ~= root and not mark_child_task_dirty(observation) then
+    return
+  end
+
+  local observations = render_session and render_session:sync_children() or { root }
+  local files_changed = (affected.conversation or affected.files) and apply_file_changes(root:read()) or false
+
+  if affected.conversation or affected.prompts or files_changed then
+    local initial_render = false
+    if affected.conversation then
+      local session, entries = adopt_session_state(root, observation == root)
+      initial_render = reconcile_conversation(session, entries, files_changed)
+    elseif files_changed then
+      invalidate_text_references()
+    end
+    if affected.conversation or affected.prompts then
+      sync_prompt_controllers(observations)
+    end
+    flush.flush({ resolve_symbol_targets = initial_render })
+    if initial_render then
+      flush.end_bulk_mode()
+      M.scroll_to_bottom(true)
+    end
+  end
+
+  if affected.activity then
+    flush.flush_pending_on_data_rendered()
   end
 end
 
@@ -678,9 +620,7 @@ end
 ---cached total (nil means everything cached is rendered).
 ---@return number
 local function window_size()
-  local session = ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
-  local total = #get_visible_session_messages(ctx.entries, session)
+  local total = visible_message_count()
   return math.min(ctx.lazy_render_count or total, total)
 end
 
@@ -689,9 +629,7 @@ end
 ---@param target number desired window size
 ---@return boolean Whether the window grew
 local function apply_window_growth(target)
-  local session = ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
-  local total = #get_visible_session_messages(ctx.entries, session)
+  local total = visible_message_count()
   target = math.min(target, total)
   local current = math.min(ctx.lazy_render_count or total, total)
   if target <= current then
@@ -827,12 +765,7 @@ end
 ---Unsubscribe from all events and reset
 function M.teardown()
   M.setup_subscriptions(false)
-  clear_child_observations()
-  if ctx.unsubscribe then
-    ctx.unsubscribe()
-    ctx.unsubscribe = nil
-  end
-  ctx.observation = nil
+  detach_render_session()
   M.reset()
 end
 
@@ -868,9 +801,7 @@ function M._render_full_session_data(entries, session)
     update_observation_stats(ctx.observation)
   end
   ctx.entries = entries or {}
-  session = session
-    or (ctx.observation and ctx.observation:read().session)
-    or { id = state.active_session and state.active_session.id }
+  session = session or current_session()
   reference_facts.rebuild(session.id, ctx.entries, session.location)
   local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, session)
 
@@ -910,9 +841,7 @@ function M.render_from_cache()
     return
   end
   local entries = ctx.observation and ordered_entries(ctx.observation) or ctx.entries
-  local session = ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
-  M._render_full_session_data(entries, session)
+  M._render_full_session_data(entries, current_session())
 end
 
 ---Load more older messages into the output buffer.
@@ -922,9 +851,7 @@ function M.load_more_messages()
   if #ctx.entries == 0 then
     return false
   end
-  local session = ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
-  local total = #get_visible_session_messages(ctx.entries, session)
+  local total = visible_message_count()
   if total == 0 then
     return false
   end
@@ -945,9 +872,7 @@ function M.load_all_messages()
   if #ctx.entries == 0 then
     return false
   end
-  local session = ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
-  local total = #get_visible_session_messages(ctx.entries, session)
+  local total = visible_message_count()
   if total == 0 then
     return false
   end
@@ -957,18 +882,20 @@ function M.load_all_messages()
   return load_complete_history_to_top() or expanded
 end
 
----@return Promise<table[]>
+---Render the currently observed state synchronously; this does not load history.
+---@return boolean rendered Whether an observation and mounted output were available
 function M.render_full_session()
   if not output_window.mounted() or not ctx.observation then
-    return Promise.new():resolve(nil)
+    return false
   end
   reconcile_observation(ctx.observation)
+  return true
 end
 
 ---Flush the active tab before its window and renderer context are detached.
 function M.prepare_session_tab_switch()
-  if ctx.reconcile_scheduled and ctx.observation then
-    reconcile_observation(ctx.observation)
+  if render_session then
+    render_session:drain()
   end
   if ctx.bulk_mode then
     flush.end_bulk_mode()
@@ -982,12 +909,12 @@ end
 function M.render_lines(lines)
   local output = require('opencode.ui.output'):new()
   output.lines = lines
-  M.render_output(output)
+  M.write_output(output)
 end
 
 ---Replace the entire output buffer with formatted output data
 ---@param output_data Output
-function M.render_output(output_data)
+function M.write_output(output_data)
   if not output_window.mounted() then
     return
   end
@@ -1043,7 +970,7 @@ function M.on_session_changed(_, new, _old)
   local observed_session = ctx.observation and ctx.observation:read().session
   local active_observation = ctx.observation and state.session.active_observation()
   if
-    ctx.unsubscribe
+    render_session
     and active_observation == ctx.observation
     and observed_session
     and type(new) == 'table'
@@ -1051,12 +978,7 @@ function M.on_session_changed(_, new, _old)
   then
     return
   end
-  clear_child_observations()
-  if ctx.unsubscribe then
-    ctx.unsubscribe()
-    ctx.unsubscribe = nil
-  end
-  ctx.observation = nil
+  detach_render_session()
   M.reset()
   if not new then
     return
@@ -1066,49 +988,8 @@ function M.on_session_changed(_, new, _old)
     return
   end
   ctx.observation = observation
-  local pending_resources = {}
-  local scheduled = false
-  local function changed(_, resource)
-    local sync = resource and observation:read().sync[resource]
-    if sync and sync.state == 'loading' then
-      return
-    end
-    pending_resources[resource or 'all'] = true
-    if scheduled then
-      return
-    end
-    scheduled = true
-    ctx.reconcile_scheduled = true
-    local generation = ctx.generation
-    local function apply_changes()
-      scheduled = false
-      if ctx.generation ~= generation or ctx.observation ~= observation then
-        pending_resources = {}
-        return
-      end
-      ctx.reconcile_scheduled = false
-      local resources = pending_resources
-      pending_resources = {}
-      if resources.all or resources.messages or resources.session or resources.children then
-        reconcile_observation(observation)
-      else
-        for resource_name in pairs(resources) do
-          reconcile_observation(observation, resource_name)
-        end
-      end
-    end
-    local rendering = config.ui.output.rendering
-    local delay = rendering.event_collapsing ~= false and rendering.event_throttle_ms or 0
-    if resource == 'messages' and next(ctx.render_state._messages) and delay > 0 then
-      vim.defer_fn(apply_changes, delay)
-    else
-      vim.schedule(apply_changes)
-    end
-  end
-  ctx.unsubscribe = observation:watch(
-    { 'session', 'messages', 'children', 'execution', 'permissions', 'questions', 'inbox', 'files' },
-    changed
-  )
+  render_session = RenderSession.new(observation, reconcile_observation)
+  render_session:attach()
   reconcile_observation(observation)
 end
 
@@ -1131,22 +1012,17 @@ local function refresh_tab(tab_id, runtime)
     return
   end
 
-  local refresh = M.render_full_session()
-  if not refresh then
+  if not M.render_full_session() then
     if runtime then
       runtime.renderer_dirty = true
     end
     return
   end
-  refresh:and_then(function(session_data)
-    if session_data and state.active_session_tab == tab_id then
-      M.scroll_to_bottom(true)
-      if runtime then
-        runtime.renderer_dirty = false
-      end
-      save_active_tab_context()
-    end
-  end)
+  M.scroll_to_bottom(true)
+  if runtime then
+    runtime.renderer_dirty = false
+  end
+  save_tab_context(tab_id)
 end
 
 ---Rebind renderer state when the selected logical panel tab changes.

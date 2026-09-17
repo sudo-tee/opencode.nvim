@@ -499,6 +499,23 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(-1, vim.fn.foldclosed(3))
   end)
 
+  it('bottom-aligns around closed folds using display rows', function()
+    local lines = {}
+    for i = 1, 40 do
+      lines[i] = 'line ' .. i
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_win_set_height(win, 10)
+    output_window.set_folds({ { from = 3, to = 35 } })
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local view = vim.api.nvim_win_call(win, vim.fn.winsaveview)
+    assert.equals(1, view.topline)
+    assert.equals(40, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
   it('skips zb when the followed bottom line is already visible', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line 1', 'line 2', 'line 3' })
     vim.api.nvim_win_set_height(win, 10)

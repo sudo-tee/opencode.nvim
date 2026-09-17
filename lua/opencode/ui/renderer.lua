@@ -197,6 +197,22 @@ local function ensure_message_rendered(message)
   end
 end
 
+---@param message_id string
+local function hide_rendered_message(message_id)
+  local rendered_message = ctx.render_state:get_message(message_id)
+  local message = rendered_message and rendered_message.message
+  if not message then
+    return
+  end
+
+  for part_id, part in pairs(ctx.render_state._parts) do
+    if part.message_id == message_id then
+      flush.queue_part_removal(part_id)
+    end
+  end
+  flush.queue_message_removal(message_id)
+end
+
 ---@param hidden_count integer
 local function upsert_hidden_messages_notice(hidden_count)
   local existing_message = ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
@@ -235,22 +251,6 @@ local function upsert_hidden_messages_notice(hidden_count)
     })
     flush.mark_part_dirty(HIDDEN_MESSAGES_NOTICE_PART_ID, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
   end
-end
-
----@param message_id string
-local function hide_rendered_message(message_id)
-  local rendered_message = ctx.render_state:get_message(message_id)
-  local message = rendered_message and rendered_message.message
-  if not message then
-    return
-  end
-
-  for part_id, part in pairs(ctx.render_state._parts) do
-    if part.message_id == message_id then
-      flush.queue_part_removal(part_id)
-    end
-  end
-  flush.queue_message_removal(message_id)
 end
 
 local function reconcile_rendered_message_limit()

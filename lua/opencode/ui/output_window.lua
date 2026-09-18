@@ -707,30 +707,6 @@ function M.close()
   pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
 end
 
----@param windows OpencodeWindowState
----@param preserve_existing? boolean
-function M.setup_keymaps(windows, preserve_existing)
-  -- When lazy-render is active, gg only reaches the top of rendered content.
-  -- Load all messages first so gg reaches the true start of history.
-  local has_gg = false
-  if preserve_existing then
-    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(windows.output_buf, 'n')) do
-      if mapping.lhs == 'gg' then
-        has_gg = true
-        break
-      end
-    end
-  end
-  if not has_gg then
-    vim.keymap.set('n', 'gg', function()
-      local renderer = require('opencode.ui.renderer')
-      renderer.load_all_messages()
-      pcall(vim.cmd, [[noau normal! m']])
-      vim.api.nvim_win_set_cursor(0, { 1, 0 })
-    end, { buffer = windows.output_buf })
-  end
-end
-
 ---Clear the output buffer and all namespaces.
 function M.clear()
   if M.mounted() then
@@ -747,12 +723,6 @@ end
 ---@return integer|nil Buffer ID
 function M.get_buf()
   return state.windows and state.windows.output_buf
-end
-
----Trigger a re-render by calling the renderer
-function M.render()
-  local renderer = require('opencode.ui.renderer')
-  renderer._render_all_messages()
 end
 
 return M

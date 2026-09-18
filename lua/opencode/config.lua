@@ -82,6 +82,7 @@ M.defaults = {
 
     },
     output_window = {
+      ['gg'] =         { 'first_message',                                     desc = 'Load history and go to the first message' },
       ['<esc>'] =       { 'close',                                             desc = 'Close Opencode windows' },
       ['<C-c>'] =       { 'cancel',                                            desc = 'Cancel running request' },
       [']]']   =        { 'next_message',                                      desc = 'Go to next message' },

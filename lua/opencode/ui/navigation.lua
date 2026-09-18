@@ -11,6 +11,12 @@ local function mark_jump_position(win)
   end)
 end
 
+function M.goto_first_message()
+  renderer.load_all_messages()
+  mark_jump_position(vim.api.nvim_get_current_win())
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+end
+
 function M.goto_message_by_id(message_id)
   require('opencode.ui.ui').focus_output()
   local windows = state.windows or {}
@@ -84,7 +90,7 @@ function M.goto_next_user_message()
     return
   end
 
-  -- Mirror `gg` in output_window.setup_keymaps: under lazy render the target
+  -- Like `gg`, under lazy render the target
   -- message may not yet have a line_start, so force a full render first.
   renderer.load_all_messages()
 

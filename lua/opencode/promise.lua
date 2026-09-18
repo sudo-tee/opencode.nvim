@@ -443,8 +443,9 @@ end
 ---@param factory fun(): Promise<T> Creates a fresh promise per attempt
 ---@param max_retries number Total attempts (1 = no retry)
 ---@param delay_ms number Delay between retries in milliseconds
+---@param should_retry? fun(err: any): boolean Stop immediately for errors this predicate rejects.
 ---@return Promise<T>
-function Promise.retry(factory, max_retries, delay_ms)
+function Promise.retry(factory, max_retries, delay_ms, should_retry)
   return Promise.spawn(function()
     local last_err
     for i = 1, max_retries do
@@ -455,6 +456,9 @@ function Promise.retry(factory, max_retries, delay_ms)
         return result
       end
       last_err = result
+      if should_retry and not should_retry(result) then
+        break
+      end
       if i < max_retries then
         Promise.delay(delay_ms):await()
       end

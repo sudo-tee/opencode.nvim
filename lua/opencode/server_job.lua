@@ -158,6 +158,21 @@ local function resolve_port()
   return existing or math.random(1024, 65535)
 end
 
+local function is_http_endpoint(value)
+  return value:match('^https?://[^%s]+$') ~= nil
+end
+
+local function wait_for_service_endpoint(command, timeout)
+  for _ = 1, math.max(1, math.floor(timeout / 100)) do
+    local url = command('service', 'status')
+    if url ~= 'starting' and url ~= 'stopped' then
+      return url
+    end
+    Promise.delay(100):await()
+  end
+  error('OpenCode service did not return an HTTP endpoint', 0)
+end
+
 -- CLI capability selects the launcher only; authenticated health selects the protocol.
 local try_native_service = Promise.async(function()
   local timeout = (config.server.timeout or 5) * 1000
@@ -167,6 +182,10 @@ local try_native_service = Promise.async(function()
       return Promise.system(args, { text = true, timeout = timeout }):await()
     end)
     if not ok then
+      if args[2] == 'service' and args[3] == 'start' and type(result) == 'table' and result.code == 124 then
+        -- The service can outlive its launcher; discover its endpoint through status.
+        return ''
+      end
       -- In particular, never include the password command's stdout in an error.
       error('OpenCode command failed: ' .. table.concat(args, ' '), 0)
     end
@@ -183,10 +202,14 @@ local try_native_service = Promise.async(function()
   end
 
   local url = command('service', 'status')
-  if url == 'stopped' then
+  local starting_service = url == 'stopped'
+  if starting_service then
     url = command('service', 'start')
+    if not is_http_endpoint(url) then
+      url = wait_for_service_endpoint(command, timeout)
+    end
   end
-  if not url:match('^https?://[^%s]+$') then
+  if not is_http_endpoint(url) then
     error('OpenCode service did not return an HTTP endpoint', 0)
   end
   local password = command('service', 'get', 'password')
@@ -195,7 +218,12 @@ local try_native_service = Promise.async(function()
   end
   local server = opencode_server.from_custom(url)
   server.credential = { username = 'opencode', password = password }
-  local probe = server:probe_connection(timeout):await()
+  local deadline = vim.uv.now() + timeout
+  local probe = Promise.retry(function()
+    return server:probe_connection(timeout)
+  end, math.max(1, math.floor(timeout / 100)), 100, function(err)
+    return starting_service and type(err) == 'table' and err.kind == 'transport' and vim.uv.now() < deadline
+  end):await()
   if probe.protocol ~= 'v2' then
     error('OpenCode background service did not provide V2 health', 0)
   end

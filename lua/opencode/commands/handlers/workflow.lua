@@ -242,14 +242,82 @@ function M.actions.paste_image()
   vim.notify('Image saved and added to context: ' .. name, vim.log.levels.INFO)
 end
 
+local function prompt_add_to_context(cmd, output, exit_code)
+  local output_window = require('opencode.ui.output_window')
+  if not output_window.mounted() then
+    return
+  end
+
+  local formatted_output = string.format('$ %s\n%s', cmd, output)
+  local lines = vim.split(formatted_output, '\n')
+
+  output_window.set_lines(lines)
+
+  local picker = require('opencode.ui.picker')
+  picker.select({ 'Yes', 'No' }, {
+    prompt = 'Add command + output to context?',
+  }, function(choice)
+    if choice == 'Yes' then
+      local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
+      input_window._append_to_input(message)
+    end
+    output_window.clear()
+    input_window.focus_input()
+  end)
+end
+
+local function execute_shell_command(command)
+  local cmd = command:match('^%s*(.-)%s*$')
+  if cmd == '' then
+    return
+  end
+
+  local shell = vim.o.shell
+  local shell_cmd = { shell, '-c', cmd }
+
+  vim.system(shell_cmd, { text = true }, function(result)
+    vim.schedule(function()
+      if result.code ~= 0 then
+        vim.notify('Command failed with exit code ' .. result.code, vim.log.levels.ERROR)
+      end
+
+      local output = result.stdout or ''
+      if result.stderr and result.stderr ~= '' then
+        output = output .. '\n' .. result.stderr
+      end
+
+      prompt_add_to_context(cmd, output, result.code)
+    end)
+  end)
+end
+
 M.actions.submit_input_prompt = Promise.async(function()
   if state.display_route then
     state.ui.clear_display_route()
     ui.render_output()
   end
 
-  local message_sent = input_window.handle_submit()
-  if message_sent and config.ui.input.auto_hide and not input_window.is_hidden() then
+  local input_content = input_window.take_input()
+  if not input_content or input_content == '' then
+    return
+  end
+
+  if input_content:match('^!') then
+    execute_shell_command(input_content:sub(2))
+    return
+  end
+
+  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
+  if input_content:match('^' .. key) then
+    local command, args = require('opencode.commands.slash').resolve_input(input_content)
+    if command then
+      command.fn(args)
+    end
+    return
+  end
+
+  require('opencode.services.messaging').send_message(input_content)
+  if config.ui.input.auto_hide and not input_window.is_hidden() then
     input_window._hide()
   end
 end)

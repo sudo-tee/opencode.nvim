@@ -13,6 +13,102 @@ describe('opencode.commands.handlers.workflow', function()
     package.loaded['opencode.commands.handlers.workflow'] = nil
   end)
 
+  describe('submit_input_prompt', function()
+    local state = require('opencode.state')
+    local config = require('opencode.config')
+    local input_window = require('opencode.ui.input_window')
+    local Promise = require('opencode.promise')
+    local original_windows, original_route, original_buf, original_auto_hide
+    local buf, send_message, hide, hidden, get_key, get_commands, system, notify
+    local slash_args
+
+    before_each(function()
+      original_windows = state.windows
+      original_route = state.display_route
+      original_buf = vim.api.nvim_get_current_buf()
+      original_auto_hide = config.ui.input.auto_hide
+      buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_set_current_buf(buf)
+      state.store.set_raw('windows', { input_buf = buf, input_win = vim.api.nvim_get_current_win() })
+      state.store.set_raw('display_route', nil)
+      config.ui.input.auto_hide = true
+      send_message = stub(require('opencode.services.messaging'), 'send_message').returns(false)
+      hide = stub(input_window, '_hide')
+      hidden = stub(input_window, 'is_hidden').returns(false)
+      get_key = stub(config, 'get_key_for_function').returns('/')
+      slash_args = nil
+      get_commands = stub(require('opencode.commands.slash'), 'get_commands').returns(Promise.new():resolve({
+        {
+          slash_cmd = '/test',
+          fn = function(args)
+            slash_args = args
+          end,
+        },
+      }))
+      system = stub(vim, 'system')
+      notify = stub(vim, 'notify')
+    end)
+
+    after_each(function()
+      send_message:revert()
+      hide:revert()
+      hidden:revert()
+      get_key:revert()
+      get_commands:revert()
+      system:revert()
+      notify:revert()
+      config.ui.input.auto_hide = original_auto_hide
+      state.store.set_raw('windows', original_windows)
+      state.store.set_raw('display_route', original_route)
+      vim.api.nvim_set_current_buf(original_buf)
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    local function submit(lines)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      workflow.actions.submit_input_prompt():await()
+      assert.same({ '' }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+    end
+
+    it('sends multiline input and retains auto-hide after requesting a send', function()
+      submit({ 'hello', 'world' })
+      assert.stub(send_message).was_called_with('hello\nworld')
+      assert.stub(hide).was_called(1)
+    end)
+
+    it('clears empty input without sending or hiding', function()
+      submit({ '' })
+      assert.stub(send_message).was_not_called()
+      assert.stub(hide).was_not_called()
+    end)
+
+    it('runs shell input without sending or hiding', function()
+      system.invokes(function(cmd, opts, callback)
+        assert.same({ vim.o.shell, '-c', 'echo test' }, cmd)
+        assert.same({ text = true }, opts)
+        assert.is_function(callback)
+      end)
+      submit({ '! echo test ' })
+      assert.stub(system).was_called(1)
+      assert.stub(send_message).was_not_called()
+      assert.stub(hide).was_not_called()
+    end)
+
+    it('resolves slash input and passes its arguments without sending or hiding', function()
+      submit({ '/test first second' })
+      assert.same({ 'first', 'second' }, slash_args)
+      assert.stub(send_message).was_not_called()
+      assert.stub(hide).was_not_called()
+    end)
+
+    it('reports unknown slash input after clearing it', function()
+      submit({ '/missing' })
+      assert.stub(notify).was_called_with('Unknown command: missing', vim.log.levels.WARN)
+      assert.stub(send_message).was_not_called()
+      assert.stub(hide).was_not_called()
+    end)
+  end)
+
   describe('prev_prompt_history (<up>)', function()
     local get_lines
     local get_cursor

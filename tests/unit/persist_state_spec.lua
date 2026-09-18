@@ -51,6 +51,7 @@ describe('persist_state', function()
       persist_state = true,
     }, opts or {})
     config.setup({ ui = ui_opts })
+    require('opencode.keymap').setup(config.keymap)
   end
 
   local function create_code_file(lines)
@@ -188,6 +189,7 @@ describe('persist_state', function()
   end)
 
   after_each(function()
+    require('opencode.keymap').teardown()
     renderer.setup_subscriptions(false)
     cleanup_windows()
     cleanup_hidden_buffers()

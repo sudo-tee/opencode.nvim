@@ -710,9 +710,6 @@ end
 ---@param windows OpencodeWindowState
 ---@param preserve_existing? boolean
 function M.setup_keymaps(windows, preserve_existing)
-  local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.output_window, windows.output_buf, preserve_existing)
-
   -- When lazy-render is active, gg only reaches the top of rendered content.
   -- Load all messages first so gg reaches the true start of history.
   local has_gg = false

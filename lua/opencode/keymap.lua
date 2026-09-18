@@ -1,5 +1,7 @@
 local M = {}
 local commands = require('opencode.commands')
+local store = require('opencode.state.store')
+local window_keymaps = {}
 
 local function normalize_lhs(lhs)
   return vim.api.nvim_replace_termcodes(lhs, true, true, true)
@@ -92,9 +94,30 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, pre
   end
 end
 
+local function setup_panel_keymaps(_, windows, previous)
+  if not windows then
+    return
+  end
+  for _, name in ipairs({ 'input', 'output' }) do
+    local buf, win = windows[name .. '_buf'], windows[name .. '_win']
+    local changed = not previous or previous[name .. '_buf'] ~= buf or previous[name .. '_win'] ~= win
+    if changed and buf and win and vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win) then
+      M.setup_window_keymaps(window_keymaps[name .. '_window'], buf, true)
+    end
+  end
+end
+
 ---@param keymap OpencodeKeymap The keymap configuration table
 function M.setup(keymap)
   process_keymap_entry(keymap.editor or {}, { 'n', 'v' }, { silent = false })
+  window_keymaps = keymap
+  store.subscribe('windows', setup_panel_keymaps)
+  setup_panel_keymaps(nil, store.get('windows'))
+end
+
+function M.teardown()
+  store.unsubscribe('windows', setup_panel_keymaps)
+  window_keymaps = {}
 end
 
 ---@param keymap_config table Window keymap configuration

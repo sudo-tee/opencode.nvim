@@ -96,20 +96,7 @@ M.select = Promise.async(function(callback)
       return picker_item
     end,
     actions = {},
-    callback = function(selection)
-      if selection and state.current_model then
-        state.model.set_variant(selection.value)
-
-        -- Save variant to model state
-        local provider, model = state.current_model:match('^(.-)/(.+)$')
-        if provider and model then
-          model_state.set_variant(provider, model, selection.value)
-        end
-      end
-      if callback then
-        callback(selection)
-      end
-    end,
+    callback = callback,
   })
 end)
 

@@ -4,6 +4,8 @@ local state = require('opencode.state')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 local agent_model = require('opencode.services.agent_model')
+local ui = require('opencode.ui.ui')
+local log = require('opencode.log')
 
 local M = {
   actions = {},
@@ -17,12 +19,35 @@ local function invalid_arguments(message)
   }, 0)
 end
 
+---@param message? string Omitted when the picker was cancelled
+local function finish_selection(message)
+  if state.ui.is_visible() then
+    ui.focus_input()
+  elseif message then
+    log.notify(message, vim.log.levels.INFO)
+  end
+end
+
 function M.actions.configure_provider()
-  agent_model.configure_provider()
+  require('opencode.model_picker').select(function(selection)
+    if not selection then
+      finish_selection()
+      return
+    end
+    local model = agent_model.set_model(selection.provider, selection.model)
+    finish_selection('Changed provider to ' .. model)
+  end)
 end
 
 function M.actions.configure_variant()
-  agent_model.configure_variant()
+  require('opencode.variant_picker').select(function(selection)
+    if not selection then
+      finish_selection()
+      return
+    end
+    agent_model.set_variant(selection.value)
+    finish_selection('Changed variant to ' .. selection.name)
+  end)
 end
 
 function M.actions.cycle_variant()

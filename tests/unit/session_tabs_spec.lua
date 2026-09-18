@@ -10,10 +10,12 @@ describe('opencode session panel tabs', function()
   before_each(function()
     original_state = vim.deepcopy(store.state())
     session_tabs.reset()
+    require('opencode.ui.autocmds').setup_subscriptions()
   end)
 
   after_each(function()
     vim.wait(50)
+    require('opencode.ui.autocmds').setup_subscriptions(false)
     session_tabs.reset()
     for key, value in pairs(original_state) do
       store.set(key, value)

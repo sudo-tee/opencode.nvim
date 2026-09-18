@@ -243,7 +243,6 @@ function M.restore_hidden_windows()
     return false
   end
 
-  local autocmds = require('opencode.ui.autocmds')
   local footer_buf = hidden.footer_buf
   if not footer_buf or not vim.api.nvim_buf_is_valid(footer_buf) then
     footer_buf = footer.create_buf()
@@ -281,9 +280,6 @@ function M.restore_hidden_windows()
   footer.setup(windows)
   session_tab_strip.setup(windows)
   topbar.setup()
-
-  autocmds.setup_autocmds(windows)
-  autocmds.setup_resize_handler(windows)
 
   if hidden.input_hidden then
     input_window._hide()
@@ -463,8 +459,6 @@ function M.create_windows()
     end
   end
 
-  local autocmds = require('opencode.ui.autocmds')
-
   if not require('opencode.ui.ui').is_opencode_focused() then
     state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
   end
@@ -498,9 +492,6 @@ function M.create_windows()
   topbar.setup()
 
   renderer.setup_subscriptions()
-
-  autocmds.setup_autocmds(windows)
-  autocmds.setup_resize_handler(windows)
 
   return windows
 end
@@ -572,6 +563,7 @@ function M.focus_input(opts)
   end
 
   vim.api.nvim_set_current_win(windows.input_win)
+  state.ui.set_last_focused_window('input')
 
   if opts.restore_position and not was_input_focused and state.last_input_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
@@ -592,6 +584,7 @@ function M.focus_output(opts)
   end
 
   vim.api.nvim_set_current_win(windows.output_win)
+  state.ui.set_last_focused_window('output')
 
   if opts.restore_position and state.last_output_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_output_window_position)

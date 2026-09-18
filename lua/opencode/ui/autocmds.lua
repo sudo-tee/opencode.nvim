@@ -1,28 +1,48 @@
 local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
+local state = require('opencode.state')
 local M = {}
+local bound_windows
 
+local function clear_window_handlers()
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeWindows')
+  pcall(vim.api.nvim_del_augroup_by_name, 'OpencodeResize')
+  bound_windows = nil
+end
+
+local function schedule_window_teardown(windows)
+  vim.schedule(function()
+    if state.windows == windows then
+      require('opencode.ui.ui').teardown_visible_windows(windows)
+    end
+  end)
+end
+
+---@param windows OpencodeWindowState
 function M.setup_autocmds(windows)
   local group = vim.api.nvim_create_augroup('OpencodeWindows', { clear = true })
   input_window.setup_autocmds(windows, group)
   output_window.setup_autocmds(windows, group)
 
   -- Only keep shared autocmds here (e.g., WinClosed, WinLeave for all windows)
-  local wins = { windows.input_win, windows.output_win, windows.footer_win, windows.tab_strip_win }
+  local wins = {}
+  for _, key in ipairs({ 'input_win', 'output_win', 'footer_win', 'tab_strip_win' }) do
+    if windows[key] then
+      wins[#wins + 1] = windows[key]
+    end
+  end
   vim.api.nvim_create_autocmd('WinClosed', {
     group = group,
     pattern = table.concat(wins, ','),
     callback = function(opts)
       -- Don't close everything if we're just toggling the input window
-      if input_window._toggling then
+      if state.windows ~= windows or input_window._toggling then
         return
       end
 
       local closed_win = tonumber(opts.match)
       if vim.tbl_contains(wins, closed_win) then
-        vim.schedule(function()
-          require('opencode.ui.ui').teardown_visible_windows(windows)
-        end)
+        schedule_window_teardown(windows)
       end
     end,
   })
@@ -34,7 +54,6 @@ function M.setup_autocmds(windows)
       if args.file == '' then
         return
       end
-      local state = require('opencode.state')
       state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
     end,
   })
@@ -54,7 +73,7 @@ function M.setup_autocmds(windows)
     group = group,
     pattern = '*',
     callback = function()
-      require('opencode.state').ui.set_panel_focused(require('opencode.ui.ui').is_opencode_focused())
+      state.ui.set_panel_focused(require('opencode.ui.ui').is_opencode_focused())
     end,
   })
 
@@ -62,7 +81,6 @@ function M.setup_autocmds(windows)
     pattern = { 'global', 'tabpage' },
     group = group,
     callback = function(event)
-      local state = require('opencode.state')
       if state.current_cwd == event.file then
         return
       end
@@ -101,6 +119,9 @@ function M.setup_autocmds(windows)
     vim.api.nvim_create_autocmd('BufEnter', {
       group = group,
       callback = function()
+        if state.windows ~= windows then
+          return
+        end
         local current_win = vim.api.nvim_get_current_win()
         local current_buf = vim.api.nvim_get_current_buf()
 
@@ -116,9 +137,7 @@ function M.setup_autocmds(windows)
         )
 
         if not is_opencode_buf then
-          vim.schedule(function()
-            require('opencode.ui.ui').teardown_visible_windows(windows)
-          end)
+          schedule_window_teardown(windows)
         end
       end,
     })
@@ -131,6 +150,9 @@ function M.setup_resize_handler(windows)
   vim.api.nvim_create_autocmd('VimResized', {
     group = resize_group,
     callback = function()
+      if state.windows ~= windows then
+        return
+      end
       require('opencode.ui.topbar').render()
       require('opencode.ui.footer').update_window(windows)
       input_window.update_dimensions(windows)
@@ -142,7 +164,7 @@ function M.setup_resize_handler(windows)
     group = resize_group,
     callback = function(args)
       local win = tonumber(args.match) --[[@as integer]]
-      if not win or not vim.api.nvim_win_is_valid(win) or not output_window.mounted() then
+      if state.windows ~= windows or not win or not vim.api.nvim_win_is_valid(win) or not output_window.mounted(windows) then
         return
       end
 
@@ -156,6 +178,35 @@ function M.setup_resize_handler(windows)
       require('opencode.ui.session_tab_strip').update_window(windows)
     end,
   })
+end
+
+local function on_windows_changed(_, windows)
+  if windows ~= state.windows then
+    return
+  end
+  if not output_window.mounted(windows) then
+    clear_window_handlers()
+    return
+  end
+
+  if bound_windows == windows then
+    return
+  end
+
+  M.setup_autocmds(windows)
+  M.setup_resize_handler(windows)
+  bound_windows = windows
+end
+
+---@param subscribe? boolean Defaults to true; false unregisters and clears window handlers
+function M.setup_subscriptions(subscribe)
+  if subscribe == false then
+    state.store.unsubscribe('windows', on_windows_changed)
+    clear_window_handlers()
+  else
+    state.store.subscribe('windows', on_windows_changed)
+    on_windows_changed(nil, state.windows)
+  end
 end
 
 return M

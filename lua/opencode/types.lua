@@ -47,6 +47,7 @@
 ---@field template string
 
 ---@class OpencodeUICommand
+---@field hook_key? string Default hook group, unless the intent supplies one
 ---@field desc string
 ---@field execute fun(args: string[], range: OpencodeSelectionRange|nil): any
 ---@field completions? string[]

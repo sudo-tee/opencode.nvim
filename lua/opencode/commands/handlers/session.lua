@@ -875,8 +875,16 @@ M.command_defs = {
   },
   undo = {
     desc = 'Undo last action',
+    hook_key = 'session',
     execute = function(args)
       return M.actions.undo(args[1])
+    end,
+  },
+  fork_session = {
+    desc = 'Fork the session from a user message',
+    hook_key = 'session',
+    execute = function(args)
+      return M.actions.fork_session(args[1], args[2])
     end,
   },
   redo = {

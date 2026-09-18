@@ -229,6 +229,37 @@ describe('opencode.commands.dispatch', function()
     assert.same({ 'run' }, seen)
   end)
 
+  it('uses the command hook group for structured and parsed command entries', function()
+    local seen = {}
+    command_dispatch.register_hook('before', function(ctx)
+      seen[#seen + 1] = ctx.intent.name
+    end, { command = 'session' })
+    for _, parsed in ipairs({
+      commands.build_parsed_intent('undo', { 'message-id' }),
+      command_parse.command({ args = 'fork_session message-id', range = 0 }, commands.get_commands()),
+    }) do
+      local result = command_dispatch.execute(make_ctx(parsed, function() return 'ok' end))
+      assert.is_true(result.ok)
+      assert.is_nil(parsed.intent.hook_key)
+    end
+    assert.same({ 'undo', 'fork_session' }, seen)
+  end)
+
+  it('preserves an explicit hook group over the command default', function()
+    local seen = {}
+    command_dispatch.register_hook('before', function()
+      seen[#seen + 1] = 'session'
+    end, { command = 'session' })
+    command_dispatch.register_hook('before', function()
+      seen[#seen + 1] = 'custom'
+    end, { command = 'custom' })
+    local parsed = commands.build_parsed_intent('undo', {})
+    parsed.intent.hook_key = 'custom'
+    local result = command_dispatch.execute(make_ctx(parsed, function() return 'ok' end))
+    assert.is_true(result.ok)
+    assert.same({ 'custom' }, seen)
+  end)
+
   it('supports hook filter fallback from hook_key to intent name', function()
     local seen = {}
 

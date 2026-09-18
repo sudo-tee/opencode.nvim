@@ -1,6 +1,6 @@
 local M = {}
 local config = require('opencode.config')
-local api = require('opencode.api')
+local commands = require('opencode.commands')
 local base_picker = require('opencode.ui.base_picker')
 
 ---Format an Entry for the timeline picker.
@@ -22,23 +22,31 @@ local function format_message_item(entry, width)
   )
 end
 
+---@param name string
+---@return fun(selected: table)
+local function command_action(name)
+  return function(selected)
+    local parsed = commands.build_parsed_intent(name, { selected.id })
+    commands.execute_parsed_intent(parsed)
+  end
+end
+
+---@param messages table[]
+---@param callback fun(entry: table|nil)
+---@return boolean
 function M.pick(messages, callback)
   local keymap = config.keymap.timeline_picker
   local actions = {
     undo = {
       key = keymap.undo,
       label = 'undo',
-      fn = function(selected, opts)
-        api.undo(selected.id)
-      end,
+      fn = command_action('undo'),
       reload = false,
     },
     fork = {
       key = keymap.fork,
       label = 'fork',
-      fn = function(selected, opts)
-        api.fork_session(selected.id)
-      end,
+      fn = command_action('fork_session'),
       reload = false,
     },
   }

@@ -96,6 +96,9 @@ function M.bind_action_context(parsed, execute_override)
 
   local intent = parsed.intent
   local command_def = command_definitions[intent.name]
+  if intent.hook_key == nil and command_def and command_def.hook_key then
+    intent = vim.tbl_extend('force', {}, intent, { hook_key = command_def.hook_key })
+  end
 
   ctx.intent = intent
   ctx.args = intent.args

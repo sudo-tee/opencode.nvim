@@ -140,6 +140,7 @@ describe('loading_animation', function()
       local _, change = observed_execution('ses_a', { activity = 'idle' })
       state.session.set_active({ id = 'ses_a' })
       state.store.set_raw('current_model', 'test/model')
+      state.store.set_raw('current_variant', 'high')
       footer_windows = {
         output_win = vim.api.nvim_get_current_win(),
         output_buf = vim.api.nvim_get_current_buf(),
@@ -153,6 +154,7 @@ describe('loading_animation', function()
         return table.concat(vim.api.nvim_buf_get_lines(footer_windows.footer_buf, 0, -1, false), '')
       end
       assert.is_truthy(text():find('test/model', 1, true))
+      assert.is_truthy(text():find('·high', 1, true))
       assert.is_nil(text():find('to cancel', 1, true))
 
       change({ activity = 'running' })

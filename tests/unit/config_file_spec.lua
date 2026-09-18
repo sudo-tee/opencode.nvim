@@ -112,6 +112,37 @@ describe('config_file.setup', function()
     end):wait()
   end)
 
+  it('normalizes V2 model variants by id', function()
+    Promise.spawn(function()
+      set_operations({
+        get_model_catalog = function()
+          return Promise.new():resolve({
+            providers = {
+              {
+                id = 'provider',
+                models = {
+                  model = {
+                    variants = {
+                      { id = 'low', settings = { effort = 'low' } },
+                      { id = 'high', settings = { effort = 'high' } },
+                    },
+                  },
+                },
+              },
+            },
+            default = {},
+          })
+        end,
+      })
+
+      config_file.get_opencode_providers():await()
+      local model = config_file.get_model_info('provider', 'model')
+      assert.same({ effort = 'low' }, model.variants.low.settings)
+      assert.same({ effort = 'high' }, model.variants.high.settings)
+      assert.is_nil(model.variants[1])
+    end):wait()
+  end)
+
   it('starts the server before fetching a resource', function()
     local server_job = require('opencode.server_job')
     local original_server = state.opencode_server

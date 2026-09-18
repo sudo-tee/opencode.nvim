@@ -136,7 +136,20 @@ M.get_model_info = function(provider, model)
     return nil
   end
 
-  return filtered_providers[1] and filtered_providers[1].models and filtered_providers[1].models[model] or nil
+  local model_info = filtered_providers[1] and filtered_providers[1].models and filtered_providers[1].models[model]
+    or nil
+  if not model_info or not model_info.variants or not vim.islist(model_info.variants) then
+    return model_info
+  end
+
+  local normalized = vim.deepcopy(model_info)
+  normalized.variants = {}
+  for _, variant in ipairs(model_info.variants) do
+    if type(variant) == 'table' and type(variant.id) == 'string' then
+      normalized.variants[variant.id] = variant
+    end
+  end
+  return normalized
 end
 
 ---@type fun(): Promise<string[]>

@@ -134,6 +134,72 @@ describe('opencode.services.session_runtime', function()
       }, state.windows)
     end)
 
+    for _, case in ipairs({
+      { action = 'reuse_visible', created = false, restore_position = false },
+      { action = 'restore_hidden', restored = true, created = false, restore_position = true },
+      { action = 'restore_hidden', restored = false, created = true, restore_position = true },
+      { action = 'create_fresh', created = true, restore_position = true },
+    }) do
+      it('prepares ' .. case.action .. ' windows with restore result ' .. tostring(case.restored), function()
+        state.context.set_current_cwd(vim.fn.getcwd())
+        state.session.set_active({ id = 'existing-session' })
+        state.ui.clear_display_route()
+        local restore = stub(ui, 'restore_hidden_windows').returns(case.restored)
+        local clear_hidden = stub(state.ui, 'clear_hidden_window_state')
+        local guard = stub(session_runtime, 'is_prompting_allowed').returns(true)
+        local ok, err = pcall(function()
+          session_runtime.open({ focus = 'input', start_insert = true, open_action = case.action }):wait()
+          assert.stub(ui.create_windows).was_called(case.created and 1 or 0)
+          assert.stub(restore).was_called(case.action == 'restore_hidden' and 1 or 0)
+          assert.stub(clear_hidden).was_called(case.restored == false and 1 or 0)
+          assert.stub(guard).was_called(case.restore_position and 1 or 0)
+          assert.stub(ui.focus_input).was_called_with({
+            restore_position = case.restore_position,
+            start_insert = true,
+          })
+          assert.stub(ui.render_output).was_called(case.created and 1 or 0)
+          assert.is_false(state.is_opening)
+        end)
+        restore:revert()
+        clear_hidden:revert()
+        guard:revert()
+        assert.is_true(ok, tostring(err))
+      end)
+    end
+
+    it('clears the opening flag when window preparation fails', function()
+      ui.create_windows:revert()
+      stub(ui, 'create_windows').invokes(function()
+        error('window creation failed')
+      end)
+      local ok, err = pcall(function()
+        session_runtime.open({ open_action = 'create_fresh' }):wait()
+      end)
+      assert.is_false(ok)
+      assert.is_truthy(tostring(err):find('window creation failed', 1, true))
+      assert.is_false(state.is_opening)
+    end)
+
+    for _, rejects in ipairs({ true, false }) do
+      it('clears the opening flag when server startup ' .. (rejects and 'rejects' or 'returns nil'), function()
+        local server_job = require('opencode.server_job')
+        local ensure = stub(server_job, 'ensure_server').invokes(function()
+          if rejects then
+            return Promise.new():reject('startup failed')
+          end
+          return Promise.new():resolve(nil)
+        end)
+        local ok, err = pcall(function()
+          session_runtime.open({ focus = 'output', open_action = 'create_fresh' }):wait()
+        end)
+        ensure:revert()
+        assert.is_false(ok)
+        assert.is_truthy(tostring(err):find(rejects and 'startup failed' or 'Server failed to start', 1, true))
+        assert.is_false(state.is_opening)
+        assert.stub(ui.focus_output).was_called_with({ restore_position = true })
+      end)
+    end
+
     it('ensure the current cwd is correct when opening', function()
       local cwd = vim.fn.getcwd()
       state.context.set_current_cwd(nil)

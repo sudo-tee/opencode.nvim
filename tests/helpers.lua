@@ -91,7 +91,7 @@ function M.replay_setup()
 
   renderer.reset()
   -- Ensure replay tests render all messages (lazy-render is always active)
-  require('opencode.ui.renderer.ctx').lazy_render_count = math.huge
+  require('opencode.ui.renderer.ctx').current().lazy_render_count = math.huge
   permission_window.clear_all()
   question_window._clear_dialog()
   question_window._current_question = nil
@@ -441,7 +441,7 @@ function M.replay_event(event)
     rendered = true
   end)
   assert(vim.wait(1000, function()
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     return rendered and not ctx.reconcile_scheduled and not ctx.flush_scheduled
   end), 'scheduled replay render did not finish')
 end
@@ -724,7 +724,7 @@ function M.capture_output(output_buf, namespace)
   return {
     lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false) or {},
     extmarks = extmarks,
-    actions = vim.deepcopy(require('opencode.ui.renderer.ctx').render_state:get_all_actions()),
+    actions = vim.deepcopy(require('opencode.ui.renderer.ctx').current().render_state:get_all_actions()),
     window = capture_window(output_buf),
   }
 end

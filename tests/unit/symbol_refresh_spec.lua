@@ -1,6 +1,6 @@
 local stub = require('luassert.stub')
 local state = require('opencode.state')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local reference_facts = require('opencode.ui.reference_facts')
 local symbol_snapshot = require('opencode.ui.symbol_snapshot')
 local symbol_refresh = require('opencode.ui.renderer.symbol_refresh')
@@ -10,7 +10,7 @@ describe('renderer symbol refresh', function()
   local original_schedule
 
   before_each(function()
-    ctx:reset()
+    contexts.current():reset()
     state.session.set_active({ id = 'ses_test', title = 'Test Session' })
     original_defer_fn = vim.defer_fn
     original_schedule = vim.schedule
@@ -19,21 +19,21 @@ describe('renderer symbol refresh', function()
   after_each(function()
     vim.defer_fn = original_defer_fn
     vim.schedule = original_schedule
-    ctx:reset()
+    contexts.current():reset()
   end)
 
   it('cancels an active refresh when symbol data is invalidated', function()
     local refresh_stub = stub(reference_facts, 'refresh_current_files')
     local cycle = {}
-    ctx.symbol_refresh_pending = true
-    ctx.symbol_refresh_cycle = cycle
-    local refresh_token = ctx.symbol_refresh_token
+    contexts.current().symbol_refresh_pending = true
+    contexts.current().symbol_refresh_cycle = cycle
+    local refresh_token = contexts.current().symbol_refresh_token
 
     symbol_refresh.invalidate()
 
-    assert.equal(refresh_token + 1, ctx.symbol_refresh_token)
-    assert.is_false(ctx.symbol_refresh_pending)
-    assert.is_nil(ctx.symbol_refresh_cycle)
+    assert.equal(refresh_token + 1, contexts.current().symbol_refresh_token)
+    assert.is_false(contexts.current().symbol_refresh_pending)
+    assert.is_nil(contexts.current().symbol_refresh_cycle)
     assert.stub(refresh_stub).was_called(1)
     refresh_stub:revert()
   end)
@@ -66,8 +66,8 @@ describe('renderer symbol refresh', function()
     end
 
     assert.same({ 'broken.lua', 'valid.lua' }, warmed)
-    assert.is_false(ctx.symbol_refresh_pending)
-    assert.is_nil(ctx.symbol_refresh_cycle)
+    assert.is_false(contexts.current().symbol_refresh_pending)
+    assert.is_nil(contexts.current().symbol_refresh_cycle)
 
     cycle_stub:revert()
     files_stub:revert()

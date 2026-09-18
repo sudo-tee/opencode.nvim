@@ -1,7 +1,10 @@
 local RenderState = require('opencode.ui.render_state')
 
----Shared mutable context for the renderer modules.
----Single instance, shared via Lua's require cache.
+local M = {}
+local ctx = {}
+ctx.__index = ctx
+local current
+
 ---@class PermissionController
 ---@field get_all_permissions fun(): table[]
 ---@field clear_all fun()
@@ -14,74 +17,84 @@ local RenderState = require('opencode.ui.render_state')
 ---@field clear_all fun()
 ---@field sync fun(observations: table[])
 
----@class RendererCtx
-local ctx = {
-  observation = nil,
-  entries = {},
-  ---Controllers are registered by the entry layer during plugin setup.
-  ---@type {permission?: PermissionController, question?: QuestionController}
-  prompt_controllers = {},
-  ---@type RenderState
-  render_state = RenderState.new(),
-  ---@type { part_id: string|nil, formatted_data: Output|nil }
-  last_part_formatted = { part_id = nil, formatted_data = nil },
-  ---@type table<string, Output>
-  formatted_parts = {},
-  ---@type table<string, Output>
-  formatted_messages = {},
-  message_snapshots = {}, ---@type table<string, table>
-  part_snapshots = {}, ---@type table<string, table>
-  pending = {
-    dirty_message_order = {}, ---@type string[]
-    dirty_messages = {}, ---@type table<string, boolean>
-    dirty_part_by_message = {}, ---@type table<string, string[]>
-    dirty_part_order = {}, ---@type string[]
-    dirty_parts = {}, ---@type table<string, string>
-    removed_part_order = {}, ---@type string[]
-    removed_parts = {}, ---@type table<string, boolean>
-    removed_message_order = {}, ---@type string[]
-    removed_messages = {}, ---@type table<string, boolean>
-  },
-  flush_scheduled = false, ---@type boolean
-  reconcile_scheduled = false, ---@type boolean
-  markdown_render_scheduled = false, ---@type boolean
-  symbol_refresh_pending = false, ---@type boolean
-  symbol_refresh_token = 0, ---@type integer
-  symbol_refresh_cycle = nil, ---@type table?
-  bulk_mode = false, ---@type boolean
-  bulk_buffer_lines = {},
-  bulk_extmarks_by_line = {},
-  ---@type {from: number, to: number}[]
-  bulk_folds = {},
-  ---@type {from: number, to: number}[]
-  global_folds = {},
-  ---@type table<string, {from: number, to: number}[]>
-  part_folds = {},
-  ---@type integer|nil Number of messages to render from the end (nil = all)
-  lazy_render_count = nil,
-  generation = 0,
-  file_revision = 0,
-  ---@type fun(session_id: string): table[]?
-  get_child_parts = function()
-    return nil
-  end,
-}
+---Controllers are registered once by the entry layer; their displays use the active context.
+---@type {permission?: PermissionController, question?: QuestionController}
+M.prompt_controllers = {}
 
-local CONTEXT_KEYS = {
-  'render_state',
-  'last_part_formatted',
-  'formatted_parts',
-  'formatted_messages',
-  'message_snapshots',
-  'part_snapshots',
-  'entries',
-  'file_revision',
-  'pending',
-  'markdown_render_scheduled',
-  'global_folds',
-  'part_folds',
-  'lazy_render_count',
-}
+---@class RendererCtx
+---@field observation table|nil
+---@field render_session OpencodeRenderSession|nil
+---@field render_state RenderState
+---@field entries table[]
+---@field generation integer
+---@field closed boolean
+---@field output_buf integer|nil
+---@field needs_reconcile boolean
+---@field lazy_render_count integer|nil
+---@field get_child_parts fun(session_id: string): table[]|nil
+---@field prompt_controllers {permission?: PermissionController, question?: QuestionController}
+---@field formatted_parts table<string, Output>
+---@field formatted_messages table<string, Output>
+---@field last_part_formatted {part_id: string|nil, formatted_data: Output|nil}
+---@field message_snapshots table<string, table>
+---@field part_snapshots table<string, table>
+---@field file_revision integer
+---@field flush_scheduled boolean
+---@field reconcile_scheduled boolean
+---@field markdown_render_scheduled boolean
+---@field markdown_debounce? fun(generation: integer)
+---@field symbol_refresh_pending boolean
+---@field symbol_refresh_token integer
+---@field symbol_refresh_cycle table|nil
+---@field bulk_mode boolean
+---@field bulk_buffer_lines string[]
+---@field bulk_extmarks_by_line table
+---@field bulk_folds table[]
+---@field global_folds table[]
+---@field part_folds table<string, table[]>
+---@field pending {dirty_message_order: string[], dirty_messages: table, dirty_part_by_message: table, dirty_part_order: string[], dirty_parts: table, removed_part_order: string[], removed_parts: table, removed_message_order: string[], removed_messages: table}
+
+---@return RendererCtx
+function M.new()
+  local self = setmetatable({
+    generation = 0,
+    symbol_refresh_token = 0,
+    closed = false,
+    prompt_controllers = M.prompt_controllers,
+    get_child_parts = function()
+      return nil
+    end,
+  }, ctx)
+  self:reset()
+  return self
+end
+
+---@return RendererCtx
+function M.current()
+  current = current or M.new()
+  return current
+end
+
+---@param context? RendererCtx
+function M.select(context)
+  current = context or M.new()
+end
+
+---@return boolean
+function ctx:is_active()
+  return current == self and not self.closed
+end
+
+---Invalidate queued work and release subscriptions when the owning tab is removed.
+function ctx:close()
+  if self.render_session then
+    self.render_session:close()
+    self.render_session = nil
+  end
+  self.observation = nil
+  self:reset()
+  self.closed = true
+end
 
 ---Reset all renderer caches and pending state.
 function ctx:reset()
@@ -113,36 +126,8 @@ function ctx:reset()
   self.part_folds = {}
   self.entries = {}
   self.file_revision = 0
+  self.needs_reconcile = false
   self:bulk_reset()
-end
-
----@return table
-function ctx:snapshot()
-  local snapshot = {}
-  for _, key in ipairs(CONTEXT_KEYS) do
-    snapshot[key] = self[key]
-  end
-  return snapshot
-end
-
----@param snapshot table|nil
----@return boolean
-function ctx:restore(snapshot)
-  self.generation = self.generation + 1
-  if not snapshot then
-    self:reset()
-    return false
-  end
-
-  for _, key in ipairs(CONTEXT_KEYS) do
-    self[key] = snapshot[key]
-  end
-
-  self.flush_scheduled = false
-  self.reconcile_scheduled = false
-  self.bulk_mode = false
-  self:bulk_reset()
-  return true
 end
 
 ---@param entry table
@@ -161,19 +146,4 @@ function ctx:bulk_reset()
   self.bulk_folds = {}
 end
 
----@param pending? RendererCtx['pending']
----@return boolean
-function ctx:has_pending_work(pending)
-  pending = pending or self.pending
-
-  return self.reconcile_scheduled
-    or self.flush_scheduled
-    or self.symbol_refresh_pending
-    or self.bulk_mode
-    or #pending.dirty_message_order > 0
-    or #pending.dirty_part_order > 0
-    or #pending.removed_part_order > 0
-    or #pending.removed_message_order > 0
-end
-
-return ctx
+return M

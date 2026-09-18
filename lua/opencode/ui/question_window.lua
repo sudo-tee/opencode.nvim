@@ -352,7 +352,7 @@ local function open_inline_other_input(request_id, question_index, option_index,
   end
 
   local pos = M._dialog and M._dialog:get_option_position(option_index)
-  local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part')
+  local part_data = require('opencode.ui.renderer.ctx').current().render_state:get_part('question-display-part')
   if not (pos and part_data and part_data.line_start and state.windows and state.windows.output_win) then
     return false
   end

@@ -45,9 +45,11 @@ The Domain/Presentation line above is a declaration, not yet a fact — the
 measured distance is in the last section. The old middle layer
 (`api_client`, `event_manager`, `session`, `ui/renderer/events`,
 `ui/event_scope`, `ui/session_scope`) was removed to make room for it.
-Session tabs (logical tabs per session, from upstream) keep one renderer
-context per tab and re-attach through the Observation path, not a parallel
-event scope.
+Each session tab owns a renderer context containing its caches, pending writes,
+and Observation subscriptions. Switching tabs selects that instance without
+copying fields. Delayed callbacks retain their owning context; inactive updates
+mark it for reconciliation when its windows are mounted again. Removing a tab
+closes its subscriptions and invalidates queued work.
 
 `services/session_runtime` watches the active session's metadata and messages.
 It adopts the title/location into tab state and restores the model once per

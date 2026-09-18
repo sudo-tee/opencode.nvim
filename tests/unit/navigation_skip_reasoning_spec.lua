@@ -3,19 +3,19 @@ local assert = require('luassert')
 local navigation = require('opencode.ui.navigation')
 local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 
 ---@param entries table[] list of { id, kind, line_start, line_end? }
 ---@param parts table[] list of { id, message_id, kind, line_start, line_end }
 local function seed(entries, parts)
-  ctx.entries = {}
+  contexts.current().entries = {}
   for _, r in ipairs(entries) do
     local entry = { id = r.id, kind = r.kind, content = {} }
-    ctx.entries[#ctx.entries + 1] = entry
-    ctx.render_state:set_message(entry, r.line_start, r.line_end or r.line_start)
+    contexts.current().entries[#contexts.current().entries + 1] = entry
+    contexts.current().render_state:set_message(entry, r.line_start, r.line_end or r.line_start)
   end
   for _, p in ipairs(parts or {}) do
-    ctx.render_state:set_part(
+    contexts.current().render_state:set_part(
       { id = p.id, kind = p.kind, synthetic = p.synthetic },
       p.message_id,
       p.id,
@@ -26,8 +26,8 @@ local function seed(entries, parts)
 end
 
 local function clear_render()
-  ctx.entries = {}
-  ctx.render_state:reset()
+  contexts.current().entries = {}
+  contexts.current().render_state:reset()
 end
 
 describe('navigation skip-reasoning default', function()

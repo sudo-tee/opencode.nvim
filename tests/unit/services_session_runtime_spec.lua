@@ -584,7 +584,7 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('defers output buffer writes while the output window is in another tab', function()
-      local ctx = require('opencode.ui.renderer.ctx')
+      local ctx = require('opencode.ui.renderer.ctx').current()
       local buf = vim.api.nvim_create_buf(false, true)
       local win = vim.api.nvim_open_win(buf, false, {
         relative = 'editor',

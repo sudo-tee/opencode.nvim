@@ -1,5 +1,5 @@
 local buffer = require('opencode.ui.renderer.buffer')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local output_window = require('opencode.ui.output_window')
 local stub = require('luassert.stub')
 
@@ -29,7 +29,7 @@ describe('renderer.buffer extmarks', function()
   local call_order
 
   before_each(function()
-    ctx:reset()
+    contexts.current():reset()
     call_order = {}
     set_lines_stub = stub(output_window, 'set_lines').invokes(function()
       call_order[#call_order + 1] = 'set_lines'
@@ -46,11 +46,11 @@ describe('renderer.buffer extmarks', function()
     clear_extmarks_stub:revert()
     set_extmarks_stub:revert()
     highlight_changed_lines_stub:revert()
-    ctx:reset()
+    contexts.current():reset()
   end)
 
   it('reapplies extmarks on the first changed line when updating a part', function()
-    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
+    contexts.current().render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
 
     buffer.upsert_part_now('part_1', 'msg_1', {
       lines = { 'alpha', 'gamma' },
@@ -76,7 +76,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('reapplies extmarks at the correct line after unchanged leading lines', function()
-    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 20, 24)
+    contexts.current().render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 20, 24)
 
     buffer.upsert_part_now('part_1', 'msg_1', {
       lines = { 'title', '', 'question', '    1. One', '    2. Two ' },
@@ -106,7 +106,7 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('clears extmarks before rewriting a message', function()
-    ctx.render_state:set_message({ id = 'msg_1', kind = 'assistant' }, 30, 31)
+    contexts.current().render_state:set_message({ id = 'msg_1', kind = 'assistant' }, 30, 31)
 
     buffer.upsert_message_now('msg_1', {
       lines = { 'alpha', '' },
@@ -127,8 +127,8 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('only clears and reapplies appended extmarks during append-only updates', function()
-    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
-    ctx.formatted_parts['part_1'] = {
+    contexts.current().render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 11)
+    contexts.current().formatted_parts['part_1'] = {
       lines = { 'alpha', 'beta', 'gamma' },
       extmarks = {
         [0] = {
@@ -160,8 +160,8 @@ describe('renderer.buffer extmarks', function()
   end)
 
   it('replaces rendered targets with line offset when updating a part', function()
-    ctx.render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 10)
-    ctx.render_state:add_targets('part_1', {
+    contexts.current().render_state:set_part({ id = 'part_1', kind = 'text' }, 'msg_1', 'part_1', 10, 10)
+    contexts.current().render_state:add_targets('part_1', {
       {
         kind = 'file',
         path = 'old.lua',
@@ -187,11 +187,11 @@ describe('renderer.buffer extmarks', function()
       targets = {},
     })
 
-    assert.is_nil(ctx.render_state:get_target_at_position(11, 1, function(target)
+    assert.is_nil(contexts.current().render_state:get_target_at_position(11, 1, function(target)
       return target.path == 'old.lua'
     end))
 
-    local result = ctx.render_state:get_target_at_position(11, 1)
+    local result = contexts.current().render_state:get_target_at_position(11, 1)
     assert.is_not_nil(result)
     assert.equals('new.lua', result.path)
   end)
@@ -201,23 +201,23 @@ describe('update_part_folds', function()
   local set_folds_stub
 
   before_each(function()
-    ctx:reset()
+    contexts.current():reset()
     set_folds_stub = stub(output_window, 'set_folds')
-    ctx.global_folds = {}
-    ctx.part_folds = {}
+    contexts.current().global_folds = {}
+    contexts.current().part_folds = {}
   end)
 
   after_each(function()
     set_folds_stub:revert()
-    ctx:reset()
+    contexts.current():reset()
   end)
 
   it('computes absolute fold ranges for a single part', function()
-    ctx.formatted_parts['part_a'] = {
+    contexts.current().formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
+    contexts.current().render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
 
@@ -227,11 +227,11 @@ describe('update_part_folds', function()
   end)
 
   it('skips set_folds when fold ranges have not changed', function()
-    ctx.formatted_parts['part_a'] = {
+    contexts.current().formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
+    contexts.current().render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
     set_folds_stub:clear()
@@ -242,17 +242,17 @@ describe('update_part_folds', function()
   end)
 
   it('merges existing folds from other parts', function()
-    ctx.formatted_parts['part_b'] = {
+    contexts.current().formatted_parts['part_b'] = {
       lines = { 'other' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_b', kind = 'text' }, 'msg_b', 'part_b', 5, 8)
+    contexts.current().render_state:set_part({ id = 'part_b', kind = 'text' }, 'msg_b', 'part_b', 5, 8)
 
-    ctx.formatted_parts['part_a'] = {
+    contexts.current().formatted_parts['part_a'] = {
       lines = { 'title', '', 'content', 'more' },
       fold_ranges = { { from = 1, to = 4 } },
     }
-    ctx.render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
+    contexts.current().render_state:set_part({ id = 'part_a', kind = 'text' }, 'msg_1', 'part_a', 10, 14)
 
     buffer.update_part_folds('part_a')
 

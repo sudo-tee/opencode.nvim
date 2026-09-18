@@ -272,7 +272,7 @@ describe('output token navigation', function()
       navigated = { path = path, line = line, col = col }
       return true
     end
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     ctx.entries = setmetatable({}, {
       __pairs = function()
         error('symbol target navigation must not scan renderer entries')
@@ -596,7 +596,7 @@ describe('navigation jumplist preservation', function()
 
   it('marks the output cursor before goto_next_message moves', function()
     local renderer = require('opencode.ui.renderer')
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     ctx.entries = {
       { info = { id = 'm1', role = 'user' } },
       { info = { id = 'm2', role = 'assistant' } },
@@ -616,7 +616,7 @@ describe('navigation jumplist preservation', function()
 
   it('marks the output cursor before goto_prev_message moves', function()
     local renderer = require('opencode.ui.renderer')
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     ctx.entries = {
       { info = { id = 'm1', role = 'user' } },
       { info = { id = 'm2', role = 'assistant' } },
@@ -690,7 +690,7 @@ describe('navigation hidden-messages-notice handling', function()
   end)
 
   it('does not jump [[ to the hidden-messages notice when max_messages truncates', function()
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     -- Simulate a renderer entry list containing the hidden notice after truncation.
     ctx.entries = {
       { id = 'real_old', kind = 'assistant', session_id = 's1' },

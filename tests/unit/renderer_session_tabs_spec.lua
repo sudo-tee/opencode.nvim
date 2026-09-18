@@ -2,7 +2,7 @@ local state = require('opencode.state')
 local store = require('opencode.state.store')
 local session_tabs = require('opencode.state.session_tabs')
 local renderer = require('opencode.ui.renderer')
-local renderer_ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local stub = require('luassert.stub')
 
 local function mock_connection()
@@ -43,7 +43,7 @@ describe('renderer session tab contexts', function()
   before_each(function()
     original_state = vim.deepcopy(store.state())
     session_tabs.reset()
-    renderer_ctx:reset()
+    contexts.current():reset()
     state.ui.set_windows(nil)
   end)
 
@@ -57,26 +57,23 @@ describe('renderer session tab contexts', function()
     output_win = nil
     output_buf = nil
     state.ui.set_windows(nil)
-    renderer_ctx:reset()
+    contexts.current():reset()
     session_tabs.reset()
     for key, value in pairs(original_state) do
       store.set_raw(key, value)
     end
   end)
 
-  it('restores a cached renderer context without rerendering the output buffer', function()
+  it('selects a cached renderer context without rerendering the output buffer', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }
 
-    renderer_ctx:reset()
-    renderer_ctx.formatted_messages = { first = true }
-    first.renderer_context = renderer_ctx:snapshot()
+    contexts.current():reset()
+    contexts.current().formatted_messages = { first = true }
 
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
-    renderer_ctx:reset()
-    renderer_ctx.formatted_messages = { second = true }
-    second.renderer_context = renderer_ctx:snapshot()
-    renderer_ctx:restore(first.renderer_context)
+    second.renderer_context.formatted_messages = { second = true }
+    second.renderer_context.observation = mock_connection():observe(second.active_session)
 
     output_buf = vim.api.nvim_create_buf(false, true)
     output_win = vim.api.nvim_open_win(output_buf, false, {
@@ -90,6 +87,7 @@ describe('renderer session tab contexts', function()
     vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'preserved output' })
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
 
+    contexts.select(second.renderer_context)
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
 
@@ -97,7 +95,7 @@ describe('renderer session tab contexts', function()
     renderer.on_session_tab_changed(nil, second.id, first.id)
 
     assert.stub(render_stub).was_not_called()
-    assert.equals(second.renderer_context.render_state, renderer_ctx.render_state)
+    assert.equals(second.renderer_context.render_state, contexts.current().render_state)
     assert.same({ 'preserved output' }, vim.api.nvim_buf_get_lines(output_buf, 0, -1, false))
     render_stub:revert()
   end)
@@ -106,8 +104,7 @@ describe('renderer session tab contexts', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
-    second.renderer_context = renderer_ctx:snapshot()
-    second.renderer_dirty = true
+    second.renderer_context.needs_reconcile = true
 
     output_buf = vim.api.nvim_create_buf(false, true)
     output_win = vim.api.nvim_open_win(output_buf, false, {
@@ -120,13 +117,14 @@ describe('renderer session tab contexts', function()
     vim.api.nvim_win_set_buf(output_win, output_buf)
     state.ui.set_windows({ output_buf = output_buf, output_win = output_win })
     mock_connection()
+    contexts.select(second.renderer_context)
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
     renderer.on_session_changed(nil, second.active_session, nil)
 
     renderer.on_session_tab_changed(nil, second.id, first.id)
 
-    assert.is_false(second.renderer_dirty)
+    assert.is_false(second.renderer_context.needs_reconcile)
     assert.is_not_nil(second.renderer_context)
     assert.equals(output_buf, second.renderer_context.output_buf)
   end)
@@ -134,8 +132,8 @@ describe('renderer session tab contexts', function()
   it('does not clear dirty state when output is not mounted', function()
     local first = session_tabs.ensure_current()
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
-    second.renderer_context = renderer_ctx:snapshot()
-    second.renderer_dirty = true
+    second.renderer_context.needs_reconcile = true
+    contexts.select(second.renderer_context)
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
 
@@ -143,7 +141,7 @@ describe('renderer session tab contexts', function()
     renderer.on_session_tab_changed(nil, second.id, first.id)
     vim.wait(20)
 
-    assert.is_true(second.renderer_dirty)
+    assert.is_true(second.renderer_context.needs_reconcile)
     render_stub:revert()
   end)
 
@@ -151,12 +149,13 @@ describe('renderer session tab contexts', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
-    second.renderer_dirty = false
+    second.renderer_context.needs_reconcile = false
 
+    contexts.select(second.renderer_context)
     store.set_raw('active_session_tab', second.id)
     store.set_raw('active_session', second.active_session)
     renderer.on_session_tab_changed(nil, second.id, first.id)
-    assert.is_true(second.renderer_dirty)
+    assert.is_true(second.renderer_context.needs_reconcile)
 
     output_buf = vim.api.nvim_create_buf(false, true)
     output_win = vim.api.nvim_open_win(output_buf, false, {
@@ -171,18 +170,19 @@ describe('renderer session tab contexts', function()
     mock_connection()
     renderer.on_session_changed(nil, second.active_session, nil)
 
+    second.renderer_context.needs_reconcile = true
     local render_stub = stub(renderer, 'render_full_session').returns(true)
     renderer.on_windows_mounted()
 
     vim.wait(20, function()
-      return not second.renderer_dirty
+      return not second.renderer_context.needs_reconcile
     end)
     assert.stub(render_stub).was_called(1)
-    assert.is_false(second.renderer_dirty)
+    assert.is_false(second.renderer_context.needs_reconcile)
     render_stub:revert()
   end)
 
-  it('saves the renderer context of the tab being left before switching', function()
+  it('keeps each tab context when switching away and back', function()
     local first = session_tabs.ensure_current()
     first.active_session = { id = 'session-one', title = 'One' }
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
@@ -201,17 +201,23 @@ describe('renderer session tab contexts', function()
     store.set_raw('active_session', first.active_session)
     store.set_raw('active_session_tab', first.id)
     renderer.on_session_changed(nil, first.active_session, nil)
-    renderer_ctx.formatted_messages = { saved = true }
+    contexts.current().formatted_messages = { saved = true }
 
+    contexts.select(second.renderer_context)
+    store.set_raw('active_session_tab', second.id)
+    store.set_raw('active_session', second.active_session)
     renderer.on_session_tab_changed(nil, second.id, first.id)
 
-    -- the left tab keeps its renderer context for a later restore
+    -- The original instance remains owned by the first tab.
     assert.is_not_nil(first.renderer_context)
     assert.same({ saved = true }, first.renderer_context.formatted_messages)
-    -- switching back restores it without rerendering
+
     local render_stub = stub(renderer, 'render_full_session').returns(false)
+    contexts.select(first.renderer_context)
+    store.set_raw('active_session_tab', first.id)
+    store.set_raw('active_session', first.active_session)
     renderer.on_session_tab_changed(nil, first.id, second.id)
-    assert.same({ saved = true }, renderer_ctx.formatted_messages)
+    assert.same({ saved = true }, contexts.current().formatted_messages)
     assert.stub(render_stub).was_not_called()
     render_stub:revert()
   end)

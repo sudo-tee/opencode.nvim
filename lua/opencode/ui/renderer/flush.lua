@@ -4,7 +4,7 @@ local formatter = require('opencode.ui.formatter')
 local reference_facts = require('opencode.ui.reference_facts')
 local symbol_snapshot = require('opencode.ui.symbol_snapshot')
 local output_window = require('opencode.ui.output_window')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local scroll = require('opencode.ui.renderer.scroll')
 local buffer = require('opencode.ui.renderer.buffer')
 local output_diff = require('opencode.ui.renderer.output_diff')
@@ -12,7 +12,11 @@ local output_diff = require('opencode.ui.renderer.output_diff')
 local M = {}
 local warned_part_render_error = false
 
-local function output_window_is_in_background_tab()
+---@param ctx RendererCtx
+local function output_window_is_in_background_tab(ctx)
+  if not ctx:is_active() then
+    return true
+  end
   local output_win = state.windows and state.windows.output_win
   return output_win and vim.api.nvim_win_is_valid(output_win) and not state.ui.is_window_in_current_tab(output_win)
 end
@@ -124,7 +128,8 @@ end
 
 ---@param message_id string|nil
 ---@param part_id string|nil
-local function track_message_for_part(message_id, part_id)
+---@param ctx RendererCtx
+local function track_message_for_part(ctx, message_id, part_id)
   if not message_id or not part_id then
     return
   end
@@ -139,7 +144,8 @@ end
 
 ---@param message_id string|nil
 ---@param part_id string
-local function untrack_message_for_part(message_id, part_id)
+---@param ctx RendererCtx
+local function untrack_message_for_part(ctx, message_id, part_id)
   local part_ids = message_id and ctx.pending.dirty_part_by_message[message_id]
   if not part_ids then
     return
@@ -151,19 +157,23 @@ local function untrack_message_for_part(message_id, part_id)
 end
 
 ---@param message_id string|nil
-function M.mark_message_dirty(message_id)
+---@param ctx? RendererCtx
+function M.mark_message_dirty(message_id, ctx)
+  ctx = ctx or contexts.current()
   if not message_id then
     return
   end
   ctx.pending.removed_messages[message_id] = nil
   enqueue_once(ctx.pending.dirty_message_order, ctx.pending.dirty_messages, message_id)
   ctx.pending.dirty_messages[message_id] = true
-  M.schedule()
+  M.schedule(ctx)
 end
 
 ---@param part_id string|nil
 ---@param message_id? string
-function M.mark_part_dirty(part_id, message_id)
+---@param ctx? RendererCtx
+function M.mark_part_dirty(part_id, message_id, ctx)
+  ctx = ctx or contexts.current()
   if not part_id then
     return
   end
@@ -177,19 +187,21 @@ function M.mark_part_dirty(part_id, message_id)
   ctx.pending.removed_parts[part_id] = nil
   enqueue_once(ctx.pending.dirty_part_order, ctx.pending.dirty_parts, part_id)
   ctx.pending.dirty_parts[part_id] = message_id
-  track_message_for_part(message_id, part_id)
-  M.schedule()
+  track_message_for_part(ctx, message_id, part_id)
+  M.schedule(ctx)
 end
 
 ---@param part_id string|nil
-function M.queue_part_removal(part_id)
+---@param ctx? RendererCtx
+function M.queue_part_removal(part_id, ctx)
+  ctx = ctx or contexts.current()
   if not part_id then
     return
   end
 
   local rendered_part = ctx.render_state:get_part(part_id)
   if rendered_part and rendered_part.message_id then
-    untrack_message_for_part(rendered_part.message_id, part_id)
+    untrack_message_for_part(ctx, rendered_part.message_id, part_id)
   end
 
   ctx.pending.dirty_parts[part_id] = nil
@@ -197,11 +209,13 @@ function M.queue_part_removal(part_id)
   ctx.pending.removed_parts[part_id] = true
   ctx.formatted_parts[part_id] = nil
   ctx.part_snapshots[part_id] = nil
-  M.schedule()
+  M.schedule(ctx)
 end
 
 ---@param message_id string|nil
-function M.queue_message_removal(message_id)
+---@param ctx? RendererCtx
+function M.queue_message_removal(message_id, ctx)
+  ctx = ctx or contexts.current()
   if not message_id then
     return
   end
@@ -212,11 +226,13 @@ function M.queue_message_removal(message_id)
   ctx.pending.removed_messages[message_id] = true
   ctx.formatted_messages[message_id] = nil
   ctx.message_snapshots[message_id] = nil
-  M.schedule()
+  M.schedule(ctx)
 end
 
 ---Schedule a renderer flush on the next event loop tick.
-function M.schedule()
+---@param ctx? RendererCtx
+function M.schedule(ctx)
+  ctx = ctx or contexts.current()
   if ctx.flush_scheduled then
     return
   end
@@ -228,12 +244,13 @@ function M.schedule()
       return
     end
     ctx.flush_scheduled = false
-    M.flush()
+    M.flush(nil, ctx)
   end)
 end
 
 ---@return RendererCtx['pending']
-local function snapshot_pending()
+---@param ctx RendererCtx
+local function snapshot_pending(ctx)
   local pending = ctx.pending
   ctx.pending = {
     dirty_message_order = {},
@@ -251,7 +268,8 @@ end
 
 ---@param opts? {resolve_symbol_targets?: boolean}
 ---@return FormatterContext
-local function new_formatter_context(opts)
+---@param ctx RendererCtx
+local function new_formatter_context(ctx, opts)
   return {
     interactive = true,
     resolve_symbol_targets = not ctx.bulk_mode or (opts ~= nil and opts.resolve_symbol_targets == true),
@@ -265,7 +283,8 @@ end
 ---@param message_id string
 ---@param prev Output|nil
 ---@return Output|nil
-local function format_message(message_id, prev)
+---@param ctx RendererCtx
+local function format_message(ctx, message_id, prev)
   local rendered_message = ctx.render_state:get_message(message_id)
   local message = rendered_message and rendered_message.message
   if not message then
@@ -287,7 +306,8 @@ end
 ---@param render_context FormatterContext
 ---@return Output|nil formatted
 ---@return string|nil message_id
-local function format_part(part_id, render_context)
+---@param ctx RendererCtx
+local function format_part(ctx, part_id, render_context)
   local rendered_part = ctx.render_state:get_part(part_id)
   if not rendered_part or not rendered_part.part then
     return nil
@@ -299,7 +319,7 @@ local function format_part(part_id, render_context)
     return nil
   end
 
-  local is_last_part = (buffer.get_last_part_for_message(message) == part_id)
+  local is_last_part = (buffer.get_last_part_for_message(message, ctx) == part_id)
   local ok, formatted_or_err = pcall(formatter.format_part, rendered_part.part, message, is_last_part, render_context)
   if not ok then
     warn_part_render_error_once(part_id, rendered_part.message_id, formatted_or_err)
@@ -311,30 +331,32 @@ end
 
 ---@param message_id string
 ---@return boolean
-local function apply_message(message_id)
+---@param ctx RendererCtx
+local function apply_message(ctx, message_id)
   local previous = ctx.formatted_messages[message_id]
-  local formatted = format_message(message_id, previous)
+  local formatted = format_message(ctx, message_id, previous)
   if not formatted then
     return false
   end
-  return buffer.upsert_message_now(message_id, formatted, previous)
+  return buffer.upsert_message_now(message_id, formatted, previous, ctx)
 end
 
 ---@param part_id string
 ---@param message_id string|nil
 ---@param render_context FormatterContext
 ---@return boolean
-local function apply_part(part_id, message_id, render_context)
+---@param ctx RendererCtx
+local function apply_part(ctx, part_id, message_id, render_context)
   local previous = ctx.formatted_parts[part_id]
   local formatted = nil
-  formatted, message_id = format_part(part_id, render_context)
+  formatted, message_id = format_part(ctx, part_id, render_context)
   if not formatted or not message_id then
     return false
   end
 
   if output_diff.is_unchanged(previous, formatted) then
     ctx.formatted_parts[part_id] = formatted
-    buffer.refresh_part_metadata(part_id, formatted, previous)
+    buffer.refresh_part_metadata(part_id, formatted, previous, ctx)
     return false
   end
 
@@ -356,16 +378,17 @@ local function apply_part(part_id, message_id, render_context)
       output_diff.slice_lines(formatted.lines, tail_offset + 1),
       output_diff.slice_extmarks(formatted.extmarks, tail_offset),
       previous
-    )
+    , ctx)
   end
 
-  return buffer.upsert_part_now(part_id, message_id, formatted, previous)
+  return buffer.upsert_part_now(part_id, message_id, formatted, previous, ctx)
 end
 
 ---@param pending RendererCtx['pending']
 ---@param opts? {resolve_symbol_targets?: boolean}
 ---@return boolean
-local function apply_pending(pending, opts)
+---@param ctx RendererCtx
+local function apply_pending(ctx, pending, opts)
   local buf = state.windows and state.windows.output_buf
   if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return false
@@ -382,27 +405,27 @@ local function apply_pending(pending, opts)
 
   local render_context
   local function apply_dirty_part(part_id, message_id)
-    render_context = render_context or new_formatter_context(opts)
-    return apply_part(part_id, message_id, render_context)
+    render_context = render_context or new_formatter_context(ctx, opts)
+    return apply_part(ctx, part_id, message_id, render_context)
   end
   local changed = false
   local scroll_snapshot = scroll.pre_flush(buf)
   with_suppressed_output_autocmds(function()
     for _, part_id in ipairs(pending.removed_part_order) do
       if pending.removed_parts[part_id] then
-        changed = buffer.remove_part_now(part_id) or changed
+        changed = buffer.remove_part_now(part_id, ctx) or changed
       end
     end
 
     for _, message_id in ipairs(pending.removed_message_order) do
       if pending.removed_messages[message_id] then
-        changed = buffer.remove_message_now(message_id) or changed
+        changed = buffer.remove_message_now(message_id, ctx) or changed
       end
     end
 
     for _, message_id in ipairs(pending.dirty_message_order) do
       if pending.dirty_messages[message_id] then
-        changed = apply_message(message_id) or changed
+        changed = apply_message(ctx, message_id) or changed
       end
 
       local dirty_parts = pending.dirty_part_by_message[message_id]
@@ -435,7 +458,8 @@ local function apply_pending(pending, opts)
 end
 
 ---Trigger post-render markdown callbacks or commands.
-local function do_trigger_on_data_rendered()
+---@param ctx RendererCtx
+local function do_trigger_on_data_rendered(ctx)
   local cb_type = type(config.ui.output.rendering.on_data_rendered)
   if cb_type == 'boolean' then
     return
@@ -467,14 +491,31 @@ local function do_trigger_on_data_rendered()
   end
 end
 
-M.trigger_on_data_rendered =
-  require('opencode.util').debounce(do_trigger_on_data_rendered, config.ui.output.rendering.markdown_debounce_ms or 250)
+---@param ctx? RendererCtx
+function M.trigger_on_data_rendered(ctx)
+  ctx = ctx or contexts.current()
+  if not ctx.markdown_debounce then
+    ctx.markdown_debounce = require('opencode.util').debounce(function(generation)
+      if ctx.closed or ctx.generation ~= generation then
+        return
+      end
+      if not ctx:is_active() then
+        ctx.markdown_render_scheduled = true
+        return
+      end
+      do_trigger_on_data_rendered(ctx)
+    end, config.ui.output.rendering.markdown_debounce_ms or 250)
+  end
+  ctx.markdown_debounce(ctx.generation)
+end
 
 ---@param force? boolean
-function M.request_on_data_rendered(force)
+---@param ctx? RendererCtx
+function M.request_on_data_rendered(force, ctx)
+  ctx = ctx or contexts.current()
   if force or not is_markdown_render_deferred() then
     ctx.markdown_render_scheduled = false
-    M.trigger_on_data_rendered()
+    M.trigger_on_data_rendered(ctx)
     return
   end
 
@@ -482,27 +523,33 @@ function M.request_on_data_rendered(force)
 end
 
 ---Run deferred markdown rendering once idle conditions are met.
-function M.flush_pending_on_data_rendered()
+---@param ctx? RendererCtx
+function M.flush_pending_on_data_rendered(ctx)
+  ctx = ctx or contexts.current()
   if not ctx.markdown_render_scheduled or is_markdown_render_deferred() then
     return
   end
 
   ctx.markdown_render_scheduled = false
-  M.trigger_on_data_rendered()
+  M.trigger_on_data_rendered(ctx)
 end
 
 ---Start collecting renderer writes into a single bulk update.
-function M.begin_bulk_mode()
+---@param ctx? RendererCtx
+function M.begin_bulk_mode(ctx)
+  ctx = ctx or contexts.current()
   ctx:bulk_reset()
   ctx.bulk_mode = true
 end
 
 ---Apply the buffered bulk render output to the output window.
-function M.end_bulk_mode()
+---@param ctx? RendererCtx
+function M.end_bulk_mode(ctx)
+  ctx = ctx or contexts.current()
   if not ctx.bulk_mode then
     return
   end
-  if output_window_is_in_background_tab() then
+  if output_window_is_in_background_tab(ctx) then
     return
   end
   ctx.bulk_mode = false
@@ -543,21 +590,26 @@ function M.end_bulk_mode()
     error(err)
   end
 
+  local generation = ctx.generation
   vim.schedule(function()
-    M.request_on_data_rendered(true)
+    if not ctx.closed and ctx.generation == generation then
+      M.request_on_data_rendered(true, ctx)
+    end
   end)
 end
 
 ---Flush all pending renderer changes to the output buffer.
 ---@param opts? {resolve_symbol_targets?: boolean}
-function M.flush(opts)
-  if output_window_is_in_background_tab() then
+---@param ctx? RendererCtx
+function M.flush(opts, ctx)
+  ctx = ctx or contexts.current()
+  if output_window_is_in_background_tab(ctx) then
     return
   end
-  local pending = snapshot_pending()
-  local applied = apply_pending(pending, opts)
+  local pending = snapshot_pending(ctx)
+  local applied = apply_pending(ctx, pending, opts)
   if applied and not ctx.bulk_mode then
-    M.request_on_data_rendered()
+    M.request_on_data_rendered(nil, ctx)
   end
 end
 

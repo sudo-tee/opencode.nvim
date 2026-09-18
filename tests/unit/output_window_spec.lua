@@ -408,7 +408,7 @@ describe('renderer flush cleanup', function()
 
   it('restores output window eventignorewin and ends updates when bulk writes fail', function()
     flush.begin_bulk_mode()
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     ctx.bulk_buffer_lines = { 'line 1' }
 
     local ok, err = pcall(flush.end_bulk_mode)
@@ -440,14 +440,14 @@ describe('renderer bulk flush extmarks', function()
   end)
 
   after_each(function()
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
     ctx:reset()
     state.ui.set_windows(nil)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
   end)
 
   it('clears stale extmarks before replaying bulk extmarks', function()
-    local ctx = require('opencode.ui.renderer.ctx')
+    local ctx = require('opencode.ui.renderer.ctx').current()
 
     flush.begin_bulk_mode()
     ctx.bulk_buffer_lines = { 'new header' }

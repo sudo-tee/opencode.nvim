@@ -1,4 +1,5 @@
 local store = require('opencode.state.store')
+local renderer_context = require('opencode.ui.renderer.ctx')
 
 ---@class OpencodeSessionTabRuntime
 ---@field id string Logical panel-tab identifier
@@ -39,9 +40,8 @@ local store = require('opencode.state.store')
 ---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field context_data OpencodeContext|nil
----@field renderer_context table|nil Renderer caches associated with the preserved output buffer
+---@field renderer_context RendererCtx Renderer state and subscriptions owned by this tab
 ---@field model_restored_session_id string|nil Session whose saved model has been adopted
----@field renderer_dirty boolean Cached renderer missed background session events
 ---@field background_notifications table<string, boolean> Notifications emitted for pending background prompts
 
 ---@class OpencodeSessionTabStateMutations
@@ -157,8 +157,7 @@ local function default_runtime(id)
     session_locked = nil,
     _hidden_buffers = nil,
     context_data = nil,
-    renderer_context = nil,
-    renderer_dirty = false,
+    renderer_context = renderer_context.new(),
     background_notifications = {},
   }
 end
@@ -254,37 +253,6 @@ function M.find_by_session_id(session_id)
         return runtime
       end
     end
-  end
-
-  local current = M.current()
-  if current and current.active_session and current.active_session.id then
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    if render_state:get_task_part_by_child_session(session_id) then
-      return current
-    end
-  end
-end
-
----@param session_id string|nil
-function M.mark_renderer_dirty(session_id)
-  if not session_id then
-    return
-  end
-
-  local runtime_count = 0
-  for _ in pairs(runtimes) do
-    runtime_count = runtime_count + 1
-    if runtime_count > 1 then
-      break
-    end
-  end
-  if runtime_count < 2 then
-    return
-  end
-
-  local runtime = M.find_by_session_id(session_id)
-  if runtime and runtime.id ~= M.active_id() then
-    runtime.renderer_dirty = true
   end
 end
 
@@ -512,12 +480,14 @@ function M.ensure_current()
   local id = store.get('active_session_tab')
   if id and runtimes[id] then
     capture_runtime(id)
+    renderer_context.select(runtimes[id].renderer_context)
     return runtimes[id]
   end
 
   id = new_id()
   local runtime = runtime_from_current(id, false)
   runtimes[id] = runtime
+  renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', id)
   return runtime
 end
@@ -536,6 +506,7 @@ function M.activate(runtime)
     capture_runtime(previous_id)
   end
 
+  renderer_context.select(runtime.renderer_context)
   if previous_id ~= runtime.id then
     store.batch(function()
       copy_to_store(runtime)
@@ -573,15 +544,21 @@ function M.remove(runtime)
   if not runtime then
     return
   end
+  runtime.renderer_context:close()
   runtimes[runtime.id] = nil
   notify_change()
   if store.get('active_session_tab') == runtime.id then
+    renderer_context.select()
     store.set('active_session_tab', nil)
   end
 end
 
 ---Reset the in-memory tab registry. Intended for teardown and tests.
 function M.reset()
+  for _, runtime in pairs(runtimes) do
+    runtime.renderer_context:close()
+  end
+  renderer_context.select()
   runtimes = {}
   next_id = 1
   setup_done = false
@@ -596,6 +573,7 @@ function M.setup()
 
   local runtime = runtime_from_current(new_id(), true)
   runtimes[runtime.id] = runtime
+  renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', runtime.id)
 end
 

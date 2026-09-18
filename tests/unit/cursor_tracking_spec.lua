@@ -387,7 +387,7 @@ end)
 
 describe('renderer.scroll_to_bottom', function()
   local renderer = require('opencode.ui.renderer')
-  local ctx = require('opencode.ui.renderer.ctx')
+  local ctx = require('opencode.ui.renderer.ctx').current()
   local output_window = require('opencode.ui.output_window')
   local stub = require('luassert.stub')
   local buf, win, input_buf, input_win

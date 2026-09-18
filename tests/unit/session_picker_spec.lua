@@ -8,49 +8,6 @@ local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
 
 describe('opencode.ui.session_picker', function()
-  describe('_is_session_or_ancestor_deleted', function()
-    local root = { id = 'root', parentID = nil }
-    local child = { id = 'child', parentID = 'root' }
-    local grandchild = { id = 'grandchild', parentID = 'child' }
-    local unrelated = { id = 'unrelated', parentID = nil }
-    local all_sessions = { root, child, grandchild, unrelated }
-
-    it('returns true when the session itself is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('child', { child = true }, all_sessions))
-    end)
-
-    it('returns true when the direct parent is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('child', { root = true }, all_sessions))
-    end)
-
-    it('returns true when a grandparent is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('grandchild', { root = true }, all_sessions))
-    end)
-
-    it('returns false when an unrelated session is deleted', function()
-      assert.is_false(session_picker._is_session_or_ancestor_deleted('child', { unrelated = true }, all_sessions))
-    end)
-
-    it('returns false when only a sibling is deleted', function()
-      local sibling = { id = 'sibling', parentID = 'root' }
-      assert.is_false(
-        session_picker._is_session_or_ancestor_deleted(
-          'child',
-          { sibling = true },
-          { root, child, sibling, grandchild }
-        )
-      )
-    end)
-
-    it('returns false for a root session when an unrelated root is deleted', function()
-      assert.is_false(session_picker._is_session_or_ancestor_deleted('root', { unrelated = true }, all_sessions))
-    end)
-
-    it('returns true for root session when root itself is deleted', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('root', { root = true }, all_sessions))
-    end)
-  end)
-
   describe('preview_fn contract', function()
     local original
     local original_pick
@@ -260,7 +217,7 @@ describe('opencode.ui.session_picker', function()
       end
 
       stub(session_runtime, 'list_sessions_by_scope').invokes(function()
-        return { root_session, other_root, child_session, grandchild_session }
+        return Promise.new():resolve({ root_session, other_root, child_session, grandchild_session })
       end)
 
       switch_stub = stub(require('opencode.ui.ui'), 'switch_session').invokes(function(_id)
@@ -278,23 +235,121 @@ describe('opencode.ui.session_picker', function()
       end
     end)
 
-    local function run_delete(active, items_in_picker, sessions_to_delete)
-      state.session.set_active(active)
-
-      local delete_fn = nil
+    local function picker_actions()
+      local captured
       local base_picker = require('opencode.ui.base_picker')
       local orig_pick = base_picker.pick
       base_picker.pick = function(opts)
-        delete_fn = opts.actions.delete.fn
+        captured = opts.actions
+        return true
       end
-      session_picker.pick(items_in_picker, function() end)
+      session_picker.pick({ root_session, other_root }, function() end, { scope = 'project' })
       base_picker.pick = orig_pick
-
-      assert.truthy(delete_fn, 'delete fn should have been captured')
-
-      local opts = { items = vim.deepcopy(items_in_picker) }
-      delete_fn(sessions_to_delete, opts):wait()
+      return captured
     end
+
+    local function run_delete(active, items_in_picker, sessions_to_delete)
+      state.session.set_active(active)
+      local opts = { items = vim.deepcopy(items_in_picker) }
+      picker_actions().delete.fn(sessions_to_delete, opts):wait()
+    end
+
+    it('keeps successful deletions reflected in the picker when a later deletion fails', function()
+      state.session.set_active(nil)
+      local deleted = {}
+      connection.operations.delete_session = function(_, id)
+        deleted[#deleted + 1] = id
+        if id == other_root.id then
+          return Promise.new():reject('delete failed')
+        end
+        return Promise.new():resolve(true)
+      end
+      local opts = { items = { root_session, other_root } }
+      local ok = pcall(function()
+        picker_actions().delete.fn({ root_session, other_root }, opts):wait()
+      end)
+      assert.is_false(ok)
+      assert.same({ 'root', 'other-root' }, deleted)
+      assert.same({ other_root }, opts.items)
+    end)
+
+    it('renames through the service without invoking command hooks', function()
+      local config = require('opencode.config')
+      local original_hooks = config.hooks
+      local events = {}
+      config.hooks = {
+        on_command_before = function(ctx)
+          events[#events + 1] = ctx.intent.name
+        end,
+      }
+      connection.operations.rename_session = function(_, id, _, title)
+        assert.equals('root', id)
+        assert.equals('Renamed', title)
+        return Promise.new():resolve(true)
+      end
+      local input_stub = stub(vim.ui, 'input').invokes(function(_, callback)
+        callback('Renamed')
+      end)
+      local opts = { items = { root_session } }
+      local ok, result = pcall(function()
+        return picker_actions().rename.fn(root_session, opts):wait()
+      end)
+      input_stub:revert()
+      config.hooks = original_hooks
+      assert.is_true(ok, tostring(result))
+      assert.same({}, events)
+      assert.equals('Renamed', result[1].title)
+      assert.equals('Root', root_session.title)
+    end)
+
+    it('leaves the picker unchanged when renaming is cancelled or fails', function()
+      local requested_title
+      local calls = 0
+      connection.operations.rename_session = function()
+        calls = calls + 1
+        return Promise.new():reject('rename failed')
+      end
+      local input_stub = stub(vim.ui, 'input').invokes(function(_, callback)
+        callback(requested_title)
+      end)
+      local opts = { items = { root_session } }
+      local action = picker_actions().rename.fn
+      local ok, err = pcall(function()
+        assert.is_nil(action(root_session, opts):wait())
+        assert.equals(0, calls)
+        requested_title = 'Renamed'
+        assert.is_nil(action(root_session, opts):wait())
+        assert.equals(1, calls)
+        assert.equals('Root', opts.items[1].title)
+      end)
+      input_stub:revert()
+      assert.is_true(ok, tostring(err))
+    end)
+
+    it('preserves command lifecycle hooks for API renames', function()
+      local config = require('opencode.config')
+      local original_hooks = config.hooks
+      local events = {}
+      config.hooks = {
+        on_command_before = function(ctx)
+          events[#events + 1] = 'before:' .. ctx.intent.name
+        end,
+        on_command_after = function(ctx)
+          events[#events + 1] = 'after:' .. ctx.intent.name
+        end,
+      }
+      connection.operations.rename_session = function()
+        return Promise.new():resolve(true)
+      end
+      local ok, result = pcall(function()
+        return require('opencode.api').rename_session(root_session, 'Renamed'):wait()
+      end)
+      config.hooks = original_hooks
+      assert.is_true(ok, tostring(result))
+      assert.same({ 'before:rename_session', 'after:rename_session' }, events)
+      assert.equals('Renamed', result.title)
+      assert.equals('Root', root_session.title)
+    end)
 
     it('switches session when the active session direct parent is deleted', function()
       run_delete(child_session, { root_session, other_root }, root_session)

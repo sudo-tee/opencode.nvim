@@ -174,6 +174,7 @@
         "opencode.throttling_emitter",     // batching primitive
         "opencode.model_state",            // local model state file I/O
         "opencode.lru_cache",              // generic LRU container (pure data structure)
+        "opencode.slash_commands",        // built-in slash command metadata
 
         // UI primitives — pure data or framework, no business logic
         "opencode.ui.icons",               // icon data map (in-degree 26)

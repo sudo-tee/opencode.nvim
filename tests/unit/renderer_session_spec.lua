@@ -1,5 +1,5 @@
 local RenderSession = require('opencode.ui.renderer.session')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local stub = require('luassert.stub')
@@ -33,7 +33,7 @@ describe('renderer session ownership', function()
   end
 
   local function attach(root)
-    ctx.observation = root
+    contexts.current().observation = root
     local session = RenderSession.new(root, function(source, resources)
       applied[#applied + 1] = { source = source, resources = resources }
     end)
@@ -44,12 +44,12 @@ describe('renderer session ownership', function()
 
   before_each(function()
     sessions, observations, callbacks, scheduled, applied = {}, {}, {}, {}, {}
-    old_server, old_observation = state.opencode_server, ctx.observation
+    old_server, old_observation = state.opencode_server, contexts.current().observation
     old_throttle = config.ui.output.rendering.event_throttle_ms
     old_collapsing = config.ui.output.rendering.event_collapsing
     config.ui.output.rendering.event_throttle_ms = 40
     config.ui.output.rendering.event_collapsing = true
-    ctx:reset()
+    contexts.current():reset()
     state.jobs.set_server({
       is_ready = function()
         return true
@@ -75,8 +75,8 @@ describe('renderer session ownership', function()
     config.ui.output.rendering.event_throttle_ms = old_throttle
     config.ui.output.rendering.event_collapsing = old_collapsing
     state.jobs.set_server(old_server)
-    ctx:reset()
-    ctx.observation = old_observation
+    contexts.current():reset()
+    contexts.current().observation = old_observation
   end)
 
   it('keeps root and child deadlines separate and drains each once before detachment', function()
@@ -84,7 +84,7 @@ describe('renderer session ownership', function()
     local root = observation('root', { 'child' })
     local session = attach(root)
     session:sync_children()
-    ctx.render_state:set_message({ id = 'existing' })
+    contexts.current().render_state:set_message({ id = 'existing' })
     for _ = 1, 100 do
       callbacks[root](root, 'messages')
     end
@@ -157,7 +157,7 @@ describe('renderer session ownership', function()
       callback()
     end
     assert.equals(0, #applied)
-    assert.is_true(ctx.reconcile_scheduled)
+    assert.is_true(contexts.current().reconcile_scheduled)
     next_session:drain()
     assert.equals(1, #applied)
     assert.equals(replacement, applied[1].source)

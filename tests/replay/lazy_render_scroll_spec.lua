@@ -1,7 +1,7 @@
 local helpers = require('tests.helpers')
 local state = require('opencode.state')
 local ui = require('opencode.ui.ui')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local output_window = require('opencode.ui.output_window')
 
 local function make_message_events(pair_count)
@@ -87,11 +87,11 @@ describe('replay lazy-render upward loading', function()
 
     local win = state.windows.output_win
     vim.api.nvim_win_set_height(win, 15)
-    ctx.lazy_render_count = nil
+    contexts.current().lazy_render_count = nil
     renderer._render_full_session_data(helpers.load_session_from_events(events))
 
-    local initial_count = ctx.lazy_render_count
-    assert.is_true(initial_count ~= nil and initial_count < #ctx.entries)
+    local initial_count = contexts.current().lazy_render_count
+    assert.is_true(initial_count ~= nil and initial_count < #contexts.current().entries)
     assert.is_not_match('User message 1', output_text())
 
     vim.api.nvim_set_current_win(win)
@@ -120,7 +120,7 @@ describe('replay lazy-render upward loading', function()
     })
 
     local loaded = vim.wait(1000, function()
-      return ctx.lazy_render_count and ctx.lazy_render_count > initial_count
+      return contexts.current().lazy_render_count and contexts.current().lazy_render_count > initial_count
     end)
 
     assert.is_true(loaded, 'Expected viewport-at-top WinScrolled to load older replayed messages')

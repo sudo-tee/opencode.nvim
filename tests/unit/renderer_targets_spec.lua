@@ -1,4 +1,4 @@
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local renderer = require('opencode.ui.renderer')
 local flush = require('opencode.ui.renderer.flush')
 local stub = require('luassert.stub')
@@ -10,18 +10,18 @@ describe('renderer target API', function()
   local schedule_stub
 
   before_each(function()
-    ctx:reset()
+    contexts.current():reset()
     schedule_stub = stub(flush, 'schedule')
   end)
 
   after_each(function()
     schedule_stub:revert()
-    ctx:reset()
+    contexts.current():reset()
   end)
 
   it('returns rendered targets with source ids', function()
-    ctx.render_state:set_part({ id = 'part1', kind = 'text' }, 'msg1', 'part1', 0, 0)
-    ctx.render_state:add_targets('part1', {
+    contexts.current().render_state:set_part({ id = 'part1', kind = 'text' }, 'msg1', 'part1', 0, 0)
+    contexts.current().render_state:add_targets('part1', {
       {
         kind = 'file',
         path = 'README.md',
@@ -40,9 +40,9 @@ describe('renderer target API', function()
   it('marks a part dirty using part_id then message_id', function()
     renderer.mark_part_dirty('part1', 'msg1')
 
-    assert.equals('msg1', ctx.pending.dirty_parts.part1)
-    assert.equals('part1', ctx.pending.dirty_part_order[1])
-    assert.is_true(ctx.pending.dirty_part_by_message.msg1.part1)
+    assert.equals('msg1', contexts.current().pending.dirty_parts.part1)
+    assert.equals('part1', contexts.current().pending.dirty_part_order[1])
+    assert.is_true(contexts.current().pending.dirty_part_by_message.msg1.part1)
   end)
 end)
 
@@ -68,14 +68,14 @@ describe('renderer child observations', function()
 
   before_each(function()
     helpers.replay_setup()
-    saved_controllers = ctx.prompt_controllers
-    ctx.prompt_controllers = {}
+    saved_controllers = contexts.current().prompt_controllers
+    contexts.current().prompt_controllers = {}
     config.ui.output.tools.show_output = true
   end)
 
   after_each(function()
     renderer.teardown()
-    ctx.prompt_controllers = saved_controllers
+    contexts.current().prompt_controllers = saved_controllers
     state.session.clear_active()
     state.jobs.clear_server()
     if state.windows then
@@ -493,7 +493,7 @@ describe('renderer flush formatter context', function()
 
   before_each(function()
     helpers.replay_setup()
-    ctx:reset()
+    contexts.current():reset()
     formatter = require('opencode.ui.formatter')
     reference_facts = require('opencode.ui.reference_facts')
     symbol_snapshot = require('opencode.ui.symbol_snapshot')
@@ -512,7 +512,7 @@ describe('renderer flush formatter context', function()
     if cycle_stub then
       cycle_stub:revert()
     end
-    ctx:reset()
+    contexts.current():reset()
     if state.windows then
       require('opencode.ui.ui').close_windows(state.windows)
     end
@@ -521,13 +521,13 @@ describe('renderer flush formatter context', function()
   it('creates one symbol cycle and shares it across formatted parts', function()
     local Output = require('opencode.ui.output')
     local cycle = { id = 'cycle_1' }
-    local contexts = {}
+    local formatter_contexts = {}
 
     refs_stub = stub(reference_facts, 'current_refs').returns({})
     files_stub = stub(reference_facts, 'available_files').returns({ '/repo/src/ok.lua' })
     cycle_stub = stub(symbol_snapshot, 'new_cycle').returns(cycle)
     format_stub = stub(formatter, 'format_part').invokes(function(_, _, _, context)
-      contexts[#contexts + 1] = context
+      formatter_contexts[#formatter_contexts + 1] = context
       local output = Output.new()
       output:add_line('formatted')
       return output
@@ -542,21 +542,21 @@ describe('renderer flush formatter context', function()
         { id = 'part_2', kind = 'text', text = 'two' },
       },
     }
-    ctx.entries = { message }
-    ctx.render_state:set_message(message)
-    ctx.render_state:set_part(message.content[1], message.id, message.content[1].id)
-    ctx.render_state:set_part(message.content[2], message.id, message.content[2].id)
-    ctx.pending.dirty_part_order = { 'part_1', 'part_2' }
-    ctx.pending.dirty_parts = { part_1 = 'msg_1', part_2 = 'msg_1' }
+    contexts.current().entries = { message }
+    contexts.current().render_state:set_message(message)
+    contexts.current().render_state:set_part(message.content[1], message.id, message.content[1].id)
+    contexts.current().render_state:set_part(message.content[2], message.id, message.content[2].id)
+    contexts.current().pending.dirty_part_order = { 'part_1', 'part_2' }
+    contexts.current().pending.dirty_parts = { part_1 = 'msg_1', part_2 = 'msg_1' }
 
     flush.flush()
 
     assert.stub(cycle_stub).was_called(1)
-    assert.equal(2, #contexts)
-    assert.is_true(contexts[1].interactive)
-    assert.is_function(contexts[1].get_child_parts)
-    assert.is_nil(contexts[1].get_child_parts('missing_child'))
-    assert.are.equal(cycle, contexts[1].symbol_cycle)
-    assert.are.equal(contexts[1].symbol_cycle, contexts[2].symbol_cycle)
+    assert.equal(2, #formatter_contexts)
+    assert.is_true(formatter_contexts[1].interactive)
+    assert.is_function(formatter_contexts[1].get_child_parts)
+    assert.is_nil(formatter_contexts[1].get_child_parts('missing_child'))
+    assert.are.equal(cycle, formatter_contexts[1].symbol_cycle)
+    assert.are.equal(formatter_contexts[1].symbol_cycle, formatter_contexts[2].symbol_cycle)
   end)
 end)

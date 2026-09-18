@@ -1,5 +1,5 @@
 local batch = require('opencode.ui.renderer.batch')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local config = require('opencode.config')
 local state = require('opencode.state')
 
@@ -22,7 +22,8 @@ end
 
 ---Only root message streaming is collapsed, and only once something is on screen:
 ---every other change reconciles on the next event loop turn.
-local function stream_throttle_ms(resource)
+---@param ctx RendererCtx
+local function stream_throttle_ms(ctx, resource)
   if resource ~= 'messages' or not next(ctx.render_state._messages) then
     return 0
   end
@@ -30,11 +31,14 @@ local function stream_throttle_ms(resource)
   return rendering.event_collapsing ~= false and rendering.event_throttle_ms or 0
 end
 
----Own live subscriptions and batches independently of the saved display caches.
+---Own root and descendant subscriptions for one renderer context.
 ---@param root table
 ---@param reconcile fun(observation: table, resources: table<string, boolean>)
 ---@return OpencodeRenderSession
-function M.new(root, reconcile)
+---@param ctx? RendererCtx
+function M.new(root, reconcile, ctx)
+  ctx = ctx or contexts.current()
+  local connection = state.opencode_server
   local session = {}
   ---@type table<string, {observation: table, unsubscribe: fun()}>
   local child_by_id = {}
@@ -89,14 +93,13 @@ function M.new(root, reconcile)
       { 'session', 'messages', 'children', 'execution', 'permissions', 'questions', 'inbox', 'files' },
       function(_, resource)
         if not closed and not is_loading(root, resource) then
-          root_batch:enqueue(root, resource, stream_throttle_ms(resource))
+          root_batch:enqueue(root, resource, stream_throttle_ms(ctx, resource))
         end
       end
     )
   end
 
   local function observe_child(ref)
-    local connection = state.opencode_server
     if not connection or not connection:is_ready() then
       error('cannot observe child sessions without a ready Connection')
     end

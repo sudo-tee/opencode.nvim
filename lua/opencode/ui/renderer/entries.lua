@@ -1,4 +1,4 @@
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local flush = require('opencode.ui.renderer.flush')
 local buffer = require('opencode.ui.renderer.buffer')
 
@@ -36,7 +36,9 @@ end
 
 ---@param visible table[]
 ---@param references_changed boolean
-function M.reconcile(visible, references_changed)
+---@param ctx? RendererCtx
+function M.reconcile(visible, references_changed, ctx)
+  ctx = ctx or contexts.current()
   local parts_by_message = {}
   for part_id, rendered in pairs(ctx.render_state._parts) do
     local parts = parts_by_message[rendered.message_id] or {}
@@ -52,10 +54,10 @@ function M.reconcile(visible, references_changed)
       message_snapshot(entry, visible[entry_index - 1])
     )
     if header_changed or not previous or previous.line_start == nil then
-      flush.mark_message_dirty(entry.id)
+      flush.mark_message_dirty(entry.id, ctx)
     end
     local current_parts = {}
-    local last_part_id = buffer.get_last_part_for_message(entry)
+    local last_part_id = buffer.get_last_part_for_message(entry, ctx)
     for index, content in ipairs(entry.content or {}) do
       if content.kind ~= 'step_start' and content.kind ~= 'step_finish' then
         local part_id = ctx.content_key(entry, index)
@@ -76,13 +78,13 @@ function M.reconcile(visible, references_changed)
           last = last_part_id == part_id,
         })
         if changed or (references_changed and content.kind == 'text') or not rendered or rendered.line_start == nil then
-          flush.mark_part_dirty(part_id, entry.id)
+          flush.mark_part_dirty(part_id, entry.id, ctx)
         end
       end
     end
     for _, part_id in ipairs(parts_by_message[entry.id] or {}) do
       if not current_parts[part_id] then
-        flush.queue_part_removal(part_id)
+        flush.queue_part_removal(part_id, ctx)
       end
     end
   end

@@ -70,7 +70,7 @@ local function get_child_session_id(permission)
     return nil
   end
 
-  local render_state = require('opencode.ui.renderer.ctx').render_state
+  local render_state = require('opencode.ui.renderer.ctx').current().render_state
   return render_state:get_task_part_by_child_session(session_id) and session_id or nil
 end
 
@@ -290,7 +290,7 @@ function M._setup_dialog()
 
       if choice == 'reject' then
         local pos = M._dialog and M._dialog:get_option_position(index)
-        local part_data = require('opencode.ui.renderer.ctx').render_state:get_part('permission-display-part')
+        local part_data = require('opencode.ui.renderer.ctx').current().render_state:get_part('permission-display-part')
         local output_win = state.windows and state.windows.output_win
 
         if output_win and vim.api.nvim_win_is_valid(output_win) then

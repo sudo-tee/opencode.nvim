@@ -516,7 +516,7 @@ describe('question_window', function()
       end
     end
     assert.is_false(has_dialog_tab)
-    assert.is_nil(require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part'))
+    assert.is_nil(require('opencode.ui.renderer.ctx').current().render_state:get_part('question-display-part'))
 
     vim.ui.select = original_select
     question_window.clear_question()
@@ -651,11 +651,11 @@ describe('question_window', function()
     local flush = require('opencode.ui.renderer.flush')
     flush.flush()
     assert.is_not_nil(question_window._dialog)
-    assert.is_not_nil(require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part'))
+    assert.is_not_nil(require('opencode.ui.renderer.ctx').current().render_state:get_part('question-display-part'))
 
     question_window.clear_question()
     flush.flush()
-    assert.is_nil(require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part'))
+    assert.is_nil(require('opencode.ui.renderer.ctx').current().render_state:get_part('question-display-part'))
     require('opencode.ui.ui').close_windows(state.windows)
   end)
 
@@ -761,7 +761,7 @@ describe('question_window', function()
 
     local function open_other()
       flush.flush()
-      assert.is_not_nil(require('opencode.ui.renderer.ctx').render_state:get_part('question-display-part'))
+      assert.is_not_nil(require('opencode.ui.renderer.ctx').current().render_state:get_part('question-display-part'))
       assert.is_not_nil(question_window._dialog:get_option_position(2))
       question_window._dialog:set_selection(2)
       question_window._dialog:select()

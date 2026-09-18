@@ -8,7 +8,7 @@ local M = {}
 
 local function wait_for_idle(timeout_ms)
   timeout_ms = timeout_ms or 5000
-  local ctx = require('opencode.ui.renderer.ctx')
+  local ctx = require('opencode.ui.renderer.ctx').current()
   local flush = require('opencode.ui.renderer.flush')
   return vim.wait(timeout_ms, function()
     if ctx:has_pending_work() then

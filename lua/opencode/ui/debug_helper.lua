@@ -31,7 +31,7 @@ function M.debug_output()
 end
 
 function M.debug_message()
-  local render_state = require('opencode.ui.renderer.ctx').render_state
+  local render_state = require('opencode.ui.renderer.ctx').current().render_state
   if not state.windows or not state.windows.output_win then
     vim.notify('Output window not available', vim.log.levels.WARN)
     return

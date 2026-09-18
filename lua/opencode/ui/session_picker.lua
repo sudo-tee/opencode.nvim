@@ -297,7 +297,7 @@ function M.pick(sessions, callback, opts)
           end, opts.items or {})
 
           if #remaining > 0 then
-            session_runtime.switch_session(remaining[1]):await()
+            require('opencode.ui.ui').switch_session(remaining[1]):await()
           else
             vim.notify('deleting current session, creating new session')
             state.model.clear()
@@ -373,7 +373,7 @@ function M.pick(sessions, callback, opts)
           .fork_session(connection, selected.id, session_location(selected), {}, util.apply_path_map, util.apply_reverse_path_map)
           :await()
         if new_session then
-          session_runtime.switch_session(new_session):await()
+          require('opencode.ui.ui').switch_session(new_session):await()
           table.insert(opts.items, 1, new_session)
           return opts.items
         end

@@ -2,6 +2,7 @@
 local state = require('opencode.state')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
+local ui = require('opencode.ui.ui')
 local window_actions = require('opencode.commands.handlers.window').actions
 local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
@@ -156,12 +157,31 @@ end
 
 ---@param parent_id? string
 ---@param scope? 'project' | 'global' defaults to global when session is locked, project otherwise
-function M.actions.select_session(parent_id, scope)
+---@return Promise
+M.actions.select_session = Promise.async(function(parent_id, scope)
   if scope == nil then
     scope = session_runtime.is_session_locked() and 'global' or 'project'
   end
-  session_runtime.select_session(parent_id, scope)
-end
+  local sessions = session_runtime.list_sessions_by_scope(scope):await()
+  local filtered_sessions = session_runtime.filter_pickable_sessions(sessions, parent_id)
+  if #filtered_sessions == 0 then
+    vim.notify(parent_id and 'No child sessions found' or 'No sessions found', vim.log.levels.INFO)
+    if state.ui.is_visible() then
+      ui.focus_input()
+    end
+    return
+  end
+
+  require('opencode.ui.session_picker').select(filtered_sessions, function(selected_session)
+    if not selected_session then
+      if state.ui.is_visible() then
+        ui.focus_input()
+      end
+      return
+    end
+    ui.switch_session(selected_session)
+  end, { scope = scope })
+end)
 
 ---@param value? boolean if nil toggle, otherwise set to value
 function M.actions.toggle_session_lock(value)
@@ -272,9 +292,9 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return session_runtime.open_session_in_tab_by_id(direction)
     end
     if interaction == 'picker' then
-      return session_runtime.select_session(direction, 'project')
+      return M.actions.select_session(direction, 'project')
     end
-    return session_runtime.switch_session(direction)
+    return ui.switch_session(direction)
   end
 
   local active = active_session_fact()
@@ -290,7 +310,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     local target_id = dir.get_target(active)
     if not target_id then
       if direction == 'sibling' then
-        return session_runtime.select_session(nil, 'project')
+        return M.actions.select_session(nil, 'project')
       end
       if empty_policy == 'notify' then
         vim.notify('No ' .. direction, vim.log.levels.INFO)
@@ -298,9 +318,9 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return
     end
     if interaction == 'picker' or not dir.allow_direct then
-      return session_runtime.select_session(target_id, 'project')
+      return M.actions.select_session(target_id, 'project')
     end
-    return session_runtime.switch_session(target_id)
+    return ui.switch_session(target_id)
   end
 
   -- forward / backward: flat navigation by time.updated
@@ -329,7 +349,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return
     end
 
-    return session_runtime.switch_session(all_sessions[target_idx].id)
+    return ui.switch_session(all_sessions[target_idx].id)
   end)()
 end
 
@@ -683,7 +703,7 @@ function M.actions.fork_session(message_id, open_in_new_tab)
             if open_in_new_tab == true or open_in_new_tab == 'tab' then
               session_runtime.open_session_in_tab(response)
             else
-              session_runtime.switch_session(response.id)
+              ui.switch_session(response.id)
             end
           else
             vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)

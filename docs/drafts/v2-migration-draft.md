@@ -105,6 +105,11 @@ Protocol differences die inside adapters. What each difference became:
 - **Per-message settings** exist only in V1 — the single explicit runtime
   branch (in `services/messaging.lua`).
 
+Session selection is owned by the session command handler. The runtime
+activates the selected session and initializes its mode; `ui.ui.switch_session`
+then opens the panel or restores focus, including read-only child sessions.
+Picker actions share this same presentation flow.
+
 ## Current distance
 
 The same store/reader split names the boundary still missing in the middle:

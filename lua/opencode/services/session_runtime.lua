@@ -189,53 +189,9 @@ function M.filter_pickable_sessions(sessions, parent_id)
   end, sessions)
 end
 
-local function focus_after_session_switch()
-  if not state.ui.is_visible() then
-    M.open()
-    return
-  end
-
-  if not ui.active_session_allows_input() then
-    if not input_window.is_hidden() then
-      input_window._hide()
-    end
-    ui.focus_output()
-    return
-  end
-
-  if input_window.is_hidden() then
-    input_window._show()
-  end
-  ui.focus_input()
-end
-
----@param parent_id string?
----@param scope? 'project' | 'global' when nil, defaults to project-scoped
-M.select_session = Promise.async(function(parent_id, scope)
-  local all_sessions = M.list_sessions_by_scope(scope):await()
-  ---@cast all_sessions Session[]
-
-  local filtered_sessions = M.filter_pickable_sessions(all_sessions, parent_id)
-
-  if #filtered_sessions == 0 then
-    vim.notify(parent_id and 'No child sessions found' or 'No sessions found', vim.log.levels.INFO)
-    if state.ui.is_visible() then
-      ui.focus_input()
-    end
-    return
-  end
-
-  require('opencode.ui.session_picker').select(filtered_sessions, function(selected_session)
-    if not selected_session then
-      if state.ui.is_visible() then
-        ui.focus_input()
-      end
-      return
-    end
-    M.switch_session(selected_session)
-  end, { scope = scope })
-end)
-
+---Activate a session and initialize its mode without changing panel visibility or focus.
+---@param session_or_id Session|string
+---@return Promise
 M.switch_session = Promise.async(function(session_or_id)
   local selected_session = session_or_id
   if type(session_or_id) == 'string' then
@@ -255,7 +211,6 @@ M.switch_session = Promise.async(function(session_or_id)
   state.model.clear()
   state.session.set_active(selected_session)
   agent_model.ensure_current_mode():await()
-  focus_after_session_switch()
 end)
 
 ---@param opts? OpenOpts

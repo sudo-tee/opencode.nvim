@@ -523,6 +523,24 @@ local function execution_event(observation, event)
       observation._v2_execution_event_active = true
       observation._v2_terminal_seen_since_start = false
     end
+  elseif event.type == 'session.retry.scheduled' then
+    if type(data.attempt) ~= 'number' or type(data.at) ~= 'number' then
+      record_diagnostic(observation, 'execution', 'session.retry.scheduled is missing attempt/at')
+      return false
+    end
+    local err = mapped_error(data.error)
+    local message = err and type(err.message) == 'string' and err.message ~= '' and err.message
+      or (type(data.message) == 'string' and data.message ~= '' and data.message or nil)
+    state.execution = {
+      activity = 'retrying',
+      retry = {
+        attempt = data.attempt,
+        message = message,
+        scheduled_at = data.at,
+        error = err,
+      },
+    }
+    observation._v2_execution_event_active = true
   elseif
     event.type == 'session.execution.succeeded'
     or event.type == 'session.execution.failed'

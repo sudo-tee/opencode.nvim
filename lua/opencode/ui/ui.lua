@@ -313,7 +313,6 @@ function M.restore_hidden_windows()
     end
   end)
 
-  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
   renderer.on_windows_mounted()
 
   return true
@@ -502,7 +501,6 @@ function M.create_windows()
 
   autocmds.setup_autocmds(windows)
   autocmds.setup_resize_handler(windows)
-  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
 
   return windows
 end

@@ -5,6 +5,7 @@ local M = {}
 local namespace = vim.api.nvim_create_namespace('opencode_contextual_actions')
 local augroup = vim.api.nvim_create_augroup('OpenCodeContextualActions', { clear = true })
 local lifecycles = {}
+local active_output_buf
 
 local function buffer_mapping(buf, key)
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, 'n')) do
@@ -124,9 +125,39 @@ local function refresh_contextual_actions(buf)
   M.show_contextual_actions_menu(buf, require('opencode.ui.renderer').get_actions_for_line(line))
 end
 
+---@param windows OpencodeWindowState
 function M.setup_contextual_actions(windows)
   ensure_lifecycle(windows.output_buf)
   refresh_contextual_actions(windows.output_buf)
+end
+
+local function on_windows_changed(_, windows)
+  if windows ~= state.windows then
+    return
+  end
+
+  local buf = windows and windows.output_buf
+  if active_output_buf and active_output_buf ~= buf then
+    clear_contextual_actions(active_output_buf)
+  end
+  active_output_buf = buf
+
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    M.setup_contextual_actions(windows)
+  end
+end
+
+function M.setup()
+  state.store.subscribe('windows', on_windows_changed)
+  on_windows_changed(nil, state.windows)
+end
+
+function M.teardown()
+  state.store.unsubscribe('windows', on_windows_changed)
+  if active_output_buf then
+    clear_contextual_actions(active_output_buf)
+    active_output_buf = nil
+  end
 end
 
 vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorMoved', 'BufEnter', 'WinEnter' }, {

@@ -80,6 +80,7 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, pre
         modes = missing_modes
       end
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
+      opts.nowait = config_entry.nowait
       opts.desc = config_entry.desc or vim.tbl_get(command_defs, func_name, 'desc') or ''
 
       if callback and #modes > 0 then
@@ -98,10 +99,11 @@ local function setup_panel_keymaps(_, windows, previous)
   if not windows then
     return
   end
-  for _, name in ipairs({ 'input', 'output' }) do
+  for _, name in ipairs({ 'input', 'output', 'tab_strip' }) do
     local buf, win = windows[name .. '_buf'], windows[name .. '_win']
     local changed = not previous or previous[name .. '_buf'] ~= buf or previous[name .. '_win'] ~= win
-    if changed and buf and win and vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win) then
+    if changed and buf and vim.api.nvim_buf_is_valid(buf)
+      and (name == 'tab_strip' or win and vim.api.nvim_win_is_valid(win)) then
       M.setup_window_keymaps(window_keymaps[name .. '_window'], buf, true)
     end
   end

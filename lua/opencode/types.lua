@@ -155,6 +155,7 @@
 ---@field [1] string # Function name
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
+---@field nowait? boolean # Execute without waiting for longer mappings
 ---@field defer_to_completion? boolean # Whether to defer the keymap when completion menu is open
 
 ---@class OpencodeKeymapEditor : table<string, OpencodeKeymapEntry>
@@ -165,6 +166,7 @@
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
+---@field tab_strip_window table<string, OpencodeKeymapEntry>
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field session_tab_picker OpencodeSessionTabPickerKeymap
 ---@field timeline_picker OpencodeTimelinePickerKeymap

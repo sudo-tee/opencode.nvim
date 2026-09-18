@@ -209,6 +209,33 @@ function M.teardown_visible_windows(windows)
   state.ui.clear_hidden_window_state()
 end
 
+---@param windows? OpencodeWindowState|OpencodeHiddenBuffers
+---@param hidden? OpencodeHiddenBuffers
+function M.delete_window_buffers(windows, hidden)
+  local buffers = {}
+  local seen = {}
+
+  local function collect(source)
+    for _, key in ipairs({ 'input_buf', 'output_buf', 'footer_buf', 'tab_strip_buf' }) do
+      local bufnr = source and source[key]
+      if bufnr and not seen[bufnr] then
+        seen[bufnr] = true
+        table.insert(buffers, bufnr)
+      end
+    end
+  end
+
+  collect(windows)
+  collect(hidden)
+
+  for _, bufnr in ipairs(buffers) do
+    session_tab_strip.clear_buffer(bufnr)
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
+  end
+end
+
 ---Drop preserved hidden buffers and clear hidden window state.
 function M.drop_hidden_snapshot()
   local session_tabs = require('opencode.state.session_tabs')
@@ -218,17 +245,7 @@ function M.drop_hidden_snapshot()
     renderer.teardown()
   end
 
-  local hidden = state.ui.inspect_hidden_buffers()
-  if hidden then
-    for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf, hidden.tab_strip_buf }) do
-      if buf and vim.api.nvim_buf_is_valid(buf) then
-        if buf == hidden.tab_strip_buf then
-          session_tab_strip.clear_buffer(buf)
-        end
-        pcall(vim.api.nvim_buf_delete, buf, { force = true })
-      end
-    end
-  end
+  M.delete_window_buffers(state.ui.inspect_hidden_buffers())
 
   input_window._hidden = false
   state.ui.clear_hidden_window_state()
@@ -458,7 +475,7 @@ function M.create_windows()
     end
   end
 
-  if not require('opencode.ui.ui').is_opencode_focused() then
+  if not M.is_opencode_focused() then
     state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
   end
 

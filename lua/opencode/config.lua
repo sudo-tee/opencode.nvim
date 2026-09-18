@@ -104,6 +104,11 @@ M.defaults = {
       ['<leader>oO'] =  { 'debug_output',                                      desc = 'Open raw output debug view' },
       ['<leader>ods'] = { 'debug_session',                                     desc = 'Open raw session debug view' },
     },
+    tab_strip_window = {
+      ['<LeftMouse>'] =   { 'select_session_tab_target', { 'mouse' },  nowait = true, desc = 'Select tab under mouse' },
+      ['<2-LeftMouse>'] = { 'select_session_tab_target', { 'mouse' },  nowait = true, desc = 'Select tab under mouse' },
+      ['<CR>'] =          { 'select_session_tab_target', { 'cursor' }, nowait = true, desc = 'Select tab under cursor' },
+    },
     input_window = {
       ['<cr>']   =      { 'submit_input_prompt',          mode = { 'n' },      desc = 'Submit prompt'                                            },
       ['<S-cr>'] =      { 'submit_input_prompt',          mode = { 'n', 'i' }, desc = 'Submit prompt'                                            },

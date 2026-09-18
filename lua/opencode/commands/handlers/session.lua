@@ -143,6 +143,23 @@ function M.actions.select_session_tab(index)
   return require('opencode.ui.session_tab_picker').select()
 end
 
+---@param source 'cursor'|'mouse'
+function M.actions.select_session_tab_target(source)
+  local buffer = vim.api.nvim_get_current_buf()
+  local column = source == 'mouse' and math.max(0, vim.fn.getmousepos().column - 1)
+    or vim.api.nvim_win_get_cursor(0)[2]
+  local target = require('opencode.ui.session_tab_strip').get_target_at_position(buffer, column, source == 'mouse')
+  if not target then
+    return
+  end
+  if target.open_picker then
+    return M.actions.select_session_tab()
+  end
+  if target.tab_id then
+    return session_runtime.switch_session_tab(target.tab_id)
+  end
+end
+
 function M.actions.next_session_tab()
   return session_runtime.cycle_session_tab(1)
 end
@@ -808,6 +825,12 @@ M.command_defs = {
     desc = 'Select an Opencode panel tab',
     execute = function(args)
       return M.actions.select_session_tab(args[1])
+    end,
+  },
+  select_session_tab_target = {
+    desc = 'Select the tab at the cursor or mouse position',
+    execute = function(args)
+      return M.actions.select_session_tab_target(args[1])
     end,
   },
   next_session_tab = {

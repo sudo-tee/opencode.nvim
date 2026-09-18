@@ -4,6 +4,7 @@ local session_tabs = require('opencode.state.session_tabs')
 local session_tab_strip = require('opencode.ui.session_tab_strip')
 local config = require('opencode.config')
 local stub = require('luassert.stub')
+local keymap = require('opencode.keymap')
 
 describe('opencode session tab strip', function()
   local original_state
@@ -14,9 +15,11 @@ describe('opencode session tab strip', function()
     original_state = vim.deepcopy(store.state())
     original_config = vim.deepcopy(config.values)
     session_tabs.reset()
+    keymap.setup(config.keymap)
   end)
 
   after_each(function()
+    keymap.teardown()
     session_tab_strip.close(false, windows)
     if windows then
       if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
@@ -129,6 +132,9 @@ describe('opencode session tab strip', function()
     local marker_column = assert(line:find('%+2'))
     vim.api.nvim_set_current_win(windows.tab_strip_win)
     vim.api.nvim_win_set_cursor(windows.tab_strip_win, { 1, marker_column - 1 })
+    assert.is_true(vim.wait(200, function()
+      return vim.fn.maparg('<CR>', 'n', false, true).buffer == 1
+    end))
     vim.api.nvim_feedkeys(vim.keycode('<CR>'), 'xt', false)
     vim.wait(20)
     assert.stub(picker_stub).was_called()

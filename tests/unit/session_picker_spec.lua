@@ -279,7 +279,7 @@ describe('opencode.ui.session_picker', function()
         return Promise.new():resolve({ root_session, other_root, child_session, grandchild_session })
       end)
 
-      switch_stub = stub(require('opencode.ui.ui'), 'switch_session').invokes(function(_id)
+      switch_stub = stub(require('opencode.services.session_runtime'), 'select_session').invokes(function(_id)
         return Promise.new():resolve(true)
       end)
     end)
@@ -289,8 +289,8 @@ describe('opencode.ui.session_picker', function()
       if session_runtime.list_sessions_by_scope.revert then
         session_runtime.list_sessions_by_scope:revert()
       end
-      if require('opencode.ui.ui').switch_session.revert then
-        require('opencode.ui.ui').switch_session:revert()
+      if require('opencode.services.session_runtime').select_session.revert then
+        require('opencode.services.session_runtime').select_session:revert()
       end
     end)
 

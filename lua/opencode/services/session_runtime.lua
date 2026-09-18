@@ -212,6 +212,19 @@ M.switch_session = Promise.async(function(session_or_id)
   agent_model.ensure_current_mode():await()
 end)
 
+---Activate a session, then open the panel or restore its input/output focus.
+---Activation failure rejects without changing panel visibility or focus.
+---@param session_or_id Session|string
+---@return Promise
+M.select_session = Promise.async(function(session_or_id)
+  M.switch_session(session_or_id):await()
+  if not state.ui.is_visible() then
+    M.open()
+    return
+  end
+  ui.focus_active_session()
+end)
+
 ---@param opts? OpenOpts
 M.open_if_closed = Promise.async(function(opts)
   if not state.ui.is_visible() then
@@ -396,7 +409,7 @@ M.delete_sessions = Promise.async(function(sessions_to_delete, candidates, on_de
     end, candidates)
 
     if #remaining > 0 then
-      ui.switch_session(remaining[1]):await()
+      M.select_session(remaining[1]):await()
     else
       vim.notify('deleting current session, creating new session')
       state.model.clear()

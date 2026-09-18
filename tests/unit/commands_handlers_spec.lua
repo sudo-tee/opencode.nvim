@@ -246,21 +246,21 @@ describe('opencode.commands.handlers', function()
   end)
 
   -- navigate_session_tree tests
-  it('navigate parent + direct calls switch_session with parentID', function()
+  it('navigate parent + direct selects the parent session', function()
     local session_handler = require('opencode.commands.handlers.session')
     local session_runtime = require('opencode.services.session_runtime')
     local state = require('opencode.state')
 
     activate_session(state, { id = 'child1', parentID = 'root1', title = 'Child 1' })
     local switched_to
-    local original = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local original = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
     session_handler.actions.navigate_session_tree('parent', 'direct', false, 'notify')
 
-    require('opencode.ui.ui').switch_session = original
+    require('opencode.services.session_runtime').select_session = original
     assert.equal('root1', switched_to)
   end)
 
@@ -271,15 +271,15 @@ describe('opencode.commands.handlers', function()
 
     activate_session(state, { id = 'root1', parentID = nil, title = 'Root' })
     local switched_to = nil
-    local original = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local original = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
     local notify_stub = stub(vim, 'notify')
     session_handler.actions.navigate_session_tree('parent', 'direct', false, 'notify')
 
-    require('opencode.ui.ui').switch_session = original
+    require('opencode.services.session_runtime').select_session = original
     assert.is_nil(switched_to)
     assert.stub(notify_stub).was_called()
     notify_stub:revert()
@@ -292,15 +292,15 @@ describe('opencode.commands.handlers', function()
 
     activate_session(state, { id = 'root1', parentID = nil, title = 'Root' })
     local switched_to = nil
-    local original = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local original = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
     local notify_stub = stub(vim, 'notify')
     session_handler.actions.navigate_session_tree('parent', 'direct', false, 'noop')
 
-    require('opencode.ui.ui').switch_session = original
+    require('opencode.services.session_runtime').select_session = original
     assert.is_nil(switched_to)
     assert.stub(notify_stub).was_not_called()
     notify_stub:revert()
@@ -403,8 +403,8 @@ describe('opencode.commands.handlers', function()
       return sessions
     end
     local switched_to
-    local orig_switch = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local orig_switch = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
@@ -414,7 +414,7 @@ describe('opencode.commands.handlers', function()
     end
 
     session_runtime.list_sessions_by_scope = orig_list
-    require('opencode.ui.ui').switch_session = orig_switch
+    require('opencode.services.session_runtime').select_session = orig_switch
     assert.equal('s3', switched_to)
   end)
 
@@ -435,8 +435,8 @@ describe('opencode.commands.handlers', function()
       return sessions
     end
     local switched_to
-    local orig_switch = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local orig_switch = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
@@ -446,7 +446,7 @@ describe('opencode.commands.handlers', function()
     end
 
     session_runtime.list_sessions_by_scope = orig_list
-    require('opencode.ui.ui').switch_session = orig_switch
+    require('opencode.services.session_runtime').select_session = orig_switch
     assert.equal('s1', switched_to)
   end)
 
@@ -467,8 +467,8 @@ describe('opencode.commands.handlers', function()
       return sessions
     end
     local switched_to
-    local orig_switch = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local orig_switch = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
@@ -478,7 +478,7 @@ describe('opencode.commands.handlers', function()
     end
 
     session_runtime.list_sessions_by_scope = orig_list
-    require('opencode.ui.ui').switch_session = orig_switch
+    require('opencode.services.session_runtime').select_session = orig_switch
     assert.equal('s1', switched_to) -- wrap to oldest
   end)
 
@@ -499,8 +499,8 @@ describe('opencode.commands.handlers', function()
       return sessions
     end
     local switched_to
-    local orig_switch = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local orig_switch = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
@@ -510,7 +510,7 @@ describe('opencode.commands.handlers', function()
     end
 
     session_runtime.list_sessions_by_scope = orig_list
-    require('opencode.ui.ui').switch_session = orig_switch
+    require('opencode.services.session_runtime').select_session = orig_switch
     assert.equal('s3', switched_to) -- wrap to newest
   end)
 
@@ -529,8 +529,8 @@ describe('opencode.commands.handlers', function()
       return sessions
     end
     local switched_to
-    local orig_switch = require('opencode.ui.ui').switch_session
-    require('opencode.ui.ui').switch_session = function(session_id)
+    local orig_switch = require('opencode.services.session_runtime').select_session
+    require('opencode.services.session_runtime').select_session = function(session_id)
       switched_to = session_id
     end
 
@@ -541,7 +541,7 @@ describe('opencode.commands.handlers', function()
     end
 
     session_runtime.list_sessions_by_scope = orig_list
-    require('opencode.ui.ui').switch_session = orig_switch
+    require('opencode.services.session_runtime').select_session = orig_switch
     assert.is_nil(switched_to)
     assert.stub(notify_stub).was_called()
     notify_stub:revert()

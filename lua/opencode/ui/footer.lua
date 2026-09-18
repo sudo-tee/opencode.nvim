@@ -1,7 +1,6 @@
 local state = require('opencode.state')
 local config = require('opencode.config')
 local icons = require('opencode.ui.icons')
-local output_window = require('opencode.ui.output_window')
 local snapshot = require('opencode.snapshot')
 local loading_animation = require('opencode.ui.loading_animation')
 
@@ -100,10 +99,18 @@ local function build_footer_from_segments(left_segments, right_segments, win_wid
 end
 
 function M.render()
-  if not output_window.mounted() or not M.mounted() then
+  if not M.mounted() then
     return
   end
   ---@cast state.windows OpencodeWindowState
+  local output_buf = state.windows.output_buf
+  if
+    not output_buf
+    or not vim.api.nvim_buf_is_valid(output_buf)
+    or vim.api.nvim_win_get_buf(state.windows.output_win) ~= output_buf
+  then
+    return
+  end
 
   local left_segments = build_left_segments()
   local right_segments = build_right_segments()

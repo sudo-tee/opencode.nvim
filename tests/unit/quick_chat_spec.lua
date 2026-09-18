@@ -12,21 +12,36 @@ describe('quick chat', function()
     local observation = {
       request_reply = function(_, input)
         submitted.input = vim.deepcopy(input)
-        local promise = Promise.new()
-        if options.reply_error then
-          promise:reject(options.reply_error)
-        else
-          promise:resolve(vim.deepcopy(message))
+        local promise = options.reply_promise or Promise.new()
+        if not options.reply_promise then
+          if options.reply_error then
+            promise:reject(options.reply_error)
+          else
+            promise:resolve(vim.deepcopy(message))
+          end
         end
         return {
           promise = promise,
-          stop = function()
+          stop = function(reason)
             submitted.stopped = true
+            if reason then
+              promise:reject(reason)
+            end
           end,
         }
       end,
     }
+    observation.interrupt = function()
+      submitted.interrupted = true
+      return Promise.new():resolve()
+    end
     local connection = {
+      operations = {
+        delete_session = function(_, id, location)
+          submitted.deleted = { id = id, location = location }
+          return Promise.new():resolve()
+        end,
+      },
       observe = function(_, ref)
         assert.equals('quick-session', ref.id)
         return observation
@@ -42,8 +57,8 @@ describe('quick chat', function()
 
     package.loaded['opencode.config'] = {
       prompt_guard = nil,
-      debug = { quick_chat = { keep_session = true } },
-      keymap = { quick_chat = {} },
+      debug = { quick_chat = { keep_session = options.keep_session ~= false } },
+      keymap = { quick_chat = options.cancel_key and { cancel = { options.cancel_key, mode = 'n' } } or {} },
       quick_chat = {},
     }
     package.loaded['opencode.context'] = {
@@ -60,11 +75,15 @@ describe('quick chat', function()
       end,
     }
     package.loaded['opencode.services.session_runtime'] = {
-      create_new_session = function()
+      create_detached_session = function()
         if options.create_session then
           return options.create_session()
         end
-        return Promise.new():resolve({ id = 'quick-session', directory = '/workspace' })
+        return Promise.new():resolve({
+          session = { id = 'quick-session', location = { directory = '/workspace' } },
+          connection = connection,
+          observation = observation,
+        })
       end,
     }
     package.loaded['opencode.services.agent_model'] = {
@@ -107,6 +126,7 @@ describe('quick chat', function()
   end)
 
   after_each(function()
+    pcall(vim.keymap.del, 'n', '<F12>')
     vim.notify = originals.notify
     state.jobs.set_server(originals.server)
     package.loaded['opencode.config'] = originals.config
@@ -171,6 +191,28 @@ describe('quick chat', function()
     assert.same({}, submitted.input.context)
     assert.same({}, submitted.input.files)
     assert.same({}, submitted.input.agents)
+  end)
+
+  it('deletes the detached session after applying its reply', function()
+    local quick_chat, submitted = load_quick_chat(assistant_reply(), { keep_session = false })
+    quick_chat.quick_chat('replace it'):wait()
+    assert.is_true(vim.wait(200, function() return submitted.deleted ~= nil end))
+    assert.same({ id = 'quick-session', location = { directory = '/workspace' } }, submitted.deleted)
+  end)
+
+  it('cancels a pending reply and deletes its detached session without changing the buffer', function()
+    local quick_chat, submitted = load_quick_chat(nil, {
+      reply_promise = Promise.new(), keep_session = false, cancel_key = '<F12>',
+    })
+    local request = quick_chat.quick_chat('replace it')
+    assert.is_true(vim.wait(200, function() return submitted.input ~= nil end))
+    vim.fn.maparg('<F12>', 'n', false, true).callback()
+    request:wait()
+    assert.is_true(vim.wait(200, function() return submitted.deleted ~= nil end))
+    assert.is_true(submitted.stopped)
+    assert.is_true(submitted.interrupted)
+    assert.same({ 'old code' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+    assert.equals('', vim.fn.maparg('<F12>', 'n'))
   end)
 
   it('stops the spinner when session startup fails', function()

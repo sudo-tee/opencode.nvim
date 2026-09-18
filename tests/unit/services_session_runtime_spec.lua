@@ -348,6 +348,78 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
+  describe('detached session creation', function()
+    local ensure_server
+    local server_job = require('opencode.server_job')
+
+    after_each(function()
+      if ensure_server then
+        ensure_server:revert()
+        ensure_server = nil
+      end
+    end)
+
+    for _, case in ipairs({
+      { fact = { location = { directory = '/remote' } }, location = { directory = '/remote' } },
+      { fact = { directory = '/legacy' }, location = { directory = '/legacy' } },
+      { fact = {}, location = { directory = vim.fn.getcwd() } },
+    }) do
+      it('creates and observes on the same connection at ' .. case.location.directory, function()
+        local active = state.active_session
+        local windows = state.windows
+        local fact = vim.tbl_extend('force', { id = 'detached-id' }, case.fact)
+        local observation = {}
+        local connection = { operations = {} }
+        connection.operations.create_session = function(actual, _, request)
+          assert.equals(connection, actual)
+          assert.same({ title = 'Detached' }, request)
+          return Promise.new():resolve(fact)
+        end
+        connection.observe = function(actual, ref)
+          assert.equals(connection, actual)
+          assert.same({ id = 'detached-id', location = case.location }, ref)
+          return observation
+        end
+        ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+        state.context.set_current_cwd(vim.fn.getcwd())
+        local result = session_runtime.create_detached_session('Detached'):wait()
+        assert.stub(ensure_server).was_called(1)
+        assert.equals(connection, result.connection)
+        assert.equals(observation, result.observation)
+        assert.same(case.location, result.session.location)
+        assert.same(case.fact.location, fact.location)
+        assert.equals(active, state.active_session)
+        assert.equals(windows, state.windows)
+        assert.stub(ui.create_windows).was_not_called()
+      end)
+    end
+
+    it('rejects when session creation returns no session', function()
+      local connection = { operations = { create_session = function() return Promise.new():resolve(nil) end } }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      local result = session_runtime.create_detached_session()
+      assert.is_true(result:is_rejected())
+    end)
+
+    it('deletes a newly created session when observation setup fails', function()
+      local deleted
+      local connection = {
+        operations = {
+          create_session = function() return Promise.new():resolve({ id = 'detached-id' }) end,
+          delete_session = function(_, id)
+            deleted = id
+            return Promise.new():resolve()
+          end,
+        },
+        observe = function() error('observation unavailable') end,
+      }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      local result = session_runtime.create_detached_session()
+      assert.is_true(result:is_rejected())
+      assert.equals('detached-id', deleted)
+    end)
+  end)
+
   describe('session selection command', function()
     after_each(function()
       local picker = require('opencode.ui.session_picker')

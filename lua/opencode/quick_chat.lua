@@ -3,7 +3,6 @@ local state = require('opencode.state')
 local config = require('opencode.config')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
-local server_job = require('opencode.server_job')
 local CursorSpinner = require('opencode.quick_chat.spinner')
 local session_runtime = require('opencode.services.session_runtime')
 local agent_model = require('opencode.services.agent_model')
@@ -394,27 +393,17 @@ M.quick_chat = Promise.async(function(message, options, range)
   end
 
   local title = create_session_title(buf)
-  local quick_chat_session
   local quick_chat_session_id
   local quick_chat_session_info
   local success, err = pcall(function()
-    quick_chat_session = session_runtime.create_new_session(title):await()
-    if not quick_chat_session then
-      error('Failed to create quickchat session')
-    end
+    local detached = session_runtime.create_detached_session(title):await()
+    local quick_chat_session = detached.session
     quick_chat_session_id = quick_chat_session.id
 
     if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
       state.session.set_active(quick_chat_session)
     end
 
-    local connection = server_job.ensure_server():await()
-    local session_ref = {
-      id = quick_chat_session.id,
-      location = quick_chat_session.location or (quick_chat_session.directory and {
-        directory = quick_chat_session.directory,
-      }) or { directory = state.current_cwd or vim.fn.getcwd() },
-    }
     quick_chat_session_info = {
       buf = buf,
       row = row,
@@ -422,14 +411,13 @@ M.quick_chat = Promise.async(function(message, options, range)
       spinner = spinner,
       timestamp = vim.uv.now(),
       range = range,
-      connection = connection,
-      observation = nil,
-      session = session_ref,
+      connection = detached.connection,
+      observation = detached.observation,
+      session = quick_chat_session,
     }
     running_sessions[quick_chat_session.id] = quick_chat_session_info
 
-    local observation = connection:observe(session_ref)
-    quick_chat_session_info.observation = observation
+    local observation = detached.observation
 
     setup_global_keymaps()
 

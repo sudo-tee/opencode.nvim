@@ -64,7 +64,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(executed)
 
@@ -123,7 +123,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo "hello world"' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_not_nil(output_lines)
       assert.are.same('$ echo "hello world"', output_lines[1])
@@ -181,7 +181,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!ls' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(prompt_shown)
       assert.are.equal('Add command + output to context?', prompt_text)
@@ -230,7 +230,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       local input_lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
       local input_text = table.concat(input_lines, '\n')
@@ -288,7 +288,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       local output_lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false)
       assert.are.same({ '' }, output_lines)
@@ -346,7 +346,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!invalid_command' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(error_notified)
 

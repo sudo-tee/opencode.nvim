@@ -122,12 +122,11 @@ function M.close()
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
 end
 
----Handle submit action from input window
----@return boolean true if a message was sent to the AI, false otherwise
-function M.handle_submit()
+---@return string|nil # Input content, or nil when the input window is not mounted
+function M.take_input()
   local windows = state.windows
   if not windows or not M.mounted(windows) then
-    return false
+    return nil
   end
   ---@cast windows { input_buf: integer }
 
@@ -137,73 +136,7 @@ function M.handle_submit()
     buffer = windows.input_buf,
     modeline = false,
   })
-
-  if input_content == '' then
-    return false
-  end
-
-  if input_content:match('^!') then
-    M._execute_shell_command(input_content:sub(2))
-    return false
-  end
-
-  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
-  if input_content:match('^' .. key) then
-    M._execute_slash_command(input_content)
-    return false
-  end
-
-  require('opencode.services.messaging').send_message(input_content)
-  return true
-end
-
-M._execute_shell_command = function(command)
-  local cmd = command:match('^%s*(.-)%s*$')
-  if cmd == '' then
-    return
-  end
-
-  local shell = vim.o.shell
-  local shell_cmd = { shell, '-c', cmd }
-
-  vim.system(shell_cmd, { text = true }, function(result)
-    vim.schedule(function()
-      if result.code ~= 0 then
-        vim.notify('Command failed with exit code ' .. result.code, vim.log.levels.ERROR)
-      end
-
-      local output = result.stdout or ''
-      if result.stderr and result.stderr ~= '' then
-        output = output .. '\n' .. result.stderr
-      end
-
-      M._prompt_add_to_context(cmd, output, result.code)
-    end)
-  end)
-end
-
-M._prompt_add_to_context = function(cmd, output, exit_code)
-  local output_window = require('opencode.ui.output_window')
-  if not output_window.mounted() then
-    return
-  end
-
-  local formatted_output = string.format('$ %s\n%s', cmd, output)
-  local lines = vim.split(formatted_output, '\n')
-
-  output_window.set_lines(lines)
-
-  local picker = require('opencode.ui.picker')
-  picker.select({ 'Yes', 'No' }, {
-    prompt = 'Add command + output to context?',
-  }, function(choice)
-    if choice == 'Yes' then
-      local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
-      M._append_to_input(message)
-    end
-    output_window.clear()
-    require('opencode.ui.input_window').focus_input()
-  end)
+  return input_content
 end
 
 M._append_to_input = function(text)
@@ -231,28 +164,6 @@ M._append_to_input = function(text)
 
   local line_count = vim.api.nvim_buf_line_count(state.windows.input_buf)
   vim.api.nvim_win_set_cursor(state.windows.input_win, { line_count, 0 })
-end
-
-M._execute_slash_command = function(command)
-  local slash_commands = require('opencode.commands.slash').get_commands():await()
-  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
-
-  local cmd = command:sub(2):match('^%s*(.-)%s*$')
-  if cmd == '' then
-    return
-  end
-  local parts = vim.split(cmd, ' ')
-
-  local command_cfg = vim.tbl_filter(function(c)
-    return c.slash_cmd == key .. parts[1]
-  end, slash_commands)[1]
-
-  if command_cfg then
-    local args = #parts > 1 and vim.list_slice(parts, 2) or nil
-    command_cfg.fn(args)
-  else
-    vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
-  end
 end
 
 function M.setup(windows)

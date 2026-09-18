@@ -1,4 +1,5 @@
 local Promise = require('opencode.promise')
+local config = require('opencode.config')
 local config_file = require('opencode.config_file')
 local commands = require('opencode.commands')
 local log = require('opencode.log')
@@ -179,5 +180,30 @@ M.get_commands = Promise.async(function()
 
   return result
 end)
+
+---@param command string
+---@return OpencodeSlashCommand|nil
+---@return string[]|nil
+function M.resolve_input(command)
+  local slash_commands = M.get_commands():await()
+  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
+
+  local cmd = command:sub(2):match('^%s*(.-)%s*$')
+  if cmd == '' then
+    return
+  end
+  local parts = vim.split(cmd, ' ')
+
+  local command_cfg = vim.tbl_filter(function(c)
+    return c.slash_cmd == key .. parts[1]
+  end, slash_commands)[1]
+
+  if command_cfg then
+    local args = #parts > 1 and vim.list_slice(parts, 2) or nil
+    return command_cfg, args
+  else
+    vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
+  end
+end
 
 return M

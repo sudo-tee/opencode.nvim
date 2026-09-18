@@ -321,7 +321,7 @@ describe('opencode.api', function()
       assert_send_message_called_with('test prompt new', true)
     end)
 
-    it('routes submit_input_prompt through handle_submit, send_message, and after_run', function()
+    it('routes submit_input_prompt through take_input, send_message, and after_run', function()
       with_session_snapshot(function()
         with_model_runtime_snapshot(function()
           state.session.set_active(mk_session('session-1'))
@@ -340,21 +340,18 @@ describe('opencode.api', function()
             require('opencode.services.messaging').after_run(prompt)
             return true
           end)
-          local handle_submit_stub = stub(input_window, 'handle_submit').invokes(function()
-            require('opencode.services.messaging').send_message('hello')
-            return true
-          end)
+          local take_input_stub = stub(input_window, 'take_input').returns('hello')
           local is_hidden_stub = stub(input_window, 'is_hidden').returns(true)
 
           api.submit_input_prompt():wait()
 
-          assert.stub(handle_submit_stub).was_called()
+          assert.stub(take_input_stub).was_called()
           assert.stub(send_message_stub).was_called_with('hello')
           assert.stub(after_run_stub).was_called_with('hello')
 
           send_message_stub:revert()
           after_run_stub:revert()
-          handle_submit_stub:revert()
+          take_input_stub:revert()
           agent_model.initialize_current_model:revert()
           context.format_message:revert()
           context.load:revert()

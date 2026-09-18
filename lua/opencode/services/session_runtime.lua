@@ -5,7 +5,6 @@ local server_job = require('opencode.server_job')
 local input_window = require('opencode.ui.input_window')
 local util = require('opencode.util')
 local config = require('opencode.config')
-local image_handler = require('opencode.image_handler')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local agent_model = require('opencode.services.agent_model')
@@ -851,9 +850,5 @@ M.handle_directory_change = Promise.async(function()
 
   log.debug('Loaded session for new working dir ' .. vim.inspect({ session = state.active_session }))
 end)
-
-function M.paste_image_from_clipboard()
-  return image_handler.paste_image_from_clipboard()
-end
 
 return M

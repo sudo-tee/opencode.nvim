@@ -1,5 +1,6 @@
 local assert = require('luassert')
 local store = require('opencode.state.store')
+local default_gg = require('opencode.config').defaults.keymap.output_window.gg
 
 describe('opencode.keymap', function()
   local set_keymaps = {}
@@ -65,6 +66,7 @@ describe('opencode.keymap', function()
     mock_commands = {
       get_commands = function()
         return {
+          first_message = { desc = 'Load history and go to the first message', execute = function() end },
           open_input = { desc = 'Open input window', execute = function() end },
           toggle = { desc = 'Toggle opencode windows', execute = function() end },
           submit_input_prompt = { desc = 'Submit input prompt', execute = function() end },
@@ -154,6 +156,40 @@ describe('opencode.keymap', function()
         end
       end
     end
+
+    it('installs the default gg action and restores it without replacing a custom mapping', function()
+      vim.keymap.set = original_keymap_set
+      keymap.setup({ output_window = { gg = default_gg } })
+      local windows = panel()
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.output_buf, 'gg') ~= nil
+      end))
+      mapping(windows.output_buf, 'gg').callback()
+      assert.equals('first_message', executed_parsed[1].intent.name)
+
+      vim.keymap.del('n', 'gg', { buffer = windows.output_buf })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.output_buf, 'gg') ~= nil
+      end))
+      original_keymap_set('n', 'gg', function() end, { buffer = windows.output_buf, desc = 'Custom gg' })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      local drained = false
+      vim.schedule(function() drained = true end)
+      assert.is_true(vim.wait(200, function() return drained end))
+      assert.equals('Custom gg', mapping(windows.output_buf, 'gg').desc)
+    end)
+
+    it('does not install gg when disabled', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      store.set_raw('windows', windows)
+      keymap.setup({ output_window = { gg = false } })
+      assert.is_nil(mapping(windows.output_buf, 'gg'))
+    end)
 
     it('binds new panels and restores missing mappings without replacing custom or window mappings', function()
       vim.keymap.set = original_keymap_set

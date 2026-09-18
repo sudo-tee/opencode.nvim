@@ -57,6 +57,22 @@ describe('navigation user message jumps', function()
     end
   end)
 
+  it('loads history before jumping to the first line', function()
+    vim.api.nvim_win_set_cursor(output_win, { 100, 0 })
+    local load_history = stub(renderer, 'load_all_messages').invokes(function()
+      assert.equals(100, vim.api.nvim_win_get_cursor(output_win)[1])
+    end)
+    local ok, err = pcall(function()
+      navigation.goto_first_message()
+      assert.stub(load_history).was_called(1)
+      assert.same({ 1, 0 }, vim.api.nvim_win_get_cursor(output_win))
+    end)
+    load_history:revert()
+    if not ok then
+      error(err)
+    end
+  end)
+
   describe('renderer.get_prev_user_message', function()
     it('skips assistant messages and returns previous user message before cursor', function()
       seed({

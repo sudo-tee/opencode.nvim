@@ -388,6 +388,10 @@ M.actions.run_user_command = Promise.async(function(name, args)
   end) --[[@as Promise<void> ]]
 end)
 
+function M.actions.first_message()
+  require('opencode.ui.navigation').goto_first_message()
+end
+
 function M.actions.next_message()
   require('opencode.ui.navigation').goto_next_message()
 end
@@ -602,6 +606,10 @@ M.command_defs = {
   context_items = {
     desc = 'Open context items picker in input window',
     execute = M.actions.context_items,
+  },
+  first_message = {
+    desc = 'Load history and go to the first message',
+    execute = M.actions.first_message,
   },
   next_message = {
     desc = 'Navigate to next message in output window',

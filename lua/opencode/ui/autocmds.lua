@@ -1,6 +1,7 @@
 local input_window = require('opencode.ui.input_window')
 local output_window = require('opencode.ui.output_window')
 local state = require('opencode.state')
+local config = require('opencode.config')
 local M = {}
 local bound_windows
 
@@ -19,12 +20,124 @@ local function schedule_window_teardown(windows)
 end
 
 ---@param windows OpencodeWindowState
+---@param group integer
+local function setup_panel_autocmds(windows, group)
+  local function viewport_is_at_rendered_top()
+    local top_line = output_window.get_visible_top_line(windows.output_win)
+    return top_line ~= nil and top_line <= 3
+  end
+
+  local load_more_at_top = require('opencode.util').debounce(function()
+    local renderer = require('opencode.ui.renderer')
+    local anchor = renderer.capture_top_anchor()
+
+    if renderer.load_more_messages() then
+      renderer.restore_top_anchor(anchor)
+    end
+  end, 150)
+
+  for _, name in ipairs({ 'input', 'output' }) do
+    local events = name == 'output' and { 'WinEnter', 'BufEnter' } or 'WinEnter'
+    vim.api.nvim_create_autocmd(events, {
+      group = group,
+      buffer = windows[name .. '_buf'],
+      callback = function()
+        state.ui.set_last_focused_window(name)
+        input_window.refresh_placeholder(windows)
+        if name == 'input' then
+          require('opencode.ui.context_bar').render()
+        else
+          vim.cmd('stopinsert')
+        end
+      end,
+    })
+
+    vim.api.nvim_create_autocmd('CursorMoved', {
+      group = group,
+      buffer = windows[name .. '_buf'],
+      callback = function()
+        local pos = state.ui.get_window_cursor(windows[name .. '_win'])
+        if pos then
+          state.ui.set_cursor_position(name, pos)
+        end
+        if name == 'output' and viewport_is_at_rendered_top() then
+          load_more_at_top()
+        end
+      end,
+    })
+  end
+
+  vim.api.nvim_create_autocmd('WinLeave', {
+    group = group,
+    buffer = windows.input_buf,
+    callback = function()
+      -- Auto-hide input window when auto_hide is enabled and focus leaves
+      -- Don't hide if displaying a route (slash command output like /help)
+      -- Don't hide if input contains content
+      -- Don't hide if output window is empty (new session - user needs to start chat)
+      local output_is_empty = output_window.get_buf_line_count() <= 1
+      if
+        config.ui.input.auto_hide
+        and not input_window.is_hidden()
+        and not state.display_route
+        and not output_is_empty
+        and #state.input_content == 1
+        and state.input_content[1] == ''
+      then
+        input_window._hide()
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
+    group = group,
+    buffer = windows.input_buf,
+    callback = function()
+      local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
+      state.ui.set_input_content(input_lines)
+      input_window.refresh_placeholder(windows, input_lines)
+      require('opencode.ui.context_bar').render()
+      input_window.schedule_resize(windows)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('TabEnter', {
+    group = group,
+    callback = function()
+      if state.ui.is_window_in_current_tab(windows.output_win) then
+        require('opencode.ui.renderer').resume_deferred_rendering()
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('WinScrolled', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      output_window.sync_cursor_with_viewport(windows.output_win)
+      if viewport_is_at_rendered_top() then
+        load_more_at_top()
+      end
+    end,
+  })
+
+  -- Restore winfixbuf etc. when the output buffer is removed from the window,
+  vim.api.nvim_create_autocmd('BufDelete', {
+    group = group,
+    buffer = windows.output_buf,
+    callback = function()
+      if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
+        output_window.restore_winfix_options(windows.output_win)
+      end
+    end,
+  })
+end
+
+---@param windows OpencodeWindowState
 function M.setup_autocmds(windows)
   local group = vim.api.nvim_create_augroup('OpencodeWindows', { clear = true })
-  input_window.setup_autocmds(windows, group)
-  output_window.setup_autocmds(windows, group)
+  setup_panel_autocmds(windows, group)
 
-  -- Only keep shared autocmds here (e.g., WinClosed, WinLeave for all windows)
   local wins = {}
   for _, key in ipairs({ 'input_win', 'output_win', 'footer_win', 'tab_strip_win' }) do
     if windows[key] then

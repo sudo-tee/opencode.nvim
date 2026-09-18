@@ -320,9 +320,7 @@ M.open = Promise.async(function(opts)
   return Promise.new():resolve('ok')
 end)
 
----@param title_or_opts? string|boolean|table
----@return Session?
-M.create_new_session = Promise.async(function(title_or_opts)
+local create_session = Promise.async(function(connection, location, title_or_opts)
   local session_request = {}
 
   if type(title_or_opts) == 'string' then
@@ -331,8 +329,6 @@ M.create_new_session = Promise.async(function(title_or_opts)
     session_request = title_or_opts
   end
 
-  local connection = server_job.ensure_server():await()
-  local location = current_location()
   local session_response = connection.operations
     .create_session(connection, location, session_request, util.apply_path_map, util.apply_reverse_path_map)
     :catch(function(err)
@@ -343,6 +339,47 @@ M.create_new_session = Promise.async(function(title_or_opts)
   if session_response and session_response.id then
     return session_response
   end
+end)
+
+---@param title_or_opts? string|boolean|table
+---@return Promise<Session|nil>
+M.create_new_session = Promise.async(function(title_or_opts)
+  local connection = server_job.ensure_server():await()
+  return create_session(connection, current_location(), title_or_opts):await()
+end)
+
+---@class OpencodeDetachedSession
+---@field session Session
+---@field connection OpencodeServer
+---@field observation OpencodeObservation
+
+---Create and observe a session without activating it or opening the panel.
+---Rejects on startup or observation failure, or when creation returns no session.
+---@param title_or_opts? string|boolean|table
+---@return Promise<OpencodeDetachedSession>
+M.create_detached_session = Promise.async(function(title_or_opts)
+  local connection = server_job.ensure_server():await()
+  local location = current_location()
+  local session = create_session(connection, location, title_or_opts):await()
+  if not session then
+    error('Failed to create detached session')
+  end
+  session = vim.tbl_extend('force', {}, session, {
+    location = session.location or (session.directory and { directory = session.directory }) or location,
+  })
+  local ok, observation = pcall(function()
+    return connection:observe({ id = session.id, location = session.location })
+  end)
+  if not ok then
+    local deleted, delete_error = pcall(function()
+      connection.operations.delete_session(connection, session.id, session.location, util.apply_path_map):await()
+    end)
+    if not deleted then
+      log.warn('Failed to delete detached session after observation failure: %s', vim.inspect(delete_error))
+    end
+    error(observation, 0)
+  end
+  return { session = session, connection = connection, observation = observation }
 end)
 
 ---Rename a session without mutating the supplied fact or prompting for input.

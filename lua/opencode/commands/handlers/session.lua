@@ -196,7 +196,7 @@ M.actions.select_session = Promise.async(function(parent_id, scope)
       end
       return
     end
-    ui.switch_session(selected_session)
+    session_runtime.select_session(selected_session)
   end, { scope = scope })
 end)
 
@@ -311,7 +311,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     if interaction == 'picker' then
       return M.actions.select_session(direction, 'project')
     end
-    return ui.switch_session(direction)
+    return session_runtime.select_session(direction)
   end
 
   local active = active_session_fact()
@@ -337,7 +337,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
     if interaction == 'picker' or not dir.allow_direct then
       return M.actions.select_session(target_id, 'project')
     end
-    return ui.switch_session(target_id)
+    return session_runtime.select_session(target_id)
   end
 
   -- forward / backward: flat navigation by time.updated
@@ -366,7 +366,7 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
       return
     end
 
-    return ui.switch_session(all_sessions[target_idx].id)
+    return session_runtime.select_session(all_sessions[target_idx].id)
   end)()
 end
 
@@ -678,7 +678,7 @@ function M.actions.fork_session(message_id, open_in_new_tab)
             if open_in_new_tab == true or open_in_new_tab == 'tab' then
               session_runtime.open_session_in_tab(response)
             else
-              ui.switch_session(response.id)
+              session_runtime.select_session(response.id)
             end
           else
             vim.notify('Session forked but no new session ID received', vim.log.levels.WARN)

@@ -324,7 +324,7 @@ function M.pick(sessions, callback, opts)
       fn = Promise.async(function(selected, opts)
         local new_session = session_runtime.fork_session(selected):await()
         if new_session then
-          require('opencode.ui.ui').switch_session(new_session):await()
+          session_runtime.select_session(new_session):await()
           table.insert(opts.items, 1, new_session)
           return opts.items
         end

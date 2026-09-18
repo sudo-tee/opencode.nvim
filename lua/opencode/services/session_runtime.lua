@@ -567,32 +567,6 @@ M.cycle_session_tab = Promise.async(function(direction)
   return M.switch_session_tab(tabs[next_index].id):await()
 end)
 
----@param runtime OpencodeSessionTabRuntime
-local function delete_runtime_buffers(runtime)
-  local buffers = {}
-  local seen = {}
-
-  local function collect(source)
-    for _, key in ipairs({ 'input_buf', 'output_buf', 'footer_buf', 'tab_strip_buf' }) do
-      local bufnr = source and source[key]
-      if bufnr and not seen[bufnr] then
-        seen[bufnr] = true
-        table.insert(buffers, bufnr)
-      end
-    end
-  end
-
-  collect(runtime.windows)
-  collect(runtime._hidden_buffers)
-
-  for _, bufnr in ipairs(buffers) do
-    require('opencode.ui.session_tab_strip').clear_buffer(bufnr)
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-    end
-  end
-end
-
 ---Close a logical panel tab.
 ---@param tab_id? string Close selected tab, or the active tab when omitted.
 ---@return boolean
@@ -612,7 +586,7 @@ function M.close_session_tab(tab_id)
 
   local active_id = session_tabs.active_id()
   if tab_id and active_id ~= runtime.id then
-    delete_runtime_buffers(runtime)
+    ui.delete_window_buffers(runtime.windows, runtime._hidden_buffers)
     session_tabs.remove(runtime)
     return true
   end
@@ -640,7 +614,7 @@ function M.close_session_tab(tab_id)
     ui.hide_visible_windows(state.windows, true)
   end
   session_tabs.sync()
-  delete_runtime_buffers(runtime)
+  ui.delete_window_buffers(runtime.windows, runtime._hidden_buffers)
   session_tabs.remove(runtime)
   session_tabs.activate(next_runtime)
   context.restore(session_tabs.get_context())

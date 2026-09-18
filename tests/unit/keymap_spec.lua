@@ -1,6 +1,7 @@
 local assert = require('luassert')
 local store = require('opencode.state.store')
-local default_gg = require('opencode.config').defaults.keymap.output_window.gg
+local default_keymap = require('opencode.config').defaults.keymap
+local default_gg = default_keymap.output_window.gg
 
 describe('opencode.keymap', function()
   local set_keymaps = {}
@@ -66,6 +67,7 @@ describe('opencode.keymap', function()
     mock_commands = {
       get_commands = function()
         return {
+          select_session_tab_target = { desc = 'Select tab', execute = function() end },
           first_message = { desc = 'Load history and go to the first message', execute = function() end },
           open_input = { desc = 'Open input window', execute = function() end },
           toggle = { desc = 'Toggle opencode windows', execute = function() end },
@@ -181,6 +183,32 @@ describe('opencode.keymap', function()
       vim.schedule(function() drained = true end)
       assert.is_true(vim.wait(200, function() return drained end))
       assert.equals('Custom gg', mapping(windows.output_buf, 'gg').desc)
+    end)
+
+    it('binds tab-strip mappings before its window is shown and restores custom mappings', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      windows.tab_strip_buf = vim.api.nvim_create_buf(false, true)
+      panel_buffers[#panel_buffers + 1] = windows.tab_strip_buf
+      store.set_raw('windows', windows)
+      keymap.setup({ tab_strip_window = default_keymap.tab_strip_window })
+      local enter = mapping(windows.tab_strip_buf, '<CR>')
+      assert.is_not_nil(enter)
+      assert.equals(1, enter.nowait)
+      enter.callback()
+      assert.equals('select_session_tab_target', executed_parsed[1].intent.name)
+      assert.same({ 'cursor' }, executed_parsed[1].intent.args)
+      mapping(windows.tab_strip_buf, '<LeftMouse>').callback()
+      assert.same({ 'mouse' }, executed_parsed[2].intent.args)
+      assert.is_not_nil(mapping(windows.tab_strip_buf, '<2-LeftMouse>'))
+
+      original_keymap_set('n', '<CR>', function() end, { buffer = windows.tab_strip_buf, desc = 'Custom tab' })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      local drained = false
+      vim.schedule(function() drained = true end)
+      assert.is_true(vim.wait(200, function() return drained end))
+      assert.equals('Custom tab', mapping(windows.tab_strip_buf, '<CR>').desc)
     end)
 
     it('does not install gg when disabled', function()

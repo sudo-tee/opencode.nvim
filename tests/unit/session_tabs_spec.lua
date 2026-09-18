@@ -23,6 +23,35 @@ describe('opencode session panel tabs', function()
     vim.wait(50)
   end)
 
+  it('deletes visible and preserved buffers when closing an inactive tab', function()
+    local first = session_tabs.ensure_current()
+    local inactive = session_tabs.create({ id = 'inactive-session' })
+    local output = vim.api.nvim_create_buf(false, true)
+    local strip = vim.api.nvim_create_buf(false, true)
+    local hidden_input = vim.api.nvim_create_buf(false, true)
+    inactive.windows = { output_buf = output, tab_strip_buf = strip }
+    inactive._hidden_buffers = { input_buf = hidden_input, output_buf = output }
+    local delete = require('luassert.spy').on(vim.api, 'nvim_buf_delete')
+    local ok, err = pcall(function()
+      assert.is_true(require('opencode.services.session_runtime').close_session_tab(inactive.id))
+      assert.spy(delete).was_called(3)
+      assert.is_false(vim.api.nvim_buf_is_valid(output))
+      assert.is_false(vim.api.nvim_buf_is_valid(strip))
+      assert.is_false(vim.api.nvim_buf_is_valid(hidden_input))
+      assert.is_nil(session_tabs.get(inactive.id))
+      assert.equals(first.id, session_tabs.active_id())
+    end)
+    delete:revert()
+    for _, buf in ipairs({ output, strip, hidden_input }) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end
+    if not ok then
+      error(err)
+    end
+  end)
+
   it('keeps session state isolated when switching logical tabs', function()
     local first = session_tabs.ensure_current()
     state.session.set_active({ id = 'session-one', title = 'One' })

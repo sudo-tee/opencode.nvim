@@ -4,8 +4,12 @@ local config = require('opencode.config')
 local Timer = require('opencode.ui.timer')
 local M = {}
 
-local function render_footer()
-  require('opencode.ui.footer').render()
+local on_change
+
+local function notify_change()
+  if on_change then
+    on_change()
+  end
 end
 
 M._animation = {
@@ -167,7 +171,7 @@ function M.start(windows)
   end
   M._start_animation_timer(windows)
   M.render(windows)
-  render_footer()
+  notify_change()
 end
 
 function M.stop()
@@ -176,7 +180,7 @@ function M.stop()
   if state.windows and state.windows.footer_buf and vim.api.nvim_buf_is_valid(state.windows.footer_buf) then
     pcall(vim.api.nvim_buf_clear_namespace, state.windows.footer_buf, M._animation.ns_id, 0, -1)
   end
-  render_footer()
+  notify_change()
 end
 
 function M._should_animate()
@@ -208,12 +212,15 @@ function M.refresh()
   end
 end
 
-function M.setup()
+---@param on_animation_change? fun() Called after starting or stopping the animation.
+function M.setup(on_animation_change)
+  on_change = on_animation_change
   state.store.subscribe('active_session', M._on_active_session_change)
   M._on_active_session_change()
 end
 
 function M.teardown()
+  on_change = nil
   state.store.unsubscribe('active_session', M._on_active_session_change)
   release_observation()
   M._animation.execution = nil

@@ -103,6 +103,7 @@ function M.replay_setup()
   state.model.set_mode('build') -- default mode for tests
 
   state.ui.set_windows(ui.create_windows())
+  require('opencode.ui.autocmds').setup_subscriptions()
 
   M.mock_time_utils()
   M.mock_getcwd()

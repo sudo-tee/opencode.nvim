@@ -566,6 +566,7 @@ function M.setup_autocmds(windows, group)
   })
 
   vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
+    group = group,
     buffer = windows.input_buf,
     callback = function()
       local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)

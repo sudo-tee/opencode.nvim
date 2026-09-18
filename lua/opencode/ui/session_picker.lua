@@ -387,8 +387,8 @@ function M.pick(sessions, callback, opts)
         local observed = observed_session:read()
         local sync = observed.sync and observed.sync.messages
         if sync and sync.state == 'current' then
-          release()
           local entries = ordered_entries(observed_session)
+          release()
           if #entries == 0 then
             target:set_lines({ 'No messages' })
             return

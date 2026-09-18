@@ -76,6 +76,65 @@ describe('opencode.ui.session_picker', function()
       assert.are.same({ 'No messages' }, writes[2])
     end)
 
+    it('renders loaded messages before releasing the observation state', function()
+      local lifecycle = require('opencode.protocols.observation')
+      local request = Promise.new()
+      local ref = { id = 's1' }
+      local observation = lifecycle.attach(connection, ref, lifecycle.new_state(ref), {
+        name = 'preview-test',
+        stream_resource = function()
+          return false
+        end,
+        request_resource = function()
+          return request
+        end,
+        apply_resource = function(observed, _, entries)
+          observed:read().entry_order = { entries[1].id }
+          observed:read().entries_by_id = { [entries[1].id] = entries[1] }
+        end,
+      })
+      connection.observations.s1 = observation
+      local captured_opts
+      require('opencode.ui.base_picker').pick = function(opts)
+        captured_opts = opts
+        return true
+      end
+      session_picker.pick({ ref }, function() end)
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local writes = {}
+      local target = {
+        get_bufnr = function()
+          return bufnr
+        end,
+        is_valid = function()
+          return true
+        end,
+        set_lines = function(_, lines)
+          writes[#writes + 1] = lines
+          vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+        end,
+        with_window = function() end,
+      }
+      captured_opts.preview_fn(ref, target)
+      request:resolve({
+        {
+          id = 'msg_1',
+          kind = 'assistant',
+          session_id = 's1',
+          content = { { id = 'part_1', kind = 'text', text = 'Loaded preview message' } },
+        },
+      })
+      vim.wait(1000, function()
+        return #writes >= 2
+      end)
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+
+      assert.is_truthy(table.concat(writes[#writes], '\n'):find('Loaded preview message', 1, true))
+      assert.same({}, observation:read().entry_order)
+      assert.is_nil(connection.observations.s1)
+    end)
+
     it('formats preview parts with non-interactive formatter context', function()
       local base_picker = require('opencode.ui.base_picker')
       local formatter = require('opencode.ui.formatter')

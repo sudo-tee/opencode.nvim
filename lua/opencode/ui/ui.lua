@@ -1,3 +1,4 @@
+local Promise = require('opencode.promise')
 local config = require('opencode.config')
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
@@ -493,6 +494,31 @@ function M.active_session_allows_input()
       and not observed.session.parentID
     or false
 end
+
+---Activate a session, then open the panel or restore the appropriate input/output focus.
+---@param session_or_id Session|string
+---@return Promise
+M.switch_session = Promise.async(function(session_or_id)
+  local session_runtime = require('opencode.services.session_runtime')
+  session_runtime.switch_session(session_or_id):await()
+  if not state.ui.is_visible() then
+    session_runtime.open()
+    return
+  end
+
+  if not M.active_session_allows_input() then
+    if not input_window.is_hidden() then
+      input_window._hide()
+    end
+    M.focus_output()
+    return
+  end
+
+  if input_window.is_hidden() then
+    input_window._show()
+  end
+  M.focus_input()
+end)
 
 ---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)

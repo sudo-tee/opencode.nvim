@@ -80,6 +80,27 @@ describe('config_file.setup', function()
     end):wait()
   end)
 
+  it('retries an empty primary-agent response while the server initializes', function()
+    local original_defer_fn = vim.defer_fn
+    local attempts = 0
+    vim.defer_fn = function(callback)
+      callback()
+    end
+
+    set_operations({
+      list_primary_agents = function()
+        attempts = attempts + 1
+        return Promise.new():resolve(attempts < 3 and {} or { 'build' })
+      end,
+    })
+
+    local agents = config_file.get_opencode_agents():wait()
+
+    vim.defer_fn = original_defer_fn
+    assert.same({ 'build' }, agents)
+    assert.equals(3, attempts)
+  end)
+
   it('gets subagents from the selected protocol', function()
     Promise.spawn(function()
       set_operations({

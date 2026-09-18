@@ -141,7 +141,20 @@ end
 
 ---@type fun(): Promise<string[]>
 M.get_opencode_agents = Promise.async(function()
-  return resource('list_primary_agents'):await() or {}
+  local empty_agents = {}
+  return Promise.retry(function()
+    return resource('list_primary_agents'):and_then(function(agents)
+      if agents and #agents > 0 then
+        return agents
+      end
+      return Promise.new():reject(empty_agents)
+    end)
+  end, 3, 500):catch(function(err)
+    if err == empty_agents then
+      return {}
+    end
+    return Promise.new():reject(err)
+  end):await()
 end)
 
 ---@type fun(): Promise<string[]>

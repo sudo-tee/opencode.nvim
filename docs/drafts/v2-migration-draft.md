@@ -57,6 +57,11 @@ session in that tab. Renderer reconciliation only reads these facts for display;
 resetting its caches does not reset model selection. A detached session cannot
 finish restoring its model into the newly active tab.
 
+Model and variant picker flows belong to the agent command handler, including
+focus restoration and selection notifications. `services/agent_model` applies
+model overrides and persists variant selections without depending on pickers
+or window orchestration.
+
 ## The contract
 
 The only interface between protocol adapters and everything above:
@@ -106,9 +111,9 @@ The same store/reader split names the boundary still missing in the middle:
 Domain (services) and Presentation (ui) form one tangled layer today. The
 `dependency-topology` scanner measures the distance:
 
-- one 42-module strongly-connected component spanning entry to ui, glued
-  mainly by services calling ui containers (`session_runtime`,
-  `agent_model` → `ui.ui`, `input_window`)
+- one 41-module strongly-connected component spanning entry to ui, glued
+  mainly by session orchestration calling ui containers
+  (`session_runtime` → `ui.ui`, `input_window`)
 - 8 policy violations (windows bind keymaps, pickers call `api` directly,
   `ui.ui` wires autocmds and contextual actions)
 - one additional two-module cycle (`image_handler` / `ui.mention`)

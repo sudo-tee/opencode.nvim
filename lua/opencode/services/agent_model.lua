@@ -3,7 +3,6 @@ local config_file = require('opencode.config_file')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
-local ui = require('opencode.ui.ui')
 
 local M = {}
 
@@ -12,46 +11,30 @@ local function active_session_fact()
   return observation and observation:read().session or nil
 end
 
-function M.configure_provider()
-  return require('opencode.model_picker').select(function(selection)
-    if not selection then
-      if state.ui.is_visible() then
-        ui.focus_input()
-      end
-      return
-    end
-    local model_str = string.format('%s/%s', selection.provider, selection.model)
-    state.model.set_model(model_str)
-
-    if state.current_mode then
-      state.model.set_mode_model_override(state.current_mode, model_str)
-    end
-
-    if state.ui.is_visible() then
-      ui.focus_input()
-    else
-      log.notify('Changed provider to ' .. model_str, vim.log.levels.INFO)
-    end
-  end)
+---Apply a selected model and remember it as the active mode's override.
+---@param provider string
+---@param model string
+---@return string model_id
+function M.set_model(provider, model)
+  local model_id = string.format('%s/%s', provider, model)
+  state.model.set_model(model_id)
+  if state.current_mode then
+    state.model.set_mode_model_override(state.current_mode, model_id)
+  end
+  return model_id
 end
 
-function M.configure_variant()
-  return require('opencode.variant_picker').select(function(selection)
-    if not selection then
-      if state.ui.is_visible() then
-        ui.focus_input()
-      end
-      return
-    end
-
-    state.model.set_variant(selection.value)
-
-    if state.ui.is_visible() then
-      ui.focus_input()
-    else
-      log.notify('Changed variant to ' .. selection.name, vim.log.levels.INFO)
-    end
-  end)
+---Apply a variant and persist it for the selected model. Nil selects the default.
+---@param variant? string
+function M.set_variant(variant)
+  state.model.set_variant(variant)
+  local provider, model
+  if state.current_model then
+    provider, model = state.current_model:match('^(.-)/(.+)$')
+  end
+  if provider and model then
+    require('opencode.model_state').set_variant(provider, model, variant)
+  end
 end
 
 M.cycle_variant = Promise.async(function()
@@ -105,10 +88,7 @@ M.cycle_variant = Promise.async(function()
     next_variant = variants[next_index]
   end
 
-  state.model.set_variant(next_variant)
-
-  local model_state = require('opencode.model_state')
-  model_state.set_variant(provider, model, next_variant)
+  M.set_variant(next_variant)
 end)
 
 --- Apply mode and resolve its associated model from config.

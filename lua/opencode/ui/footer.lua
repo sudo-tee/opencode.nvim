@@ -166,7 +166,7 @@ function M.setup(windows)
     end,
   })
 
-  loading_animation.setup()
+  loading_animation.setup(on_change)
 end
 
 ---@param preserve_buffer? boolean

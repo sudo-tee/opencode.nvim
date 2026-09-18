@@ -32,10 +32,17 @@ describe('native V2 service discovery', function()
       local command = table.concat(args, ' ', 2)
       commands[#commands + 1] = command
       assert.is_not_nil(replies[command])
-      if command == '--help' and help_on_stderr then
-        return Promise.new():resolve({ code = 0, stdout = '', stderr = replies[command] .. '\n' })
+      local reply = replies[command]
+      if type(reply) == 'function' then
+        reply = reply()
       end
-      return Promise.new():resolve({ code = 0, stdout = replies[command] .. '\n' })
+      if Promise.is_promise(reply) then
+        return reply
+      end
+      if command == '--help' and help_on_stderr then
+        return Promise.new():resolve({ code = 0, stdout = '', stderr = reply .. '\n' })
+      end
+      return Promise.new():resolve({ code = 0, stdout = reply .. '\n' })
     end
     curl.request = function(opts)
       assert.equals('http://127.0.0.1:49374/api/health', opts.url)
@@ -144,6 +151,19 @@ describe('native V2 service discovery', function()
     assert.same({ '--help', 'service status', 'service start', 'service get password' }, commands)
   end)
 
+  it('waits for a native service that reports a transitional start state', function()
+    replies['service status'] = 'stopped'
+    replies['service start'] = function()
+      replies['service status'] = 'http://127.0.0.1:49374'
+      return 'started'
+    end
+
+    local server = server_job.ensure_server():wait()
+
+    assert.equals('v2', server.protocol)
+    assert.same({ '--help', 'service status', 'service start', 'service status', 'service get password' }, commands)
+  end)
+
   it('does not launch or downgrade after rejected native credentials', function()
     status = 401
     assert.is_false(pcall(function()
@@ -151,6 +171,44 @@ describe('native V2 service discovery', function()
     end))
     assert.is_nil(state.opencode_server)
     assert.same({ '--help', 'service status', 'service get password' }, commands)
+  end)
+
+  it('discovers a service that finishes starting after the launcher times out', function()
+    replies['service status'] = 'stopped'
+    replies['service start'] = function()
+      replies['service status'] = 'http://127.0.0.1:49374'
+      return Promise.new():reject({ code = 124, signal = 15 })
+    end
+
+    local server = server_job.ensure_server():wait()
+
+    assert.equals('v2', server.protocol)
+    assert.same({ '--help', 'service status', 'service start', 'service status', 'service get password' }, commands)
+  end)
+
+  it('keeps first startup pending until the native service accepts health requests', function()
+    replies['service status'] = 'stopped'
+    local probes = 0
+    local successful_request = curl.request
+    curl.request = function(opts)
+      probes = probes + 1
+      if probes < 3 then
+        vim.schedule(function()
+          opts.on_error({ message = 'connection refused' })
+        end)
+      else
+        successful_request(opts)
+      end
+    end
+
+    local first = server_job.ensure_server()
+    assert.equals(first, server_job.ensure_server())
+    assert.is_nil(state.opencode_server)
+    local server = first:wait()
+    assert.equals('v2', server.protocol)
+    assert.equals(server, state.opencode_server)
+    assert.equals(3, probes)
+    assert.same({ '--help', 'service status', 'service start', 'service get password' }, commands)
   end)
 
   it('rejects a malformed status before fetching a password or publishing', function()

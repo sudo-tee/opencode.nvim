@@ -421,6 +421,36 @@ function M.create_split_windows(windows)
   return { input_win = input_win, output_win = output_win, tab_strip_win = tab_strip_win }
 end
 
+---Create, restore, or reuse panel windows and apply the requested focus.
+---@param action 'reuse_visible'|'restore_hidden'|'create_fresh'
+---@param opts OpenOpts
+---@return boolean created True when fresh windows were created and output may need rendering.
+function M.prepare_windows(action, opts)
+  local was_closed = action ~= 'reuse_visible'
+  local created = false
+  if was_closed then
+    if not M.is_opencode_focused() then
+      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
+    end
+
+    local restored = action == 'restore_hidden' and M.restore_hidden_windows()
+    if not restored then
+      if action == 'restore_hidden' then
+        state.ui.clear_hidden_window_state()
+      end
+      state.ui.set_windows(M.create_windows())
+      created = true
+    end
+  end
+
+  if opts.focus == 'input' then
+    M.focus_input({ restore_position = was_closed, start_insert = opts.start_insert == true })
+  elseif opts.focus == 'output' then
+    M.focus_output({ restore_position = was_closed })
+  end
+  return created
+end
+
 ---@return OpencodeWindowState
 function M.create_windows()
   if config.ui.enable_treesitter_markdown then

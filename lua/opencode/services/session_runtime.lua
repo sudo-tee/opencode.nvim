@@ -252,40 +252,16 @@ M.open = Promise.async(function(opts)
 
   state.ui.set_opening(true)
 
-  if not require('opencode.ui.ui').is_opencode_focused() then
-    require('opencode.context').load()
-  end
-
-  local open_windows_action = opts.open_action or state.ui.resolve_open_windows_action()
-  local are_windows_closed = open_windows_action ~= 'reuse_visible'
-  local restoring_hidden = open_windows_action == 'restore_hidden'
-
-  if are_windows_closed then
-    if not ui.is_opencode_focused() then
-      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
-    end
-
-    M.is_prompting_allowed()
-
-    if restoring_hidden then
-      local restored = ui.restore_hidden_windows()
-      if not restored then
-        state.ui.clear_hidden_window_state()
-        restoring_hidden = false
-        state.ui.set_windows(ui.create_windows())
-      end
-    else
-      state.ui.set_windows(ui.create_windows())
-    end
-  end
-
-  if opts.focus == 'input' then
-    ui.focus_input({ restore_position = are_windows_closed, start_insert = opts.start_insert == true })
-  elseif opts.focus == 'output' then
-    ui.focus_output({ restore_position = are_windows_closed })
-  end
-
+  local created_windows
   local server_ok, server = pcall(function()
+    if not ui.is_opencode_focused() then
+      context.load()
+    end
+    local open_action = opts.open_action or state.ui.resolve_open_windows_action()
+    if open_action ~= 'reuse_visible' then
+      M.is_prompting_allowed()
+    end
+    created_windows = ui.prepare_windows(open_action, opts)
     return server_job.ensure_server():await()
   end)
   if not server_ok then
@@ -314,7 +290,7 @@ M.open = Promise.async(function(opts)
         if not state.active_session then
           state.session.set_active(M.create_new_session():await())
         end
-      elseif not state.display_route and are_windows_closed and not restoring_hidden and ui.is_output_empty() then
+      elseif not state.display_route and created_windows and ui.is_output_empty() then
         ui.render_output()
       end
     end

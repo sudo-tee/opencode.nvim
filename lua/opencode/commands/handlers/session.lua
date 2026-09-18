@@ -453,54 +453,19 @@ end
 ---@param current_session? Session
 ---@param new_title? string
 function M.actions.rename_session(current_session, new_title)
-  return Promise.async(function(session_obj, requested_title)
-    local promise = Promise.new()
-    local state_obj = state
-    local connection = state_obj.opencode_server
-    local active = active_session_fact()
-    session_obj = session_obj or (active and vim.deepcopy(active) or nil) --[[@as Session]]
-    if not session_obj then
-      vim.notify('No active session to rename', vim.log.levels.WARN)
-      promise:resolve(nil)
-      return promise
-    end
-    if not connection or not connection:is_ready() then
-      error('Connection is not ready')
-    end
-
-    local function rename_session_with_title(title)
-      local location = session_obj.location or (state_obj.active_session and state_obj.active_session.location)
-        or { directory = state_obj.current_cwd or vim.fn.getcwd() }
-      connection.operations
-        .rename_session(connection, session_obj.id, location, title, util.apply_path_map, util.apply_reverse_path_map)
-        :catch(function(err)
-          vim.schedule(function()
-            vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-          end)
-        end)
-        :and_then(function()
-          session_obj.title = title
-          promise:resolve(session_obj)
-        end)
-    end
-
-    if requested_title and requested_title ~= '' then
-      rename_session_with_title(requested_title)
-      return promise
-    end
-
+  local session = current_session or active_session_fact()
+  if not session then
+    vim.notify('No active session to rename', vim.log.levels.WARN)
+    return Promise.new():resolve(nil)
+  end
+  if not new_title or new_title == '' then
+    return require('opencode.ui.session_picker').rename(session)
+  end
+  return session_runtime.rename_session(session, new_title):catch(function(err)
     vim.schedule(function()
-      vim.ui.input({ prompt = 'New session name: ', default = session_obj.title or '' }, function(input)
-        if input and input ~= '' then
-          rename_session_with_title(input)
-        else
-          promise:resolve(nil)
-        end
-      end)
+      vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
     end)
-
-    return promise
-  end)(current_session, new_title)
+  end)
 end
 
 local function find_entry(observation, target_id)
@@ -687,15 +652,8 @@ function M.actions.fork_session(message_id, open_in_new_tab)
       return
     end
 
-    connection.operations
-      .fork_session(
-        connection,
-        session_fact.id,
-        location,
-        { messageID = target.id },
-        util.apply_path_map,
-        util.apply_reverse_path_map
-      )
+    session_runtime
+      .fork_session(vim.tbl_extend('force', session_fact, { location = location }), target.id)
       :and_then(function(response)
         vim.schedule(function()
           if response and response.id then

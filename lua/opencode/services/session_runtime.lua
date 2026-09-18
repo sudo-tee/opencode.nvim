@@ -357,6 +357,109 @@ M.create_new_session = Promise.async(function(title_or_opts)
   end
 end)
 
+---Rename a session without mutating the supplied fact or prompting for input.
+---@param session Session
+---@param title string
+---@return Promise<Session> Updated copy; rejects if disconnected or the operation fails.
+M.rename_session = Promise.async(function(session, title)
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    error('Connection is not ready')
+  end
+  local location = session.location or (session.directory and { directory = session.directory })
+    or (state.active_session and state.active_session.location) or current_location()
+  connection.operations
+    .rename_session(connection, session.id, location, title, util.apply_path_map, util.apply_reverse_path_map)
+    :await()
+  local updated = vim.deepcopy(session)
+  updated.title = title
+  return updated
+end)
+
+---Check whether any session id in `delete_ids` is the session itself or an ancestor
+---@param session_id string
+---@param delete_ids table<string, boolean>
+---@param all_sessions Session[]
+---@return boolean
+function M.is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
+  local session_map = {}
+  for _, s in ipairs(all_sessions) do
+    session_map[s.id] = s
+  end
+
+  local current_id = session_id
+  while current_id do
+    if delete_ids[current_id] then
+      return true
+    end
+    local s = session_map[current_id]
+    current_id = s and s.parentID or nil
+  end
+  return false
+end
+
+---@param sessions_to_delete Session[] Sessions to delete sequentially.
+---@param candidates Session[] Ordered replacement candidates from the current selection.
+---@param on_deleted? fun(session: Session) Called after each successful deletion.
+---@return Promise Deletes after replacing an affected active session; rejects on operation failure.
+M.delete_sessions = Promise.async(function(sessions_to_delete, candidates, on_deleted)
+  local connection = state.opencode_server
+  local to_delete_ids = {}
+  for _, s in ipairs(sessions_to_delete) do
+    to_delete_ids[s.id] = true
+  end
+
+  local deleting_current = false
+  if state.active_session then
+    local all_sessions = Promise.wrap(M.list_sessions_by_scope('project')):await()
+    deleting_current = M.is_session_or_ancestor_deleted(state.active_session.id, to_delete_ids, all_sessions)
+  end
+
+  if deleting_current then
+    local remaining = vim.tbl_filter(function(item)
+      return not to_delete_ids[item.id]
+    end, candidates)
+
+    if #remaining > 0 then
+      ui.switch_session(remaining[1]):await()
+    else
+      vim.notify('deleting current session, creating new session')
+      state.model.clear()
+      state.session.set_active(M.create_new_session():await())
+      agent_model.ensure_current_mode():await()
+    end
+  end
+
+  for _, session in ipairs(sessions_to_delete) do
+    connection.operations
+      .delete_session(
+        connection,
+        session.id,
+        session.location or (session.directory and { directory = session.directory }),
+        util.apply_path_map
+      )
+      :await()
+    if on_deleted then
+      on_deleted(session)
+    end
+  end
+end)
+
+---@param session Session
+---@param message_id? string Omit to fork the complete session.
+---@return Promise<Session|nil> Rejects on operation failure.
+M.fork_session = Promise.async(function(session, message_id)
+  local connection = state.opencode_server
+  return connection.operations.fork_session(
+    connection,
+    session.id,
+    session.location or (session.directory and { directory = session.directory }),
+    message_id and { messageID = message_id } or {},
+    util.apply_path_map,
+    util.apply_reverse_path_map
+  ):await()
+end)
+
 ---Mount an existing session in a new logical panel tab.
 ---@param selected_session Session
 ---@return Promise<Session|nil>

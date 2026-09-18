@@ -3,28 +3,7 @@ local config = require('opencode.config')
 local base_picker = require('opencode.ui.base_picker')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
-
----Check whether any session id in `delete_ids` is the session itself or an ancestor
----@param session_id string
----@param delete_ids table<string, boolean>
----@param all_sessions Session[]
----@return boolean
-function M._is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
-  local session_map = {}
-  for _, s in ipairs(all_sessions) do
-    session_map[s.id] = s
-  end
-
-  local current_id = session_id
-  while current_id do
-    if delete_ids[current_id] then
-      return true
-    end
-    local s = session_map[current_id]
-    current_id = s and s.parentID or nil
-  end
-  return false
-end
+local session_runtime = require('opencode.services.session_runtime')
 
 ---Format session parts for session picker
 ---@param session Session|GlobalSession object
@@ -217,11 +196,34 @@ local function render_preview_buffer(target, formatted)
   end)
 end
 
+---Prompt for a session title and return the renamed session, or nil on cancellation/failure.
+---@param session Session
+---@return Promise<Session|nil>
+function M.rename(session)
+  local promise = Promise.new()
+  vim.schedule(function()
+    vim.ui.input({ prompt = 'New session name: ', default = session.title or '' }, function(input)
+      if not input or input == '' then
+        promise:resolve(nil)
+        return
+      end
+      session_runtime.rename_session(session, input):and_then(function(updated)
+        promise:resolve(updated)
+      end):catch(function(err)
+        vim.schedule(function()
+          vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+          promise:resolve(nil)
+        end)
+      end)
+    end)
+  end)
+  return promise
+end
+
 ---@param sessions Session[]
 ---@param callback fun(session: Session|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.pick(sessions, callback, opts)
-  local api = require('opencode.api')
   opts = opts or {}
   local connection = require('opencode.state').opencode_server
   local preview_unsubscribe
@@ -243,92 +245,45 @@ function M.pick(sessions, callback, opts)
       key = config.keymap.session_picker.rename_session,
       label = 'rename',
       fn = function(selected, opts)
-        local promise = require('opencode.promise').new()
-        api
-          .rename_session(selected)
-          :and_then(function(updated_session)
-            if not updated_session then
-              promise:resolve(nil)
-              return
-            end
-            local idx = util.find_index_of(opts.items, function(item)
-              return item.id == updated_session.id
-            end)
-            if idx > 0 then
-              opts.items[idx] = updated_session
-            end
-            promise:resolve(opts.items)
+        return M.rename(selected):and_then(function(updated_session)
+          if not updated_session then
+            return nil
+          end
+          local idx = util.find_index_of(opts.items, function(item)
+            return item.id == updated_session.id
           end)
-          :catch(function(err)
-            vim.schedule(function()
-              vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-              promise:resolve(nil)
-            end)
-          end)
-
-        return promise
+          if idx > 0 then
+            opts.items[idx] = updated_session
+          end
+          return opts.items
+        end)
       end,
       reload = true,
     },
     delete = {
       key = config.keymap.session_picker.delete_session,
       label = 'del',
-      multi_selection = true,
       fn = Promise.async(function(selected, opts)
-        local state = require('opencode.state')
-        local session_runtime = require('opencode.services.session_runtime')
-
         local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
-
-        local to_delete_ids = {}
-        for _, s in ipairs(sessions_to_delete) do
-          to_delete_ids[s.id] = true
-        end
-
-        local deleting_current = false
-        if state.active_session then
-          local all_sessions = Promise.wrap(session_runtime.list_sessions_by_scope('project')):await()
-          deleting_current = M._is_session_or_ancestor_deleted(state.active_session.id, to_delete_ids, all_sessions)
-        end
-
-        if deleting_current then
-          local remaining = vim.tbl_filter(function(item)
-            return not to_delete_ids[item.id]
-          end, opts.items or {})
-
-          if #remaining > 0 then
-            require('opencode.ui.ui').switch_session(remaining[1]):await()
-          else
-            vim.notify('deleting current session, creating new session')
-            state.model.clear()
-            state.session.set_active(session_runtime.create_new_session():await())
-            require('opencode.services.agent_model').ensure_current_mode():await()
-          end
-        end
-
-        for _, session in ipairs(sessions_to_delete) do
-          connection.operations
-            .delete_session(connection, session.id, session_location(session), util.apply_path_map)
-            :await()
-
+        session_runtime.delete_sessions(sessions_to_delete, opts.items or {}, function(session)
           local idx = util.find_index_of(opts.items, function(item)
             return item.id == session.id
           end)
           if idx > 0 then
             table.remove(opts.items, idx)
           end
-        end
+        end):await()
 
         vim.notify('Deleted ' .. #sessions_to_delete .. ' session(s)', vim.log.levels.INFO)
         return opts.items
       end),
+      multi_selection = true,
       reload = true,
     },
     new = {
       key = config.keymap.session_picker.new_session,
       label = 'new',
       fn = Promise.async(function(selected, opts)
-        local session_runtime = require('opencode.services.session_runtime')
         local parent_id
         for _, s in ipairs(opts.items or {}) do
           if s.parentID ~= nil then
@@ -348,9 +303,7 @@ function M.pick(sessions, callback, opts)
     open_in_tab = {
       key = config.keymap.session_picker.open_in_tab,
       label = 'tab',
-      multi_selection = true,
       fn = Promise.async(function(selected, opts)
-        local session_runtime = require('opencode.services.session_runtime')
         local sessions = type(selected) == 'table' and selected.id == nil and selected or { selected }
 
         if opts.close then
@@ -363,15 +316,13 @@ function M.pick(sessions, callback, opts)
           Promise.delay(0):await()
         end
       end),
+      multi_selection = true,
     },
     fork = {
       key = config.keymap.session_picker.fork_session,
       label = 'fork',
       fn = Promise.async(function(selected, opts)
-        local session_runtime = require('opencode.services.session_runtime')
-        local new_session = connection.operations
-          .fork_session(connection, selected.id, session_location(selected), {}, util.apply_path_map, util.apply_reverse_path_map)
-          :await()
+        local new_session = session_runtime.fork_session(selected):await()
         if new_session then
           require('opencode.ui.ui').switch_session(new_session):await()
           table.insert(opts.items, 1, new_session)
@@ -384,7 +335,6 @@ function M.pick(sessions, callback, opts)
       key = config.keymap.session_picker.toggle_scope,
       label = 'scope',
       fn = Promise.async(function(_, _)
-        local session_runtime = require('opencode.services.session_runtime')
         local new_scope = (opts.scope == 'global') and 'project' or 'global'
         local new_sessions = Promise.wrap(session_runtime.list_sessions_by_scope(new_scope)):await()
         local filtered_sessions = session_runtime.filter_pickable_sessions(new_sessions, nil)
@@ -394,7 +344,6 @@ function M.pick(sessions, callback, opts)
       reload = true,
     },
   }
-
   local preview_seq = 0
 
   return base_picker.pick({

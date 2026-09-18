@@ -77,6 +77,49 @@ describe('opencode.services.session_runtime', function()
     end
   end)
 
+  describe('is_session_or_ancestor_deleted', function()
+    local root = { id = 'root', parentID = nil }
+    local child = { id = 'child', parentID = 'root' }
+    local grandchild = { id = 'grandchild', parentID = 'child' }
+    local unrelated = { id = 'unrelated', parentID = nil }
+    local all_sessions = { root, child, grandchild, unrelated }
+
+    it('returns true when the session itself is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('child', { child = true }, all_sessions))
+    end)
+
+    it('returns true when the direct parent is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('child', { root = true }, all_sessions))
+    end)
+
+    it('returns true when a grandparent is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('grandchild', { root = true }, all_sessions))
+    end)
+
+    it('returns false when an unrelated session is deleted', function()
+      assert.is_false(session_runtime.is_session_or_ancestor_deleted('child', { unrelated = true }, all_sessions))
+    end)
+
+    it('returns false when only a sibling is deleted', function()
+      local sibling = { id = 'sibling', parentID = 'root' }
+      assert.is_false(
+        session_runtime.is_session_or_ancestor_deleted(
+          'child',
+          { sibling = true },
+          { root, child, sibling, grandchild }
+        )
+      )
+    end)
+
+    it('returns false for a root session when an unrelated root is deleted', function()
+      assert.is_false(session_runtime.is_session_or_ancestor_deleted('root', { unrelated = true }, all_sessions))
+    end)
+
+    it('returns true for root session when root itself is deleted', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('root', { root = true }, all_sessions))
+    end)
+  end)
+
   describe('open', function()
     it("creates windows if they don't exist", function()
       state.ui.set_windows(nil)

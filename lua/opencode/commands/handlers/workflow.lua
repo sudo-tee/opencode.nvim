@@ -228,7 +228,18 @@ for _, action_name in ipairs({ 'debug_output', 'debug_message', 'debug_session' 
 end
 
 function M.actions.paste_image()
-  session_runtime.paste_image_from_clipboard()
+  local image_path = require('opencode.image_handler').save_clipboard_image()
+  if not image_path then
+    vim.notify('No image found in clipboard.', vim.log.levels.WARN)
+    return
+  end
+
+  local name = vim.fn.fnamemodify(image_path, ':t')
+  require('opencode.ui.mention').mention(function(mention_cb)
+    mention_cb(name)
+    require('opencode.context').add_file(image_path)
+  end)
+  vim.notify('Image saved and added to context: ' .. name, vim.log.levels.INFO)
 end
 
 M.actions.submit_input_prompt = Promise.async(function()

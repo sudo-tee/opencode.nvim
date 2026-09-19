@@ -447,7 +447,7 @@ describe('opencode.opencode_server', function()
     server:mark_ready()
     curl.request = function(opts)
       vim.schedule(function()
-        opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.2"}' })
+        opts.callback({ status = 200, body = '{"version":"2.0.2","pid":1}' })
       end)
     end
 

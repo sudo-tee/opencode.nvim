@@ -207,7 +207,7 @@ end
 ---@param response? {status: integer, body: string}
 ---@return table|nil body
 ---@return string|nil error
-local function decode_health(response)
+local function decode_probe(response)
   if not response then
     return nil, 'health probe returned no response'
   end
@@ -221,7 +221,22 @@ local function decode_health(response)
     return nil, 'health probe HTTP ' .. response.status
   end
   local ok, body = pcall(vim.json.decode, response.body or '')
-  if not ok or type(body) ~= 'table' or type(body.healthy) ~= 'boolean' then
+  if not ok or type(body) ~= 'table' then
+    return nil, 'invalid health response'
+  end
+  return body
+end
+
+---V1 /global/health: JSON envelope with a boolean `healthy` field.
+---@param response? {status: integer, body: string}
+---@return table|nil body
+---@return string|nil error
+local function decode_health(response)
+  local body, err = decode_probe(response)
+  if not body then
+    return nil, err
+  end
+  if type(body.healthy) ~= 'boolean' then
     return nil, 'invalid health response'
   end
   if not body.healthy then
@@ -263,7 +278,7 @@ function OpencodeServer:probe_connection(timeout_ms)
   end
 
   curl.request({
-    url = base_url:gsub('/$', '') .. '/api/health',
+    url = base_url:gsub('/$', '') .. '/api/info',
     method = 'GET',
     headers = auth.get_auth_headers(credential),
     timeout = timeout_ms or 2000,
@@ -272,21 +287,16 @@ function OpencodeServer:probe_connection(timeout_ms)
       if response and response.status == 404 then
         return probe_v1()
       end
-      local body, err = decode_health(response)
+      local body, err = decode_probe(response)
       if not body then
         return result:reject(err)
       end
-      if body.version == nil then
-        if vim.tbl_count(body) ~= 1 then
-          return result:reject('invalid health response')
-        end
+      local version = body.version
+      if type(version) ~= 'string' then
         return probe_v1()
       end
-      if type(body.version) ~= 'string' then
-        return result:reject('invalid health response')
-      end
-      if not body.version:match('^2%.0%.%d+') then
-        return result:reject('unsupported v2 server version: ' .. body.version)
+      if not version:match('^2%.') then
+        return result:reject('unsupported v2 server version: ' .. version)
       end
       result:resolve({ protocol = 'v2', response = body })
     end,

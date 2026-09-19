@@ -63,7 +63,7 @@ describe('authenticated connection boundary', function()
         server_job.ensure_server():wait()
       end)
       assert.is_false(ok)
-      assert.same({ 'http://127.0.0.1:4798/api/health' }, requests)
+      assert.same({ 'http://127.0.0.1:4798/api/info' }, requests)
       assert.equals(0, spawns)
       assert.equals(0, registrations)
       assert.is_nil(state.opencode_server)
@@ -75,25 +75,25 @@ describe('authenticated connection boundary', function()
       requests[#requests + 1] = opts.url
       vim.schedule(function()
         opts.callback(
-          opts.url:match('/api/health$') and { status = 404, body = '{}' }
+          opts.url:match('/api/info$') and { status = 404, body = '{}' }
             or { status = 200, body = '{"healthy":true,"version":"1.18.30"}' }
         )
       end)
     end
     local connection = server_job.ensure_server():wait()
-    assert.same({ 'http://127.0.0.1:4798/api/health', 'http://127.0.0.1:4798/global/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info', 'http://127.0.0.1:4798/global/health' }, requests)
     assert.equals('v1', connection.protocol)
     assert.equals('1.18.30', connection.version)
     assert.equals(connection, state.opencode_server)
     assert.equals(0, spawns)
   end)
 
-  it('recognizes the V1 1.18 health sentinel before probing global health', function()
+  it('falls back to V1 when the V2 endpoint carries no version', function()
     curl.request = function(opts)
       requests[#requests + 1] = opts.url
       vim.schedule(function()
         opts.callback(
-          opts.url:match('/api/health$') and { status = 200, body = '{"healthy":true}' }
+          opts.url:match('/api/info$') and { status = 200, body = '{"healthy":true}' }
             or { status = 200, body = '{"healthy":true,"version":"1.18.30-a53585ffc0"}' }
         )
       end)
@@ -101,14 +101,14 @@ describe('authenticated connection boundary', function()
 
     local connection = server_job.ensure_server():wait()
 
-    assert.same({ 'http://127.0.0.1:4798/api/health', 'http://127.0.0.1:4798/global/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info', 'http://127.0.0.1:4798/global/health' }, requests)
     assert.equals('v1', connection.protocol)
     assert.equals('1.18.30-a53585ffc0', connection.version)
     assert.equals(connection, state.opencode_server)
     assert.equals(0, spawns)
   end)
 
-  it('requires the V1 sentinel to contain only the healthy field', function()
+  it('rejects when neither endpoint yields a version', function()
     curl.request = function(opts)
       requests[#requests + 1] = opts.url
       vim.schedule(function()
@@ -122,7 +122,7 @@ describe('authenticated connection boundary', function()
 
     assert.is_false(ok)
     assert.matches('invalid health response', tostring(err))
-    assert.same({ 'http://127.0.0.1:4798/api/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info', 'http://127.0.0.1:4798/global/health' }, requests)
   end)
 
   it('selects password_file before both password environment variables', function()
@@ -184,7 +184,7 @@ describe('authenticated connection boundary', function()
     assert.same({}, requests)
   end)
 
-  it('does not treat a malformed V2 health field as a V1 sentinel', function()
+  it('falls back to V1 and rejects when neither endpoint yields a version', function()
     curl.request = function(opts)
       requests[#requests + 1] = opts.url
       vim.schedule(function()
@@ -198,7 +198,7 @@ describe('authenticated connection boundary', function()
 
     assert.is_false(ok)
     assert.matches('invalid health response', tostring(err))
-    assert.same({ 'http://127.0.0.1:4798/api/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info', 'http://127.0.0.1:4798/global/health' }, requests)
     assert.equals(0, spawns)
     assert.equals(0, registrations)
     assert.is_nil(state.opencode_server)
@@ -218,7 +218,7 @@ describe('authenticated connection boundary', function()
 
     assert.is_false(ok)
     assert.matches('invalid health response', tostring(err))
-    assert.same({ 'http://127.0.0.1:4798/api/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info' }, requests)
     assert.is_nil(state.opencode_server)
   end)
 
@@ -227,7 +227,7 @@ describe('authenticated connection boundary', function()
       requests[#requests + 1] = opts.url
       vim.schedule(function()
         opts.callback(
-          opts.url:match('/api/health$') and { status = 200, body = '{"healthy":true}' }
+          opts.url:match('/api/info$') and { status = 200, body = '{"healthy":true}' }
             or { status = 200, body = '<!doctype html><title>OpenCode</title>' }
         )
       end)
@@ -239,17 +239,33 @@ describe('authenticated connection boundary', function()
 
     assert.is_false(ok)
     assert.matches('invalid health response', tostring(err))
-    assert.same({ 'http://127.0.0.1:4798/api/health', 'http://127.0.0.1:4798/global/health' }, requests)
+    assert.same({ 'http://127.0.0.1:4798/api/info', 'http://127.0.0.1:4798/global/health' }, requests)
     assert.equals(0, spawns)
     assert.equals(0, registrations)
     assert.is_nil(state.opencode_server)
   end)
 
-  it('rejects V2 versions outside 2.0.x without spawning or publishing', function()
+  it('accepts V2 versions across the 2.x series', function()
     curl.request = function(opts)
       requests[#requests + 1] = opts.url
       vim.schedule(function()
-        opts.callback({ status = 200, body = '{"healthy":true,"version":"2.1.0"}' })
+        opts.callback({ status = 200, body = '{"version":"2.1.0","pid":1}' })
+      end)
+    end
+
+    local connection = server_job.ensure_server():wait()
+
+    assert.equals('v2', connection.protocol)
+    assert.equals('2.1.0', connection.version)
+    assert.same({ 'http://127.0.0.1:4798/api/info' }, requests)
+    assert.equals(0, spawns)
+  end)
+
+  it('rejects V2 versions outside 2.x without spawning or publishing', function()
+    curl.request = function(opts)
+      requests[#requests + 1] = opts.url
+      vim.schedule(function()
+        opts.callback({ status = 200, body = '{"version":"3.0.0","pid":1}' })
       end)
     end
 
@@ -258,7 +274,7 @@ describe('authenticated connection boundary', function()
     end)
 
     assert.is_false(ok)
-    assert.matches('unsupported v2 server version: 2.1.0', tostring(err))
+    assert.matches('unsupported v2 server version: 3.0.0', tostring(err))
     assert.equals(0, spawns)
     assert.equals(0, registrations)
     assert.is_nil(state.opencode_server)
@@ -269,7 +285,7 @@ describe('authenticated connection boundary', function()
       requests[#requests + 1] = opts.url
       vim.schedule(function()
         opts.callback(
-          opts.url:match('/api/health$') and { status = 404, body = '{}' }
+          opts.url:match('/api/info$') and { status = 404, body = '{}' }
             or { status = 200, body = '{"healthy":true,"version":"1.19.0"}' }
         )
       end)

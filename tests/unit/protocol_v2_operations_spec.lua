@@ -47,7 +47,7 @@ describe('V2 protocol operations', function()
   it('uses direct, location/data, and page response contracts from the V2 fixtures', function()
     local bodies = {
       ['/api/config'] = fixture('config.json'),
-      ['/api/project/current'] = fixture('project-current.json'),
+      ['/api/location'] = fixture('location.json'),
       ['/api/provider'] = fixture('provider.json'),
       ['/api/session'] = fixture('session.json'),
     }
@@ -84,11 +84,11 @@ describe('V2 protocol operations', function()
     assert.equals('directory=%2Fserver%2Fworkspace&limit=25', calls[4].request.query)
   end)
 
-  it('does not unwrap a data field from a direct object response', function()
+  it('extracts the project object from the location envelope without unwrapping its data field', function()
     transport.request = function()
       return Promise.new():resolve({
         status = 200,
-        body = '{"id":"project","directory":"/server/project","data":{"belongs":"to-project"}}',
+        body = '{"directory":"/server/project","project":{"id":"project","directory":"/server/project","data":{"belongs":"to-project"}}}',
       })
     end
     local result = operations
@@ -464,11 +464,11 @@ describe('V2 protocol operations', function()
 
     assert.equals('/api/permission/request', calls[1].path)
     assert.equals('location.directory=%2Fremote%2Fproject', calls[1].query)
-    assert.equals('/api/form/request', calls[2].path)
+    assert.equals('/api/form', calls[2].path)
     assert.equals('/api/session/ses-1/permission/per-1/reply', calls[3].path)
     assert.equals('/api/session/ses-1/form/frm-1/reply', calls[4].path)
     assert.same({ answer = { choice = 'a' } }, vim.json.decode(calls[4].body))
-    assert.equals('/api/session/ses-1/form/frm-1/cancel', calls[5].path)
+    assert.equals('/api/session/ses-1/form/frm-1', calls[5].path)
     assert.is_nil(calls[5].body)
   end)
 
@@ -477,8 +477,8 @@ describe('V2 protocol operations', function()
     local empty = {
       ['/api/session/ses-1'] = true,
       ['/api/session/ses-1/rename'] = true,
-      ['/api/mcp/test/connect'] = true,
-      ['/api/mcp/test/disconnect'] = true,
+      ['/api/experimental/mcp/test/connect'] = true,
+      ['/api/experimental/mcp/test/disconnect'] = true,
     }
     local bodies = {
       ['/api/agent'] = '{"data":[{"name":"build"}]}',
@@ -564,7 +564,7 @@ describe('V2 protocol operations', function()
       if request.path:match('/revert/stage$') then
         return Promise.new():resolve({ status = 200, body = '{"data":{"messageID":"msg-1"}}' })
       end
-      if request.path:match('/revert/clear$') then
+      if request.path:match('/revert$') then
         return Promise.new():resolve({ status = 204, body = '' })
       end
       error('unexpected request: ' .. request.path)

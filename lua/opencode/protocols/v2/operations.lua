@@ -63,10 +63,11 @@ local function unwrap_page(operation, value, reverse_path_map)
 end
 
 function M.get_current_project(connection, location, path_map, reverse_path_map)
-  return json_request(connection, 'V2 get_current_project', 'GET', '/api/project/current', {
+  return json_request(connection, 'V2 get_current_project', 'GET', '/api/location', {
     location = { directory = location_directory(location, path_map) },
   }):and_then(function(value)
-    return map_paths(require_table('V2 get_current_project', value), reverse_path_map)
+    local project = type(value) == 'table' and value.project or nil
+    return map_paths(require_table('V2 get_current_project', project), reverse_path_map)
   end)
 end
 
@@ -245,7 +246,7 @@ function M.revert_message(connection, session_id, _location, input, _path_map, r
 end
 
 function M.unrevert_messages(connection, session_id)
-  return empty_request(connection, 'V2 unrevert_messages', 'POST', '/api/session/' .. session_id .. '/revert/clear')
+  return empty_request(connection, 'V2 unrevert_messages', 'DELETE', '/api/session/' .. session_id .. '/revert')
 end
 
 function M.list_messages(connection, session_id, cursor, limit, reverse_path_map)
@@ -500,7 +501,7 @@ function M.reply_permission(connection, session_id, request_id, answer)
 end
 
 function M.list_questions(connection, location, path_map, reverse_path_map)
-  return json_request(connection, 'V2 list_questions', 'GET', '/api/form/request', {
+  return json_request(connection, 'V2 list_questions', 'GET', '/api/form', {
     location = { directory = location_directory(location, path_map) },
   }):and_then(function(value)
     return unwrap_data('V2 list_questions', value, reverse_path_map)
@@ -521,8 +522,8 @@ function M.cancel_question(connection, session_id, request_id)
   return empty_request(
     connection,
     'V2 cancel_question',
-    'POST',
-    '/api/session/' .. session_id .. '/form/' .. request_id .. '/cancel'
+    'DELETE',
+    '/api/session/' .. session_id .. '/form/' .. request_id
   )
 end
 
@@ -682,7 +683,7 @@ function M.connect_mcp(connection, name, location, path_map)
   if type(name) ~= 'string' or name == '' then
     error('V2 connect_mcp requires a server name')
   end
-  return empty_request(connection, 'V2 connect_mcp', 'POST', '/api/mcp/' .. name .. '/connect', nil, {
+  return empty_request(connection, 'V2 connect_mcp', 'POST', '/api/experimental/mcp/' .. name .. '/connect', nil, {
     location = { directory = location_directory(location, path_map) },
   })
 end
@@ -691,7 +692,7 @@ function M.disconnect_mcp(connection, name, location, path_map)
   if type(name) ~= 'string' or name == '' then
     error('V2 disconnect_mcp requires a server name')
   end
-  return empty_request(connection, 'V2 disconnect_mcp', 'POST', '/api/mcp/' .. name .. '/disconnect', nil, {
+  return empty_request(connection, 'V2 disconnect_mcp', 'POST', '/api/experimental/mcp/' .. name .. '/disconnect', nil, {
     location = { directory = location_directory(location, path_map) },
   })
 end

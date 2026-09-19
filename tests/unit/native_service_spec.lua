@@ -45,10 +45,10 @@ describe('native V2 service discovery', function()
       return Promise.new():resolve({ code = 0, stdout = reply .. '\n' })
     end
     curl.request = function(opts)
-      assert.equals('http://127.0.0.1:49374/api/health', opts.url)
+      assert.equals('http://127.0.0.1:49374/api/info', opts.url)
       request_headers = opts.headers
       vim.schedule(function()
-        opts.callback({ status = status, body = '{"healthy":true,"version":"2.0.3","pid":123}' })
+        opts.callback({ status = status, body = '{"version":"2.0.8","pid":123}' })
       end)
     end
     mapping.register = function()
@@ -70,7 +70,7 @@ describe('native V2 service discovery', function()
     assert.equals('v2', server.protocol)
     assert.is_nil(server.port)
     assert.equals('native-password', server.credential.password)
-    assert.same({ version = '2.0.3', pid = 123 }, server.server_identity)
+    assert.same({ version = '2.0.8', pid = 123 }, server.server_identity)
     assert.is_false(server:can_release_process())
     assert.same(require('opencode.auth').get_auth_headers(server.credential), request_headers)
     assert.is_true(server:close():wait())
@@ -110,8 +110,8 @@ describe('native V2 service discovery', function()
     end
     curl.request = function(opts)
       vim.schedule(function()
-        if opts.url:match('/api/health$') then
-          opts.callback({ status = 200, body = '{"healthy":true,"version":"2.0.1","pid":123}' })
+        if opts.url:match('/api/info$') then
+          opts.callback({ status = 200, body = '{"version":"2.0.1","pid":123}' })
         else
           acquired = state.opencode_server
           assert.matches('^http://127%.0%.0%.1:49374/api/config%?', opts.url)

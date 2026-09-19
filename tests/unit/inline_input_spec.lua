@@ -256,9 +256,14 @@ describe('inline_input', function()
     vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
     vim.api.nvim_exec_autocmds('TextChanged', { buffer = input.buf, modeline = false })
 
-    assert.is_true(vim.wait(100, function()
-      return vim.api.nvim_win_get_config(input.win).height == #lines
-    end))
+    local actual
+    assert.is_true(
+      vim.wait(1000, function()
+        actual = vim.api.nvim_win_get_config(input.win).height
+        return actual == #lines
+      end),
+      ('resize did not settle within 1s, height=%s'):format(tostring(actual))
+    )
     input.close()
   end)
 

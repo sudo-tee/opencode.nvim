@@ -405,9 +405,6 @@ local function prompt_body(input, path_map)
     }
   end
 
-  if #body.files == 0 then
-    body.files = nil
-  end
   body.text = text
   if #input.files > 0 then
     for _, file in ipairs(input.files) do
@@ -432,6 +429,9 @@ local function prompt_body(input, path_map)
       end
       body.files[#body.files + 1] = { uri = uri, name = file.name, mention = mention(file.mention) }
     end
+  end
+  if #body.files == 0 then
+    body.files = nil
   end
   if #input.agents > 0 then
     body.agents = {}

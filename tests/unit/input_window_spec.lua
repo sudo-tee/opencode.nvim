@@ -1,5 +1,6 @@
 local input_window = require('opencode.ui.input_window')
 local state = require('opencode.state')
+local stub = require('luassert.stub')
 
 describe('input_window', function()
   describe('shell command execution', function()
@@ -355,6 +356,85 @@ describe('input_window', function()
       vim.api.nvim_buf_delete(input_buf, { force = true })
       vim.api.nvim_buf_delete(output_buf, { force = true })
       state.ui.clear_windows()
+    end)
+  end)
+
+  describe('message submit clearing', function()
+    local input_buf, output_buf, input_win, output_win
+    local messaging
+
+    before_each(function()
+      messaging = require('opencode.services.messaging')
+
+      input_buf = vim.api.nvim_create_buf(false, true)
+      output_buf = vim.api.nvim_create_buf(false, true)
+      input_win = vim.api.nvim_open_win(input_buf, true, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 0,
+        col = 0,
+      })
+      output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        width = 80,
+        height = 10,
+        row = 11,
+        col = 0,
+      })
+
+      state.ui.set_windows({
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+      })
+    end)
+
+    after_each(function()
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.ui.clear_windows()
+      state.ui.set_input_content(nil)
+    end)
+
+    it('clears input buffer and state.input_content after submitting', function()
+      stub(messaging, 'send_message').invokes(function() end)
+
+      local group = vim.api.nvim_create_augroup('test_input_window_submit', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
+      state.ui.set_input_content({ 'hello world' })
+
+      input_window.handle_submit()
+
+      assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+      assert.same({ '' }, state.input_content)
+      assert.stub(messaging.send_message).was_called_with('hello world')
+
+      messaging.send_message:revert()
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+
+    it('does not restore the submitted message on recover_input', function()
+      stub(messaging, 'send_message').invokes(function() end)
+
+      local group = vim.api.nvim_create_augroup('test_input_window_submit_restore', { clear = true })
+      input_window.setup_autocmds(state.windows, group)
+
+      vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
+      state.ui.set_input_content({ 'hello world' })
+
+      input_window.handle_submit()
+      input_window.recover_input(state.windows)
+
+      assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+
+      messaging.send_message:revert()
+      vim.api.nvim_del_augroup_by_id(group)
     end)
   end)
 

@@ -360,20 +360,22 @@ describe('V2 protocol operations', function()
     end
 
     local ok = pcall(function()
-      operations.submit(ready_connection(), 'ses-1', {
-        text = 'hello',
-        context = {},
-        files = {},
-        agents = {},
-        model = { providerID = 'provider', modelID = 'model' },
-      }):wait()
+      operations
+        .submit(ready_connection(), 'ses-1', {
+          text = 'hello',
+          context = {},
+          files = {},
+          agents = {},
+          model = { providerID = 'provider', modelID = 'model' },
+        })
+        :wait()
     end)
 
     assert.is_false(ok)
     assert.same({ '/api/session/ses-1/model' }, calls)
   end)
 
-  it('rejects unsupported or invalid submission settings before business HTTP', function()
+  it('rejects unsupported submission settings before business HTTP', function()
     local calls = 0
     transport.request = function()
       calls = calls + 1
@@ -403,23 +405,10 @@ describe('V2 protocol operations', function()
         })
         :wait()
     end)
-    local ok_model, model_error = pcall(function()
-      operations
-        .submit(connection, 'ses-1', {
-          text = 'x',
-          context = {},
-          files = {},
-          agents = {},
-          model = { providerID = 'provider' },
-        })
-        :wait()
-    end)
     assert.is_false(ok_system)
     assert.matches('system prompt', tostring(system_error))
     assert.is_false(ok_tools)
     assert.matches('tool selection', tostring(tools_error))
-    assert.is_false(ok_model)
-    assert.matches('model providerID and modelID', tostring(model_error))
     assert.equals(0, calls)
     assert.is_nil(operations.list_children)
   end)
@@ -475,6 +464,36 @@ describe('V2 protocol operations', function()
         assert.matches('page envelope', tostring(err))
       end
     end
+  end)
+
+  it('rejects malformed message pages and admissions at the HTTP boundary', function()
+    local body
+    transport.request = function()
+      return Promise.new():resolve({ status = 200, body = body })
+    end
+    local connection = ready_connection()
+    for _, invalid in ipairs({
+      { body = '{"data":false}', error = 'page envelope' },
+      { body = '{"data":[],"cursor":false}', error = 'cursor' },
+      { body = '{"data":[],"cursor":{"next":42}}', error = 'cursor' },
+    }) do
+      body = invalid.body
+      local ok, err = pcall(function()
+        operations.list_messages(connection, 'ses-1'):wait()
+      end)
+      assert.is_false(ok)
+      assert.matches(invalid.error, tostring(err))
+    end
+
+    body = '{"data":[]}'
+    assert.same({ data = {}, cursor = {} }, operations.list_messages(connection, 'ses-1'):wait())
+
+    body = '{"data":{"id":42}}'
+    local ok, err = pcall(function()
+      operations.submit(connection, 'ses-1', { text = 'x', context = {}, files = {}, agents = {} }):wait()
+    end)
+    assert.is_false(ok)
+    assert.matches('invalid admission', tostring(err))
   end)
 
   it('uses endpoint-native permission and question requests and exact 204 responses', function()

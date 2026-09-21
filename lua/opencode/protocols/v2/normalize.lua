@@ -163,6 +163,7 @@ local function mapped_tool_result(value)
     return { kind = 'file', uri = value.uri, media_type = value.mime, name = value.name }
   end
   fail('invalid tool result content')
+  return {}
 end
 
 ---@param result table

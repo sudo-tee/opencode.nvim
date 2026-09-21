@@ -116,6 +116,64 @@ describe('V2 protocol Observation runtime', function()
     assert.is_nil(value._stream)
   end)
 
+  it('commits inbox and message facts before notifying either watcher', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local foreign = value:observe({ id = 'ses-other' })
+    local notifications = {}
+    local stop = observed:watch({ 'messages', 'inbox' }, function(current, resource)
+      if current:read().inbox.items_by_id['input-1'] then
+        assert.equals('hello', current:read().entries_by_id['input-1'].content[1].text)
+        notifications[resource] = (notifications[resource] or 0) + 1
+      end
+    end)
+    local stop_foreign = foreign:watch({ 'messages', 'inbox' }, function() end)
+
+    emit(
+      streams[1],
+      event('ses-main', 'session.inbox.enqueued', {
+        inboxID = 'input-1',
+        item = { type = 'user', delivery = 'queue', payload = { text = 'hello', files = {}, agents = {}, skills = {} } },
+      })
+    )
+
+    assert.same({ messages = 1, inbox = 1 }, notifications)
+    assert.is_nil(foreign:read().inbox.items_by_id['input-1'])
+    assert.is_nil(foreign:read().entries_by_id['input-1'])
+    stop()
+    stop_foreign()
+  end)
+
+  it('routes nested form identities only to their owning session', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local foreign = value:observe({ id = 'ses-other' })
+    local stop = observed:watch({ 'questions' }, function() end)
+    local stop_foreign = foreign:watch({ 'questions' }, function() end)
+
+    emit(streams[1], {
+      type = 'form.created',
+      created = 10,
+      data = {
+        form = {
+          id = 'form-1',
+          sessionID = 'ses-main',
+          title = 'Continue?',
+          fields = { { key = 'ok', type = 'boolean', required = true } },
+        },
+      },
+    })
+    emit(streams[1], event('ses-main', 'form.replied', { id = 'form-1', answer = { ok = true } }))
+
+    assert.equals('answered', observed:read().question_requests_by_id['form-1'].status)
+    assert.same({ ok = true }, observed:read().question_requests_by_id['form-1'].answers)
+    assert.is_nil(foreign:read().question_requests_by_id['form-1'])
+    stop()
+    stop_foreign()
+  end)
+
   it('projects 2.0.1 and later V2 file event names into the same fact', function()
     local value = connection()
     local streams = install_operations(value)

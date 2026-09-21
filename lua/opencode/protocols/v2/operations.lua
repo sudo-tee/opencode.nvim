@@ -569,7 +569,7 @@ M.get_model_catalog = Promise.async(function(connection, location, path_map, rev
   end
   for _, model in ipairs(models) do
     local provider_id = model.providerID
-    local model_id = model.modelID or model.id
+    local model_id = model.id or model.modelID
     if type(provider_id) ~= 'string' or type(model_id) ~= 'string' then
       error('V2 model catalog received an invalid model', 0)
     end

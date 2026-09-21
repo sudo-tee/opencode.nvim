@@ -956,4 +956,61 @@ describe('V1 protocol Observation runtime', function()
     assert.is_true(interrupt_lifetime:wait())
     assert.is_nil(connection.observations['ses-action-lifetime'])
   end)
+
+  it('commits authoritative revert responses before publishing session changes', function()
+    local connection = runtime()
+    local calls = {}
+    local function session(revert)
+      return {
+        id = 'ses-revert',
+        slug = 'revert',
+        title = 'Revert',
+        directory = '/server/project',
+        projectID = 'project-1',
+        version = '1.18.30',
+        time = { created = 1, updated = 2 },
+        revert = revert,
+      }
+    end
+    connection.operations.revert_message = function(_, session_id, location, input, path_map, reverse_path_map)
+      calls[#calls + 1] = { 'revert', session_id, location, input, path_map, reverse_path_map }
+      return resolved(session({ messageID = input.messageID, diff = 'diff' }))
+    end
+    connection.operations.unrevert_messages = function(_, session_id, location, path_map, reverse_path_map)
+      calls[#calls + 1] = { 'unrevert', session_id, location, path_map, reverse_path_map }
+      return resolved(session(nil))
+    end
+    local observation = observe(connection, 'ses-revert')
+    local stop = observation:watch({ 'files' }, function() end)
+    local path_map = function(path)
+      return path
+    end
+    local reverse_path_map = function(path)
+      return path
+    end
+
+    local revert = observation:revert_message('msg-1', path_map, reverse_path_map):wait()
+    assert.equals('msg-1', revert.messageID)
+    assert.equals('msg-1', observation:read().session.revert.messageID)
+    assert.is_true(observation:unrevert_messages(path_map, reverse_path_map):wait())
+    assert.is_nil(observation:read().session.revert)
+    assert.same({
+      {
+        'revert',
+        'ses-revert',
+        { directory = '/server/project' },
+        { messageID = 'msg-1' },
+        path_map,
+        reverse_path_map,
+      },
+      {
+        'unrevert',
+        'ses-revert',
+        { directory = '/server/project' },
+        path_map,
+        reverse_path_map,
+      },
+    }, calls)
+    stop()
+  end)
 end)

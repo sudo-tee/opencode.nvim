@@ -526,6 +526,7 @@ local function session_fact(info)
     time = mapped_time(info.time),
     summary = vim.deepcopy(info.summary),
     share = vim.deepcopy(info.share),
+    revert = vim.deepcopy(info.revert),
   }
 end
 

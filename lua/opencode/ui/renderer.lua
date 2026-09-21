@@ -11,6 +11,8 @@ local scroll = require('opencode.ui.renderer.scroll')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
+local REVERT_MESSAGE_ID = '__opencode_revert_message__'
+local REVERT_PART_ID = '__opencode_revert_message_part__'
 local HIDDEN_MESSAGES_NOTICE_MESSAGE_ID = '__opencode_hidden_messages_notice__'
 local HIDDEN_MESSAGES_NOTICE_PART_ID = '__opencode_hidden_messages_notice_part__'
 local PERMISSION_DISPLAY_MESSAGE_ID = 'permission-display-message'
@@ -55,7 +57,7 @@ end
 ---@return boolean
 local function is_renderer_synthetic_message(message)
   local message_id = message and message.id
-  return message_id == '__opencode_revert_message__'
+  return message_id == REVERT_MESSAGE_ID
     or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
     or message_id == PERMISSION_DISPLAY_MESSAGE_ID
     or message_id == QUESTION_DISPLAY_MESSAGE_ID
@@ -94,6 +96,27 @@ local function get_revert_index(messages, session)
   end
 
   return nil
+end
+
+local function build_revert_message(entries, session)
+  local revert_index = get_revert_index(entries, session)
+  if not revert_index then
+    return nil
+  end
+  return {
+    id = REVERT_MESSAGE_ID,
+    session_id = session.id,
+    kind = 'system',
+    entries = entries,
+    content = {
+      {
+        id = REVERT_PART_ID,
+        kind = 'revert_display',
+        revert_index = revert_index,
+        revert = session.revert,
+      },
+    },
+  }
 end
 
 ---@param messages table[]|nil
@@ -495,6 +518,12 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
   elseif ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
     hide_rendered_message(ctx, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
   end
+  local revert_message = build_revert_message(entries, session)
+  if revert_message then
+    visible[#visible + 1] = revert_message
+  elseif ctx.render_state:get_message(REVERT_MESSAGE_ID) then
+    hide_rendered_message(ctx, REVERT_MESSAGE_ID)
+  end
   rendered_entries.reconcile(visible, references_changed or files_changed, ctx)
   return initial_render
 end
@@ -809,6 +838,10 @@ function M._render_full_session_data(entries, session, ctx)
 
   for _, entry in ipairs(visible_messages) do
     ensure_message_rendered(ctx, entry)
+  end
+  local revert_message = build_revert_message(ctx.entries, session)
+  if revert_message then
+    ensure_message_rendered(ctx, revert_message)
   end
   flush.flush(nil, ctx)
   flush.end_bulk_mode(ctx)

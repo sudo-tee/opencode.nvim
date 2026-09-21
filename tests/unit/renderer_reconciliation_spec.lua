@@ -142,6 +142,29 @@ describe('renderer incremental reconciliation', function()
     assert.is_nil(contexts.current().render_state:get_message('msg_one'))
   end)
 
+  it('adds the undo summary on revert and removes it on redo', function()
+    observed.entries_by_id.msg_two.kind = 'user'
+    observed.session.revert = { messageID = 'msg_two' }
+
+    notify('session')
+
+    local revert_message = contexts.current().render_state:get_message('__opencode_revert_message__')
+    local revert_part = contexts.current().render_state:get_part('__opencode_revert_message_part__')
+    assert.is_not_nil(revert_message)
+    assert.is_not_nil(revert_part)
+    assert.is_nil(contexts.current().render_state:get_message('msg_two'))
+    local lines = contexts.current().formatted_parts['__opencode_revert_message_part__'].lines
+    assert.is_true(vim.tbl_contains(lines, '> 1 message reverted, 0 tool calls reverted'))
+    assert.is_true(vim.tbl_contains(lines, '> type `/redo` to restore.'))
+
+    observed.session.revert = nil
+    notify('session')
+
+    assert.is_nil(contexts.current().render_state:get_message('__opencode_revert_message__'))
+    assert.is_nil(contexts.current().render_state:get_part('__opencode_revert_message_part__'))
+    assert.is_not_nil(contexts.current().render_state:get_message('msg_two'))
+  end)
+
   it('ignores execution updates and unchanged messages', function()
     notify('execution')
     notify('messages')

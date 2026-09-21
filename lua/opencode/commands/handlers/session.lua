@@ -517,7 +517,7 @@ end
 
 ---@param message_id? string
 function M.actions.undo(message_id)
-  return with_active_session('No active session to undo', function(_, observation, session_fact, connection, location)
+  return with_active_session('No active session to undo', function(_, observation, session_fact)
     local target = message_id and find_entry(observation, message_id)
       or find_last_user_entry(observation, session_fact)
     if not target or target.kind ~= 'user' then
@@ -526,14 +526,7 @@ function M.actions.undo(message_id)
     end
 
     run_api_action_with_checktime(
-      connection.operations.revert_message(
-        connection,
-        session_fact.id,
-        location,
-        { messageID = target.id },
-        util.apply_path_map,
-        util.apply_reverse_path_map
-      ),
+      observation:revert_message(target.id, util.apply_path_map, util.apply_reverse_path_map),
       'Failed to undo last message: ',
       function()
         require('opencode.ui.input_window').refill_prompt_from_message(target)
@@ -589,7 +582,7 @@ local function find_next_user_entry(observation, revert_message_id)
 end
 
 function M.actions.redo()
-  return with_active_session('No active session to redo', function(_, observation, session_fact, connection, location)
+  return with_active_session('No active session to redo', function(_, observation, session_fact)
     if not session_fact.revert or session_fact.revert.messageID == '' then
       vim.notify('Nothing to redo', vim.log.levels.WARN)
       return
@@ -602,27 +595,14 @@ function M.actions.redo()
     end
     if not next_message_id then
       run_api_action_with_checktime(
-        connection.operations.unrevert_messages(
-          connection,
-          session_fact.id,
-          location,
-          util.apply_path_map,
-          util.apply_reverse_path_map
-        ),
+        observation:unrevert_messages(util.apply_path_map, util.apply_reverse_path_map),
         'Failed to redo message: '
       )
       return
     end
 
     run_api_action_with_checktime(
-      connection.operations.revert_message(
-        connection,
-        session_fact.id,
-        location,
-        { messageID = next_message_id },
-        util.apply_path_map,
-        util.apply_reverse_path_map
-      ),
+      observation:revert_message(next_message_id, util.apply_path_map, util.apply_reverse_path_map),
       'Failed to redo message: '
     )
   end)

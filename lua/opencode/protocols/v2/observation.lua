@@ -1141,6 +1141,37 @@ function M.new(connection, ref)
     return self:_start_action(connection.operations.interrupt, self._session_id)
   end
 
+  function observation:revert_message(message_id, _, reverse_path_map)
+    if type(message_id) ~= 'string' or message_id == '' then
+      fail('revert requires a message ID')
+    end
+    return self
+      :_start_state_action(
+        connection.operations.revert_message,
+        function(revert)
+          if type(revert) ~= 'table' or revert.messageID ~= message_id then
+            fail('invalid revert response')
+          end
+          self:read().session.revert = vim.deepcopy(revert)
+          self:_event_changed('session')
+          return revert
+        end,
+        self._session_id,
+        nil,
+        { messageID = message_id },
+        nil,
+        reverse_path_map
+      )
+  end
+
+  function observation:unrevert_messages()
+    return self:_start_state_action(connection.operations.unrevert_messages, function()
+      self:read().session.revert = nil
+      self:_event_changed('session')
+      return true
+    end, self._session_id)
+  end
+
   function observation:reply_permission(request_id, answer)
     local request = self:read().permission_requests_by_id[request_id]
     if not request or request.status ~= 'pending' or type(answer) ~= 'table' then

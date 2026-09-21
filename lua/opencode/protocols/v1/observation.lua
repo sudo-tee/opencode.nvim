@@ -1075,6 +1075,50 @@ function M.new(connection, ref)
     return self:_start_action(connection.operations.interrupt, self._session_id, self._session_ref.location)
   end
 
+  function observation:revert_message(message_id, path_map, reverse_path_map)
+    if type(message_id) ~= 'string' or message_id == '' then
+      fail('revert requires a message ID')
+    end
+    return self
+      :_start_state_action(
+        connection.operations.revert_message,
+        function(info)
+          local current = session_fact(info)
+          if current.id ~= self._session_id then
+            fail('revert response belongs to another session')
+          end
+          self:read().session = current
+          self:_event_changed('session')
+          return current.revert
+        end,
+        self._session_id,
+        self._session_ref.location,
+        { messageID = message_id },
+        path_map,
+        reverse_path_map
+      )
+  end
+
+  function observation:unrevert_messages(path_map, reverse_path_map)
+    return self
+      :_start_state_action(
+        connection.operations.unrevert_messages,
+        function(info)
+          local current = session_fact(info)
+          if current.id ~= self._session_id then
+            fail('unrevert response belongs to another session')
+          end
+          self:read().session = current
+          self:_event_changed('session')
+          return true
+        end,
+        self._session_id,
+        self._session_ref.location,
+        path_map,
+        reverse_path_map
+      )
+  end
+
   function observation:reply_permission(request_id, answer)
     local request_fact = self:read().permission_requests_by_id[request_id]
     if not request_fact or request_fact.status ~= 'pending' or type(answer) ~= 'table' then

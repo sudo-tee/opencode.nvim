@@ -26,4 +26,19 @@ describe('protocol HTTP helpers', function()
 
     assert.equals('{}', captured.body)
   end)
+
+  it('encodes nested query parameters using bracket notation', function()
+    local captured
+    transport.request = function(_, request)
+      captured = request
+      return Promise.new():resolve({ status = 200, headers = {}, body = '{}' })
+    end
+
+    local connection = { is_ready = function() return true end }
+    http.json_request(connection, 'HTTP test', 'GET', '/test', {
+      location = { directory = '/workspace' },
+    }):wait()
+
+    assert.equals('location%5Bdirectory%5D=%2Fworkspace', captured.query)
+  end)
 end)

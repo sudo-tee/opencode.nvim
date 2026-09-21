@@ -16,7 +16,7 @@ function M.query_string(values)
         for _, nested_key in ipairs(nested_keys) do
           local nested_value = value[nested_key]
           if nested_value ~= nil then
-            result[#result + 1] = url_encode(key .. '.' .. nested_key) .. '=' .. url_encode(tostring(nested_value))
+            result[#result + 1] = url_encode(key .. '[' .. nested_key .. ']') .. '=' .. url_encode(tostring(nested_value))
           end
         end
       else

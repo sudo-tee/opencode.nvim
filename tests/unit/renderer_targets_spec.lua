@@ -253,6 +253,55 @@ describe('renderer child observations', function()
     assert.equals(1.25, state.store.get('cost'))
   end)
 
+  it('uses latest assistant usage instead of cumulative V2 session usage', function()
+    local root = observation({
+      session = {
+        id = 'ses_root',
+        cost = 12.5,
+        tokens = { input = 800000, output = 40000, reasoning = 10000, cache = { read = 7200000, write = 0 } },
+        location = { directory = '/repo' },
+      },
+      sync = { session = { state = 'current' }, children = { state = 'current' } },
+      children = { order = {}, by_id = {} },
+      entry_order = { 'msg_old', 'msg_latest' },
+      entries_by_id = {
+        msg_old = {
+          id = 'msg_old',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 1,
+          tokens = { input = 40, output = 20, reasoning = 10, cache = { read = 5, write = 0 } },
+          content = {},
+        },
+        msg_latest = {
+          id = 'msg_latest',
+          session_id = 'ses_root',
+          kind = 'assistant',
+          cost = 2,
+          tokens = { input = 100000, output = 2000, reasoning = 749, cache = { read = 0, write = 0 } },
+          content = {},
+        },
+      },
+      permission_requests_by_id = {},
+      question_requests_by_id = {},
+      files = { revision = 0 },
+    })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return root
+      end,
+    })
+    state.session.set_active({ id = 'ses_root' })
+
+    renderer.on_session_changed(nil, { id = 'ses_root' }, nil)
+
+    assert.equals(102749, state.store.get('tokens_count'))
+    assert.equals(12.5, state.store.get('cost'))
+  end)
+
   it('falls back to the latest entry when session usage facts are absent', function()
     local root = observation({
       session = { id = 'ses_root', location = { directory = '/repo' } },

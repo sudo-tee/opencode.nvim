@@ -101,7 +101,7 @@ describe('format_message', function()
     local ChatContext = require('opencode.context.chat_context')
     local original_context = ChatContext.context
     local image_name = 'pasted_image_20260921_131341.png'
-    local image_path = vim.fn.fnamemodify(vim.fn.tempname(), ':h') .. '/' .. image_name
+    local image_path = '/tmp/' .. image_name
     local mention = '@' .. image_name
     local prompt = 'inspect ' .. mention
 

@@ -496,7 +496,7 @@ function M.reply_permission(connection, session_id, request_id, answer)
     'V2 reply_permission',
     'POST',
     '/api/session/' .. session_id .. '/permission/' .. request_id .. '/reply',
-    answer
+    { decision = answer.reply, message = answer.message }
   )
 end
 

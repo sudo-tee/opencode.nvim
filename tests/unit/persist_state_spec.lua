@@ -355,6 +355,43 @@ describe('persist_state', function()
       toggle_wait('visible')
     end)
 
+    it('restores the hidden output buffer without re-rendering the session', function()
+      setup_ui()
+      create_code_file()
+
+      local render = stub(renderer, 'render_full_session').returns(true)
+
+      toggle_wait('visible')
+      local renders_after_open = render.call_count
+
+      toggle_wait('hidden')
+      toggle_wait('visible')
+
+      assert.equals(renders_after_open, render.call_count)
+      render:revert()
+    end)
+
+    it('preserves the output buffer when closing and reopening the panel', function()
+      setup_ui()
+      create_code_file()
+      toggle_wait('visible')
+
+      local output_buf = state.windows.output_buf
+      local render = stub(renderer, 'render_full_session').returns(true)
+
+      require('opencode.commands.handlers.window').actions.close()
+      assert.equals('hidden', api.get_window_state().status)
+      assert.equals(output_buf, state.ui.inspect_hidden_buffers().output_buf)
+
+      local renders_after_close = render.call_count
+      require('opencode.commands.handlers.window').actions.open_output():wait()
+
+      assert.equals('visible', api.get_window_state().status)
+      assert.equals(output_buf, state.windows.output_buf)
+      assert.equals(renders_after_close, render.call_count)
+      render:revert()
+    end)
+
     it('restores missing base mappings without replacing preserved mappings', function()
       setup_ui()
       config.keymap.output_window.a = { function() end, desc = 'Base A' }

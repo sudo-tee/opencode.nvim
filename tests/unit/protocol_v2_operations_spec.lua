@@ -227,6 +227,39 @@ describe('V2 protocol operations', function()
     assert.equals('/api/session/ses-1/interrupt', calls[7].request.path)
   end)
 
+  it('sends user file attachments when no editor context is present', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request
+      return Promise.new():resolve({ status = 200, body = '{"data":{"id":"inbox-1","delivery":"steer"}}' })
+    end
+    operations
+      .submit(ready_connection(), 'ses-1', {
+        text = 'hello @main.lua',
+        context = {},
+        files = {
+          {
+            server_uri = 'file:///host/project/main.lua',
+            media_type = 'text/plain',
+            name = 'main.lua',
+            mention = { start_byte = 6, end_byte = 15 },
+          },
+        },
+        agents = {},
+      })
+      :wait()
+    assert.same({
+      text = 'hello @main.lua',
+      files = {
+        {
+          uri = 'file:///host/project/main.lua',
+          name = 'main.lua',
+          mention = { start = 6, ['end'] = 15, text = '@main.lua' },
+        },
+      },
+    }, vim.json.decode(calls[1].body))
+  end)
+
   it('uses the fixed 2.0.1 active-session and inbox recovery contracts', function()
     local contract = vim.json.decode(fixture('observation-operations-2.0.1.json'))
     local calls = {}

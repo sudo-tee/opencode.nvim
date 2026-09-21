@@ -105,6 +105,7 @@ local function parse_diff_line_numbers(lines)
   local numbered_lines = {}
   local old_line
   local new_line
+  local in_hunk = false
   local max_line_number = 0
 
   for idx, line in ipairs(lines) do
@@ -113,22 +114,33 @@ local function parse_diff_line_numbers(lines)
     if old_start and new_start then
       old_line = tonumber(old_start)
       new_line = tonumber(new_start)
-    elseif old_line and new_line then
+      in_hunk = true
+    elseif line:match('^@@') then
+      old_line = nil
+      new_line = nil
+      in_hunk = true
+    elseif in_hunk then
       local first_char = line:sub(1, 1)
 
       if first_char == ' ' then
         numbered_lines[idx] = { old = old_line, new = new_line }
-        max_line_number = math.max(max_line_number, old_line, new_line)
-        old_line = old_line + 1
-        new_line = new_line + 1
+        if old_line and new_line then
+          max_line_number = math.max(max_line_number, old_line, new_line)
+          old_line = old_line + 1
+          new_line = new_line + 1
+        end
       elseif first_char == '+' and not line:match('^%+%+%+%s') then
         numbered_lines[idx] = { old = nil, new = new_line }
-        max_line_number = math.max(max_line_number, new_line)
-        new_line = new_line + 1
+        if new_line then
+          max_line_number = math.max(max_line_number, new_line)
+          new_line = new_line + 1
+        end
       elseif first_char == '-' and not line:match('^%-%-%-%s') then
         numbered_lines[idx] = { old = old_line, new = nil }
-        max_line_number = math.max(max_line_number, old_line)
-        old_line = old_line + 1
+        if old_line then
+          max_line_number = math.max(max_line_number, old_line)
+          old_line = old_line + 1
+        end
       end
     end
   end

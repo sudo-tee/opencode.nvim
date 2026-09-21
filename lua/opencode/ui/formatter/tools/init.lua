@@ -1,9 +1,11 @@
 return {
   bash = require('opencode.ui.formatter.tools.bash'),
+  shell = require('opencode.ui.formatter.tools.bash'),
   read = require('opencode.ui.formatter.tools.file'),
   edit = require('opencode.ui.formatter.tools.file'),
   write = require('opencode.ui.formatter.tools.file'),
   apply_patch = require('opencode.ui.formatter.tools.apply_patch'),
+  patch = require('opencode.ui.formatter.tools.patch'),
   todowrite = require('opencode.ui.formatter.tools.todowrite'),
   glob = require('opencode.ui.formatter.tools.glob'),
   grep = require('opencode.ui.formatter.tools.grep'),

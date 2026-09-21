@@ -30,6 +30,13 @@ function M.format(output, part)
       file.path,
       formatter_utils.get_duration_text(part)
     )
+    local action_line = output:get_line_count()
+    local action_text = output:get_line(action_line)
+    output:add_target({
+      kind = 'file',
+      path = file.path,
+      range = { line = action_line, start_col = 0, end_col = action_text and #action_text or 0 },
+    })
 
     local patch = file.diff
     if (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) and patch then

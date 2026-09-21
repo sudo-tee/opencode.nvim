@@ -165,6 +165,27 @@ local function mapped_tool_result(value)
   fail('invalid tool result content')
 end
 
+---@param result table
+---@param name string
+---@param metadata any
+local function apply_tool_metadata(result, name, metadata)
+  if (name ~= 'patch' and name ~= 'apply_patch') or type(metadata) ~= 'table' or type(metadata.files) ~= 'table' then
+    return
+  end
+
+  local changes = {}
+  for _, file in ipairs(metadata.files) do
+    local path = type(file) == 'table' and (file.file or file.relativePath or file.filePath) or nil
+    local diff = type(file) == 'table' and (file.patch or file.diff) or nil
+    if type(path) == 'string' and type(diff) == 'string' then
+      changes[#changes + 1] = { path = path, diff = diff }
+    end
+  end
+  if #changes > 0 then
+    result.changes = changes
+  end
+end
+
 local function mapped_tool(part)
   if
     type(part.id) ~= 'string'
@@ -215,6 +236,7 @@ local function mapped_tool(part)
     end
     result.error = mapped_error(part.state.error)
   end
+  apply_tool_metadata(result, part.name, part.state.metadata)
   return result
 end
 
@@ -546,6 +568,7 @@ return {
   mapped_tokens = mapped_tokens,
   mapped_model = mapped_model,
   mapped_tool_result = mapped_tool_result,
+  apply_tool_metadata = apply_tool_metadata,
   mapped_message = mapped_message,
   session_fact = session_fact,
   inbox_fact = inbox_fact,

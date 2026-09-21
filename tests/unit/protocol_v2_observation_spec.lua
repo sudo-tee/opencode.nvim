@@ -134,6 +134,53 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('current', state.sync.messages.state)
   end)
 
+  it('projects native file and skill tool inputs into formatter fields', function()
+    local observed = observation('ses-target')
+    local message = assistant('msg-tools')
+    message.content = {
+      {
+        type = 'tool',
+        id = 'tool-read',
+        name = 'read',
+        time = { created = 201, ran = 202, completed = 203 },
+        state = {
+          status = 'completed',
+          input = { filePath = '/server/project/README.md' },
+          content = { { type = 'text', text = '<path>/server/project/README.md</path>' } },
+        },
+      },
+      {
+        type = 'tool',
+        id = 'tool-skill',
+        name = 'skill',
+        time = { created = 204, ran = 205, completed = 206 },
+        state = {
+          status = 'completed',
+          input = {},
+          metadata = { name = 'context7-cli' },
+          content = { { type = 'text', text = 'loaded' } },
+        },
+      },
+      {
+        type = 'tool',
+        id = 'tool-read-path',
+        name = 'read',
+        time = { created = 207, ran = 208, completed = 209 },
+        state = {
+          status = 'completed',
+          input = { path = '/server/project/lua/init.lua' },
+          content = { { type = 'text', text = '<path>/server/project/lua/init.lua</path>' } },
+        },
+      },
+    }
+    observation_module.ingest_snapshot(observed, { message })
+
+    local content = observed:read().entries_by_id['msg-tools'].content
+    assert.same({ path = '/server/project/README.md' }, content[1].target)
+    assert.equals('context7-cli', content[2].input.name)
+    assert.same({ path = '/server/project/lua/init.lua' }, content[3].target)
+  end)
+
   it('keeps each native kind as a distinct Entry shape', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

@@ -6,7 +6,7 @@ local M = {
 }
 
 ---@param response? {status: integer, headers?: table<string, string>, body: string}
----@param decode_json fun(response: table, endpoint: string): table|nil, string|nil
+---@param decode_json fun(response: table|nil, endpoint: string): table|nil, string|nil
 ---@return table|nil body
 ---@return string|nil error
 ---@return boolean fallback_to_v1

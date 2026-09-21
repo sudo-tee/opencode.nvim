@@ -3,6 +3,7 @@ local Promise = require('opencode.promise')
 local http = require('opencode.protocols.http')
 local transport = require('opencode.transport')
 
+---@class OpencodeV2Operations
 local M = {}
 
 local function location_directory(location, path_map)
@@ -13,6 +14,7 @@ local json_request = http.json_request
 local map_paths = http.map_paths
 local require_table = http.require_table
 
+---@param connection OpencodeV2Connection
 local function empty_request(connection, operation, method, path, body, query)
   return transport
     .request(connection, {
@@ -39,6 +41,10 @@ local function unwrap_data(operation, value, reverse_path_map)
   return map_paths(value.data, reverse_path_map)
 end
 
+---@param operation string
+---@param value any
+---@param reverse_path_map? OpencodeV2PathMap
+---@return OpencodeV2Page<table>
 local function unwrap_page(operation, value, reverse_path_map)
   if type(value) ~= 'table' or type(value.data) ~= 'table' then
     error(operation .. ' returned an invalid page envelope', 0)
@@ -62,6 +68,7 @@ local function unwrap_page(operation, value, reverse_path_map)
   }
 end
 
+---@param connection OpencodeV2Connection
 function M.get_current_project(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 get_current_project', 'GET', '/api/location', {
     location = { directory = location_directory(location, path_map) },
@@ -71,6 +78,7 @@ function M.get_current_project(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.get_config(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 get_config', 'GET', '/api/config', {
     location = { directory = location_directory(location, path_map) },
@@ -79,6 +87,7 @@ function M.get_config(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_providers(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 list_providers', 'GET', '/api/provider', {
     location = { directory = location_directory(location, path_map) },
@@ -93,6 +102,13 @@ function M.list_providers(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
+---@param location? OpencodeV2Location
+---@param cursor? string
+---@param limit? integer
+---@param path_map? OpencodeV2PathMap
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<OpencodeV2Page<table>>
 function M.list_sessions(connection, location, cursor, limit, path_map, reverse_path_map)
   local directory = location and location_directory(location, path_map) or nil
   return json_request(connection, 'V2 list_sessions', 'GET', '/api/session', {
@@ -104,6 +120,7 @@ function M.list_sessions(connection, location, cursor, limit, path_map, reverse_
   end)
 end
 
+---@param connection OpencodeV2Connection
 local function collect_sessions(connection, location, path_map, reverse_path_map)
   return Promise.async(function()
     local sessions = {}
@@ -114,7 +131,7 @@ local function collect_sessions(connection, location, path_map, reverse_path_map
       vim.list_extend(sessions, page.data)
       cursor = page.cursor.next
       if cursor ~= nil then
-        if type(cursor) ~= 'string' or cursor == '' or seen[cursor] then
+        if seen[cursor] then
           error('V2 list_sessions returned an invalid next cursor', 0)
         end
         seen[cursor] = true
@@ -124,14 +141,18 @@ local function collect_sessions(connection, location, path_map, reverse_path_map
   end)()
 end
 
+---@param connection OpencodeV2Connection
 function M.list_sessions_project(connection, location, path_map, reverse_path_map)
   return collect_sessions(connection, location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_sessions_global(connection, reverse_path_map)
   return collect_sessions(connection, nil, nil, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
+---@return Promise<table<string, {type: 'running'}>>
 function M.list_active_sessions(connection)
   return json_request(connection, 'V2 list_active_sessions', 'GET', '/api/session/active'):and_then(function(value)
     local active = require_table('V2 list_active_sessions', unwrap_data('V2 list_active_sessions', value))
@@ -144,6 +165,10 @@ function M.list_active_sessions(connection)
   end)
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<table[]>
 function M.list_inbox(connection, session_id, reverse_path_map)
   return json_request(connection, 'V2 list_inbox', 'GET', '/api/session/' .. session_id .. '/inbox'):and_then(
     function(value)
@@ -163,6 +188,7 @@ function M.list_inbox(connection, session_id, reverse_path_map)
   )
 end
 
+---@param connection OpencodeV2Connection
 function M.create_session(connection, location, input, path_map, reverse_path_map)
   local body = map_paths(type(input) == 'table' and vim.deepcopy(input) or {}, path_map)
   body.location = { directory = location_directory(location, path_map) }
@@ -172,6 +198,7 @@ function M.create_session(connection, location, input, path_map, reverse_path_ma
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.get_session(connection, session_id, _location, _path_map, reverse_path_map)
   return json_request(connection, 'V2 get_session', 'GET', '/api/session/' .. session_id):and_then(function(value)
     local session = unwrap_data('V2 get_session', value, reverse_path_map)
@@ -179,14 +206,16 @@ function M.get_session(connection, session_id, _location, _path_map, reverse_pat
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.delete_session(connection, session_id)
   return empty_request(connection, 'V2 delete_session', 'DELETE', '/api/session/' .. session_id)
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param _location? OpencodeV2Location
+---@param title string
 function M.rename_session(connection, session_id, _location, title)
-  if type(title) ~= 'string' then
-    error('V2 rename_session requires a title')
-  end
   return empty_request(connection, 'V2 rename_session', 'POST', '/api/session/' .. session_id .. '/rename', {
     title = title,
   })
@@ -204,6 +233,7 @@ function M.unshare_session()
   error('V2 2.0.1 does not provide session sharing')
 end
 
+---@param connection OpencodeV2Connection
 function M.summarize_session(connection, session_id)
   return json_request(connection, 'V2 summarize_session', 'POST', '/api/session/' .. session_id .. '/compact', nil, {
     delivery = 'steer',
@@ -216,6 +246,7 @@ function M.summarize_session(connection, session_id)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.fork_session(connection, session_id, _location, input, _path_map, reverse_path_map)
   input = type(input) == 'table' and input or {}
   local boundary
@@ -233,10 +264,14 @@ function M.fork_session(connection, session_id, _location, input, _path_map, rev
   end)
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param _location? OpencodeV2Location
+---@param input {messageID: string}
+---@param _path_map? OpencodeV2PathMap
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<SessionRevertInfo>
 function M.revert_message(connection, session_id, _location, input, _path_map, reverse_path_map)
-  if type(input) ~= 'table' or type(input.messageID) ~= 'string' or input.messageID == '' then
-    error('V2 revert_message requires a messageID')
-  end
   return json_request(connection, 'V2 revert_message', 'POST', '/api/session/' .. session_id .. '/revert/stage', nil, {
     messageID = input.messageID,
     files = true,
@@ -245,10 +280,17 @@ function M.revert_message(connection, session_id, _location, input, _path_map, r
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.unrevert_messages(connection, session_id)
   return empty_request(connection, 'V2 unrevert_messages', 'DELETE', '/api/session/' .. session_id .. '/revert')
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param cursor? string
+---@param limit? integer
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<OpencodeV2Page<table>>
 function M.list_messages(connection, session_id, cursor, limit, reverse_path_map)
   return json_request(connection, 'V2 list_messages', 'GET', '/api/session/' .. session_id .. '/message', {
     cursor = cursor,
@@ -258,33 +300,29 @@ function M.list_messages(connection, session_id, cursor, limit, reverse_path_map
   end)
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param agent string
 function M.set_session_agent(connection, session_id, agent)
-  if type(agent) ~= 'string' or agent == '' then
-    error('V2 session agent must be a non-empty string')
-  end
   return empty_request(connection, 'V2 set_session_agent', 'POST', '/api/session/' .. session_id .. '/agent', {
     agent = agent,
   })
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param model OpencodeV2ModelInput
 function M.set_session_model(connection, session_id, model)
-  if
-    type(model) ~= 'table'
-    or type(model.providerID) ~= 'string'
-    or type(model.id) ~= 'string'
-    or (model.variant ~= nil and type(model.variant) ~= 'string')
-  then
-    error('V2 session model requires providerID, id, and an optional variant')
-  end
   return empty_request(connection, 'V2 set_session_model', 'POST', '/api/session/' .. session_id .. '/model', {
     model = model,
   })
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param _location? OpencodeV2Location
+---@param input OpencodeV2CommandInput
 function M.send_command(connection, session_id, _location, input)
-  if type(input) ~= 'table' or type(input.command) ~= 'string' or input.command == '' then
-    error('V2 send_command requires a command')
-  end
   return Promise.async(function()
     if input.agent then
       M.set_session_agent(connection, session_id, input.agent):await()
@@ -310,36 +348,16 @@ function M.send_command(connection, session_id, _location, input)
   end)()
 end
 
+---@param input OpencodeV2SubmitInput
+---@param path_map? OpencodeV2PathMap
 local function prompt_body(input, path_map)
-  if
-    type(input) ~= 'table'
-    or type(input.text) ~= 'string'
-    or type(input.context) ~= 'table'
-    or type(input.files) ~= 'table'
-    or type(input.agents) ~= 'table'
-  then
-    error('V2 submit requires text, context, files, and agents')
-  end
   if input.system ~= nil then
     error('V2 submit does not support a per-message system prompt')
   end
-  if type(input.tools) == 'table' and next(input.tools) ~= nil then
+  if input.tools and next(input.tools) ~= nil then
     error('V2 submit does not support per-message tool selection')
   end
-  if
-    input.model ~= nil
-    and (
-      type(input.model) ~= 'table'
-      or type(input.model.providerID) ~= 'string'
-      or type(input.model.modelID) ~= 'string'
-    )
-  then
-    error('V2 submit requires model providerID and modelID')
-  end
-  if input.agent ~= nil and (type(input.agent) ~= 'string' or input.agent == '') then
-    error('V2 submit requires a non-empty agent')
-  end
-  if input.variant ~= nil and (type(input.variant) ~= 'string' or input.model == nil) then
+  if input.variant ~= nil and input.model == nil then
     error('V2 submit requires a model for its variant')
   end
 
@@ -351,13 +369,7 @@ local function prompt_body(input, path_map)
   -- V1 produces.
   local body = { files = {} }
   for _, item in ipairs(input.context) do
-    if type(item) ~= 'table' or type(item.text) ~= 'string' or type(item.source) ~= 'table' then
-      error('V2 submit received invalid context')
-    end
     local source = item.source
-    if not vim.tbl_contains({ 'selection', 'diagnostics', 'cursor', 'buffer', 'git_diff' }, source.kind) then
-      error('V2 submit received invalid context kind')
-    end
     local name = 'editor-context:' .. source.kind
     if source.file_name ~= nil then
       name = name .. ':' .. tostring(source.file_name)
@@ -372,20 +384,12 @@ local function prompt_body(input, path_map)
   end
 
   local text = input.text
+  ---@param value? OpencodeV2Mention
   local function mention(value)
     if value == nil then
       return nil
     end
-    if
-      type(value) ~= 'table'
-      or type(value.start_byte) ~= 'number'
-      or type(value.end_byte) ~= 'number'
-      or value.start_byte % 1 ~= 0
-      or value.end_byte % 1 ~= 0
-      or value.start_byte < 0
-      or value.end_byte < value.start_byte
-      or value.end_byte > #input.text
-    then
+    if value.start_byte < 0 or value.end_byte < value.start_byte or value.end_byte > #input.text then
       error('V2 submit received invalid mention')
     end
     local start = util.utf16_index_from_byte(input.text, value.start_byte)
@@ -408,22 +412,15 @@ local function prompt_body(input, path_map)
   body.text = text
   if #input.files > 0 then
     for _, file in ipairs(input.files) do
-      if
-        type(file) ~= 'table'
-        or type(file.media_type) ~= 'string'
-        or (file.bytes == nil) == (file.server_uri == nil)
-      then
+      if (file.bytes == nil) == (file.server_uri == nil) then
         error('V2 submit received invalid file')
       end
       local uri
       if file.bytes ~= nil then
-        if type(file.bytes) ~= 'string' then
-          error('V2 submit received invalid file bytes')
-        end
         uri = 'data:' .. file.media_type .. ';base64,' .. vim.base64.encode(file.bytes)
-      elseif type(file.server_uri) == 'string' and file.server_uri:match('^file:///') then
+      elseif file.server_uri:match('^file:///') then
         local path = file.server_uri:sub(8)
-        uri = 'file://' .. (type(path_map) == 'function' and path_map(path) or path)
+        uri = 'file://' .. (path_map and path_map(path) or path)
       else
         error('V2 submit server_uri must be an absolute file URI')
       end
@@ -436,15 +433,18 @@ local function prompt_body(input, path_map)
   if #input.agents > 0 then
     body.agents = {}
     for _, agent in ipairs(input.agents) do
-      if type(agent) ~= 'table' or type(agent.name) ~= 'string' or agent.name == '' then
-        error('V2 submit received invalid agent attachment')
-      end
       body.agents[#body.agents + 1] = { name = agent.name, mention = mention(agent.mention) }
     end
   end
   return body
 end
 
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param input OpencodeV2SubmitInput
+---@param path_map? OpencodeV2PathMap
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<OpencodeV2Admission>
 function M.submit(connection, session_id, input, path_map, reverse_path_map)
   local body = prompt_body(input, path_map)
   return Promise.async(function()
@@ -458,19 +458,25 @@ function M.submit(connection, session_id, input, path_map, reverse_path_map)
         variant = input.variant,
       }):await()
     end
-    return json_request(connection, 'V2 submit', 'POST', '/api/session/' .. session_id .. '/prompt', nil, body, path_map)
-      :await()
-  end)():and_then(
-    function(value)
-      local admission = unwrap_data('V2 submit', value, reverse_path_map)
-      if type(admission) ~= 'table' or type(admission.id) ~= 'string' then
-        error('V2 submit returned an invalid admission', 0)
-      end
-      return admission
+    return json_request(
+      connection,
+      'V2 submit',
+      'POST',
+      '/api/session/' .. session_id .. '/prompt',
+      nil,
+      body,
+      path_map
+    ):await()
+  end)():and_then(function(value)
+    local admission = unwrap_data('V2 submit', value, reverse_path_map)
+    if type(admission) ~= 'table' or type(admission.id) ~= 'string' then
+      error('V2 submit returned an invalid admission', 0)
     end
-  )
+    return admission
+  end)
 end
 
+---@param connection OpencodeV2Connection
 function M.interrupt(connection, session_id)
   return json_request(connection, 'V2 interrupt', 'POST', '/api/session/' .. session_id .. '/interrupt'):and_then(
     function(value)
@@ -482,6 +488,7 @@ function M.interrupt(connection, session_id)
   )
 end
 
+---@param connection OpencodeV2Connection
 function M.list_permissions(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 list_permissions', 'GET', '/api/permission/request', {
     location = { directory = location_directory(location, path_map) },
@@ -490,6 +497,7 @@ function M.list_permissions(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.reply_permission(connection, session_id, request_id, answer)
   return empty_request(
     connection,
@@ -500,6 +508,7 @@ function M.reply_permission(connection, session_id, request_id, answer)
   )
 end
 
+---@param connection OpencodeV2Connection
 function M.list_questions(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 list_questions', 'GET', '/api/form', {
     location = { directory = location_directory(location, path_map) },
@@ -508,6 +517,7 @@ function M.list_questions(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.reply_question(connection, session_id, request_id, answer)
   return empty_request(
     connection,
@@ -518,6 +528,7 @@ function M.reply_question(connection, session_id, request_id, answer)
   )
 end
 
+---@param connection OpencodeV2Connection
 function M.cancel_question(connection, session_id, request_id)
   return empty_request(
     connection,
@@ -527,6 +538,7 @@ function M.cancel_question(connection, session_id, request_id)
   )
 end
 
+---@param connection OpencodeV2Connection
 local function data_list(connection, operation, path, location, path_map, reverse_path_map)
   return json_request(connection, operation, 'GET', path, {
     location = { directory = location_directory(location, path_map) },
@@ -536,14 +548,17 @@ local function data_list(connection, operation, path, location, path_map, revers
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_agents(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 list_agents', '/api/agent', location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_models(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 list_models', '/api/model', location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.get_default_model(connection, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 get_default_model', 'GET', '/api/model/default', {
     location = { directory = location_directory(location, path_map) },
@@ -552,6 +567,7 @@ function M.get_default_model(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 M.get_model_catalog = Promise.async(function(connection, location, path_map, reverse_path_map)
   local provider_response = M.list_providers(connection, location, path_map, reverse_path_map):await()
   local models = M.list_models(connection, location, path_map, reverse_path_map):await()
@@ -601,6 +617,7 @@ local function select_agents(entries, accepts)
   return result
 end
 
+---@param connection OpencodeV2Connection
 function M.list_primary_agents(connection, location, path_map, reverse_path_map)
   return M.list_agents(connection, location, path_map, reverse_path_map):and_then(function(entries)
     return select_agents(entries, function(mode)
@@ -609,6 +626,7 @@ function M.list_primary_agents(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_subagents(connection, location, path_map, reverse_path_map)
   return M.list_agents(connection, location, path_map, reverse_path_map):and_then(function(entries)
     return select_agents(entries, function(mode)
@@ -617,6 +635,7 @@ function M.list_subagents(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.get_user_commands(connection, location, path_map, reverse_path_map)
   return M.list_commands(connection, location, path_map, reverse_path_map):and_then(function(commands)
     local result = {}
@@ -629,18 +648,22 @@ function M.get_user_commands(connection, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_commands(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 list_commands', '/api/command', location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_skills(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 list_skills', '/api/skill', location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.list_mcp_servers(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 list_mcp_servers', '/api/mcp', location, path_map, reverse_path_map)
 end
 
+---@param connection OpencodeV2Connection
 function M.find_files(connection, query, location, path_map, reverse_path_map)
   return json_request(connection, 'V2 find_files', 'GET', '/api/fs/find', {
     query = query,
@@ -659,6 +682,7 @@ function M.find_files(connection, query, location, path_map, reverse_path_map)
   end)
 end
 
+---@param connection OpencodeV2Connection
 function M.get_file_status(connection, location, path_map, reverse_path_map)
   return data_list(connection, 'V2 get_file_status', '/api/vcs/status', location, path_map, reverse_path_map):and_then(
     function(data)
@@ -679,6 +703,7 @@ function M.get_file_status(connection, location, path_map, reverse_path_map)
   )
 end
 
+---@param connection OpencodeV2Connection
 function M.connect_mcp(connection, name, location, path_map)
   if type(name) ~= 'string' or name == '' then
     error('V2 connect_mcp requires a server name')
@@ -688,15 +713,24 @@ function M.connect_mcp(connection, name, location, path_map)
   })
 end
 
+---@param connection OpencodeV2Connection
 function M.disconnect_mcp(connection, name, location, path_map)
   if type(name) ~= 'string' or name == '' then
     error('V2 disconnect_mcp requires a server name')
   end
-  return empty_request(connection, 'V2 disconnect_mcp', 'POST', '/api/experimental/mcp/' .. name .. '/disconnect', nil, {
-    location = { directory = location_directory(location, path_map) },
-  })
+  return empty_request(
+    connection,
+    'V2 disconnect_mcp',
+    'POST',
+    '/api/experimental/mcp/' .. name .. '/disconnect',
+    nil,
+    {
+      location = { directory = location_directory(location, path_map) },
+    }
+  )
 end
 
+---@param connection OpencodeV2Connection
 function M.subscribe_events(connection, on_chunk, on_disconnect)
   return transport.stream(connection, { method = 'GET', path = '/api/event' }, on_chunk, on_disconnect)
 end

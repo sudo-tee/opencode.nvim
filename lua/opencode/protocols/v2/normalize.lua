@@ -1,4 +1,5 @@
 local util = require('opencode.util')
+local log = require('opencode.log')
 local shared_decode_editor_context = require('opencode.protocols.observation').decode_editor_context
 
 local function fail(message)
@@ -112,15 +113,21 @@ local function mapped_mention(value, text)
     or value['end'] < value.start
     or type(value.text) ~= 'string'
   then
-    fail('invalid prompt mention')
+    log.warn('dropping malformed prompt mention: %s', vim.inspect(value))
+    return nil
   end
   if not util.is_utf16_boundary(text, value.start) or not util.is_utf16_boundary(text, value['end']) then
-    fail('prompt mention does not identify a UTF-16 text range')
+    log.warn('dropping prompt mention outside UTF-16 boundaries: %s', vim.inspect(value))
+    return nil
   end
   local start_byte = util.byte_index_from_utf16(text, value.start)
   local end_byte = util.byte_index_from_utf16(text, value['end'])
   if not start_byte or not end_byte or text:sub(start_byte + 1, end_byte) ~= value.text then
-    fail('prompt mention does not identify a UTF-16 text range')
+    -- Servers store the offsets captured at mention time; edits to the
+    -- surrounding text leave them stale. A misplaced mention only loses its
+    -- text anchor, so drop it instead of failing the whole message page.
+    log.warn('dropping prompt mention with stale text range: %s', vim.inspect(value))
+    return nil
   end
   return { text = value.text, start_byte = start_byte, end_byte = end_byte }
 end

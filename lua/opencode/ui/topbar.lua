@@ -83,8 +83,9 @@ local function get_session_desc()
 
   local session_title = LABELS.NEW_SESSION_TITLE
 
-  if state.active_session and state.active_session.title ~= '' then
-    session_title = state.active_session.title
+  local active_title = state.active_session and state.active_session.title
+  if type(active_title) == 'string' and vim.trim(active_title) ~= '' then
+    session_title = active_title
   end
 
   if not session_title or type(session_title) ~= 'string' then

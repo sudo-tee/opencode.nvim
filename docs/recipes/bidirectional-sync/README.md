@@ -106,9 +106,10 @@ event stream, or evidence that the server started overlapping execution horizons
 resolves that local completion as `unknown`; messages already stored by the server
 remain visible to both frontends after a snapshot refresh.
 
-For a V1 explicit launcher, set `server.password_file` to a state-directory path. On a launcher path, the
-plugin persists the selected password there with owner-only permissions before
-starting its local server, so a later nvim process and the TUI read the same value.
+For a V1 explicit launcher shared with the TUI, set `server.password_file` to a state-directory path. Fixed-port
+V1 servers otherwise use an owner-only per-port file under Neovim's state directory so later nvim clients reuse
+the same credential. On a launcher path, the plugin persists the selected password before
+starting its local server, so a later nvim process and, when explicitly configured, the TUI read the same value.
 Plugin credential selection is deterministic: `server.password`, then the
 configured password file, then `OPENCODE_PASSWORD`, then
 `OPENCODE_SERVER_PASSWORD`. This recipe leaves `server.password` unset and uses
@@ -116,7 +117,7 @@ the password file as the shared source. When the file is absent, the V1 helper
 persists the environment password or generates one; an existing invalid file
 fails immediately instead of being replaced.
 
-The legacy helper rejects a CLI with the native service command before creating credentials or starting a process. Its health endpoint is `/global/health`, with a V1 1.18.x JSON response required; HTML 200 and authentication errors are failures. V2 never enters this script's launcher path.
+The legacy helper rejects a CLI with the native service command before creating credentials or starting a process. Its health endpoint is `/global/health`, where a healthy V1 JSON response is required; the liveness check does not depend on the server version. HTML 200 and authentication errors are failures. V2 never enters this script's launcher path.
 
 ## Integration Ideas
 

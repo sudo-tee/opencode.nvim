@@ -1,14 +1,8 @@
 local util = require('opencode.util')
 local safe_call = util.safe_call
 local Promise = require('opencode.promise')
-local config = require('opencode.config')
-local curl = require('opencode.curl')
 local auth = require('opencode.auth')
-
-local protocols = {
-  v1 = { operations = 'opencode.protocols.v1.operations', observation = 'opencode.protocols.v1.observation' },
-  v2 = { operations = 'opencode.protocols.v2.operations', observation = 'opencode.protocols.v2.observation' },
-}
+local protocol_connection = require('opencode.protocols.connection')
 
 --- @class OpencodeServer
 --- @field job any The vim.system job handle
@@ -23,6 +17,7 @@ local protocols = {
 --- @field observations table<string, table> Observations owned by this connection
 --- @field shutdown_promise Promise<boolean>
 --- @field private _ready boolean
+--- @field private _shutdown_requested boolean
 --- @field private _release_process? fun()
 --- @field private _stream? {shutdown: fun(self: table)}
 --- @field private _requests table<table, true>
@@ -67,6 +62,7 @@ function OpencodeServer.new()
     observations = {},
     shutdown_promise = Promise.new(),
     _ready = false,
+    _shutdown_requested = false,
     _release_process = nil,
     _stream = nil,
     _requests = {},
@@ -154,8 +150,8 @@ function OpencodeServer:mark_ready()
   if type(self.url) ~= 'string' or self.url == '' then
     error('ready connection requires url')
   end
-  local protocol = protocols[self.protocol]
-  if not protocol then
+  local runtime = protocol_connection.runtime(self.protocol)
+  if not runtime then
     error('ready connection requires protocol')
   end
   if
@@ -175,8 +171,8 @@ function OpencodeServer:mark_ready()
   if self.credential.password ~= nil and type(self.credential.password) ~= 'string' then
     error('ready connection credential password must be a string')
   end
-  self.operations = require(protocol.operations)
-  local observation_protocol = require(protocol.observation)
+  self.operations = runtime.operations
+  local observation_protocol = runtime.observation
   self._observe = observation_protocol.new
   self._close_observations = observation_protocol.close
   self._ready = true
@@ -204,107 +200,11 @@ function OpencodeServer:observe(ref)
   return observation
 end
 
----@param response? {status: integer, body: string}
----@return table|nil body
----@return string|nil error
-local function decode_probe(response)
-  if not response then
-    return nil, 'health probe returned no response'
-  end
-  if type(response.status) ~= 'number' then
-    return nil, 'invalid health response'
-  end
-  if response.status == 401 or response.status == 403 then
-    return nil, 'credential error'
-  end
-  if response.status < 200 or response.status >= 300 then
-    return nil, 'health probe HTTP ' .. response.status
-  end
-  local ok, body = pcall(vim.json.decode, response.body or '')
-  if not ok or type(body) ~= 'table' then
-    return nil, 'invalid health response'
-  end
-  return body
-end
-
----V1 /global/health: JSON envelope with a boolean `healthy` field.
----@param response? {status: integer, body: string}
----@return table|nil body
----@return string|nil error
-local function decode_health(response)
-  local body, err = decode_probe(response)
-  if not body then
-    return nil, err
-  end
-  if type(body.healthy) ~= 'boolean' then
-    return nil, 'invalid health response'
-  end
-  if not body.healthy then
-    return nil, 'server unhealthy'
-  end
-  return body
-end
-
 --- Probe protocol using authenticated health endpoints.
 ---@param timeout_ms number|nil
 ---@return Promise<{protocol: 'v1'|'v2', response: table}>
 function OpencodeServer:probe_connection(timeout_ms)
-  local base_url, credential = self.url, self.credential
-  local result = Promise.new()
-  local function probe_v1()
-    curl.request({
-      url = base_url:gsub('/$', '') .. '/global/health',
-      method = 'GET',
-      headers = auth.get_auth_headers(credential),
-      timeout = timeout_ms or 2000,
-      proxy = '',
-      callback = function(response)
-        local body, err = decode_health(response)
-        if not body then
-          return result:reject(err)
-        end
-        if type(body.version) ~= 'string' then
-          return result:reject('invalid health response')
-        end
-        if not body.version:match('^1%.18%.%d+') then
-          return result:reject('unsupported v1 server version: ' .. body.version)
-        end
-        result:resolve({ protocol = 'v1', response = body })
-      end,
-      on_error = function(err)
-        result:reject({ kind = 'transport', cause = err })
-      end,
-    })
-  end
-
-  curl.request({
-    url = base_url:gsub('/$', '') .. '/api/info',
-    method = 'GET',
-    headers = auth.get_auth_headers(credential),
-    timeout = timeout_ms or 2000,
-    proxy = '',
-    callback = function(response)
-      if response and response.status == 404 then
-        return probe_v1()
-      end
-      local body, err = decode_probe(response)
-      if not body then
-        return result:reject(err)
-      end
-      local version = body.version
-      if type(version) ~= 'string' then
-        return probe_v1()
-      end
-      if not version:match('^2%.') then
-        return result:reject('unsupported v2 server version: ' .. version)
-      end
-      result:resolve({ protocol = 'v2', response = body })
-    end,
-    on_error = function(err)
-      result:reject({ kind = 'transport', cause = err })
-    end,
-  })
-  return result
+  return protocol_connection.probe(self, timeout_ms)
 end
 
 ---Check if the server is reachable via its health endpoint.
@@ -313,16 +213,7 @@ function OpencodeServer:check_health()
   if not self._ready or not self.url then
     return Promise.new():resolve(false)
   end
-  return self:probe_connection():and_then(function(result)
-    if result.protocol ~= self.protocol or result.response.version ~= self.server_identity.version then
-      error({
-        kind = 'identity_changed',
-        previous = { protocol = self.protocol, version = self.server_identity.version },
-        current = { protocol = result.protocol, version = result.response.version },
-      })
-    end
-    return true
-  end)
+  return protocol_connection.check_health(self)
 end
 
 function OpencodeServer:close()
@@ -330,6 +221,7 @@ function OpencodeServer:close()
     return self.shutdown_promise
   end
 
+  self._shutdown_requested = true
   self._ready = false
   local close_observations = self._close_observations
   self._close_observations = nil
@@ -370,40 +262,35 @@ end
 
 --- @class OpencodeServerSpawnOpts
 --- @field cwd? string
---- @field port? number|string Custom port to use (will be converted to string for CLI)
---- @field hostname? string Custom hostname to bind to
+--- @field command string[]
+--- @field auto_kill? boolean
+--- @field listening_url fun(output: string): string|nil
 --- @field on_ready fun(job: any, url: string)
 --- @field on_error fun(err: any)
 --- @field on_exit fun(exit_opts: vim.SystemCompleted )
 
 --- Spawn the opencode server for this ServerJob instance.
---- @param opts? OpencodeServerSpawnOpts
+--- @param opts OpencodeServerSpawnOpts
 function OpencodeServer:spawn(opts)
   opts = opts or {}
   local log = require('opencode.log')
+  self._shutdown_requested = false
   local listening = false
   local startup_failed = false
   local startup_stderr = {}
 
-  local cmd = {
-    config.opencode_executable,
-    'serve',
-  }
-
-  if opts.port then
-    table.insert(cmd, '--port')
-    table.insert(cmd, tostring(opts.port))
+  if type(opts.command) ~= 'table' or #opts.command == 0 then
+    error('spawn requires a command')
   end
-
-  if opts.hostname then
-    table.insert(cmd, '--hostname')
-    table.insert(cmd, opts.hostname)
+  if type(opts.listening_url) ~= 'function' then
+    error('spawn requires a listening URL parser')
   end
+  local cmd = opts.command
 
   log.debug('spawn: starting opencode server with command: %s', vim.inspect(cmd))
 
   local function fail_startup(err)
-    if self._ready or startup_failed then
+    if self._ready or startup_failed or self._shutdown_requested then
       return
     end
 
@@ -411,7 +298,7 @@ function OpencodeServer:spawn(opts)
     safe_call(opts.on_error, err)
   end
 
-  if config.server.auto_kill then
+  if opts.auto_kill ~= false then
     self:set_process_release(function()
       if self.job and self.job.pid then
         require('opencode.util').kill_pid(self.job.pid)
@@ -427,7 +314,7 @@ function OpencodeServer:spawn(opts)
         return
       end
       if data then
-        local url = data:match('server listening on ([^%s]+)')
+        local url = opts.listening_url(data)
         if url and not listening then
           listening = true
           self.url = url
@@ -447,7 +334,7 @@ function OpencodeServer:spawn(opts)
       end
     end,
   }, function(exit_opts)
-    if not self._ready and not startup_failed then
+    if not self._ready and not startup_failed and not self._shutdown_requested then
       local stderr_output = table.concat(startup_stderr)
       local startup_error = stderr_output ~= '' and stderr_output
         or string.format(

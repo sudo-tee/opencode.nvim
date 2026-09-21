@@ -134,6 +134,7 @@ require('opencode').setup({
     path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
     username = nil,        -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
     password = nil,        -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
+    password_file = nil,   -- Shared V1 password file; fixed ports default to an owner-only per-port state file
   },
 
   keymap = {

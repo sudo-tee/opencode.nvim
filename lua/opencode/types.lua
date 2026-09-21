@@ -223,7 +223,7 @@
 ---@field reverse_path_map (fun(server_path: string): string) | nil -- Map server paths back to host paths
 ---@field username? string | fun(): string | nil -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
 ---@field password? string | fun(): string | nil -- Basic auth password; falls back to password_file, OPENCODE_PASSWORD, then OPENCODE_SERVER_PASSWORD
----@field password_file? string -- File used to persist an automatically generated password for detached plugin servers
+---@field password_file? string -- File used to persist a generated V1 password; fixed ports default to an owner-only per-port state file
 
 ---@class OpencodeUIFloatConfig
 ---@field width number # Width in columns, or ratio when <= 1 (default: 0.95)

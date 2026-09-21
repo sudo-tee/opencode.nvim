@@ -2,6 +2,10 @@ local OpencodeServer = require('opencode.opencode_server')
 local curl = require('opencode.curl')
 local assert = require('luassert')
 local port_mapping = require('opencode.port_mapping')
+local spawn_command = { 'opencode', 'serve' }
+local function listening_url(output)
+  return output:match('server listening on ([^%s]+)')
+end
 
 local function set_identity(server, version, pid)
   server.version = version
@@ -57,6 +61,8 @@ describe('opencode.opencode_server', function()
       return { pid = 1, kill = function() end }
     end
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function(_, url)
         resolved = url
@@ -91,6 +97,8 @@ describe('opencode.opencode_server', function()
     local server = OpencodeServer.new()
     server.credential = { username = 'admin', password = 'secret' }
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function() end,
       on_error = function() end,
@@ -131,6 +139,8 @@ describe('opencode.opencode_server', function()
 
     local server = OpencodeServer.new()
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function() end,
       on_error = function() end,
@@ -160,6 +170,7 @@ describe('opencode.opencode_server', function()
   it('shutdown resolves shutdown_promise and clears fields', function()
     local server = OpencodeServer.new()
     local exit_callback
+    local startup_error
 
     -- Mock vim.system to capture the exit callback
     vim.system = function(cmd, opts, on_exit)
@@ -169,9 +180,13 @@ describe('opencode.opencode_server', function()
 
     -- Spawn the server so the exit callback is set up
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function() end,
-      on_error = function() end,
+      on_error = function(err)
+        startup_error = err
+      end,
       on_exit = function() end,
     })
 
@@ -193,6 +208,8 @@ describe('opencode.opencode_server', function()
     end)
 
     assert.is_true(resolved)
+    vim.wait(50)
+    assert.is_nil(startup_error)
     assert.is_nil(server.job)
     assert.is_nil(server.url)
     assert.is_nil(server.handle)
@@ -227,6 +244,8 @@ describe('opencode.opencode_server', function()
     end
     local server = OpencodeServer.new()
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function()
         called.on_ready = true
@@ -263,6 +282,8 @@ describe('opencode.opencode_server', function()
 
     local resolved
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function(_, url)
         resolved = url
@@ -295,6 +316,8 @@ describe('opencode.opencode_server', function()
     end
 
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function()
         called.on_ready = true
@@ -350,6 +373,8 @@ describe('opencode.opencode_server', function()
     set_identity(server, '2.0.1', 44)
     server.credential = { username = 'opencode', password = 'secret' }
     server:spawn({
+      command = spawn_command,
+      listening_url = listening_url,
       cwd = '.',
       on_ready = function() end,
       on_error = function() end,
@@ -439,7 +464,7 @@ describe('opencode.opencode_server', function()
     end)
   end)
 
-  it('rejects a changed server identity without mutating the ready connection', function()
+  it('does not require identity stability during a health check', function()
     local server = OpencodeServer.from_custom('http://localhost:8080')
     server.protocol = 'v2'
     set_identity(server, '2.0.1')
@@ -451,12 +476,12 @@ describe('opencode.opencode_server', function()
       end)
     end
 
-    local ok, err = pcall(function()
-      server:check_health():wait()
+    local ok, result = pcall(function()
+      return server:check_health():wait()
     end)
 
-    assert.is_false(ok)
-    assert.equals('identity_changed', err.kind)
+    assert.is_true(ok)
+    assert.is_true(result)
     assert.equals('v2', server.protocol)
     assert.equals('2.0.1', server.version)
     assert.equals('http://localhost:8080', server.url)
@@ -630,6 +655,56 @@ describe('opencode.opencode_server', function()
 
       assert.is_not_nil(captured)
       assert.is_nil(captured.headers['Authorization'])
+    end)
+  end)
+
+  describe('health checks', function()
+    it('only requires a successful health HTTP status', function()
+      local server = OpencodeServer.from_custom('http://127.0.0.1:3000')
+      server._ready = true
+      server.protocol = 'v1'
+      server.credential = { username = 'opencode' }
+      local captured
+      curl.request = function(opts)
+        captured = opts
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '<!doctype html>' })
+        end)
+      end
+
+      assert.is_true(server:check_health():wait())
+      assert.equals('http://127.0.0.1:3000/global/health', captured.url)
+    end)
+
+    it('returns false when the health endpoint is not successful', function()
+      local server = OpencodeServer.from_custom('http://127.0.0.1:3000')
+      server._ready = true
+      server.protocol = 'v1'
+      server.credential = { username = 'opencode' }
+      curl.request = function(opts)
+        vim.schedule(function()
+          opts.callback({ status = 503, body = '{}' })
+        end)
+      end
+
+      assert.is_false(server:check_health():wait())
+    end)
+
+    it('uses the selected protocol health endpoint', function()
+      local server = OpencodeServer.from_custom('http://127.0.0.1:3000')
+      server._ready = true
+      server.protocol = 'v2'
+      server.credential = { username = 'opencode' }
+      local captured
+      curl.request = function(opts)
+        captured = opts
+        vim.schedule(function()
+          opts.callback({ status = 200, body = '{}' })
+        end)
+      end
+
+      assert.is_true(server:check_health():wait())
+      assert.equals('http://127.0.0.1:3000/api/info', captured.url)
     end)
   end)
 end)

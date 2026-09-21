@@ -6,17 +6,19 @@ local log = require('opencode.log')
 local config = require('opencode.config')
 local util = require('opencode.util')
 local auth = require('opencode.auth')
+local legacy_server = require('opencode.protocols.v1.server')
 
 local M = {}
 local health_checked_at = setmetatable({}, { __mode = 'k' })
 local generate_spawn_password
+local connect_or_spawn_legacy_server
 
 local function non_empty(value)
   return type(value) == 'string' and value ~= '' and value or nil
 end
 
-local function password_file_path()
-  local path = config.server.password_file
+local function password_file_path(path)
+  path = path or config.server.password_file
   if path == nil or path == '' then
     return nil
   end
@@ -26,8 +28,8 @@ local function password_file_path()
   return path
 end
 
-local function read_saved_password()
-  local path = password_file_path()
+local function read_saved_password(path)
+  path = password_file_path(path)
   if not path then
     return nil
   end
@@ -53,8 +55,8 @@ local function read_saved_password()
   return password
 end
 
-local function save_password(password)
-  local path = password_file_path()
+local function save_password(password, path)
+  path = password_file_path(path)
   if not path then
     return password
   end
@@ -66,7 +68,7 @@ local function save_password(password)
   local fd, open_error = vim.uv.fs_open(path, 'wx', 384)
   if not fd then
     if vim.uv.fs_stat(path) then
-      return read_saved_password()
+      return read_saved_password(path)
     end
     error('failed to create server.password_file: ' .. tostring(open_error))
   end
@@ -80,7 +82,7 @@ local function save_password(password)
   if vim.fn.setfperm(path, 'rw-------') ~= 1 then
     error('failed to set server.password_file permissions: ' .. path)
   end
-  return read_saved_password()
+  return read_saved_password(path)
 end
 
 local function resolve_config_value(name)
@@ -101,18 +103,19 @@ local function resolve_config_value(name)
   return value
 end
 
-local function resolve_credential(generate_password)
+local function resolve_credential(generate_password, credential_file)
   local configured_password = resolve_config_value('password')
   local password = configured_password
   if not password then
-    password = read_saved_password()
+    password = read_saved_password(credential_file)
   end
   password = password or non_empty(vim.env.OPENCODE_PASSWORD) or non_empty(vim.env.OPENCODE_SERVER_PASSWORD)
   if not password and generate_password then
     password = generate_spawn_password()
   end
-  if generate_password and password and password_file_path() and not vim.uv.fs_stat(password_file_path()) then
-    password = save_password(password)
+  local path = password_file_path(credential_file)
+  if generate_password and password and path and not vim.uv.fs_stat(path) then
+    password = save_password(password, path)
   end
 
   return {
@@ -173,6 +176,16 @@ local function wait_for_service_endpoint(command, timeout)
   error('OpenCode service did not return an HTTP endpoint', 0)
 end
 
+local function probe_until_ready(server, timeout_ms, retry_transport)
+  local clock = vim.uv or vim.loop
+  local deadline = clock.now() + timeout_ms
+  return Promise.retry(function()
+    return server:probe_connection(timeout_ms)
+  end, math.max(1, math.floor(timeout_ms / 100)), 100, function(err)
+    return retry_transport and type(err) == 'table' and err.kind == 'transport' and clock.now() < deadline
+  end)
+end
+
 -- CLI capability selects the launcher only; authenticated health selects the protocol.
 local try_native_service = Promise.async(function()
   local timeout = (config.server.timeout or 5) * 1000
@@ -218,12 +231,7 @@ local try_native_service = Promise.async(function()
   end
   local server = opencode_server.from_custom(url)
   server.credential = { username = 'opencode', password = password }
-  local deadline = vim.uv.now() + timeout
-  local probe = Promise.retry(function()
-    return server:probe_connection(timeout)
-  end, math.max(1, math.floor(timeout / 100)), 100, function(err)
-    return starting_service and type(err) == 'table' and err.kind == 'transport' and vim.uv.now() < deadline
-  end):await()
+  local probe = probe_until_ready(server, timeout, starting_service):await()
   if probe.protocol ~= 'v2' then
     error('OpenCode background service did not provide V2 health', 0)
   end
@@ -241,7 +249,7 @@ local function _start_server()
   local custom_url = config.server.url
   if not custom_url then
     if config.server.spawn_command then
-      M.spawn_local_server(promise)
+      connect_or_spawn_legacy_server(promise)
       return promise
     end
     try_native_service()
@@ -249,7 +257,7 @@ local function _start_server()
         if server then
           promise:resolve(server)
         else
-          M.spawn_local_server(promise)
+          connect_or_spawn_legacy_server(promise)
         end
       end)
       :catch(function(err)
@@ -363,6 +371,42 @@ local function retry_connect(server, timeout, remaining)
   end)
 end
 
+---Reuse a configured legacy server before starting another `serve` process.
+---@param promise Promise<OpencodeServer>
+connect_or_spawn_legacy_server = function(promise)
+  local port = legacy_server.configured_port()
+  if not port then
+    M.spawn_local_server(promise)
+    return
+  end
+
+  local server = opencode_server.from_custom(legacy_server.endpoint(port), port)
+  local credential_ok, credential = pcall(resolve_credential, false, legacy_server.credential_file(port))
+  if not credential_ok then
+    promise:reject(credential)
+    return
+  end
+  server.credential = credential
+
+  local mapped_release = port_mapping.capture_process_release(port)
+  if mapped_release then
+    server:set_process_release(mapped_release)
+  end
+
+  try_custom_server(server, config.server.timeout or 5)
+    :and_then(function(ready_server)
+      publish_custom_server(ready_server, ready_server.server_identity.pid)
+      promise:resolve(ready_server)
+    end)
+    :catch(function(err)
+      if type(err) ~= 'table' or err.kind ~= 'transport' then
+        promise:reject(err)
+        return
+      end
+      M.spawn_local_server(promise, port)
+    end)
+end
+
 function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
   local server = opencode_server.from_custom(base_url, custom_port)
   local credential_ok, credential = pcall(resolve_credential, false)
@@ -420,7 +464,7 @@ end
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
   local server = opencode_server.new()
-  local credential_ok, credential = pcall(resolve_credential, true)
+  local credential_ok, credential = pcall(resolve_credential, true, legacy_server.credential_file(port))
   if not credential_ok then
     promise:reject(credential)
     return
@@ -429,6 +473,9 @@ function M.spawn_local_server(promise, port, hostname)
   local cwd = vim.fn.getcwd()
   local spawn_opts = {
     cwd = cwd,
+    command = legacy_server.command(port, hostname),
+    auto_kill = config.server.auto_kill,
+    listening_url = legacy_server.listening_url,
     on_ready = function(job, base_url)
       local url_port = base_url:match(':(%d+)')
       log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
@@ -446,7 +493,7 @@ function M.spawn_local_server(promise, port, hostname)
           tostring(server_pid)
         )
       end
-      local probe = server:probe_connection()
+      local probe = probe_until_ready(server, (config.server.timeout or 5) * 1000, true)
       probe
         :and_then(function(probe_result)
           apply_probe(server, probe_result, server.job and server.job.pid)
@@ -454,6 +501,7 @@ function M.spawn_local_server(promise, port, hostname)
           promise:resolve(server)
         end)
         :catch(function(err)
+          log.notify(' Failed to start opencode server' .. vim.inspect(err), vim.log.levels.ERROR)
           server:shutdown()
           promise:reject(err)
         end)
@@ -466,15 +514,6 @@ function M.spawn_local_server(promise, port, hostname)
       promise:reject('Server exited')
     end,
   }
-
-  if port then
-    spawn_opts.port = port
-  end
-  if hostname then
-    hostname = hostname:gsub('^%a[%w+%.%-]*://', '')
-    hostname = hostname:match('^[^/]+') or hostname
-    spawn_opts.hostname = hostname
-  end
 
   server:spawn(spawn_opts)
 end

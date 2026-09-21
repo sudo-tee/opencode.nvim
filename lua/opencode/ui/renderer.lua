@@ -143,8 +143,7 @@ end
 ---when no observation is bound yet.
 ---@param ctx RendererCtx
 local function current_session(ctx)
-  return ctx.observation and ctx.observation:read().session
-    or { id = state.active_session and state.active_session.id }
+  return ctx.observation and ctx.observation:read().session or { id = state.active_session and state.active_session.id }
 end
 
 ---@return integer Messages the current session would show at full window size.
@@ -348,15 +347,18 @@ local function update_observation_stats(observation)
       and observed.sync.session.state == 'current'
       and observed.session
     or nil
-  if session and session.cost ~= nil and session.tokens and update_stats(session.tokens, session.cost) then
-    return
-  end
 
   for index = #(observed.entry_order or {}), 1, -1 do
     local entry = observed.entries_by_id and observed.entries_by_id[observed.entry_order[index]]
-    if entry and entry.cost ~= nil and entry.tokens ~= nil and update_stats(entry.tokens, entry.cost) then
+    if entry and entry.kind == 'assistant' and entry.tokens and total_tokens(entry.tokens) > 0 then
+      local cost = session and session.cost or entry.cost
+      update_stats(entry.tokens, cost)
       return
     end
+  end
+
+  if session and session.tokens and update_stats(session.tokens, session.cost) then
+    return
   end
 end
 

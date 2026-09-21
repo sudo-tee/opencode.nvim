@@ -90,7 +90,6 @@ check_health() {
   [ "$status" -ge 200 ] 2>/dev/null && [ "$status" -lt 300 ] 2>/dev/null || return 1
   if printf '%s' "$body" | jq -e '
     type == "object" and .healthy == true and (.healthy | type == "boolean")
-    and (.version | type == "string") and (.version | test("^1\\.18\\.[0-9]+"))
   ' >/dev/null 2>&1; then
     return 0
   fi

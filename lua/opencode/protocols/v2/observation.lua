@@ -6,6 +6,7 @@ local mapped_error = normalize.mapped_error
 local mapped_tokens = normalize.mapped_tokens
 local mapped_model = normalize.mapped_model
 local mapped_tool_result = normalize.mapped_tool_result
+local apply_tool_input = normalize.apply_tool_input
 local apply_tool_metadata = normalize.apply_tool_metadata
 local mapped_message = normalize.mapped_message
 local session_fact = normalize.session_fact
@@ -284,6 +285,7 @@ function M.ingest_event(observation, event)
     end
     content.state = 'running'
     content.input = vim.deepcopy(data.input)
+    apply_tool_input(content, content.name, content.input)
     content.input_text = nil
     content.executed = data.executed
     content.time = content.time or { created = event.created }

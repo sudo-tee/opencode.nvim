@@ -167,9 +167,41 @@ end
 
 ---@param result table
 ---@param name string
+---@param input any
+local function apply_tool_input(result, name, input)
+  if type(input) ~= 'table' then
+    return
+  end
+
+  local path = input.filePath
+  if name == 'read' and type(path) ~= 'string' then
+    path = input.path
+  end
+
+  if (name == 'read' or name == 'edit' or name == 'write') and type(path) == 'string' then
+    result.target = { path = path }
+    if type(input.content) == 'string' then
+      result.target.content = input.content
+    end
+  end
+end
+
+---@param result table
+---@param name string
 ---@param metadata any
 local function apply_tool_metadata(result, name, metadata)
-  if (name ~= 'patch' and name ~= 'apply_patch') or type(metadata) ~= 'table' or type(metadata.files) ~= 'table' then
+  if type(metadata) ~= 'table' then
+    return
+  end
+
+  if name == 'skill' and type(metadata.name) == 'string' then
+    result.input = result.input or {}
+    if type(result.input.name) ~= 'string' then
+      result.input.name = metadata.name
+    end
+  end
+
+  if (name ~= 'patch' and name ~= 'apply_patch') or type(metadata.files) ~= 'table' then
     return
   end
 
@@ -223,6 +255,7 @@ local function mapped_tool(part)
       fail('invalid tool input')
     end
     result.input = vim.deepcopy(part.state.input)
+    apply_tool_input(result, part.name, result.input)
   end
   if status == 'completed' or status == 'error' then
     if status == 'completed' and type(part.state.content) ~= 'table' then
@@ -568,6 +601,7 @@ return {
   mapped_tokens = mapped_tokens,
   mapped_model = mapped_model,
   mapped_tool_result = mapped_tool_result,
+  apply_tool_input = apply_tool_input,
   apply_tool_metadata = apply_tool_metadata,
   mapped_message = mapped_message,
   session_fact = session_fact,

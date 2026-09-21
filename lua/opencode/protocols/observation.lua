@@ -319,6 +319,23 @@ function Observation:_start_action(operation, ...)
   return request:finally(finish)
 end
 
+function Observation:_start_state_action(operation, apply, ...)
+  local finish = self:_begin_local_operation()
+  local ok, request = pcall(operation, self._connection, ...)
+  if not ok then
+    finish()
+    error(request, 0)
+  end
+  return request
+    :and_then(function(value)
+      if not self:_is_current() then
+        error('Observation action response arrived after release', 0)
+      end
+      return apply(value)
+    end)
+    :finally(finish)
+end
+
 function Observation:_fail_watched(source, message)
   for resource, sync in pairs(self._state.sync) do
     if self:_watches(resource) and sync.state ~= 'unsupported' then

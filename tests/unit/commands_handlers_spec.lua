@@ -677,6 +677,29 @@ describe('opencode.commands.handlers', function()
     assert.equal('child-session', opened_id)
   end)
 
+  it('routes redo through the Observation so successful actions update rendered state', function()
+    local state = require('opencode.state')
+    local Promise = require('opencode.promise')
+    local active_session = state.active_session
+    local active_connection = state.opencode_server
+    local observation = activate_session(state, { id = 'session-redo', revert = { messageID = 'user-1' } }, {
+      { id = 'user-1', kind = 'user', content = {} },
+      { id = 'assistant-1', kind = 'assistant', content = {} },
+      { id = 'user-2', kind = 'user', content = {} },
+    })
+    local reverted
+    function observation:revert_message(message_id)
+      reverted = message_id
+      return Promise.new():resolve({ messageID = message_id })
+    end
+
+    require('opencode.commands.handlers.session').actions.redo()
+
+    assert.equals('user-2', reverted)
+    state.jobs.set_server(active_connection)
+    state.session.set_active(active_session)
+  end)
+
   describe('copy_message', function()
     local state
     local active_session

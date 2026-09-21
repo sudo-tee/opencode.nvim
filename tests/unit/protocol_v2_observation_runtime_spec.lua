@@ -934,6 +934,44 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('publishes revert state immediately for undo and redo rendering', function()
+    local value = connection()
+    local calls = {}
+    install_operations(value, {
+      revert_message = function(_, session_id, location, input, path_map, reverse_path_map)
+        calls[#calls + 1] = { 'revert', session_id, location, input, path_map, reverse_path_map }
+        return resolved({ messageID = input.messageID, diff = '--- a/a.lua\n+++ b/a.lua' })
+      end,
+      unrevert_messages = function(_, session_id)
+        calls[#calls + 1] = { 'unrevert', session_id }
+        return resolved(true)
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local notifications = 0
+    local stop = observed:watch({ 'session' }, function()
+      notifications = notifications + 1
+    end)
+    flush(function()
+      return observed:read().sync.session.state == 'current'
+    end)
+    local before = notifications
+
+    local revert = observed:revert_message('msg-1'):wait()
+    assert.equals('msg-1', revert.messageID)
+    assert.equals('msg-1', observed:read().session.revert.messageID)
+    assert.equals(before + 1, notifications)
+
+    assert.is_true(observed:unrevert_messages():wait())
+    assert.is_nil(observed:read().session.revert)
+    assert.equals(before + 2, notifications)
+    assert.same({
+      { 'revert', 'ses-main', nil, { messageID = 'msg-1' }, nil, nil },
+      { 'unrevert', 'ses-main' },
+    }, calls)
+    stop()
+  end)
+
   it('validates permission and form replies before calling their operations', function()
     local value = connection()
     local calls = {}

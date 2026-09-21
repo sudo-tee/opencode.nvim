@@ -6,6 +6,7 @@ local mapped_error = normalize.mapped_error
 local mapped_tokens = normalize.mapped_tokens
 local mapped_model = normalize.mapped_model
 local mapped_tool_result = normalize.mapped_tool_result
+local apply_tool_metadata = normalize.apply_tool_metadata
 local mapped_message = normalize.mapped_message
 local session_fact = normalize.session_fact
 local inbox_fact = normalize.inbox_fact
@@ -293,6 +294,7 @@ function M.ingest_event(observation, event)
       record_diagnostic(observation, 'messages', kind .. ' cannot identify a running tool')
       return false
     end
+    apply_tool_metadata(content, content.name, data.metadata)
   elseif kind == 'session.tool.success' or kind == 'session.tool.failed' then
     local content = tool_content(observation, data, kind, false)
     if not content then
@@ -315,6 +317,7 @@ function M.ingest_event(observation, event)
       end
     end
     content.error = mapped_error(data.error)
+    apply_tool_metadata(content, content.name, data.metadata)
     content.time = content.time or { created = event.created }
     content.time.completed = event.created
   else

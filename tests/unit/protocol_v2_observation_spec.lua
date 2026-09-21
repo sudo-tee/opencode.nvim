@@ -27,13 +27,21 @@ local function assistant(id)
       {
         type = 'tool',
         id = 'tool-1',
-        name = 'render',
+        name = 'patch',
         executed = true,
         time = { created = 206, ran = 207, completed = 210 },
         state = {
           status = 'completed',
           input = { path = 'main.lua' },
-          metadata = { arbitrary = 'must-not-leak' },
+          metadata = {
+            arbitrary = 'must-not-leak',
+            files = {
+              {
+                file = 'main.lua',
+                patch = '@@ -9,1 +9,1 @@\n-old\n+new',
+              },
+            },
+          },
           content = {
             { type = 'text', text = 'created' },
             { type = 'file', uri = 'file:///tmp/report.png', mime = 'image/png', name = 'report.png' },
@@ -119,6 +127,7 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('tool-1', tool.id)
     assert.equals('completed', tool.state)
     assert.is_nil(tool.metadata)
+    assert.same({ { path = 'main.lua', diff = '@@ -9,1 +9,1 @@\n-old\n+new' } }, tool.changes)
     assert.is_nil(reply.content[1].provider_state)
     assert.same({ 'text', 'file', 'text' }, { tool.result[1].kind, tool.result[2].kind, tool.result[3].kind })
     assert.is_nil(tool.result[1].id)
@@ -237,7 +246,7 @@ describe('V2 protocol Observation interpretation', function()
       event(
         'ses-target',
         'session.tool.input.started',
-        { assistantMessageID = 'msg-live', id = 'tool-live', name = 'render' },
+        { assistantMessageID = 'msg-live', id = 'tool-live', name = 'patch' },
         109
       ),
       event(
@@ -269,7 +278,12 @@ describe('V2 protocol Observation interpretation', function()
         id = 'tool-live',
         executed = true,
         content = { { type = 'text', text = 'ok' }, { type = 'file', uri = 'file:///x', mime = 'text/plain' } },
-        metadata = { arbitrary = 'must-not-leak' },
+        metadata = {
+          arbitrary = 'must-not-leak',
+          files = {
+            { file = 'live.lua', patch = '@@ -3,1 +3,1 @@\n-old\n+new' },
+          },
+        },
         resultState = { opaque = true },
       }, 114),
     }) do
@@ -289,6 +303,7 @@ describe('V2 protocol Observation interpretation', function()
     assert.is_nil(entry.content[2].id)
     assert.equals('completed', entry.content[4].state)
     assert.is_nil(entry.content[4].metadata)
+    assert.same({ { path = 'live.lua', diff = '@@ -3,1 +3,1 @@\n-old\n+new' } }, entry.content[4].changes)
     assert.is_nil(entry.content[4].provider_state)
     assert.is_nil(entry.content[4].provider_result_state)
     assert.same({ 'text', 'file' }, { entry.content[4].result[1].kind, entry.content[4].result[2].kind })

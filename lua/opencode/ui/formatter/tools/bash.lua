@@ -13,7 +13,7 @@ end
 ---@param output Output
 ---@param part table
 function M.format(output, part)
-  if part.name ~= 'bash' then
+  if part.name ~= 'bash' and part.name ~= 'shell' then
     return
   end
 
@@ -21,11 +21,15 @@ function M.format(output, part)
   local config = require('opencode.config')
 
   local icons = require('opencode.ui.icons')
+  local input = part.input or {}
+  local command = part.command or input.command
+  local description = part.description or input.description
+
   utils.format_action(
     output,
     icons.get('run'),
     'run',
-    part.description or part.command or '',
+    description or command or '',
     utils.get_duration_text(part)
   )
 
@@ -35,8 +39,8 @@ function M.format(output, part)
   end
 
   local output_text = utils.tool_result_text(part)
-  if part.command or output_text ~= '' then
-    local command = part.command or ''
+  if command or output_text ~= '' then
+    command = command or ''
     local command_output = output_text ~= '' and ('\n' .. output_text) or ''
     utils.format_code(output, vim.split('> ' .. command .. '\n' .. command_output, '\n'), 'bash')
   end

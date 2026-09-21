@@ -149,6 +149,141 @@ describe('formatter', function()
     assert.is_true(found)
   end)
 
+  it('renders V2 shell output with its native tool name', function()
+    local message = assistant()
+    local part = tool('shell', {
+      input = { command = 'printf ok', description = 'show output' },
+      result = { { kind = 'text', text = 'ok' } },
+      state = 'completed',
+      time = { started = 1, completed = 2 },
+    })
+
+    local output = formatter.format_part(part, message, true)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('```bash', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('ok', 1, true) ~= nil, rendered)
+  end)
+
+  it('renders V2 patch tools with their native tool name', function()
+    local message = assistant()
+    local part = tool('patch', {
+      input = { description = 'update files', patchText = '*** Begin Patch\n*** Update File: foo.lua\n+new' },
+      result = { { kind = 'text', text = 'patched' } },
+      state = 'completed',
+      time = { started = 1, completed = 2 },
+    })
+
+    local output = formatter.format_part(part, message, true)
+    local found = false
+    for _, line in ipairs(output.lines) do
+      if line:find('apply patch', 1, true) then
+        found = true
+        break
+      end
+    end
+    assert.is_true(found)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('*** Begin Patch', 1, true) == nil)
+    assert.is_true(rendered:find('apply patch.*foo.lua') ~= nil)
+    assert.is_true(rendered:find('*** Update File', 1, true) == nil)
+    assert.is_true(rendered:find('patched', 1, true) == nil)
+  end)
+
+  it('renders V2 add-file patches with numbered diff highlights', function()
+    local output = formatter.format_part(tool('patch', {
+      input = {
+        patchText = table.concat({
+          '*** Begin Patch',
+          '*** Add File: lua/new.lua',
+          '+local value = 1',
+          '+return value',
+          '*** End Patch',
+        }, '\n'),
+      },
+    }), assistant(), true)
+
+    assert.is_true(vim.tbl_contains(output.lines, '   local value = 1'))
+    assert.is_true(vim.tbl_contains(output.lines, '   return value'))
+
+    local gutters = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group == 'OpencodeDiffAdd' then
+          gutters[#gutters + 1] = mark.virt_text[1]
+        end
+      end
+    end
+    table.sort(gutters, function(left, right)
+      return left[1] < right[1]
+    end)
+    assert.same({
+      { '1', 'OpencodeDiffAddGutter' },
+      { '2', 'OpencodeDiffAddGutter' },
+    }, gutters)
+  end)
+
+  it('renders unnumbered V2 update hunks with diff highlights', function()
+    local output = formatter.format_part(tool('patch', {
+      input = {
+        patchText = table.concat({
+          '*** Begin Patch',
+          '*** Update File: lua/changed.lua',
+          '@@ local function changed()',
+          '-local old = true',
+          '+local new = true',
+          '*** End Patch',
+        }, '\n'),
+      },
+    }), assistant(), true)
+
+    local highlights = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group then
+          highlights[mark.hl_group] = true
+        end
+      end
+    end
+    assert.is_true(highlights.OpencodeDiffDelete)
+    assert.is_true(highlights.OpencodeDiffAdd)
+  end)
+
+  it('uses server-generated V2 patch metadata for line numbers', function()
+    local output = formatter.format_part(tool('patch', {
+      input = {
+        patchText = '*** Begin Patch\n*** Update File: changed.lua\n@@\n-old\n+new\n*** End Patch',
+      },
+      changes = {
+        {
+          path = 'changed.lua',
+          diff = '@@ -41,1 +41,1 @@\n-old\n+new',
+        },
+      },
+    }), assistant(), true)
+
+    local gutters = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group == 'OpencodeDiffAdd' or mark.hl_group == 'OpencodeDiffDelete' then
+          gutters[mark.hl_group] = mark.virt_text[1][1]
+        end
+      end
+    end
+    assert.equals('41', gutters.OpencodeDiffAdd)
+    assert.equals('41', gutters.OpencodeDiffDelete)
+    assert.same({
+      kind = 'file',
+      path = 'changed.lua',
+      range = { line = 1, start_col = 0, end_col = #output.lines[1] },
+    }, output.targets[1])
+    assert.same({
+      kind = 'diff',
+      path = 'changed.lua',
+      line = 41,
+      range = { line = 6, start_col = 0, end_col = #output.lines[6] },
+    }, output.targets[2])
+  end)
+
   it('renders loaded skill name for skill tool calls', function()
     local message = assistant()
     local part = tool('skill', {

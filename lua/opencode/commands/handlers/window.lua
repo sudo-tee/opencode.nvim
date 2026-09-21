@@ -34,7 +34,7 @@ function M.actions.close()
     return
   end
 
-  ui.teardown_visible_windows(state.windows)
+  ui.close_windows(state.windows, true)
 end
 
 function M.actions.hide()

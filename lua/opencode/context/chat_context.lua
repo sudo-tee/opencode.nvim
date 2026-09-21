@@ -37,6 +37,9 @@ end
 ---@return table
 local function capture_file(path, prompt)
   local rel_path = vim.fn.fnamemodify(path, ':~:.')
+  if util.is_temp_path(path, '^pasted_image_') then
+    rel_path = vim.fn.fnamemodify(path, ':t')
+  end
   local mention = '@' .. rel_path
   local pos = prompt and prompt:find(mention, 1, true)
 

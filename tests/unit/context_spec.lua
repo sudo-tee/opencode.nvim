@@ -97,6 +97,31 @@ describe('format_message', function()
     assert.same({ start_byte = 16, end_byte = 23 }, input.agents[1].mention)
   end)
 
+  it('captures pasted image mentions by basename', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local original_context = ChatContext.context
+    local image_name = 'pasted_image_20260921_131341.png'
+    local image_path = vim.fn.fnamemodify(vim.fn.tempname(), ':h') .. '/' .. image_name
+    local mention = '@' .. image_name
+    local prompt = 'inspect ' .. mention
+
+    ChatContext.context = {
+      mentioned_files = { image_path },
+      mentioned_subagents = {},
+      selections = {},
+      current_file = nil,
+      cursor_data = nil,
+      linter_errors = nil,
+    }
+    local input = context.format_message(prompt):wait()
+    ChatContext.context = original_context
+
+    assert.same(
+      { start_byte = #('inspect '), end_byte = #('inspect ') + #mention },
+      input.files[1].mention
+    )
+  end)
+
   it('includes selection even when current_file context is disabled', function()
     local ChatContext = require('opencode.context.chat_context')
     local BaseContext = require('opencode.context.base_context')

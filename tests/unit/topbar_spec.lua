@@ -52,4 +52,14 @@ describe('topbar model metrics', function()
       return winbar:find('10.0%%', 1, true) ~= nil
     end))
   end)
+
+  it('shows the fallback title when the active session has no title', function()
+    state.session.set_active({ id = 'new-session' })
+
+    topbar.render()
+
+    assert.is_true(vim.wait(1000, function()
+      return vim.wo[state.windows.output_win].winbar == 'New session%='
+    end))
+  end)
 end)

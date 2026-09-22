@@ -655,7 +655,7 @@ local function apply_window_growth(ctx, target)
     return false
   end
   ctx.lazy_render_count = target
-  M.render_from_cache(ctx)
+  M.render_from_cache(ctx, { scroll_to_bottom = false })
   return true
 end
 
@@ -682,6 +682,23 @@ function M.capture_top_anchor(ctx)
   return nil
 end
 
+---@param anchor table|nil
+---@param ctx? RendererCtx
+---@return integer|nil
+local function anchor_topline(anchor, ctx)
+  ctx = ctx or contexts.current()
+  if not anchor then
+    return nil
+  end
+
+  local rendered = ctx.render_state:get_message(anchor.id)
+  if not rendered or not rendered.line_start then
+    return nil
+  end
+
+  return math.max(1, rendered.line_start + anchor.offset)
+end
+
 ---Restore a view captured by `capture_top_anchor` after a re-render.
 ---@param anchor table|nil
 ---@param ctx? RendererCtx
@@ -694,11 +711,45 @@ function M.restore_top_anchor(anchor, ctx)
   if not win or not vim.api.nvim_win_is_valid(win) then
     return
   end
-  local rendered = ctx.render_state:get_message(anchor.id)
-  if rendered and rendered.line_start then
-    local restored = math.max(1, rendered.line_start + anchor.offset)
+  local restored = anchor_topline(anchor, ctx)
+  if restored then
     pcall(output_window.restore_view_topline, win, restored)
   end
+end
+
+---@return { offset: integer, col: integer }|nil
+local function capture_cursor_anchor()
+  local win = state.windows and state.windows.output_win
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return nil
+  end
+
+  local top_line = output_window.get_visible_top_line(win)
+  if not top_line then
+    return nil
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(win)
+  return { offset = cursor[1] - top_line, col = cursor[2] }
+end
+
+---@param anchor { offset: integer, col: integer }|nil
+---@param top_line? integer
+local function restore_cursor_anchor(anchor, top_line)
+  if not anchor then
+    return
+  end
+
+  local win = state.windows and state.windows.output_win
+  local buf = state.windows and state.windows.output_buf
+  if not win or not buf or not vim.api.nvim_win_is_valid(win) or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+
+  top_line = top_line or output_window.get_visible_top_line(win) or 1
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  local line = math.max(1, math.min(line_count, top_line + anchor.offset))
+  pcall(vim.api.nvim_win_set_cursor, win, { line, anchor.col })
 end
 
 local function notify_history_failure(err)
@@ -720,6 +771,7 @@ local function grow_window_with_older_page(ctx)
   local window_before = window_size(ctx)
   local entries_before = #ordered_entries(observation)
   local anchor = M.capture_top_anchor(ctx)
+  local cursor_anchor = capture_cursor_anchor()
   local ok, request = pcall(function()
     return observation:load_older()
   end)
@@ -739,8 +791,9 @@ local function grow_window_with_older_page(ctx)
       -- the window already covered everything cached: drop the window limit
       -- so the merged prefix renders, without pulling more pages
       ctx.lazy_render_count = nil
-      M.render_from_cache(ctx)
+      M.render_from_cache(ctx, { scroll_to_bottom = false })
     end
+    restore_cursor_anchor(cursor_anchor, anchor_topline(anchor, ctx))
     M.restore_top_anchor(anchor, ctx)
   end, notify_history_failure)
   return true
@@ -829,7 +882,8 @@ end
 ---@param entries table[]
 ---@param session? table
 ---@param ctx? RendererCtx
-function M._render_full_session_data(entries, session, ctx)
+---@param opts? {scroll_to_bottom?: boolean}
+function M._render_full_session_data(entries, session, ctx, opts)
   ctx = ctx or contexts.current()
   local lazy_limit = ctx.lazy_render_count
   M.reset(ctx)
@@ -867,7 +921,9 @@ function M._render_full_session_data(entries, session, ctx)
   end
   flush.flush(nil, ctx)
   flush.end_bulk_mode(ctx)
-  M.scroll_to_bottom(true, ctx)
+  if not opts or opts.scroll_to_bottom ~= false then
+    M.scroll_to_bottom(true, ctx)
+  end
 
   if config.hooks and config.hooks.on_session_loaded then
     pcall(config.hooks.on_session_loaded, session)
@@ -875,13 +931,15 @@ function M._render_full_session_data(entries, session, ctx)
 end
 
 ---@param ctx? RendererCtx
-function M.render_from_cache(ctx)
+---@param opts? {scroll_to_bottom?: boolean}
+function M.render_from_cache(ctx, opts)
   ctx = ctx or contexts.current()
   if not output_window.mounted() or #ctx.entries == 0 then
     return
   end
   local entries = ctx.observation and ordered_entries(ctx.observation) or ctx.entries
-  M._render_full_session_data(entries, current_session(ctx), ctx)
+  ---@cast entries table[]
+  M._render_full_session_data(entries, current_session(ctx), ctx, opts)
 end
 
 ---Load more older messages into the output buffer.
@@ -900,7 +958,11 @@ function M.load_more_messages(ctx)
 
   -- Grow within the cached window; when it is exhausted, fall through to the
   -- protocol's older page
+  local anchor = M.capture_top_anchor(ctx)
+  local cursor_anchor = capture_cursor_anchor()
   if apply_window_growth(ctx, window_size(ctx) + get_initial_render_count()) then
+    restore_cursor_anchor(cursor_anchor, anchor_topline(anchor, ctx))
+    M.restore_top_anchor(anchor, ctx)
     return true
   end
   return grow_window_with_older_page(ctx)

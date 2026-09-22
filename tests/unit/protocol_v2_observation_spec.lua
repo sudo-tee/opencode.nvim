@@ -172,6 +172,26 @@ describe('V2 protocol Observation interpretation', function()
           content = { { type = 'text', text = '<path>/server/project/lua/init.lua</path>' } },
         },
       },
+      {
+        type = 'tool',
+        id = 'tool-edit-path',
+        name = 'edit',
+        time = { created = 210, ran = 211, completed = 212 },
+        state = {
+          status = 'completed',
+          input = {
+            path = '/server/project/lua/init.lua',
+            oldString = 'old',
+            newString = 'new',
+          },
+          metadata = {
+            files = {
+              { file = 'init.lua', patch = '@@ -1,1 +1,1 @@\n-old\n+new' },
+            },
+          },
+          content = { { type = 'text', text = 'edited' } },
+        },
+      },
     }
     observation_module.ingest_snapshot(observed, { message })
 
@@ -179,6 +199,9 @@ describe('V2 protocol Observation interpretation', function()
     assert.same({ path = '/server/project/README.md' }, content[1].target)
     assert.equals('context7-cli', content[2].input.name)
     assert.same({ path = '/server/project/lua/init.lua' }, content[3].target)
+    assert.same({
+      { path = '/server/project/lua/init.lua', diff = '@@ -1,1 +1,1 @@\n-old\n+new' },
+    }, content[4].changes)
   end)
 
   it('keeps each native kind as a distinct Entry shape', function()

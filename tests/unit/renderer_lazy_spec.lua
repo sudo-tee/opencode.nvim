@@ -186,6 +186,34 @@ describe('lazy render', function()
     )
   end)
 
+  it('keeps the viewport anchored while loading cached older messages', function()
+    local session_data = make_session_data(50)
+    local output_window = require('opencode.ui.output_window')
+
+    contexts.current().lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    vim.api.nvim_set_current_win(win)
+    output_window.restore_view_topline(win, 1)
+    vim.api.nvim_win_set_cursor(win, { 5, 0 })
+    local top_line = output_window.get_visible_top_line(win)
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    local anchor = renderer.capture_top_anchor()
+
+    assert.is_truthy(anchor)
+    assert.is_true(renderer.load_more_messages())
+
+    local restored = renderer.capture_top_anchor()
+    assert.is_truthy(restored)
+    assert.same(anchor.id, restored.id)
+    assert.same(anchor.offset, restored.offset)
+    local restored_top_line = output_window.get_visible_top_line(win)
+    local restored_cursor = vim.api.nvim_win_get_cursor(win)
+    assert.same(cursor[1] - top_line, restored_cursor[1] - restored_top_line)
+    assert.same(cursor[2], restored_cursor[2])
+  end)
+
   it('load_more_messages returns false for empty session', function()
     renderer._render_full_session_data({})
     assert.is_false(renderer.load_more_messages())

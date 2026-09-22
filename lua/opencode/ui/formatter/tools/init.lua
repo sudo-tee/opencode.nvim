@@ -10,6 +10,8 @@ return {
   glob = require('opencode.ui.formatter.tools.glob'),
   grep = require('opencode.ui.formatter.tools.grep'),
   webfetch = require('opencode.ui.formatter.tools.webfetch'),
+  websearch = require('opencode.ui.formatter.tools.websearch'),
+  execute = require('opencode.ui.formatter.tools.execute'),
   list = require('opencode.ui.formatter.tools.list'),
   question = require('opencode.ui.formatter.tools.question'),
   skill = require('opencode.ui.formatter.tools.skill'),

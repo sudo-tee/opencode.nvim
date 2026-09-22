@@ -127,6 +127,33 @@ describe('renderer incremental reconciliation', function()
     assert.spy(writes).was_called(1)
   end)
 
+  it('force-scrolls a newly observed local user submission', function()
+    local win = state.windows.output_win
+    vim.api.nvim_win_set_height(win, 1)
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    vim.api.nvim_win_call(win, function()
+      vim.fn.winrestview({ topline = 1 })
+    end)
+    assert.is_false(output_window.is_at_bottom(win))
+
+    state.session.set_user_message_count({ ses_incremental = 1 })
+    observed.entry_order = { 'msg_one', 'msg_two', 'msg_user' }
+    observed.entries_by_id.msg_user = {
+      id = 'msg_user',
+      session_id = 'ses_incremental',
+      kind = 'user',
+      content = { { id = 'part_user', kind = 'text', text = 'new prompt' } },
+    }
+
+    notify('messages')
+
+    assert.is_true(output_window.is_at_bottom(win))
+    assert.equals(
+      output_window.get_scroll_bottom_line(state.windows.output_buf),
+      vim.api.nvim_win_get_cursor(win)[1]
+    )
+  end)
+
   it('keeps the hidden-history notice above messages in the initial batch', function()
     writes:revert()
     contexts.current():reset()

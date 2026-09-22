@@ -1,5 +1,5 @@
 -- This file is a port of the snapshot management logic from the original OpenCode
----@see https://github.com/sst/opencode/blob/dev/packages/opencode/src/snapshot/index.ts
+-- Source: https://github.com/sst/opencode/blob/dev/packages/opencode/src/snapshot/index.ts
 
 ---@class OpencodeSnapshot
 ---@field track fun(): Promise<string|nil>

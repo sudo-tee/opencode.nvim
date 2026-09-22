@@ -146,7 +146,7 @@ local function try_custom_server(server, timeout)
   end)
 end
 
---- @return number|nil port, or nil if we should spawn local instead
+--- @return number|nil port
 local function resolve_port()
   local custom_port = config.server.port or 'auto'
   if custom_port ~= 'auto' then

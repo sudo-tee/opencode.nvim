@@ -118,7 +118,6 @@ local function run_hook_pipeline(stage, ctx)
     next_ctx = run_hook(stage, 'config:' .. config_hook_name, config_hook, next_ctx)
   end
 
-  ---@type OpencodeCommandHookEntry[]
   for _, entry in ipairs(hook_registry[stage]) do
     if should_run_hook(entry, next_ctx) then
       next_ctx = run_hook(stage, entry.id, entry.fn, next_ctx)

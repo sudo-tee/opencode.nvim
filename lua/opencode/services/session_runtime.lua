@@ -267,10 +267,10 @@ M.open = Promise.async(function(opts)
 
   local created_windows
   local server_ok, server = pcall(function()
+    local open_action = opts.open_action or state.ui.resolve_open_windows_action()
     if not ui.is_opencode_focused() then
       context.load()
     end
-    local open_action = opts.open_action or state.ui.resolve_open_windows_action()
     if open_action ~= 'reuse_visible' then
       M.is_prompting_allowed()
     end

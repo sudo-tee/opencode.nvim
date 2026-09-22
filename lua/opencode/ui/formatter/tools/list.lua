@@ -46,6 +46,7 @@ end
 ---@param part table
 ---@return string, string, string
 function M.summary(part)
+  local icons = require('opencode.ui.icons')
   return icons.get('list'), 'list', (part.input and part.input.path) or ''
 end
 

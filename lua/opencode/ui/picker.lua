@@ -1,5 +1,10 @@
 local M = {}
 
+---@class OpencodePickerSelectOpts
+---@field prompt? string
+---@field format_item? fun(item: any): string
+---@field kind? string
+
 local picker_aliases = {
   ['fzf-lua'] = 'fzf',
   ['snacks.nvim'] = 'snacks',
@@ -38,7 +43,7 @@ end
 ---For Snacks, uses Snacks.picker directly to avoid the height calculation bug
 ---For all other pickers, uses vim.ui.select which respects user customizations
 ---@param items any[] The items to select from
----@param opts { prompt?: string, format_item?: fun(item: any): string, kind?: string } Options for the select
+---@param opts OpencodePickerSelectOpts Options for the select
 ---@param on_choice fun(item: any?, idx: integer?) Callback when item is selected
 function M.select(items, opts, on_choice)
   opts = opts or {}
@@ -54,7 +59,7 @@ end
 
 ---Snacks picker implementation for select (workaround for vim.ui.select bug)
 ---@param items any[]
----@param opts { prompt?: string, format_item?: fun(item: any): string }
+---@param opts OpencodePickerSelectOpts
 ---@param on_choice fun(item: any?, idx: integer?)
 function M._snacks_select(items, opts, on_choice)
   local Snacks = require('snacks')

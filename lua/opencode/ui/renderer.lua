@@ -484,11 +484,28 @@ local function read_conversation(ctx, observation)
 end
 
 ---@param ctx RendererCtx
+---@param entries table[]
+---@return boolean
+local function has_pending_local_submission(ctx, entries)
+  for _, entry in ipairs(entries) do
+    if
+      entry.kind == 'user'
+      and not ctx.render_state:get_message(entry.id)
+      and (state.user_message_count[entry.session_id] or 0) > 0
+    then
+      return true
+    end
+  end
+  return false
+end
+
+---@param ctx RendererCtx
 local function reconcile_conversation(ctx, session, entries, files_changed)
   local previous_refs = reference_facts.current_refs()
   reference_facts.rebuild(session.id, entries, session.location)
   local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
   local visible, hidden_count = get_visible_session_messages(entries, session)
+  local local_submission = has_pending_local_submission(ctx, visible)
   if ctx.lazy_render_count == nil then
     local initial = get_initial_render_count()
     if #visible > initial then
@@ -527,7 +544,7 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
     hide_rendered_message(ctx, REVERT_MESSAGE_ID)
   end
   rendered_entries.reconcile(visible, references_changed or files_changed, ctx)
-  return initial_render
+  return initial_render, local_submission
 end
 
 ---Which areas of the display a set of changed resources affects. `activity` names
@@ -592,9 +609,10 @@ local function reconcile_observation(ctx, observation, resources)
 
   if affected.conversation or affected.prompts or files_changed then
     local initial_render = false
+    local local_submission = false
     if affected.conversation then
       local session, entries = read_conversation(ctx, root)
-      initial_render = reconcile_conversation(ctx, session, entries, files_changed)
+      initial_render, local_submission = reconcile_conversation(ctx, session, entries, files_changed)
     elseif files_changed then
       invalidate_text_references(ctx)
     end
@@ -604,6 +622,8 @@ local function reconcile_observation(ctx, observation, resources)
     flush.flush({ resolve_symbol_targets = initial_render }, ctx)
     if initial_render then
       flush.end_bulk_mode(ctx)
+      M.scroll_to_bottom(true, ctx)
+    elseif local_submission then
       M.scroll_to_bottom(true, ctx)
     end
   end

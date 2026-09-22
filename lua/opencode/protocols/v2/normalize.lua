@@ -312,6 +312,43 @@ local tool_result_shape = v.union(
   end)
 )
 
+local tool_file_change_shape = v.object({
+  file = v.optional('string'),
+  relativePath = v.optional('string'),
+  filePath = v.optional('string'),
+  path = v.optional('string'),
+  patch = v.optional('string'),
+  diff = v.optional('string'),
+}):convert(function(file)
+  return {
+    path = first(file, { 'file', 'relativePath', 'filePath', 'path' }),
+    diff = first(file, { 'patch', 'diff' }),
+  }
+end)
+
+local file_tool_input_shape = v.object({
+  filePath = v.optional('string'),
+  path = v.optional('string'),
+  content = v.optional('string'),
+}):convert(function(input)
+  return {
+    path = first(input, { 'filePath', 'path' }),
+    content = input.content,
+  }
+end)
+
+local skill_metadata_shape = v.object({ name = v.optional('string') })
+local tool_metadata_shape = v.object({
+  diff = v.optional('string'),
+  files = v.optional(v.array(tool_file_change_shape)),
+})
+
+---@class OpencodeV2ToolChange
+---@field path string
+---@field diff string
+
+---@alias OpencodeV2ToolMetadataApplier fun(result: table, metadata: table): nil
+
 local tool_part_shape = v.object({
   id = 'string',
   name = 'string',
@@ -357,53 +394,103 @@ end
 ---@param name string
 ---@param input any
 local function apply_tool_input(result, name, input)
-  if type(input) ~= 'table' then
+  if name ~= 'read' and name ~= 'edit' and name ~= 'write' then
+    return
+  end
+  local parsed = file_tool_input_shape:parse(input, 'V2 observation: invalid file tool input')
+
+  if parsed.path == nil then
     return
   end
 
-  local path = input.filePath
-  if name == 'read' and type(path) ~= 'string' then
-    path = input.path
-  end
-
-  if (name == 'read' or name == 'edit' or name == 'write') and type(path) == 'string' then
-    result.target = { path = path }
-    if type(input.content) == 'string' then
-      result.target.content = input.content
-    end
+  result.target = { path = parsed.path }
+  if parsed.content ~= nil then
+    result.target.content = parsed.content
   end
 end
 
 ---@param result table
----@param name string
----@param metadata any
-local function apply_tool_metadata(result, name, metadata)
-  if type(metadata) ~= 'table' then
+---@param metadata table
+---@return nil
+local function apply_skill_metadata(result, metadata)
+  local parsed = skill_metadata_shape:parse(metadata, 'V2 observation: invalid skill metadata')
+  if parsed.name == nil then
     return
   end
-
-  if name == 'skill' and type(metadata.name) == 'string' then
-    result.input = result.input or {}
-    if type(result.input.name) ~= 'string' then
-      result.input.name = metadata.name
-    end
+  result.input = result.input or {}
+  if type(result.input.name) ~= 'string' then
+    result.input.name = parsed.name
   end
+end
 
-  if (name ~= 'patch' and name ~= 'apply_patch') or type(metadata.files) ~= 'table' then
-    return
+--- A one-entry change list if both `path` and `diff` are valid, else empty.
+---@param path string?
+---@param diff string?
+---@return OpencodeV2ToolChange[]
+local function single_file_change(path, diff)
+  if type(path) == 'string' and type(diff) == 'string' then
+    return { { path = path, diff = diff } }
   end
+  return {}
+end
 
-  local changes = {}
-  for _, file in ipairs(metadata.files) do
-    local path = type(file) == 'table' and (file.file or file.relativePath or file.filePath) or nil
-    local diff = type(file) == 'table' and (file.patch or file.diff) or nil
-    if type(path) == 'string' and type(diff) == 'string' then
-      changes[#changes + 1] = { path = path, diff = diff }
+---@param result table
+---@param metadata table
+---@return nil
+local function apply_edit_metadata(result, metadata)
+  local parsed = tool_metadata_shape:parse(metadata, 'V2 observation: invalid tool metadata')
+  local target_path = result.target and result.target.path
+
+  local changes = single_file_change(target_path, parsed.diff)
+  if #changes == 0 and parsed.files then
+    -- `edit` tools only ever touch one file, so fall back to the metadata's
+    -- own diff for that same target path.
+    for _, file in ipairs(parsed.files) do
+      vim.list_extend(changes, single_file_change(target_path, file.diff))
     end
   end
   if #changes > 0 then
     result.changes = changes
   end
+end
+
+---@param result table
+---@param metadata table
+---@return nil
+local function apply_patch_metadata(result, metadata)
+  local parsed = tool_metadata_shape:parse(metadata, 'V2 observation: invalid tool metadata')
+  local changes = {}
+  if parsed.files == nil then
+    return
+  end
+  for _, file in ipairs(parsed.files) do
+    vim.list_extend(changes, single_file_change(file.path, file.diff))
+  end
+  if #changes > 0 then
+    result.changes = changes
+  end
+end
+
+---@type table<string, OpencodeV2ToolMetadataApplier?>
+local tool_metadata_appliers = {
+  skill = apply_skill_metadata,
+  edit = apply_edit_metadata,
+  patch = apply_patch_metadata,
+  apply_patch = apply_patch_metadata,
+}
+
+---@param result table
+---@param name string
+---@param metadata any
+---@return nil
+local function apply_tool_metadata(result, name, metadata)
+  local applier = tool_metadata_appliers[name]
+  if applier == nil or metadata == nil then
+    return
+  end
+  v.expect(type(metadata) == 'table', 'V2 observation: invalid tool metadata')
+  ---@cast metadata table
+  applier(result, metadata)
 end
 
 local function mapped_tool(part)

@@ -10,7 +10,7 @@ local function resolve_file_name(file_path)
     return ''
   end
 
-  return file_path
+  return vim.fn.fnamemodify(file_path, ':~:.')
 end
 
 ---@param file_path string

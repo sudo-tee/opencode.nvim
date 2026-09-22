@@ -164,6 +164,40 @@ describe('formatter', function()
     assert.is_true(rendered:find('ok', 1, true) ~= nil, rendered)
   end)
 
+  it('renders V2 edit changes supplied by the server', function()
+    local part = tool('edit', {
+      input = {
+        path = '/tmp/project/init.lua',
+        oldString = 'local old = true',
+        newString = 'local new = true',
+      },
+      target = { path = '/tmp/project/init.lua' },
+      changes = {
+        {
+          path = '/tmp/project/init.lua',
+          diff = '@@ -1,1 +1,1 @@\n-local old = true\n+local new = true\n\\ No newline at end of file\n',
+        },
+      },
+      time = { started = 1, completed = 2 },
+    })
+
+    local output = formatter.format_part(part, assistant(), true)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('`/tmp/project/init.lua`', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('local old = true', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('local new = true', 1, true) ~= nil, rendered)
+    assert.is_nil(rendered:find('No newline at end of file', 1, true), rendered)
+  end)
+
+  it('shortens file tool paths relative to the current workspace', function()
+    local absolute_path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    local output = formatter.format_part(tool('edit', {
+      target = { path = absolute_path },
+    }), assistant(), true)
+
+    assert.is_true(output.lines[1]:find('`lua/opencode/config.lua`', 1, true) ~= nil, output.lines[1])
+  end)
+
   it('renders V2 patch tools with their native tool name', function()
     local message = assistant()
     local part = tool('patch', {

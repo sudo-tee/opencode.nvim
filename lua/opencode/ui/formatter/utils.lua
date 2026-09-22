@@ -214,8 +214,14 @@ function M.format_diff(output, code, file_type, source_path)
   --- NOTE: use longer code fence because code could contain ```
   output:add_line('`````' .. file_type)
   local full_lines = vim.split(code, '\n')
+  for index = #full_lines, 1, -1 do
+    if full_lines[index] == '\\ No newline at end of file' then
+      table.remove(full_lines, index)
+    end
+  end
   local numbered_lines, line_number_width = parse_diff_line_numbers(full_lines)
-  local first_visible_line = #full_lines > 5 and 6 or 1
+  local first_line = full_lines[1] --[[@as string]]
+  local first_visible_line = first_line:match('^@@') and 1 or (#full_lines > 5 and 6 or 1)
   local lines = first_visible_line > 1 and vim.list_slice(full_lines, first_visible_line) or full_lines
 
   for idx, line in ipairs(lines) do

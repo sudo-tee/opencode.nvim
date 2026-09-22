@@ -164,6 +164,43 @@ describe('formatter', function()
     assert.is_true(rendered:find('ok', 1, true) ~= nil, rendered)
   end)
 
+  it('renders V2 websearch tools with their query', function()
+    local output = formatter.format_part(tool('websearch', {
+      input = { query = 'OpenCode V2 tool format' },
+      time = { started = 1, completed = 2 },
+    }), assistant(), true)
+
+    assert.is_true(output.lines[1]:find('search', 1, true) ~= nil, output.lines[1])
+    assert.is_true(output.lines[1]:find('OpenCode V2 tool format', 1, true) ~= nil, output.lines[1])
+  end)
+
+  it('renders V2 websearch text results', function()
+    local output = formatter.format_part(tool('websearch', {
+      input = { query = 'OpenCode' },
+      result = {
+        {
+          kind = 'text',
+          text = 'OpenCode\nhttps://opencode.ai',
+        },
+      },
+    }), assistant(), true)
+
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('OpenCode\nhttps://opencode.ai', 1, true) ~= nil, rendered)
+  end)
+
+  it('renders V2 execute tools with their code', function()
+    local output = formatter.format_part(tool('execute', {
+      input = { code = 'return await mcp.server.list()\n' },
+      time = { started = 1, completed = 2 },
+    }), assistant(), true)
+
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(output.lines[1]:find('execute', 1, true) ~= nil, output.lines[1])
+    assert.is_true(rendered:find('```javascript', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('return await mcp.server.list()', 1, true) ~= nil, rendered)
+  end)
+
   it('renders V2 edit changes supplied by the server', function()
     local part = tool('edit', {
       input = {

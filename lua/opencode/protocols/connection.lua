@@ -56,6 +56,7 @@ end
 ---@param callback fun(response: table)
 ---@param on_error fun(err: any)
 local function request(connection, adapter, timeout_ms, callback, on_error)
+  ---@cast connection.url string
   curl.request({
     url = connection.url:gsub('/$', '') .. adapter.health_path,
     method = 'GET',
@@ -128,10 +129,7 @@ function M.check_health(connection)
   local result = Promise.new()
   request(connection, adapter, 2000, function(response)
     result:resolve(
-      response ~= nil
-        and type(response.status) == 'number'
-        and response.status >= 200
-        and response.status < 300
+      response ~= nil and type(response.status) == 'number' and response.status >= 200 and response.status < 300
     )
   end, function()
     result:resolve(false)

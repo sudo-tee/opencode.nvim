@@ -1,7 +1,8 @@
 local http = require('opencode.protocols.http')
 local transport = require('opencode.transport')
 
-local M = {}
+---@diagnostic disable-next-line: missing-fields
+local M = {} --[[@as OpencodeV1Operations]]
 
 local function directory(location, path_map)
   return http.location_directory('V1', location, path_map)

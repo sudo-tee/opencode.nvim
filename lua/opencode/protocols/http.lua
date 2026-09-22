@@ -3,6 +3,16 @@ local url_encode = require('opencode.util').url_encode
 
 local M = {}
 
+---@alias OpencodeHttpMethod 'GET'|'POST'|'PATCH'|'DELETE'
+---@alias OpencodePathMap fun(path: string): string
+
+---@class OpencodeHttpResponse
+---@field status integer
+---@field headers table<string, string>
+---@field body string
+
+---@param values table<string, any>
+---@return string?
 function M.query_string(values)
   local keys = vim.tbl_keys(values)
   table.sort(keys)
@@ -16,7 +26,9 @@ function M.query_string(values)
         for _, nested_key in ipairs(nested_keys) do
           local nested_value = value[nested_key]
           if nested_value ~= nil then
-            result[#result + 1] = url_encode(key .. '[' .. nested_key .. ']') .. '=' .. url_encode(tostring(nested_value))
+            result[#result + 1] = url_encode(key .. '[' .. nested_key .. ']')
+              .. '='
+              .. url_encode(tostring(nested_value))
           end
         end
       else
@@ -27,6 +39,10 @@ function M.query_string(values)
   return #result > 0 and table.concat(result, '&') or nil
 end
 
+---@generic T
+---@param value T
+---@param path_map? OpencodePathMap
+---@return T
 function M.map_paths(value, path_map)
   if type(value) ~= 'table' or type(path_map) ~= 'function' then
     return value
@@ -68,6 +84,10 @@ function M.map_paths(value, path_map)
   return mapped
 end
 
+---@param protocol string
+---@param location {directory: string}
+---@param path_map? OpencodePathMap
+---@return string
 function M.location_directory(protocol, location, path_map)
   if type(location) ~= 'table' or type(location.directory) ~= 'string' or location.directory == '' then
     error(protocol .. ' operation requires an explicit location')
@@ -75,10 +95,15 @@ function M.location_directory(protocol, location, path_map)
   return type(path_map) == 'function' and path_map(location.directory) or location.directory
 end
 
+---@param operation string
+---@param response OpencodeHttpResponse
 local function request_error(operation, response)
   error(string.format('%s HTTP %d: %s', operation, response.status, response.body), 0)
 end
 
+---@param operation string
+---@param response OpencodeHttpResponse
+---@return any
 local function decode(operation, response)
   if response.status < 200 or response.status >= 300 then
     request_error(operation, response)
@@ -93,6 +118,13 @@ local function decode(operation, response)
   return value
 end
 
+---@param connection OpencodeServer
+---@param method OpencodeHttpMethod
+---@param path string
+---@param query? table<string, any>
+---@param body? any
+---@param path_map? OpencodePathMap
+---@return Promise<OpencodeHttpResponse>
 local function request(connection, method, path, query, body, path_map)
   local mapped_body = body ~= nil and M.map_paths(body, path_map) or nil
   if type(mapped_body) == 'table' and next(mapped_body) == nil then
@@ -106,12 +138,28 @@ local function request(connection, method, path, query, body, path_map)
   })
 end
 
+---@param connection OpencodeServer
+---@param operation string
+---@param method OpencodeHttpMethod
+---@param path string
+---@param query? table<string, any>
+---@param body? any
+---@param path_map? OpencodePathMap
+---@return Promise<any>
 function M.json_request(connection, operation, method, path, query, body, path_map)
   return request(connection, method, path, query, body, path_map):and_then(function(response)
     return decode(operation, response)
   end)
 end
 
+---@param connection OpencodeServer
+---@param operation string
+---@param method OpencodeHttpMethod
+---@param path string
+---@param query? table<string, any>
+---@param body? any
+---@param path_map? OpencodePathMap
+---@return Promise<boolean>
 function M.empty_request(connection, operation, method, path, query, body, path_map)
   return request(connection, method, path, query, body, path_map):and_then(function(response)
     if response.status < 200 or response.status >= 300 then
@@ -124,6 +172,9 @@ function M.empty_request(connection, operation, method, path, query, body, path_
   end)
 end
 
+---@param operation string
+---@param value any
+---@return table
 function M.require_table(operation, value)
   if type(value) ~= 'table' then
     error(operation .. ' returned an invalid response', 0)

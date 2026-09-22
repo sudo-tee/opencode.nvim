@@ -8,9 +8,9 @@ local mapped_mention = normalize.mapped_mention
 local mapped_content = normalize.mapped_content
 local entry_from_info = normalize.entry_from_info
 local mapped_message = normalize.mapped_message
-local session_fact = normalize.session_fact
-local permission_fact = normalize.permission_fact
-local question_fact = normalize.question_fact
+local mapped_session = normalize.mapped_session
+local mapped_permission = normalize.mapped_permission
+local mapped_question = normalize.mapped_question
 
 local lifecycle = require('opencode.protocols.observation')
 local id = require('opencode.id')
@@ -18,9 +18,12 @@ local Promise = require('opencode.promise')
 local util = require('opencode.util')
 
 local M = {}
+---@type fun(event: table): table?, string?
 local native_event
+---@type fun(observation: OpencodeV1Observation, event: table): OpencodeObservedResource?
 local ingest_resource_event
 
+---@type table<string, boolean|nil>
 local message_event_types = {
   ['message.updated'] = true,
   ['message.removed'] = true,
@@ -48,6 +51,8 @@ local function route_event(connection, event)
   end
 end
 
+---@param message string
+---@return never
 local function fail(message)
   error('V1 observation: ' .. message, 0)
 end
@@ -59,9 +64,9 @@ local function record_diagnostic(observation, message)
   }
 end
 
-local function remove_from_order(order, id)
+local function remove_from_order(order, item_id)
   for index, value in ipairs(order) do
-    if value == id then
+    if value == item_id then
       table.remove(order, index)
       return
     end
@@ -347,7 +352,7 @@ end
 local function apply_resource(observation, resource, value)
   local state = observation:read()
   if resource == 'session' then
-    local session = session_fact(value)
+    local session = mapped_session(value)
     if session.id ~= state.session.id then
       fail('session snapshot belongs to another session')
     end
@@ -358,7 +363,7 @@ local function apply_resource(observation, resource, value)
     end
     local children = { by_id = {}, order = {} }
     for _, info in ipairs(value) do
-      local child = session_fact(info)
+      local child = mapped_session(info)
       if child.parentID ~= state.session.id then
         fail('children snapshot contains another parent')
       end
@@ -392,7 +397,7 @@ local function apply_resource(observation, resource, value)
     end
     local requests = {}
     for _, request in ipairs(value) do
-      local mapped = permission_fact(request)
+      local mapped = mapped_permission(request)
       if mapped.session_id == state.session.id then
         local terminal = observation._v1_permission_terminal[mapped.id]
         if terminal then
@@ -409,7 +414,7 @@ local function apply_resource(observation, resource, value)
     end
     local requests = {}
     for _, request in ipairs(value) do
-      local mapped = question_fact(request)
+      local mapped = mapped_question(request)
       if mapped.session_id == state.session.id then
         local terminal = observation._v1_question_terminal[mapped.id]
         if terminal then
@@ -487,7 +492,7 @@ ingest_resource_event = function(observation, event)
   end
 
   if kind == 'session.created' or kind == 'session.updated' then
-    local ok, session = pcall(session_fact, properties.info)
+    local ok, session = pcall(mapped_session, properties.info)
     if not ok then
       if observation:_watches('session') or observation:_watches('children') then
         return event_diagnostic(
@@ -532,7 +537,7 @@ ingest_resource_event = function(observation, event)
       end
       return nil
     end
-    local ok, deleted = pcall(session_fact, properties.info)
+    local ok, deleted = pcall(mapped_session, properties.info)
     if not ok or deleted.id ~= properties.sessionID then
       if observation:_watches('session') or observation:_watches('children') then
         return event_diagnostic(
@@ -573,7 +578,7 @@ ingest_resource_event = function(observation, event)
     if not observation:_watches('permissions') then
       return nil
     end
-    local ok, request = pcall(permission_fact, properties)
+    local ok, request = pcall(mapped_permission, properties)
     if not ok then
       return event_diagnostic(observation, 'permissions', tostring(request))
     end
@@ -609,7 +614,7 @@ ingest_resource_event = function(observation, event)
     if not observation:_watches('questions') then
       return nil
     end
-    local ok, request = pcall(question_fact, properties)
+    local ok, request = pcall(mapped_question, properties)
     if not ok then
       return event_diagnostic(observation, 'questions', tostring(request))
     end
@@ -861,7 +866,7 @@ local function track_submission(observation, result)
     return handle
   end
 
-  local unsubscribe
+  local unsubscribe ---@type fun()?
   local release = observation:_begin_local_operation()
   local handle, finish
   handle, finish = submission.new(result, function()
@@ -902,9 +907,9 @@ local function clear_unresolved_mentions(observation)
   observation._v1_unresolved_mentions = {}
 end
 
----@param connection table
----@param ref {id: string, location?: table}
----@return table
+---@param connection OpencodeV1Connection
+---@param ref {id: string, location?: OpencodeV1Location}
+---@return OpencodeV1Observation
 function M.new(connection, ref)
   if type(ref.location) ~= 'table' or type(ref.location.directory) ~= 'string' or ref.location.directory == '' then
     error('V1 observe requires the session location')
@@ -941,6 +946,7 @@ function M.new(connection, ref)
       clear_unresolved_mentions(current)
     end,
   })
+  ---@cast observation OpencodeV1Observation
   observation._v1_submissions = {}
   observation._v1_permission_terminal = {}
   observation._v1_question_terminal = {}
@@ -977,12 +983,12 @@ function M.new(connection, ref)
       parts = submit_parts(input),
     }
     local finish = self:_begin_local_operation()
-    local operation = opts.async and connection.operations.submit_async or connection.operations.submit
-    if type(operation) ~= 'function' then
-      finish()
-      fail('submit async is not supported')
-    end
-    local ok, request = pcall(operation, connection, self._session_id, self._session_ref.location, body)
+    local ok, request = pcall(function()
+      if opts.async then
+        return connection.operations.submit_async(connection, self._session_id, self._session_ref.location, body)
+      end
+      return connection.operations.submit(connection, self._session_id, self._session_ref.location, body)
+    end)
     if not ok then
       finish()
       error(request, 0)
@@ -1017,7 +1023,9 @@ function M.new(connection, ref)
     return result:finally(finish)
   end
 
-  function observation:load_older()
+  ---@param self OpencodeV1Observation
+  ---@return Promise<nil>
+  local function load_older(self)
     if self._v1_older_loading then
       fail('load_older is already in progress')
     end
@@ -1046,30 +1054,27 @@ function M.new(connection, ref)
           self:_notify('messages')
         end)
     end
-    local ok, result = pcall(read_page)
-    if not ok then
-      self._v1_older_loading = false
-      finish()
-      error(result, 0)
-    end
+    local result = read_page()
     return result:finally(function()
       self._v1_older_loading = false
       finish()
     end)
   end
+  observation.load_older = load_older
 
   ---Load every remaining older page until the cached history is complete.
   ---The paging loop lives here because the limit and completion state are
   ---protocol details; callers only declare how much history they need.
-  function observation:load_complete_history()
-    local function pull()
-      if self._v1_history_complete then
-        return Promise.new():resolve(nil)
+  ---@param self OpencodeV1Observation
+  ---@return Promise<nil>
+  local function load_complete_history(self)
+    return Promise.async(function()
+      while not self._v1_history_complete do
+        self:load_older():await()
       end
-      return self:load_older():and_then(pull)
-    end
-    return pull()
+    end)()
   end
+  observation.load_complete_history = load_complete_history
 
   function observation:interrupt()
     return self:_start_action(connection.operations.interrupt, self._session_id, self._session_ref.location)
@@ -1079,44 +1084,27 @@ function M.new(connection, ref)
     if type(message_id) ~= 'string' or message_id == '' then
       fail('revert requires a message ID')
     end
-    return self
-      :_start_state_action(
-        connection.operations.revert_message,
-        function(info)
-          local current = session_fact(info)
-          if current.id ~= self._session_id then
-            fail('revert response belongs to another session')
-          end
-          self:read().session = current
-          self:_event_changed('session')
-          return current.revert
-        end,
-        self._session_id,
-        self._session_ref.location,
-        { messageID = message_id },
-        path_map,
-        reverse_path_map
-      )
+    return self:_start_state_action(connection.operations.revert_message, function(info)
+      local current = mapped_session(info)
+      if current.id ~= self._session_id then
+        fail('revert response belongs to another session')
+      end
+      self:read().session = current
+      self:_event_changed('session')
+      return current.revert
+    end, self._session_id, self._session_ref.location, { messageID = message_id }, path_map, reverse_path_map)
   end
 
   function observation:unrevert_messages(path_map, reverse_path_map)
-    return self
-      :_start_state_action(
-        connection.operations.unrevert_messages,
-        function(info)
-          local current = session_fact(info)
-          if current.id ~= self._session_id then
-            fail('unrevert response belongs to another session')
-          end
-          self:read().session = current
-          self:_event_changed('session')
-          return true
-        end,
-        self._session_id,
-        self._session_ref.location,
-        path_map,
-        reverse_path_map
-      )
+    return self:_start_state_action(connection.operations.unrevert_messages, function(info)
+      local current = mapped_session(info)
+      if current.id ~= self._session_id then
+        fail('unrevert response belongs to another session')
+      end
+      self:read().session = current
+      self:_event_changed('session')
+      return true
+    end, self._session_id, self._session_ref.location, path_map, reverse_path_map)
   end
 
   function observation:reply_permission(request_id, answer)

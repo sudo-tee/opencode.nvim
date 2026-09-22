@@ -1,51 +1,184 @@
 local util = require('opencode.util')
+local v = require('opencode.shape')
 local shared_decode_editor_context = require('opencode.protocols.observation').decode_editor_context
 
 local function fail(message)
   error('V1 observation: ' .. message, 0)
 end
 
+local error_shape = v.union(
+  v.string():convert(function(value)
+    return { message = value }
+  end),
+  v.table():convert(function(value)
+    local data = type(value.data) == 'table' and value.data or value
+    return {
+      type = value.name or value.type,
+      message = data.message,
+      status = data.statusCode or data.status,
+      retryable = data.isRetryable,
+      provider_id = data.providerID,
+      ref = data.ref,
+      retries = data.retries,
+      response_body = data.responseBody,
+    }
+  end)
+)
+
+local time_shape = v.table():convert(vim.deepcopy)
+local content_time_shape = v.object({ start = 'number' }):convert(function(value)
+  return { started = value.start, completed = value['end'] }
+end)
+
+local part_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  messageID = 'string',
+  type = 'string',
+})
+
+local tool_part_shape = v.object({
+  callID = 'string',
+  tool = 'string',
+  state = v.object({ status = v.enum({ 'pending', 'running', 'completed', 'error' }) }),
+})
+
+local message_info_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  role = v.enum({ 'user', 'assistant' }),
+  time = v.object({ created = 'number' }),
+})
+
+local message_shape = v.object({
+  info = v.table(),
+  parts = v.array(v.any()),
+})
+
+local native_mention_shape = v.object({
+  value = 'string',
+  start = v.integer():min(0),
+  ['end'] = v.integer():min(0),
+}):constraint(function(value)
+  return value['end'] >= value.start
+end, 'valid native mention')
+
+local file_source_shape = v.union(
+  v.object({ type = v.literal('file'), path = 'string' }):convert(function(value)
+    return { kind = 'file', path = value.path }
+  end),
+  v.object({ type = v.literal('symbol'), path = 'string', name = 'string', range = 'table' }):convert(function(value)
+    return { kind = 'symbol', path = value.path, name = value.name, range = vim.deepcopy(value.range) }
+  end),
+  v.object({ type = v.literal('resource'), uri = 'string' }):convert(function(value)
+    return { kind = 'resource', uri = value.uri }
+  end)
+)
+
+local session_shape = v.object({
+  id = 'string',
+  slug = 'string',
+  projectID = 'string',
+  directory = 'string',
+  title = 'string',
+  version = 'string',
+  time = { created = 'number', updated = 'number' },
+}):convert(function(info)
+  return {
+    id = info.id,
+    title = info.title,
+    parentID = info.parentID,
+    location = { directory = info.directory },
+    projectID = info.projectID,
+    subpath = info.path,
+    slug = info.slug,
+    version = info.version,
+    agent = info.agent,
+    model = vim.deepcopy(info.model),
+    time = time_shape:parse(info.time),
+    summary = vim.deepcopy(info.summary),
+    share = vim.deepcopy(info.share),
+    revert = vim.deepcopy(info.revert),
+  }
+end)
+
+local permission_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  permission = 'string',
+  patterns = v.array('string'),
+  metadata = v.table(),
+  always = v.array('string'),
+}):convert(function(request)
+  return {
+    id = request.id,
+    session_id = request.sessionID,
+    permission = request.permission,
+    patterns = vim.deepcopy(request.patterns),
+    always = vim.deepcopy(request.always),
+    tool = vim.deepcopy(request.tool),
+    choices = {
+      { value = 'once', label = 'Allow once', description = 'Allow this request once' },
+      { value = 'always', label = 'Always allow', description = 'Save an allow rule' },
+      { value = 'reject', label = 'Reject', description = 'Reject this request' },
+    },
+    status = 'pending',
+  }
+end)
+
+local question_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  questions = v.array(v.object({
+    question = 'string',
+    header = 'string',
+    options = v.array(v.object({ label = 'string', description = 'string' })),
+  })),
+}):convert(function(request)
+  local fields = {}
+  for index, question in ipairs(request.questions) do
+    local options = {}
+    for _, option in ipairs(question.options) do
+      options[#options + 1] = { value = option.label, label = option.label, description = option.description }
+    end
+    fields[#fields + 1] = {
+      key = tostring(index),
+      prompt = question.question,
+      title = question.header,
+      type = question.multiple and 'multiselect' or 'string',
+      options = options,
+      custom = question.custom,
+      required = true,
+    }
+  end
+  return {
+    id = request.id,
+    session_id = request.sessionID,
+    fields = fields,
+    tool = vim.deepcopy(request.tool),
+    status = 'pending',
+  }
+end)
+
 local function mapped_error(value)
   if value == nil then
     return nil
   end
-  if type(value) == 'string' then
-    return { message = value }
-  end
-  if type(value) ~= 'table' then
-    fail('invalid error')
-  end
-  local data = type(value.data) == 'table' and value.data or value
-  return {
-    type = value.name or value.type,
-    message = data.message,
-    status = data.statusCode or data.status,
-    retryable = data.isRetryable,
-    provider_id = data.providerID,
-    ref = data.ref,
-    retries = data.retries,
-    response_body = data.responseBody,
-  }
+  return error_shape:parse(value, 'V1 observation: invalid error')
 end
 
 local function mapped_time(value)
   if value == nil then
     return nil
   end
-  if type(value) ~= 'table' then
-    fail('invalid time')
-  end
-  return vim.deepcopy(value)
+  return time_shape:parse(value, 'V1 observation: invalid time')
 end
 
 local function mapped_content_time(value)
   if value == nil then
     return nil
   end
-  if type(value) ~= 'table' or type(value.start) ~= 'number' then
-    fail('invalid content time')
-  end
-  return { started = value.start, completed = value['end'] }
+  return content_time_shape:parse(value, 'V1 observation: invalid content time')
 end
 
 local function context_content(part)
@@ -103,20 +236,14 @@ local byte_index_from_utf16 = util.byte_index_from_utf16
 ---@param value any
 ---@return boolean
 local function valid_native_mention(value)
-  return type(value) == 'table'
-    and type(value.value) == 'string'
-    and type(value.start) == 'number'
-    and type(value['end']) == 'number'
-    and value.start % 1 == 0
-    and value['end'] % 1 == 0
-    and value.start >= 0
-    and value['end'] >= value.start
+  return native_mention_shape:is(value)
 end
 
 ---@param value any
 ---@param prompt? string
 ---@return table|nil
 ---@return string|nil diagnostic
+---@return boolean? waiting
 local function mapped_mention(value, prompt)
   if value == nil then
     return nil
@@ -132,7 +259,12 @@ local function mapped_mention(value, prompt)
   end
   local start_byte = byte_index_from_utf16(prompt, value.start)
   local end_byte = byte_index_from_utf16(prompt, value['end'])
-  if not start_byte or not end_byte or prompt:sub(start_byte + 1, end_byte) ~= value.value then
+  if not start_byte or not end_byte then
+    return nil, 'native mention does not identify a prompt range'
+  end
+  ---@cast start_byte integer
+  ---@cast end_byte integer
+  if prompt:sub(start_byte + 1, end_byte) ~= value.value then
     return nil, 'native mention does not identify a prompt range'
   end
   return { text = value.value, start_byte = start_byte, end_byte = end_byte }
@@ -142,24 +274,7 @@ local function mapped_file_source(value, prompt)
   if value == nil then
     return nil, nil
   end
-  if type(value) ~= 'table' then
-    fail('invalid file source')
-  end
-  local source
-  if value.type == 'file' and type(value.path) == 'string' then
-    source = { kind = 'file', path = value.path }
-  elseif
-    value.type == 'symbol'
-    and type(value.path) == 'string'
-    and type(value.name) == 'string'
-    and type(value.range) == 'table'
-  then
-    source = { kind = 'symbol', path = value.path, name = value.name, range = vim.deepcopy(value.range) }
-  elseif value.type == 'resource' and type(value.uri) == 'string' then
-    source = { kind = 'resource', uri = value.uri }
-  else
-    fail('invalid file source')
-  end
+  local source = file_source_shape:parse(value, 'V1 observation: invalid file source')
   local mention, diagnostic, waiting = mapped_mention(value.text, prompt)
   return source, mention, diagnostic, waiting
 end
@@ -178,8 +293,6 @@ local function file_content(part, prompt)
     diagnostic,
     waiting
 end
-
-local tool_states = { pending = true, running = true, completed = true, error = true }
 
 local function tool_specialized_fields(part, location)
   local state = part.state
@@ -207,11 +320,12 @@ local function tool_specialized_fields(part, location)
       diagnostics[#diagnostics + 1] = diagnostic_prefix .. 'files metadata is invalid'
     else
       local changes = {}
+      local valid = true
       for index, file in ipairs(metadata.files) do
         local path = type(file) == 'table' and (file.relativePath or file.filePath) or nil
         if type(path) ~= 'string' then
           diagnostics[#diagnostics + 1] = diagnostic_prefix .. 'file ' .. index .. ' has no path'
-          changes = nil
+          valid = false
           break
         end
         changes[#changes + 1] = {
@@ -220,7 +334,7 @@ local function tool_specialized_fields(part, location)
           diff = type(file.diff) == 'string' and file.diff or type(file.patch) == 'string' and file.patch or nil,
         }
       end
-      fields.changes = changes
+      fields.changes = valid and changes or nil
     end
   elseif type(metadata.diff) == 'string' and fields.target then
     fields.changes = {
@@ -246,6 +360,7 @@ local function tool_specialized_fields(part, location)
     if type(metadata.answers) ~= 'table' or type(input.questions) ~= 'table' then
       diagnostics[#diagnostics + 1] = diagnostic_prefix .. 'question answers are invalid'
     else
+      ---@type table[]?
       local answers = {}
       for index, question in ipairs(input.questions) do
         local values = metadata.answers[index]
@@ -279,16 +394,17 @@ local function tool_specialized_fields(part, location)
       diagnostics[#diagnostics + 1] = diagnostic_prefix .. 'todos are invalid'
     else
       local todos = {}
+      local valid = true
       local states = { pending = true, in_progress = true, completed = true }
       for index, todo in ipairs(input.todos) do
         if type(todo) ~= 'table' or type(todo.content) ~= 'string' or not states[todo.status] then
           diagnostics[#diagnostics + 1] = diagnostic_prefix .. 'todo ' .. index .. ' is invalid'
-          todos = nil
+          valid = false
           break
         end
         todos[#todos + 1] = { text = todo.content, state = todo.status }
       end
-      fields.todos = todos
+      fields.todos = valid and todos or nil
     end
   end
 
@@ -296,15 +412,8 @@ local function tool_specialized_fields(part, location)
 end
 
 local function tool_content(part, prompt, location)
+  tool_part_shape:parse(part, 'V1 observation: invalid tool state for part ' .. part.id)
   local state = part.state
-  if
-    type(part.callID) ~= 'string'
-    or type(part.tool) ~= 'string'
-    or type(state) ~= 'table'
-    or not tool_states[state.status]
-  then
-    fail('invalid tool state for part ' .. part.id)
-  end
   local result
   local diagnostics = {}
   if state.status == 'completed' then
@@ -348,22 +457,8 @@ local function tool_content(part, prompt, location)
   return content, #diagnostics > 0 and table.concat(diagnostics, '; ') or nil
 end
 
----@param part table
----@param prompt? string
----@param location? table
----@return table
----@return string|nil diagnostic
-local function mapped_content(part, prompt, location)
-  if
-    type(part) ~= 'table'
-    or type(part.id) ~= 'string'
-    or type(part.sessionID) ~= 'string'
-    or type(part.messageID) ~= 'string'
-    or type(part.type) ~= 'string'
-  then
-    fail('invalid part identity')
-  end
-  if part.type == 'text' then
+local content_mappers = {
+  text = function(part)
     local context, diagnostic = context_content(part)
     if context then
       return context
@@ -377,11 +472,14 @@ local function mapped_content(part, prompt, location)
       time = mapped_content_time(part.time),
     },
       diagnostic
-  elseif part.type == 'reasoning' then
+  end,
+  reasoning = function(part)
     return { id = part.id, kind = 'reasoning', text = part.text, time = mapped_content_time(part.time) }
-  elseif part.type == 'file' then
+  end,
+  file = function(part, prompt)
     return file_content(part, prompt)
-  elseif part.type == 'agent' then
+  end,
+  agent = function(part, prompt)
     local mention, diagnostic, waiting = mapped_mention(part.source, prompt)
     return {
       id = part.id,
@@ -391,9 +489,11 @@ local function mapped_content(part, prompt, location)
     },
       diagnostic,
       waiting
-  elseif part.type == 'tool' then
+  end,
+  tool = function(part, prompt, location)
     return tool_content(part, prompt, location)
-  elseif part.type == 'compaction' then
+  end,
+  compaction = function(part)
     return {
       id = part.id,
       kind = 'compaction',
@@ -401,7 +501,8 @@ local function mapped_content(part, prompt, location)
       overflow = part.overflow,
       boundary = part.tail_start_id,
     }
-  elseif part.type == 'subtask' then
+  end,
+  subtask = function(part)
     return {
       id = part.id,
       kind = 'subtask',
@@ -411,7 +512,8 @@ local function mapped_content(part, prompt, location)
       model = vim.deepcopy(part.model),
       command = part.command,
     }
-  elseif part.type == 'retry' then
+  end,
+  retry = function(part)
     return {
       id = part.id,
       kind = 'retry',
@@ -419,13 +521,17 @@ local function mapped_content(part, prompt, location)
       error = mapped_error(part.error),
       time = mapped_time(part.time),
     }
-  elseif part.type == 'snapshot' then
+  end,
+  snapshot = function(part)
     return { id = part.id, kind = 'snapshot', snapshot = part.snapshot }
-  elseif part.type == 'patch' then
+  end,
+  patch = function(part)
     return { id = part.id, kind = 'patch', hash = part.hash, files = vim.deepcopy(part.files) }
-  elseif part.type == 'step-start' then
+  end,
+  ['step-start'] = function(part)
     return { id = part.id, kind = 'step_start', snapshot = part.snapshot }
-  elseif part.type == 'step-finish' then
+  end,
+  ['step-finish'] = function(part)
     return {
       id = part.id,
       kind = 'step_finish',
@@ -434,24 +540,28 @@ local function mapped_content(part, prompt, location)
       cost = part.cost,
       tokens = vim.deepcopy(part.tokens),
     }
-  end
-  fail('unsupported part type: ' .. part.type)
+  end,
+}
+
+---@param part table
+---@param prompt? string
+---@param location? table
+---@return table
+---@return string|nil diagnostic
+---@return boolean? waiting
+local function mapped_content(part, prompt, location)
+  part_shape:parse(part, 'V1 observation: invalid part identity')
+  local mapper = content_mappers[part.type]
+  v.expect(mapper ~= nil, 'V1 observation: unsupported part type: ' .. part.type)
+  ---@cast mapper function
+  return mapper(part, prompt, location)
 end
 
 ---@param info table
 ---@param content table[]
 ---@return table
 local function entry_from_info(info, content)
-  if
-    type(info) ~= 'table'
-    or type(info.id) ~= 'string'
-    or type(info.sessionID) ~= 'string'
-    or (info.role ~= 'user' and info.role ~= 'assistant')
-    or type(info.time) ~= 'table'
-    or type(info.time.created) ~= 'number'
-  then
-    fail('invalid message info')
-  end
+  message_info_shape:parse(info, 'V1 observation: invalid message info')
   local model = info.model
   if info.role == 'assistant' then
     model = { providerID = info.providerID, modelID = info.modelID, variant = info.variant }
@@ -477,9 +587,7 @@ end
 ---@return table
 ---@return string[] diagnostics
 local function mapped_message(message, location)
-  if type(message) ~= 'table' or type(message.info) ~= 'table' or type(message.parts) ~= 'table' then
-    fail('invalid WithParts response')
-  end
+  message_shape:parse(message, 'V1 observation: invalid WithParts response')
   local content, diagnostics = {}, {}
   local prompt = prompt_from_native_parts(message.parts)
   for _, part in ipairs(message.parts) do
@@ -497,124 +605,20 @@ end
 
 ---@param info table
 ---@return table
-local function session_fact(info)
-  if
-    type(info) ~= 'table'
-    or type(info.id) ~= 'string'
-    or type(info.slug) ~= 'string'
-    or type(info.projectID) ~= 'string'
-    or type(info.directory) ~= 'string'
-    or type(info.title) ~= 'string'
-    or type(info.version) ~= 'string'
-    or type(info.time) ~= 'table'
-    or type(info.time.created) ~= 'number'
-    or type(info.time.updated) ~= 'number'
-  then
-    fail('invalid session info')
-  end
-  return {
-    id = info.id,
-    title = info.title,
-    parentID = info.parentID,
-    location = { directory = info.directory },
-    projectID = info.projectID,
-    subpath = info.path,
-    slug = info.slug,
-    version = info.version,
-    agent = info.agent,
-    model = vim.deepcopy(info.model),
-    time = mapped_time(info.time),
-    summary = vim.deepcopy(info.summary),
-    share = vim.deepcopy(info.share),
-    revert = vim.deepcopy(info.revert),
-  }
+local function mapped_session(info)
+  return session_shape:parse(info, 'V1 observation: invalid session info')
 end
 
 ---@param request table
 ---@return table
-local function permission_fact(request)
-  if type(request) ~= 'table' or type(request.id) ~= 'string' or type(request.sessionID) ~= 'string' then
-    fail('invalid permission request')
-  end
-  if
-    type(request.permission) ~= 'string'
-    or type(request.patterns) ~= 'table'
-    or type(request.metadata) ~= 'table'
-    or type(request.always) ~= 'table'
-  then
-    fail('invalid permission request content')
-  end
-  for _, pattern in ipairs(request.patterns) do
-    if type(pattern) ~= 'string' then
-      fail('invalid permission pattern')
-    end
-  end
-  for _, pattern in ipairs(request.always) do
-    if type(pattern) ~= 'string' then
-      fail('invalid permission always pattern')
-    end
-  end
-  return {
-    id = request.id,
-    session_id = request.sessionID,
-    permission = request.permission,
-    patterns = vim.deepcopy(request.patterns),
-    always = vim.deepcopy(request.always),
-    tool = vim.deepcopy(request.tool),
-    choices = {
-      { value = 'once', label = 'Allow once', description = 'Allow this request once' },
-      { value = 'always', label = 'Always allow', description = 'Save an allow rule' },
-      { value = 'reject', label = 'Reject', description = 'Reject this request' },
-    },
-    status = 'pending',
-  }
+local function mapped_permission(request)
+  return permission_shape:parse(request, 'V1 observation: invalid permission request')
 end
 
 ---@param request table
 ---@return table
-local function question_fact(request)
-  if
-    type(request) ~= 'table'
-    or type(request.id) ~= 'string'
-    or type(request.sessionID) ~= 'string'
-    or type(request.questions) ~= 'table'
-  then
-    fail('invalid question request')
-  end
-  local fields = {}
-  for index, question in ipairs(request.questions) do
-    if
-      type(question) ~= 'table'
-      or type(question.question) ~= 'string'
-      or type(question.header) ~= 'string'
-      or type(question.options) ~= 'table'
-    then
-      fail('invalid question field')
-    end
-    local options = {}
-    for _, option in ipairs(question.options) do
-      if type(option) ~= 'table' or type(option.label) ~= 'string' or type(option.description) ~= 'string' then
-        fail('invalid question option')
-      end
-      options[#options + 1] = { value = option.label, label = option.label, description = option.description }
-    end
-    fields[#fields + 1] = {
-      key = tostring(index),
-      prompt = question.question,
-      title = question.header,
-      type = question.multiple and 'multiselect' or 'string',
-      options = options,
-      custom = question.custom,
-      required = true,
-    }
-  end
-  return {
-    id = request.id,
-    session_id = request.sessionID,
-    fields = fields,
-    tool = vim.deepcopy(request.tool),
-    status = 'pending',
-  }
+local function mapped_question(request)
+  return question_shape:parse(request, 'V1 observation: invalid question request')
 end
 
 ---@param entry table
@@ -650,7 +654,7 @@ return {
   mapped_content = mapped_content,
   entry_from_info = entry_from_info,
   mapped_message = mapped_message,
-  session_fact = session_fact,
-  permission_fact = permission_fact,
-  question_fact = question_fact,
+  mapped_session = mapped_session,
+  mapped_permission = mapped_permission,
+  mapped_question = mapped_question,
 }

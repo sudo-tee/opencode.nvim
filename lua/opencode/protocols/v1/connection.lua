@@ -6,8 +6,8 @@ local M = {
 }
 
 ---@param response? {status: integer, headers?: table<string, string>, body: string}
----@param decode_json fun(response: table, endpoint: string): table|nil, string|nil
----@param invalid_response fun(response: table, endpoint: string): string
+---@param decode_json fun(response: table|nil, endpoint: string): table|nil, string|nil
+---@param invalid_response fun(response: table|nil, endpoint: string): string
 ---@return table|nil body
 ---@return string|nil error
 function M.decode_probe(response, decode_json, invalid_response)

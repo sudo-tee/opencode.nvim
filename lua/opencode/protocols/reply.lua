@@ -3,7 +3,7 @@ local Promise = require('opencode.promise')
 local M = {}
 
 ---@class OpencodeReplyRequest
----@field promise Promise Resolves to an assistant message; the caller validates its content
+---@field promise Promise<table> Resolves to an assistant message; caller validates its content
 ---@field stop fun(reason?: string)
 
 ---Submit one input to a fresh, exclusively owned session and await its reply.
@@ -12,8 +12,8 @@ local M = {}
 ---@return OpencodeReplyRequest
 function M.start(observation, input)
   local reply = Promise.new()
-  local submitted
-  local stopped
+  local submitted ---@type OpencodeSubmission?
+  local stopped ---@type string?
   local unsubscribe = observation:watch({ 'messages' }, function() end)
   local function cleanup()
     if unsubscribe then

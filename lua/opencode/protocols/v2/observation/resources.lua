@@ -29,7 +29,7 @@ local function apply_inbox(observation, items)
   local result = { items_by_id = {}, order = {} }
   for _, item in ipairs(items) do
     local terminal = observation._v2_inbox_terminal[item.id]
-    local mapped = normalize.inbox_fact(item, terminal and terminal.status)
+    local mapped = normalize.mapped_inbox(item, terminal and terminal.status)
     if mapped.session_id ~= state.session.id then
       boundary.fail('inbox snapshot contains another session')
     end
@@ -53,13 +53,13 @@ local function apply_inbox(observation, items)
   state.inbox = result
 end
 
----@type table<OpencodeV2RemoteResource, fun(observation: OpencodeV2Observation, value: table)>
+---@type table<OpencodeV2RemoteResource, fun(observation: OpencodeV2Observation, value: any)>
 local apply = {}
 
 ---@param observation OpencodeV2Observation
 ---@param value table
 apply.session = function(observation, value)
-  local session = normalize.session_fact(value)
+  local session = normalize.mapped_session(value)
   if session.id ~= observation:read().session.id then
     boundary.fail('session snapshot belongs to another session')
   end
@@ -71,7 +71,7 @@ end
 apply.children = function(observation, value)
   local children = { by_id = {}, order = {} }
   for _, info in ipairs(value) do
-    local child = normalize.session_fact(info)
+    local child = normalize.mapped_session(info)
     if child.parentID ~= observation:read().session.id then
       boundary.fail('children snapshot contains another parent')
     end
@@ -85,7 +85,7 @@ apply.messages = messages.apply_page
 apply.inbox = apply_inbox
 
 ---@param observation OpencodeV2Observation
----@param value table<string, {type: 'running'}>
+---@param value table<string, {type: 'running'}|nil>
 apply.execution = function(observation, value)
   local state = observation:read()
   local active = value[state.session.id]
@@ -103,7 +103,7 @@ end
 apply.permissions = function(observation, value)
   local requests = {}
   for _, native in ipairs(value) do
-    local request = normalize.permission_fact(native)
+    local request = normalize.mapped_permission(native)
     if request.session_id == observation:read().session.id then
       local terminal = observation._v2_permission_terminal[request.id]
       if terminal then
@@ -120,12 +120,12 @@ end
 apply.questions = function(observation, value)
   local requests = {}
   for _, native in ipairs(value) do
-    local form = normalize.question_fact(native)
+    local form = normalize.mapped_question(native)
     if form.session_id == observation:read().session.id then
       local terminal = observation._v2_question_terminal[form.id]
       if terminal then
         form.status = terminal.status
-        form.answers = vim.deepcopy(terminal.answers)
+        form.answers = terminal.answers and vim.deepcopy(terminal.answers) or nil
       end
       requests[form.id] = form
     end
@@ -141,7 +141,7 @@ function M.apply(observation, resource, value)
 end
 
 ---@param observation OpencodeV2Observation
----@return Promise<table>
+---@return Promise<OpencodeV2Session>
 function M.ensure_session_location(observation)
   local session = observation:read().session
   local complete = type(session.location) == 'table'
@@ -149,12 +149,13 @@ function M.ensure_session_location(observation)
     and type(session.projectID) == 'string'
     and type(session.time) == 'table'
   if complete then
+    ---@cast session OpencodeV2Session
     return resolved(session)
   end
   return observation._connection.operations
     .get_session(observation._connection, observation._session_id, nil)
     :and_then(function(value)
-      local mapped = normalize.session_fact(value)
+      local mapped = normalize.mapped_session(value)
       if mapped.id ~= observation._session_id then
         boundary.fail('session location belongs to another session')
       end
@@ -167,40 +168,38 @@ end
 ---@return Promise<table[]>
 local function list_children(observation)
   local connection = observation._connection
-  return M.ensure_session_location(observation):and_then(function(session)
+  return Promise.async(function()
+    local session = M.ensure_session_location(observation):await()
     local items = {}
-    ---@param cursor? string
-    ---@return Promise<table[]>
-    local function page(cursor)
-      return connection.operations
-        .list_sessions(connection, session.location, cursor, 100, nil, nil)
-        :and_then(function(result)
-          for _, info in ipairs(result.data) do
-            if type(info) == 'table' and info.parentID == observation._session_id then
-              items[#items + 1] = info
-            end
-          end
-          return result.cursor.next and page(result.cursor.next) or items
-        end)
-    end
-    return page(nil)
-  end)
+    local cursor
+    repeat
+      local result = connection.operations.list_sessions(connection, session.location, cursor, 100, nil, nil):await()
+      for _, info in ipairs(result.data) do
+        if type(info) == 'table' and info.parentID == observation._session_id then
+          items[#items + 1] = info
+        end
+      end
+      cursor = result.cursor.next
+    until cursor == nil
+    return items
+  end)()
 end
 
 ---@param observation OpencodeV2Observation
 ---@param operation OpencodeV2LocationListOperation
 ---@return Promise<table[]>
 local function location_list(observation, operation)
-  return M.ensure_session_location(observation):and_then(function(session)
-    return operation(observation._connection, session.location, nil, nil)
-  end)
+  return Promise.async(function()
+    local session = M.ensure_session_location(observation):await()
+    return operation(observation._connection, session.location, nil, nil):await()
+  end)()
 end
 
----@type table<OpencodeV2RemoteResource, fun(observation: OpencodeV2Observation, connection: OpencodeV2Connection): Promise>
+---@type table<OpencodeV2RemoteResource, fun(observation: OpencodeV2Observation, connection: OpencodeV2Connection): Promise<any>>
 local requests = {
   ---@param observation OpencodeV2Observation
   ---@param connection OpencodeV2Connection
-  ---@return Promise
+  ---@return Promise<table>
   session = function(observation, connection)
     return connection.operations.get_session(connection, observation._session_id, nil)
   end,
@@ -243,7 +242,7 @@ local requests = {
 
 ---@param observation OpencodeV2Observation
 ---@param resource OpencodeV2RemoteResource
----@return Promise
+---@return Promise<any>
 function M.request(observation, resource)
   return requests[resource](observation, observation._connection)
 end

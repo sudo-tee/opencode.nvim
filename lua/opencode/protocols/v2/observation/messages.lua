@@ -16,6 +16,7 @@ end
 ---@param entry table
 local function rebuild_content_index(observation, entry)
   local index = {}
+  ---@type table<string, integer|nil>
   local ordinals = { text = 0, reasoning = 0 }
   for _, content in ipairs(entry.content) do
     if ordinals[content.kind] then
@@ -34,12 +35,14 @@ end
 local function put_entry(observation, entry)
   local state = observation:read()
   local existing = state.entries_by_id[entry.id]
-  state.entries_by_id[entry.id] = entries.replace(existing, entry)
+  local replaced = entries.replace(existing, entry)
+  ---@cast replaced {id: string, kind: string, content: table[]}
+  state.entries_by_id[entry.id] = replaced
   if not existing then
     state.entry_order[#state.entry_order + 1] = entry.id
   end
-  rebuild_content_index(observation, state.entries_by_id[entry.id])
-  return state.entries_by_id[entry.id]
+  rebuild_content_index(observation, replaced)
+  return replaced
 end
 
 ---@param observation OpencodeV2Observation
@@ -129,6 +132,8 @@ local function ordinal_content(observation, data, event_type, create)
 
   local kind = event_type:find('reasoning', 1, true) and 'reasoning' or 'text'
   local index = observation._v2_content_by_message[entry.id]
+  ---@cast index table<string, table|nil>
+  ---@cast data.ordinal integer
   local key = content_key(kind, data.ordinal)
   local content = index[key]
   if content or not create then
@@ -156,6 +161,7 @@ local function tool_content(observation, data, event_type, create)
   end
 
   local index = observation._v2_content_by_message[entry.id]
+  ---@cast index table<string, table|nil>
   local content = index['tool:' .. data.id]
   if content or not create then
     return content
@@ -400,6 +406,7 @@ function M.find_reply(observation, input_id)
   local state = observation:read()
   for _, id in ipairs(state.entry_order) do
     local entry = state.entries_by_id[id]
+    ---@cast entry {id: string, kind: string, content: table[]}
     if entry.kind == 'user' then
       if input_found or entry.id ~= input_id then
         return nil
@@ -426,7 +433,7 @@ end
 ---@param observation OpencodeV2Observation
 ---@param connection OpencodeV2Connection
 function M.attach_history(observation, connection)
-  ---@return Promise
+  ---@return Promise<nil>
   function observation:load_older()
     if self._v2_older_loading then
       boundary.fail('load_older is already in progress')
@@ -465,16 +472,13 @@ function M.attach_history(observation, connection)
     end)
   end
 
-  ---@return Promise
+  ---@return Promise<nil>
   function observation:load_complete_history()
-    ---@return Promise
-    local function pull()
-      if self._v2_history_complete or not self._v2_older_cursor then
-        return Promise.new():resolve(nil)
+    return Promise.async(function()
+      while not self._v2_history_complete and self._v2_older_cursor do
+        self:load_older():await()
       end
-      return self:load_older():and_then(pull)
-    end
-    return pull()
+    end)()
   end
 end
 

@@ -268,6 +268,10 @@ M.open = Promise.async(function(opts)
   local created_windows
   local server_ok, server = pcall(function()
     local open_action = opts.open_action or state.ui.resolve_open_windows_action()
+    if opts.new_session then
+      context.clear_files()
+      context.clear_selections()
+    end
     if not ui.is_opencode_focused() then
       context.load()
     end
@@ -292,7 +296,6 @@ M.open = Promise.async(function(opts)
   local ok, err = pcall(function()
     if opts.new_session then
       state.session.clear_active()
-      context.unload_attachments()
       agent_model.ensure_current_mode():await()
       state.session.set_active(M.create_new_session():await())
       log.debug('Created new session on open', { session = state.active_session.id })

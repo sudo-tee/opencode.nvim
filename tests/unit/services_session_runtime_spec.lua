@@ -236,6 +236,32 @@ describe('opencode.services.session_runtime', function()
       assert.truthy(state.active_session)
     end)
 
+    it('clears old attachments before loading editor context for a new session', function()
+      local context = require('opencode.context')
+      local calls = {}
+      local clear_files = stub(context, 'clear_files').invokes(function()
+        table.insert(calls, 'clear_files')
+      end)
+      local clear_selections = stub(context, 'clear_selections').invokes(function()
+        table.insert(calls, 'clear_selections')
+      end)
+      local load = stub(context, 'load').invokes(function()
+        table.insert(calls, 'load')
+      end)
+      local unload_attachments = stub(context, 'unload_attachments')
+
+      state.ui.set_windows(nil)
+      session_runtime.open({ new_session = true, focus = 'input' }):wait()
+
+      assert.same({ 'clear_files', 'clear_selections', 'load' }, calls)
+      assert.stub(unload_attachments).was_not_called()
+
+      clear_files:revert()
+      clear_selections:revert()
+      load:revert()
+      unload_attachments:revert()
+    end)
+
     it('focuses the appropriate window', function()
       state.ui.set_windows(nil)
       ui.focus_input:revert()

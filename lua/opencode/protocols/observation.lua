@@ -13,14 +13,30 @@ local resource_names = {
 
 ---@alias OpencodeObservedResource 'session'|'children'|'messages'|'inbox'|'execution'|'permissions'|'questions'|'files'
 
+---@class OpencodeObservationSync
+---@field state 'unread'|'loading'|'current'|'stale'|'error'|'unsupported'
+---@field error? string|table
+
+---@class OpencodeObservationState
+---@field session table
+---@field sync table<OpencodeObservedResource, OpencodeObservationSync>
+---@field children {by_id: table<string, table|nil>, order: string[]}
+---@field entries_by_id table<string, {id: string, kind: string, content: table[]}|nil>
+---@field entry_order string[]
+---@field inbox {items_by_id: table<string, table|nil>, order: string[]}
+---@field execution {activity: string, last_outcome?: string, last_idle?: number, retry?: table, error?: table}
+---@field permission_requests_by_id table<string, {id: string, status: string, choices: table[], answer?: string}|nil>
+---@field question_requests_by_id table<string, {id: string, status: string, unavailable_reason?: string, fields: table[], answers?: table}|nil>
+---@field files {revision: integer, path?: string, change?: string, last?: {path: string, event: string}}
+
 ---Adapters interpret native payloads; the shared lifecycle owns requests and publication.
 ---@class OpencodeObservationRuntime
 ---@field name string
----@field request_resource fun(observation: OpencodeObservation, resource: OpencodeObservedResource): Promise
+---@field request_resource fun(observation: OpencodeObservation, resource: OpencodeObservedResource): Promise<any>
 ---@field apply_resource fun(observation: OpencodeObservation, resource: OpencodeObservedResource, value: any) Validate and commit a snapshot; must not publish it
 ---@field route_event fun(connection: table, event: table) Commit native event data, then call _event_changed for affected resources
 ---@field refresh_after_event fun(resource: OpencodeObservedResource, sync: table): boolean Whether published events leave the resource needing a fresh snapshot
----@field find_reply fun(observation: OpencodeObservation, input_id: string): table|nil
+---@field find_reply? fun(observation: OpencodeObservation, input_id: string): table|nil
 ---@field local_resource? fun(resource: OpencodeObservedResource): boolean
 ---@field stream_resource? fun(resource: OpencodeObservedResource): boolean
 ---@field operations_need_stream? boolean Defaults to true
@@ -33,11 +49,11 @@ local resource_names = {
 ---@field _connection table
 ---@field _session_id string
 ---@field _session_ref table
----@field _state table Mutable normalized state, owned by this observation
+---@field _state OpencodeObservationState Mutable normalized state, owned by this observation
 ---@field _runtime OpencodeObservationRuntime
 ---@field _watchers table<table, boolean>
 ---@field _local_operations integer Operations retain the observation even without watchers
----@field _loading table<OpencodeObservedResource, {revision: integer}> One active snapshot token per resource
+---@field _loading table<OpencodeObservedResource, {revision: integer}|nil> One active snapshot token per resource
 ---@field _event_revisions table<OpencodeObservedResource, integer>
 local Observation = {}
 Observation.__index = Observation
@@ -122,8 +138,8 @@ function M.decode_editor_context(context_type, text, part_id, synthetic, ignored
   base.line = decoded.line
   base.column = decoded.column
   base.line_content = decoded.line_content
-  base.lines_before = vim.deepcopy(decoded.lines_before)
-  base.lines_after = vim.deepcopy(decoded.lines_after)
+  base.lines_before = decoded.lines_before and vim.deepcopy(decoded.lines_before) or nil
+  base.lines_after = decoded.lines_after and vim.deepcopy(decoded.lines_after) or nil
   return base
 end
 
@@ -169,6 +185,7 @@ local clear_state = {
 
 ---@param session table
 ---@param unsupported? table<string, string>
+---@return OpencodeObservationState
 function M.new_state(session, unsupported)
   local sync = {}
   for resource in pairs(resource_names) do
@@ -179,11 +196,12 @@ function M.new_state(session, unsupported)
   for _, clear in pairs(clear_state) do
     clear(state)
   end
+  ---@cast state OpencodeObservationState
   return state
 end
 
 ---Borrow the current state. Consumers must not mutate it or use identity to detect changes.
----@return table
+---@return OpencodeObservationState
 function Observation:read()
   return self._state
 end
@@ -225,7 +243,9 @@ end
 function Observation:_event_changed(resource)
   self._event_revisions[resource] = self._event_revisions[resource] + 1
   self:_notify(resource)
-  if self._runtime.refresh_after_event(resource, self._state.sync[resource]) then
+  local sync = self._state.sync[resource]
+  ---@cast sync OpencodeObservationSync
+  if self._runtime.refresh_after_event(resource, sync) then
     self:_start_resource(resource)
   end
 end
@@ -308,7 +328,7 @@ end
 
 ---@param operation function
 ---@param ... any Operation arguments after the connection
----@return Promise
+---@return Promise<any>
 function Observation:_start_action(operation, ...)
   local finish = self:_begin_local_operation()
   local ok, request = pcall(operation, self._connection, ...)
@@ -346,7 +366,9 @@ function Observation:_fail_watched(source, message)
   end
 end
 
+---@type fun(connection: table, runtime: OpencodeObservationRuntime)
 local ensure_stream
+---@type fun(connection: table)
 local schedule_stream_recovery
 
 local function stream_failure(connection, owner, reason)
@@ -389,6 +411,7 @@ local function consume_stream_chunk(connection, owner, chunk)
     if not newline then
       return
     end
+    ---@cast newline integer
     local line = owner.buffer:sub(1, newline - 1):gsub('\r$', '')
     owner.buffer = owner.buffer:sub(newline + 1)
     if line == '' then
@@ -417,9 +440,7 @@ ensure_stream = function(connection, runtime)
     stream_failure(connection, owner, reason)
   end)
   if not ok then
-    if connection._observation_stream == owner then
-      connection._observation_stream = nil
-    end
+    connection._observation_stream = nil
     error(handle, 0)
   end
   owner.handle = handle
@@ -460,6 +481,7 @@ schedule_stream_recovery = function(connection)
     return
   end
   local timer = vim.uv.new_timer()
+  ---@cast timer uv.uv_timer_t
   connection._observation_retry = timer
   timer:start(
     RECOVERY_DELAY_MS,
@@ -483,7 +505,7 @@ function Observation:_start_resource(resource)
     return
   end
   local sync = self._state.sync[resource]
-  if not sync or sync.state == 'unsupported' or self._loading[resource] or not self:_watches(resource) then
+  if sync.state == 'unsupported' or self._loading[resource] or not self:_watches(resource) then
     return
   end
   if self._runtime.local_resource and self._runtime.local_resource(resource) then
@@ -558,7 +580,7 @@ function Observation:_release_resource(resource)
 end
 
 ---The last unsubscribe for a resource clears its state and invalidates its pending snapshot.
----@param resources OpencodeObservedResource[]
+---@param resources string[]
 ---@param changed fun(observation: OpencodeObservation, resource: OpencodeObservedResource)
 ---@return fun() unsubscribe
 function Observation:watch(resources, changed)
@@ -570,6 +592,7 @@ function Observation:watch(resources, changed)
     if not resource_names[resource] then
       error('unsupported Observation resource: ' .. tostring(resource))
     end
+    ---@cast resource OpencodeObservedResource
     if not selected[resource] and not self:_watches(resource) then
       to_start[#to_start + 1] = resource
     end

@@ -32,8 +32,16 @@ function M.new(connection, ref)
     refresh_after_event = function(resource, sync)
       return resource ~= 'files' and sync.state == 'error'
     end,
-    request_resource = resources.request,
-    apply_resource = resources.apply,
+    request_resource = function(current, resource)
+      ---@cast current OpencodeV2Observation
+      ---@cast resource OpencodeV2RemoteResource
+      return resources.request(current, resource)
+    end,
+    apply_resource = function(current, resource, value)
+      ---@cast current OpencodeV2Observation
+      ---@cast resource OpencodeV2RemoteResource
+      resources.apply(current, resource, value)
+    end,
     route_event = events.route,
     ---@param current OpencodeObservation
     ---@param resource OpencodeObservedResource

@@ -3,9 +3,12 @@ local Promise = require('opencode.promise')
 local http = require('opencode.protocols.http')
 local transport = require('opencode.transport')
 
----@class OpencodeV2Operations
-local M = {}
+---@diagnostic disable-next-line: missing-fields
+local M = {} --[[@as OpencodeV2Operations]]
 
+---@param location OpencodeV2Location
+---@param path_map? OpencodeV2PathMap
+---@return string
 local function location_directory(location, path_map)
   return http.location_directory('V2', location, path_map)
 end
@@ -15,6 +18,12 @@ local map_paths = http.map_paths
 local require_table = http.require_table
 
 ---@param connection OpencodeV2Connection
+---@param operation string
+---@param method OpencodeHttpMethod
+---@param path string
+---@param body? any
+---@param query? table<string, any>
+---@return Promise<boolean>
 local function empty_request(connection, operation, method, path, body, query)
   return transport
     .request(connection, {
@@ -34,6 +43,11 @@ local function empty_request(connection, operation, method, path, body, query)
     end)
 end
 
+---@generic T
+---@param operation string
+---@param value any
+---@param reverse_path_map? OpencodeV2PathMap
+---@return T
 local function unwrap_data(operation, value, reverse_path_map)
   if type(value) ~= 'table' or value.data == nil then
     error(operation .. ' returned an invalid data envelope', 0)
@@ -121,6 +135,10 @@ function M.list_sessions(connection, location, cursor, limit, path_map, reverse_
 end
 
 ---@param connection OpencodeV2Connection
+---@param location? OpencodeV2Location
+---@param path_map? OpencodeV2PathMap
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<table[]>
 local function collect_sessions(connection, location, path_map, reverse_path_map)
   return Promise.async(function()
     local sessions = {}
@@ -272,12 +290,16 @@ end
 ---@param reverse_path_map? OpencodeV2PathMap
 ---@return Promise<SessionRevertInfo>
 function M.revert_message(connection, session_id, _location, input, _path_map, reverse_path_map)
+  ---@type fun(value: any): SessionRevertInfo
+  local decode_revert = function(value)
+    local result = require_table('V2 revert_message', unwrap_data('V2 revert_message', value, reverse_path_map))
+    ---@cast result SessionRevertInfo
+    return result
+  end
   return json_request(connection, 'V2 revert_message', 'POST', '/api/session/' .. session_id .. '/revert/stage', nil, {
     messageID = input.messageID,
     files = true,
-  }):and_then(function(value)
-    return require_table('V2 revert_message', unwrap_data('V2 revert_message', value, reverse_path_map))
-  end)
+  }):and_then(decode_revert)
 end
 
 ---@param connection OpencodeV2Connection
@@ -389,23 +411,23 @@ local function prompt_body(input, path_map)
     if value == nil then
       return nil
     end
-    if value.start_byte < 0 or value.end_byte < value.start_byte or value.end_byte > #input.text then
+    if value.start_byte < 0 or value.end_byte < value.start_byte or value.end_byte > #text then
       error('V2 submit received invalid mention')
     end
-    local start = util.utf16_index_from_byte(input.text, value.start_byte)
-    local finish = util.utf16_index_from_byte(input.text, value.end_byte)
+    local start = util.utf16_index_from_byte(text, value.start_byte)
+    local finish = util.utf16_index_from_byte(text, value.end_byte)
     if
       not start
       or not finish
-      or util.byte_index_from_utf16(input.text, start) ~= value.start_byte
-      or util.byte_index_from_utf16(input.text, finish) ~= value.end_byte
+      or util.byte_index_from_utf16(text, start) ~= value.start_byte
+      or util.byte_index_from_utf16(text, finish) ~= value.end_byte
     then
       error('V2 submit mention must use UTF-8 codepoint boundaries')
     end
     return {
       start = start,
       ['end'] = finish,
-      text = input.text:sub(value.start_byte + 1, value.end_byte),
+      text = text:sub(value.start_byte + 1, value.end_byte),
     }
   end
 
@@ -418,10 +440,12 @@ local function prompt_body(input, path_map)
       local uri
       if file.bytes ~= nil then
         uri = 'data:' .. file.media_type .. ';base64,' .. vim.base64.encode(file.bytes)
-      elseif file.server_uri:match('^file:///') then
-        local path = file.server_uri:sub(8)
+      end
+      local server_uri = file.server_uri
+      if server_uri and server_uri:match('^file:///') then
+        local path = server_uri:sub(8)
         uri = 'file://' .. (path_map and path_map(path) or path)
-      else
+      elseif not uri then
         error('V2 submit server_uri must be an absolute file URI')
       end
       body.files[#body.files + 1] = { uri = uri, name = file.name, mention = mention(file.mention) }

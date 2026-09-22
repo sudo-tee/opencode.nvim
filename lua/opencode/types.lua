@@ -121,8 +121,8 @@
 ---@class SessionRevertInfo
 ---@field messageID string
 ---@field partID? string
----@field snapshot string
----@field diff string
+---@field snapshot? string
+---@field diff? string
 
 ---@class SessionShareInfo
 ---@field url string

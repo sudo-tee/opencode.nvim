@@ -3,6 +3,7 @@ local lifecycle = require('opencode.protocols.observation')
 local M = {}
 
 ---@param message string
+---@return never
 function M.fail(message)
   error('V2 observation: ' .. message, 0)
 end

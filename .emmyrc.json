@@ -15,6 +15,9 @@
         ],
         "ignoreGlobs": [
             "**/*_spec.lua"
+        ],
+        "ignoreDir": [
+            "deps"
         ]
     }
 }

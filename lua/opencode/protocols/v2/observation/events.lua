@@ -70,9 +70,8 @@ execution_handlers['session.execution.started'] = function(observation)
 end
 
 ---@param observation OpencodeV2Observation
----@param event OpencodeV2Event
 ---@param data table
-execution_handlers['session.retry.scheduled'] = function(observation, event, data)
+execution_handlers['session.retry.scheduled'] = function(observation, _, data)
   if type(data.attempt) ~= 'number' or type(data.at) ~= 'number' then
     return boundary.diagnostic(observation, 'execution', 'session.retry.scheduled is missing attempt/at')
   end
@@ -97,6 +96,7 @@ local function finish_execution(observation, event, data)
   observation._v2_terminal_seen_since_start = true
   observation._v2_execution_event_active = false
   local outcome = event.type:match('%.([^.]+)$')
+  ---@cast outcome OpencodeV2Outcome
   local terminal = {
     outcome = outcome,
     idle_at = event.created,
@@ -121,7 +121,7 @@ inbox_handlers['session.inbox.enqueued'] = function(observation, event, data)
   end
   local native = vim.deepcopy(data.item)
   native.id, native.sessionID, native.timeCreated = data.inboxID, observation._session_id, event.created
-  local item = normalize.inbox_fact(native)
+  local item = normalize.mapped_inbox(native)
   local terminal = observation._v2_inbox_terminal[item.id]
   if terminal then
     item.status = terminal.status
@@ -167,7 +167,7 @@ local permission_handlers = {}
 ---@param _ OpencodeV2Event
 ---@param data table
 permission_handlers['permission.asked'] = function(observation, _, data)
-  local request = normalize.permission_fact(data)
+  local request = normalize.mapped_permission(data)
   local terminal = observation._v2_permission_terminal[request.id]
   if terminal then
     request.status, request.answer = 'answered', terminal.answer
@@ -196,11 +196,11 @@ local question_handlers = {}
 ---@param _ OpencodeV2Event
 ---@param data table
 question_handlers['form.created'] = function(observation, _, data)
-  local form = normalize.question_fact(data)
+  local form = normalize.mapped_question(data)
   local terminal = observation._v2_question_terminal[form.id]
   if terminal then
     form.status = terminal.status
-    form.answers = vim.deepcopy(terminal.answers)
+    form.answers = terminal.answers and vim.deepcopy(terminal.answers) or nil
   end
   observation:read().question_requests_by_id[form.id] = form
 end
@@ -239,7 +239,7 @@ session_handlers['session.created'] = function(observation, event, data)
   local info = vim.deepcopy(data)
   info.id = data.sessionID
   info.time = { created = event.created, updated = event.created }
-  observation:read().session = normalize.session_fact(info)
+  observation:read().session = normalize.mapped_session(info)
 end
 
 ---@param observation OpencodeV2Observation
@@ -294,7 +294,7 @@ local function children_event(observation, event)
     local info = vim.deepcopy(data)
     info.id = info.sessionID
     info.time = { created = event.created, updated = event.created }
-    put_child(observation:read().children, normalize.session_fact(info))
+    put_child(observation:read().children, normalize.mapped_session(info))
   elseif event.type == 'session.deleted' and data and type(data.sessionID) == 'string' then
     local children = observation:read().children
     if not children.by_id[data.sessionID] then
@@ -334,7 +334,7 @@ local function file_event(observation, event)
   return true
 end
 
----@type table<string, OpencodeV2Route>
+---@type table<string, OpencodeV2Route|nil>
 local routes = {}
 for resource, handlers in pairs({
   inbox = inbox_handlers,

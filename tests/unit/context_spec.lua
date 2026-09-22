@@ -406,6 +406,32 @@ describe('context static API with config override', function()
   end)
 end)
 
+describe('context focus updates', function()
+  it('does not reload context when focus returns to the panel', function()
+    local original_subscribe = state.store.subscribe
+    local original_load = context.load
+    local focus_callback
+    local load_called = false
+
+    state.store.subscribe = function(keys, callback)
+      if keys == 'is_opencode_focused' then
+        focus_callback = callback
+      end
+    end
+    context.load = function()
+      load_called = true
+    end
+
+    context.setup()
+    focus_callback('is_opencode_focused', true, false)
+
+    assert.is_false(load_called)
+
+    context.load = original_load
+    state.store.subscribe = original_subscribe
+  end)
+end)
+
 describe('context toggle API', function()
   local original_context_config
   local original_load

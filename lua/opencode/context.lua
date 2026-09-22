@@ -373,7 +373,13 @@ function M.setup()
     M.load()
   end, 200)
 
-  state.store.subscribe({ 'current_code_buf', 'current_context_config', 'is_opencode_focused' }, function()
+  state.store.subscribe({ 'current_code_buf', 'current_context_config' }, function()
+    debounced_load()
+  end)
+  state.store.subscribe('is_opencode_focused', function(_, focused)
+    if focused then
+      return
+    end
     debounced_load()
   end)
 

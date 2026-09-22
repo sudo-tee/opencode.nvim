@@ -18,7 +18,7 @@
 
 Before you mark a Lua code generation task as complete, you must validate your types against the project's static analysis rules:
 
-1. Run the `emmylua_check .` CLI tool over the generated workspace.
+1. Run the `./check_types.sh` CLI tool over the generated workspace to execute `emmylua_check`.
 2. Review the output for any static analysis diagnostics (e.g., syntax errors, type mismatches, missing fields).
 3. If `emmylua_check` flags any type mismatches, you must fix the code's annotations or types—**do not write manual runtime boilerplate checking (`type()`) to quiet the linter**.
 4. Iterate until `emmylua_check` passes with zero errors.

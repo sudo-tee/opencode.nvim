@@ -5,6 +5,7 @@ local config = require('opencode.config')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local session_runtime = require('opencode.services.session_runtime')
+local agent_model = require('opencode.services.agent_model')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
@@ -27,48 +28,85 @@ local function consume_sent_attachments(tab_id, sent_context)
   end
 end
 
----@param tab_id? string
----@param session_id string
----@param num integer
-local function update_sent_message_count(tab_id, session_id, num)
-  local runtime = tab_id and session_tabs.get(tab_id)
-  if tab_id and not runtime then
-    return
-  end
+---@class PreparedMessage
+---@field params table
+---@field sent_context OpencodeContext
+---@field selected_model {model?: string, variant?: string}
+---@field model_update OpencodeSessionTabModelUpdate
 
-  local counts = runtime and runtime.user_message_count or state.user_message_count
-  local old_count = counts[session_id] or 0
-  local new_count = math.max(0, old_count + num)
-  if tab_id then
-    session_tabs.update_user_message_count(tab_id, session_id, num)
-  else
-    local sent_message_count = vim.deepcopy(counts)
-    sent_message_count[session_id] = new_count
-    state.session.set_user_message_count(sent_message_count)
-  end
+---@param observation OpencodeObservation
+---@param prompt string
+---@param opts SendMessageOpts
+---@return PreparedMessage
+local function prepare_message(observation, prompt, opts)
+  local selected_model = { model = state.current_model, variant = state.current_variant }
+  observation:validate_message_options(opts, config.default_system_prompt)
 
-  if old_count > 0 and new_count == 0 then
-    session_runtime.on_session_request_completed(session_id)
-  end
+  opts.context = vim.tbl_deep_extend('force', {}, state.current_context_config or {}, opts.context or {})
+  state.context.set_current_context_config(opts.context)
+  context.load()
+
+  local sent_context = vim.deepcopy(context.get_context())
+  local overrides, model_update = observation:prepare_message(opts, {
+    mode = state.current_mode,
+    model = state.current_model,
+    variant = state.current_variant,
+    default_mode = config.default_mode,
+  })
+  local params = context.format_message(prompt, opts.context):await()
+  params = vim.tbl_extend('force', params, overrides)
+  params.system = opts.system or config.default_system_prompt or nil
+
+  return {
+    params = params,
+    sent_context = sent_context,
+    selected_model = selected_model,
+    model_update = model_update,
+  }
 end
 
+---@param prepared PreparedMessage
+---@return OpencodeSubmission
+local function await_admission(observation, prepared)
+  local response = observation:submit(prepared.params, prepared.selected_model):await()
+  if type(response) ~= 'table' or (response.kind ~= 'reply' and response.kind ~= 'accepted') then
+    error('Invalid prompt result from opencode: ' .. vim.inspect(response))
+  end
+  return response
+end
+
+---@param response OpencodeSubmission
+---@param prompt string
 ---@param tab_id? string
----@param model_update OpencodeSessionTabModelUpdate
-local function apply_model_update(tab_id, model_update)
-  if tab_id then
-    session_tabs.update_model_state(tab_id, model_update)
-    return
+---@param prepared PreparedMessage
+local function complete_submission(response, prompt, tab_id, prepared)
+  M.after_run(prompt, tab_id, prepared.sent_context)
+  agent_model.apply_message_update(tab_id, prepared.model_update)
+  return response.completion:await()
+end
+
+---@param prompt string
+---@param tab_id? string
+---@param session_id string
+---@param prepared PreparedMessage
+local function submit_message(observation, prompt, tab_id, session_id, prepared)
+  consume_sent_attachments(tab_id, prepared.sent_context)
+  session_runtime.update_sent_message_count(tab_id, session_id, 1)
+
+  local admitted, response = pcall(await_admission, observation, prepared)
+  local ok, result = admitted, response
+  if admitted then
+    ---@cast response OpencodeSubmission
+    ok, result = pcall(complete_submission, response, prompt, tab_id, prepared)
   end
 
-  if model_update.model then
-    state.model.set_model(model_update.model)
+  session_runtime.update_sent_message_count(tab_id, session_id, -1)
+  if not ok then
+    local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
+    log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)
+    return
   end
-  if model_update.mode then
-    state.model.set_mode(model_update.mode)
-  end
-  if model_update.variant then
-    state.model.set_variant(model_update.variant)
-  end
+  return result
 end
 
 --- Sends a message to the active session.
@@ -100,59 +138,13 @@ M.send_message = Promise.async(function(prompt, opts)
     return
   end
 
-  opts = vim.deepcopy(opts or {})
-  local connection = state.opencode_server
-  if not connection then
+  if not state.opencode_server then
     log.notify('Not connected to OpenCode server', vim.log.levels.ERROR)
     return false
   end
 
-  local session_id = session_fact.id
-  local selected_model = {
-    model = state.current_model,
-    variant = state.current_variant,
-  }
-  observation:validate_message_options(opts, config.default_system_prompt)
-
-  opts.context = vim.tbl_deep_extend('force', {}, state.current_context_config or {}, opts.context or {})
-  state.context.set_current_context_config(opts.context)
-  context.load()
-
-  local sent_context = vim.deepcopy(context.get_context())
-  local overrides, model_update = observation:prepare_message(opts, {
-    mode = state.current_mode,
-    model = state.current_model,
-    variant = state.current_variant,
-    default_mode = config.default_mode,
-  })
-  local params = context.format_message(prompt, opts.context):await()
-  params = vim.tbl_extend('force', params, overrides)
-
-  params.system = opts.system or config.default_system_prompt or nil
-
-  consume_sent_attachments(tab_id, sent_context)
-
-  update_sent_message_count(tab_id, session_id, 1)
-  local admitted = false
-  local ok, result = pcall(function()
-    local response = observation:submit(params, selected_model):await()
-    if type(response) ~= 'table' or (response.kind ~= 'reply' and response.kind ~= 'accepted') then
-      error('Invalid prompt result from opencode: ' .. vim.inspect(response))
-    end
-    admitted = true
-    M.after_run(prompt, tab_id, sent_context)
-
-    apply_model_update(tab_id, model_update)
-
-    return response.completion:await()
-  end)
-  update_sent_message_count(tab_id, session_id, -1)
-  if not ok then
-    local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
-    log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)
-    return
-  end
-  return result
+  local prepared = prepare_message(observation, prompt, vim.deepcopy(opts or {}))
+  return submit_message(observation, prompt, tab_id, session_fact.id, prepared)
 end)
 
 ---@param prompt string
@@ -163,11 +155,14 @@ function M.after_run(prompt, tab_id, sent_context)
     sent_context = tab_id
     tab_id = nil
   end
+  ---@cast tab_id string?
+  ---@cast sent_context OpencodeContext?
 
   if tab_id then
     local runtime = session_tabs.get(tab_id)
     if runtime then
-      local runtime_context = vim.deepcopy(runtime.context_data or sent_context)
+      local source_context = runtime.context_data or sent_context
+      local runtime_context = source_context and vim.deepcopy(source_context)
       if runtime_context then
         runtime.context_data = runtime_context
       end

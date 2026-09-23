@@ -802,6 +802,32 @@ M._on_user_message_count_change = Promise.async(function()
   require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
 end)
 
+---Track a local send against its originating tab and session. Completion of the last request triggers the done hook.
+---@param tab_id? string
+---@param session_id string
+---@param delta integer
+function M.update_sent_message_count(tab_id, session_id, delta)
+  local runtime = tab_id and session_tabs.get(tab_id)
+  if tab_id and not runtime then
+    return
+  end
+
+  local counts = runtime and runtime.user_message_count or state.user_message_count
+  local old_count = counts[session_id] or 0
+  local new_count = math.max(0, old_count + delta)
+  if tab_id then
+    session_tabs.update_user_message_count(tab_id, session_id, delta)
+  else
+    local updated_counts = vim.deepcopy(counts)
+    updated_counts[session_id] = new_count
+    state.session.set_user_message_count(updated_counts)
+  end
+
+  if old_count > 0 and new_count == 0 then
+    M.on_session_request_completed(session_id)
+  end
+end
+
 ---Notify completion of the last outstanding local request for a session.
 ---@param session_id string
 ---@return Promise<nil>

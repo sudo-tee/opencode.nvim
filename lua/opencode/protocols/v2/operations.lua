@@ -234,7 +234,7 @@ end
 ---@param _location? OpencodeV2Location
 ---@param title string
 function M.rename_session(connection, session_id, _location, title)
-  return empty_request(connection, 'V2 rename_session', 'POST', '/api/session/' .. session_id .. '/rename', {
+  return empty_request(connection, 'V2 rename_session', 'PATCH', '/api/session/' .. session_id, {
     title = title,
   })
 end

@@ -575,13 +575,11 @@ describe('opencode.services.messaging', function()
       context.get_context()[key] = value
     end
 
-    local delta_stub = stub(context, 'delta_context')
     messaging.after_run('hello')
 
     assert.same({}, context.get_context().mentioned_files)
     assert.same({}, context.get_context().selections)
 
-    delta_stub:revert()
     for key, value in pairs(original_context) do
       context.get_context()[key] = value
     end
@@ -593,12 +591,8 @@ describe('opencode.services.messaging', function()
       mentioned_files = { '/tmp/attached.lua' },
       selections = { { content = 'selected' } },
     }
-    local original_delta_context = context.delta_context
-    context.delta_context = function() end
-
     messaging.after_run('hello', sent_context)
 
     assert.same(sent_context, state.last_sent_context)
-    context.delta_context = original_delta_context
   end)
 end)

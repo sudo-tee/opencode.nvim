@@ -2,7 +2,6 @@ local state = require('opencode.state')
 local context = require('opencode.context')
 local util = require('opencode.util')
 local config = require('opencode.config')
-local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local session_runtime = require('opencode.services.session_runtime')
@@ -12,18 +11,18 @@ local session_tabs = require('opencode.state.session_tabs')
 local M = {}
 
 ---@param tab_id? string
----@param sent_context OpencodeContext
-local function consume_sent_attachments(tab_id, sent_context)
+---@param submission_context OpencodeContext
+local function consume_sent_attachments(tab_id, submission_context)
   if tab_id and session_tabs.active_id() ~= tab_id then
     local runtime = session_tabs.get(tab_id)
     if runtime then
-      runtime.context_data = vim.deepcopy(sent_context)
-      context.consume_attachments(sent_context, runtime.context_data)
+      runtime.context_data = vim.deepcopy(submission_context)
+      context.consume_attachments(submission_context, runtime.context_data)
     end
     return
   end
 
-  context.consume_attachments(sent_context)
+  context.consume_attachments(submission_context)
   if tab_id then
     session_tabs.set_context(context.snapshot())
   end
@@ -31,7 +30,7 @@ end
 
 ---@class PreparedMessage
 ---@field params table
----@field sent_context OpencodeContext
+---@field submission_context OpencodeContext
 ---@field selected_model {model?: string, variant?: string}
 ---@field model_update OpencodeSessionTabModelUpdate
 
@@ -47,30 +46,28 @@ local function prepare_message(observation, prompt, opts)
   state.context.set_current_context_config(opts.context)
   context.load()
 
-  local sent_context = vim.deepcopy(context.get_context())
+  local submission_context = vim.deepcopy(context.get_context())
+  submission_context.automatic_context = {}
+  local previous_context = state.last_sent_context and vim.deepcopy(state.last_sent_context)
   local selected = {
     mode = state.current_mode,
     model = state.current_model,
     variant = state.current_variant,
     default_mode = config.default_mode,
   }
-  if state.opencode_server.protocol == 'v1' then
-    if opts.model == nil and selected.model == nil then
-      local remote_config = config_file.get_opencode_config():await()
-      selected.default_model = remote_config and remote_config.model ~= '' and remote_config.model or nil
-    end
-    if opts.agent or selected.mode or selected.default_mode then
-      selected.available_agents = config_file.get_opencode_agents():await()
-    end
-  end
   local overrides, model_update = observation:prepare_message(opts, selected)
-  local params = context.format_message(prompt, opts.context):await()
+  local params = context
+    .format_message(prompt, opts.context, {
+      previous_context = previous_context,
+      submission_context = submission_context,
+    })
+    :await()
   params = vim.tbl_extend('force', params, overrides)
   params.system = opts.system or config.default_system_prompt or nil
 
   return {
     params = params,
-    sent_context = sent_context,
+    submission_context = submission_context,
     selected_model = selected_model,
     model_update = model_update,
   }
@@ -91,7 +88,7 @@ end
 ---@param tab_id? string
 ---@param prepared PreparedMessage
 local function complete_submission(response, prompt, tab_id, prepared)
-  M.after_run(prompt, tab_id, prepared.sent_context)
+  M.after_run(prompt, tab_id, prepared.submission_context)
   agent_model.apply_message_update(tab_id, prepared.model_update)
   return response.completion:await()
 end
@@ -101,7 +98,7 @@ end
 ---@param session_id string
 ---@param prepared PreparedMessage
 local function submit_message(observation, prompt, tab_id, session_id, prepared)
-  consume_sent_attachments(tab_id, prepared.sent_context)
+  consume_sent_attachments(tab_id, prepared.submission_context)
   session_runtime.update_sent_message_count(tab_id, session_id, 1)
 
   local admitted, response = pcall(await_admission, observation, prepared)
@@ -149,7 +146,8 @@ M.send_message = Promise.async(function(prompt, opts)
     return
   end
 
-  if not state.opencode_server then
+  local server = state.opencode_server
+  if not server then
     log.notify('Not connected to OpenCode server', vim.log.levels.ERROR)
     return false
   end
@@ -160,36 +158,31 @@ end)
 
 ---@param prompt string
 ---@param tab_id? string|OpencodeContext
----@param sent_context? OpencodeContext
-function M.after_run(prompt, tab_id, sent_context)
-  if type(tab_id) == 'table' and sent_context == nil then
-    sent_context = tab_id
+---@param submission_context? OpencodeContext
+function M.after_run(prompt, tab_id, submission_context)
+  if type(tab_id) == 'table' and submission_context == nil then
+    submission_context = tab_id
     tab_id = nil
   end
   ---@cast tab_id string?
-  ---@cast sent_context OpencodeContext?
+  ---@cast submission_context OpencodeContext?
 
   if tab_id then
     local runtime = session_tabs.get(tab_id)
     if runtime then
-      local source_context = runtime.context_data or sent_context
+      local source_context = runtime.context_data or submission_context
       local runtime_context = source_context and vim.deepcopy(source_context)
       if runtime_context then
         runtime.context_data = runtime_context
       end
-      session_tabs.set_last_sent_context(tab_id, sent_context or runtime_context)
-
-      if session_tabs.active_id() == tab_id then
-        context.delta_context()
-      end
+      session_tabs.set_last_sent_context(tab_id, submission_context or runtime_context)
     end
   else
-    local context_sent = vim.deepcopy(sent_context or context.get_context())
-    if not sent_context then
+    local context_sent = vim.deepcopy(submission_context or context.get_context())
+    if not submission_context then
       context.consume_attachments(context_sent)
     end
     state.session.set_last_sent_context(context_sent)
-    context.delta_context()
   end
   require('opencode.history').write(prompt)
   vim.g.opencode_abort_count = 0

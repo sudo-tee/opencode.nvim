@@ -16,22 +16,38 @@ local lifecycle = require('opencode.protocols.observation')
 local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
+local config_file = require('opencode.config_file')
 
 local M = {}
 
 ---@param opts SendMessageOpts
----@param selected {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}
+---@param selected {mode?: string, model?: string, variant?: string, default_mode?: string}
 ---@return table, OpencodeSessionTabModelUpdate
 function M.prepare_message(opts, selected)
+  ---@type {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}
+  local message_selection = {
+    mode = selected.mode,
+    model = selected.model,
+    variant = selected.variant,
+    default_mode = selected.default_mode,
+  }
+  if opts.model == nil and selected.model == nil then
+    local remote_config = config_file.get_opencode_config():await()
+    message_selection.default_model = remote_config and remote_config.model ~= '' and remote_config.model or nil
+  end
+  if opts.agent or message_selection.mode or message_selection.default_mode then
+    message_selection.available_agents = config_file.get_opencode_agents():await()
+  end
+
   local explicit_model = opts.model ~= nil
   if opts.agent == nil then
-    opts.agent = selected.mode or selected.default_mode
+    opts.agent = message_selection.mode or message_selection.default_mode
   end
   if opts.model == nil then
-    opts.model = selected.model or selected.default_model
+    opts.model = message_selection.model or message_selection.default_model
   end
   if opts.variant == nil then
-    opts.variant = selected.variant
+    opts.variant = message_selection.variant
   end
 
   local overrides = {}
@@ -54,7 +70,7 @@ function M.prepare_message(opts, selected)
   end
   if opts.agent then
     overrides.agent = opts.agent
-    if vim.tbl_contains(selected.available_agents or {}, opts.agent) then
+    if vim.tbl_contains(message_selection.available_agents or {}, opts.agent) then
       update.mode = opts.agent
     end
   end

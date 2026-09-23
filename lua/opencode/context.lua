@@ -278,15 +278,27 @@ function M.load()
 end
 
 -- Context creation with delta logic (delegates to ChatContext)
-function M.delta_context(opts)
-  return ChatContext.delta_context(opts)
+---@param payloads OpencodeAutomaticContextPayload[]
+---@param previous_context? OpencodeContext
+---@param submission_context? OpencodeContext
+---@return table[]
+function M.delta_context(payloads, previous_context, submission_context)
+  return ChatContext.delta_context(payloads, previous_context, submission_context)
 end
 
 ---@param prompt string
 ---@param opts? OpencodeContextConfig|nil
+---@param tracking? { previous_context?: OpencodeContext, submission_context?: OpencodeContext }
 ---@return table
-M.format_message = Promise.async(function(prompt, opts)
-  return ChatContext.format_message(prompt, { context_config = opts }):await()
+M.format_message = Promise.async(function(prompt, opts, tracking)
+  tracking = tracking or {}
+  return ChatContext
+    .format_message(prompt, {
+      context_config = opts,
+      previous_context = tracking.previous_context,
+      submission_context = tracking.submission_context,
+    })
+    :await()
 end)
 
 ---@param text string

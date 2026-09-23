@@ -6,7 +6,6 @@ local config = require('opencode.config')
 local assert = require('luassert')
 
 describe('opencode.ui.context_bar', function()
-  local original_delta_context
   local original_get_context
   local original_is_context_enabled
   local original_get_icon
@@ -33,7 +32,6 @@ describe('opencode.ui.context_bar', function()
   end
 
   before_each(function()
-    original_delta_context = context.delta_context
     original_get_context = context.get_context
     original_is_context_enabled = context.is_context_enabled
     original_get_icon = icons.get
@@ -53,10 +51,6 @@ describe('opencode.ui.context_bar', function()
       linter_errors = nil,
       cursor_data = nil,
     }
-
-    context.delta_context = function()
-      return mock_context
-    end
 
     context.get_context = function()
       return mock_context
@@ -102,7 +96,6 @@ describe('opencode.ui.context_bar', function()
   end)
 
   after_each(function()
-    context.delta_context = original_delta_context
     context.get_context = original_get_context
     context.is_context_enabled = original_is_context_enabled
     icons.get = original_get_icon

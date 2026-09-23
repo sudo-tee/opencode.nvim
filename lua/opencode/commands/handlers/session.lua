@@ -29,6 +29,7 @@ local session_subcommands = {
 }
 
 ---@param message string
+---@return never
 local function invalid_arguments(message)
   error({
     code = 'invalid_arguments',
@@ -37,7 +38,7 @@ local function invalid_arguments(message)
 end
 
 ---@param warning string
----@param callback fun(state_obj: OpencodeState): any
+---@param callback fun(state_obj: OpencodeState, observation: OpencodeV1Observation|OpencodeV2Observation, session_fact: OpencodeSession, connection: OpencodeServer, location: OpencodeLocation): any
 ---@return any
 local function with_active_session(warning, callback)
   local state_obj = state
@@ -47,16 +48,18 @@ local function with_active_session(warning, callback)
     vim.notify(warning, vim.log.levels.WARN)
     return
   end
-  local session_fact = observation:read().session
-  if type(session_fact) ~= 'table' or type(session_fact.id) ~= 'string' then
-    error('Active Observation has no session fact')
+  local session = observation:read().session
+  if type(session) ~= 'table' or type(session.id) ~= 'string' then
+    error('Active Observation has no session')
   end
-  local location = session_fact.location or state_obj.active_session.location
-    or { directory = state_obj.current_cwd or vim.fn.getcwd() }
-  return callback(state_obj, observation, session_fact, connection, location)
+  local location = session.location
+    or state_obj.active_session.location
+    or { directory = state_obj.current_cwd or vim.fn.getcwd() } --[[@as OpencodeLocation]]
+  return callback(state_obj, observation, session, connection, location)
 end
 
 local function active_session_fact()
+  ---@type OpencodeV1Observation|OpencodeV2Observation|nil
   local observation = state.session.active_observation()
   return observation and observation:read().session or nil
 end
@@ -96,7 +99,8 @@ local function notify_error(prefix, err)
   end)
 end
 
----@param request_promise Promise<any>
+---@generic T
+---@param request_promise Promise<T>
 ---@param error_prefix string
 ---@param on_success? fun(...)
 local function run_api_action_with_checktime(request_promise, error_prefix, on_success)
@@ -146,8 +150,7 @@ end
 ---@param source 'cursor'|'mouse'
 function M.actions.select_session_tab_target(source)
   local buffer = vim.api.nvim_get_current_buf()
-  local column = source == 'mouse' and math.max(0, vim.fn.getmousepos().column - 1)
-    or vim.api.nvim_win_get_cursor(0)[2]
+  local column = source == 'mouse' and math.max(0, vim.fn.getmousepos().column - 1) or vim.api.nvim_win_get_cursor(0)[2]
   local target = require('opencode.ui.session_tab_strip').get_target_at_position(buffer, column, source == 'mouse')
   if not target then
     return
@@ -174,7 +177,7 @@ end
 
 ---@param parent_id? string
 ---@param scope? 'project' | 'global' defaults to global when session is locked, project otherwise
----@return Promise
+---@return nil
 M.actions.select_session = Promise.async(function(parent_id, scope)
   if scope == nil then
     scope = session_runtime.is_session_locked() and 'global' or 'project'
@@ -216,12 +219,20 @@ function M.actions.toggle_session_lock(value)
 end
 
 local NAV_DIRECTIONS = { parent = true, child = true, sibling = true, forward = true, backward = true }
+---@type table<string, 'direct'|'picker'>
 local NAV_INTERACTION_DEFAULTS =
   { parent = 'direct', child = 'picker', sibling = 'picker', forward = 'direct', backward = 'direct' }
 
----@return string direction, string interaction, boolean wrap, string empty_policy
----@diagnostic disable-next-line: missing-return-value
+---@param direction? string
+---@param interaction? string
+---@param wrap? boolean|string
+---@param empty_policy? string
+---@return string direction
+---@return 'direct'|'picker' interaction
+---@return boolean wrap
+---@return string empty_policy
 local function normalize_navigate_args(direction, interaction, wrap, empty_policy)
+  ---@diagnostic disable-next-line: unnecessary-if
   if not NAV_DIRECTIONS[direction] then
     invalid_arguments('Invalid direction: ' .. tostring(direction))
   end
@@ -243,13 +254,14 @@ local function normalize_navigate_args(direction, interaction, wrap, empty_polic
   elseif type(wrap) ~= 'boolean' then
     invalid_arguments('Invalid wrap: ' .. tostring(wrap))
   end
+  ---@cast wrap boolean
 
   empty_policy = empty_policy or 'notify'
   if empty_policy ~= 'notify' and empty_policy ~= 'noop' then
     invalid_arguments('Invalid empty_policy: ' .. tostring(empty_policy))
   end
 
-  return direction, interaction, wrap, empty_policy
+  return direction --[[@as string]], interaction --[[@as 'direct'|'picker']], wrap, empty_policy
 end
 
 -- parent: direct switch to parentID; child/sibling: target_id is filter, always picker
@@ -370,9 +382,10 @@ function M.actions.navigate_session_tree(direction, interaction, wrap, empty_pol
   end)()
 end
 
----@param current_session? Session
+---@param current_session? OpencodeSession
 function M.actions.compact_session(current_session)
   return with_active_session('No active session to compact', function(state_obj, _, active, connection, location)
+    local operations = connection.operations --[[@as OpencodeV1Operations]]
     local target = current_session or active
     local current_model = state_obj.current_model
     if not current_model then
@@ -387,7 +400,7 @@ function M.actions.compact_session(current_session)
     end
 
     notify_promise(
-      connection.operations.summarize_session(connection, target.id, target.location or location, {
+      operations.summarize_session(connection, target.id, target.location or location, {
         providerID = provider_id,
         modelID = model_id,
       }, util.apply_path_map),
@@ -401,34 +414,44 @@ end
 
 function M.actions.share()
   return with_active_session('No active session to share', function(_, _, session_fact, connection, location)
-    notify_promise(connection.operations.share_session(
-      connection,
-      session_fact.id,
-      location,
-      util.apply_path_map,
-      util.apply_reverse_path_map
-    ), function(response)
-      if response and response.share and response.share.url then
-        vim.fn.setreg('+', response.share.url)
-        vim.notify('Session link copied to clipboard successfully: ' .. response.share.url, vim.log.levels.INFO)
-        return
-      end
-      vim.notify('Session shared but no link received', vim.log.levels.WARN)
-    end, 'Failed to share session: ')
+    local operations = connection.operations --[[@as OpencodeV1Operations]]
+    notify_promise(
+      operations.share_session(
+        connection,
+        session_fact.id,
+        location,
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
+      function(response)
+        if response and response.share and response.share.url then
+          vim.fn.setreg('+', response.share.url)
+          vim.notify('Session link copied to clipboard successfully: ' .. response.share.url, vim.log.levels.INFO)
+          return
+        end
+        vim.notify('Session shared but no link received', vim.log.levels.WARN)
+      end,
+      'Failed to share session: '
+    )
   end)
 end
 
 function M.actions.unshare()
   return with_active_session('No active session to unshare', function(_, _, session_fact, connection, location)
-    notify_promise(connection.operations.unshare_session(
-      connection,
-      session_fact.id,
-      location,
-      util.apply_path_map,
-      util.apply_reverse_path_map
-    ), function()
-      vim.notify('Session unshared successfully', vim.log.levels.INFO)
-    end, 'Failed to unshare session: ')
+    local operations = connection.operations --[[@as OpencodeV1Operations]]
+    notify_promise(
+      operations.unshare_session(
+        connection,
+        session_fact.id,
+        location,
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
+      function()
+        vim.notify('Session unshared successfully', vim.log.levels.INFO)
+      end,
+      'Failed to unshare session: '
+    )
   end)
 end
 
@@ -456,8 +479,9 @@ function M.actions.initialize()
 
     state_obj.session.set_active(new_session)
     window_actions.open_input()
-    local connection = state_obj.opencode_server
-    connection.operations.init_session(connection, state_obj.active_session.id, state_obj.active_session.location or {
+    local connection = state_obj.opencode_server --[[@as OpencodeV1Connection]]
+    local active_session = state_obj.active_session --[[@as OpencodeSession]]
+    connection.operations.init_session(connection, active_session.id, active_session.location or {
       directory = state_obj.current_cwd or vim.fn.getcwd(),
     }, {
       providerID = providerId,
@@ -467,7 +491,7 @@ function M.actions.initialize()
   end)()
 end
 
----@param current_session? Session
+---@param current_session? OpencodeSession
 ---@param new_title? string
 function M.actions.rename_session(current_session, new_title)
   local session = current_session or active_session_fact()
@@ -489,6 +513,9 @@ local function find_entry(observation, target_id)
   return observation:read().entries_by_id[target_id]
 end
 
+---@param observation OpencodeObservation
+---@param target_id string
+---@return integer?
 local function entry_index(observation, target_id)
   for index, id in ipairs(observation:read().entry_order) do
     if id == target_id then
@@ -518,15 +545,18 @@ end
 ---@param message_id? string
 function M.actions.undo(message_id)
   return with_active_session('No active session to undo', function(_, observation, session_fact)
-    local target = message_id and find_entry(observation, message_id)
-      or find_last_user_entry(observation, session_fact)
+    local target = message_id and find_entry(observation, message_id) or find_last_user_entry(observation, session_fact)
     if not target or target.kind ~= 'user' then
       vim.notify('No user message to undo', vim.log.levels.WARN)
       return
     end
 
     run_api_action_with_checktime(
-      observation:revert_message(target.id, util.apply_path_map, util.apply_reverse_path_map),
+      (observation --[[@as OpencodeV1Observation]]):revert_message(
+        target.id,
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
       'Failed to undo last message: ',
       function()
         require('opencode.ui.input_window').refill_prompt_from_message(target)
@@ -595,14 +625,21 @@ function M.actions.redo()
     end
     if not next_message_id then
       run_api_action_with_checktime(
-        observation:unrevert_messages(util.apply_path_map, util.apply_reverse_path_map),
+        (observation --[[@as OpencodeV1Observation]]):unrevert_messages(
+          util.apply_path_map,
+          util.apply_reverse_path_map
+        ),
         'Failed to redo message: '
       )
       return
     end
 
     run_api_action_with_checktime(
-      observation:revert_message(next_message_id, util.apply_path_map, util.apply_reverse_path_map),
+      (observation --[[@as OpencodeV1Observation]]):revert_message(
+        next_message_id,
+        util.apply_path_map,
+        util.apply_reverse_path_map
+      ),
       'Failed to redo message: '
     )
   end)
@@ -619,7 +656,7 @@ function M.actions.timeline()
   for _, id in ipairs(observed.entry_order) do
     local entry = observed.entries_by_id[id]
     local content = entry and entry.content or {}
-    local is_summary = #content == 1 and content[1].synthetic == true
+    local is_summary = #content == 1 and content[1] ~= nil and content[1].synthetic == true
     if entry and entry.kind == 'user' and not is_summary then
       table.insert(user_entries, entry)
     end
@@ -641,9 +678,8 @@ end
 ---@param message_id? string
 ---@param open_in_new_tab? boolean|string
 function M.actions.fork_session(message_id, open_in_new_tab)
-  return with_active_session('No active session to fork', function(_, observation, session_fact, connection, location)
-    local target = message_id and find_entry(observation, message_id)
-      or find_last_user_entry(observation, session_fact)
+  return with_active_session('No active session to fork', function(_, observation, session_fact, _, location)
+    local target = message_id and find_entry(observation, message_id) or find_last_user_entry(observation, session_fact)
     if not target or target.kind ~= 'user' then
       vim.notify('No user message to fork from', vim.log.levels.WARN)
       return
@@ -652,6 +688,7 @@ function M.actions.fork_session(message_id, open_in_new_tab)
     session_runtime
       .fork_session(vim.tbl_extend('force', session_fact, { location = location }), target.id)
       :and_then(function(response)
+        ---@cast response table|nil
         vim.schedule(function()
           if response and response.id then
             vim.notify('Session forked successfully. New session ID: ' .. response.id, vim.log.levels.INFO)

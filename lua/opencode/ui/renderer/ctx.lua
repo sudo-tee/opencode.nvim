@@ -13,6 +13,7 @@ local current
 ---@field uses_vim_ui_select fun(request?: OpencodeQuestionRequest): boolean
 ---@field has_question fun(): boolean
 ---@field clear_all fun()
+---@field clear_question fun()
 ---@field sync fun(observations: table[])
 
 ---Controllers are registered once by the entry layer; their displays use the active context.

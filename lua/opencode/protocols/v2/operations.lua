@@ -6,7 +6,7 @@ local transport = require('opencode.transport')
 ---@diagnostic disable-next-line: missing-fields
 local M = {} --[[@as OpencodeV2Operations]]
 
----@param location OpencodeV2Location
+---@param location OpencodeLocation
 ---@param path_map? OpencodeV2PathMap
 ---@return string
 local function location_directory(location, path_map)
@@ -117,7 +117,7 @@ function M.list_providers(connection, location, path_map, reverse_path_map)
 end
 
 ---@param connection OpencodeV2Connection
----@param location? OpencodeV2Location
+---@param location? OpencodeLocation
 ---@param cursor? string
 ---@param limit? integer
 ---@param path_map? OpencodeV2PathMap
@@ -135,7 +135,7 @@ function M.list_sessions(connection, location, cursor, limit, path_map, reverse_
 end
 
 ---@param connection OpencodeV2Connection
----@param location? OpencodeV2Location
+---@param location? OpencodeLocation
 ---@param path_map? OpencodeV2PathMap
 ---@param reverse_path_map? OpencodeV2PathMap
 ---@return Promise<table[]>
@@ -231,7 +231,7 @@ end
 
 ---@param connection OpencodeV2Connection
 ---@param session_id string
----@param _location? OpencodeV2Location
+---@param _location? OpencodeLocation
 ---@param title string
 function M.rename_session(connection, session_id, _location, title)
   return empty_request(connection, 'V2 rename_session', 'PATCH', '/api/session/' .. session_id, {
@@ -284,7 +284,7 @@ end
 
 ---@param connection OpencodeV2Connection
 ---@param session_id string
----@param _location? OpencodeV2Location
+---@param _location? OpencodeLocation
 ---@param input {messageID: string}
 ---@param _path_map? OpencodeV2PathMap
 ---@param reverse_path_map? OpencodeV2PathMap
@@ -342,7 +342,7 @@ end
 
 ---@param connection OpencodeV2Connection
 ---@param session_id string
----@param _location? OpencodeV2Location
+---@param _location? OpencodeLocation
 ---@param input OpencodeV2CommandInput
 function M.send_command(connection, session_id, _location, input)
   return Promise.async(function()

@@ -966,7 +966,7 @@ local function clear_unresolved_mentions(observation)
 end
 
 ---@param connection OpencodeV1Connection
----@param ref {id: string, location?: OpencodeV1Location}
+---@param ref {id: string, location?: OpencodeLocation}
 ---@return OpencodeV1Observation
 function M.new(connection, ref)
   if type(ref.location) ~= 'table' or type(ref.location.directory) ~= 'string' or ref.location.directory == '' then

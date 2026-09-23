@@ -5,24 +5,24 @@ local auth = require('opencode.auth')
 local protocol_connection = require('opencode.protocols.connection')
 
 --- @class OpencodeServer
---- @field job any The vim.system job handle
---- @field url string|nil The server URL once ready
---- @field port number|nil The port this server is using (for custom servers)
---- @field handle any Compatibility property for job.stop interface
---- @field protocol? 'v1'|'v2' Protocol selected by authenticated health probe
---- @field version? string Server version returned by the selected health endpoint
---- @field server_identity? {version: string, pid: number|nil} Identity facts returned by the probe or acquisition
---- @field credential? {username: string, password: string} Credential owned by this connection
---- @field operations? table Protocol operations selected when the connection becomes ready
---- @field observations table<string, table> Observations owned by this connection
---- @field shutdown_promise Promise<boolean>
---- @field private _ready boolean
---- @field private _shutdown_requested boolean
---- @field private _release_process? fun()
---- @field private _stream? {shutdown: fun(self: table)}
---- @field private _requests table<table, true>
---- @field private _observe? fun(connection: OpencodeServer, ref: table): table
---- @field private _close_observations? fun(connection: OpencodeServer)
+---@field job vim.SystemObj|nil The vim.system job handle
+---@field url string|nil The server URL once ready
+---@field port number|nil The port this server is using (for custom servers)
+---@field handle integer|nil Compatibility property for job.stop interface
+---@field protocol? 'v1'|'v2' Protocol selected by authenticated health probe
+---@field version? string Server version returned by the selected health endpoint
+---@field server_identity? {version: string, pid: integer|nil} Identity facts returned by the probe or acquisition
+---@field credential? {username: string, password?: string} Credential owned by this connection
+---@field operations? OpencodeV1Operations|OpencodeV2Operations Protocol operations selected when the connection becomes ready
+---@field observations table<string, OpencodeObservation?> Observations owned by this connection
+---@field shutdown_promise Promise<boolean>
+---@field private _ready boolean
+---@field private _shutdown_requested boolean
+---@field private _release_process? fun()
+---@field private _stream? {shutdown: fun(self: table)}
+---@field private _requests table<table, true>
+---@field private _observe? fun(connection: OpencodeServer, ref: {id: string, location?: OpencodeLocation}): OpencodeObservation
+---@field private _close_observations? fun(connection: OpencodeServer)
 local OpencodeServer = {}
 OpencodeServer.__index = OpencodeServer
 
@@ -83,6 +83,7 @@ function OpencodeServer.from_custom(url, port)
   return instance
 end
 
+---@return boolean
 function OpencodeServer:is_ready()
   return self._ready
 end
@@ -150,7 +151,7 @@ function OpencodeServer:mark_ready()
   if type(self.url) ~= 'string' or self.url == '' then
     error('ready connection requires url')
   end
-  local runtime = protocol_connection.runtime(self.protocol)
+  local runtime = self.protocol and protocol_connection.runtime(self.protocol)
   if not runtime then
     error('ready connection requires protocol')
   end
@@ -180,8 +181,8 @@ function OpencodeServer:mark_ready()
 end
 
 ---Return the unique Observation for a session on this Connection.
----@param ref {id: string, location?: table}
----@return table
+---@param ref {id: string, location?: OpencodeLocation}
+---@return OpencodeObservation
 function OpencodeServer:observe(ref)
   if not self:is_ready() or not self._observe then
     error('cannot observe a session on a closed Connection')
@@ -216,6 +217,7 @@ function OpencodeServer:check_health()
   return protocol_connection.check_health(self)
 end
 
+---@return Promise<boolean>
 function OpencodeServer:close()
   if self.shutdown_promise:is_resolved() then
     return self.shutdown_promise
@@ -256,6 +258,7 @@ function OpencodeServer:close()
   return self.shutdown_promise
 end
 
+---@return Promise<boolean>
 function OpencodeServer:shutdown()
   return self:close()
 end
@@ -357,6 +360,7 @@ function OpencodeServer:spawn(opts)
   log.debug('spawn: started job with pid=%s', tostring(self.job and self.job.pid))
 end
 
+---@return Promise<boolean>
 function OpencodeServer:get_shutdown_promise()
   return self.shutdown_promise
 end

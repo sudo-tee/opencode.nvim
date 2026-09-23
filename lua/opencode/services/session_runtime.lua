@@ -144,7 +144,7 @@ end
 
 ---List sessions in the given scope. Always returns a non-nil array.
 ---@param scope? 'project' | 'global' defaults to project-scoped
----@return Promise<Session[]|GlobalSession[]>
+---@return Promise<OpencodeSession[]|GlobalSession[]>
 M.list_sessions_by_scope = Promise.async(function(scope)
   local connection = server_job.ensure_server():await()
   local sessions
@@ -179,9 +179,9 @@ local last_workspace_session = Promise.async(function()
 end)
 
 ---Keep only pickable sessions: non-empty title and matching parent_id.
----@param sessions Session[]|GlobalSession[]
+---@param sessions OpencodeSession[]|GlobalSession[]
 ---@param parent_id? string nil selects mainline (no parent), otherwise children of parent_id
----@return Session[]
+---@return OpencodeSession[]
 function M.filter_pickable_sessions(sessions, parent_id)
   return vim.tbl_filter(function(s)
     return s ~= nil and s.title ~= '' and s.parentID == parent_id
@@ -189,14 +189,15 @@ function M.filter_pickable_sessions(sessions, parent_id)
 end
 
 ---Activate a session and initialize its mode without changing panel visibility or focus.
----@param session_or_id Session|string
+---@param session_or_id OpencodeSession|string
 ---@return Promise
 M.switch_session = Promise.async(function(session_or_id)
   local selected_session = session_or_id
   if type(session_or_id) == 'string' then
     local active = state.session.active_observation()
     local active_fact = active and active:read().session or nil
-    local location = (active_fact and active_fact.location) or (state.active_session and state.active_session.location)
+    local location = (active_fact and active_fact.location)
+      or (state.active_session and state.active_session.location)
       or current_location()
     local connection = server_job.ensure_server():await()
     selected_session = connection.operations
@@ -214,7 +215,7 @@ end)
 
 ---Activate a session, then open the panel or restore its input/output focus.
 ---Activation failure rejects without changing panel visibility or focus.
----@param session_or_id Session|string
+---@param session_or_id OpencodeSession|string
 ---@return Promise
 M.select_session = Promise.async(function(session_or_id)
   M.switch_session(session_or_id):await()
@@ -345,14 +346,14 @@ local create_session = Promise.async(function(connection, location, title_or_opt
 end)
 
 ---@param title_or_opts? string|boolean|table
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.create_new_session = Promise.async(function(title_or_opts)
   local connection = server_job.ensure_server():await()
   return create_session(connection, current_location(), title_or_opts):await()
 end)
 
 ---@class OpencodeDetachedSession
----@field session Session
+---@field session OpencodeSession
 ---@field connection OpencodeServer
 ---@field observation OpencodeObservation
 
@@ -386,16 +387,18 @@ M.create_detached_session = Promise.async(function(title_or_opts)
 end)
 
 ---Rename a session without mutating the supplied fact or prompting for input.
----@param session Session
+---@param session OpencodeSession
 ---@param title string
----@return Promise<Session> Updated copy; rejects if disconnected or the operation fails.
+---@return Promise<OpencodeSession> Updated copy; rejects if disconnected or the operation fails.
 M.rename_session = Promise.async(function(session, title)
   local connection = state.opencode_server
   if not connection or not connection:is_ready() then
     error('Connection is not ready')
   end
-  local location = session.location or (session.directory and { directory = session.directory })
-    or (state.active_session and state.active_session.location) or current_location()
+  local location = session.location
+    or (session.directory and { directory = session.directory })
+    or (state.active_session and state.active_session.location)
+    or current_location()
   connection.operations
     .rename_session(connection, session.id, location, title, util.apply_path_map, util.apply_reverse_path_map)
     :await()
@@ -407,7 +410,7 @@ end)
 ---Check whether any session id in `delete_ids` is the session itself or an ancestor
 ---@param session_id string
 ---@param delete_ids table<string, boolean>
----@param all_sessions Session[]
+---@param all_sessions OpencodeSession[]
 ---@return boolean
 function M.is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
   local session_map = {}
@@ -426,9 +429,9 @@ function M.is_session_or_ancestor_deleted(session_id, delete_ids, all_sessions)
   return false
 end
 
----@param sessions_to_delete Session[] Sessions to delete sequentially.
----@param candidates Session[] Ordered replacement candidates from the current selection.
----@param on_deleted? fun(session: Session) Called after each successful deletion.
+---@param sessions_to_delete OpencodeSession[] Sessions to delete sequentially.
+---@param candidates OpencodeSession[] Ordered replacement candidates from the current selection.
+---@param on_deleted? fun(session: OpencodeSession) Called after each successful deletion.
 ---@return Promise Deletes after replacing an affected active session; rejects on operation failure.
 M.delete_sessions = Promise.async(function(sessions_to_delete, candidates, on_deleted)
   local connection = state.opencode_server
@@ -473,24 +476,26 @@ M.delete_sessions = Promise.async(function(sessions_to_delete, candidates, on_de
   end
 end)
 
----@param session Session
+---@param session OpencodeSession
 ---@param message_id? string Omit to fork the complete session.
----@return Promise<Session|nil> Rejects on operation failure.
+---@return Promise<OpencodeSession|nil> Rejects on operation failure.
 M.fork_session = Promise.async(function(session, message_id)
   local connection = state.opencode_server
-  return connection.operations.fork_session(
-    connection,
-    session.id,
-    session.location or (session.directory and { directory = session.directory }),
-    message_id and { messageID = message_id } or {},
-    util.apply_path_map,
-    util.apply_reverse_path_map
-  ):await()
+  return connection.operations
+    .fork_session(
+      connection,
+      session.id,
+      session.location or (session.directory and { directory = session.directory }),
+      message_id and { messageID = message_id } or {},
+      util.apply_path_map,
+      util.apply_reverse_path_map
+    )
+    :await()
 end)
 
 ---Mount an existing session in a new logical panel tab.
----@param selected_session Session
----@return Promise<Session|nil>
+---@param selected_session OpencodeSession
+---@return Promise<OpencodeSession|nil>
 M.open_session_in_tab = Promise.async(function(selected_session)
   if not selected_session or not selected_session.id then
     return nil
@@ -526,7 +531,7 @@ M.open_session_in_tab = Promise.async(function(selected_session)
 end)
 
 ---@param session_id string
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.open_session_in_tab_by_id = Promise.async(function(session_id)
   local connection = server_job.ensure_server():await()
   local selected_session = connection.operations
@@ -540,7 +545,7 @@ end)
 
 ---Open a new session in a logical tab inside the Opencode panel.
 ---@param title? string
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.open_session_tab = Promise.async(function(title)
   local new_session = M.create_new_session(title):await()
   if not new_session then
@@ -551,7 +556,7 @@ end)
 
 ---Switch to a logical tab inside the Opencode panel.
 ---@param tab_id string
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.switch_session_tab = Promise.async(function(tab_id)
   local runtime = session_tabs.get(tab_id)
   if not runtime then
@@ -583,7 +588,7 @@ end)
 
 ---Switch to a logical panel tab by its displayed index.
 ---@param index integer|string
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.switch_session_tab_by_index = Promise.async(function(index)
   index = tonumber(index)
   if not index or index < 1 or index % 1 ~= 0 then
@@ -600,7 +605,7 @@ end)
 
 ---Switch to the next or previous logical panel tab.
 ---@param direction 1|-1
----@return Promise<Session|nil>
+---@return Promise<OpencodeSession|nil>
 M.cycle_session_tab = Promise.async(function(direction)
   local tabs = session_tabs.list()
   if #tabs < 2 then
@@ -789,7 +794,7 @@ M.opencode_ok = Promise.async(function()
   return true
 end)
 
----@param completed_session Session
+---@param completed_session OpencodeSession
 local function notify_done_thinking(completed_session)
   local hook = config.hooks and config.hooks.on_done_thinking
   if not hook or not completed_session or not completed_session.id then
@@ -847,7 +852,6 @@ M.on_session_request_completed = Promise.async(function(session_id)
     notify_done_thinking(completed_session)
   end
 end)
-
 
 M._on_current_permission_change = Promise.async(function(_, new, old)
   local permission_requested = #old < #new

@@ -127,7 +127,10 @@
 ---@class SessionShareInfo
 ---@field url string
 
----@class Session
+---@class OpencodeLocation
+---@field directory string
+
+---@class OpencodeSession
 ---@field workspace string
 ---@field title string
 ---@field time { created: number, updated: number }
@@ -138,12 +141,13 @@
 ---@field directory? string
 ---@field cost? number
 ---@field tokens? { input: number, output: number, reasoning: number, cache: { read: number, write: number } }
+---@field location? OpencodeLocation
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 
 ---@class OpencodeSessionTab
 ---@field id string Logical panel-tab identifier
----@field active_session Session|nil Session assigned to this tab
+---@field active_session OpencodeSession|nil Session assigned to this tab
 ---@field windows OpencodeWindowState|nil UI windows owned by this tab
 
 ---@class SessionProjectInfo
@@ -151,7 +155,7 @@
 ---@field name? string
 ---@field worktree string
 
----@class GlobalSession : Session
+---@class GlobalSession : OpencodeSession
 ---@field project SessionProjectInfo|nil
 
 ---@class OpencodeKeymapEntry
@@ -259,6 +263,11 @@
 ---@field completion OpencodeCompletionConfig
 ---@field highlights? OpencodeHighlightConfig
 ---@field picker OpencodeUIPickerConfig
+---@field questions OpencodeUIQuestionConfig
+
+---@class OpencodeUIQuestionConfig
+---@field use_vim_ui_select boolean
+---@field inline_other_input boolean
 
 ---Window-local options applied to the input window.
 ---Any valid Neovim window-local option (`:h window-variable`) can be set here.
@@ -352,9 +361,9 @@
 
 ---@class OpencodeHooks
 ---@field on_file_edited? fun(file: string): nil
----@field on_session_loaded? fun(session: Session): nil
----@field on_done_thinking? fun(session: Session): nil Called when a session becomes idle.
----@field on_permission_requested? fun(session: Session): nil
+---@field on_session_loaded? fun(session: OpencodeSession): nil
+---@field on_done_thinking? fun(session: OpencodeSession): nil Called when a session becomes idle.
+---@field on_permission_requested? fun(session: OpencodeSession): nil
 ---@field on_command_before? OpencodeCommandDispatchHook
 ---@field on_command_after? OpencodeCommandDispatchHook
 ---@field on_command_error? OpencodeCommandDispatchHook

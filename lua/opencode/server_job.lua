@@ -344,6 +344,7 @@ function M.ensure_server(opts)
       health_checked_at[server] = (vim.uv or vim.loop).now()
       pending_connection = nil
       connection:resolve(server)
+      require('opencode.protocols.contract_check').check_async(server)
     end)
     :catch(function(err)
       pending_connection = nil

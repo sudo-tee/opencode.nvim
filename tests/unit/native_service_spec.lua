@@ -191,6 +191,9 @@ describe('native V2 service discovery', function()
     local probes = 0
     local successful_request = curl.request
     curl.request = function(opts)
+      if opts.url:match('/openapi%.json$') then
+        return
+      end
       probes = probes + 1
       if probes < 3 then
         vim.schedule(function()

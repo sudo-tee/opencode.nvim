@@ -1,4 +1,6 @@
 local input_window = require('opencode.ui.input_window')
+local workflow = require('opencode.commands.handlers.workflow')
+local autocmds = require('opencode.ui.autocmds')
 local state = require('opencode.state')
 local stub = require('luassert.stub')
 
@@ -404,12 +406,12 @@ describe('input_window', function()
       stub(messaging, 'send_message').invokes(function() end)
 
       local group = vim.api.nvim_create_augroup('test_input_window_submit', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      autocmds.setup_autocmds(state.windows)
 
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
       state.ui.set_input_content({ 'hello world' })
 
-      input_window.handle_submit()
+      workflow.actions.submit_input_prompt()
 
       assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
       assert.same({ '' }, state.input_content)
@@ -423,12 +425,12 @@ describe('input_window', function()
       stub(messaging, 'send_message').invokes(function() end)
 
       local group = vim.api.nvim_create_augroup('test_input_window_submit_restore', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      autocmds.setup_autocmds(state.windows)
 
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
       state.ui.set_input_content({ 'hello world' })
 
-      input_window.handle_submit()
+      workflow.actions.submit_input_prompt()
       input_window.recover_input(state.windows)
 
       assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))

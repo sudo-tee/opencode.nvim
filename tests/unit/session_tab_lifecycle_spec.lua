@@ -117,10 +117,18 @@ describe('session tab lifecycle', function()
     vim.wait(30)
     assert.same({}, completed)
 
-    requests[1]:resolve({ kind = 'accepted', input = { id = 'input-one' } })
+    requests[1]:resolve({
+      kind = 'accepted',
+      input = { id = 'input-one' },
+      completion = Promise.new():resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 1 }),
+    })
     send_one:wait()
     assert.same({}, completed)
-    requests[2]:resolve({ kind = 'accepted', input = { id = 'input-two' } })
+    requests[2]:resolve({
+      kind = 'accepted',
+      input = { id = 'input-two' },
+      completion = Promise.new():resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 2 }),
+    })
     send_two:wait()
     vim.wait(30)
     assert.same({ 'first' }, completed)

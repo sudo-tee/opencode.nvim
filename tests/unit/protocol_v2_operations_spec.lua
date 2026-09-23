@@ -529,7 +529,6 @@ describe('V2 protocol operations', function()
     local calls = {}
     local empty = {
       ['/api/session/ses-1'] = true,
-      ['/api/session/ses-1/rename'] = true,
       ['/api/experimental/mcp/test/connect'] = true,
       ['/api/experimental/mcp/test/disconnect'] = true,
     }

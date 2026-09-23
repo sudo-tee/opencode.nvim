@@ -268,6 +268,9 @@ describe('authenticated connection boundary', function()
 
   it('accepts V2 versions across the 2.x series', function()
     curl.request = function(opts)
+      if opts.url:match('/openapi%.json$') then
+        return
+      end
       requests[#requests + 1] = opts.url
       vim.schedule(function()
         opts.callback({ status = 200, body = '{"version":"2.1.0","pid":1}' })

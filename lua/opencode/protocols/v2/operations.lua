@@ -759,4 +759,46 @@ function M.subscribe_events(connection, on_chunk, on_disconnect)
   return transport.stream(connection, { method = 'GET', path = '/api/event' }, on_chunk, on_disconnect)
 end
 
+---Every (method, path) this module issues, written in the server's own
+---/openapi.json template form. Consumed by the startup drift check
+---(opencode.protocols.contract_check) and the offline contract spec; keep in
+---sync with the request calls above.
+M.contract = {
+  { 'GET', '/api/agent' },
+  { 'GET', '/api/command' },
+  { 'GET', '/api/config' },
+  { 'GET', '/api/form' },
+  { 'GET', '/api/fs/find' },
+  { 'GET', '/api/location' },
+  { 'GET', '/api/mcp' },
+  { 'GET', '/api/model' },
+  { 'GET', '/api/model/default' },
+  { 'GET', '/api/permission/request' },
+  { 'GET', '/api/provider' },
+  { 'GET', '/api/session' },
+  { 'GET', '/api/session/active' },
+  { 'GET', '/api/session/{sessionID}' },
+  { 'GET', '/api/session/{sessionID}/inbox' },
+  { 'GET', '/api/session/{sessionID}/message' },
+  { 'GET', '/api/skill' },
+  { 'GET', '/api/vcs/status' },
+  { 'DELETE', '/api/session/{sessionID}' },
+  { 'DELETE', '/api/session/{sessionID}/form/{formID}' },
+  { 'DELETE', '/api/session/{sessionID}/revert' },
+  { 'PATCH', '/api/session/{sessionID}' },
+  { 'POST', '/api/experimental/mcp/{server}/connect' },
+  { 'POST', '/api/experimental/mcp/{server}/disconnect' },
+  { 'POST', '/api/session' },
+  { 'POST', '/api/session/{sessionID}/agent' },
+  { 'POST', '/api/session/{sessionID}/command' },
+  { 'POST', '/api/session/{sessionID}/compact' },
+  { 'POST', '/api/session/{sessionID}/form/{formID}/reply' },
+  { 'POST', '/api/session/{sessionID}/fork' },
+  { 'POST', '/api/session/{sessionID}/interrupt' },
+  { 'POST', '/api/session/{sessionID}/model' },
+  { 'POST', '/api/session/{sessionID}/permission/{requestID}/reply' },
+  { 'POST', '/api/session/{sessionID}/prompt' },
+  { 'POST', '/api/session/{sessionID}/revert/stage' },
+}
+
 return M

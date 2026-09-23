@@ -1,0 +1,367 @@
+{
+ "$schema": "trimmed from opencode 2.0.14 /openapi.json (schemas dropped)",
+ "paths": {
+  "/api/agent": {
+   "get": {}
+  },
+  "/api/agent/{agentID}": {
+   "get": {}
+  },
+  "/api/command": {
+   "get": {}
+  },
+  "/api/config": {
+   "get": {}
+  },
+  "/api/config/shell": {
+   "get": {}
+  },
+  "/api/credential/{credentialID}": {
+   "delete": {},
+   "patch": {}
+  },
+  "/api/credential/{credentialID}/activate": {
+   "post": {}
+  },
+  "/api/debug/location": {
+   "delete": {},
+   "get": {}
+  },
+  "/api/event": {
+   "get": {}
+  },
+  "/api/experimental/config": {
+   "patch": {}
+  },
+  "/api/experimental/fs/write": {
+   "post": {}
+  },
+  "/api/experimental/generate": {
+   "post": {}
+  },
+  "/api/experimental/integration/wellknown": {
+   "post": {}
+  },
+  "/api/experimental/mcp/{server}": {
+   "delete": {},
+   "put": {}
+  },
+  "/api/experimental/mcp/{server}/connect": {
+   "post": {}
+  },
+  "/api/experimental/mcp/{server}/disconnect": {
+   "post": {}
+  },
+  "/api/experimental/migration/v1": {
+   "get": {}
+  },
+  "/api/experimental/persistent-pty/handoff": {
+   "post": {}
+  },
+  "/api/experimental/persistent-pty/shutdown": {
+   "post": {}
+  },
+  "/api/experimental/persistent-pty/{ptyID}": {
+   "delete": {},
+   "get": {},
+   "put": {}
+  },
+  "/api/experimental/persistent-pty/{ptyID}/connect": {
+   "get": {}
+  },
+  "/api/experimental/persistent-pty/{ptyID}/connect-token": {
+   "post": {}
+  },
+  "/api/experimental/persistent-pty/{ptyID}/snapshot": {
+   "get": {}
+  },
+  "/api/experimental/session/import": {
+   "post": {}
+  },
+  "/api/experimental/session/stats": {
+   "get": {}
+  },
+  "/api/experimental/session/{sessionID}/export": {
+   "get": {}
+  },
+  "/api/experimental/session/{sessionID}/instructions/entries": {
+   "get": {}
+  },
+  "/api/experimental/session/{sessionID}/instructions/entries/{key}": {
+   "delete": {},
+   "put": {}
+  },
+  "/api/experimental/session/{sessionID}/log": {
+   "get": {}
+  },
+  "/api/experimental/session/{sessionID}/skill": {
+   "post": {}
+  },
+  "/api/experimental/session/{sessionID}/terminal": {
+   "get": {},
+   "post": {}
+  },
+  "/api/experimental/session/{sessionID}/terminal/read": {
+   "get": {}
+  },
+  "/api/experimental/session/{sessionID}/wait": {
+   "post": {}
+  },
+  "/api/form": {
+   "get": {}
+  },
+  "/api/fs/find": {
+   "get": {}
+  },
+  "/api/fs/list": {
+   "get": {}
+  },
+  "/api/fs/read/*": {
+   "get": {}
+  },
+  "/api/info": {
+   "get": {}
+  },
+  "/api/integration": {
+   "get": {}
+  },
+  "/api/integration/{integrationID}": {
+   "get": {}
+  },
+  "/api/integration/{integrationID}/connect/command": {
+   "post": {}
+  },
+  "/api/integration/{integrationID}/connect/command/{attemptID}": {
+   "delete": {},
+   "get": {}
+  },
+  "/api/integration/{integrationID}/connect/key": {
+   "post": {}
+  },
+  "/api/integration/{integrationID}/connect/oauth": {
+   "post": {}
+  },
+  "/api/integration/{integrationID}/connect/oauth/{attemptID}": {
+   "delete": {},
+   "get": {}
+  },
+  "/api/integration/{integrationID}/connect/oauth/{attemptID}/complete": {
+   "post": {}
+  },
+  "/api/location": {
+   "get": {}
+  },
+  "/api/location/reload": {
+   "post": {}
+  },
+  "/api/mcp": {
+   "get": {}
+  },
+  "/api/mcp/resource": {
+   "get": {}
+  },
+  "/api/model": {
+   "get": {}
+  },
+  "/api/model/default": {
+   "get": {}
+  },
+  "/api/permission/request": {
+   "get": {}
+  },
+  "/api/permission/saved": {
+   "get": {}
+  },
+  "/api/permission/saved/{id}": {
+   "delete": {}
+  },
+  "/api/plugin": {
+   "get": {}
+  },
+  "/api/plugin/check": {
+   "post": {}
+  },
+  "/api/plugin/update": {
+   "post": {}
+  },
+  "/api/project": {
+   "get": {}
+  },
+  "/api/project/{projectID}": {
+   "patch": {}
+  },
+  "/api/provider": {
+   "get": {}
+  },
+  "/api/provider/{providerID}": {
+   "get": {}
+  },
+  "/api/pty": {
+   "get": {},
+   "post": {}
+  },
+  "/api/pty/{ptyID}": {
+   "delete": {},
+   "get": {},
+   "put": {}
+  },
+  "/api/pty/{ptyID}/connect": {
+   "get": {}
+  },
+  "/api/pty/{ptyID}/connect-token": {
+   "post": {}
+  },
+  "/api/reference": {
+   "get": {}
+  },
+  "/api/rpc/{rpcID}/{method}": {
+   "post": {}
+  },
+  "/api/session": {
+   "get": {},
+   "post": {}
+  },
+  "/api/session/active": {
+   "get": {}
+  },
+  "/api/session/{sessionID}": {
+   "delete": {},
+   "get": {},
+   "patch": {}
+  },
+  "/api/session/{sessionID}/agent": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/background": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/command": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/compact": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/context": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/diff": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/environment": {
+   "put": {}
+  },
+  "/api/session/{sessionID}/fork": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/form": {
+   "get": {},
+   "post": {}
+  },
+  "/api/session/{sessionID}/form/{formID}": {
+   "delete": {},
+   "get": {}
+  },
+  "/api/session/{sessionID}/form/{formID}/reply": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/generate": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/inbox": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/inbox/{inboxID}": {
+   "delete": {},
+   "patch": {}
+  },
+  "/api/session/{sessionID}/interrupt": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/message": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/message/{messageID}": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/model": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/move": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/permission": {
+   "get": {},
+   "post": {}
+  },
+  "/api/session/{sessionID}/permission/{requestID}": {
+   "get": {}
+  },
+  "/api/session/{sessionID}/permission/{requestID}/reply": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/prompt": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/revert": {
+   "delete": {}
+  },
+  "/api/session/{sessionID}/revert/commit": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/revert/stage": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/shell": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/synthetic": {
+   "post": {}
+  },
+  "/api/session/{sessionID}/view": {
+   "post": {}
+  },
+  "/api/shell": {
+   "get": {},
+   "post": {}
+  },
+  "/api/shell/{id}": {
+   "delete": {},
+   "get": {}
+  },
+  "/api/shell/{id}/output": {
+   "get": {}
+  },
+  "/api/skill": {
+   "get": {}
+  },
+  "/api/vcs": {
+   "get": {}
+  },
+  "/api/vcs/base": {
+   "get": {}
+  },
+  "/api/vcs/branch": {
+   "get": {}
+  },
+  "/api/vcs/diff": {
+   "get": {}
+  },
+  "/api/vcs/status": {
+   "get": {}
+  },
+  "/api/websearch": {
+   "post": {}
+  },
+  "/api/websearch/provider": {
+   "get": {}
+  },
+  "/api/worktree": {
+   "delete": {},
+   "get": {},
+   "post": {}
+  },
+  "/api/worktree/refresh": {
+   "post": {}
+  }
+ }
+}

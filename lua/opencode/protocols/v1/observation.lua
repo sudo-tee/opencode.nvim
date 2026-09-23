@@ -16,12 +16,11 @@ local lifecycle = require('opencode.protocols.observation')
 local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
-local config_file = require('opencode.config_file')
 
 local M = {}
 
 ---@param opts SendMessageOpts
----@param selected {mode?: string, model?: string, variant?: string, default_mode?: string}
+---@param selected {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}
 ---@return table, OpencodeSessionTabModelUpdate
 function M.prepare_message(opts, selected)
   local explicit_model = opts.model ~= nil
@@ -29,13 +28,7 @@ function M.prepare_message(opts, selected)
     opts.agent = selected.mode or selected.default_mode
   end
   if opts.model == nil then
-    opts.model = selected.model
-    if not opts.model then
-      local cfg = config_file.get_opencode_config():await()
-      if cfg and cfg.model and cfg.model ~= '' then
-        opts.model = cfg.model
-      end
-    end
+    opts.model = selected.model or selected.default_model
   end
   if opts.variant == nil then
     opts.variant = selected.variant
@@ -61,8 +54,7 @@ function M.prepare_message(opts, selected)
   end
   if opts.agent then
     overrides.agent = opts.agent
-    local available_agents = config_file.get_opencode_agents():await()
-    if vim.tbl_contains(available_agents, opts.agent) then
+    if vim.tbl_contains(selected.available_agents or {}, opts.agent) then
       update.mode = opts.agent
     end
   end

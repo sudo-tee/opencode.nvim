@@ -57,7 +57,7 @@ local resource_names = {
 ---@field _event_revisions table<OpencodeObservedResource, integer>
 ---@field reply_permission fun(self: OpencodeObservation, request_id: string, answer: {choice: 'once'|'always'|'reject', message?: string}): Promise<boolean>
 ---@field validate_message_options fun(self: OpencodeObservation, opts: SendMessageOpts, default_system?: string)
----@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: {mode?: string, model?: string, variant?: string, default_mode?: string}): table, OpencodeSessionTabModelUpdate
+---@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}): table, OpencodeSessionTabModelUpdate
 local Observation = {}
 Observation.__index = Observation
 

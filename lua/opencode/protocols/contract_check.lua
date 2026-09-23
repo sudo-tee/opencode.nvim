@@ -4,6 +4,32 @@ local log = require('opencode.log')
 
 local M = {}
 
+---The /openapi.json fixture version the offline spec and this check are
+---anchored at; regenerate the fixture together with this when re-anchoring.
+M.anchored_version = '2.0.14'
+
+---Surface drift to the user with a direction: a server newer than our
+---anchor needs a plugin update, an older server needs a CLI update.
+---@param version string|nil
+---@param count integer
+function M.notify_drift(version, count)
+  local anchored = vim.version.parse(M.anchored_version)
+  local live = vim.version.parse(tostring(version or ''))
+  local hint
+  if live and anchored and live > anchored then
+    hint = 'update this plugin to match your opencode ' .. tostring(version)
+  elseif live and anchored and live < anchored then
+    hint = 'update the opencode CLI to match this plugin'
+  else
+    hint = 'update the opencode CLI or this plugin so versions match'
+  end
+  vim.notify(
+    ('opencode API drift: %d endpoint(s) missing on opencode %s. %s.'):format(count, tostring(version or '?'), hint),
+    vim.log.levels.WARN,
+    { title = 'opencode.nvim' }
+  )
+end
+
 ---Compare the V2 operations contract against the live server's self-declared
 ---/openapi.json. Returns the list of contract entries the server does not
 ---offer; a transport failure resolves to nil (check skipped, connection stays
@@ -40,6 +66,7 @@ function M.check(connection)
           #missing,
           table.concat(missing, ', ')
         )
+        M.notify_drift(connection.version, #missing)
       end
       return missing
     end)

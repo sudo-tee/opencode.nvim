@@ -44,6 +44,25 @@ describe('V2 operations contract', function()
     log.warn:revert()
   end)
 
+  it('points plugin updates at a server newer than the anchor and CLI updates at an older one', function()
+    local notifications = {}
+    stub(vim, 'notify').invokes(function(msg, level, opts)
+      notifications[#notifications + 1] = { msg = msg, level = level, opts = opts }
+    end)
+
+    contract_check.notify_drift('2.1.0', 2)
+    contract_check.notify_drift('2.0.9', 1)
+    contract_check.notify_drift(nil, 3)
+
+    assert.matches('update this plugin to match your opencode 2%.1%.0', notifications[1].msg)
+    assert.equals(vim.log.levels.WARN, notifications[1].level)
+    assert.equals('opencode.nvim', notifications[1].opts.title)
+    assert.matches('update the opencode CLI to match this plugin', notifications[2].msg)
+    assert.matches('so versions match', notifications[3].msg)
+
+    vim.notify:revert()
+  end)
+
   it('skips the check quietly when the server does not answer with an openapi document', function()
     stub(transport, 'request').invokes(function()
       return Promise.new():reject({ kind = 'transport', cause = 'refused' })

@@ -121,9 +121,25 @@ local function valid_answer(field, value)
   return validate ~= nil and validate(field, value)
 end
 
+---@param opts SendMessageOpts
+---@param default_system? string
+function M.validate_message_options(opts, default_system)
+  for _, setting in ipairs({ 'agent', 'model', 'variant' }) do
+    if opts[setting] ~= nil then
+      error('V2 submit does not support per-message ' .. setting)
+    end
+  end
+  if opts.system ~= nil or default_system ~= nil then
+    error('V2 submit does not support a per-message system prompt')
+  end
+end
+
 ---@param observation OpencodeV2Observation
 ---@param connection OpencodeV2Connection
 function M.attach(observation, connection)
+  function observation.validate_message_options(_, opts, default_system)
+    M.validate_message_options(opts, default_system)
+  end
   observation._v2_delivered = {}
   observation._v2_admissions = {}
   observation._v2_stream_generation = 0
@@ -131,7 +147,17 @@ function M.attach(observation, connection)
 
   ---@param input OpencodeV2SubmitInput
   ---@return Promise<OpencodeSubmission>
-  function observation:submit(input)
+  ---@param selected? {model?: string, variant?: string}
+  function observation:submit(input, selected)
+    if selected and selected.model then
+      local provider, model = selected.model:match('^(.-)/(.+)$')
+      if provider and model then
+        input = vim.tbl_extend('force', {}, input, {
+          model = { providerID = provider, modelID = model },
+          variant = selected.variant,
+        })
+      end
+    end
     local finish = self:_begin_local_operation()
     local ok, err = pcall(lifecycle.ensure_stream, connection, self)
     if not ok then

@@ -55,8 +55,16 @@ local resource_names = {
 ---@field _local_operations integer Operations retain the observation even without watchers
 ---@field _loading table<OpencodeObservedResource, {revision: integer}|nil> One active snapshot token per resource
 ---@field _event_revisions table<OpencodeObservedResource, integer>
+---@field validate_message_options fun(self: OpencodeObservation, opts: SendMessageOpts, default_system?: string)
+---@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: {mode?: string, model?: string, variant?: string, default_mode?: string}): table, OpencodeSessionTabModelUpdate
 local Observation = {}
 Observation.__index = Observation
+
+function Observation.validate_message_options(_) end
+
+function Observation.prepare_message(_)
+  return {}, {}
+end
 
 --- Decode an editor-context payload (selection / diagnostics / cursor-data /
 --- file-content / git-diff) into the protocol-neutral contract entry.

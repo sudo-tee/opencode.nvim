@@ -2,6 +2,7 @@ local state = require('opencode.state')
 local context = require('opencode.context')
 local util = require('opencode.util')
 local config = require('opencode.config')
+local config_file = require('opencode.config_file')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
 local session_runtime = require('opencode.services.session_runtime')
@@ -47,12 +48,22 @@ local function prepare_message(observation, prompt, opts)
   context.load()
 
   local sent_context = vim.deepcopy(context.get_context())
-  local overrides, model_update = observation:prepare_message(opts, {
+  local selected = {
     mode = state.current_mode,
     model = state.current_model,
     variant = state.current_variant,
     default_mode = config.default_mode,
-  })
+  }
+  if state.opencode_server.protocol == 'v1' then
+    if opts.model == nil and selected.model == nil then
+      local remote_config = config_file.get_opencode_config():await()
+      selected.default_model = remote_config and remote_config.model ~= '' and remote_config.model or nil
+    end
+    if opts.agent or selected.mode or selected.default_mode then
+      selected.available_agents = config_file.get_opencode_agents():await()
+    end
+  end
+  local overrides, model_update = observation:prepare_message(opts, selected)
   local params = context.format_message(prompt, opts.context):await()
   params = vim.tbl_extend('force', params, overrides)
   params.system = opts.system or config.default_system_prompt or nil

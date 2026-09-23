@@ -9,6 +9,7 @@ local float_layout = require('opencode.ui.float_layout')
 
 ---@class MountedOutputWindowState: OutputWindowWithWin
 ---@field output_buf integer
+---@field output_win integer
 
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
@@ -127,8 +128,7 @@ function M.mounted(windows)
   if not windows or not windows.output_buf or not windows.output_win then
     return false
   end
-  return
-    vim.api.nvim_win_is_valid(windows.output_win)
+  return vim.api.nvim_win_is_valid(windows.output_win)
     and vim.api.nvim_buf_is_valid(windows.output_buf)
     and vim.api.nvim_win_get_buf(windows.output_win) == windows.output_buf
 end
@@ -302,12 +302,7 @@ function M.setup(windows)
   local output_win = windows.output_win
   local output_buf = windows.output_buf
 
-  window_options.set_window_option(
-    'winhighlight',
-    config.ui.window_highlight,
-    output_win,
-    { save_original = true }
-  )
+  window_options.set_window_option('winhighlight', config.ui.window_highlight, output_win, { save_original = true })
   window_options.set_window_option('wrap', true, output_win, { save_original = true })
   window_options.set_window_option('linebreak', true, output_win, { save_original = true })
   pcall(window_options.set_window_option, 'smoothscroll', true, output_win, { save_original = true })

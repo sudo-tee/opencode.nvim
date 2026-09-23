@@ -186,7 +186,7 @@ local function list_children(observation)
 end
 
 ---@param observation OpencodeV2Observation
----@param operation OpencodeV2LocationListOperation
+---@param operation OpencodeLocationListOperation
 ---@return Promise<table[]>
 local function location_list(observation, operation)
   return Promise.async(function()

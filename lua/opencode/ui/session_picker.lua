@@ -6,7 +6,7 @@ local Promise = require('opencode.promise')
 local session_runtime = require('opencode.services.session_runtime')
 
 ---Format session parts for session picker
----@param session Session|GlobalSession object
+---@param session OpencodeSession|GlobalSession object
 ---@param width? integer
 ---@return PickerItem
 local function format_session_item(session, width)
@@ -197,8 +197,8 @@ local function render_preview_buffer(target, formatted)
 end
 
 ---Prompt for a session title and return the renamed session, or nil on cancellation/failure.
----@param session Session
----@return Promise<Session|nil>
+---@param session OpencodeSession
+---@return Promise<OpencodeSession|nil>
 function M.rename(session)
   local promise = Promise.new()
   vim.schedule(function()
@@ -207,21 +207,24 @@ function M.rename(session)
         promise:resolve(nil)
         return
       end
-      session_runtime.rename_session(session, input):and_then(function(updated)
-        promise:resolve(updated)
-      end):catch(function(err)
-        vim.schedule(function()
-          vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
-          promise:resolve(nil)
+      session_runtime
+        .rename_session(session, input)
+        :and_then(function(updated)
+          promise:resolve(updated)
         end)
-      end)
+        :catch(function(err)
+          vim.schedule(function()
+            vim.notify('Failed to rename session: ' .. vim.inspect(err), vim.log.levels.ERROR)
+            promise:resolve(nil)
+          end)
+        end)
     end)
   end)
   return promise
 end
 
----@param sessions Session[]
----@param callback fun(session: Session|nil)
+---@param sessions OpencodeSession[]
+---@param callback fun(session: OpencodeSession|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.pick(sessions, callback, opts)
   opts = opts or {}
@@ -265,14 +268,16 @@ function M.pick(sessions, callback, opts)
       label = 'del',
       fn = Promise.async(function(selected, opts)
         local sessions_to_delete = type(selected) == 'table' and selected.id == nil and selected or { selected }
-        session_runtime.delete_sessions(sessions_to_delete, opts.items or {}, function(session)
-          local idx = util.find_index_of(opts.items, function(item)
-            return item.id == session.id
+        session_runtime
+          .delete_sessions(sessions_to_delete, opts.items or {}, function(session)
+            local idx = util.find_index_of(opts.items, function(item)
+              return item.id == session.id
+            end)
+            if idx > 0 then
+              table.remove(opts.items, idx)
+            end
           end)
-          if idx > 0 then
-            table.remove(opts.items, idx)
-          end
-        end):await()
+          :await()
 
         vim.notify('Deleted ' .. #sessions_to_delete .. ' session(s)', vim.log.levels.INFO)
         return opts.items
@@ -419,8 +424,8 @@ function M.pick(sessions, callback, opts)
   })
 end
 
----@param sessions Session[]
----@param cb fun(session: Session|nil)
+---@param sessions OpencodeSession[]
+---@param cb fun(session: OpencodeSession|nil)
 ---@param opts? { scope?: 'project' | 'global' }
 function M.select(sessions, cb, opts)
   local picker = require('opencode.ui.picker')

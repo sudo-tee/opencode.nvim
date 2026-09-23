@@ -313,7 +313,7 @@ end
 ---Nested operations share the same context and index lock.
 ---@generic T
 ---@param fn fun(): T
----@param captured? {cwd: string, session: Session|nil}
+---@param captured? {cwd: string, session: OpencodeSession|nil}
 ---@return Promise<T>
 function M.with_context(fn, captured)
   local inherited = coroutine.running() and contexts[coroutine.running()]

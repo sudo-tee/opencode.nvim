@@ -9,6 +9,20 @@ local adapters = {
 
 local M = {}
 
+---@class OpencodeProtocolAdapter
+---@field name 'v1'|'v2'
+---@field health_path string
+---@field operations string
+---@field observation string
+
+---@class OpencodeProtocolObservationAdapter
+---@field new fun(connection: OpencodeServer, ref: table): OpencodeObservation
+---@field close fun(connection: OpencodeServer)
+
+---@class OpencodeProtocolRuntime
+---@field operations OpencodeV1Operations|OpencodeV2Operations
+---@field observation OpencodeProtocolObservationAdapter
+
 ---@param response? {status: integer, headers?: table<string, string>, body: string}
 ---@param endpoint string
 ---@return string
@@ -51,7 +65,7 @@ local function decode_json(response, endpoint)
 end
 
 ---@param connection OpencodeServer
----@param adapter table
+---@param adapter OpencodeProtocolAdapter
 ---@param timeout_ms? number
 ---@param callback fun(response: table)
 ---@param on_error fun(err: any)
@@ -106,7 +120,7 @@ function M.probe(connection, timeout_ms)
 end
 
 ---@param protocol 'v1'|'v2'
----@return {operations: table, observation: table}|nil
+---@return OpencodeProtocolRuntime|nil
 function M.runtime(protocol)
   local adapter = adapters[protocol]
   if not adapter then

@@ -35,11 +35,11 @@ end
 local function get_initial_render_count()
   local win = state.windows and state.windows.output_win
   if not win or not vim.api.nvim_win_is_valid(win) then
-    return math.huge -- no window: render all (tests, headless)
+    return math.huge --[[@as integer]] -- no window: render all (tests, headless)
   end
   local ok, height = pcall(vim.api.nvim_win_get_height, win)
   if not ok or not height or height <= 0 then
-    return math.huge
+    return math.huge --[[@as integer]]
   end
   return math.ceil(height / LAZYRENDER_EST_LINES_PER_MSG * LAZYRENDER_VIEWPORT_BUFFER)
 end
@@ -67,7 +67,7 @@ end
 ---@return boolean
 local function is_active_session_message(message)
   local session_id = message and message.session_id
-  return session_id ~= nil and state.active_session and state.active_session.id == session_id
+  return (session_id ~= nil and state.active_session and state.active_session.id == session_id) --[[@as boolean]]
 end
 
 ---@param messages table[]|nil
@@ -654,7 +654,7 @@ local function apply_window_growth(ctx, target)
   if target <= current then
     return false
   end
-  ctx.lazy_render_count = target
+  ctx.lazy_render_count = target --[[@as integer]]
   M.render_from_cache(ctx, { scroll_to_bottom = false })
   return true
 end

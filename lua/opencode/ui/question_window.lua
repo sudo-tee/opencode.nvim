@@ -3,17 +3,19 @@ local icons = require('opencode.ui.icons')
 local Dialog = require('opencode.ui.dialog')
 
 local config = require('opencode.config')
-local formatter_utils = require('opencode.ui.formatter.utils')
 local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 
-M._current_question = nil
+---@type OpencodeQuestionRequest?
+M._current_question = nil --[[@as OpencodeQuestionRequest?]]
 M._current_question_index = 1
 M._collected_answers = {}
 M._multi_selections = {}
 M._answering = false
+---@type table|nil
 M._dialog = nil
+---@type {close: fun()}|nil
 M._inline_input = nil
 M._empty_confirm_armed = false
 M._observations = {}
@@ -189,7 +191,7 @@ local function answer_current_question(answer_value, request_id, question_index)
   if has_all_answers() then
     local answers = {}
     for index, field in ipairs(request.fields) do
-      local answer = M._collected_answers[index]
+      local answer = M._collected_answers[index] --[[@as string[] ]]
       answers[field.key] = field.type == 'multiselect' and answer or answer[1]
     end
     M._send_reply(request.id, answers)
@@ -271,12 +273,12 @@ function M._answer_with_option(option_index, request_id, question_index)
   end
 
   if question_info.type == 'multiselect' then
-    M._toggle_multi_selection(option_index)
+    M._toggle_multi_selection(math.floor(option_index))
     render_question()
     return
   end
 
-  local option = question_info.options[option_index]
+  local option = question_info.options[option_index] --[[@as OpencodeQuestionOption]]
   answer_current_question(option.value or option.label, request_id, question_index)
 end
 
@@ -469,9 +471,13 @@ function M._answer_with_custom(request_id, question_index, reopen_backend)
   end)
 end
 
+---@class QuestionDisplayOption: OpencodeQuestionOption
+---@field confirm? boolean
+
 ---@param question_info OpencodeQuestionInfo
----@return OpencodeQuestionOption[]
+---@return QuestionDisplayOption[]
 local function get_display_options(question_info)
+  ---@type QuestionDisplayOption[]
   local result = vim.deepcopy(question_info.options)
   if get_custom_option_index(question_info) then
     table.insert(result, { label = 'Other', description = 'Type your own answer' })
@@ -536,11 +542,11 @@ function M.format_display(output)
     return
   end
 
-  local icons = require('opencode.ui.icons')
-
   local is_multiple = question_info.type == 'multiselect'
 
   local progress = ''
+  ---@diagnostic disable-next-line: unnecessary-if
+  ---@diagnostic disable-next-line: unnecessary-if
   if M._current_question and #M._current_question.fields > 1 then
     progress = string.format(' (%d/%d)', M._current_question_index, #M._current_question.fields)
   end
@@ -557,6 +563,7 @@ function M.format_display(output)
     local label = option.label
     if is_multiple and custom_option_index == i then
       desc = selections.custom_answer or desc
+    ---@diagnostic disable-next-line: unnecessary-if
     elseif option.confirm and M._empty_confirm_armed then
       label = 'Confirm empty answer'
       desc = 'Press Enter again to submit no selections'
@@ -605,7 +612,7 @@ function M._setup_dialog()
   M._clear_dialog()
 
   local question_info = M.get_current_question_info()
-  if not question_info or not state.windows or not state.windows.output_buf then
+  if not M._current_question or not question_info or not state.windows or not state.windows.output_buf then
     return
   end
 
@@ -720,6 +727,7 @@ end
 
 ---Tear down the active question dialog, if any.
 function M._clear_dialog()
+  ---@diagnostic disable-next-line: unnecessary-if
   if M._dialog then
     M._dialog:teardown()
     M._dialog = nil
@@ -727,6 +735,7 @@ function M._clear_dialog()
 end
 
 function M._clear_inline_input()
+  ---@diagnostic disable-next-line: unnecessary-if
   if M._inline_input then
     local handle = M._inline_input
     M._inline_input = nil
@@ -753,8 +762,12 @@ function M._show_question_with_vim_ui_select()
 
   local prompt = question_info.prompt .. progress
   local choices = {}
-  for i, option in ipairs(options_to_display) do
+  for _, option in ipairs(options_to_display) do
     table.insert(choices, option.label)
+  end
+
+  if not M._current_question then
+    return
   end
 
   local request_id = M._current_question.id
@@ -836,11 +849,13 @@ function M.sync(observations)
   end)
   local next_request = pending[1]
   if not next_request then
+    ---@diagnostic disable-next-line: unnecessary-if
     if M._current_question then
       M.clear_question()
     end
     return
   end
+  ---@diagnostic disable-next-line: unnecessary-if
   if M._current_question and M._current_question.id == next_request.id then
     M._current_question = next_request
     return

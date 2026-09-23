@@ -17,11 +17,16 @@ local resource_names = {
 ---@field state 'unread'|'loading'|'current'|'stale'|'error'|'unsupported'
 ---@field error? string|table
 
+---@class OpencodeMessage
+---@field id string Stable message identifier
+---@field kind string Message kind, such as user or assistant
+---@field content table[] Message content parts
+
 ---@class OpencodeObservationState
----@field session table
+---@field session OpencodeSession
 ---@field sync table<OpencodeObservedResource, OpencodeObservationSync>
 ---@field children {by_id: table<string, table|nil>, order: string[]}
----@field entries_by_id table<string, {id: string, kind: string, content: table[]}|nil>
+---@field entries_by_id table<string, OpencodeMessage|nil>
 ---@field entry_order string[]
 ---@field inbox {items_by_id: table<string, table|nil>, order: string[]}
 ---@field execution {activity: string, last_outcome?: string, last_idle?: number, retry?: table, error?: table}

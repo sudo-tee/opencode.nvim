@@ -4,7 +4,7 @@ local session_tabs = require('opencode.state.session_tabs')
 ---@class OpencodeSessionStateMutations
 local M = {}
 
----@param session Session|nil
+---@param session OpencodeSession|nil
 function M.set_active(session)
   local ref
   if session then
@@ -37,7 +37,7 @@ function M.set_active(session)
   return result
 end
 
----@param session Session
+---@param session OpencodeSession
 ---@return table|nil
 function M.update_active_metadata(session)
   local active = store.get('active_session')
@@ -59,7 +59,7 @@ function M.update_active_metadata(session)
   return result
 end
 
----@return table|nil
+---@return OpencodeObservation|nil
 function M.active_observation()
   local ref = store.get('active_session')
   local connection = store.get('opencode_server')
@@ -136,6 +136,5 @@ function M.set_user_message_count(count)
   session_tabs.sync()
   return result
 end
-
 
 return M

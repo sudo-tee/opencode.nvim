@@ -18,7 +18,7 @@ local M = {
 }
 
 ---@param message string
----@return Session|nil
+---@return OpencodeSession|nil
 local function get_active_session_or_warn(message)
   local active_session = state.active_session
   if not active_session then

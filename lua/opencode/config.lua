@@ -300,7 +300,7 @@ M.defaults = {
       info = false,
       warning = true,
       error = true,
-      only_closest = false, -- If true, only diagnostics for cursor/selection
+      only_closest = true, -- Only diagnostics for cursor/selection; disable to include the whole buffer
     },
     current_file = {
       enabled = true,

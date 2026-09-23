@@ -320,7 +320,7 @@ require('opencode').setup({
       info = false, -- Include diagnostics info in the context (default to false
       warning = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
-      only_closest = false, -- If true, only diagnostics for cursor/selection
+      only_closest = true, -- Only diagnostics for cursor/selection; disable to include the whole buffer
     },
     current_file = {
       enabled = true, -- Include current file path and content in the context
@@ -798,6 +798,10 @@ Opencode can issue permission requests for potentially destructive operations (f
 ## 📝 Context
 
 The following editor context is automatically captured and included in your conversations.
+
+Unchanged automatic payloads (diagnostics, buffer, cursor data, and staged diff) are sent once per session, then sent again only after their content changes. Explicit file mentions and selections are always sent.
+
+When a selection targets the current file, the automatic current-file attachment is skipped. The selected lines provide focused context; the agent can read more of the file when needed. An explicit file mention is still honored.
 
 | Context Type    | Description                                          |
 | --------------- | ---------------------------------------------------- |

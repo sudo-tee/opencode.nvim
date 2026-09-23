@@ -5,6 +5,7 @@ local Promise = require('opencode.promise')
 
 local M = {}
 
+---@type OpencodeContext
 M.context = {
   mentioned_files = {},
   selections = {},
@@ -503,61 +504,59 @@ set_file_sent_timestamps = function(current_file)
   end
 end
 
--- This function creates a context snapshot with delta logic against the last sent context
-function M.delta_context(opts)
-  local config = require('opencode.config')
+---@class OpencodeAutomaticContextPayload
+---@field key string
+---@field part table
+---@field present boolean
+---@field cleared table
 
-  opts = opts or state.current_context_config or config.context
-  if opts.enabled == false then
-    return {
-      current_file = nil,
-      mentioned_files = nil,
-      selections = nil,
-      linter_errors = nil,
-      cursor_data = nil,
-      mentioned_subagents = nil,
-    }
+---Return automatic payload parts changed since the previous accepted submission.
+---@param payloads OpencodeAutomaticContextPayload[]
+---@param previous_context? OpencodeContext
+---@param submission_context? OpencodeContext
+---@return table[]
+function M.delta_context(payloads, previous_context, submission_context)
+  local delta = {}
+  if not submission_context then
+    for _, payload in ipairs(payloads) do
+      if payload.present then
+        delta[#delta + 1] = payload.part
+      end
+    end
+    return delta
   end
 
-  local buf, win = base_context.get_current_buf()
-  if not buf then
-    return {}
-  end
-
-  local ctx = vim.deepcopy(M.context)
-
-  if ctx.current_file and M.context.current_file then
-    set_file_sent_timestamps(M.context.current_file)
-    set_file_sent_timestamps(ctx.current_file)
-  end
-
-  -- no need to send subagents again
-  local last_context = state.last_sent_context
-  if last_context then
-    if
-      ctx.mentioned_subagents
-      and last_context.mentioned_subagents
-      and vim.deep_equal(ctx.mentioned_subagents, last_context.mentioned_subagents)
-    then
-      ctx.mentioned_subagents = nil
-      M.context.mentioned_subagents = nil
+  local previous = previous_context and previous_context.automatic_context or {}
+  submission_context.automatic_context = {}
+  for _, payload in ipairs(payloads) do
+    local fingerprint = vim.fn.sha256(payload.part.text)
+    local previous_fingerprint = previous[payload.key]
+    submission_context.automatic_context[payload.key] = fingerprint
+    if previous_fingerprint ~= fingerprint then
+      if payload.present then
+        delta[#delta + 1] = payload.part
+      elseif previous_fingerprint ~= nil then
+        delta[#delta + 1] = payload.cleared
+      end
     end
   end
-
-  state.context.set_context_updated_at(vim.uv.now())
-  return ctx
+  return delta
 end
 
 --- Capture the protocol-independent input for one submission.
 ---@param prompt string The user's instruction/prompt
----@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig }
+---@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig, previous_context?: OpencodeContext, submission_context?: OpencodeContext }
 ---@return table
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
   local context_config = opts.context_config
+  local previous_context = opts.previous_context
+  local submission_context = opts.submission_context
   local buf, win = base_context.get_current_buf()
   local range = opts.range
   local captured = { text = prompt, context = {}, files = {}, agents = {} }
+  ---@type OpencodeAutomaticContextPayload[]
+  local automatic_context = {}
 
   for _, file_path in ipairs(M.context.mentioned_files or {}) do
     captured.files[#captured.files + 1] = capture_file(file_path, prompt)
@@ -571,17 +570,8 @@ M.format_message = Promise.async(function(prompt, opts)
     return captured
   end
 
-  if
-    base_context.is_context_enabled('current_file', context_config)
-    and M.context.current_file
-    and not M.context.current_file.sent_at
-  then
-    captured.files[#captured.files + 1] = capture_file(M.context.current_file.path)
-  end
-
+  local selections = {}
   if base_context.is_context_enabled('selection', context_config) then
-    local selections = {}
-
     if range and range.start and range.stop then
       local file = base_context.get_current_file_for_selection(buf)
       if file then
@@ -610,13 +600,36 @@ M.format_message = Promise.async(function(prompt, opts)
       table.insert(selections, sel)
     end
 
-    for _, sel in ipairs(selections) do
-      captured.context[#captured.context + 1] = capture_selection(sel)
+  end
+
+  local current_file_selected = false
+  for _, selection in ipairs(selections) do
+    if
+      M.context.current_file
+      and selection.file
+      and selection.file.path == M.context.current_file.path
+    then
+      current_file_selected = true
+      break
     end
   end
 
+  if
+    base_context.is_context_enabled('current_file', context_config)
+    and M.context.current_file
+    and not M.context.current_file.sent_at
+    and not current_file_selected
+  then
+    captured.files[#captured.files + 1] = capture_file(M.context.current_file.path)
+  end
+
+  for _, selection in ipairs(selections) do
+    captured.context[#captured.context + 1] = capture_selection(selection)
+  end
+
   if base_context.is_context_enabled('buffer', context_config) then
-    captured.context[#captured.context + 1] = capture_buffer(buf)
+    local buffer = capture_buffer(buf)
+    automatic_context[#automatic_context + 1] = { key = 'buffer', part = buffer, present = true, cleared = buffer }
   end
 
   local diag_range = nil
@@ -624,29 +637,43 @@ M.format_message = Promise.async(function(prompt, opts)
     diag_range = { start_line = math.floor(range.start) - 1, end_line = math.floor(range.stop) - 1 }
   end
   local diagnostics = M.get_diagnostics(buf, context_config, diag_range)
-  if diagnostics and #diagnostics > 0 then
-    captured.context[#captured.context + 1] = capture_diagnostics(diagnostics, diag_range)
+  if diagnostics then
+    local diagnostic_context = capture_diagnostics(diagnostics, diag_range)
+    automatic_context[#automatic_context + 1] = {
+      key = 'diagnostics',
+      part = diagnostic_context,
+      present = #diagnostics > 0,
+      cleared = diagnostic_context,
+    }
   end
 
   if base_context.is_context_enabled('cursor_data', context_config) then
     local cursor_data = base_context.get_current_cursor_data(buf, win, context_config)
     if cursor_data then
-      table.insert(
-        captured.context,
-        capture_cursor_data(cursor_data, function()
-          return buf
-        end)
-      )
+      local cursor_context = capture_cursor_data(cursor_data, function()
+        return buf
+      end)
+      automatic_context[#automatic_context + 1] = {
+        key = 'cursor_data',
+        part = cursor_context,
+        present = true,
+        cleared = cursor_context,
+      }
     end
   end
 
   if base_context.is_context_enabled('git_diff', context_config) then
     local diff_text = base_context.get_git_diff(context_config):await()
-    if diff_text and diff_text ~= '' then
-      captured.context[#captured.context + 1] = capture_git_diff(diff_text)
-    end
+    local git_diff = capture_git_diff(diff_text or '')
+    automatic_context[#automatic_context + 1] = {
+      key = 'git_diff',
+      part = git_diff,
+      present = diff_text ~= nil and diff_text ~= '',
+      cleared = capture_git_diff('No staged changes.'),
+    }
   end
 
+  vim.list_extend(captured.context, M.delta_context(automatic_context, previous_context, submission_context))
   return captured
 end)
 

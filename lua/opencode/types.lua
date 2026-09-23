@@ -563,6 +563,7 @@
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
 ---@field linter_errors OpencodeDiagnostic[]|nil
+---@field automatic_context? table<string, string> Fingerprints for automatic payloads considered by the last submission
 
 ---@class OpencodeContextSelection
 ---@field file OpencodeContextFile

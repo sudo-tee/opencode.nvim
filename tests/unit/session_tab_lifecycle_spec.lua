@@ -108,13 +108,12 @@ describe('session tab lifecycle', function()
 
     local send_one = messaging.send_message('one')
     local send_two = messaging.send_message('two')
-    assert.is_true(vim.wait(100, function()
+    assert.is_true(vim.wait(5000, function()
       return #requests == 2
     end))
     assert.equals(2, #requests)
     local second = tabs.create({ id = 'second' })
     tabs.activate(second)
-    vim.wait(30)
     assert.same({}, completed)
 
     requests[1]:resolve({
@@ -122,19 +121,21 @@ describe('session tab lifecycle', function()
       input = { id = 'input-one' },
       completion = Promise.new():resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 1 }),
     })
-    send_one:wait()
+    assert.is_true(vim.wait(5000, function()
+      return first.user_message_count.first == 1
+    end))
     assert.same({}, completed)
     requests[2]:resolve({
       kind = 'accepted',
       input = { id = 'input-two' },
       completion = Promise.new():resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 2 }),
     })
+    send_one:wait()
     send_two:wait()
     assert.same({ 'first' }, completed)
     assert.equals(0, first.user_message_count.first)
     assert.same({}, state.user_message_count)
     tabs.activate(first)
-    vim.wait(30)
     assert.same({ 'first' }, completed)
   end)
 

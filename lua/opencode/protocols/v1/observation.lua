@@ -16,8 +16,58 @@ local lifecycle = require('opencode.protocols.observation')
 local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
+local config_file = require('opencode.config_file')
 
 local M = {}
+
+---@param opts SendMessageOpts
+---@param selected {mode?: string, model?: string, variant?: string, default_mode?: string}
+---@return table, OpencodeSessionTabModelUpdate
+function M.prepare_message(opts, selected)
+  local explicit_model = opts.model ~= nil
+  if opts.agent == nil then
+    opts.agent = selected.mode or selected.default_mode
+  end
+  if opts.model == nil then
+    opts.model = selected.model
+    if not opts.model then
+      local cfg = config_file.get_opencode_config():await()
+      if cfg and cfg.model and cfg.model ~= '' then
+        opts.model = cfg.model
+      end
+    end
+  end
+  if opts.variant == nil then
+    opts.variant = selected.variant
+  end
+
+  local overrides = {}
+  ---@type OpencodeSessionTabModelUpdate
+  local update = {}
+  if opts.model then
+    local provider, model = opts.model:match('^(.-)/(.+)$')
+    if not provider or not model then
+      if explicit_model then
+        error('model must use provider/model format')
+      end
+    else
+      overrides.model = { providerID = provider, modelID = model }
+      update.model = opts.model
+      if opts.variant then
+        overrides.variant = opts.variant
+        update.variant = opts.variant
+      end
+    end
+  end
+  if opts.agent then
+    overrides.agent = opts.agent
+    local available_agents = config_file.get_opencode_agents():await()
+    if vim.tbl_contains(available_agents, opts.agent) then
+      update.mode = opts.agent
+    end
+  end
+  return overrides, update
+end
 ---@type fun(event: table): table?, string?
 local native_event
 ---@type fun(observation: OpencodeV1Observation, event: table): OpencodeObservedResource?
@@ -954,6 +1004,9 @@ function M.new(connection, ref)
   observation._v1_history_complete = false
   observation._v1_history_limit = 50
   observation._v1_older_loading = false
+  function observation.prepare_message(_, opts, selected)
+    return M.prepare_message(opts, selected)
+  end
   ---@param input table
   ---@param opts? {async?: boolean}
   ---@return Promise<OpencodeSubmission>

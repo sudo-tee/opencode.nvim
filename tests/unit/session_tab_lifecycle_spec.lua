@@ -89,6 +89,10 @@ describe('session tab lifecycle', function()
           table.insert(requests, request)
           return request
         end,
+        validate_message_options = function() end,
+        prepare_message = function(_, opts, selected)
+          return require('opencode.protocols.v1.observation').prepare_message(opts, selected)
+        end,
         watch = function()
           return function() end
         end,

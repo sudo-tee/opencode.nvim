@@ -101,7 +101,7 @@ describe('opencode.services.messaging', function()
     observation.submit = original_submit
   end)
 
-  it('applies the selected model to a V2 session before submitting', function()
+  it('passes the selected model to the V2 submission', function()
     state.session.set_active({ id = 'sess-v2' })
     connection.protocol = 'v2'
     local previous_model = state.current_model
@@ -109,26 +109,16 @@ describe('opencode.services.messaging', function()
     state.model.set_model('provider/selected-model')
     state.model.set_variant('high')
     local calls = {}
-    connection.operations.set_session_model = function(received, session_id, model)
-      calls[#calls + 1] = { operation = 'model', received = received, session_id = session_id, model = model }
-      return Promise.new():resolve(true)
-    end
     local observation = state.session.active_observation()
     local original_submit = observation.submit
-    observation.submit = function()
-      calls[#calls + 1] = { operation = 'submit' }
+    observation.submit = function(_, _, selected)
+      calls[#calls + 1] = { operation = 'submit', selected = selected }
       return successful_submission()
     end
 
     messaging.send_message('hello'):wait()
 
-    assert.same({
-      operation = 'model',
-      received = connection,
-      session_id = 'sess-v2',
-      model = { providerID = 'provider', id = 'selected-model', variant = 'high' },
-    }, calls[1])
-    assert.equals('submit', calls[2].operation)
+    assert.same({ { operation = 'submit', selected = { model = 'provider/selected-model', variant = 'high' } } }, calls)
     observation.submit = original_submit
     state.model.set_model(previous_model)
     state.model.set_variant(previous_variant)

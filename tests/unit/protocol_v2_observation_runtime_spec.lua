@@ -561,6 +561,25 @@ describe('V2 protocol Observation runtime', function()
     assert.is_false(observed:_watches('messages'))
   end)
 
+  it('passes selected model through the V2 submit operation', function()
+    local value = connection()
+    local sent
+    install_operations(value, {
+      submit = function(_, _, input)
+        sent = input
+        return resolved({ id = 'msg-local', delivery = 'queue' })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local input = { text = 'hello', context = {}, files = {}, agents = {} }
+
+    observed:submit(input, { model = 'provider/selected-model', variant = 'high' }):wait()
+
+    assert.same({ providerID = 'provider', modelID = 'selected-model' }, sent.model)
+    assert.equals('high', sent.variant)
+    assert.is_nil(input.model)
+  end)
+
   it('correlates only a delivered admission with the following same-session terminal', function()
     local value = connection()
     local admission = Promise.new()

@@ -61,6 +61,18 @@ function M.mock_connection()
         return function() end
       end,
     }
+    function observation:validate_message_options(opts, default_system)
+      if self._connection.protocol == 'v2' then
+        require('opencode.protocols.v2.observation.actions').validate_message_options(opts, default_system)
+      end
+    end
+    function observation:prepare_message(opts, selected)
+      if self._connection.protocol == 'v2' then
+        return {}, {}
+      end
+      return require('opencode.protocols.v1.observation').prepare_message(opts, selected)
+    end
+    observation._connection = self
     function observation:read()
       return self._state
     end

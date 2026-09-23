@@ -811,10 +811,11 @@ end)
 ---@param tab_id? string
 ---@param session_id string
 ---@param delta integer
+---@return Promise<nil>
 function M.update_sent_message_count(tab_id, session_id, delta)
   local runtime = tab_id and session_tabs.get(tab_id)
   if tab_id and not runtime then
-    return
+    return Promise.new():resolve(nil)
   end
 
   local counts = runtime and runtime.user_message_count or state.user_message_count
@@ -829,8 +830,9 @@ function M.update_sent_message_count(tab_id, session_id, delta)
   end
 
   if old_count > 0 and new_count == 0 then
-    M.on_session_request_completed(session_id)
+    return M.on_session_request_completed(session_id)
   end
+  return Promise.new():resolve(nil)
 end
 
 ---Notify completion of the last outstanding local request for a session.

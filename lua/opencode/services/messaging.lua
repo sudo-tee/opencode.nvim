@@ -99,7 +99,7 @@ end
 ---@param prepared PreparedMessage
 local function submit_message(observation, prompt, tab_id, session_id, prepared)
   consume_sent_attachments(tab_id, prepared.submission_context)
-  session_runtime.update_sent_message_count(tab_id, session_id, 1)
+  session_runtime.update_sent_message_count(tab_id, session_id, 1):await()
 
   local admitted, response = pcall(await_admission, observation, prepared)
   local ok, result = admitted, response
@@ -108,7 +108,7 @@ local function submit_message(observation, prompt, tab_id, session_id, prepared)
     ok, result = pcall(complete_submission, response, prompt, tab_id, prepared)
   end
 
-  session_runtime.update_sent_message_count(tab_id, session_id, -1)
+  session_runtime.update_sent_message_count(tab_id, session_id, -1):await()
   if not ok then
     local prefix = admitted and 'Prompt result is unknown: ' or 'Error sending message to session: '
     log.notify(prefix .. tostring(result), admitted and vim.log.levels.WARN or vim.log.levels.ERROR)

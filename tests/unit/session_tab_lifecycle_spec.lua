@@ -130,7 +130,6 @@ describe('session tab lifecycle', function()
       completion = Promise.new():resolve({ kind = 'session_idle', outcome = 'succeeded', idle_at = 2 }),
     })
     send_two:wait()
-    vim.wait(30)
     assert.same({ 'first' }, completed)
     assert.equals(0, first.user_message_count.first)
     assert.same({}, state.user_message_count)

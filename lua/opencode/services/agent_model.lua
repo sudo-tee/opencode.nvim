@@ -3,8 +3,29 @@ local config_file = require('opencode.config_file')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
+local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
+
+---Persist accepted message model/mode/variant to its originating tab, or global state when no tab owns it.
+---@param tab_id? string
+---@param update OpencodeSessionTabModelUpdate
+function M.apply_message_update(tab_id, update)
+  if tab_id then
+    session_tabs.update_model_state(tab_id, update)
+    return
+  end
+
+  if update.model then
+    state.model.set_model(update.model)
+  end
+  if update.mode then
+    state.model.set_mode(update.mode)
+  end
+  if update.variant then
+    state.model.set_variant(update.variant)
+  end
+end
 
 local function active_session_fact()
   local observation = state.session.active_observation()

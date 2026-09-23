@@ -1,5 +1,12 @@
 local M = {}
 
+---@class SymbolReferenceTarget
+---@field token string
+---@field path string
+---@field line integer
+---@field col integer
+---@field kind string
+
 local MIN_DEFINITION_TOKEN_LENGTH = 2
 local path_cache = require('opencode.lru_cache').new(256)
 
@@ -139,6 +146,7 @@ function M.token_variants(token)
 end
 
 local function collect_path(path)
+  ---@type table<string, SymbolReferenceTarget[]>
   local by_token = {}
   local filetype = vim.filetype and vim.filetype.match and vim.filetype.match({ filename = path }) or nil
   if not filetype then
@@ -239,6 +247,10 @@ function M.new_cycle()
   return cycle
 end
 
+---@param cycle table
+---@param token string
+---@param candidate_files string[]
+---@return SymbolReferenceTarget[]
 function M.targets_for_token(cycle, token, candidate_files)
   if not is_cycle(cycle) then
     return {}

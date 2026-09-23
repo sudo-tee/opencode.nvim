@@ -93,12 +93,11 @@ function M.format(output, part)
   -- Apply dimmed highlight to title and all content lines
   local end_line = output:get_line_count()
   for line = title_line, end_line do
-    output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 })
+    output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 } --[[@as OutputExtmark]])
   end
 end
 
----@param _ table
----@param input table
+---@param part table
 ---@return string, string, string
 function M.summary(part)
   local input = part.input

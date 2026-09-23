@@ -3,20 +3,57 @@ local session_tabs = require('opencode.state.session_tabs')
 local Dialog = require('opencode.ui.dialog')
 local formatter_utils = require('opencode.ui.formatter.utils')
 
-local M = {}
+---@class PermissionRequest
+---@field id string
+---@field status string
+---@field session_id? string
+---@field sessionID? string
+---@field permission? string
+---@field action? string
+---@field message? string
+---@field patterns? (string|table)[]
+---@field resources? (string|table)[]
 
--- Simple state
-M._permission_queue = {}
-M._dialog = nil
-M._processing = false
-M._interaction = nil
-M._observations = {}
+---@class PermissionInteraction
+---@field permission_id string
+---@field deny_armed boolean
+---@field timer? {stop: fun(self: table), close: fun(self: table)}
+---@field feedback? {close: fun()}
 
+---@class PermissionWindow: PermissionController
+---@field _permission_queue PermissionRequest[]
+---@field _dialog? Dialog
+---@field _processing boolean
+---@field _interaction? PermissionInteraction
+---@field _observations table<string, OpencodeObservation>
+---@field add_permission fun(permission: PermissionRequest)
+---@field remove_permission fun(permission_id: string)
+---@field get_current_permission fun(): PermissionRequest?
+---@field format_display fun(output: Output)
+---@field reply fun(permission: PermissionRequest, choice: 'once'|'always'|'reject', message?: string): any
+---@field _setup_dialog fun()
+---@field _clear_dialog fun(preserve_interaction?: boolean)
+---@field sync fun(observations: table[])
+---@field has_permissions fun(): boolean
+---@field clear_all fun()
+---@field get_all_permissions fun(): table[]
+---@field get_permission_count fun(): integer
+local M = {
+  _permission_queue = {},
+  _dialog = nil,
+  _processing = false,
+  _interaction = nil,
+  _observations = {},
+} --[[@as PermissionWindow]]
+
+---@param permission_id string
+---@return boolean
 local function is_current_permission(permission_id)
   local permission = M._permission_queue[1]
   return permission ~= nil and permission.id == permission_id
 end
 
+---@param timer {stop: fun(self: table), close: fun(self: table)}
 local function stop_timer(timer)
   timer:stop()
   timer:close()
@@ -38,6 +75,8 @@ local function clear_interaction()
   end
 end
 
+---@param permission PermissionRequest
+---@return PermissionInteraction
 local function interaction_for(permission)
   if M._interaction and M._interaction.permission_id == permission.id then
     return M._interaction
@@ -53,6 +92,7 @@ local function interaction_for(permission)
   return M._interaction
 end
 
+---@param interaction PermissionInteraction
 local function clear_deny_timer(interaction)
   interaction.deny_armed = false
   if interaction.timer then
@@ -61,8 +101,8 @@ local function clear_deny_timer(interaction)
   end
 end
 
----@param permission table|nil
----@return string|nil
+---@param permission PermissionRequest?
+---@return string?
 local function get_child_session_id(permission)
   local session_id = permission and permission.session_id
   local active_session = state.active_session
@@ -75,12 +115,8 @@ local function get_child_session_id(permission)
 end
 
 ---Add permission to queue
----@param permission table
+---@param permission PermissionRequest
 function M.add_permission(permission)
-  if not permission or not permission.id then
-    return
-  end
-
   -- Update if exists, otherwise add
   for i, existing in ipairs(M._permission_queue) do
     if existing.id == permission.id then
@@ -123,7 +159,7 @@ function M.remove_permission(permission_id)
 end
 
 ---Get currently selected permission (always the first one now)
----@return table|nil
+---@return PermissionRequest?
 function M.get_current_permission()
   return M._permission_queue[1]
 end
@@ -202,12 +238,12 @@ function M.format_display(output)
   end
 end
 
----@param permission table
+---@param permission PermissionRequest
 ---@param choice 'once'|'always'|'reject'
 ---@param message? string
 function M.reply(permission, choice, message)
-  local observation = permission and M._observations[permission.id]
-  if not observation or not permission or permission.status ~= 'pending' then
+  local observation = M._observations[permission.id]
+  if not observation or permission.status ~= 'pending' then
     error('permission request is not pending')
   end
   return observation
@@ -232,6 +268,9 @@ function M._setup_dialog()
   end
 
   local current_permission = M.get_current_permission()
+  if not current_permission then
+    return
+  end
   local interaction = interaction_for(current_permission)
 
   local saved_selection = nil
@@ -395,9 +434,11 @@ end
 
 ---@param observations table[]
 function M.sync(observations)
+  ---@type PermissionRequest[]
   local pending = {}
+  ---@type table<string, OpencodeObservation>
   local owners = {}
-  for _, observation in ipairs(observations or {}) do
+  for _, observation in ipairs(observations) do
     for _, request in pairs(observation:read().permission_requests_by_id or {}) do
       if request.status == 'pending' then
         pending[#pending + 1] = request

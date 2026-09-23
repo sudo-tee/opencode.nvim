@@ -10,8 +10,7 @@ function M.format(output, part)
   utils.format_action(output, icons.get('skill'), 'skill', input.name or '', utils.get_duration_text(part))
 end
 
----@param _ table
----@param input table
+---@param part table
 ---@return string, string, string
 function M.summary(part)
   return icons.get('skill'), 'skill', (part.input and part.input.name) or ''

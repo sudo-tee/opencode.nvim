@@ -20,7 +20,6 @@ function M.format(output, part)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  local icons = require('opencode.ui.icons')
   local input = part.input or {}
   local command = part.command or input.command
   local description = part.description or input.description

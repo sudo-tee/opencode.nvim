@@ -1,8 +1,6 @@
 local RenderState = require('opencode.ui.render_state')
 
 local M = {}
-local ctx = {}
-ctx.__index = ctx
 local current
 
 ---@class PermissionController
@@ -23,7 +21,7 @@ M.prompt_controllers = {}
 
 ---@class RendererCtx
 ---@field observation table|nil
----@field render_session OpencodeRenderSession|nil
+---@field render_session? OpencodeRenderSession
 ---@field render_state RenderState
 ---@field entries table[]
 ---@field generation integer
@@ -53,6 +51,11 @@ M.prompt_controllers = {}
 ---@field global_folds table[]
 ---@field part_folds table<string, table[]>
 ---@field pending {dirty_message_order: string[], dirty_messages: table, dirty_part_by_message: table, dirty_part_order: string[], dirty_parts: table, removed_part_order: string[], removed_parts: table, removed_message_order: string[], removed_messages: table}
+---@field is_active fun(self: RendererCtx): boolean
+---@field close fun(self: RendererCtx)
+---@field reset fun(self: RendererCtx)
+local ctx = {}
+ctx.__index = ctx
 
 ---@return RendererCtx
 function M.new()

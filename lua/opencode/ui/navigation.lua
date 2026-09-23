@@ -148,9 +148,10 @@ local function open_silent(path)
   if not pcall(function()
     vim.cmd('buffer ' .. escaped)
   end) then
-    return pcall(function()
+    local success = pcall(function()
       vim.cmd('edit ' .. escaped)
     end)
+    return success
   end
   return true
 end
@@ -247,7 +248,7 @@ local function pick_symbol_target(targets)
       end
     end,
     title = 'Symbol References (' .. #targets .. ')',
-    width = config.ui.picker_width,
+    width = config.ui.picker_width or nil,
     preview = 'file',
     layout_opts = config.ui.picker,
   })

@@ -27,7 +27,7 @@ local function is_pinned_top_message(message_id)
 end
 
 ---@param extmarks table<number, OutputExtmark[]|fun(): OutputExtmark>[]|table<number, OutputExtmark[]>|nil
----@return boolean
+---@return TypeGuard<table<number, OutputExtmark[]>>
 local function has_extmarks(extmarks)
   return type(extmarks) == 'table' and next(extmarks) ~= nil
 end
@@ -606,7 +606,7 @@ function M.update_part_folds(part_id, ctx)
   ctx.part_folds[part_id] = new_folds
   local new_global = {}
   for pid, data in pairs(ctx.formatted_parts) do
-    if data.fold_ranges then
+    if #data.fold_ranges > 0 then
       local p = ctx.render_state:get_part(pid)
       if p and p.line_start then
         for _, f in ipairs(data.fold_ranges) do
@@ -658,7 +658,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
   output_window.set_lines(extra_lines, insert_at, insert_at)
   highlight_written_lines(insert_at, extra_lines)
 
-  local new_line_end = cached.line_end + #extra_lines
+  local new_line_end = old_line_end + #extra_lines
   ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
   output_window.shift_folds(insert_at, #extra_lines)
 

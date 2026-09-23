@@ -55,6 +55,7 @@ local resource_names = {
 ---@field _local_operations integer Operations retain the observation even without watchers
 ---@field _loading table<OpencodeObservedResource, {revision: integer}|nil> One active snapshot token per resource
 ---@field _event_revisions table<OpencodeObservedResource, integer>
+---@field reply_permission fun(self: OpencodeObservation, request_id: string, answer: {choice: 'once'|'always'|'reject', message?: string}): Promise<boolean>
 ---@field validate_message_options fun(self: OpencodeObservation, opts: SendMessageOpts, default_system?: string)
 ---@field prepare_message fun(self: OpencodeObservation, opts: SendMessageOpts, selected: {mode?: string, model?: string, variant?: string, default_mode?: string}): table, OpencodeSessionTabModelUpdate
 local Observation = {}

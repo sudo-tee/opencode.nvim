@@ -7,11 +7,14 @@ local M = {}
 ---@field operation 'Add'|'Update'|'Delete'
 ---@field path string
 ---@field lines string[]
+---@field diff? string
 
 ---@param patch_text string
 ---@return OpencodePatchFile[]
 local function patch_files(patch_text)
+  ---@type OpencodePatchFile[]
   local files = {}
+  ---@type OpencodePatchFile?
   local current
   for _, line in ipairs(vim.split(patch_text, '\n')) do
     local operation, path = line:match('^%*%*%* (%w+) File: (.+)$')
@@ -19,6 +22,7 @@ local function patch_files(patch_text)
       path = nil
     end
     if path then
+      ---@cast operation 'Add'|'Update'|'Delete'
       current = { operation = operation, path = path, lines = {} }
       files[#files + 1] = current
     elseif current and line:match('^%*%*%* Move to: (.+)$') then
@@ -30,9 +34,6 @@ local function patch_files(patch_text)
   return files
 end
 
----@param haystack string[]
----@param needle string[]
----@return integer|nil
 ---@param file OpencodePatchFile
 ---@return string|nil
 local function unified_diff(file)
@@ -64,9 +65,11 @@ function M.format(output, part)
   local formatter_utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
   local patch_text = part.input and part.input.patchText
+  ---@type (OpencodePatchFile|{path: string, diff?: string})[]
   local files = {}
   if type(part.changes) == 'table' and #part.changes > 0 then
     for _, change in ipairs(part.changes) do
+      ---@cast change {path: string, diff?: string}
       files[#files + 1] = { path = change.path, diff = change.diff }
     end
   elseif type(patch_text) == 'string' then
@@ -94,15 +97,17 @@ function M.format(output, part)
     )
     local action_line = output:get_line_count()
     local action_text = output:get_line(action_line)
+    local end_col = (action_text and #action_text or 0) --[[@as integer]]
     output:add_target({
       kind = 'file',
       path = file.path,
-      range = { line = action_line, start_col = 0, end_col = action_text and #action_text or 0 },
+      range = { line = action_line, start_col = 0, end_col = end_col },
     })
 
     if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then
       local diff = file.diff or unified_diff(file)
       if diff then
+        ---@cast diff string
         local start_line = output:get_line_count() + 1
         formatter_utils.format_diff(output, diff, util.get_markdown_filetype(file.path), file.path)
         output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)

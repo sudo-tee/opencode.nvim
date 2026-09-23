@@ -120,7 +120,7 @@ function Output:add_fold_with_threshold(start_line, show, use_folds)
 end
 
 ---Get the number of lines
----@return number
+---@return integer
 function Output:get_line_count()
   return #self.lines
 end

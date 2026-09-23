@@ -50,7 +50,6 @@ function M.format(output, part)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  local icons = require('opencode.ui.icons')
   utils.format_action(output, icons.get('search'), 'grep', resolve_grep_string(input), utils.get_duration_text(part))
 
   local start_line = output:get_line_count() + 1

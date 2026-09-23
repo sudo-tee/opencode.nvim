@@ -3,6 +3,13 @@ local config = require('opencode.config')
 local window_options = require('opencode.ui.window_options')
 local float_layout = require('opencode.ui.float_layout')
 
+---@class OutputWindowWithWin: OpencodeWindowState
+---@field output_win integer
+---@field saved_width_ratio? number
+
+---@class MountedOutputWindowState: OutputWindowWithWin
+---@field output_buf integer
+
 local M = {}
 M.namespace = vim.api.nvim_create_namespace('opencode_output')
 M.debug_namespace = vim.api.nvim_create_namespace('opencode_output_debug')
@@ -45,8 +52,16 @@ local function clear_manual_folds(win)
   end)
 end
 
+---@type integer
 local _update_depth = 0
+---@type integer?
 local _update_buf = nil
+
+---@param windows OpencodeWindowState?
+---@return TypeGuard<OutputWindowWithWin>
+local function has_output_win(windows)
+  return windows ~= nil and windows.output_win ~= nil
+end
 
 ---Begin a batch of buffer writes — toggle modifiable once for the whole batch.
 ---Returns true if the batch was opened (buffer is valid). Must be paired with end_update().
@@ -94,7 +109,7 @@ end
 function M._build_output_win_config()
   return {
     relative = 'editor',
-    width = config.ui.window_width or 80,
+    width = math.floor(config.ui.window_width or 80),
     row = 2,
     col = 2,
     style = 'minimal',
@@ -104,12 +119,16 @@ function M._build_output_win_config()
 end
 
 ---@param windows OpencodeWindowState?
+---@return TypeGuard<MountedOutputWindowState>
 function M.mounted(windows)
-  windows = windows or state.windows
-  return windows
-    and windows.output_buf
-    and windows.output_win
-    and vim.api.nvim_win_is_valid(windows.output_win)
+  if windows == nil then
+    windows = state.windows
+  end
+  if not windows or not windows.output_buf or not windows.output_win then
+    return false
+  end
+  return
+    vim.api.nvim_win_is_valid(windows.output_win)
     and vim.api.nvim_buf_is_valid(windows.output_buf)
     and vim.api.nvim_win_get_buf(windows.output_win) == windows.output_buf
 end
@@ -134,12 +153,13 @@ function M.is_at_bottom(win)
     return true
   end
 
-  local ok, line_count = pcall(vim.api.nvim_buf_line_count, state.windows.output_buf)
+  local output_buf = state.windows.output_buf
+  local ok, line_count = pcall(vim.api.nvim_buf_line_count, output_buf)
   if not ok or not line_count or line_count == 0 then
     return true
   end
 
-  local effective_bottom = M.get_scroll_bottom_line(state.windows.output_buf, line_count)
+  local effective_bottom = M.get_scroll_bottom_line(output_buf, line_count)
 
   local ok2, cursor = pcall(vim.api.nvim_win_get_cursor, win)
   if not ok2 then
@@ -147,7 +167,7 @@ function M.is_at_bottom(win)
   end
 
   local prev_line_count = M._prev_line_count_by_win[win] or line_count
-  local prev_effective_bottom = M.get_scroll_bottom_line(state.windows.output_buf, prev_line_count)
+  local prev_effective_bottom = M.get_scroll_bottom_line(output_buf, prev_line_count)
   -- buffer writes are suppressing WinScrolled autocmds.
   local visible_bottom = M.get_visible_bottom_line(win)
   M._last_visible_bottom_by_win[win] = visible_bottom
@@ -278,53 +298,57 @@ end
 
 ---@param windows OpencodeWindowState
 function M.setup(windows)
+  assert(M.mounted(windows), 'output window setup requires a mounted window')
+  local output_win = windows.output_win
+  local output_buf = windows.output_buf
+
   window_options.set_window_option(
     'winhighlight',
     config.ui.window_highlight,
-    windows.output_win,
+    output_win,
     { save_original = true }
   )
-  window_options.set_window_option('wrap', true, windows.output_win, { save_original = true })
-  window_options.set_window_option('linebreak', true, windows.output_win, { save_original = true })
-  pcall(window_options.set_window_option, 'smoothscroll', true, windows.output_win, { save_original = true })
-  window_options.set_window_option('cursorline', false, windows.output_win, { save_original = true })
-  window_options.set_window_option('number', false, windows.output_win, { save_original = true })
-  window_options.set_window_option('relativenumber', false, windows.output_win, { save_original = true })
-  window_options.set_buffer_option('modifiable', false, windows.output_buf)
-  window_options.set_buffer_option('buftype', 'nofile', windows.output_buf)
-  window_options.set_buffer_option('bufhidden', 'hide', windows.output_buf)
-  window_options.set_buffer_option('buflisted', false, windows.output_buf)
-  window_options.set_buffer_option('swapfile', false, windows.output_buf)
-  window_options.set_buffer_option('undofile', false, windows.output_buf)
-  window_options.set_buffer_option('undolevels', -1, windows.output_buf)
-  window_options.set_window_option('foldmethod', 'manual', windows.output_win)
-  window_options.set_window_option('foldenable', true, windows.output_win)
-  window_options.set_window_option('foldlevel', 0, windows.output_win)
-  window_options.set_window_option('foldcolumn', '1', windows.output_win)
+  window_options.set_window_option('wrap', true, output_win, { save_original = true })
+  window_options.set_window_option('linebreak', true, output_win, { save_original = true })
+  pcall(window_options.set_window_option, 'smoothscroll', true, output_win, { save_original = true })
+  window_options.set_window_option('cursorline', false, output_win, { save_original = true })
+  window_options.set_window_option('number', false, output_win, { save_original = true })
+  window_options.set_window_option('relativenumber', false, output_win, { save_original = true })
+  window_options.set_buffer_option('modifiable', false, output_buf)
+  window_options.set_buffer_option('buftype', 'nofile', output_buf)
+  window_options.set_buffer_option('bufhidden', 'hide', output_buf)
+  window_options.set_buffer_option('buflisted', false, output_buf)
+  window_options.set_buffer_option('swapfile', false, output_buf)
+  window_options.set_buffer_option('undofile', false, output_buf)
+  window_options.set_buffer_option('undolevels', -1, output_buf)
+  window_options.set_window_option('foldmethod', 'manual', output_win)
+  window_options.set_window_option('foldenable', true, output_win)
+  window_options.set_window_option('foldlevel', 0, output_win)
+  window_options.set_window_option('foldcolumn', '1', output_win)
   window_options.set_window_option(
     'fillchars',
-    vim.api.nvim_get_option_value('fillchars', { win = windows.output_win }),
-    windows.output_win,
+    vim.api.nvim_get_option_value('fillchars', { win = output_win }),
+    output_win,
     { save_original = true }
   )
-  vim.api.nvim_win_call(windows.output_win, function()
+  vim.api.nvim_win_call(output_win, function()
     vim.opt_local.fillchars:append(OUTPUT_FOLD_FILLCHARS)
   end)
-  window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', windows.output_win)
+  window_options.set_window_option('foldtext', 'v:lua.opencode_fold_text()', output_win)
 
   if windows.position ~= 'current' then
-    window_options.set_window_option('winfixbuf', true, windows.output_win, { save_original = true })
+    window_options.set_window_option('winfixbuf', true, output_win, { save_original = true })
   end
-  window_options.set_window_option('winfixheight', true, windows.output_win, { save_original = true })
-  window_options.set_window_option('winfixwidth', true, windows.output_win, { save_original = true })
-  window_options.set_window_option('signcolumn', 'yes', windows.output_win, { save_original = true })
-  window_options.set_window_option('list', false, windows.output_win, { save_original = true })
-  window_options.set_window_option('statuscolumn', '', windows.output_win, { save_original = true })
-  window_options.set_window_option('colorcolumn', '', windows.output_win, { save_original = true })
+  window_options.set_window_option('winfixheight', true, output_win, { save_original = true })
+  window_options.set_window_option('winfixwidth', true, output_win, { save_original = true })
+  window_options.set_window_option('signcolumn', 'yes', output_win, { save_original = true })
+  window_options.set_window_option('list', false, output_win, { save_original = true })
+  window_options.set_window_option('statuscolumn', '', output_win, { save_original = true })
+  window_options.set_window_option('colorcolumn', '', output_win, { save_original = true })
 
   M.update_dimensions(windows)
-  M.reset_scroll_tracking(windows.output_win)
-  M._last_visible_bottom_by_win[windows.output_win] = M.get_visible_bottom_line(windows.output_win)
+  M.reset_scroll_tracking(output_win)
+  M._last_visible_bottom_by_win[output_win] = M.get_visible_bottom_line(output_win)
 end
 
 ---@param windows OpencodeWindowState?
@@ -333,7 +357,11 @@ function M.update_dimensions(windows)
     return
   end
 
-  if not windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
+  if not has_output_win(windows) then
+    return
+  end
+  local output_win = windows.output_win
+  if not vim.api.nvim_win_is_valid(output_win) then
     return
   end
 
@@ -344,6 +372,7 @@ function M.update_dimensions(windows)
 
   local total_width = vim.api.nvim_get_option_value('columns', {})
 
+  ---@type number
   local width_ratio
   if windows.saved_width_ratio then
     width_ratio = windows.saved_width_ratio
@@ -355,17 +384,7 @@ function M.update_dimensions(windows)
   end
 
   local width = math.floor(total_width * width_ratio)
-  local ok, win_config = pcall(vim.api.nvim_win_get_config, windows.output_win)
-  if not ok then
-    return
-  end
-
-  if win_config.relative == '' then
-    pcall(vim.api.nvim_win_set_width, windows.output_win, width)
-    return
-  end
-
-  pcall(vim.api.nvim_win_set_config, windows.output_win, { width = width })
+  pcall(vim.api.nvim_win_set_width, output_win, width)
 end
 
 ---Fold text for the output buffer
@@ -423,10 +442,9 @@ end
 ---@param fold_ranges {from: number, to: number}[]
 function M.set_folds(fold_ranges)
   local windows = state.windows
-  if not M.mounted() then
+  if not M.mounted(windows) then
     return
   end
-  ---@cast windows OpencodeWindowState
 
   local buf = windows.output_buf
   local win = windows.output_win
@@ -671,15 +689,15 @@ end
 
 ---@param should_stop_insert? boolean
 function M.focus_output(should_stop_insert)
-  if not M.mounted() then
+  local windows = state.windows
+  if not M.mounted(windows) then
     return
   end
-  ---@cast state.windows { output_win: integer }
 
   if should_stop_insert then
     vim.cmd('stopinsert')
   end
-  vim.api.nvim_set_current_win(state.windows.output_win)
+  vim.api.nvim_set_current_win(windows.output_win)
 end
 
 ---Restore winfix options on a window so they don't linger if the window
@@ -696,21 +714,22 @@ end
 
 ---Close and delete the output window and buffer.
 function M.close()
-  if not M.mounted() then
+  local windows = state.windows
+  if not M.mounted(windows) then
     return
   end
-  ---@cast state.windows { output_win: integer, output_buf: integer }
 
-  M.reset_scroll_tracking(state.windows.output_win)
-  M.restore_winfix_options(state.windows.output_win)
-  pcall(vim.api.nvim_win_close, state.windows.output_win, true)
-  pcall(vim.api.nvim_buf_delete, state.windows.output_buf, { force = true })
+  M.reset_scroll_tracking(windows.output_win)
+  M.restore_winfix_options(windows.output_win)
+  pcall(vim.api.nvim_win_close, windows.output_win, true)
+  pcall(vim.api.nvim_buf_delete, windows.output_buf, { force = true })
 end
 
 ---Clear the output buffer and all namespaces.
 function M.clear()
-  if M.mounted() then
-    clear_manual_folds(state.windows.output_win)
+  local windows = state.windows
+  if M.mounted(windows) then
+    clear_manual_folds(windows.output_win)
   end
   state.ui.clear_output_folds()
   M.set_lines({})

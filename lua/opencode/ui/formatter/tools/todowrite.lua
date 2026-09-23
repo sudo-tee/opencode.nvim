@@ -10,7 +10,6 @@ function M.format(output, part)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  local icons = require('opencode.ui.icons')
   utils.format_action(
     output,
     icons.get('plan'),

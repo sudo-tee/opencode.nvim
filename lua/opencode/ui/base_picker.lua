@@ -61,6 +61,34 @@ local Promise = require('opencode.promise')
 ---@field to_string fun(self: PickerItem): string
 ---@field to_formatted_text fun(self: PickerItem): table
 
+---@class SnacksPreview
+---@field reset fun(self: SnacksPreview)
+---@field set_lines? fun(self: SnacksPreview, lines: string[])
+
+---@class SnacksPickerPreviewContext
+---@field buf integer?
+---@field win integer?
+---@field item any?
+---@field preview? SnacksPreview
+
+---@class SnacksPickerLayout
+---@field preset string
+---@field config? fun(layout: any)
+---@field preview? string|boolean
+
+---@class SnacksPickerConfig
+---@field title? string
+---@field layout? SnacksPickerLayout|table
+---@field finder? fun(): any[]
+---@field matcher? table
+---@field sort? table
+---@field transform? fun(item: any, ctx: any)
+---@field format? fun(item: any): table
+---@field on_close? fun()
+---@field actions table<string, fun(picker: any, item: any)>
+---@field preview? 'file'|boolean|fun(ctx: SnacksPickerPreviewContext): boolean?
+---@field win? {input: {keys: table<string, any>}}
+
 ---@class BasePicker
 local M = {}
 local picker = require('opencode.ui.picker')
@@ -96,7 +124,7 @@ local function create_buffer_preview_target(bufnr)
   }
 end
 
----@param ctx snacks.picker.preview.ctx
+---@param ctx SnacksPickerPreviewContext
 ---@return PickerPreviewTarget
 local function create_snacks_preview_target(ctx)
   return {
@@ -143,17 +171,24 @@ end
 ---Telescope UI implementation
 ---@param opts PickerOptions The picker options
 local function telescope_ui(opts)
-  local pickers = require('telescope.pickers')
-  local finders = require('telescope.finders')
-  local conf = require('telescope.config').values
-  local actions = require('telescope.actions')
-  local action_state = require('telescope.actions.state')
-  local action_utils = require('telescope.actions.utils')
-  local entry_display = require('telescope.pickers.entry_display')
+  ---@diagnostic disable-next-line: unresolved-require
+  local pickers = require('telescope.pickers') --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local finders = require('telescope.finders') --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local conf = require('telescope.config').values --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local actions = require('telescope.actions') --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local action_state = require('telescope.actions.state') --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local action_utils = require('telescope.actions.utils') --[[@as any]]
+  ---@diagnostic disable-next-line: unresolved-require
+  local entry_display = require('telescope.pickers.entry_display') --[[@as any]]
 
   -- Create displayer dynamically based on number of parts
   ---@param picker_item PickerItem
-  ---@return table
+  ---@return fun(formatted: table): string
   local function create_displayer(picker_item)
     local items = {}
     for _ in ipairs(picker_item.parts) do
@@ -176,8 +211,8 @@ local function telescope_ui(opts)
 
     local entry = {
       value = item,
-      display = function(entry)
-        local formatted = opts.format_fn(entry.value):to_formatted_text()
+      display = function(telescope_entry)
+        local formatted = opts.format_fn(telescope_entry.value):to_formatted_text()
         return displayer(formatted)
       end,
       ordinal = picker_item:to_string(),
@@ -215,14 +250,19 @@ local function telescope_ui(opts)
     sorter = conf.generic_sorter({}),
     previewer = (function()
       if opts.preview == 'file' then
-        return require('telescope.previewers').vim_buffer_vimgrep.new({})
+        ---@diagnostic disable-next-line: unresolved-require
+        local previewers = require('telescope.previewers') --[[@as any]]
+        return previewers.vim_buffer_vimgrep.new({})
       elseif opts.preview == 'custom' and opts.preview_fn then
-        return require('telescope.previewers').new_buffer_previewer({
+        ---@diagnostic disable-next-line: unresolved-require
+        local previewers = require('telescope.previewers') --[[@as any]]
+        local preview_fn = opts.preview_fn
+        return previewers.new_buffer_previewer({
           define_preview = function(self, entry)
             if not entry then
               return
             end
-            opts.preview_fn(entry.value, create_buffer_preview_target(self.state.bufnr))
+            preview_fn(entry.value, create_buffer_preview_target(self.state.bufnr))
           end,
         })
       else
@@ -252,14 +292,14 @@ local function telescope_ui(opts)
 
         local selection = action_state.get_selected_entry()
         actions.close(prompt_bufnr)
-        if selection and opts.callback then
+        if selection then
           opts.callback(selection.value)
         end
       end)
 
       actions.close:enhance({
         post = function()
-          if not selection_made and opts.callback then
+          if not selection_made then
             vim.schedule(function()
               opts.callback(nil)
             end)
@@ -279,7 +319,7 @@ local function telescope_ui(opts)
 
             if action.multi_selection then
               local multi_selection = {}
-              action_utils.map_selections(prompt_bufnr, function(entry, index)
+              action_utils.map_selections(prompt_bufnr, function(entry, _index)
                 table.insert(multi_selection, entry.value)
               end)
 
@@ -325,7 +365,8 @@ end
 ---FZF-Lua UI implementation
 ---@param opts PickerOptions The picker options
 local function fzf_ui(opts)
-  local fzf_lua = require('fzf-lua')
+  ---@diagnostic disable-next-line: unresolved-require
+  local fzf_lua = require('fzf-lua') --[[@as any]]
 
   local function finder(fzf_cb, width)
     for idx, item in ipairs(opts.items) do
@@ -363,7 +404,8 @@ local function fzf_ui(opts)
     fzf_cb()
   end
 
-  local has_custom_preview = opts.preview == 'custom' and opts.preview_fn ~= nil
+  local preview_fn = opts.preview_fn
+  local has_custom_preview = opts.preview == 'custom' and preview_fn ~= nil
   local format_width
 
   -- defer item processing until preview if using custom preview_fn
@@ -382,9 +424,13 @@ local function fzf_ui(opts)
     end)
 
     return {
-      fzf_cli_args = width_callback and ('--bind=' .. require('fzf-lua.libuv').shellescape(
-        'start:+transform:' .. require('fzf-lua.shell').stringify_data(width_callback, opts)
-      )) or nil,
+      fzf_cli_args = width_callback and (function()
+        ---@diagnostic disable-next-line: unresolved-require
+        local libuv = require('fzf-lua.libuv') --[[@as any]]
+        ---@diagnostic disable-next-line: unresolved-require
+        local shell = require('fzf-lua.shell') --[[@as any]]
+        return '--bind=' .. libuv.shellescape('start:+transform:' .. shell.stringify_data(width_callback, opts))
+      end)() or nil,
       winopts = opts.width and {
         width = opts.width + 8, -- extra space for fzf UI
       } or nil,
@@ -399,10 +445,13 @@ local function fzf_ui(opts)
       previewer = (function()
         if opts.preview == 'file' then
           return 'builtin'
-        elseif has_custom_preview then
+        elseif opts.preview == 'custom' and preview_fn then
+          local custom_preview_fn = preview_fn
           return {
             _ctor = function()
-              local previewer = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
+              ---@diagnostic disable-next-line: unresolved-require
+              local builtin = require('fzf-lua.previewer.builtin') --[[@as any]]
+              local previewer = builtin.buffer_or_file:extend()
               function previewer:populate_preview_buf(entry_str)
                 if not self.win or not self.win:validate_preview() then
                   return
@@ -416,7 +465,7 @@ local function fzf_ui(opts)
                 -- so preview_fn can use bufwinid for window-local ops (folds)
                 local buf = self:get_tmp_buffer()
                 self:set_preview_buf(buf, true) -- min_winopts=true
-                opts.preview_fn(opts.items[idx], create_buffer_preview_target(buf))
+                custom_preview_fn(opts.items[idx], create_buffer_preview_target(buf))
               end
               return previewer
             end,
@@ -458,9 +507,7 @@ local function fzf_ui(opts)
           win:close()
         end
       end
-      if opts.callback then
-        opts.callback(nil)
-      end
+      opts.callback(nil)
     end)
   end
 
@@ -471,9 +518,7 @@ local function fzf_ui(opts)
         return
       end
       if not selected or #selected == 0 then
-        if opts.callback then
-          opts.callback(nil)
-        end
+        opts.callback(nil)
         return
       end
       if #selected > 1 and opts.multi_select_fn then
@@ -488,7 +533,7 @@ local function fzf_ui(opts)
         return
       end
       local idx = fzf_opts.fn_fzf_index(selected[1] --[[@as string]])
-      if idx and opts.items[idx] and opts.callback then
+      if idx and opts.items[idx] then
         opts.callback(opts.items[idx])
       end
     end,
@@ -496,15 +541,15 @@ local function fzf_ui(opts)
       if closed then
         return
       end
-      if opts.callback then
-        opts.callback(nil)
-      end
+      opts.callback(nil)
     end,
   }
 
   for _, action in pairs(opts.actions) do
     if action.key and action.key[1] then
-      local key = require('fzf-lua.utils').neovim_bind_to_fzf(action.key[1])
+      ---@diagnostic disable-next-line: unresolved-require
+      local fzf_utils = require('fzf-lua.utils') --[[@as any]]
+      local key = fzf_utils.neovim_bind_to_fzf(action.key[1])
       actions_config[key] = {
         fn = function(selected, fzf_opts)
           if not selected or #selected == 0 then
@@ -564,7 +609,8 @@ end
 ---Mini.pick UI implementation
 ---@param opts PickerOptions The picker options
 local function mini_pick_ui(opts)
-  local mini_pick = require('mini.pick')
+  ---@diagnostic disable-next-line: unresolved-require
+  local mini_pick = require('mini.pick') --[[@as any]]
 
   ---@type MiniPickItem[]
   local items = vim.tbl_map(function(item)
@@ -636,9 +682,11 @@ end
 ---Snacks picker UI implementation
 ---@param opts PickerOptions The picker options
 local function snacks_picker_ui(opts)
-  local Snacks = require('snacks')
+  ---@diagnostic disable-next-line: unresolved-require
+  local Snacks = require('snacks') --[[@as any]]
 
-  local has_custom_preview = opts.preview == 'custom' and opts.preview_fn ~= nil
+  local preview_fn = opts.preview_fn
+  local has_custom_preview = opts.preview == 'custom' and preview_fn ~= nil
   local has_preview = opts.preview == 'file' or has_custom_preview
 
   local title = type(opts.title) == 'function' and opts.title() or opts.title
@@ -647,6 +695,7 @@ local function snacks_picker_ui(opts)
   local layout_opts = opts.layout_opts and opts.layout_opts.snacks_layout or nil
 
   local selection_made = false
+  ---@type SnacksPickerLayout
   local default_layout = {
     preset = has_custom_preview and 'default' or 'select',
     config = function(layout)
@@ -664,7 +713,7 @@ local function snacks_picker_ui(opts)
     default_layout.preview = false
   end
 
-  ---@type snacks.picker.Config
+  ---@type SnacksPickerConfig
   local snack_opts = {
     title = title,
     layout = layout_opts or default_layout,
@@ -695,7 +744,7 @@ local function snacks_picker_ui(opts)
       return opts.format_fn(item):to_formatted_text()
     end,
     on_close = function()
-      if not selection_made and opts.callback then
+      if not selection_made then
         vim.schedule(function()
           opts.callback(nil)
         end)
@@ -714,7 +763,7 @@ local function snacks_picker_ui(opts)
         end
 
         _picker:close()
-        if item and opts.callback then
+        if item then
           vim.schedule(function()
             opts.callback(item)
           end)
@@ -727,9 +776,9 @@ local function snacks_picker_ui(opts)
     snack_opts.preview = 'file'
   elseif has_custom_preview then
     snack_opts.preview = function(ctx)
-      if ctx.item then
+      if ctx.item and ctx.preview and preview_fn then
         ctx.preview:reset()
-        opts.preview_fn(ctx.item, create_snacks_preview_target(ctx))
+        preview_fn(ctx.item, create_snacks_preview_target(ctx))
       end
     end
   else
@@ -738,12 +787,12 @@ local function snacks_picker_ui(opts)
     end
   end
 
-  snack_opts.win = snack_opts.win or {}
-  snack_opts.win.input = snack_opts.win.input or { keys = {} }
+  snack_opts.win = { input = { keys = {} } }
+  local input_keys = snack_opts.win.input.keys
 
   for action_name, action in pairs(opts.actions) do
     if action.key and action.key[1] then
-      snack_opts.win.input.keys[action.key[1]] = { action_name, mode = action.key.mode or 'i' }
+      input_keys[action.key[1]] = { action_name, mode = action.key.mode or 'i' }
 
       snack_opts.actions[action_name] = function(_picker, item)
         if not opts.close then
@@ -936,7 +985,7 @@ function M.pick(opts)
     end
   end
 
-  local has_preview = opts.preview and opts.preview ~= 'none' and opts.preview ~= false
+  local has_preview = opts.preview == 'file' or opts.preview == 'custom'
   if picker_type == 'fzf' and has_preview and format_width then
     local window_cols = format_width + 8
     -- Match fzf-lua's default right:60% preview split so item formatting

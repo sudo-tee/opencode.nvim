@@ -32,10 +32,11 @@ function M.format(output, part)
     )
     local action_line = output:get_line_count()
     local action_text = output:get_line(action_line)
+    local end_col = (action_text and #action_text or 0) --[[@as integer]]
     output:add_target({
       kind = 'file',
       path = file.path,
-      range = { line = action_line, start_col = 0, end_col = action_text and #action_text or 0 },
+      range = { line = action_line, start_col = 0, end_col = end_col },
     })
 
     local patch = file.diff

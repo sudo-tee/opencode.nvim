@@ -1,10 +1,17 @@
 ---@class TimerOptions
----@field interval number The interval in milliseconds
+---@field interval integer The interval in milliseconds
 ---@field on_tick function The function to call on each tick
 ---@field on_stop? function The function to call when the timer stops
 ---@field repeat_timer? boolean Whether the timer should repeat (default: true)
 ---@field args? table Optional arguments to pass to the on_tick function
 
+---@class Timer
+---@field interval integer
+---@field on_tick function
+---@field on_stop? function
+---@field repeat_timer boolean
+---@field args table
+---@field _uv_timer uv.uv_timer_t|nil
 local Timer = {}
 Timer.__index = Timer
 

@@ -18,7 +18,10 @@
 
 ## ✨ Description
 
-> **Testing OpenCode v2?** Try the [`v2` branch](https://github.com/sudo-tee/opencode.nvim/tree/v2) of this plugin. It is available for testing with OpenCode v2; expect changes while development continues.
+> [!IMPORTANT]
+> ### 🚀 Testing OpenCode v2?
+>
+> Use the [`v2` branch](https://github.com/sudo-tee/opencode.nvim/tree/v2) of this plugin for OpenCode v2 support — now available for testing. Expect changes while development continues.
 
 This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.
 

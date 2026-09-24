@@ -242,6 +242,23 @@ function M.actions.paste_image()
   vim.notify('Image saved and added to context: ' .. name, vim.log.levels.INFO)
 end
 
+function M.actions.copy_server_url()
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    vim.notify('OpenCode server is not ready.', vim.log.levels.WARN)
+    return
+  end
+
+  local url = connection.url
+  local credential = connection.credential
+  if credential and credential.password then
+    url = url:gsub('://', '://' .. credential.username .. ':' .. credential.password .. '@', 1)
+  end
+
+  vim.fn.setreg('+', url)
+  vim.notify('Server URL copied to clipboard.', vim.log.levels.INFO)
+end
+
 local function prompt_add_to_context(cmd, output, exit_code)
   local output_window = require('opencode.ui.output_window')
   if not output_window.mounted() then
@@ -670,6 +687,10 @@ M.command_defs = {
   paste_image = {
     desc = 'Paste image from clipboard and add to context',
     execute = M.actions.paste_image,
+  },
+  copy_server_url = {
+    desc = 'Copy server URL to clipboard',
+    execute = M.actions.copy_server_url,
   },
   references = {
     desc = 'Browse code references from conversation',

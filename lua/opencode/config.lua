@@ -79,6 +79,7 @@ M.defaults = {
       ['<leader>ott'] = { 'toggle_tool_output',                                desc = 'Toggle tool output' },
       ['<leader>otm'] = { 'toggle_max_messages',                               desc = 'Toggle max messages' },
       ['<leader>o/'] =  { 'quick_chat',                   mode = { 'n', 'x' }, desc = 'Quick chat with current context' },
+      ['<leader>odu'] = { 'copy_server_url',                                   desc = 'Copy server url' },
 
     },
     output_window = {

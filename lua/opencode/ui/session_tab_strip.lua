@@ -308,7 +308,7 @@ end
 
 ---@param buffer integer
 ---@param display_column integer
----@return string|nil
+---@return table|nil
 local function range_at_display_column(buffer, display_column)
   for _, range in ipairs(ranges_by_buffer[buffer] or {}) do
     if display_column >= range.start_display and display_column < range.end_display then
@@ -330,43 +330,20 @@ local function range_at_byte_column(buffer, byte_column)
   return nil
 end
 
----@param tab_id string|nil
-local function select_tab(tab_id)
-  if not tab_id then
-    return
-  end
-  require('opencode.services.session_runtime').switch_session_tab(tab_id)
-end
-
----@param range table|nil
-local function select_range(range)
-  if not range then
-    return
-  end
-  if range.open_picker then
-    require('opencode.ui.session_tab_picker').select()
-    return
-  end
-  select_tab(range.tab_id)
-end
-
-local function click_tab()
-  local buffer = vim.api.nvim_get_current_buf()
-  local mouse = vim.fn.getmousepos()
-  select_range(range_at_display_column(buffer, math.max(0, mouse.column - 1)))
-end
-
-local function select_tab_under_cursor()
-  local buffer = vim.api.nvim_get_current_buf()
-  local cursor = vim.api.nvim_win_get_cursor(0)
-  select_range(range_at_byte_column(buffer, cursor[2]))
-end
+---@class OpencodeSessionTabTarget
+---@field tab_id? string
+---@field open_picker? boolean
 
 ---@param buffer integer
-local function setup_keymaps(buffer)
-  vim.keymap.set('n', '<LeftMouse>', click_tab, { buffer = buffer, silent = true, nowait = true })
-  vim.keymap.set('n', '<2-LeftMouse>', click_tab, { buffer = buffer, silent = true, nowait = true })
-  vim.keymap.set('n', '<CR>', select_tab_under_cursor, { buffer = buffer, silent = true, nowait = true })
+---@param column integer Zero-based column
+---@param display_column? boolean Use display columns instead of byte offsets
+---@return OpencodeSessionTabTarget|nil
+function M.get_target_at_position(buffer, column, display_column)
+  local range = display_column and range_at_display_column(buffer, column)
+    or not display_column and range_at_byte_column(buffer, column)
+  if range then
+    return { tab_id = range.tab_id, open_picker = range.open_picker }
+  end
 end
 
 ---@param windows OpencodeWindowState
@@ -440,7 +417,6 @@ function M.create_window(windows)
   end
 
   setup_window_options(windows)
-  setup_keymaps(windows.tab_strip_buf)
   return windows.tab_strip_win
 end
 

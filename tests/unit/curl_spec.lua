@@ -1,6 +1,6 @@
 local curl = require('opencode.curl')
 
-describe('curl stream handle lifecycle', function()
+describe('curl handle lifecycle', function()
   local original_system
 
   before_each(function()
@@ -134,5 +134,46 @@ describe('curl stream handle lifecycle', function()
     on_complete({ code = 1, signal = 15 })
 
     assert.is_true(shutdown_requested)
+  end)
+
+  it('cancels a regular request once and ignores its late completion', function()
+    local on_complete
+    local killed = 0
+    local cancelled = 0
+    local callbacks = 0
+    local errors = 0
+    vim.system = function(_, _, cb)
+      on_complete = cb
+      return {
+        pid = 123,
+        kill = function()
+          killed = killed + 1
+        end,
+      }
+    end
+
+    local handle = curl.request({
+      url = 'http://127.0.0.1:1/config',
+      callback = function()
+        callbacks = callbacks + 1
+      end,
+      on_error = function()
+        errors = errors + 1
+      end,
+      on_cancel = function()
+        cancelled = cancelled + 1
+      end,
+    })
+
+    assert.is_true(handle.is_running())
+    handle.shutdown()
+    handle.shutdown()
+    on_complete({ code = 1, signal = 15, stderr = 'terminated' })
+
+    assert.is_false(handle.is_running())
+    assert.equals(1, killed)
+    assert.equals(1, cancelled)
+    assert.equals(0, callbacks)
+    assert.equals(0, errors)
   end)
 end)

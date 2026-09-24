@@ -11,6 +11,7 @@ describe('asynchronous git review', function()
       snapshot = vim.tbl_extend('force', {}, snapshot),
       cwd = vim.fn.getcwd,
       session = state.active_session,
+      server = state.opencode_server,
       display = diff_tab.open_diff_tab,
       select = picker.select,
     }
@@ -40,6 +41,7 @@ describe('asynchronous git review', function()
     end
     vim.fn.getcwd = original.cwd
     state.session.set_active(original.session)
+    state.jobs.set_server(original.server)
     diff_tab.open_diff_tab, picker.select = original.display, original.select
     package.loaded['opencode.git_review'] = nil
   end)
@@ -74,5 +76,38 @@ describe('asynchronous git review', function()
   it('displays a completed diff for the active workspace', function()
     review.review('hash'):wait()
     assert.same({ '/project/file.lua' }, displayed)
+  end)
+  it('reads first and latest patch snapshots from the active Observation order', function()
+    local observed = {
+      entry_order = { 'user', 'assistant-1', 'assistant-2' },
+      entries_by_id = {
+        user = { id = 'user', kind = 'user', content = {} },
+        ['assistant-1'] = {
+          id = 'assistant-1',
+          kind = 'assistant',
+          content = { { kind = 'patch', hash = 'first' } },
+        },
+        ['assistant-2'] = {
+          id = 'assistant-2',
+          kind = 'assistant',
+          content = { { kind = 'patch', hash = 'latest' } },
+        },
+      },
+    }
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return {
+          read = function()
+            return observed
+          end,
+        }
+      end,
+    })
+
+    assert.equals('first', review.get_first_snapshot())
+    assert.equals('latest', review.get_latest_snapshot())
   end)
 end)

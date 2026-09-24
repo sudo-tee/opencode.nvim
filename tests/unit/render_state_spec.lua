@@ -1,16 +1,10 @@
 local RenderState = require('opencode.ui.render_state')
-local state = require('opencode.state')
 
 describe('RenderState', function()
   local render_state
 
   before_each(function()
     render_state = RenderState.new()
-    state.renderer.set_messages({})
-  end)
-
-  after_each(function()
-    state.renderer.set_messages({})
   end)
 
   describe('new and reset', function()
@@ -37,7 +31,7 @@ describe('RenderState', function()
 
   describe('set_message', function()
     it('sets a new message', function()
-      local msg = { info = { id = 'msg1' }, content = 'test' }
+      local msg = { id = 'msg1', kind = 'assistant', content = {} }
       render_state:set_message(msg, 1, 3)
 
       local result = render_state:get_message('msg1')
@@ -48,19 +42,19 @@ describe('RenderState', function()
     end)
 
     it('updates line index for message', function()
-      local msg = { info = { id = 'msg1' } }
+      local msg = { id = 'msg1', kind = 'assistant', content = {} }
       render_state:set_message(msg, 5, 7)
 
       assert.is_false(render_state._ranges_valid)
 
       local result = render_state:get_message_at_line(6)
       assert.is_not_nil(result)
-      assert.equals('msg1', result.message.info.id)
+      assert.equals('msg1', result.message.id)
     end)
 
     it('updates existing message', function()
-      local msg1 = { info = { id = 'msg1' }, content = 'test' }
-      local msg2 = { info = { id = 'msg1' }, content = 'updated' }
+      local msg1 = { id = 'msg1', kind = 'assistant', content = { { kind = 'text', text = 'test' } } }
+      local msg2 = { id = 'msg1', kind = 'assistant', content = { { kind = 'text', text = 'updated' } } }
       render_state:set_message(msg1, 1, 2)
       render_state:set_message(msg2, 3, 5)
 
@@ -73,8 +67,8 @@ describe('RenderState', function()
 
   describe('set_part', function()
     it('sets a new part', function()
-      local part = { id = 'part1', messageID = 'msg1', content = 'test' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text', text = 'test' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local result = render_state:get_part('part1')
       assert.is_not_nil(result)
@@ -85,8 +79,8 @@ describe('RenderState', function()
     end)
 
     it('updates line index for part', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 20, 22)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 20, 22)
 
       assert.is_false(render_state._ranges_valid)
 
@@ -96,8 +90,8 @@ describe('RenderState', function()
     end)
 
     it('initializes actions array', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 1, 2)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 1, 2)
 
       local result = render_state:get_part('part1')
       assert.is_table(result.actions)
@@ -107,40 +101,21 @@ describe('RenderState', function()
     it('indexes task parts by child session ID', function()
       local part = {
         id = 'part1',
-        messageID = 'msg1',
-        tool = 'task',
-        state = {
-          metadata = {
-            sessionId = 'child-1',
-          },
-        },
+        kind = 'tool',
+        name = 'task',
+        child_session = { id = 'child-1' },
       }
 
-      render_state:set_part(part, 1, 2)
+      render_state:set_part(part, 'msg1', 'part1', 1, 2)
 
       assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
-    end)
-
-    it('stores child session parts independently', function()
-      local part = {
-        id = 'child-part-1',
-        messageID = 'msg-child',
-        sessionID = 'child-1',
-        tool = 'question',
-      }
-
-      render_state:upsert_child_session_part('child-1', part)
-
-      local child_parts = render_state:get_child_session_parts('child-1')
-      assert.equals(1, #child_parts)
-      assert.equals('child-part-1', child_parts[1].id)
     end)
   end)
 
   describe('get_part_at_line', function()
     it('returns part at line', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local result = render_state:get_part_at_line(12)
       assert.is_not_nil(result)
@@ -155,12 +130,12 @@ describe('RenderState', function()
 
   describe('get_message_at_line', function()
     it('returns message at line', function()
-      local msg = { info = { id = 'msg1' } }
+      local msg = { id = 'msg1', kind = 'assistant', content = {} }
       render_state:set_message(msg, 5, 7)
 
       local result = render_state:get_message_at_line(6)
       assert.is_not_nil(result)
-      assert.equals('msg1', result.message.info.id)
+      assert.equals('msg1', result.message.id)
     end)
 
     it('returns nil for line without message', function()
@@ -171,21 +146,19 @@ describe('RenderState', function()
 
   describe('get_part_by_call_id', function()
     it('finds part by call ID', function()
-      local msg = {
-        info = { id = 'msg1' },
-        parts = {
-          { id = 'part1', callID = 'call1' },
-          { id = 'part2', callID = 'call2' },
-        },
-      }
+      local part1 = { kind = 'tool', call_id = 'call1' }
+      local part2 = { kind = 'tool', call_id = 'call2' }
+      local msg = { id = 'msg1', kind = 'assistant', content = { part1, part2 } }
       render_state:set_message(msg)
+      render_state:set_part(part1, 'msg1', 'part1')
+      render_state:set_part(part2, 'msg1', 'part2')
 
       local part_id = render_state:get_part_by_call_id('call2', 'msg1')
       assert.equals('part2', part_id)
     end)
 
     it('returns nil when call ID not found', function()
-      local msg = { info = { id = 'msg1' }, parts = {} }
+      local msg = { id = 'msg1', kind = 'assistant', content = {} }
       render_state:set_message(msg)
 
       local part_id = render_state:get_part_by_call_id('nonexistent', 'msg1')
@@ -195,8 +168,8 @@ describe('RenderState', function()
 
   describe('actions', function()
     it('adds actions to part', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local actions = {
         { type = 'action1', display_line = 11 },
@@ -210,8 +183,8 @@ describe('RenderState', function()
     end)
 
     it('adds actions with offset', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local actions = {
         { type = 'action1', display_line = 5, range = { from = 5, to = 7 } },
@@ -225,8 +198,8 @@ describe('RenderState', function()
     end)
 
     it('clears actions for part', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state:add_actions('part1', { { type = 'action1' } })
       render_state:clear_actions('part1')
@@ -236,8 +209,8 @@ describe('RenderState', function()
     end)
 
     it('gets actions at line', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local actions = {
         { type = 'action1', range = { from = 11, to = 13 } },
@@ -252,15 +225,16 @@ describe('RenderState', function()
 
     it('owns one R/C/F set across an actionable user message block', function()
       local message = {
-        info = { id = 'msg-user', role = 'user' },
-        parts = {
-          { id = 'text-part', messageID = 'msg-user', type = 'text', text = 'prompt' },
-          { id = 'file-part', messageID = 'msg-user', type = 'file', filename = 'file.lua' },
+        id = 'msg-user',
+        kind = 'user',
+        content = {
+          { id = 'text-part', kind = 'text', text = 'prompt' },
+          { id = 'file-part', kind = 'file', name = 'file.lua' },
         },
       }
       render_state:set_message(message, 20, 21)
-      render_state:set_part(message.parts[1], 22, 24)
-      render_state:set_part(message.parts[2], 25, 26)
+      render_state:set_part(message.content[1], message.id, 'text-part', 22, 24)
+      render_state:set_part(message.content[2], message.id, 'file-part', 25, 26)
 
       local rendered = render_state:get_message('msg-user')
       assert.equals(3, #rendered.actions)
@@ -281,15 +255,16 @@ describe('RenderState', function()
 
     it('refreshes message actions after a header expansion shifts its parts', function()
       local message = {
-        info = { id = 'msg-user', role = 'user' },
-        parts = {
-          { id = 'text-part', messageID = 'msg-user', type = 'text', text = 'prompt' },
-          { id = 'file-part', messageID = 'msg-user', type = 'file', filename = 'file.lua' },
+        id = 'msg-user',
+        kind = 'user',
+        content = {
+          { id = 'text-part', kind = 'text', text = 'prompt' },
+          { id = 'file-part', kind = 'file', name = 'file.lua' },
         },
       }
       render_state:set_message(message, 10, 11)
-      render_state:set_part(message.parts[1], 12, 13)
-      render_state:set_part(message.parts[2], 14, 15)
+      render_state:set_part(message.content[1], message.id, 'text-part', 12, 13)
+      render_state:set_part(message.content[2], message.id, 'file-part', 14, 15)
 
       render_state:set_message(message, 10, 13)
       render_state:shift_all(12, 2)
@@ -301,23 +276,26 @@ describe('RenderState', function()
 
     it('keeps message actions within the block after the closest header', function()
       local user_one = {
-        info = { id = 'user-one', role = 'user' },
-        parts = { { id = 'user-one-text', messageID = 'user-one', type = 'text', text = 'first' } },
+        id = 'user-one',
+        kind = 'user',
+        content = { { id = 'user-one-text', kind = 'text', text = 'first' } },
       }
       local assistant = {
-        info = { id = 'assistant', role = 'assistant' },
-        parts = { { id = 'assistant-text', messageID = 'assistant', type = 'text', text = 'reply' } },
+        id = 'assistant',
+        kind = 'assistant',
+        content = { { id = 'assistant-text', kind = 'text', text = 'reply' } },
       }
       local user_two = {
-        info = { id = 'user-two', role = 'user' },
-        parts = { { id = 'user-two-text', messageID = 'user-two', type = 'text', text = 'second' } },
+        id = 'user-two',
+        kind = 'user',
+        content = { { id = 'user-two-text', kind = 'text', text = 'second' } },
       }
       render_state:set_message(user_one, 10, 11)
-      render_state:set_part(user_one.parts[1], 12, 14)
+      render_state:set_part(user_one.content[1], user_one.id, 'user-one-text', 12, 14)
       render_state:set_message(assistant, 15, 16)
-      render_state:set_part(assistant.parts[1], 17, 18)
+      render_state:set_part(assistant.content[1], assistant.id, 'assistant-text', 17, 18)
       render_state:set_message(user_two, 19, 20)
-      render_state:set_part(user_two.parts[1], 21, 23)
+      render_state:set_part(user_two.content[1], user_two.id, 'user-two-text', 21, 23)
 
       assert.same({ 'user-one' }, render_state:get_actions_at_line(10)[1].args)
       assert.same({ 'user-one' }, render_state:get_actions_at_line(14)[1].args)
@@ -328,11 +306,11 @@ describe('RenderState', function()
 
     it('requires a non-synthetic non-empty user text part for message actions', function()
       for _, message in ipairs({
-        { info = { id = 'assistant', role = 'assistant' }, parts = { { type = 'text', text = 'text' } } },
-        { info = { id = 'system', role = 'system' }, parts = { { type = 'text', text = 'text' } } },
-        { info = { id = '', role = 'user' }, parts = { { type = 'text', text = 'text' } } },
-        { info = { id = 'synthetic', role = 'user' }, parts = { { type = 'text', text = 'text', synthetic = true } } },
-        { info = { id = 'empty', role = 'user' }, parts = { { type = 'text', text = '  ' } } },
+        { id = 'assistant', kind = 'assistant', content = { { kind = 'text', text = 'text' } } },
+        { id = 'system', kind = 'system', content = { { kind = 'text', text = 'text' } } },
+        { id = '', kind = 'user', content = { { kind = 'text', text = 'text' } } },
+        { id = 'synthetic', kind = 'user', content = { { kind = 'text', text = 'text', synthetic = true } } },
+        { id = 'empty', kind = 'user', content = { { kind = 'text', text = '  ' } } },
       }) do
         render_state:set_message(message, 30, 31)
         assert.same({}, render_state:get_actions_at_line(30))
@@ -340,10 +318,10 @@ describe('RenderState', function()
     end)
 
     it('gets all actions from all parts', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 20, 25)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 20, 25)
 
       render_state:add_actions('part1', { { type = 'action1' } })
       render_state:add_actions('part2', { { type = 'action2' } })
@@ -367,7 +345,7 @@ describe('RenderState', function()
     end
 
     before_each(function()
-      render_state:set_part({ id = 'part1', messageID = 'msg1' }, 0, 2)
+      render_state:set_part({ id = 'part1', kind = 'text' }, 'msg1', 'part1', 0, 2)
     end)
 
     it('adds and gets targets by line and column', function()
@@ -436,7 +414,7 @@ describe('RenderState', function()
     end)
 
     it('moves targets with shifted parts', function()
-      render_state:set_part({ id = 'part2', messageID = 'msg1' }, 3, 4)
+      render_state:set_part({ id = 'part2', kind = 'text' }, 'msg1', 'part2', 3, 4)
       render_state:add_targets('part2', {
         target('file', 4, 0, 6, { path = 'later.lua' }),
       })
@@ -463,7 +441,7 @@ describe('RenderState', function()
     end)
 
     it('removes targets with the removed part and shifts remaining part targets', function()
-      render_state:set_part({ id = 'part2', messageID = 'msg1' }, 3, 4)
+      render_state:set_part({ id = 'part2', kind = 'text' }, 'msg1', 'part2', 3, 4)
       render_state:add_targets('part1', {
         target('file', 1, 8, 14, { path = 'removed.lua' }),
       })
@@ -481,21 +459,9 @@ describe('RenderState', function()
   end)
 
   describe('update_part_lines', function()
-    before_each(function()
-      state.renderer.set_messages({
-        {
-          info = { id = 'msg1' },
-          parts = {
-            { id = 'part1' },
-            { id = 'part2' },
-          },
-        },
-      })
-    end)
-
     it('updates part line positions', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       local success = render_state:update_part_lines('part1', 10, 20)
       assert.is_true(success)
@@ -506,10 +472,10 @@ describe('RenderState', function()
     end)
 
     it('shifts subsequent content when expanding', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 16, 20)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 16, 20)
 
       render_state:update_part_lines('part1', 10, 18)
 
@@ -519,10 +485,10 @@ describe('RenderState', function()
     end)
 
     it('shifts subsequent content when shrinking', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 16, 20)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 16, 20)
 
       render_state:update_part_lines('part1', 10, 12)
 
@@ -537,8 +503,8 @@ describe('RenderState', function()
     end)
 
     it('returns early when lines are unchanged', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
       render_state._ranges_valid = true
 
       local success = render_state:update_part_lines('part1', 10, 15)
@@ -549,23 +515,11 @@ describe('RenderState', function()
   end)
 
   describe('remove_part', function()
-    before_each(function()
-      state.renderer.set_messages({
-        {
-          info = { id = 'msg1' },
-          parts = {
-            { id = 'part1' },
-            { id = 'part2' },
-          },
-        },
-      })
-    end)
-
     it('removes part and shifts subsequent content', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 16, 20)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 16, 20)
 
       local success = render_state:remove_part('part1')
       assert.is_true(success)
@@ -578,8 +532,8 @@ describe('RenderState', function()
     end)
 
     it('clears line index for removed part', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state:remove_part('part1')
 
@@ -595,16 +549,12 @@ describe('RenderState', function()
     it('clears child session index when removing unrendered task parts', function()
       local part = {
         id = 'part1',
-        messageID = 'msg1',
-        tool = 'task',
-        state = {
-          metadata = {
-            sessionId = 'child-1',
-          },
-        },
+        kind = 'tool',
+        name = 'task',
+        child_session = { id = 'child-1' },
       }
 
-      render_state:set_part(part)
+      render_state:set_part(part, 'msg1', 'part1')
       local success = render_state:remove_part('part1')
 
       assert.is_true(success)
@@ -613,20 +563,9 @@ describe('RenderState', function()
   end)
 
   describe('remove_message', function()
-    before_each(function()
-      state.renderer.set_messages({
-        {
-          info = { id = 'msg1' },
-        },
-        {
-          info = { id = 'msg2' },
-        },
-      })
-    end)
-
     it('removes message and shifts subsequent content', function()
-      local msg1 = { info = { id = 'msg1' } }
-      local msg2 = { info = { id = 'msg2' } }
+      local msg1 = { id = 'msg1', kind = 'assistant', content = {} }
+      local msg2 = { id = 'msg2', kind = 'assistant', content = {} }
       render_state:set_message(msg1, 1, 5)
       render_state:set_message(msg2, 6, 10)
 
@@ -641,7 +580,7 @@ describe('RenderState', function()
     end)
 
     it('clears line index for removed message', function()
-      local msg = { info = { id = 'msg1' } }
+      local msg = { id = 'msg1', kind = 'assistant', content = {} }
       render_state:set_message(msg, 1, 5)
 
       render_state:remove_message('msg1')
@@ -657,21 +596,9 @@ describe('RenderState', function()
   end)
 
   describe('shift_all', function()
-    before_each(function()
-      state.renderer.set_messages({
-        {
-          info = { id = 'msg1' },
-          parts = {
-            { id = 'part1' },
-            { id = 'part2' },
-          },
-        },
-      })
-    end)
-
     it('does nothing when delta is 0', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state:shift_all(20, 0)
 
@@ -681,10 +608,10 @@ describe('RenderState', function()
     end)
 
     it('shifts content at or after from_line', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 20, 25)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 20, 25)
 
       render_state:shift_all(20, 5)
 
@@ -698,8 +625,8 @@ describe('RenderState', function()
     end)
 
     it('shifts actions with parts', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 20, 25)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 20, 25)
       render_state:add_actions('part1', {
         { type = 'action1', display_line = 22, range = { from = 21, to = 23 } },
       })
@@ -713,8 +640,8 @@ describe('RenderState', function()
     end)
 
     it('does not rebuild index when nothing shifted', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state._ranges_valid = true
 
@@ -724,8 +651,8 @@ describe('RenderState', function()
     end)
 
     it('invalidates index when content shifted', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state._ranges_valid = true
 
@@ -735,10 +662,10 @@ describe('RenderState', function()
     end)
 
     it('exits early when content found before from_line', function()
-      local part1 = { id = 'part1', messageID = 'msg1' }
-      local part2 = { id = 'part2', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-      render_state:set_part(part2, 50, 55)
+      local part1 = { id = 'part1', kind = 'text' }
+      local part2 = { id = 'part2', kind = 'text' }
+      render_state:set_part(part1, 'msg1', 'part1', 10, 15)
+      render_state:set_part(part2, 'msg1', 'part2', 50, 55)
 
       render_state:shift_all(50, 10)
 
@@ -750,8 +677,8 @@ describe('RenderState', function()
     end)
 
     it('exits early when from_line is after max rendered line', function()
-      local part = { id = 'part1', messageID = 'msg1' }
-      render_state:set_part(part, 10, 15)
+      local part = { id = 'part1', kind = 'text' }
+      render_state:set_part(part, 'msg1', 'part1', 10, 15)
 
       render_state._ranges_valid = true
       render_state:shift_all(100, 5)
@@ -763,48 +690,23 @@ describe('RenderState', function()
     end)
   end)
 
-  describe('update_part_data', function()
-    it('updates part reference', function()
-      local part1 = { id = 'part1', content = 'original', messageID = 'msg1' }
-      local part2 = { id = 'part1', content = 'updated', messageID = 'msg1' }
-      render_state:set_part(part1, 10, 15)
-
-      render_state:update_part_data(part2)
-
-      local result = render_state:get_part('part1')
-      assert.equals('updated', result.part.content)
-    end)
-
-    it('does nothing for non-existent part', function()
-      render_state:update_part_data({ id = 'nonexistent' })
-    end)
-
+  describe('set_part updates', function()
     it('updates child session index when task metadata changes', function()
       local original = {
         id = 'part1',
-        content = 'original',
-        messageID = 'msg1',
-        tool = 'task',
-        state = {
-          metadata = {
-            sessionId = 'child-1',
-          },
-        },
+        kind = 'tool',
+        name = 'task',
+        child_session = { id = 'child-1' },
       }
       local updated = {
         id = 'part1',
-        content = 'updated',
-        messageID = 'msg1',
-        tool = 'task',
-        state = {
-          metadata = {
-            sessionId = 'child-2',
-          },
-        },
+        kind = 'tool',
+        name = 'task',
+        child_session = { id = 'child-2' },
       }
 
-      render_state:set_part(original, 10, 15)
-      render_state:update_part_data(updated)
+      render_state:set_part(original, 'msg1', 'part1', 10, 15)
+      render_state:set_part(updated, 'msg1', 'part1', 10, 15)
 
       assert.is_nil(render_state:get_task_part_by_child_session('child-1'))
       assert.equals('part1', render_state:get_task_part_by_child_session('child-2'))

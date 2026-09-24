@@ -1,10 +1,11 @@
 local config = require('opencode.config')
 local model_state = require('opencode.model_state')
+local Promise = require('opencode.promise')
 local M = {}
 
-function M._get_models()
+M._get_models = Promise.async(function()
   local config_file = require('opencode.config_file')
-  local response = config_file.get_opencode_providers():wait()
+  local response = config_file.get_opencode_providers():await()
 
   if not response then
     return {}
@@ -68,10 +69,10 @@ function M._get_models()
   end)
 
   return models
-end
+end)
 
-function M.select(cb)
-  local models = M._get_models()
+M.select = Promise.async(function(cb)
+  local models = M._get_models():await()
   local base_picker = require('opencode.ui.base_picker')
 
   local max_provider_width, max_icon_width = 0, 0
@@ -122,7 +123,7 @@ function M.select(cb)
         label = 'Toggle favorite',
         fn = function(selected)
           if not selected then
-            return models
+            return M._get_models()
           end
 
           model_state.toggle_favorite(selected.provider, selected.model)
@@ -139,6 +140,6 @@ function M.select(cb)
       cb(selection)
     end,
   })
-end
+end)
 
 return M

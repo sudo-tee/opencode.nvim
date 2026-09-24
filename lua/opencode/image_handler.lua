@@ -1,8 +1,5 @@
 --- Image pasting functionality from clipboard
 --- @see https://github.com/sst/opencode/blob/45180104fe84e2d0b9d29be0f9f8a5e52d18e102/packages/opencode/src/cli/cmd/tui/util/clipboard.ts
-local context = require('opencode.context')
-local state = require('opencode.state')
-
 local M = {}
 local cached_temp_dir = nil
 
@@ -149,9 +146,9 @@ function M.restore_img_path(name)
   return is_valid_file(path) and path or nil
 end
 
---- Handle clipboard image data by saving it to a file and adding it to context
---- @return boolean success True if image was successfully handled
-function M.paste_image_from_clipboard()
+---Save a clipboard image for attachment or later restoration by filename.
+---@return string|nil path Saved image path, or nil when no valid image is available.
+function M.save_clipboard_image()
   if not cached_temp_dir then
     cached_temp_dir = vim.fn.tempname()
     vim.fn.mkdir(cached_temp_dir, 'p')
@@ -170,19 +167,7 @@ function M.paste_image_from_clipboard()
     end
   end
 
-  if success then
-    require('opencode.ui.mention').mention(function(mention_cb)
-      local name = vim.fn.fnamemodify(image_path, ':t')
-      mention_cb(name)
-      context.add_file(image_path)
-    end)
-
-    vim.notify('Image saved and added to context: ' .. vim.fn.fnamemodify(image_path, ':t'), vim.log.levels.INFO)
-    return true
-  end
-
-  vim.notify('No image found in clipboard.', vim.log.levels.WARN)
-  return false
+  return success and image_path or nil
 end
 
 return M

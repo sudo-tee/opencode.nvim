@@ -1,4 +1,7 @@
 local assert = require('luassert')
+local store = require('opencode.state.store')
+local default_keymap = require('opencode.config').defaults.keymap
+local default_gg = default_keymap.output_window.gg
 
 describe('opencode.keymap', function()
   local set_keymaps = {}
@@ -17,8 +20,13 @@ describe('opencode.keymap', function()
   local toggle_calls
   local notify_calls
   local feedkeys_calls = {}
+  local panel_buffers = {}
+  local original_windows
 
   before_each(function()
+    original_windows = store.get('windows')
+    store.set_raw('windows', nil)
+    panel_buffers = {}
     set_keymaps = {}
     cmd_calls = {}
     built_parsed = {}
@@ -59,6 +67,8 @@ describe('opencode.keymap', function()
     mock_commands = {
       get_commands = function()
         return {
+          select_session_tab_target = { desc = 'Select tab', execute = function() end },
+          first_message = { desc = 'Load history and go to the first message', execute = function() end },
           open_input = { desc = 'Open input window', execute = function() end },
           toggle = { desc = 'Toggle opencode windows', execute = function() end },
           submit_input_prompt = { desc = 'Submit input prompt', execute = function() end },
@@ -110,6 +120,13 @@ describe('opencode.keymap', function()
   end)
 
   after_each(function()
+    keymap.teardown()
+    store.set_raw('windows', original_windows)
+    for _, buf in ipairs(panel_buffers) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end
     vim.keymap.set = original_keymap_set
     vim.cmd = original_vim_cmd
     vim.notify = original_notify
@@ -121,6 +138,163 @@ describe('opencode.keymap', function()
     package.loaded['opencode.ui.completion'] = nil
     package.loaded['opencode.state'] = nil
     package.loaded['opencode.config'] = nil
+  end)
+
+  describe('panel lifecycle', function()
+    local function panel()
+      local windows = { input_win = vim.api.nvim_get_current_win(), output_win = vim.api.nvim_get_current_win() }
+      for _, name in ipairs({ 'input', 'output' }) do
+        local buf = vim.api.nvim_create_buf(false, true)
+        panel_buffers[#panel_buffers + 1] = buf
+        windows[name .. '_buf'] = buf
+      end
+      return windows
+    end
+
+    local function mapping(buf, lhs)
+      for _, value in ipairs(vim.api.nvim_buf_get_keymap(buf, 'n')) do
+        if value.lhs == lhs then
+          return value
+        end
+      end
+    end
+
+    it('installs the default gg action and restores it without replacing a custom mapping', function()
+      vim.keymap.set = original_keymap_set
+      keymap.setup({ output_window = { gg = default_gg } })
+      local windows = panel()
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.output_buf, 'gg') ~= nil
+      end))
+      mapping(windows.output_buf, 'gg').callback()
+      assert.equals('first_message', executed_parsed[1].intent.name)
+
+      vim.keymap.del('n', 'gg', { buffer = windows.output_buf })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.output_buf, 'gg') ~= nil
+      end))
+      original_keymap_set('n', 'gg', function() end, { buffer = windows.output_buf, desc = 'Custom gg' })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      local drained = false
+      vim.schedule(function() drained = true end)
+      assert.is_true(vim.wait(200, function() return drained end))
+      assert.equals('Custom gg', mapping(windows.output_buf, 'gg').desc)
+    end)
+
+    it('binds tab-strip mappings before its window is shown and restores custom mappings', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      windows.tab_strip_buf = vim.api.nvim_create_buf(false, true)
+      panel_buffers[#panel_buffers + 1] = windows.tab_strip_buf
+      store.set_raw('windows', windows)
+      keymap.setup({ tab_strip_window = default_keymap.tab_strip_window })
+      local enter = mapping(windows.tab_strip_buf, '<CR>')
+      assert.is_not_nil(enter)
+      assert.equals(1, enter.nowait)
+      enter.callback()
+      assert.equals('select_session_tab_target', executed_parsed[1].intent.name)
+      assert.same({ 'cursor' }, executed_parsed[1].intent.args)
+      mapping(windows.tab_strip_buf, '<LeftMouse>').callback()
+      assert.same({ 'mouse' }, executed_parsed[2].intent.args)
+      assert.is_not_nil(mapping(windows.tab_strip_buf, '<2-LeftMouse>'))
+
+      original_keymap_set('n', '<CR>', function() end, { buffer = windows.tab_strip_buf, desc = 'Custom tab' })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      local drained = false
+      vim.schedule(function() drained = true end)
+      assert.is_true(vim.wait(200, function() return drained end))
+      assert.equals('Custom tab', mapping(windows.tab_strip_buf, '<CR>').desc)
+    end)
+
+    it('does not install gg when disabled', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      store.set_raw('windows', windows)
+      keymap.setup({ output_window = { gg = false } })
+      assert.is_nil(mapping(windows.output_buf, 'gg'))
+    end)
+
+    it('binds new panels and restores missing mappings without replacing custom or window mappings', function()
+      vim.keymap.set = original_keymap_set
+      keymap.setup({
+        input_window = { x = { 'toggle' } },
+        output_window = { y = { 'toggle' }, gg = { 'toggle' } },
+      })
+      local windows = panel()
+      original_keymap_set('n', 'gg', function() end, { buffer = windows.output_buf, desc = 'Window gg' })
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.input_buf, 'x') and mapping(windows.output_buf, 'y') ~= nil
+      end))
+      mapping(windows.input_buf, 'x').callback()
+      assert.equals('toggle', executed_parsed[1].intent.name)
+      assert.equals('Window gg', mapping(windows.output_buf, 'gg').desc)
+
+      original_keymap_set('n', 'x', function() end, { buffer = windows.input_buf, desc = 'Custom x' })
+      vim.keymap.del('n', 'y', { buffer = windows.output_buf })
+      store.set('windows', nil)
+      store.set('windows', windows)
+      assert.is_true(vim.wait(200, function()
+        return mapping(windows.output_buf, 'y') ~= nil
+      end))
+      assert.equals('Custom x', mapping(windows.input_buf, 'x').desc)
+      assert.equals('Window gg', mapping(windows.output_buf, 'gg').desc)
+    end)
+
+    it('ignores metadata and hide updates, but installs mappings when a window is restored', function()
+      local windows = panel()
+      store.set_raw('windows', windows)
+      keymap.setup({ input_window = { x = { 'toggle' } }, output_window = { y = { 'toggle' } } })
+      assert.equals(2, #set_keymaps)
+      store.mutate('windows', function(value)
+        value.output_folds = { ranges = {} }
+      end)
+      local win = windows.input_win
+      store.mutate('windows', function(value)
+        value.input_win = nil
+      end)
+      local drained = false
+      vim.schedule(function() drained = true end)
+      assert.is_true(vim.wait(200, function() return drained end))
+      assert.equals(2, #set_keymaps)
+
+      store.mutate('windows', function(value)
+        value.input_win = win
+      end)
+      assert.is_true(vim.wait(200, function() return #set_keymaps == 3 end))
+      assert.equals(windows.input_buf, set_keymaps[3].opts.buffer)
+    end)
+
+    it('adopts existing buffers and stops observing on teardown', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      store.set_raw('windows', windows)
+      keymap.setup({ input_window = { x = { 'toggle' } } })
+      assert.is_truthy(mapping(windows.input_buf, 'x'))
+      keymap.teardown()
+      store.set('windows', panel())
+      vim.wait(20)
+      assert.is_nil(mapping(store.get('windows').input_buf, 'x'))
+    end)
+
+    it('keeps completion-aware behavior for installed input mappings', function()
+      vim.keymap.set = original_keymap_set
+      local windows = panel()
+      store.set_raw('windows', windows)
+      keymap.setup({ input_window = { x = { 'toggle', defer_to_completion = true } } })
+      mock_completion.is_completion_visible = function() return true end
+      mapping(windows.input_buf, 'x').callback()
+      assert.equals(1, #feedkeys_calls)
+      assert.equals(0, #executed_parsed)
+      mock_completion.is_completion_visible = function() return false end
+      mapping(windows.input_buf, 'x').callback()
+      assert.equals(1, #executed_parsed)
+    end)
   end)
 
   describe('normalize_keymap', function()

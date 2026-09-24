@@ -13,7 +13,6 @@ local config = require('opencode.config')
 local state = require('opencode.state')
 local store = require('opencode.state.store')
 local ui = require('opencode.ui.ui')
-local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local stub = require('luassert.stub')
 local assert = require('luassert')
@@ -22,6 +21,12 @@ local support = require('tests.unit.services_spec_support')
 
 describe('opencode.services.session_runtime', function()
   local original
+
+  local function set_session_fact(session_id, parent_id)
+    local connection = state.opencode_server
+    connection.session_facts[session_id] = { id = session_id, parentID = parent_id }
+    connection.observations[session_id] = nil
+  end
 
   before_each(function()
     original = support.snapshot_state()
@@ -52,43 +57,7 @@ describe('opencode.services.session_runtime', function()
     stub(ui, 'focus_input')
     stub(ui, 'focus_output')
     stub(ui, 'is_output_empty').returns(true)
-    stub(session, 'get_last_workspace_session').invokes(function()
-      local p = Promise.new()
-      p:resolve({ id = 'test-session' })
-      return p
-    end)
-    if session.get_by_id and type(session.get_by_id) == 'function' then
-      stub(session, 'get_by_id').invokes(function(id)
-        local p = Promise.new()
-        if not id then
-          p:resolve(nil)
-        else
-          p:resolve({ id = id, title = id, modified = os.time(), parentID = nil })
-        end
-        return p
-      end)
-      stub(session, 'get_by_name').invokes(function(name)
-        local p = Promise.new()
-        if not name then
-          p:resolve(nil)
-        else
-          p:resolve({ id = name, title = name, modified = os.time(), parentID = nil })
-        end
-        return p
-      end)
-    end
-    support.mock_api_client()
-
-    store.set('opencode_server', {
-      is_running = function()
-        return true
-      end,
-      shutdown = function() end,
-      url = 'http://127.0.0.1:4000',
-      check_health = function()
-        return Promise.new():resolve(true)
-      end,
-    })
+    support.mock_connection()
   end)
 
   after_each(function()
@@ -106,15 +75,49 @@ describe('opencode.services.session_runtime', function()
         ui[fn]:revert()
       end
     end
-    if session.get_last_workspace_session.revert then
-      session.get_last_workspace_session:revert()
-    end
-    if session.get_by_id and session.get_by_id.revert then
-      session.get_by_id:revert()
-    end
-    if session.get_by_name and session.get_by_name.revert then
-      session.get_by_name:revert()
-    end
+  end)
+
+  describe('is_session_or_ancestor_deleted', function()
+    local root = { id = 'root', parentID = nil }
+    local child = { id = 'child', parentID = 'root' }
+    local grandchild = { id = 'grandchild', parentID = 'child' }
+    local unrelated = { id = 'unrelated', parentID = nil }
+    local all_sessions = { root, child, grandchild, unrelated }
+
+    it('returns true when the session itself is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('child', { child = true }, all_sessions))
+    end)
+
+    it('returns true when the direct parent is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('child', { root = true }, all_sessions))
+    end)
+
+    it('returns true when a grandparent is in the delete set', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('grandchild', { root = true }, all_sessions))
+    end)
+
+    it('returns false when an unrelated session is deleted', function()
+      assert.is_false(session_runtime.is_session_or_ancestor_deleted('child', { unrelated = true }, all_sessions))
+    end)
+
+    it('returns false when only a sibling is deleted', function()
+      local sibling = { id = 'sibling', parentID = 'root' }
+      assert.is_false(
+        session_runtime.is_session_or_ancestor_deleted(
+          'child',
+          { sibling = true },
+          { root, child, sibling, grandchild }
+        )
+      )
+    end)
+
+    it('returns false for a root session when an unrelated root is deleted', function()
+      assert.is_false(session_runtime.is_session_or_ancestor_deleted('root', { unrelated = true }, all_sessions))
+    end)
+
+    it('returns true for root session when root itself is deleted', function()
+      assert.is_true(session_runtime.is_session_or_ancestor_deleted('root', { root = true }, all_sessions))
+    end)
   end)
 
   describe('open', function()
@@ -130,6 +133,72 @@ describe('opencode.services.session_runtime', function()
         output_win = 4,
       }, state.windows)
     end)
+
+    for _, case in ipairs({
+      { action = 'reuse_visible', created = false, restore_position = false },
+      { action = 'restore_hidden', restored = true, created = false, restore_position = true },
+      { action = 'restore_hidden', restored = false, created = true, restore_position = true },
+      { action = 'create_fresh', created = true, restore_position = true },
+    }) do
+      it('prepares ' .. case.action .. ' windows with restore result ' .. tostring(case.restored), function()
+        state.context.set_current_cwd(vim.fn.getcwd())
+        state.session.set_active({ id = 'existing-session' })
+        state.ui.clear_display_route()
+        local restore = stub(ui, 'restore_hidden_windows').returns(case.restored)
+        local clear_hidden = stub(state.ui, 'clear_hidden_window_state')
+        local guard = stub(session_runtime, 'is_prompting_allowed').returns(true)
+        local ok, err = pcall(function()
+          session_runtime.open({ focus = 'input', start_insert = true, open_action = case.action }):wait()
+          assert.stub(ui.create_windows).was_called(case.created and 1 or 0)
+          assert.stub(restore).was_called(case.action == 'restore_hidden' and 1 or 0)
+          assert.stub(clear_hidden).was_called(case.restored == false and 1 or 0)
+          assert.stub(guard).was_called(case.restore_position and 1 or 0)
+          assert.stub(ui.focus_input).was_called_with({
+            restore_position = case.restore_position,
+            start_insert = true,
+          })
+          assert.stub(ui.render_output).was_called(case.created and 1 or 0)
+          assert.is_false(state.is_opening)
+        end)
+        restore:revert()
+        clear_hidden:revert()
+        guard:revert()
+        assert.is_true(ok, tostring(err))
+      end)
+    end
+
+    it('clears the opening flag when window preparation fails', function()
+      ui.create_windows:revert()
+      stub(ui, 'create_windows').invokes(function()
+        error('window creation failed')
+      end)
+      local ok, err = pcall(function()
+        session_runtime.open({ open_action = 'create_fresh' }):wait()
+      end)
+      assert.is_false(ok)
+      assert.is_truthy(tostring(err):find('window creation failed', 1, true))
+      assert.is_false(state.is_opening)
+    end)
+
+    for _, rejects in ipairs({ true, false }) do
+      it('clears the opening flag when server startup ' .. (rejects and 'rejects' or 'returns nil'), function()
+        local server_job = require('opencode.server_job')
+        local ensure = stub(server_job, 'ensure_server').invokes(function()
+          if rejects then
+            return Promise.new():reject('startup failed')
+          end
+          return Promise.new():resolve(nil)
+        end)
+        local ok, err = pcall(function()
+          session_runtime.open({ focus = 'output', open_action = 'create_fresh' }):wait()
+        end)
+        ensure:revert()
+        assert.is_false(ok)
+        assert.is_truthy(tostring(err):find(rejects and 'startup failed' or 'Server failed to start', 1, true))
+        assert.is_false(state.is_opening)
+        assert.stub(ui.focus_output).was_called_with({ restore_position = true })
+      end)
+    end
 
     it('ensure the current cwd is correct when opening', function()
       local cwd = vim.fn.getcwd()
@@ -147,12 +216,11 @@ describe('opencode.services.session_runtime', function()
       vim.fn.getcwd = function()
         return '/some/new/path'
       end
-      session.get_last_workspace_session:revert()
-      stub(session, 'get_last_workspace_session').invokes(function()
-        local p = Promise.new()
-        p:resolve({ id = 'new_cwd-test-session' })
-        return p
-      end)
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({
+          { id = 'new_cwd-test-session', title = 'new', time = { updated = 3 } },
+        })
+      end
 
       session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
@@ -166,6 +234,32 @@ describe('opencode.services.session_runtime', function()
       state.session.set_active({ id = 'old-session' })
       session_runtime.open({ new_session = true, focus = 'input' }):wait()
       assert.truthy(state.active_session)
+    end)
+
+    it('clears old attachments before loading editor context for a new session', function()
+      local context = require('opencode.context')
+      local calls = {}
+      local clear_files = stub(context, 'clear_files').invokes(function()
+        table.insert(calls, 'clear_files')
+      end)
+      local clear_selections = stub(context, 'clear_selections').invokes(function()
+        table.insert(calls, 'clear_selections')
+      end)
+      local load = stub(context, 'load').invokes(function()
+        table.insert(calls, 'load')
+      end)
+      local unload_attachments = stub(context, 'unload_attachments')
+
+      state.ui.set_windows(nil)
+      session_runtime.open({ new_session = true, focus = 'input' }):wait()
+
+      assert.same({ 'clear_files', 'clear_selections', 'load' }, calls)
+      assert.stub(unload_attachments).was_not_called()
+
+      clear_files:revert()
+      clear_selections:revert()
+      load:revert()
+      unload_attachments:revert()
     end)
 
     it('focuses the appropriate window', function()
@@ -193,12 +287,9 @@ describe('opencode.services.session_runtime', function()
     it('creates a new session when no active session and no last session exists', function()
       state.ui.set_windows(nil)
       state.session.set_active(nil)
-      session.get_last_workspace_session:revert()
-      stub(session, 'get_last_workspace_session').invokes(function()
-        local p = Promise.new()
-        p:resolve(nil)
-        return p
-      end)
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({})
+      end
 
       session_runtime.open({ new_session = false, focus = 'input' }):wait()
 
@@ -243,7 +334,6 @@ describe('opencode.services.session_runtime', function()
       local commands = require('opencode.commands')
       local completion = require('opencode.ui.completion')
       local keymap = require('opencode.keymap')
-      local event_manager = require('opencode.event_manager')
       local context = require('opencode.context')
       local context_bar = require('opencode.ui.context_bar')
       local reference_picker = require('opencode.ui.reference_picker')
@@ -261,7 +351,6 @@ describe('opencode.services.session_runtime', function()
         stub(commands, 'setup'),
         stub(completion, 'setup'),
         stub(keymap, 'setup'),
-        stub(event_manager, 'setup'),
         stub(context, 'setup'),
         stub(context_bar, 'setup'),
         stub(reference_picker, 'setup'),
@@ -285,44 +374,142 @@ describe('opencode.services.session_runtime', function()
     end)
   end)
 
-  describe('select_session', function()
+  describe('detached session creation', function()
+    local ensure_server
+    local server_job = require('opencode.server_job')
+
+    after_each(function()
+      if ensure_server then
+        ensure_server:revert()
+        ensure_server = nil
+      end
+    end)
+
+    for _, case in ipairs({
+      { fact = { location = { directory = '/remote' } }, location = { directory = '/remote' } },
+      { fact = { directory = '/legacy' }, location = { directory = '/legacy' } },
+      { fact = {}, location = { directory = vim.fn.getcwd() } },
+    }) do
+      it('creates and observes on the same connection at ' .. case.location.directory, function()
+        local active = state.active_session
+        local windows = state.windows
+        local fact = vim.tbl_extend('force', { id = 'detached-id' }, case.fact)
+        local observation = {}
+        local connection = { operations = {} }
+        connection.operations.create_session = function(actual, _, request)
+          assert.equals(connection, actual)
+          assert.same({ title = 'Detached' }, request)
+          return Promise.new():resolve(fact)
+        end
+        connection.observe = function(actual, ref)
+          assert.equals(connection, actual)
+          assert.same({ id = 'detached-id', location = case.location }, ref)
+          return observation
+        end
+        ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+        state.context.set_current_cwd(vim.fn.getcwd())
+        local result = session_runtime.create_detached_session('Detached'):wait()
+        assert.stub(ensure_server).was_called(1)
+        assert.equals(connection, result.connection)
+        assert.equals(observation, result.observation)
+        assert.same(case.location, result.session.location)
+        assert.same(case.fact.location, fact.location)
+        assert.equals(active, state.active_session)
+        assert.equals(windows, state.windows)
+        assert.stub(ui.create_windows).was_not_called()
+      end)
+    end
+
+    it('rejects when session creation returns no session', function()
+      local connection = { operations = { create_session = function() return Promise.new():resolve(nil) end } }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      local result = session_runtime.create_detached_session()
+      assert.is_true(result:is_rejected())
+    end)
+
+    it('deletes a newly created session when observation setup fails', function()
+      local deleted
+      local connection = {
+        operations = {
+          create_session = function() return Promise.new():resolve({ id = 'detached-id' }) end,
+          delete_session = function(_, id)
+            deleted = id
+            return Promise.new():resolve()
+          end,
+        },
+        observe = function() error('observation unavailable') end,
+      }
+      ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      local result = session_runtime.create_detached_session()
+      assert.is_true(result:is_rejected())
+      assert.equals('detached-id', deleted)
+    end)
+  end)
+
+  describe('session selection command', function()
+    after_each(function()
+      local picker = require('opencode.ui.session_picker')
+      if picker.select.revert then
+        picker.select:revert()
+      end
+    end)
+
+    it('restores focus on cancellation only when the panel is visible', function()
+      local visible = stub(state.ui, 'is_visible').returns(true)
+      local switch = stub(session_runtime, 'select_session')
+      stub(require('opencode.ui.session_picker'), 'select').invokes(function(_, cb)
+        cb(nil)
+      end)
+      local list = stub(session_runtime, 'list_sessions_by_scope').returns(
+        Promise.new():resolve({ { id = 'root', title = 'Root' } })
+      )
+      local actions = require('opencode.commands.handlers.session').actions
+      actions.select_session(nil, 'project'):wait()
+      assert.stub(ui.focus_input).was_called(1)
+      visible.returns(false)
+      actions.select_session(nil, 'project'):wait()
+      assert.stub(ui.focus_input).was_called(1)
+      assert.stub(switch).was_not_called()
+      visible:revert()
+      switch:revert()
+      list:revert()
+    end)
+
     it('filters sessions by title and parentID', function()
       local mock_sessions = {
-        { id = 'session1', title = 'First session', modified = 1, parentID = nil },
-        { id = 'session2', title = '', modified = 2, parentID = nil },
-        { id = 'session3', title = 'Third session', modified = 3, parentID = nil },
+        { id = 'session1', title = 'First session', time = { updated = 1 }, parentID = nil },
+        { id = 'session2', title = '', time = { updated = 2 }, parentID = nil },
+        { id = 'session3', title = 'Third session', time = { updated = 3 }, parentID = nil },
       }
-      stub(session, 'get_all_workspace_sessions').invokes(function()
-        local p = Promise.new()
-        p:resolve(mock_sessions)
-        return p
-      end)
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve(mock_sessions)
+      end
       local passed
       stub(require('opencode.ui.session_picker'), 'select').invokes(function(sessions, cb)
         passed = sessions
-        cb(sessions[2])
+        cb(sessions[1])
       end)
       ui.render_output:revert()
       stub(ui, 'render_output')
 
       state.ui.set_windows({ input_buf = 1, output_buf = 2 })
-      session_runtime.select_session(nil):wait()
+      require('opencode.commands.handlers.session').actions.select_session(nil):wait()
       assert.equal(2, #passed)
-      assert.equal('session3', passed[2].id)
+      assert.equal('session3', passed[1].id)
       assert.truthy(state.active_session)
       assert.equal('session3', state.active_session.id)
     end)
 
     it('filters child sessions by parentID', function()
       local mock_sessions = {
-        { id = 'root1', title = 'Root', modified = 1, parentID = nil },
-        { id = 'child1', title = 'Child 1', modified = 2, parentID = 'root1' },
-        { id = 'child2', title = 'Child 2', modified = 3, parentID = 'root1' },
-        { id = 'child3', title = 'Child of other', modified = 4, parentID = 'root2' },
+        { id = 'root1', title = 'Root', time = { updated = 1 }, parentID = nil },
+        { id = 'child1', title = 'Child 1', time = { updated = 2 }, parentID = 'root1' },
+        { id = 'child2', title = 'Child 2', time = { updated = 3 }, parentID = 'root1' },
+        { id = 'child3', title = 'Child of other', time = { updated = 4 }, parentID = 'root2' },
       }
-      stub(session, 'get_all_workspace_sessions').invokes(function()
+      state.opencode_server.operations.list_sessions_project = function()
         return Promise.new():resolve(mock_sessions)
-      end)
+      end
       local passed
       stub(require('opencode.ui.session_picker'), 'select').invokes(function(sessions, cb)
         passed = sessions
@@ -330,17 +517,70 @@ describe('opencode.services.session_runtime', function()
       end)
 
       state.ui.set_windows({ input_buf = 1, output_buf = 2 })
-      session_runtime.select_session('root1'):wait()
+      require('opencode.commands.handlers.session').actions.select_session('root1'):wait()
       assert.equal(2, #passed)
-      assert.equal('child1', passed[1].id)
-      assert.equal('child2', passed[2].id)
+      assert.equal('child2', passed[1].id)
+      assert.equal('child1', passed[2].id)
     end)
   end)
 
-  describe('switch_session', function()
+  describe('list_sessions_by_scope', function()
+    it('starts the server when listing sessions before the panel opens', function()
+      local server_job = require('opencode.server_job')
+      local connection = state.opencode_server
+      local ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      state.jobs.clear_server()
+
+      local sessions = session_runtime.list_sessions_by_scope('project'):wait()
+
+      assert.is_table(sessions)
+      assert.stub(ensure_server).was_called()
+      ensure_server:revert()
+    end)
+  end)
+
+  describe('session switching presentation', function()
     local input_window = require('opencode.ui.input_window')
 
+    it('activates through the runtime without opening or focusing the panel', function()
+      local open = stub(session_runtime, 'open')
+      session_runtime.switch_session('root1'):wait()
+      assert.equal('root1', state.active_session.id)
+      assert.stub(open).was_not_called()
+      assert.stub(ui.focus_input).was_not_called()
+      assert.stub(ui.focus_output).was_not_called()
+      open:revert()
+    end)
+
+    it('opens a hidden panel only after activation succeeds', function()
+      local pending = Promise.new()
+      local activate = stub(session_runtime, 'switch_session').returns(pending)
+      local visible = stub(state.ui, 'is_visible').returns(false)
+      local open = stub(session_runtime, 'open').returns(Promise.new():resolve())
+      local switched = session_runtime.select_session('root1')
+      assert.stub(open).was_not_called()
+      pending:resolve()
+      switched:wait()
+      assert.stub(open).was_called(1)
+      activate:revert()
+      visible:revert()
+      open:revert()
+    end)
+
+    it('leaves the panel alone when activation fails', function()
+      local activate = stub(session_runtime, 'switch_session').returns(Promise.new():reject('lookup failed'))
+      local open = stub(session_runtime, 'open')
+      local switched = session_runtime.select_session('missing')
+      assert.is_true(switched:is_rejected())
+      assert.stub(open).was_not_called()
+      assert.stub(ui.focus_input).was_not_called()
+      assert.stub(ui.focus_output).was_not_called()
+      activate:revert()
+      open:revert()
+    end)
+
     it('hides input window when switching to a child session', function()
+      set_session_fact('child1', 'parent1')
       state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
       local orig_is_visible = state.ui.is_visible
       state.ui.is_visible = function()
@@ -349,12 +589,7 @@ describe('opencode.services.session_runtime', function()
       stub(input_window, 'is_hidden').returns(false)
       stub(input_window, '_hide')
 
-      session.get_by_id:revert()
-      stub(session, 'get_by_id').invokes(function(id)
-        return Promise.new():resolve({ id = id, title = id, modified = os.time(), parentID = 'parent1' })
-      end)
-
-      session_runtime.switch_session('child1'):wait()
+      session_runtime.select_session('child1'):wait()
 
       assert.stub(input_window._hide).was_called()
       assert.stub(ui.focus_output).was_called()
@@ -365,6 +600,7 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('shows input window when switching to a non-child session', function()
+      set_session_fact('root1', nil)
       state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
       local orig_is_visible = state.ui.is_visible
       state.ui.is_visible = function()
@@ -373,7 +609,7 @@ describe('opencode.services.session_runtime', function()
       stub(input_window, 'is_hidden').returns(true)
       stub(input_window, '_show')
 
-      session_runtime.switch_session('root1'):wait()
+      session_runtime.select_session('root1'):wait()
 
       assert.stub(input_window._show).was_called()
       assert.stub(ui.focus_input).was_called()
@@ -384,6 +620,7 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('does not hide input when already hidden on child session switch', function()
+      set_session_fact('child1', 'parent1')
       state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
       local orig_is_visible = state.ui.is_visible
       state.ui.is_visible = function()
@@ -392,12 +629,7 @@ describe('opencode.services.session_runtime', function()
       stub(input_window, 'is_hidden').returns(true)
       stub(input_window, '_hide')
 
-      session.get_by_id:revert()
-      stub(session, 'get_by_id').invokes(function(id)
-        return Promise.new():resolve({ id = id, title = id, modified = os.time(), parentID = 'parent1' })
-      end)
-
-      session_runtime.switch_session('child1'):wait()
+      session_runtime.select_session('child1'):wait()
 
       assert.stub(input_window._hide).was_not_called()
       assert.stub(ui.focus_output).was_called()
@@ -410,24 +642,19 @@ describe('opencode.services.session_runtime', function()
 
   describe('cancel', function()
     after_each(function()
-      state.renderer.set_pending_permissions({})
       vim.g.opencode_abort_count = nil
     end)
 
-    it('rejects pending permissions with the reply payload expected by the API', function()
-      local replies = {}
-      state.session.set_active({ id = 'session_with_permission' })
-      state.renderer.set_pending_permissions({ { id = 'per_cancel' } })
+    it('interrupts the captured active Observation', function()
+      state.session.set_active({ id = 'session_to_interrupt' })
+      local observation = state.session.active_observation()
+      local interrupt = stub(observation, 'interrupt').returns(Promise.new():resolve(true))
       vim.g.opencode_abort_count = 0
-      state.api_client.reply_to_permission = function(_, permission_id, payload)
-        table.insert(replies, { permission_id = permission_id, payload = payload })
-      end
 
       session_runtime.cancel():wait()
 
-      assert.same({
-        { permission_id = 'per_cancel', payload = { reply = 'reject' } },
-      }, replies)
+      assert.stub(interrupt).was_called(1)
+      interrupt:revert()
     end)
   end)
 
@@ -439,7 +666,8 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('toggle_pane does not show input when in a child session', function()
-      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      set_session_fact('child1', 'parent1')
+      state.session.set_active({ id = 'child1' })
       stub(input_window, 'focus_input')
 
       -- Simulate being in the output window (not input)
@@ -457,7 +685,8 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('focus_input is a no-op when in a child session', function()
-      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      set_session_fact('child1', 'parent1')
+      state.session.set_active({ id = 'child1' })
       stub(input_window, 'is_hidden').returns(true)
       stub(input_window, '_show')
 
@@ -469,7 +698,8 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('toggle_pane shows input when child_readonly is false', function()
-      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      set_session_fact('child1', 'parent1')
+      state.session.set_active({ id = 'child1' })
       local config = require('opencode.config')
       local orig_readonly = config.values.child_readonly
       config.values.child_readonly = false
@@ -491,7 +721,8 @@ describe('opencode.services.session_runtime', function()
 
     it('focus_input works when child_readonly is false', function()
       state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2 })
-      state.session.set_active({ id = 'child1', parentID = 'parent1' })
+      set_session_fact('child1', 'parent1')
+      state.session.set_active({ id = 'child1' })
       local config = require('opencode.config')
       local orig_readonly = config.values.child_readonly
       config.values.child_readonly = false
@@ -518,7 +749,8 @@ describe('opencode.services.session_runtime', function()
       stub(ui, 'focus_input')
     end)
 
-    it('switch_session does not hide input when child_readonly is false', function()
+    it('select_session does not hide input when child_readonly is false', function()
+      set_session_fact('child1', 'parent1')
       state.ui.set_windows({ mock = 'windows', input_buf = 1, output_buf = 2, input_win = 3, output_win = 4 })
       local orig_is_visible = state.ui.is_visible
       state.ui.is_visible = function()
@@ -531,12 +763,7 @@ describe('opencode.services.session_runtime', function()
       stub(input_window, 'is_hidden').returns(false)
       stub(input_window, '_hide')
 
-      session.get_by_id:revert()
-      stub(session, 'get_by_id').invokes(function(id)
-        return Promise.new():resolve({ id = id, title = id, modified = os.time(), parentID = 'parent1' })
-      end)
-
-      session_runtime.switch_session('child1'):wait()
+      session_runtime.select_session('child1'):wait()
 
       assert.stub(input_window._hide).was_not_called()
       assert.stub(ui.focus_input).was_called()
@@ -564,93 +791,6 @@ describe('opencode.services.session_runtime', function()
 
       assert.stub(flush_stub).was_called()
       flush_stub:revert()
-    end)
-
-    it('restores a pending question after a full session render', function()
-      local renderer = require('opencode.ui.renderer')
-      local question_window = require('opencode.ui.question_window')
-
-      state.session.set_active({ id = 'sess1' })
-      state.ui.set_windows({ output_buf = 1, output_win = 2 })
-
-      local mounted_stub = stub(require('opencode.ui.output_window'), 'mounted').returns(true)
-      local fetch_stub = stub(session, 'get_messages').invokes(function()
-        return Promise.new():resolve({})
-      end)
-      local render_stub = stub(renderer, '_render_full_session_data')
-      local list_questions_stub = stub(state.api_client, 'list_questions').invokes(function()
-        return Promise.new():resolve({
-          {
-            id = 'q1',
-            sessionID = 'sess1',
-            questions = {
-              {
-                question = 'Pick one',
-                header = 'Test',
-                options = { { label = 'One', description = 'first' } },
-              },
-            },
-          },
-        })
-      end)
-      local show_stub = stub(question_window, 'show_question')
-
-      renderer.render_full_session():wait()
-
-      assert.stub(show_stub).was_called()
-
-      show_stub:revert()
-      list_questions_stub:revert()
-      render_stub:revert()
-      fetch_stub:revert()
-      mounted_stub:revert()
-      state.ui.set_windows(nil)
-    end)
-
-    it('restores pending permissions after a full session render', function()
-      local renderer = require('opencode.ui.renderer')
-      local permission_window = require('opencode.ui.permission_window')
-      local events = require('opencode.ui.renderer.events')
-
-      state.session.set_active({ id = 'sess1' })
-      state.ui.set_windows({ output_buf = 1, output_win = 2 })
-
-      local mounted_stub = stub(require('opencode.ui.output_window'), 'mounted').returns(true)
-      local fetch_stub = stub(session, 'get_messages').invokes(function()
-        return Promise.new():resolve({})
-      end)
-      local render_stub = stub(renderer, '_render_full_session_data')
-      local list_questions_stub = stub(state.api_client, 'list_questions').invokes(function()
-        return Promise.new():resolve({})
-      end)
-      local list_permissions_stub = stub(state.api_client, 'list_permissions').invokes(function()
-        return Promise.new():resolve({
-          {
-            id = 'perm1',
-            sessionID = 'sess1',
-            permission = 'bash',
-            patterns = { 'echo hello' },
-          },
-        })
-      end)
-      local on_permission_stub = stub(events, 'on_permission_updated')
-
-      renderer.render_full_session():wait()
-
-      assert.stub(on_permission_stub).was_called_with({
-        id = 'perm1',
-        sessionID = 'sess1',
-        permission = 'bash',
-        patterns = { 'echo hello' },
-      })
-
-      on_permission_stub:revert()
-      list_permissions_stub:revert()
-      list_questions_stub:revert()
-      render_stub:revert()
-      fetch_stub:revert()
-      mounted_stub:revert()
-      state.ui.set_windows(nil)
     end)
   end)
 
@@ -716,7 +856,7 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('defers output buffer writes while the output window is in another tab', function()
-      local ctx = require('opencode.ui.renderer.ctx')
+      local ctx = require('opencode.ui.renderer.ctx').current()
       local buf = vim.api.nvim_create_buf(false, true)
       local win = vim.api.nvim_open_win(buf, false, {
         relative = 'editor',
@@ -741,7 +881,7 @@ describe('opencode.services.session_runtime', function()
       assert.is_true(ctx.bulk_mode)
 
       vim.api.nvim_set_current_tabpage(output_tab)
-      flush.resume_deferred_rendering()
+      require('opencode.ui.renderer').resume_deferred_rendering()
 
       assert.same({ 'deferred output', '' }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
       assert.is_false(ctx.bulk_mode)
@@ -760,32 +900,26 @@ describe('opencode.services.session_runtime', function()
       state.ui.set_windows(nil)
       state.session.set_active({ id = 'sess1' })
       store.set('job_count', 1)
-
-      local abort_stub = stub(state.api_client, 'abort_session').invokes(function()
-        return Promise.new():resolve(true)
-      end)
+      local observation = state.session.active_observation()
+      local interrupt = stub(observation, 'interrupt').returns(Promise.new():resolve(true))
 
       session_runtime.cancel():wait()
 
-      assert.stub(abort_stub).was_called()
+      assert.stub(interrupt).was_called()
       assert.stub(ui.focus_input).was_not_called()
-
-      abort_stub:revert()
+      interrupt:revert()
     end)
 
     it('aborts when the model is processing on the server but no client request is in flight', function()
       state.session.set_active({ id = 'sess1' })
       store.set('job_count', 0)
-
-      local abort_stub = stub(state.api_client, 'abort_session').invokes(function()
-        return Promise.new():resolve(true)
-      end)
+      local observation = state.session.active_observation()
+      local interrupt = stub(observation, 'interrupt').returns(Promise.new():resolve(true))
 
       session_runtime.cancel():wait()
 
-      assert.stub(abort_stub).was_called()
-
-      abort_stub:revert()
+      assert.stub(interrupt).was_called()
+      interrupt:revert()
     end)
 
     it('does not count cancel toward the server-restart threshold when no client request is in flight', function()
@@ -814,6 +948,25 @@ describe('opencode.services.session_runtime', function()
 
       assert.is_equal(1, vim.g.opencode_abort_count)
     end)
+
+    it('does not release a Connection without process-release capability', function()
+      local server_job = require('opencode.server_job')
+      local connection = state.opencode_server
+      local close = stub(connection, 'close').returns(Promise.new():resolve(true))
+      local ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
+      state.session.set_active({ id = 'sess1' })
+      store.set('job_count', 1)
+      vim.g.opencode_abort_count = 0
+
+      for _ = 1, 3 do
+        session_runtime.cancel():wait()
+      end
+
+      assert.equals(connection, state.opencode_server)
+      assert.stub(close).was_not_called()
+      assert.stub(ensure_server).was_not_called()
+      close:revert()
+      ensure_server:revert()    end)
   end)
 
   describe('opencode_ok (version checks)', function()
@@ -911,20 +1064,22 @@ describe('opencode.services.session_runtime', function()
     end)
 
     it('loads last workspace session for new directory', function()
+      local calls = 0
+      state.opencode_server.operations.list_sessions_project = function()
+        calls = calls + 1
+        return Promise.new():resolve({ { id = 'test-session', title = 'test', time = { updated = 2 } } })
+      end
       session_runtime.handle_directory_change():wait()
 
       assert.truthy(state.active_session)
       assert.equal('test-session', state.active_session.id)
-      assert.stub(session.get_last_workspace_session).was_called()
+      assert.equal(1, calls)
     end)
 
     it('creates new session when no last session exists', function()
-      session.get_last_workspace_session:revert()
-      stub(session, 'get_last_workspace_session').invokes(function()
-        local p = Promise.new()
-        p:resolve(nil)
-        return p
-      end)
+      state.opencode_server.operations.list_sessions_project = function()
+        return Promise.new():resolve({})
+      end
 
       session_runtime.handle_directory_change():wait()
 
@@ -974,16 +1129,17 @@ describe('opencode.services.session_runtime', function()
     it('keeps the current user-selected model and mode by default', function()
       state.model.set_model('openai/gpt-4.1')
       state.model.set_mode('plan')
-      state.renderer.set_messages({
-        {
-          info = {
-            id = 'm1',
-            providerID = 'anthropic',
-            modelID = 'claude-3-opus',
-            mode = 'build',
-          },
-        },
-      })
+      state.session.set_active({ id = 'session-model' })
+      local observed = state.session.active_observation():read()
+      observed.entry_order = { 'm1' }
+      observed.entries_by_id.m1 = {
+        id = 'm1',
+        session_id = 'session-model',
+        kind = 'assistant',
+        content = {},
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'build',
+      }
 
       local model = agent_model.initialize_current_model():wait()
 
@@ -998,16 +1154,17 @@ describe('opencode.services.session_runtime', function()
 
       stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'plan', 'build' }))
 
-      state.renderer.set_messages({
-        {
-          info = {
-            id = 'm1',
-            providerID = 'anthropic',
-            modelID = 'claude-3-opus',
-            mode = 'build',
-          },
-        },
-      })
+      state.session.set_active({ id = 'session-model' })
+      local observed = state.session.active_observation():read()
+      observed.entry_order = { 'm1' }
+      observed.entries_by_id.m1 = {
+        id = 'm1',
+        session_id = 'session-model',
+        kind = 'assistant',
+        content = {},
+        model = { providerID = 'anthropic', modelID = 'claude-3-opus' },
+        agent = 'build',
+      }
 
       local model = agent_model.initialize_current_model({ restore_from_messages = true }):wait()
 

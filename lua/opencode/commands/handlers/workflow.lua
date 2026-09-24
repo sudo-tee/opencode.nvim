@@ -18,7 +18,7 @@ local M = {
 }
 
 ---@param message string
----@return Session|nil
+---@return OpencodeSession|nil
 local function get_active_session_or_warn(message)
   local active_session = state.active_session
   if not active_session then
@@ -45,6 +45,21 @@ local function join_args(args)
     return ''
   end
   return table.concat(args, ' ')
+end
+
+local function send_user_command(session, input)
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    error('Connection is not ready')
+  end
+  return connection.operations.send_command(
+    connection,
+    session.id,
+    session.location,
+    input,
+    util.apply_path_map,
+    util.apply_reverse_path_map
+  )
 end
 
 ---@param prompt string
@@ -213,17 +228,113 @@ for _, action_name in ipairs({ 'debug_output', 'debug_message', 'debug_session' 
 end
 
 function M.actions.paste_image()
-  session_runtime.paste_image_from_clipboard()
+  local image_path = require('opencode.image_handler').save_clipboard_image()
+  if not image_path then
+    vim.notify('No image found in clipboard.', vim.log.levels.WARN)
+    return
+  end
+
+  local name = vim.fn.fnamemodify(image_path, ':t')
+  require('opencode.ui.mention').mention(function(mention_cb)
+    mention_cb(name)
+    require('opencode.context').add_file(image_path)
+  end)
+  vim.notify('Image saved and added to context: ' .. name, vim.log.levels.INFO)
+end
+
+function M.actions.copy_server_url()
+  local connection = state.opencode_server
+  if not connection or not connection:is_ready() then
+    vim.notify('OpenCode server is not ready.', vim.log.levels.WARN)
+    return
+  end
+
+  local url = connection.url
+  local credential = connection.credential
+  if credential and credential.password then
+    url = url:gsub('://', '://' .. credential.username .. ':' .. credential.password .. '@', 1)
+  end
+
+  vim.fn.setreg('+', url)
+  vim.notify('Server URL copied to clipboard.', vim.log.levels.INFO)
+end
+
+local function prompt_add_to_context(cmd, output, exit_code)
+  local output_window = require('opencode.ui.output_window')
+  if not output_window.mounted() then
+    return
+  end
+
+  local formatted_output = string.format('$ %s\n%s', cmd, output)
+  local lines = vim.split(formatted_output, '\n')
+
+  output_window.set_lines(lines)
+
+  local picker = require('opencode.ui.picker')
+  picker.select({ 'Yes', 'No' }, {
+    prompt = 'Add command + output to context?',
+  }, function(choice)
+    if choice == 'Yes' then
+      local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
+      input_window._append_to_input(message)
+    end
+    output_window.clear()
+    input_window.focus_input()
+  end)
+end
+
+local function execute_shell_command(command)
+  local cmd = command:match('^%s*(.-)%s*$')
+  if cmd == '' then
+    return
+  end
+
+  local shell = vim.o.shell
+  local shell_cmd = { shell, '-c', cmd }
+
+  vim.system(shell_cmd, { text = true }, function(result)
+    vim.schedule(function()
+      if result.code ~= 0 then
+        vim.notify('Command failed with exit code ' .. result.code, vim.log.levels.ERROR)
+      end
+
+      local output = result.stdout or ''
+      if result.stderr and result.stderr ~= '' then
+        output = output .. '\n' .. result.stderr
+      end
+
+      prompt_add_to_context(cmd, output, result.code)
+    end)
+  end)
 end
 
 M.actions.submit_input_prompt = Promise.async(function()
   if state.display_route then
     state.ui.clear_display_route()
-    ui.render_output(true)
+    ui.render_output()
   end
 
-  local message_sent = input_window.handle_submit()
-  if message_sent and config.ui.input.auto_hide and not input_window.is_hidden() then
+  local input_content = input_window.take_input()
+  if not input_content or input_content == '' then
+    return
+  end
+
+  if input_content:match('^!') then
+    execute_shell_command(input_content:sub(2))
+    return
+  end
+
+  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
+  if input_content:match('^' .. key) then
+    local command, args = require('opencode.commands.slash').resolve_input(input_content)
+    if command then
+      command.fn(args)
+    end
+    return
+  end
+
+  require('opencode.services.messaging').send_message(input_content)
+  if config.ui.input.auto_hide and not input_window.is_hidden() then
     input_window._hide()
   end
 end)
@@ -282,18 +393,21 @@ M.actions.run_user_command = Promise.async(function(name, args)
       return
     end
 
-    state.api_client
-      :send_command(active_session.id, {
-        command = name,
-        arguments = join_args(args),
-        model = model,
-        agent = agent,
-      })
-      :and_then(function()
-        schedule_slash_history(name, args)
-      end)
+    send_user_command(active_session, {
+      command = name,
+      arguments = join_args(args),
+      model = model,
+      agent = agent,
+      variant = state.current_variant,
+    }):and_then(function()
+      schedule_slash_history(name, args)
+    end)
   end) --[[@as Promise<void> ]]
 end)
+
+function M.actions.first_message()
+  require('opencode.ui.navigation').goto_first_message()
+end
 
 function M.actions.next_message()
   require('opencode.ui.navigation').goto_next_message()
@@ -381,15 +495,15 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  state.api_client
-    :send_command(state.active_session.id, {
-      command = 'review',
-      arguments = join_args(args),
-      model = state.current_model,
-    })
-    :and_then(function()
-      schedule_slash_history('review', args)
-    end)
+  send_user_command(state.active_session, {
+    command = 'review',
+    arguments = join_args(args),
+    model = state.current_model,
+    agent = state.current_mode,
+    variant = state.current_variant,
+  }):and_then(function()
+    schedule_slash_history('review', args)
+  end)
 end)
 
 M.actions.add_visual_selection = Promise.async(
@@ -510,6 +624,10 @@ M.command_defs = {
     desc = 'Open context items picker in input window',
     execute = M.actions.context_items,
   },
+  first_message = {
+    desc = 'Load history and go to the first message',
+    execute = M.actions.first_message,
+  },
   next_message = {
     desc = 'Navigate to next message in output window',
     execute = M.actions.next_message,
@@ -569,6 +687,10 @@ M.command_defs = {
   paste_image = {
     desc = 'Paste image from clipboard and add to context',
     execute = M.actions.paste_image,
+  },
+  copy_server_url = {
+    desc = 'Copy server URL to clipboard',
+    execute = M.actions.copy_server_url,
   },
   references = {
     desc = 'Browse code references from conversation',

@@ -208,6 +208,33 @@ function M.teardown_visible_windows(windows)
   state.ui.clear_hidden_window_state()
 end
 
+---@param windows? OpencodeWindowState|OpencodeHiddenBuffers
+---@param hidden? OpencodeHiddenBuffers
+function M.delete_window_buffers(windows, hidden)
+  local buffers = {}
+  local seen = {}
+
+  local function collect(source)
+    for _, key in ipairs({ 'input_buf', 'output_buf', 'footer_buf', 'tab_strip_buf' }) do
+      local bufnr = source and source[key]
+      if bufnr and not seen[bufnr] then
+        seen[bufnr] = true
+        table.insert(buffers, bufnr)
+      end
+    end
+  end
+
+  collect(windows)
+  collect(hidden)
+
+  for _, bufnr in ipairs(buffers) do
+    session_tab_strip.clear_buffer(bufnr)
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
+  end
+end
+
 ---Drop preserved hidden buffers and clear hidden window state.
 function M.drop_hidden_snapshot()
   local session_tabs = require('opencode.state.session_tabs')
@@ -217,17 +244,7 @@ function M.drop_hidden_snapshot()
     renderer.teardown()
   end
 
-  local hidden = state.ui.inspect_hidden_buffers()
-  if hidden then
-    for _, buf in ipairs({ hidden.input_buf, hidden.output_buf, hidden.footer_buf, hidden.tab_strip_buf }) do
-      if buf and vim.api.nvim_buf_is_valid(buf) then
-        if buf == hidden.tab_strip_buf then
-          session_tab_strip.clear_buffer(buf)
-        end
-        pcall(vim.api.nvim_buf_delete, buf, { force = true })
-      end
-    end
-  end
+  M.delete_window_buffers(state.ui.inspect_hidden_buffers())
 
   input_window._hidden = false
   state.ui.clear_hidden_window_state()
@@ -242,7 +259,6 @@ function M.restore_hidden_windows()
     return false
   end
 
-  local autocmds = require('opencode.ui.autocmds')
   local footer_buf = hidden.footer_buf
   if not footer_buf or not vim.api.nvim_buf_is_valid(footer_buf) then
     footer_buf = footer.create_buf()
@@ -276,15 +292,9 @@ function M.restore_hidden_windows()
 
   input_window.setup(windows)
   output_window.setup(windows)
-  output_window.setup_keymaps(windows, true)
   footer.setup(windows)
   session_tab_strip.setup(windows)
-  if state.api_client and type(state.api_client.list_providers) == 'function' then
-    topbar.setup()
-  end
-
-  autocmds.setup_autocmds(windows)
-  autocmds.setup_resize_handler(windows)
+  topbar.setup()
 
   if hidden.input_hidden then
     input_window._hide()
@@ -314,7 +324,6 @@ function M.restore_hidden_windows()
     end
   end)
 
-  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
   renderer.on_windows_mounted()
 
   return true
@@ -422,6 +431,36 @@ function M.create_split_windows(windows)
   return { input_win = input_win, output_win = output_win, tab_strip_win = tab_strip_win }
 end
 
+---Create, restore, or reuse panel windows and apply the requested focus.
+---@param action 'reuse_visible'|'restore_hidden'|'create_fresh'
+---@param opts OpenOpts
+---@return boolean created True when fresh windows were created and output may need rendering.
+function M.prepare_windows(action, opts)
+  local was_closed = action ~= 'reuse_visible'
+  local created = false
+  if was_closed then
+    if not M.is_opencode_focused() then
+      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
+    end
+
+    local restored = action == 'restore_hidden' and M.restore_hidden_windows()
+    if not restored then
+      if action == 'restore_hidden' then
+        state.ui.clear_hidden_window_state()
+      end
+      state.ui.set_windows(M.create_windows())
+      created = true
+    end
+  end
+
+  if opts.focus == 'input' then
+    M.focus_input({ restore_position = was_closed, start_insert = opts.start_insert == true })
+  elseif opts.focus == 'output' then
+    M.focus_output({ restore_position = was_closed })
+  end
+  return created
+end
+
 ---@return OpencodeWindowState
 function M.create_windows()
   if config.ui.enable_treesitter_markdown then
@@ -435,9 +474,7 @@ function M.create_windows()
     end
   end
 
-  local autocmds = require('opencode.ui.autocmds')
-
-  if not require('opencode.ui.ui').is_opencode_focused() then
+  if not M.is_opencode_focused() then
     state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
   end
 
@@ -464,23 +501,52 @@ function M.create_windows()
 
   input_window.setup(windows)
   output_window.setup(windows)
-  output_window.setup_keymaps(windows)
   footer.setup(windows)
   session_tab_strip.setup(windows)
   topbar.setup()
 
   renderer.setup_subscriptions()
 
-  autocmds.setup_autocmds(windows)
-  autocmds.setup_resize_handler(windows)
-  require('opencode.ui.contextual_actions').setup_contextual_actions(windows)
-
   return windows
+end
+
+---@return boolean
+function M.active_session_allows_input()
+  if not config.child_readonly or not state.active_session then
+    return true
+  end
+  local observation = state.session.active_observation()
+  if not observation then
+    return false
+  end
+  local observed = observation:read()
+  return observed.sync
+      and observed.sync.session
+      and observed.sync.session.state == 'current'
+      and observed.session
+      and not observed.session.parentID
+    or false
+end
+
+---Restore input visibility and focus for the active session in a visible panel.
+function M.focus_active_session()
+  if not M.active_session_allows_input() then
+    if not input_window.is_hidden() then
+      input_window._hide()
+    end
+    M.focus_output()
+    return
+  end
+
+  if input_window.is_hidden() then
+    input_window._show()
+  end
+  M.focus_input()
 end
 
 ---@param opts? { restore_position?: boolean, start_insert?: boolean }
 function M.focus_input(opts)
-  if state.active_session and state.active_session.parentID and config.child_readonly then
+  if not M.active_session_allows_input() then
     return
   end
 
@@ -502,6 +568,7 @@ function M.focus_input(opts)
   end
 
   vim.api.nvim_set_current_win(windows.input_win)
+  state.ui.set_last_focused_window('input')
 
   if opts.restore_position and not was_input_focused and state.last_input_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_input_window_position)
@@ -522,6 +589,7 @@ function M.focus_output(opts)
   end
 
   vim.api.nvim_set_current_win(windows.output_win)
+  state.ui.set_last_focused_window('output')
 
   if opts.restore_position and state.last_output_window_position then
     pcall(vim.api.nvim_win_set_cursor, 0, state.last_output_window_position)
@@ -565,32 +633,16 @@ function M.clear_output()
   -- state.restore_points = {}
 end
 
----Re-render the output buffer from cached session data, avoiding a server round-trip.
+---Re-render the output buffer from the active Observation, avoiding a server round-trip.
 ---Used for display-only toggles (show_reasoning_output, show_output, max_messages).
----Falls back to render_output() if no cached messages are available.
----@param opts? {force_scroll?: boolean}
-function M.render_output_from_cache(opts)
-  local session_data = state.messages
-  if not session_data or not next(session_data) then
-    M.render_output(false, opts)
-    return
-  end
-  renderer.render_from_cache(session_data)
+function M.render_output_from_cache()
+  renderer.render_from_cache()
 end
 
----Force a full rerender of the output buffer. Should be done synchronously if
----called before submitting input or doing something that might generate events
----from opencode
----@param synchronous? boolean If true, waits until session is fully rendered
----@param opts? {force_scroll?: boolean}
----@return Promise<OpencodeMessage[]> | OpencodeMessage[] | nil
-function M.render_output(synchronous, opts)
-  local ret = renderer.render_full_session(opts)
-
-  if ret and synchronous then
-    ret:wait()
-  end
-  return ret
+---Render the current observation synchronously without a server round-trip.
+---@return boolean rendered
+function M.render_output()
+  return renderer.render_full_session()
 end
 
 ---@param lines string[]
@@ -605,7 +657,7 @@ function M.toggle_pane()
   if state.windows and current_win == state.windows.input_win then
     output_window.focus_output(true)
   else
-    if state.active_session and state.active_session.parentID and config.child_readonly then
+    if not M.active_session_allows_input() then
       return
     end
     input_window.focus_input()

@@ -1,0 +1,1233 @@
+local entries = require('opencode.protocols.entries')
+local replace_entry = entries.replace
+local submission = require('opencode.protocols.submission')
+local normalize = require('opencode.protocols.v1.normalize')
+local prompt_from_content = normalize.prompt_from_content
+local valid_native_mention = normalize.valid_native_mention
+local mapped_mention = normalize.mapped_mention
+local mapped_content = normalize.mapped_content
+local entry_from_info = normalize.entry_from_info
+local mapped_message = normalize.mapped_message
+local mapped_session = normalize.mapped_session
+local mapped_permission = normalize.mapped_permission
+local mapped_question = normalize.mapped_question
+
+local lifecycle = require('opencode.protocols.observation')
+local id = require('opencode.id')
+local Promise = require('opencode.promise')
+local util = require('opencode.util')
+local config_file = require('opencode.config_file')
+
+local M = {}
+
+---@param opts SendMessageOpts
+---@param selected {mode?: string, model?: string, variant?: string, default_mode?: string}
+---@return table, OpencodeSessionTabModelUpdate
+function M.prepare_message(opts, selected)
+  ---@type {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}
+  local message_selection = {
+    mode = selected.mode,
+    model = selected.model,
+    variant = selected.variant,
+    default_mode = selected.default_mode,
+  }
+  if opts.model == nil and selected.model == nil then
+    local remote_config = config_file.get_opencode_config():await()
+    message_selection.default_model = remote_config and remote_config.model ~= '' and remote_config.model or nil
+  end
+  if opts.agent or message_selection.mode or message_selection.default_mode then
+    message_selection.available_agents = config_file.get_opencode_agents():await()
+  end
+
+  local explicit_model = opts.model ~= nil
+  if opts.agent == nil then
+    opts.agent = message_selection.mode or message_selection.default_mode
+  end
+  if opts.model == nil then
+    opts.model = message_selection.model or message_selection.default_model
+  end
+  if opts.variant == nil then
+    opts.variant = message_selection.variant
+  end
+
+  local overrides = {}
+  ---@type OpencodeSessionTabModelUpdate
+  local update = {}
+  if opts.model then
+    local provider, model = opts.model:match('^(.-)/(.+)$')
+    if not provider or not model then
+      if explicit_model then
+        error('model must use provider/model format')
+      end
+    else
+      overrides.model = { providerID = provider, modelID = model }
+      update.model = opts.model
+      if opts.variant then
+        overrides.variant = opts.variant
+        update.variant = opts.variant
+      end
+    end
+  end
+  if opts.agent then
+    overrides.agent = opts.agent
+    if vim.tbl_contains(message_selection.available_agents or {}, opts.agent) then
+      update.mode = opts.agent
+    end
+  end
+  return overrides, update
+end
+---@type fun(event: table): table?, string?
+local native_event
+---@type fun(observation: OpencodeV1Observation, event: table): OpencodeObservedResource?
+local ingest_resource_event
+
+---@type table<string, boolean|nil>
+local message_event_types = {
+  ['message.updated'] = true,
+  ['message.removed'] = true,
+  ['message.part.updated'] = true,
+  ['message.part.removed'] = true,
+  ['message.part.delta'] = true,
+}
+
+local function route_event(connection, event)
+  local decoded = native_event(event)
+  local kind = decoded and decoded.type or nil
+  for _, observation in pairs(connection.observations) do
+    if message_event_types[kind] and observation:_watches('messages') then
+      local previous_sync = observation:read().sync.messages
+      local changed = M.ingest_event(observation, event)
+      if changed or observation:read().sync.messages ~= previous_sync then
+        observation:_event_changed('messages')
+      end
+    elseif not message_event_types[kind] then
+      local resource = ingest_resource_event(observation, event)
+      if resource then
+        observation:_event_changed(resource)
+      end
+    end
+  end
+end
+
+---@param message string
+---@return never
+local function fail(message)
+  error('V1 observation: ' .. message, 0)
+end
+
+local function record_diagnostic(observation, message)
+  observation:read().sync.messages = {
+    state = 'error',
+    error = { kind = 'protocol_contract', message = message },
+  }
+end
+
+local function remove_from_order(order, item_id)
+  for index, value in ipairs(order) do
+    if value == item_id then
+      table.remove(order, index)
+      return
+    end
+  end
+end
+
+local function find_content(state, message_id, part_id)
+  local entry = state.entries_by_id[message_id]
+  if not entry then
+    return nil
+  end
+  for index, content in ipairs(entry.content) do
+    if content.id == part_id then
+      return content, index, entry
+    end
+  end
+  return nil, nil, entry
+end
+
+local function native_part_mention(part)
+  if part.type == 'file' and type(part.source) == 'table' then
+    return part.source.text
+  elseif part.type == 'agent' then
+    return part.source
+  end
+end
+
+local function clear_unresolved_part(observation, message_id, part_id)
+  local message = observation._v1_unresolved_mentions[message_id]
+  if not message then
+    return
+  end
+  message[part_id] = nil
+  if not next(message) then
+    observation._v1_unresolved_mentions[message_id] = nil
+  end
+end
+
+local function store_unresolved_part(observation, part)
+  local value = native_part_mention(part)
+  if not valid_native_mention(value) then
+    return
+  end
+  local messages = observation._v1_unresolved_mentions
+  messages[part.messageID] = messages[part.messageID] or {}
+  messages[part.messageID][part.id] = vim.deepcopy(value)
+end
+
+local function resolve_unresolved_mentions(observation, message_id, entry)
+  local unresolved = observation._v1_unresolved_mentions[message_id]
+  if not unresolved then
+    return
+  end
+  local prompt = prompt_from_content(entry.content)
+  if not prompt then
+    return
+  end
+  local diagnostics = {}
+  for part_id, value in pairs(unresolved) do
+    local content = find_content(observation:read(), message_id, part_id)
+    if content then
+      local mention, diagnostic = mapped_mention(value, prompt)
+      content.mention = mention
+      if diagnostic then
+        diagnostics[#diagnostics + 1] = diagnostic
+      end
+    end
+    unresolved[part_id] = nil
+  end
+  observation._v1_unresolved_mentions[message_id] = nil
+  if #diagnostics > 0 then
+    record_diagnostic(observation, table.concat(diagnostics, '; '))
+  end
+end
+
+---@param observation table
+---@param messages table[]
+function M.ingest_snapshot(observation, messages)
+  if type(messages) ~= 'table' then
+    fail('snapshot must be a message list')
+  end
+  local state = observation:read()
+  local mapped, diagnostics, seen = {}, {}, {}
+  for _, message in ipairs(messages) do
+    local entry, entry_diagnostics = mapped_message(message, state.session.location)
+    if entry.session_id ~= state.session.id then
+      fail('snapshot contains another session')
+    end
+    if seen[entry.id] then
+      fail('snapshot contains a duplicate message')
+    end
+    seen[entry.id] = true
+    mapped[#mapped + 1] = entry
+    vim.list_extend(diagnostics, entry_diagnostics)
+  end
+  local entries_by_id, order = {}, {}
+  for _, entry in ipairs(mapped) do
+    local existing = state.entries_by_id[entry.id]
+    if existing then
+      entry.cost = entry.cost ~= nil and entry.cost or existing.cost
+      entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+    end
+    entries_by_id[entry.id] = replace_entry(existing, entry)
+    order[#order + 1] = entry.id
+  end
+  state.entries_by_id, state.entry_order = entries_by_id, order
+  observation._v1_unresolved_mentions = {}
+  state.sync.messages = #diagnostics == 0 and { state = 'current' }
+    or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
+end
+
+local message_events = {
+  ['message.updated'] = true,
+  ['message.removed'] = true,
+  ['message.part.updated'] = true,
+  ['message.part.removed'] = true,
+  ['message.part.delta'] = true,
+}
+
+native_event = function(event)
+  if type(event) ~= 'table' or type(event.payload) ~= 'table' then
+    return nil, 'invalid global event envelope'
+  end
+  local payload = event.payload
+  if payload.type == 'sync' then
+    local synced = payload.syncEvent
+    if type(synced) ~= 'table' or type(synced.type) ~= 'string' or type(synced.data) ~= 'table' then
+      return nil, 'invalid global sync event'
+    end
+    return { type = synced.type:gsub('%.%d+$', ''), properties = synced.data }
+  end
+  if type(payload.type) ~= 'string' or type(payload.properties) ~= 'table' then
+    return nil, 'invalid global event payload'
+  end
+  return { type = payload.type, properties = payload.properties }
+end
+
+---@param observation table
+---@param event table
+---@return boolean changed
+function M.ingest_event(observation, event)
+  local decoded, diagnostic = native_event(event)
+  if not decoded then
+    record_diagnostic(observation, diagnostic)
+    return false
+  end
+  if not message_events[decoded.type] then
+    return false
+  end
+  local state = observation:read()
+  if type(event.directory) ~= 'string' then
+    record_diagnostic(observation, decoded.type .. ' is missing directory')
+    return false
+  end
+  if event.directory ~= state.session.location.directory then
+    return false
+  end
+  local properties = decoded.properties
+  if type(properties.sessionID) ~= 'string' then
+    record_diagnostic(observation, decoded.type .. ' is missing sessionID')
+    return false
+  end
+  if properties.sessionID ~= state.session.id then
+    return false
+  end
+  if decoded.type == 'message.updated' then
+    local ok, entry = pcall(entry_from_info, properties.info, {})
+    if not ok then
+      record_diagnostic(observation, tostring(entry))
+      return false
+    end
+    if entry.session_id ~= state.session.id then
+      record_diagnostic(observation, 'message.updated contains another session')
+      return false
+    end
+    local existing = state.entries_by_id[entry.id]
+    entry.content = existing and existing.content or {}
+    if existing then
+      entry.cost = entry.cost ~= nil and entry.cost or existing.cost
+      entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+    end
+    state.entries_by_id[entry.id] = replace_entry(existing, entry)
+    if not existing then
+      state.entry_order[#state.entry_order + 1] = entry.id
+    end
+    return true
+  elseif decoded.type == 'message.removed' then
+    if type(properties.messageID) ~= 'string' then
+      record_diagnostic(observation, 'message.removed is missing messageID')
+      return false
+    end
+    state.entries_by_id[properties.messageID] = nil
+    remove_from_order(state.entry_order, properties.messageID)
+    observation._v1_unresolved_mentions[properties.messageID] = nil
+    return true
+  end
+  local message_id = decoded.type == 'message.part.updated'
+      and type(properties.part) == 'table'
+      and properties.part.messageID
+    or properties.messageID
+  if
+    type(message_id) ~= 'string' or (decoded.type ~= 'message.part.updated' and type(properties.partID) ~= 'string')
+  then
+    record_diagnostic(observation, decoded.type .. ' is missing part identity')
+    return false
+  end
+  if decoded.type == 'message.part.removed' then
+    local _, index, entry = find_content(state, message_id, properties.partID)
+    if index then
+      table.remove(entry.content, index)
+    end
+    clear_unresolved_part(observation, message_id, properties.partID)
+    return index ~= nil
+  elseif decoded.type == 'message.part.delta' then
+    local content = find_content(state, message_id, properties.partID)
+    if
+      not content
+      or (content.kind ~= 'text' and content.kind ~= 'reasoning')
+      or properties.field ~= 'text'
+      or type(properties.delta) ~= 'string'
+    then
+      record_diagnostic(observation, 'message.part.delta cannot identify a text content')
+      return false
+    end
+    content.text = content.text .. properties.delta
+    return true
+  end
+  local entry = state.entries_by_id[message_id]
+  if not entry then
+    record_diagnostic(observation, 'message.part.updated has no message')
+    return false
+  end
+  local ok, content, content_diagnostic, waiting =
+    pcall(mapped_content, properties.part, prompt_from_content(entry.content), state.session.location)
+  if not ok then
+    record_diagnostic(observation, tostring(content))
+    return false
+  end
+  if properties.part.messageID ~= message_id or properties.part.sessionID ~= state.session.id then
+    record_diagnostic(observation, 'message.part.updated contains another message')
+    return false
+  end
+  local _, index = find_content(state, message_id, content.id)
+  if index then
+    entry.content[index] = content
+  else
+    entry.content[#entry.content + 1] = content
+  end
+  if waiting then
+    store_unresolved_part(observation, properties.part)
+  else
+    clear_unresolved_part(observation, message_id, content.id)
+  end
+  if content.kind == 'text' and not content.synthetic and not content.ignored then
+    resolve_unresolved_mentions(observation, message_id, entry)
+  end
+  if content_diagnostic and not waiting then
+    record_diagnostic(observation, content_diagnostic)
+  end
+  return true
+end
+
+local function apply_execution_status(state, status)
+  if type(status) ~= 'table' or (status.type ~= 'busy' and status.type ~= 'retry' and status.type ~= 'idle') then
+    fail('invalid session status')
+  end
+  if status.type == 'busy' then
+    state.execution = { activity = 'running' }
+  elseif status.type == 'retry' then
+    state.execution = {
+      activity = 'retrying',
+      retry = {
+        attempt = status.attempt,
+        message = status.message,
+        scheduled_at = status.next,
+      },
+    }
+  else
+    state.execution = { activity = 'idle' }
+  end
+end
+
+local function apply_resource(observation, resource, value)
+  local state = observation:read()
+  if resource == 'session' then
+    local session = mapped_session(value)
+    if session.id ~= state.session.id then
+      fail('session snapshot belongs to another session')
+    end
+    state.session = session
+  elseif resource == 'children' then
+    if type(value) ~= 'table' then
+      fail('children snapshot must be a list')
+    end
+    local children = { by_id = {}, order = {} }
+    for _, info in ipairs(value) do
+      local child = mapped_session(info)
+      if child.parentID ~= state.session.id then
+        fail('children snapshot contains another parent')
+      end
+      if children.by_id[child.id] then
+        fail('children snapshot contains a duplicate session')
+      end
+      children.by_id[child.id] = child
+      children.order[#children.order + 1] = child.id
+    end
+    state.children = children
+  elseif resource == 'messages' then
+    if type(value) ~= 'table' then
+      fail('message snapshot must be a list')
+    end
+    M.ingest_snapshot(observation, value)
+    observation._v1_history_complete = #value < 50
+    observation._v1_history_limit = 50
+  elseif resource == 'execution' then
+    if type(value) ~= 'table' then
+      fail('session status snapshot must be an object')
+    end
+    local status = value[state.session.id]
+    if status == nil then
+      state.execution = { activity = 'idle' }
+    else
+      apply_execution_status(state, status)
+    end
+  elseif resource == 'permissions' then
+    if type(value) ~= 'table' then
+      fail('permission snapshot must be a list')
+    end
+    local requests = {}
+    for _, request in ipairs(value) do
+      local mapped = mapped_permission(request)
+      if mapped.session_id == state.session.id then
+        local terminal = observation._v1_permission_terminal[mapped.id]
+        if terminal then
+          mapped.status = 'answered'
+          mapped.answer = terminal.reply
+        end
+        requests[mapped.id] = mapped
+      end
+    end
+    state.permission_requests_by_id = requests
+  elseif resource == 'questions' then
+    if type(value) ~= 'table' then
+      fail('question snapshot must be a list')
+    end
+    local requests = {}
+    for _, request in ipairs(value) do
+      local mapped = mapped_question(request)
+      if mapped.session_id == state.session.id then
+        local terminal = observation._v1_question_terminal[mapped.id]
+        if terminal then
+          mapped.status = terminal.status
+          mapped.answers = vim.deepcopy(terminal.answers)
+        end
+        requests[mapped.id] = mapped
+      end
+    end
+    state.question_requests_by_id = requests
+  else
+    fail('unsupported resource read: ' .. tostring(resource))
+  end
+end
+
+local function event_diagnostic(observation, resource, message)
+  observation:read().sync[resource] = lifecycle.sync_error('protocol_contract', message)
+  return resource
+end
+
+local function remove_child(children, child_id)
+  if not children.by_id[child_id] then
+    return false
+  end
+  children.by_id[child_id] = nil
+  remove_from_order(children.order, child_id)
+  return true
+end
+
+local function put_child(children, child)
+  local exists = children.by_id[child.id] ~= nil
+  children.by_id[child.id] = child
+  if not exists then
+    children.order[#children.order + 1] = child.id
+  end
+end
+
+---@param observation table
+---@param event table
+---@return string|nil changed_resource
+ingest_resource_event = function(observation, event)
+  local decoded = native_event(event)
+  if not decoded then
+    return nil
+  end
+  local kind = decoded.type
+  local properties = decoded.properties
+  local state = observation:read()
+  if kind == 'file.edited' or kind == 'file.watcher.updated' then
+    if not observation:_watches('files') then
+      return nil
+    end
+    if type(properties.file) ~= 'string' then
+      return event_diagnostic(observation, 'files', kind .. ' is missing file')
+    end
+    if kind == 'file.watcher.updated' and properties.event ~= nil and type(properties.event) ~= 'string' then
+      return event_diagnostic(observation, 'files', kind .. ' has invalid event')
+    end
+    state.files.revision = state.files.revision + 1
+    state.files.last = { path = properties.file, event = properties.event or 'change' }
+    state.sync.files = { state = 'current' }
+    return 'files'
+  end
+  if type(event.directory) ~= 'string' then
+    local resource = kind:match('^session%.') and 'session'
+      or kind:match('^permission%.') and 'permissions'
+      or kind:match('^question%.') and 'questions'
+    if resource and observation:_watches(resource) then
+      return event_diagnostic(observation, resource, kind .. ' is missing directory')
+    end
+    return nil
+  end
+  if event.directory ~= state.session.location.directory then
+    return nil
+  end
+
+  if kind == 'session.created' or kind == 'session.updated' then
+    local ok, session = pcall(mapped_session, properties.info)
+    if not ok then
+      if observation:_watches('session') or observation:_watches('children') then
+        return event_diagnostic(
+          observation,
+          observation:_watches('session') and 'session' or 'children',
+          tostring(session)
+        )
+      end
+      return nil
+    end
+    if type(properties.sessionID) ~= 'string' or properties.sessionID ~= session.id then
+      return event_diagnostic(
+        observation,
+        observation:_watches('session') and 'session' or 'children',
+        kind .. ' contains mismatched session identity'
+      )
+    end
+    if observation:_watches('session') and session.id == state.session.id then
+      state.session = session
+      state.sync.session = { state = 'current' }
+      return 'session'
+    end
+    if observation:_watches('children') then
+      if session.parentID == state.session.id then
+        put_child(state.children, session)
+        state.sync.children = { state = 'current' }
+        return 'children'
+      elseif remove_child(state.children, session.id) then
+        state.sync.children = { state = 'stale' }
+        return 'children'
+      end
+    end
+    return nil
+  elseif kind == 'session.deleted' then
+    if type(properties.sessionID) ~= 'string' then
+      if observation:_watches('session') or observation:_watches('children') then
+        return event_diagnostic(
+          observation,
+          observation:_watches('session') and 'session' or 'children',
+          'session.deleted is missing sessionID'
+        )
+      end
+      return nil
+    end
+    local ok, deleted = pcall(mapped_session, properties.info)
+    if not ok or deleted.id ~= properties.sessionID then
+      if observation:_watches('session') or observation:_watches('children') then
+        return event_diagnostic(
+          observation,
+          observation:_watches('session') and 'session' or 'children',
+          'session.deleted contains invalid session info'
+        )
+      end
+      return nil
+    end
+    if observation:_watches('session') and properties.sessionID == state.session.id then
+      state.sync.session = lifecycle.sync_error('session_deleted', 'session was deleted')
+      return 'session'
+    end
+    if observation:_watches('children') and remove_child(state.children, properties.sessionID) then
+      state.sync.children = { state = 'current' }
+      return 'children'
+    end
+    return nil
+  elseif kind == 'session.status' or kind == 'session.idle' then
+    if not observation:_watches('execution') then
+      return nil
+    end
+    if type(properties.sessionID) ~= 'string' then
+      return event_diagnostic(observation, 'execution', kind .. ' is missing sessionID')
+    end
+    if properties.sessionID ~= state.session.id then
+      return nil
+    end
+    local status = kind == 'session.idle' and { type = 'idle' } or properties.status
+    local ok, err = pcall(apply_execution_status, state, status)
+    if not ok then
+      return event_diagnostic(observation, 'execution', tostring(err))
+    end
+    state.sync.execution = { state = 'current' }
+    return 'execution'
+  elseif kind == 'permission.asked' then
+    if not observation:_watches('permissions') then
+      return nil
+    end
+    local ok, request = pcall(mapped_permission, properties)
+    if not ok then
+      return event_diagnostic(observation, 'permissions', tostring(request))
+    end
+    if request.session_id ~= state.session.id then
+      return nil
+    end
+    local terminal = observation._v1_permission_terminal[request.id]
+    if terminal then
+      request.status = 'answered'
+      request.answer = terminal.reply
+    end
+    state.permission_requests_by_id[request.id] = request
+    state.sync.permissions = { state = 'current' }
+    return 'permissions'
+  elseif kind == 'permission.replied' then
+    if not observation:_watches('permissions') then
+      return nil
+    end
+    if type(properties.sessionID) ~= 'string' or type(properties.requestID) ~= 'string' then
+      return event_diagnostic(observation, 'permissions', 'permission.replied is missing request identity')
+    end
+    if properties.sessionID ~= state.session.id then
+      return nil
+    end
+    observation._v1_permission_terminal[properties.requestID] = { reply = properties.reply }
+    local request = state.permission_requests_by_id[properties.requestID]
+    if request then
+      request.status = 'answered'
+      request.answer = properties.reply
+    end
+    return 'permissions'
+  elseif kind == 'question.asked' then
+    if not observation:_watches('questions') then
+      return nil
+    end
+    local ok, request = pcall(mapped_question, properties)
+    if not ok then
+      return event_diagnostic(observation, 'questions', tostring(request))
+    end
+    if request.session_id ~= state.session.id then
+      return nil
+    end
+    local terminal = observation._v1_question_terminal[request.id]
+    if terminal then
+      request.status = terminal.status
+      request.answers = vim.deepcopy(terminal.answers)
+    end
+    state.question_requests_by_id[request.id] = request
+    state.sync.questions = { state = 'current' }
+    return 'questions'
+  elseif kind == 'question.replied' or kind == 'question.rejected' then
+    if not observation:_watches('questions') then
+      return nil
+    end
+    if type(properties.sessionID) ~= 'string' or type(properties.requestID) ~= 'string' then
+      return event_diagnostic(observation, 'questions', kind .. ' is missing request identity')
+    end
+    if properties.sessionID ~= state.session.id then
+      return nil
+    end
+    observation._v1_question_terminal[properties.requestID] = {
+      status = kind == 'question.replied' and 'answered' or 'rejected',
+      answers = kind == 'question.replied' and vim.deepcopy(properties.answers) or nil,
+    }
+    local request = state.question_requests_by_id[properties.requestID]
+    if request then
+      request.status = kind == 'question.replied' and 'answered' or 'rejected'
+      request.answers = kind == 'question.replied' and vim.deepcopy(properties.answers) or nil
+    end
+    return 'questions'
+  end
+  return nil
+end
+
+local function request_resource(observation, resource)
+  local connection = observation._connection
+  local session_id = observation._session_id
+  local location = observation:read().session.location
+  if resource == 'session' then
+    return connection.operations.get_session(connection, session_id, location)
+  elseif resource == 'children' then
+    return connection.operations.list_children(connection, session_id, location)
+  elseif resource == 'messages' then
+    return connection.operations.list_messages(connection, session_id, location, 50)
+  elseif resource == 'execution' then
+    return connection.operations.list_session_status(connection, location)
+  elseif resource == 'permissions' then
+    return connection.operations.list_permissions(connection, location)
+  elseif resource == 'questions' then
+    return connection.operations.list_questions(connection, location)
+  end
+  fail('unsupported resource read: ' .. tostring(resource))
+end
+
+local context_types = {
+  selection = 'selection',
+  diagnostics = 'diagnostics',
+  cursor = 'cursor-data',
+  buffer = 'file-content',
+  git_diff = 'git-diff',
+}
+
+local function native_mention(text, mention)
+  if mention == nil then
+    return nil
+  end
+  if
+    type(mention) ~= 'table'
+    or type(mention.start_byte) ~= 'number'
+    or type(mention.end_byte) ~= 'number'
+    or mention.start_byte % 1 ~= 0
+    or mention.end_byte % 1 ~= 0
+    or mention.start_byte < 0
+    or mention.end_byte < mention.start_byte
+    or mention.end_byte > #text
+  then
+    fail('invalid input mention')
+  end
+  local start = util.utf16_index_from_byte(text, mention.start_byte)
+  local finish = util.utf16_index_from_byte(text, mention.end_byte)
+  if
+    not start
+    or not finish
+    or util.byte_index_from_utf16(text, start) ~= mention.start_byte
+    or util.byte_index_from_utf16(text, finish) ~= mention.end_byte
+  then
+    fail('input mention must use UTF-8 codepoint boundaries')
+  end
+  return {
+    value = text:sub(mention.start_byte + 1, mention.end_byte),
+    start = start,
+    ['end'] = finish,
+  }
+end
+
+local function submit_parts(input)
+  if
+    type(input) ~= 'table'
+    or type(input.text) ~= 'string'
+    or type(input.context) ~= 'table'
+    or type(input.files) ~= 'table'
+    or type(input.agents) ~= 'table'
+  then
+    fail('submit requires text, context, files, and agents')
+  end
+  local parts = {}
+  for _, context in ipairs(input.context) do
+    if
+      type(context) ~= 'table'
+      or type(context.text) ~= 'string'
+      or type(context.source) ~= 'table'
+      or not context_types[context.source.kind]
+    then
+      fail('invalid submit context')
+    end
+    local metadata = { context_type = context_types[context.source.kind] }
+    if context.source.file_name ~= nil then
+      if type(context.source.file_name) ~= 'string' then
+        fail('invalid context file name')
+      end
+      metadata.filename = context.source.file_name
+    end
+    if context.source.range ~= nil then
+      if type(context.source.range) ~= 'string' then
+        fail('invalid context range')
+      end
+      metadata.range = context.source.range
+    end
+    parts[#parts + 1] = { type = 'text', text = context.text, synthetic = true, metadata = metadata }
+  end
+  for _, file in ipairs(input.files) do
+    if type(file) ~= 'table' or type(file.media_type) ~= 'string' or file.media_type == '' then
+      fail('invalid submit file')
+    end
+    if (file.bytes == nil) == (file.server_uri == nil) then
+      fail('submit file requires exactly one of bytes or server_uri')
+    end
+    local url
+    if file.bytes ~= nil then
+      if type(file.bytes) ~= 'string' then
+        fail('invalid submit file bytes')
+      end
+      if file.mention ~= nil then
+        fail('V1 cannot attach a mention to bytes without a server file identity')
+      end
+      url = 'data:' .. file.media_type .. ';base64,' .. vim.base64.encode(file.bytes)
+    else
+      if type(file.server_uri) ~= 'string' or not file.server_uri:match('^file:///') then
+        fail('V1 submit server_uri must be an absolute file URI')
+      end
+      url = file.server_uri
+    end
+    local source
+    if file.mention then
+      source = {
+        type = 'file',
+        path = file.server_uri:sub(8),
+        text = native_mention(input.text, file.mention),
+      }
+    end
+    parts[#parts + 1] = {
+      type = 'file',
+      mime = file.media_type,
+      filename = file.name,
+      url = url,
+      source = source,
+    }
+  end
+  for _, agent in ipairs(input.agents) do
+    if type(agent) ~= 'table' or type(agent.name) ~= 'string' or agent.name == '' then
+      fail('invalid submit agent')
+    end
+    parts[#parts + 1] = {
+      type = 'agent',
+      name = agent.name,
+      source = native_mention(input.text, agent.mention),
+    }
+  end
+  parts[#parts + 1] = { type = 'text', text = input.text }
+  return parts
+end
+
+local function ingest_message(observation, message)
+  local state = observation:read()
+  local entry, diagnostics = mapped_message(message, state.session.location)
+  if entry.session_id ~= state.session.id then
+    fail('submit response belongs to another session')
+  end
+  local existing = state.entries_by_id[entry.id]
+  state.entries_by_id[entry.id] = replace_entry(existing, entry)
+  if not existing then
+    state.entry_order[#state.entry_order + 1] = entry.id
+  end
+  observation._v1_unresolved_mentions[entry.id] = nil
+  state.sync.messages = #diagnostics == 0 and { state = 'current' }
+    or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
+  return state.entries_by_id[entry.id]
+end
+
+local function merge_older(observation, messages)
+  if type(messages) ~= 'table' then
+    fail('older messages must be a list')
+  end
+  local state = observation:read()
+  local mapped, diagnostics, seen = {}, {}, {}
+  for _, message in ipairs(messages) do
+    local entry, entry_diagnostics = mapped_message(message, state.session.location)
+    if entry.session_id ~= state.session.id then
+      fail('older messages contain another session')
+    end
+    if seen[entry.id] then
+      fail('older messages contain a duplicate message')
+    end
+    seen[entry.id] = true
+    mapped[#mapped + 1] = entry
+    vim.list_extend(diagnostics, entry_diagnostics)
+  end
+  entries.prepend(state, mapped)
+  state.sync.messages = #diagnostics == 0 and { state = 'current' }
+    or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
+end
+
+local function find_reply(observation, input_id)
+  local state = observation:read()
+  for _, entry_id in ipairs(state.entry_order) do
+    local entry = state.entries_by_id[entry_id]
+    if entry.parent_message_id == input_id and normalize.is_terminal_reply(entry) then
+      return entry
+    end
+  end
+end
+
+local function fail_submissions(observation, reason)
+  local pending = vim.tbl_values(observation._v1_submissions)
+  for _, finish in ipairs(pending) do
+    finish(nil, reason)
+  end
+end
+
+local function track_submission(observation, result)
+  if result.kind == 'reply' then
+    local value = vim.tbl_extend('force', {}, result)
+    local handle, finish = submission.new(result)
+    finish(value)
+    return handle
+  end
+
+  local unsubscribe ---@type fun()?
+  local release = observation:_begin_local_operation()
+  local handle, finish
+  handle, finish = submission.new(result, function()
+    observation._v1_submissions[handle] = nil
+    if unsubscribe then
+      unsubscribe()
+      unsubscribe = nil
+    end
+    release()
+  end)
+  observation._v1_submissions[handle] = finish
+  local function check_reply()
+    local message = find_reply(observation, result.input.id)
+    if message then
+      finish({ kind = 'reply', message = message, input_id = result.input.id })
+    end
+  end
+  local ok, err = pcall(function()
+    unsubscribe = observation:watch({ 'messages' }, function()
+      if unsubscribe then
+        check_reply()
+      end
+    end)
+    check_reply()
+  end)
+  if not ok then
+    finish(nil, err)
+  end
+  return handle
+end
+
+---@param connection table
+function M.close(connection)
+  lifecycle.close(connection)
+end
+
+local function clear_unresolved_mentions(observation)
+  observation._v1_unresolved_mentions = {}
+end
+
+---@param connection OpencodeV1Connection
+---@param ref {id: string, location?: OpencodeLocation}
+---@return OpencodeV1Observation
+function M.new(connection, ref)
+  if type(ref.location) ~= 'table' or type(ref.location.directory) ~= 'string' or ref.location.directory == '' then
+    error('V1 observe requires the session location')
+  end
+
+  local session = { id = ref.id, location = vim.deepcopy(ref.location) }
+  local state = lifecycle.new_state(session, { inbox = 'V1 has no session inbox contract' })
+  local observation = lifecycle.attach(connection, session, state, {
+    name = 'V1',
+    operations_need_stream = false,
+    stream_resource = function(resource)
+      return resource ~= 'inbox'
+    end,
+    local_resource = function(resource)
+      return resource == 'files'
+    end,
+    refresh_after_event = function(resource, sync)
+      return resource ~= 'messages' and sync.state == 'stale'
+    end,
+    request_resource = request_resource,
+    apply_resource = apply_resource,
+    route_event = route_event,
+    on_release_resource = function(current, resource)
+      if resource == 'messages' then
+        clear_unresolved_mentions(current)
+      end
+    end,
+    on_unused = clear_unresolved_mentions,
+    on_stream_error = function(current, message)
+      fail_submissions(current, 'V1 reply completion is unknown: ' .. message)
+    end,
+    on_close = function(current)
+      fail_submissions(current, 'connection closed')
+      clear_unresolved_mentions(current)
+    end,
+  })
+  ---@cast observation OpencodeV1Observation
+  observation._v1_submissions = {}
+  observation._v1_permission_terminal = {}
+  observation._v1_question_terminal = {}
+  observation._v1_unresolved_mentions = {}
+  observation._v1_history_complete = false
+  observation._v1_history_limit = 50
+  observation._v1_older_loading = false
+  function observation.prepare_message(_, opts, selected)
+    return M.prepare_message(opts, selected)
+  end
+  ---@param input table
+  ---@param opts? {async?: boolean}
+  ---@return Promise<OpencodeSubmission>
+  function observation:submit(input, opts)
+    opts = opts or {}
+    if input and input.model ~= nil then
+      if
+        type(input.model) ~= 'table'
+        or type(input.model.providerID) ~= 'string'
+        or type(input.model.modelID) ~= 'string'
+      then
+        fail('invalid submit model')
+      end
+    end
+    for _, option in ipairs({ 'agent', 'variant', 'system' }) do
+      if input and input[option] ~= nil and type(input[option]) ~= 'string' then
+        fail('invalid submit ' .. option)
+      end
+    end
+    local message_id = id.ascending('message')
+    local body = {
+      messageID = message_id,
+      model = vim.deepcopy(input and input.model),
+      agent = input and input.agent,
+      variant = input and input.variant,
+      system = input and input.system,
+      parts = submit_parts(input),
+    }
+    local finish = self:_begin_local_operation()
+    local ok, request = pcall(function()
+      if opts.async then
+        return connection.operations.submit_async(connection, self._session_id, self._session_ref.location, body)
+      end
+      return connection.operations.submit(connection, self._session_id, self._session_ref.location, body)
+    end)
+    if not ok then
+      finish()
+      error(request, 0)
+    end
+    local result = request:and_then(function(response)
+      if not self:_is_current() then
+        fail('submit response arrived after Observation release')
+      end
+      if opts.async then
+        if response ~= true then
+          fail('invalid async submit response')
+        end
+        return track_submission(self, { kind = 'accepted', input = { id = message_id } })
+      end
+      if type(response) ~= 'table' or type(response.info) ~= 'table' or type(response.parts) ~= 'table' then
+        fail('invalid submit response')
+      end
+      if response.info.sessionID ~= self._session_id then
+        fail('submit response belongs to another session')
+      end
+      local entry = ingest_message(self, response)
+      self:_notify('messages')
+      if
+        response.info.role == 'assistant'
+        and response.info.parentID == message_id
+        and normalize.is_terminal_reply(entry)
+      then
+        return track_submission(self, { kind = 'reply', message = entry, input_id = message_id })
+      end
+      return track_submission(self, { kind = 'accepted', input = { id = message_id } })
+    end)
+    return result:finally(finish)
+  end
+
+  ---@param self OpencodeV1Observation
+  ---@return Promise<nil>
+  local function load_older(self)
+    if self._v1_older_loading then
+      fail('load_older is already in progress')
+    end
+    if self._v1_history_complete then
+      return Promise.new():resolve(nil)
+    end
+    self._v1_older_loading = true
+    local finish = self:_begin_local_operation()
+    local requested_limit = self._v1_history_limit + 50
+    local function read_page()
+      local event_revision = self._event_revisions.messages
+      return connection.operations
+        .list_messages(connection, self._session_id, self._session_ref.location, requested_limit)
+        :and_then(function(messages)
+          if not self:_is_current() then
+            fail('older messages arrived after Observation release')
+          end
+          if self._event_revisions.messages ~= event_revision then
+            self:read().sync.messages = { state = 'stale' }
+            self:_notify('messages')
+            return read_page()
+          end
+          merge_older(self, messages)
+          self._v1_history_limit = requested_limit
+          self._v1_history_complete = #messages < requested_limit
+          self:_notify('messages')
+        end)
+    end
+    local result = read_page()
+    return result:finally(function()
+      self._v1_older_loading = false
+      finish()
+    end)
+  end
+  observation.load_older = load_older
+
+  ---Load every remaining older page until the cached history is complete.
+  ---The paging loop lives here because the limit and completion state are
+  ---protocol details; callers only declare how much history they need.
+  ---@param self OpencodeV1Observation
+  ---@return Promise<nil>
+  local function load_complete_history(self)
+    return Promise.async(function()
+      while not self._v1_history_complete do
+        self:load_older():await()
+      end
+    end)()
+  end
+  observation.load_complete_history = load_complete_history
+
+  function observation:interrupt()
+    return self:_start_action(connection.operations.interrupt, self._session_id, self._session_ref.location)
+  end
+
+  function observation:revert_message(message_id, path_map, reverse_path_map)
+    if type(message_id) ~= 'string' or message_id == '' then
+      fail('revert requires a message ID')
+    end
+    return self:_start_state_action(connection.operations.revert_message, function(info)
+      local current = mapped_session(info)
+      if current.id ~= self._session_id then
+        fail('revert response belongs to another session')
+      end
+      self:read().session = current
+      self:_event_changed('session')
+      return current.revert
+    end, self._session_id, self._session_ref.location, { messageID = message_id }, path_map, reverse_path_map)
+  end
+
+  function observation:unrevert_messages(path_map, reverse_path_map)
+    return self:_start_state_action(connection.operations.unrevert_messages, function(info)
+      local current = mapped_session(info)
+      if current.id ~= self._session_id then
+        fail('unrevert response belongs to another session')
+      end
+      self:read().session = current
+      self:_event_changed('session')
+      return true
+    end, self._session_id, self._session_ref.location, path_map, reverse_path_map)
+  end
+
+  function observation:reply_permission(request_id, answer)
+    local request_fact = self:read().permission_requests_by_id[request_id]
+    if not request_fact or request_fact.status ~= 'pending' or type(answer) ~= 'table' then
+      fail('permission request is not pending')
+    end
+    if
+      (answer.choice ~= 'once' and answer.choice ~= 'always' and answer.choice ~= 'reject')
+      or (answer.message ~= nil and type(answer.message) ~= 'string')
+    then
+      fail('invalid permission answer')
+    end
+    return self:_start_action(connection.operations.reply_permission, request_id, self._session_ref.location, {
+      reply = answer.choice,
+      message = answer.message,
+    })
+  end
+
+  function observation:reply_question(request_id, answers)
+    local request = self:read().question_requests_by_id[request_id]
+    if not request or request.status ~= 'pending' or type(answers) ~= 'table' then
+      fail('question request is not pending')
+    end
+    local native_answers = {}
+    for index, field in ipairs(request.fields) do
+      local answer = answers[field.key]
+      if field.type == 'multiselect' then
+        if type(answer) ~= 'table' then
+          fail('question answer ' .. field.key .. ' must be a string list')
+        end
+        native_answers[index] = {}
+        for _, value in ipairs(answer) do
+          if type(value) ~= 'string' then
+            fail('question answer ' .. field.key .. ' must be a string list')
+          end
+          native_answers[index][#native_answers[index] + 1] = value
+        end
+      else
+        if type(answer) ~= 'string' then
+          fail('question answer ' .. field.key .. ' must be a string')
+        end
+        native_answers[index] = { answer }
+      end
+    end
+    return self:_start_action(
+      connection.operations.reply_question,
+      request_id,
+      self._session_ref.location,
+      native_answers
+    )
+  end
+
+  function observation:reject_question(request_id)
+    local request_fact = self:read().question_requests_by_id[request_id]
+    if not request_fact or request_fact.status ~= 'pending' then
+      fail('question request is not pending')
+    end
+    return self:_start_action(connection.operations.reject_question, request_id, self._session_ref.location)
+  end
+
+  return observation
+end
+
+return M

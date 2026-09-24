@@ -28,6 +28,7 @@ This is a structural boundary, not a temporary migration layer.
   - Responsible for:
     - session/runtime orchestration shared by multiple entry modules
     - session switching/opening/cancel-related orchestration
+    - detached session creation and observation setup on the same connection
   - Not responsible for:
     - command text parsing
     - UI rendering details (layout, buffer paint logic)
@@ -70,12 +71,10 @@ entry modules -> session/api (new direct scatter)
 
 The following entry files still directly require `opencode.session`/`opencode.api` and should be removed by routing through services APIs.
 
-- [ ] `lua/opencode/quick_chat.lua` -> `opencode.session`
 - [ ] `lua/opencode/ui/renderer.lua` -> `opencode.session`, `opencode.api`
 - [ ] `lua/opencode/ui/debug_helper.lua` -> `opencode.session`
 - [ ] `lua/opencode/ui/permission_window.lua` -> `opencode.api`
 - [ ] `lua/opencode/ui/contextual_actions.lua` -> `opencode.api`
-- [ ] `lua/opencode/ui/timeline_picker.lua` -> `opencode.api`
 - [ ] `lua/opencode/commands/handlers/diff.lua` -> `opencode.session`
 - [ ] `lua/opencode/commands/handlers/session.lua` -> `opencode.session`
 

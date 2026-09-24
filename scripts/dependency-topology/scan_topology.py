@@ -15,7 +15,7 @@ Policy:
     - entry_layer:              plugin entry, api, keymap, handler shells, picker-type UIs
     - dispatch_layer:           command registry, execute gate, parse, slash, complete
     - capabilities_layer:       CLI mirrors, Nvim-native, UI rendering pipeline
-    - cli_infrastructure_layer: api_client, server_job, event_manager, opencode_server
+    - cli_infrastructure_layer: Connection, protocol operations/Observation, transport, server lifecycle
 
   Policy rules forbid certain cross-layer dependencies (see topology.jsonc for the full
   7-rule matrix). Violations appear as red edges in the HTML graph.

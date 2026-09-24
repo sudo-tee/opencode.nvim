@@ -1,5 +1,4 @@
 local state = require('opencode.state')
-local curl = require('opencode.curl')
 local Promise = require('opencode.promise')
 local opencode_server = require('opencode.opencode_server')
 local port_mapping = require('opencode.port_mapping')
@@ -7,154 +6,147 @@ local log = require('opencode.log')
 local config = require('opencode.config')
 local util = require('opencode.util')
 local auth = require('opencode.auth')
+local legacy_server = require('opencode.protocols.v1.server')
 
 local M = {}
-M.requests = {}
+local health_checked_at = setmetatable({}, { __mode = 'k' })
+local generate_spawn_password
+local connect_or_spawn_legacy_server
 
---- Wrapper for port_mapping.unregister to maintain backward compatibility
---- @param port number|nil
-function M.unregister_port_usage(port)
-  port_mapping.unregister(port, state.opencode_server)
+local function non_empty(value)
+  return type(value) == 'string' and value ~= '' and value or nil
 end
 
---- @param base_url string
---- @param timeout number
---- @return Promise<string|nil>
-local function try_custom_server(base_url, timeout)
-  local health_url = base_url .. '/global/health'
+local function password_file_path(path)
+  path = path or config.server.password_file
+  if path == nil or path == '' then
+    return nil
+  end
+  if type(path) ~= 'string' then
+    error('server.password_file must be a string')
+  end
+  return path
+end
 
-  log.debug('try_custom_server: checking health at %s', health_url)
+local function read_saved_password(path)
+  path = password_file_path(path)
+  if not path then
+    return nil
+  end
+  local stat = vim.uv.fs_stat(path)
+  if not stat then
+    return nil
+  end
+  if stat.type ~= 'file' or vim.fn.filereadable(path) ~= 1 then
+    error('server.password_file is not a readable file: ' .. path)
+  end
+  local permissions = vim.fn.getfperm(path)
+  if type(permissions) ~= 'string' or #permissions < 9 or permissions:sub(4, 9) ~= '------' then
+    error('server.password_file must be accessible only by its owner: ' .. path)
+  end
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    error('failed to read server.password_file: ' .. path)
+  end
+  local password = lines[1]
+  if not non_empty(password) then
+    error('server.password_file is empty: ' .. path)
+  end
+  return password
+end
 
-  return opencode_server.health_check(health_url, timeout * 1000):and_then(function(healthy)
-    if healthy then
-      log.debug('try_custom_server: health check passed')
-      return base_url
+local function save_password(password, path)
+  path = password_file_path(path)
+  if not path then
+    return password
+  end
+  local ok, result = pcall(vim.fn.mkdir, vim.fn.fnamemodify(path, ':h'), 'p')
+  if not ok or result == -1 then
+    error('failed to create server.password_file directory: ' .. path)
+  end
+
+  local fd, open_error = vim.uv.fs_open(path, 'wx', 384)
+  if not fd then
+    if vim.uv.fs_stat(path) then
+      return read_saved_password(path)
     end
+    error('failed to create server.password_file: ' .. tostring(open_error))
+  end
+  local payload = password .. '\n'
+  local written, write_error = vim.uv.fs_write(fd, payload, -1)
+  local synced, sync_error = vim.uv.fs_fsync(fd)
+  vim.uv.fs_close(fd)
+  if written ~= #payload or not synced then
+    error('failed to persist server.password_file: ' .. tostring(write_error or sync_error))
+  end
+  if vim.fn.setfperm(path, 'rw-------') ~= 1 then
+    error('failed to set server.password_file permissions: ' .. path)
+  end
+  return read_saved_password(path)
+end
 
-    local err_msg = string.format('Health check failed at %s', health_url)
-    log.debug('try_custom_server: %s', err_msg)
-    return Promise.new():reject(err_msg)
+local function resolve_config_value(name)
+  local value = config.server[name]
+  if type(value) == 'function' then
+    local ok, resolved = pcall(value)
+    if not ok then
+      error(string.format('server.%s failed: %s', name, tostring(resolved)))
+    end
+    value = resolved
+  end
+  if value == nil or value == '' then
+    return nil
+  end
+  if type(value) ~= 'string' then
+    error(string.format('server.%s must resolve to a string', name))
+  end
+  return value
+end
+
+local function resolve_credential(generate_password, credential_file)
+  local configured_password = resolve_config_value('password')
+  local password = configured_password
+  if not password then
+    password = read_saved_password(credential_file)
+  end
+  password = password or non_empty(vim.env.OPENCODE_PASSWORD) or non_empty(vim.env.OPENCODE_SERVER_PASSWORD)
+  if not password and generate_password then
+    password = generate_spawn_password()
+  end
+  local path = password_file_path(credential_file)
+  if generate_password and password and path and not vim.uv.fs_stat(path) then
+    password = save_password(password, path)
+  end
+
+  return {
+    username = resolve_config_value('username') or non_empty(vim.env.OPENCODE_SERVER_USERNAME) or 'opencode',
+    password = password,
+  }
+end
+
+local function apply_probe(server, probe, acquired_pid)
+  server.protocol = probe.protocol
+  server.server_identity = {
+    version = probe.response.version,
+    pid = probe.response.pid or acquired_pid,
+  }
+  server.version = server.server_identity.version
+  return server
+end
+
+generate_spawn_password = function()
+  local seed = tostring(vim.uv.hrtime()) .. tostring(math.random())
+  return vim.fn.sha256(seed):sub(1, 32)
+end
+
+local function try_custom_server(server, timeout)
+  local probe = server:probe_connection(timeout * 1000)
+  return probe:and_then(function(probe_result)
+    return apply_probe(server, probe_result, server.custom_pid or (server.job and server.job.pid))
   end)
 end
 
---- @param response {status: integer, body: string}
---- @param cb fun(err: any, result: any)
-local function handle_api_response(response, cb)
-  local success, json_body = pcall(vim.json.decode, response.body)
-
-  if response.status >= 200 and response.status < 300 then
-    cb(nil, success and json_body or response.body)
-  else
-    cb(success and json_body or response.body, nil)
-  end
-end
-
---- Make an HTTP API call to the opencode server.
---- @generic T
---- @param url string The API endpoint URL
---- @param method string|nil HTTP method (default: 'GET')
---- @param body table|nil|boolean Request body (will be JSON encoded)
---- @return Promise<T> promise A promise that resolves with the result or rejects with an error
-function M.call_api(url, method, body)
-  local call_promise = Promise.new()
-
-  state.jobs.increment_count()
-
-  local request_entry = { nil, call_promise }
-  table.insert(M.requests, request_entry)
-
-  local function remove_from_requests()
-    for i, entry in ipairs(M.requests) do
-      if entry == request_entry then
-        table.remove(M.requests, i)
-        break
-      end
-    end
-    state.jobs.set_count(#M.requests)
-  end
-
-  local opts = {
-    url = url,
-    method = method or 'GET',
-    headers = vim.tbl_extend('force', { ['Content-Type'] = 'application/json' }, auth.get_auth_headers()),
-    proxy = '',
-    callback = function(response)
-      remove_from_requests()
-      handle_api_response(response, function(err, result)
-        if err then
-          local ok, pcall_err = pcall(function()
-            call_promise:reject(err)
-          end)
-          if not ok then
-            log.notify('Error while handling API error response: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
-          end
-        else
-          local ok, pcall_err = pcall(function()
-            call_promise:resolve(result)
-          end)
-          if not ok then
-            log.notify('Error while handling API response: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
-          end
-        end
-      end)
-    end,
-    on_error = function(err)
-      remove_from_requests()
-      local ok, pcall_err = pcall(function()
-        call_promise:reject(err)
-      end)
-      if not ok then
-        log.notify('Error while handling API on_error: ' .. vim.inspect(pcall_err), vim.log.levels.ERROR)
-      end
-    end,
-  }
-
-  if body ~= nil then
-    opts.body = body and vim.json.encode(body) or '{}'
-  end
-
-  request_entry[1] = opts
-
-  curl.request(opts)
-  return call_promise
-end
-
---- Make a streaming HTTP API call to the opencode server.
---- @param url string The API endpoint URL
---- @param method string|nil HTTP method (default: 'GET')
---- @param body table|nil|boolean Request body (will be JSON encoded)
---- @param on_chunk fun(chunk: string) Callback invoked for each chunk of data received
---- @return table The underlying job instance
-function M.stream_api(url, method, body, on_chunk)
-  local opts = {
-    url = url,
-    method = method or 'GET',
-    headers = auth.get_auth_headers(),
-    proxy = '',
-    stream = function(err, chunk)
-      on_chunk(chunk)
-    end,
-    on_error = function(err)
-      if err.message:match('exit_code=nil') then
-        return
-      end
-      log.notify('Error in streaming request: ' .. vim.inspect(err), vim.log.levels.ERROR)
-    end,
-    on_exit = function(code, signal, shutdown_requested)
-      if code ~= 0 and not shutdown_requested then
-        log.notify('Streaming request exited with code ' .. tostring(code), vim.log.levels.WARN)
-      end
-    end,
-  }
-
-  if body ~= nil then
-    opts.body = body and vim.json.encode(body) or '{}'
-  end
-
-  return curl.request(opts) --[[@as table]]
-end
-
---- @return number|nil port, or nil if we should spawn local instead
+--- @return number|nil port
 local function resolve_port()
   local custom_port = config.server.port or 'auto'
   if custom_port ~= 'auto' then
@@ -169,13 +161,108 @@ local function resolve_port()
   return existing or math.random(1024, 65535)
 end
 
+local function is_http_endpoint(value)
+  return value:match('^https?://[^%s]+$') ~= nil
+end
+
+local function wait_for_service_endpoint(command, timeout)
+  for _ = 1, math.max(1, math.floor(timeout / 100)) do
+    local url = command('service', 'status')
+    if url ~= 'starting' and url ~= 'stopped' then
+      return url
+    end
+    Promise.delay(100):await()
+  end
+  error('OpenCode service did not return an HTTP endpoint', 0)
+end
+
+local function probe_until_ready(server, timeout_ms, retry_transport)
+  local clock = vim.uv or vim.loop
+  local deadline = clock.now() + timeout_ms
+  return Promise.retry(function()
+    return server:probe_connection(timeout_ms)
+  end, math.max(1, math.floor(timeout_ms / 100)), 100, function(err)
+    return retry_transport and type(err) == 'table' and err.kind == 'transport' and clock.now() < deadline
+  end)
+end
+
+-- CLI capability selects the launcher only; authenticated health selects the protocol.
+local try_native_service = Promise.async(function()
+  local timeout = (config.server.timeout or 5) * 1000
+  local function command(...)
+    local args = { config.opencode_executable, ... }
+    local ok, result = pcall(function()
+      return Promise.system(args, { text = true, timeout = timeout }):await()
+    end)
+    if not ok then
+      if args[2] == 'service' and args[3] == 'start' and type(result) == 'table' and result.code == 124 then
+        -- The service can outlive its launcher; discover its endpoint through status.
+        return ''
+      end
+      -- In particular, never include the password command's stdout in an error.
+      error('OpenCode command failed: ' .. table.concat(args, ' '), 0)
+    end
+    return vim.trim(result.stdout or ''), vim.trim(result.stderr or '')
+  end
+
+  local help, help_stderr = command('--help')
+  help = non_empty(help) or help_stderr
+  if help == '' then
+    error('OpenCode returned empty command help', 0)
+  end
+  if not help:match('\n%s*service%s+') then
+    return nil
+  end
+
+  local url = command('service', 'status')
+  local starting_service = url == 'stopped'
+  if starting_service then
+    url = command('service', 'start')
+    if not is_http_endpoint(url) then
+      url = wait_for_service_endpoint(command, timeout)
+    end
+  end
+  if not is_http_endpoint(url) then
+    error('OpenCode service did not return an HTTP endpoint', 0)
+  end
+  local password = command('service', 'get', 'password')
+  if password == '' then
+    error('OpenCode service did not return a credential', 0)
+  end
+  local server = opencode_server.from_custom(url)
+  server.credential = { username = 'opencode', password = password }
+  local probe = probe_until_ready(server, timeout, starting_service):await()
+  if probe.protocol ~= 'v2' then
+    error('OpenCode background service did not provide V2 health', 0)
+  end
+  apply_probe(server, probe)
+  server:mark_ready()
+  health_checked_at[server] = (vim.uv or vim.loop).now()
+  -- The native service owns its lifecycle and never enters plugin port bookkeeping.
+  state.jobs.set_server(server)
+  return server
+end)
+
 local function _start_server()
   local promise = Promise.new()
 
   local custom_url = config.server.url
   if not custom_url then
-    log.debug('ensure_server: server.url not configured, spawning local server')
-    M.spawn_local_server(promise)
+    if config.server.spawn_command then
+      connect_or_spawn_legacy_server(promise)
+      return promise
+    end
+    try_native_service()
+      :and_then(function(server)
+        if server then
+          promise:resolve(server)
+        else
+          connect_or_spawn_legacy_server(promise)
+        end
+      end)
+      :catch(function(err)
+        promise:reject(err)
+      end)
     return promise
   end
 
@@ -198,41 +285,66 @@ end
 
 local pending_connection
 
+local function has_recent_health_check(server, opts)
+  if not server or not server:is_ready() or (opts and opts.force_health_check) then
+    return false
+  end
+  local checked_at = health_checked_at[server]
+  local ttl = config.server.health_check_ttl_ms or 5000
+  return checked_at ~= nil and (vim.uv or vim.loop).now() - checked_at < ttl
+end
+
+local function validate_cached_server(server)
+  local ok, result = pcall(function()
+    return server:check_health():await()
+  end)
+  if state.opencode_server ~= server then
+    return false
+  end
+  if ok then
+    return result
+  end
+  if type(result) == 'table' and (result.kind == 'transport' or result.kind == 'identity_changed') then
+    return false
+  end
+  error(result, 0)
+end
+
+local function connect_ready_server()
+  local server = state.opencode_server
+  while server and server:is_ready() do
+    if validate_cached_server(server) then
+      return server
+    end
+    if state.opencode_server == server then
+      log.warn('ensure_server: cached server unavailable or replaced, reconnecting')
+      state.jobs.clear_server()
+      break
+    end
+    server = state.opencode_server
+  end
+  return _start_server():await()
+end
+
 ---Ensure all callers share startup and health checks until the server is ready.
+---@param opts? {force_health_check?: boolean}
 ---@return Promise<OpencodeServer>
-function M.ensure_server()
+function M.ensure_server(opts)
   if pending_connection then
     return pending_connection
+  end
+  if has_recent_health_check(state.opencode_server, opts) then
+    return Promise.new():resolve(state.opencode_server)
   end
 
   local connection = Promise.new()
   pending_connection = connection
-  Promise.spawn(function()
-    while true do
-      local server = state.opencode_server
-      if not server or not server:is_running() then
-        return _start_server():await()
-      end
-
-      local starting = server.get_spawn_promise and server:get_spawn_promise()
-      if starting and not starting:is_resolved() then
-        return starting:await()
-      end
-
-      local healthy = server:check_health():await()
-      if state.opencode_server == server then
-        if healthy then
-          return server
-        end
-        log.warn('ensure_server: cached server unhealthy, reconnecting')
-        state.jobs.clear_server()
-        return _start_server():await()
-      end
-    end
-  end)
+  Promise.spawn(connect_ready_server)
     :and_then(function(server)
+      health_checked_at[server] = (vim.uv or vim.loop).now()
       pending_connection = nil
       connection:resolve(server)
+      require('opencode.protocols.contract_check').check_async(server)
     end)
     :catch(function(err)
       pending_connection = nil
@@ -241,82 +353,110 @@ function M.ensure_server()
   return connection
 end
 
-local function retry_connect(base_url, timeout, max_retries, on_success, on_failure)
-  local delay = config.server.retry_delay or 2000
-  Promise.delay(delay)
-    :and_then(function()
-      return Promise.retry(function()
-        return try_custom_server(base_url, timeout)
-      end, max_retries, delay)
-    end)
-    :and_then(on_success)
-    :catch(function(err)
-      log.error('try_connect_to_custom_server: exhausted %d retries: %s', max_retries, vim.inspect(err))
-      on_failure(err)
-    end)
+local function publish_custom_server(server, server_pid)
+  server:mark_ready()
+  health_checked_at[server] = (vim.uv or vim.loop).now()
+  port_mapping.register(server.port, vim.fn.getcwd(), server_pid, server:can_release_process())
+  state.jobs.set_server(server)
+  return server
 end
 
-local function spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)
-  local ok, result = pcall(config.server.spawn_command, custom_port, custom_url)
-  if not ok then
-    log.error('spawn_command failed: %s', vim.inspect(result))
-    promise:reject(string.format('Failed to spawn custom server on port %d', custom_port))
-    return
-  end
-
-  local server_pid = type(result) == 'number' and result or nil
-
-  retry_connect(base_url, timeout, 3, function(url)
-    port_mapping.register(custom_port, vim.fn.getcwd(), true, 'custom', url, server_pid)
-    state.jobs.set_server(opencode_server.from_custom(url, custom_port, 'custom'))
-    promise:resolve(state.opencode_server)
-  end, function(_err)
-    if config.server.port == 'auto' then
-      log.notify('Failed to connect after spawning, falling back to local server', vim.log.levels.WARN)
-      M.spawn_local_server(promise, custom_port, custom_url)
-    else
-      promise:reject(string.format('Failed to connect to custom server after spawning on port %d', custom_port))
+local function retry_connect(server, timeout, remaining)
+  return try_custom_server(server, timeout):catch(function(err)
+    if type(err) ~= 'table' or err.kind ~= 'transport' or remaining == 0 then
+      return Promise.new():reject(err)
     end
+    return Promise.delay(config.server.retry_delay or 2000):and_then(function()
+      return retry_connect(server, timeout, remaining - 1)
+    end)
   end)
 end
 
-function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
-  try_custom_server(base_url, timeout)
-    :and_then(function(url)
-      local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
-      local mode = config.server.spawn_command and 'custom' or 'attach'
-      port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, mode, url, nil)
-      state.jobs.set_server(opencode_server.from_custom(url, custom_port, mode))
-      log.notify(
-        string.format('Connected to remote server at %s on port %d.', base_url, custom_port),
-        vim.log.levels.INFO
-      )
-      promise:resolve(state.opencode_server)
+---Reuse a configured legacy server before starting another `serve` process.
+---@param promise Promise<OpencodeServer>
+connect_or_spawn_legacy_server = function(promise)
+  local port = legacy_server.configured_port()
+  if not port then
+    M.spawn_local_server(promise)
+    return
+  end
+
+  local server = opencode_server.from_custom(legacy_server.endpoint(port), port)
+  local credential_ok, credential = pcall(resolve_credential, false, legacy_server.credential_file(port))
+  if not credential_ok then
+    promise:reject(credential)
+    return
+  end
+  server.credential = credential
+
+  local mapped_release = port_mapping.capture_process_release(port)
+  if mapped_release then
+    server:set_process_release(mapped_release)
+  end
+
+  try_custom_server(server, config.server.timeout or 5)
+    :and_then(function(ready_server)
+      publish_custom_server(ready_server, ready_server.server_identity.pid)
+      promise:resolve(ready_server)
     end)
     :catch(function(err)
-      log.warn('failed to connect to %s: %s', base_url, vim.inspect(err))
-      if config.server.spawn_command and custom_port and custom_url then
-        spawn_and_retry(base_url, custom_port, custom_url, promise, timeout)
-      elseif not config.server.auto_kill then
-        -- Server is externally managed (auto_kill=false). Retry connecting
-        -- instead of spawning a local server that would leak as an orphan.
-        log.debug('try_connect_to_custom_server: auto_kill=false, retrying instead of spawning local')
-        retry_connect(base_url, timeout, 5, function(url)
-          local existing_started_by_nvim = port_mapping.started_by_nvim(custom_port)
-          port_mapping.register(custom_port, vim.fn.getcwd(), existing_started_by_nvim, 'attach', url, nil)
-          state.jobs.set_server(opencode_server.from_custom(url, custom_port, 'attach'))
-          log.notify(
-            string.format('Connected to external server at %s on port %d.', base_url, custom_port),
-            vim.log.levels.INFO
-          )
-          promise:resolve(state.opencode_server)
-        end, function(retry_err)
-          log.error('try_connect_to_custom_server: exhausted retries for external server: %s', vim.inspect(retry_err))
-          promise:reject(string.format('Failed to connect to external server at %s after retries', base_url))
-        end)
-      else
-        M.spawn_local_server(promise, custom_port, custom_url)
+      if type(err) ~= 'table' or err.kind ~= 'transport' then
+        promise:reject(err)
+        return
       end
+      M.spawn_local_server(promise, port)
+    end)
+end
+
+function M.try_connect_to_custom_server(base_url, timeout, promise, custom_port, custom_url)
+  local server = opencode_server.from_custom(base_url, custom_port)
+  local credential_ok, credential = pcall(resolve_credential, false)
+  if not credential_ok then
+    promise:reject(credential)
+    return
+  end
+  server.credential = credential
+  local mapped_release = port_mapping.capture_process_release(custom_port)
+  if mapped_release then
+    server:set_process_release(mapped_release)
+  end
+  try_custom_server(server, timeout)
+    :catch(function(err)
+      -- Only a transport failure can mean that an explicitly configured launcher is needed.
+      -- HTTP authentication and contract failures describe an existing server and must remain visible.
+      if type(err) ~= 'table' or err.kind ~= 'transport' then
+        return Promise.new():reject(err)
+      end
+      if not config.server.spawn_command then
+        return retry_connect(server, timeout, 5)
+      end
+      server.credential = resolve_credential(true)
+      local ok, result = pcall(config.server.spawn_command, custom_port, custom_url, auth.get_env(server.credential))
+      if not ok then
+        return Promise.new():reject(result)
+      end
+      server.custom_pid = type(result) == 'number' and result or nil
+      if config.server.auto_kill then
+        local kill_command = config.server.kill_command
+        local pid = server.custom_pid
+        if kill_command then
+          server:set_process_release(function()
+            kill_command(custom_port, custom_url)
+          end)
+        elseif pid then
+          server:set_process_release(function()
+            require('opencode.util').kill_pid(pid)
+          end)
+        end
+      end
+      return retry_connect(server, timeout, 3)
+    end)
+    :and_then(function(ready_server)
+      publish_custom_server(ready_server, ready_server.custom_pid)
+      promise:resolve(ready_server)
+    end)
+    :catch(function(err)
+      promise:reject(err)
     end)
 end
 
@@ -325,11 +465,18 @@ end
 --- @param hostname? string Optional custom hostname
 function M.spawn_local_server(promise, port, hostname)
   local server = opencode_server.new()
+  local credential_ok, credential = pcall(resolve_credential, true, legacy_server.credential_file(port))
+  if not credential_ok then
+    promise:reject(credential)
+    return
+  end
+  server.credential = credential
   local cwd = vim.fn.getcwd()
-  state.jobs.set_server(server)
-
   local spawn_opts = {
     cwd = cwd,
+    command = legacy_server.command(port, hostname),
+    auto_kill = config.server.auto_kill,
+    listening_url = legacy_server.listening_url,
     on_ready = function(job, base_url)
       local url_port = base_url:match(':(%d+)')
       log.notify(string.format('Started local server at %s', base_url), vim.log.levels.INFO)
@@ -341,14 +488,24 @@ function M.spawn_local_server(promise, port, hostname)
           server.port = port_num
         end
         local server_pid = job and job.pid
-        port_mapping.register(port_num, cwd, true, 'serve', nil, server_pid)
         log.debug(
           'spawn_local_server: registered port %d for reference counting (server_pid=%s)',
           port_num,
           tostring(server_pid)
         )
       end
-      promise:resolve(server)
+      local probe = probe_until_ready(server, (config.server.timeout or 5) * 1000, true)
+      probe
+        :and_then(function(probe_result)
+          apply_probe(server, probe_result, server.job and server.job.pid)
+          publish_custom_server(server, server.job and server.job.pid)
+          promise:resolve(server)
+        end)
+        :catch(function(err)
+          log.notify(' Failed to start opencode server' .. vim.inspect(err), vim.log.levels.ERROR)
+          server:shutdown()
+          promise:reject(err)
+        end)
     end,
     on_error = function(err)
       log.notify(' Failed to start opencode server' .. vim.inspect(err), vim.log.levels.ERROR)
@@ -358,15 +515,6 @@ function M.spawn_local_server(promise, port, hostname)
       promise:reject('Server exited')
     end,
   }
-
-  if port then
-    spawn_opts.port = port
-  end
-  if hostname then
-    hostname = hostname:gsub('^%a[%w+%.%-]*://', '')
-    hostname = hostname:match('^[^/]+') or hostname
-    spawn_opts.hostname = hostname
-  end
 
   server:spawn(spawn_opts)
 end

@@ -1,0 +1,247 @@
+local Promise = require('opencode.promise')
+local config = require('opencode.config')
+local state = require('opencode.state')
+local curl = require('opencode.curl')
+local mapping = require('opencode.port_mapping')
+local server_job = require('opencode.server_job')
+local assert = require('luassert')
+
+describe('native V2 service discovery', function()
+  local saved, commands, replies, status, request_headers, help_on_stderr
+  before_each(function()
+    saved = {
+      system = Promise.system,
+      request = curl.request,
+      register = mapping.register,
+      server = state.opencode_server,
+      config = config.values.server,
+      spawn = server_job.spawn_local_server,
+    }
+    state.jobs.clear_server()
+    config.values.server = { timeout = 1, auto_kill = true, password = 'wrong-explicit-password' }
+    commands = {}
+    help_on_stderr = false
+    replies = {
+      ['--help'] = 'SUBCOMMANDS\n  service   Manage the background server',
+      ['service status'] = 'http://127.0.0.1:49374',
+      ['service get password'] = 'native-password',
+      ['service start'] = 'http://127.0.0.1:49374',
+    }
+    status = 200
+    Promise.system = function(args)
+      local command = table.concat(args, ' ', 2)
+      commands[#commands + 1] = command
+      assert.is_not_nil(replies[command])
+      local reply = replies[command]
+      if type(reply) == 'function' then
+        reply = reply()
+      end
+      if Promise.is_promise(reply) then
+        return reply
+      end
+      if command == '--help' and help_on_stderr then
+        return Promise.new():resolve({ code = 0, stdout = '', stderr = reply .. '\n' })
+      end
+      return Promise.new():resolve({ code = 0, stdout = reply .. '\n' })
+    end
+    curl.request = function(opts)
+      assert.equals('http://127.0.0.1:49374/api/info', opts.url)
+      request_headers = opts.headers
+      vim.schedule(function()
+        opts.callback({ status = status, body = '{"version":"2.0.8","pid":123}' })
+      end)
+    end
+    mapping.register = function()
+      error('native service must not enter port mapping')
+    end
+    server_job.spawn_local_server = function()
+      error('must not spawn private server')
+    end
+  end)
+  after_each(function()
+    Promise.system, curl.request, mapping.register = saved.system, saved.request, saved.register
+    server_job.spawn_local_server = saved.spawn
+    config.values.server = saved.config
+    state.jobs.set_server(saved.server)
+  end)
+
+  it('uses native endpoint and credential without acquiring process release', function()
+    local server = server_job.ensure_server():wait()
+    assert.equals('v2', server.protocol)
+    assert.is_nil(server.port)
+    assert.equals('native-password', server.credential.password)
+    assert.same({ version = '2.0.8', pid = 123 }, server.server_identity)
+    assert.is_false(server:can_release_process())
+    assert.same(require('opencode.auth').get_auth_headers(server.credential), request_headers)
+    assert.is_true(server:close():wait())
+    assert.same({ '--help', 'service status', 'service get password' }, commands)
+  end)
+
+  it('checkhealth clears and closes the Connection it acquired without killing the native service', function()
+    local health_api = vim.health or require('health')
+    local original = {
+      executable = vim.fn.executable,
+      system = vim.system,
+      kill_pid = require('opencode.util').kill_pid,
+      start = health_api.start,
+      ok = health_api.ok,
+      error = health_api.error,
+      warn = health_api.warn,
+      info = health_api.info,
+    }
+    local messages, acquired, killed = {}, nil, false
+    for _, name in ipairs({ 'start', 'ok', 'error', 'warn', 'info' }) do
+      health_api[name] = function(message)
+        messages[#messages + 1] = message
+      end
+    end
+    vim.fn.executable = function()
+      return 1
+    end
+    vim.system = function()
+      return {
+        wait = function()
+          return { code = 0, stdout = 'opencode v2.0.3\n' }
+        end,
+      }
+    end
+    require('opencode.util').kill_pid = function()
+      killed = true
+    end
+    curl.request = function(opts)
+      vim.schedule(function()
+        if opts.url:match('/api/info$') then
+          opts.callback({ status = 200, body = '{"version":"2.0.1","pid":123}' })
+        else
+          acquired = state.opencode_server
+          assert.matches('^http://127%.0%.0%.1:49374/api/config%?', opts.url)
+          opts.callback({ status = 200, body = '{}' })
+        end
+      end)
+      return {
+        is_running = function()
+          return true
+        end,
+        shutdown = function() end,
+      }
+    end
+
+    local ok, err = pcall(require('opencode.health').check)
+
+    vim.fn.executable = original.executable
+    vim.system = original.system
+    require('opencode.util').kill_pid = original.kill_pid
+    for _, name in ipairs({ 'start', 'ok', 'error', 'warn', 'info' }) do
+      health_api[name] = original[name]
+    end
+
+    assert.is_true(ok, err)
+    assert.is_nil(state.opencode_server)
+    assert.is_not_nil(acquired)
+    assert.is_false(acquired:is_ready())
+    assert.is_false(killed)
+    assert.is_true(vim.tbl_contains(messages, 'opencode v2 server 2.0.1 is reachable at http://127.0.0.1:49374'))
+    assert.is_true(vim.tbl_contains(messages, 'this Connection closes client resources only; the native service remains running'))
+    assert.is_true(vim.tbl_contains(messages, 'opencode connection closed successfully'))
+  end)
+
+  it('delegates startup only when the native CLI reports stopped', function()
+    replies['service status'] = 'stopped'
+    assert.equals('v2', server_job.ensure_server():wait().protocol)
+    assert.same({ '--help', 'service status', 'service start', 'service get password' }, commands)
+  end)
+
+  it('waits for a native service that reports a transitional start state', function()
+    replies['service status'] = 'stopped'
+    replies['service start'] = function()
+      replies['service status'] = 'http://127.0.0.1:49374'
+      return 'started'
+    end
+
+    local server = server_job.ensure_server():wait()
+
+    assert.equals('v2', server.protocol)
+    assert.same({ '--help', 'service status', 'service start', 'service status', 'service get password' }, commands)
+  end)
+
+  it('does not launch or downgrade after rejected native credentials', function()
+    status = 401
+    assert.is_false(pcall(function()
+      server_job.ensure_server():wait()
+    end))
+    assert.is_nil(state.opencode_server)
+    assert.same({ '--help', 'service status', 'service get password' }, commands)
+  end)
+
+  it('discovers a service that finishes starting after the launcher times out', function()
+    replies['service status'] = 'stopped'
+    replies['service start'] = function()
+      replies['service status'] = 'http://127.0.0.1:49374'
+      return Promise.new():reject({ code = 124, signal = 15 })
+    end
+
+    local server = server_job.ensure_server():wait()
+
+    assert.equals('v2', server.protocol)
+    assert.same({ '--help', 'service status', 'service start', 'service status', 'service get password' }, commands)
+  end)
+
+  it('keeps first startup pending until the native service accepts health requests', function()
+    replies['service status'] = 'stopped'
+    local probes = 0
+    local successful_request = curl.request
+    curl.request = function(opts)
+      if opts.url:match('/openapi%.json$') then
+        return
+      end
+      probes = probes + 1
+      if probes < 3 then
+        vim.schedule(function()
+          opts.on_error({ message = 'connection refused' })
+        end)
+      else
+        successful_request(opts)
+      end
+    end
+
+    local first = server_job.ensure_server()
+    assert.equals(first, server_job.ensure_server())
+    assert.is_nil(state.opencode_server)
+    local server = first:wait()
+    assert.equals('v2', server.protocol)
+    assert.equals(server, state.opencode_server)
+    assert.equals(3, probes)
+    assert.same({ '--help', 'service status', 'service start', 'service get password' }, commands)
+  end)
+
+  it('rejects a malformed status before fetching a password or publishing', function()
+    replies['service status'] = 'unexpected output'
+    assert.is_false(pcall(function()
+      server_job.ensure_server():wait()
+    end))
+    assert.same({ '--help', 'service status' }, commands)
+    assert.is_nil(state.opencode_server)
+  end)
+
+  it('keeps V1 startup when the CLI has no service command', function()
+    replies['--help'] = 'Commands:\n  opencode serve  starts a headless server'
+    local legacy = {}
+    server_job.spawn_local_server = function(promise)
+      promise:resolve(legacy)
+    end
+    assert.equals(legacy, server_job.ensure_server():wait())
+    assert.same({ '--help' }, commands)
+  end)
+
+  it('detects V1 help when the CLI writes it to stderr', function()
+    help_on_stderr = true
+    replies['--help'] = 'Commands:\n  opencode serve  starts a headless server'
+    local legacy = {}
+    server_job.spawn_local_server = function(promise)
+      promise:resolve(legacy)
+    end
+
+    assert.equals(legacy, server_job.ensure_server():wait())
+    assert.same({ '--help' }, commands)
+  end)
+end)

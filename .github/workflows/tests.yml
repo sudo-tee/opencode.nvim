@@ -20,6 +20,31 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --check . -g '*.lua' -g '!deps/'
 
+  typecheck:
+    runs-on: ubuntu-latest
+    name: typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup neovim
+        id: setup_nvim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.11.4
+
+      - name: Add nvim to PATH
+        run: echo "${{ steps.setup_nvim.outputs.executable }}" >> $GITHUB_PATH
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install emmylua_check
+        run: cargo install emmylua_check --version 0.25.1 --locked
+
+      - name: Run type checks
+        run: ./check_types.sh -f github
+
   test:
     timeout-minutes: 4
     strategy:

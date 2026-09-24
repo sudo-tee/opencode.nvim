@@ -122,12 +122,11 @@ function M.close()
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
 end
 
----Handle submit action from input window
----@return boolean true if a message was sent to the AI, false otherwise
-function M.handle_submit()
+---@return string|nil # Input content, or nil when the input window is not mounted
+function M.take_input()
   local windows = state.windows
   if not windows or not M.mounted(windows) then
-    return false
+    return nil
   end
   ---@cast windows { input_buf: integer }
 
@@ -137,73 +136,7 @@ function M.handle_submit()
     buffer = windows.input_buf,
     modeline = false,
   })
-
-  if input_content == '' then
-    return false
-  end
-
-  if input_content:match('^!') then
-    M._execute_shell_command(input_content:sub(2))
-    return false
-  end
-
-  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
-  if input_content:match('^' .. key) then
-    M._execute_slash_command(input_content)
-    return false
-  end
-
-  require('opencode.services.messaging').send_message(input_content)
-  return true
-end
-
-M._execute_shell_command = function(command)
-  local cmd = command:match('^%s*(.-)%s*$')
-  if cmd == '' then
-    return
-  end
-
-  local shell = vim.o.shell
-  local shell_cmd = { shell, '-c', cmd }
-
-  vim.system(shell_cmd, { text = true }, function(result)
-    vim.schedule(function()
-      if result.code ~= 0 then
-        vim.notify('Command failed with exit code ' .. result.code, vim.log.levels.ERROR)
-      end
-
-      local output = result.stdout or ''
-      if result.stderr and result.stderr ~= '' then
-        output = output .. '\n' .. result.stderr
-      end
-
-      M._prompt_add_to_context(cmd, output, result.code)
-    end)
-  end)
-end
-
-M._prompt_add_to_context = function(cmd, output, exit_code)
-  local output_window = require('opencode.ui.output_window')
-  if not output_window.mounted() then
-    return
-  end
-
-  local formatted_output = string.format('$ %s\n%s', cmd, output)
-  local lines = vim.split(formatted_output, '\n')
-
-  output_window.set_lines(lines)
-
-  local picker = require('opencode.ui.picker')
-  picker.select({ 'Yes', 'No' }, {
-    prompt = 'Add command + output to context?',
-  }, function(choice)
-    if choice == 'Yes' then
-      local message = string.format('Command: `%s`\nExit code: %d\nOutput:\n```\n%s```', cmd, exit_code, output)
-      M._append_to_input(message)
-    end
-    output_window.clear()
-    require('opencode.ui.input_window').focus_input()
-  end)
+  return input_content
 end
 
 M._append_to_input = function(text)
@@ -231,28 +164,6 @@ M._append_to_input = function(text)
 
   local line_count = vim.api.nvim_buf_line_count(state.windows.input_buf)
   vim.api.nvim_win_set_cursor(state.windows.input_win, { line_count, 0 })
-end
-
-M._execute_slash_command = function(command)
-  local slash_commands = require('opencode.commands.slash').get_commands():await()
-  local key = config.get_key_for_function('input_window', 'slash_commands') or '/'
-
-  local cmd = command:sub(2):match('^%s*(.-)%s*$')
-  if cmd == '' then
-    return
-  end
-  local parts = vim.split(cmd, ' ')
-
-  local command_cfg = vim.tbl_filter(function(c)
-    return c.slash_cmd == key .. parts[1]
-  end, slash_commands)[1]
-
-  if command_cfg then
-    local args = #parts > 1 and vim.list_slice(parts, 2) or nil
-    command_cfg.fn(args)
-  else
-    vim.notify('Unknown command: ' .. cmd, vim.log.levels.WARN)
-  end
 end
 
 function M.setup(windows)
@@ -284,7 +195,6 @@ function M.setup(windows)
 
   M.update_dimensions(windows)
   M.refresh_placeholder(windows)
-  M.setup_keymaps(windows)
   M.recover_input(windows)
 
   require('opencode.ui.context_bar').render(windows)
@@ -426,32 +336,32 @@ function M.set_content(text, windows)
   vim.api.nvim_buf_set_lines(windows.input_buf, 0, -1, false, lines)
 end
 
----@param message OpencodeMessage|nil
+---@param entry table|nil
 ---@return { lines: string[], mention_paths: string[] }|nil
-function M.build_prompt_from_message(message)
-  if not message or not message.parts then
+function M.build_prompt_from_message(entry)
+  if not entry or type(entry.content) ~= 'table' then
     return nil
   end
 
   local lines = {}
   local mention_paths = {}
 
-  for _, part in ipairs(message.parts) do
+  for _, part in ipairs(entry.content) do
     if type(part) == 'table' then
-      if part.type == 'text' then
-        if not part.synthetic and type(part.text) == 'string' and part.text ~= '' then
+      if part.kind == 'text' then
+        if not part.synthetic and not part.ignored and type(part.text) == 'string' and part.text ~= '' then
           for _, sub in ipairs(vim.split(part.text, '\n', { plain = true })) do
             lines[#lines + 1] = sub
           end
         end
-      elseif part.type == 'file' then
-        local name = part.filename or (part.source and part.source.path) or part.name
+      elseif part.kind == 'file' then
+        local name = part.name or (part.source and part.source.path)
         if type(name) == 'string' and name ~= '' then
           lines[#lines + 1] = '@' .. name .. ' '
           table.insert(mention_paths, name)
         end
-      elseif part.type == 'agent' then
-        local name = part.name or (part.source and part.source.path)
+      elseif part.kind == 'agent' then
+        local name = part.name
         if type(name) == 'string' and name ~= '' then
           lines[#lines + 1] = '@' .. name .. ' '
           table.insert(mention_paths, name)
@@ -467,10 +377,10 @@ function M.build_prompt_from_message(message)
   return { lines = lines, mention_paths = mention_paths }
 end
 
----@param message OpencodeMessage|nil
+---@param entry table|nil
 ---@return boolean
-function M.refill_prompt_from_message(message)
-  local prompt = M.build_prompt_from_message(message)
+function M.refill_prompt_from_message(entry)
+  local prompt = M.build_prompt_from_message(entry)
   if not prompt then
     return false
   end
@@ -530,75 +440,6 @@ function M.is_empty()
 
   local lines = vim.api.nvim_buf_get_lines(state.windows.input_buf, 0, -1, false)
   return #lines == 0 or (#lines == 1 and lines[1] == '')
-end
-
-local keymaps_set_for_buf = {}
-
-function M.setup_keymaps(windows)
-  if keymaps_set_for_buf[windows.input_buf] then
-    return
-  end
-  keymaps_set_for_buf[windows.input_buf] = true
-
-  local keymap = require('opencode.keymap')
-  keymap.setup_window_keymaps(config.keymap.input_window, windows.input_buf)
-end
-
-function M.setup_autocmds(windows, group)
-  vim.api.nvim_create_autocmd('WinEnter', {
-    group = group,
-    buffer = windows.input_buf,
-    callback = function()
-      M.refresh_placeholder(windows)
-      state.ui.set_last_focused_window('input')
-      require('opencode.ui.context_bar').render()
-    end,
-  })
-
-  vim.api.nvim_create_autocmd('WinLeave', {
-    group = group,
-    buffer = windows.input_buf,
-    callback = function()
-      -- Auto-hide input window when auto_hide is enabled and focus leaves
-      -- Don't hide if displaying a route (slash command output like /help)
-      -- Don't hide if input contains content
-      -- Don't hide if output window is empty (new session - user needs to start chat)
-      local output_window = require('opencode.ui.output_window')
-      local output_is_empty = output_window.get_buf_line_count() <= 1
-      if
-        config.ui.input.auto_hide
-        and not M.is_hidden()
-        and not state.display_route
-        and not output_is_empty
-        and #state.input_content == 1
-        and state.input_content[1] == ''
-      then
-        M._hide()
-      end
-    end,
-  })
-
-  vim.api.nvim_create_autocmd({ 'TextChanged', 'TextChangedI' }, {
-    buffer = windows.input_buf,
-    callback = function()
-      local input_lines = vim.api.nvim_buf_get_lines(windows.input_buf, 0, -1, false)
-      state.ui.set_input_content(input_lines)
-      M.refresh_placeholder(windows, input_lines)
-      require('opencode.ui.context_bar').render()
-      M.schedule_resize(windows)
-    end,
-  })
-
-  vim.api.nvim_create_autocmd('CursorMoved', {
-    group = group,
-    buffer = windows.input_buf,
-    callback = function()
-      local pos = state.ui.get_window_cursor(windows.input_win)
-      if pos then
-        state.ui.set_cursor_position('input', pos)
-      end
-    end,
-  })
 end
 
 ---Toggle the input window visibility (hide/show)

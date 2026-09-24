@@ -3,7 +3,8 @@ local M = {
   _sources = {},
 }
 
-function M.setup()
+---@param opts? { execute_slash_command?: fun(slash_cmd: string, args: string[]|nil): any }
+function M.setup(opts)
   local files_source = require('opencode.ui.completion.files')
   local subagents_source = require('opencode.ui.completion.subagents')
   local commands_source = require('opencode.ui.completion.commands')
@@ -12,7 +13,7 @@ function M.setup()
 
   M.register_source(files_source.get_source())
   M.register_source(subagents_source.get_source())
-  M.register_source(commands_source.get_source())
+  M.register_source(commands_source.get_source(opts and opts.execute_slash_command))
   M.register_source(context_source.get_source())
   M.register_source(skills_source.get_source())
 

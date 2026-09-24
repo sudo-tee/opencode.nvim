@@ -41,6 +41,63 @@ describe('contextual actions', function()
     end
   end)
 
+  describe('window subscription', function()
+    local actions
+
+    before_each(function()
+      actions = stub(require('opencode.ui.renderer'), 'get_actions_for_line').returns({ action('R') })
+      vim.keymap.set('n', 'R', function() end, { buffer = buf, desc = 'Original R' })
+    end)
+
+    after_each(function()
+      contextual_actions.teardown()
+      actions:revert()
+    end)
+
+    it('initializes existing output and refreshes it after hide and restore', function()
+      contextual_actions.setup()
+      contextual_actions.setup()
+      assert.equal('R', mapping(buf, 'R').desc)
+
+      state.ui.clear_windows()
+      assert.is_true(vim.wait(1000, function()
+        return mapping(buf, 'R').desc == 'Original R'
+      end))
+
+      state.ui.set_windows({ output_buf = buf })
+      assert.is_true(vim.wait(1000, function()
+        return mapping(buf, 'R').desc == 'R'
+      end))
+    end)
+
+    it('restores the previous output mappings when switching session buffers', function()
+      contextual_actions.setup()
+      local other = vim.api.nvim_create_buf(false, true)
+      state.ui.set_windows({ output_buf = other })
+      assert.is_true(vim.wait(1000, function()
+        return mapping(buf, 'R').desc == 'Original R'
+      end))
+
+      vim.api.nvim_set_current_buf(other)
+      assert.equal('R', mapping(other, 'R').desc)
+      vim.api.nvim_buf_delete(other, { force = true })
+    end)
+
+    it('ignores queued window states whose output was deleted before notification', function()
+      contextual_actions.setup()
+      local other = vim.api.nvim_create_buf(false, true)
+      local attach = stub(vim.api, 'nvim_buf_attach').invokes(vim.api.nvim_buf_attach)
+      state.ui.set_windows({ output_buf = other })
+      state.ui.clear_windows()
+      vim.api.nvim_buf_delete(other, { force = true })
+      assert.is_true(vim.wait(1000, function()
+        return mapping(buf, 'R').desc == 'Original R'
+      end))
+      assert.stub(attach).was_not_called()
+      attach:revert()
+    end)
+  end)
+
   it('reversibly overlays and restores buffer-local callback mappings', function()
     local original = function()
       return ''

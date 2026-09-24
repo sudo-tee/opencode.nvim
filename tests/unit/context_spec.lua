@@ -3,16 +3,18 @@ local state = require('opencode.state')
 local assert = require('luassert')
 
 describe('extract_from_opencode_message', function()
-  it('extracts prompt, selected_text, and current_file from tags in parts', function()
+  it('extracts prompt, selected_text, and current_file from Entry content', function()
     local message = {
-      parts = {
-        { type = 'text', text = 'What does this code do?' },
+      content = {
+        { id = 'text', kind = 'text', text = 'What does this code do?' },
         {
-          type = 'text',
+          id = 'selection',
+          kind = 'editor_context',
           synthetic = true,
-          text = vim.json.encode({ context_type = 'selection', content = 'print(42)' }),
+          source = { kind = 'selection', file_name = '/tmp/foo.lua', range = '1-1' },
+          text = 'print(42)',
         },
-        { type = 'file', filename = '/tmp/foo.lua' },
+        { id = 'file', kind = 'file', name = '/tmp/foo.lua' },
       },
     }
     local result = context.extract_from_opencode_message(message)
@@ -49,7 +51,6 @@ describe('extract_legacy_tag', function()
 end)
 
 describe('format_message', function()
-  local original_delta_context
   local original_get_context
   local mock_context
 
@@ -63,46 +64,56 @@ describe('format_message', function()
       cursor_data = nil,
     }
 
-    original_delta_context = context.delta_context
     original_get_context = context.get_context
 
     context.get_context = function()
       return mock_context
     end
 
-    context.delta_context = function()
-      return context.get_context()
-    end
   end)
 
   after_each(function()
-    context.delta_context = original_delta_context
     context.get_context = original_get_context
   end)
 
-  it('returns a parts array with prompt as first part', function()
-    local parts = context.format_message('hello world'):wait()
-    assert.is_table(parts)
-    assert.equal('hello world', parts[1].text)
-    assert.equal('text', parts[1].type)
+  it('returns the frozen submission content shape', function()
+    local input = context.format_message('hello world'):wait()
+    assert.same({ text = 'hello world', context = {}, files = {}, agents = {} }, input)
   end)
   it('includes mentioned_files and subagents', function()
     local ChatContext = require('opencode.context.chat_context')
     ChatContext.context.mentioned_files = { '/tmp/foo.lua' }
     ChatContext.context.mentioned_subagents = { 'agent1' }
-    local parts = context.format_message('prompt @foo.lua @agent1'):wait()
-    assert.is_true(#parts > 2)
-    local found_file, found_agent = false, false
-    for _, p in ipairs(parts) do
-      if p.type == 'file' then
-        found_file = true
-      end
-      if p.type == 'agent' then
-        found_agent = true
-      end
-    end
-    assert.is_true(found_file)
-    assert.is_true(found_agent)
+    local input = context.format_message('prompt @foo.lua @agent1'):wait()
+    assert.equals('file:///tmp/foo.lua', input.files[1].server_uri)
+    assert.is_nil(input.files[1].mention)
+    assert.equals('agent1', input.agents[1].name)
+    assert.same({ start_byte = 16, end_byte = 23 }, input.agents[1].mention)
+  end)
+
+  it('captures pasted image mentions by basename', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local original_context = ChatContext.context
+    local image_name = 'pasted_image_20260921_131341.png'
+    local image_path = '/tmp/' .. image_name
+    local mention = '@' .. image_name
+    local prompt = 'inspect ' .. mention
+
+    ChatContext.context = {
+      mentioned_files = { image_path },
+      mentioned_subagents = {},
+      selections = {},
+      current_file = nil,
+      cursor_data = nil,
+      linter_errors = nil,
+    }
+    local input = context.format_message(prompt):wait()
+    ChatContext.context = original_context
+
+    assert.same(
+      { start_byte = #('inspect '), end_byte = #('inspect ') + #mention },
+      input.files[1].mention
+    )
   end)
 
   it('includes selection even when current_file context is disabled', function()
@@ -127,27 +138,17 @@ describe('format_message', function()
       return { path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }
     end
 
-    local parts = context
+    local input = context
       .format_message('test prompt', {
         current_file = { enabled = false },
         selection = { enabled = true },
       })
       :wait()
 
-    local selection_json = nil
-    local has_file_part = false
-    for _, part in ipairs(parts) do
-      if part.type == 'file' then
-        has_file_part = true
-      end
-      local json = context.decode_json_context(part.text or '', 'selection')
-      if json then
-        selection_json = json
-      end
-    end
-
-    assert.is_false(has_file_part)
+    local selection_json = context.decode_json_context(input.context[1].text, 'selection')
+    assert.same({}, input.files)
     assert.is_not_nil(selection_json)
+    assert.same({ kind = 'selection', file_name = 'foo.lua', range = '3, 4' }, input.context[1].source)
     assert.same({ path = '/tmp/foo.lua', name = 'foo.lua', extension = 'lua' }, selection_json.file)
 
     BaseContext.get_current_buf = original_get_current_buf
@@ -177,7 +178,7 @@ describe('format_message', function()
       return {}
     end
 
-    local parts = context
+    local input = context
       .format_message('follow-up prompt', {
         current_file = { enabled = false },
         selection = { enabled = false },
@@ -188,19 +189,174 @@ describe('format_message', function()
       })
       :wait()
 
-    local has_file_part = false
-    for _, part in ipairs(parts) do
-      if part.type == 'file' then
-        has_file_part = true
-        break
-      end
-    end
-
-    assert.is_false(has_file_part)
+    assert.same({}, input.files)
     assert.is_nil(ChatContext.context.current_file.sent_at)
 
     BaseContext.get_current_buf = original_get_current_buf
     BaseContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('sends automatic diagnostics only when they change', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+    local original_context = ChatContext.context
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    local diagnostics = {
+      { message = 'unused value', severity = 2, lnum = 3, col = 4 },
+    }
+
+    ChatContext.context = {
+      mentioned_files = {},
+      mentioned_subagents = {},
+      selections = {},
+      current_file = nil,
+      cursor_data = nil,
+      linter_errors = diagnostics,
+    }
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    ChatContext.get_diagnostics = function()
+      return diagnostics
+    end
+
+    local first_sent = vim.deepcopy(ChatContext.context)
+    first_sent.automatic_context = {}
+    local first = context
+      .format_message('first', { current_file = { enabled = false } }, { submission_context = first_sent })
+      :wait()
+    assert.equals(1, #first.context)
+    assert.equals('diagnostics', first.context[1].source.kind)
+    assert.is_string(first_sent.automatic_context.diagnostics)
+
+    local unchanged_sent = vim.deepcopy(ChatContext.context)
+    unchanged_sent.automatic_context = {}
+    local unchanged = context
+      .format_message(
+        'unchanged',
+        { current_file = { enabled = false } },
+        { previous_context = first_sent, submission_context = unchanged_sent }
+      )
+      :wait()
+    assert.same({}, unchanged.context)
+
+    diagnostics = {}
+    local cleared_sent = vim.deepcopy(ChatContext.context)
+    cleared_sent.automatic_context = {}
+    local cleared = context
+      .format_message(
+        'cleared',
+        { current_file = { enabled = false } },
+        { previous_context = unchanged_sent, submission_context = cleared_sent }
+      )
+      :wait()
+    assert.equals(1, #cleared.context)
+    assert.same({}, context.decode_json_context(cleared.context[1].text, 'diagnostics').content)
+
+    ChatContext.context = original_context
+    BaseContext.get_current_buf = original_get_current_buf
+    ChatContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('skips the automatic current file when a selection targets it', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+    local original_context = ChatContext.context
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    local file = { path = '/tmp/current.lua', name = 'current.lua', extension = 'lua' }
+
+    ChatContext.context = {
+      mentioned_files = {},
+      mentioned_subagents = {},
+      selections = { { file = file, content = 'selected()', lines = '4, 4' } },
+      current_file = file,
+      cursor_data = nil,
+      linter_errors = {},
+    }
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_current_selection = function()
+      return nil
+    end
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    local input = context
+      .format_message('inspect selection', {
+        current_file = { enabled = true },
+        selection = { enabled = true },
+        diagnostics = { enabled = false },
+        cursor_data = { enabled = false },
+        buffer = { enabled = false },
+        git_diff = { enabled = false },
+      })
+      :wait()
+
+    assert.same({}, input.files)
+    assert.equals('selection', input.context[1].source.kind)
+
+    ChatContext.context = original_context
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_selection = original_get_current_selection
+    ChatContext.get_diagnostics = original_get_diagnostics
+  end)
+
+  it('keeps the automatic current file when selections target another file', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local BaseContext = require('opencode.context.base_context')
+    local original_context = ChatContext.context
+    local original_get_current_buf = BaseContext.get_current_buf
+    local original_get_current_selection = BaseContext.get_current_selection
+    local original_get_diagnostics = ChatContext.get_diagnostics
+    local current_file = { path = '/tmp/current.lua', name = 'current.lua', extension = 'lua' }
+
+    ChatContext.context = {
+      mentioned_files = {},
+      mentioned_subagents = {},
+      selections = {
+        {
+          file = { path = '/tmp/other.lua', name = 'other.lua', extension = 'lua' },
+          content = 'selected()',
+          lines = '4, 4',
+        },
+      },
+      current_file = current_file,
+      cursor_data = nil,
+      linter_errors = {},
+    }
+    BaseContext.get_current_buf = function()
+      return 1, 1
+    end
+    BaseContext.get_current_selection = function()
+      return nil
+    end
+    ChatContext.get_diagnostics = function()
+      return {}
+    end
+
+    local input = context
+      .format_message('inspect selection', {
+        current_file = { enabled = true },
+        selection = { enabled = true },
+        diagnostics = { enabled = false },
+        cursor_data = { enabled = false },
+        buffer = { enabled = false },
+        git_diff = { enabled = false },
+      })
+      :wait()
+
+    assert.equals('file:///tmp/current.lua', input.files[1].server_uri)
+    assert.equals('selection', input.context[1].source.kind)
+
+    ChatContext.context = original_context
+    BaseContext.get_current_buf = original_get_current_buf
+    BaseContext.get_current_selection = original_get_current_selection
+    ChatContext.get_diagnostics = original_get_diagnostics
   end)
 end)
 
@@ -243,41 +399,36 @@ describe('context update notifications', function()
 end)
 
 describe('delta_context', function()
-  local mock_context
-  local original_get_context
-
-  before_each(function()
-    mock_context = {
-      current_file = nil,
-      mentioned_files = nil,
-      mentioned_subagents = nil,
-      selections = nil,
-      linter_errors = nil,
-      cursor_data = nil,
+  it('returns changed automatic payloads and records their fingerprints', function()
+    local buffer = { text = 'local value = 1', source = { kind = 'buffer' } }
+    local diagnostics = { text = '{"content":[]}', source = { kind = 'diagnostics' } }
+    local submission_context = {}
+    local payloads = {
+      { key = 'buffer', part = buffer, present = true, cleared = buffer },
+      { key = 'diagnostics', part = diagnostics, present = false, cleared = diagnostics },
     }
 
-    original_get_context = context.get_context
-    context.get_context = function()
-      return mock_context
-    end
+    local first = context.delta_context(payloads, nil, submission_context)
+    assert.same({ buffer }, first)
+    assert.is_string(submission_context.automatic_context.buffer)
+    assert.is_string(submission_context.automatic_context.diagnostics)
+
+    local unchanged = context.delta_context(payloads, submission_context, {})
+    assert.same({}, unchanged)
   end)
 
-  after_each(function()
-    context.get_context = original_get_context
-  end)
-  it('removes current_file if unchanged', function()
-    local file = { name = 'foo.lua', path = '/tmp/foo.lua', extension = 'lua' }
-    mock_context.current_file = vim.deepcopy(file)
-    state.session.set_last_sent_context({ current_file = mock_context.current_file })
-    local result = context.delta_context()
-    assert.is_nil(result.current_file)
-  end)
-  it('removes mentioned_subagents if unchanged', function()
-    local subagents = { 'a' }
-    mock_context.mentioned_subagents = vim.deepcopy(subagents)
-    state.session.set_last_sent_context({ mentioned_subagents = vim.deepcopy(subagents) })
-    local result = context.delta_context()
-    assert.is_nil(result.mentioned_subagents)
+  it('emits a clearing payload when previously sent automatic context disappears', function()
+    local populated = { text = '{"content":["error"]}', source = { kind = 'diagnostics' } }
+    local cleared = { text = '{"content":[]}', source = { kind = 'diagnostics' } }
+    local previous = {}
+    context.delta_context({ { key = 'diagnostics', part = populated, present = true, cleared = populated } }, nil, previous)
+
+    local delta = context.delta_context(
+      { { key = 'diagnostics', part = cleared, present = false, cleared = cleared } },
+      previous,
+      {}
+    )
+    assert.same({ cleared }, delta)
   end)
 end)
 
@@ -294,7 +445,6 @@ describe('add_file/add_selection/add_subagent', function()
     ChatContext.context.selections = {}
     ChatContext.context.mentioned_subagents = {}
 
-    context.delta_context()
   end)
 
   after_each(function()
@@ -404,6 +554,32 @@ describe('context static API with config override', function()
     -- Should behave exactly like global context using static API
     assert.is_not_nil(context.is_context_enabled('current_file'))
     assert.is_not_nil(context.is_context_enabled('diagnostics'))
+  end)
+end)
+
+describe('context focus updates', function()
+  it('does not reload context when focus returns to the panel', function()
+    local original_subscribe = state.store.subscribe
+    local original_load = context.load
+    local focus_callback
+    local load_called = false
+
+    state.store.subscribe = function(keys, callback)
+      if keys == 'is_opencode_focused' then
+        focus_callback = callback
+      end
+    end
+    context.load = function()
+      load_called = true
+    end
+
+    context.setup()
+    focus_callback('is_opencode_focused', true, false)
+
+    assert.is_false(load_called)
+
+    context.load = original_load
+    state.store.subscribe = original_subscribe
   end)
 end)
 
@@ -760,7 +936,7 @@ describe('ChatContext.load() preserves selections on file switch', function()
     }
 
     -- Mock state to indicate active session
-    state.session.set_active(true)
+    state.session.set_active({ id = 'test-session' })
     state.ui.set_opening(false)
   end)
 

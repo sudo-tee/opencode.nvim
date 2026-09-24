@@ -1,4 +1,6 @@
 local input_window = require('opencode.ui.input_window')
+local workflow = require('opencode.commands.handlers.workflow')
+local autocmds = require('opencode.ui.autocmds')
 local state = require('opencode.state')
 local stub = require('luassert.stub')
 
@@ -64,7 +66,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(executed)
 
@@ -123,7 +125,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo "hello world"' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_not_nil(output_lines)
       assert.are.same('$ echo "hello world"', output_lines[1])
@@ -181,7 +183,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!ls' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(prompt_shown)
       assert.are.equal('Add command + output to context?', prompt_text)
@@ -230,7 +232,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       local input_lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
       local input_text = table.concat(input_lines, '\n')
@@ -288,7 +290,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!echo test' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       local output_lines = vim.api.nvim_buf_get_lines(output_buf, 0, -1, false)
       assert.are.same({ '' }, output_lines)
@@ -346,7 +348,7 @@ describe('input_window', function()
 
       vim.api.nvim_buf_set_lines(state.windows.input_buf, 0, -1, false, { '!invalid_command' })
 
-      input_window.handle_submit()
+      require('opencode.commands.handlers.workflow').actions.submit_input_prompt():await()
 
       assert.is_true(error_notified)
 
@@ -404,12 +406,12 @@ describe('input_window', function()
       stub(messaging, 'send_message').invokes(function() end)
 
       local group = vim.api.nvim_create_augroup('test_input_window_submit', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      autocmds.setup_autocmds(state.windows)
 
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
       state.ui.set_input_content({ 'hello world' })
 
-      input_window.handle_submit()
+      workflow.actions.submit_input_prompt()
 
       assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
       assert.same({ '' }, state.input_content)
@@ -423,12 +425,12 @@ describe('input_window', function()
       stub(messaging, 'send_message').invokes(function() end)
 
       local group = vim.api.nvim_create_augroup('test_input_window_submit_restore', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      autocmds.setup_autocmds(state.windows)
 
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'hello world' })
       state.ui.set_input_content({ 'hello world' })
 
-      input_window.handle_submit()
+      workflow.actions.submit_input_prompt()
       input_window.recover_input(state.windows)
 
       assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
@@ -476,6 +478,7 @@ describe('input_window', function()
     end)
 
     after_each(function()
+      require('opencode.ui.autocmds').setup_subscriptions(false)
       local config = require('opencode.config')
       config.ui = original_config
 
@@ -492,8 +495,7 @@ describe('input_window', function()
     it('should NOT auto-hide when output window is empty (new session)', function()
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { '' })
 
-      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      require('opencode.ui.autocmds').setup_subscriptions()
 
       vim.api.nvim_exec_autocmds('WinLeave', {
         buffer = input_buf,
@@ -502,15 +504,12 @@ describe('input_window', function()
 
       assert.is_false(input_window.is_hidden())
       assert.is_true(vim.api.nvim_win_is_valid(input_win))
-
-      vim.api.nvim_del_augroup_by_id(group)
     end)
 
     it('should auto-hide when output window has content and input is empty', function()
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
 
-      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      require('opencode.ui.autocmds').setup_subscriptions()
 
       vim.api.nvim_exec_autocmds('WinLeave', {
         buffer = input_buf,
@@ -518,8 +517,6 @@ describe('input_window', function()
       })
 
       assert.is_true(input_window.is_hidden())
-
-      vim.api.nvim_del_augroup_by_id(group)
     end)
 
     it('should NOT auto-hide when input has content', function()
@@ -527,8 +524,7 @@ describe('input_window', function()
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'user typing...' })
       state.ui.set_input_content({ 'user typing...' })
 
-      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      require('opencode.ui.autocmds').setup_subscriptions()
 
       vim.api.nvim_exec_autocmds('WinLeave', {
         buffer = input_buf,
@@ -537,16 +533,13 @@ describe('input_window', function()
 
       assert.is_false(input_window.is_hidden())
       assert.is_true(vim.api.nvim_win_is_valid(input_win))
-
-      vim.api.nvim_del_augroup_by_id(group)
     end)
 
     it('should NOT auto-hide when display_route is active', function()
       vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'User message', 'Assistant response' })
       state.ui.set_display_route(true)
 
-      local group = vim.api.nvim_create_augroup('test_input_window_autohide', { clear = true })
-      input_window.setup_autocmds(state.windows, group)
+      require('opencode.ui.autocmds').setup_subscriptions()
 
       vim.api.nvim_exec_autocmds('WinLeave', {
         buffer = input_buf,
@@ -555,8 +548,6 @@ describe('input_window', function()
 
       assert.is_false(input_window.is_hidden())
       assert.is_true(vim.api.nvim_win_is_valid(input_win))
-
-      vim.api.nvim_del_augroup_by_id(group)
     end)
   end)
 
@@ -670,10 +661,12 @@ describe('input_window', function()
     end)
   end)
 
-  local function make_message(parts)
+  local function make_entry(content)
     return {
-      info = { id = 'msg_1', sessionID = 'ses_1', role = 'user' },
-      parts = parts,
+      id = 'msg_1',
+      session_id = 'ses_1',
+      kind = 'user',
+      content = content,
     }
   end
 
@@ -684,80 +677,80 @@ describe('input_window', function()
     end)
 
     it('returns nil when the message has no parts', function()
-      local prompt = input_window.build_prompt_from_message(make_message({}))
+      local prompt = input_window.build_prompt_from_message(make_entry({}))
       assert.is_nil(prompt)
     end)
 
     it('emits the raw text from a single non-synthetic text part', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'hello world' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'hello world' },
       }))
       assert.same({ 'hello world' }, prompt.lines)
       assert.same({}, prompt.mention_paths)
     end)
 
     it('skips synthetic text parts', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', synthetic = true, text = 'should be dropped' },
-        { type = 'text', text = 'keep me' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', synthetic = true, text = 'should be dropped' },
+        { kind = 'text', text = 'keep me' },
       }))
       assert.same({ 'keep me' }, prompt.lines)
     end)
 
     it('emits @<path> tokens for file parts using filename', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'look at' },
-        { type = 'file', filename = 'lua/opencode/foo.lua' },
-        { type = 'text', text = 'thanks' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'look at' },
+        { kind = 'file', name = 'lua/opencode/foo.lua' },
+        { kind = 'text', text = 'thanks' },
       }))
       assert.same({ 'look at', '@lua/opencode/foo.lua ', 'thanks' }, prompt.lines)
       assert.same({ 'lua/opencode/foo.lua' }, prompt.mention_paths)
     end)
 
     it('falls back to source.path when filename is missing', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'file', source = { path = 'src/main.lua' } },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'file', source = { kind = 'file', path = 'src/main.lua' } },
       }))
       assert.same({ '@src/main.lua ' }, prompt.lines)
       assert.same({ 'src/main.lua' }, prompt.mention_paths)
     end)
 
     it('emits @<name> tokens for agent parts', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'use' },
-        { type = 'agent', name = 'build' },
-        { type = 'text', text = 'to compile' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'use' },
+        { kind = 'agent', name = 'build' },
+        { kind = 'text', text = 'to compile' },
       }))
       assert.same({ 'use', '@build ', 'to compile' }, prompt.lines)
       assert.same({ 'build' }, prompt.mention_paths)
     end)
 
     it('skips tool, step-start, and patch parts', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'first' },
-        { type = 'tool', text = 'should be dropped' },
-        { type = 'step-start' },
-        { type = 'patch', text = 'also dropped' },
-        { type = 'text', text = 'last' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'first' },
+        { kind = 'tool', text = 'should be dropped' },
+        { kind = 'step_start' },
+        { kind = 'patch', text = 'also dropped' },
+        { kind = 'text', text = 'last' },
       }))
       assert.same({ 'first', 'last' }, prompt.lines)
       assert.same({}, prompt.mention_paths)
     end)
 
     it('splits text parts on embedded newlines into separate lines', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'line1\nline2' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'line1\nline2' },
       }))
       assert.same({ 'line1', 'line2' }, prompt.lines)
     end)
 
     it('splits text parts on embedded newlines interleaved with mentions', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = 'before' },
-        { type = 'file', filename = 'a.lua' },
-        { type = 'text', text = 'middle\nmore' },
-        { type = 'agent', name = 'build' },
-        { type = 'text', text = 'after' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = 'before' },
+        { kind = 'file', name = 'a.lua' },
+        { kind = 'text', text = 'middle\nmore' },
+        { kind = 'agent', name = 'build' },
+        { kind = 'text', text = 'after' },
       }))
       assert.same({
         'before',
@@ -771,12 +764,12 @@ describe('input_window', function()
     end)
 
     it('handles nil and non-string fields defensively', function()
-      local prompt = input_window.build_prompt_from_message(make_message({
-        { type = 'text', text = nil },
-        { type = 'text' },
-        { type = 'text', text = 'safe' },
-        { type = 'file', filename = nil },
-        { type = 'agent', name = '' },
+      local prompt = input_window.build_prompt_from_message(make_entry({
+        { kind = 'text', text = nil },
+        { kind = 'text' },
+        { kind = 'text', text = 'safe' },
+        { kind = 'file', name = nil },
+        { kind = 'agent', name = '' },
       }))
       assert.same({ 'safe' }, prompt.lines)
       assert.same({}, prompt.mention_paths)
@@ -822,8 +815,8 @@ describe('input_window', function()
 
     it('parks the cursor at the end of the refilled text', function()
       local input_buf, input_win, output_buf, output_win = open_input_window()
-      local message = make_message({
-        { type = 'text', text = 'refactor this' },
+      local message = make_entry({
+        { kind = 'text', text = 'refactor this' },
       })
       input_window.refill_prompt_from_message(message)
       local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
@@ -836,10 +829,10 @@ describe('input_window', function()
 
     it('parks the cursor on the last line of a multi-line refill', function()
       local input_buf, input_win, output_buf, output_win = open_input_window()
-      local message = make_message({
-        { type = 'text', text = 'line1' },
-        { type = 'text', text = 'line2' },
-        { type = 'text', text = 'line3' },
+      local message = make_entry({
+        { kind = 'text', text = 'line1' },
+        { kind = 'text', text = 'line2' },
+        { kind = 'text', text = 'line3' },
       })
       input_window.refill_prompt_from_message(message)
       local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
@@ -852,10 +845,10 @@ describe('input_window', function()
 
     it('parks the cursor after the mention token when a file is attached', function()
       local input_buf, input_win, output_buf, output_win = open_input_window()
-      local message = make_message({
-        { type = 'text', text = 'look at' },
-        { type = 'file', filename = 'lua/opencode/foo.lua' },
-        { type = 'text', text = 'thanks' },
+      local message = make_entry({
+        { kind = 'text', text = 'look at' },
+        { kind = 'file', name = 'lua/opencode/foo.lua' },
+        { kind = 'text', text = 'thanks' },
       })
       input_window.refill_prompt_from_message(message)
       local lines = vim.api.nvim_buf_get_lines(input_buf, 0, -1, false)
@@ -869,7 +862,7 @@ describe('input_window', function()
     it('returns false and does not touch the buffer when there is nothing to refill', function()
       local input_buf, input_win, output_buf, output_win = open_input_window()
       vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'untouched' })
-      local filled = input_window.refill_prompt_from_message(make_message({}))
+      local filled = input_window.refill_prompt_from_message(make_entry({}))
       assert.is_false(filled)
       assert.same({ 'untouched' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
       cleanup(input_buf, input_win, output_buf, output_win)

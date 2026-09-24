@@ -1,6 +1,3 @@
----@type OpencodeState
-local state = require('opencode.state')
-
 local M = {
   actions = {},
 }
@@ -27,18 +24,7 @@ function M.actions.respond_to_permission(answer, permission, message)
     return
   end
 
-  local data = { reply = answer }
-  if message and message ~= '' then
-    data.message = message
-  end
-
-  state.api_client
-    :reply_to_permission(current_permission.id, data)
-    :catch(function(err)
-      vim.schedule(function()
-        vim.notify('Failed to reply to permission: ' .. vim.inspect(err), vim.log.levels.ERROR)
-      end)
-    end)
+  return permission_window.reply(current_permission, answer, message ~= '' and message or nil)
 end
 
 ---@param permission? OpencodePermission

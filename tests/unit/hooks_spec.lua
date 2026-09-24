@@ -3,8 +3,8 @@ local stub = require('luassert.stub')
 local config = require('opencode.config')
 local state = require('opencode.state')
 local session_runtime = require('opencode.services.session_runtime')
-local events = require('opencode.ui.renderer.events')
 local helpers = require('tests.helpers')
+local service_support = require('tests.unit.services_spec_support')
 local ui = require('opencode.ui.ui')
 
 local function expect_nil_hook_no_error(run)
@@ -16,6 +16,33 @@ local function expect_throwing_hook_no_crash(set_hook, run)
     error('test error')
   end)
   assert.has_no.errors(run)
+end
+
+local function reconcile_file_change(path)
+  local observation = {
+    read = function()
+      return {
+        session = { id = 'test-session', location = { directory = helpers.MOCK_CWD } },
+        sync = { session = { state = 'current' } },
+        entries_by_id = {},
+        entry_order = {},
+        files = { revision = 1, last = { path = path } },
+      }
+    end,
+    watch = function()
+      return function() end
+    end,
+  }
+  state.jobs.set_server({
+    is_ready = function()
+      return true
+    end,
+    observe = function()
+      return observation
+    end,
+  })
+  state.session.set_active({ id = 'test-session', location = { directory = helpers.MOCK_CWD } })
+  renderer.on_session_changed(nil, state.active_session, nil)
 end
 
 describe('hooks', function()
@@ -51,8 +78,7 @@ describe('hooks', function()
         file_path = file
       end
 
-      local test_event = { file = '/test/file.lua' }
-      events.on_file_edited(test_event)
+      reconcile_file_change('/test/file.lua')
 
       assert.is_true(called)
       assert.are.equal('/test/file.lua', file_path)
@@ -60,18 +86,16 @@ describe('hooks', function()
 
     it('should not error when hook is nil', function()
       config.hooks.on_file_edited = nil
-      local test_event = { file = '/test/file.lua' }
       expect_nil_hook_no_error(function()
-        events.on_file_edited(test_event)
+        reconcile_file_change('/test/file.lua')
       end)
     end)
 
     it('should not crash when hook throws error', function()
-      local test_event = { file = '/test/file.lua' }
       expect_throwing_hook_no_crash(function(fn)
         config.hooks.on_file_edited = fn
       end, function()
-        events.on_file_edited(test_event)
+        reconcile_file_change('/test/file.lua')
       end)
     end)
   end)
@@ -93,7 +117,7 @@ describe('hooks', function()
       renderer._render_full_session_data(loaded_session)
 
       assert.is_true(called)
-      assert.are.same(state.active_session, session_data)
+      assert.equals(state.active_session.id, session_data.id)
     end)
 
     it('should not error when hook is nil', function()
@@ -119,16 +143,14 @@ describe('hooks', function()
   end)
 
   describe('on_done_thinking', function()
-    local get_session
-
     before_each(function()
-      get_session = stub(require('opencode.session'), 'get_by_id').returns(
-        require('opencode.promise').new():resolve({ id = 'test-session', title = 'Test' })
-      )
+      local connection = service_support.mock_connection()
+      connection.session_facts['test-session'] = { title = 'Test' }
+      state.jobs.set_server(connection)
     end)
 
     after_each(function()
-      get_session:revert()
+      state.jobs.clear_server()
     end)
 
     it('should call hook when thinking is done', function()
@@ -140,14 +162,12 @@ describe('hooks', function()
       session_runtime.on_session_request_completed('test-session'):wait()
 
       assert.equals('test-session', called_session.id)
-      assert.stub(get_session).was_called_with('test-session')
     end)
 
     it('should not error when hook is nil', function()
       expect_nil_hook_no_error(function()
         session_runtime.on_session_request_completed('test-session'):wait()
       end)
-      assert.stub(get_session).was_not_called()
     end)
 
     it('should not crash when hook throws error', function()
@@ -158,34 +178,6 @@ describe('hooks', function()
       end)
     end)
 
-    it('should call hook for idle child or externally-created sessions', function()
-      local original_manager = state.event_manager
-      local idle_callback
-      local manager = {
-        subscribe = function(_, event_name, callback)
-          if event_name == 'session.idle' then
-            idle_callback = callback
-          end
-        end,
-        unsubscribe = function() end,
-      }
-      local called_session
-      config.hooks.on_done_thinking = function(session)
-        called_session = session
-      end
-
-      state.jobs.set_event_manager(manager)
-      session_runtime.setup()
-      idle_callback({ sessionID = 'test-session' })
-
-      vim.wait(50, function()
-        return called_session ~= nil
-      end)
-
-      assert.equals('test-session', called_session.id)
-      state.jobs.set_event_manager(original_manager)
-      session_runtime.setup()
-    end)
   end)
 
   describe('on_permission_requested', function()
@@ -198,20 +190,14 @@ describe('hooks', function()
         called_session = session
       end
 
-      -- Mock session.get_by_id to return our test session
-      local session_module = require('opencode.session')
-      local original_get_by_id = session_module.get_by_id
-      session_module.get_by_id = function(id)
-        local promise = require('opencode.promise').new()
-        promise:resolve({ id = id, title = 'Test' })
-        return promise
-      end
+      local connection = service_support.mock_connection()
+      connection.session_facts['test-session'] = { title = 'Test' }
 
       -- Set up the subscription manually
       state.store.subscribe('pending_permissions', session_runtime._on_current_permission_change)
 
       -- Simulate permission change from nil to a value
-      state.session.set_active({ id = 'test-session', title = 'Test' })
+      state.session.set_active({ id = 'test-session', title = 'Test', location = { directory = helpers.MOCK_CWD } })
       state.renderer.set_pending_permissions({ { tool = 'test_tool', action = 'read' } })
 
       -- Wait for async notification
@@ -219,8 +205,6 @@ describe('hooks', function()
         return called
       end)
 
-      -- Restore original function
-      session_module.get_by_id = original_get_by_id
       state.store.unsubscribe('pending_permissions', session_runtime._on_current_permission_change)
 
       assert.is_true(called)
@@ -252,7 +236,7 @@ describe('reference target local file lifecycle autocmds', function()
     local original_create_autocmd = vim.api.nvim_create_autocmd
     local created = {}
 
-    local invalidate_stub = stub(events, 'invalidate_reference_targets_for_file_change')
+    local invalidate_stub = stub(renderer, 'invalidate_reference_targets_for_file_change')
     local ok, err = pcall(function()
       vim.api.nvim_create_augroup = function()
         return 42

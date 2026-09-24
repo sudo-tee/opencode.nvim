@@ -1,5 +1,4 @@
 ---@generic T
----@generic U
 ---@class Promise<T>
 ---@field __index Promise<T>
 ---@field _resolved boolean
@@ -9,22 +8,6 @@
 ---@field _then_callbacks fun(value: T)[]
 ---@field _catch_callbacks fun(err: any)[]
 ---@field _coroutines thread[]
----@field new fun(): Promise<T>
----@field resolve fun(self: Promise<T>, value: T): Promise<T>
----@field reject fun(self: Promise<T>, err: any): Promise<T>
----@field and_then fun(self: Promise<T>, callback: fun(value: T): U | Promise<U> | nil): Promise<U>
----@field catch fun(self: Promise<T>, error_callback: fun(err: any): any | Promise<any> | nil): Promise<T>
----@field finally fun(self: Promise<T>, callback: fun(): nil): Promise<T>
----@field wait fun(self: Promise<T>, timeout?: integer, interval?: integer): T
----@field peek fun(self: Promise<T>): T
----@field is_resolved fun(self: Promise<T>): boolean
----@field is_rejected fun(self: Promise<T>): boolean
----@field await fun(self: Promise<T>): T
----@field is_promise fun(obj: any): boolean
----@field wrap fun(obj: T | Promise<T>): Promise<T>
----@field spawn fun(fn: fun(): T|nil): Promise<T>
----@field async fun(fn: fun(...): T?): fun(...): Promise<T>
----@field system fun(table, table): Promise<T>
 local Promise = {}
 Promise.__index = Promise
 
@@ -108,8 +91,8 @@ function Promise:reject(err)
 end
 
 ---@generic U
----@param callback fun(value: T): U | Promise<U> | nil
----@return Promise<U>?
+---@param callback fun(value: T): U
+---@return Promise<U>
 function Promise:and_then(callback)
   if not callback then
     error('callback is required')
@@ -443,8 +426,9 @@ end
 ---@param factory fun(): Promise<T> Creates a fresh promise per attempt
 ---@param max_retries number Total attempts (1 = no retry)
 ---@param delay_ms number Delay between retries in milliseconds
+---@param should_retry? fun(err: any): boolean Stop immediately for errors this predicate rejects.
 ---@return Promise<T>
-function Promise.retry(factory, max_retries, delay_ms)
+function Promise.retry(factory, max_retries, delay_ms, should_retry)
   return Promise.spawn(function()
     local last_err
     for i = 1, max_retries do
@@ -455,6 +439,9 @@ function Promise.retry(factory, max_retries, delay_ms)
         return result
       end
       last_err = result
+      if should_retry and not should_retry(result) then
+        break
+      end
       if i < max_retries then
         Promise.delay(delay_ms):await()
       end

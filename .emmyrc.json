@@ -4,6 +4,9 @@
         "version": "LuaJIT"
     },
     "diagnostics": {
+        "globals": [
+            "vim"
+        ],
         "enables": [
             "missing-global-doc"
         ]
@@ -15,6 +18,11 @@
         ],
         "ignoreGlobs": [
             "**/*_spec.lua"
+        ],
+        "ignoreDir": [
+            "tests/manual/deps/",
+            "tests/data/deps/",
+            "deps"
         ]
     }
 }

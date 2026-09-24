@@ -43,16 +43,6 @@ function M.set_server_port(port)
   end)
 end
 
----@param client OpencodeApiClient|nil
-function M.set_api_client(client)
-  return store.set('api_client', client)
-end
-
----@param manager EventManager|nil
-function M.set_event_manager(manager)
-  return store.set('event_manager', manager)
-end
-
 ---@param version Promise<string>|nil
 function M.set_opencode_cli_version(version)
   return store.set('opencode_cli_version', version)

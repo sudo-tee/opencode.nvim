@@ -142,6 +142,7 @@ require('opencode').setup({
     path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
     username = nil,        -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
     password = nil,        -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
+    password_file = nil,   -- Shared V1 password file; fixed ports default to an owner-only per-port state file
   },
 
   keymap = {
@@ -327,7 +328,7 @@ require('opencode').setup({
       info = false, -- Include diagnostics info in the context (default to false
       warning = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
-      only_closest = false, -- If true, only diagnostics for cursor/selection
+      only_closest = true, -- Only diagnostics for cursor/selection; disable to include the whole buffer
     },
     current_file = {
       enabled = true, -- Include current file path and content in the context
@@ -540,7 +541,7 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 
 ### Window Persistence Behavior
 
-`ui.persist_state` controls how `toggle` behaves:
+`ui.persist_state` controls how `toggle` and `close` behave:
 
 - `persist_state = true` (default): `toggle()` hides/restores the UI and keeps buffers/session view in memory for fast restore.
 - `persist_state = false`: `toggle()` fully tears down UI buffers and recreates them on next open.
@@ -548,7 +549,7 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 Related APIs:
 
 - `require('opencode.api').toggle()` follows the `persist_state` behavior above.
-- `require('opencode.api').close()` always fully closes and clears hidden snapshot state.
+- `require('opencode.api').close()` preserves buffers when `persist_state = true`; otherwise it fully closes.
 - `require('opencode.api').hide()` preserves buffers only when `persist_state = true`; otherwise it behaves like close.
 
 ### Picker Layout
@@ -805,6 +806,10 @@ Opencode can issue permission requests for potentially destructive operations (f
 ## 📝 Context
 
 The following editor context is automatically captured and included in your conversations.
+
+Unchanged automatic payloads (diagnostics, buffer, cursor data, and staged diff) are sent once per session, then sent again only after their content changes. Explicit file mentions and selections are always sent.
+
+When a selection targets the current file, the automatic current-file attachment is skipped. The selected lines provide focused context; the agent can read more of the file when needed. An explicit file mention is still honored.
 
 | Context Type    | Description                                          |
 | --------------- | ---------------------------------------------------- |

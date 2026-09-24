@@ -79,7 +79,7 @@ M.defaults = {
       ['<leader>ott'] = { 'toggle_tool_output',                                desc = 'Toggle tool output' },
       ['<leader>otm'] = { 'toggle_max_messages',                               desc = 'Toggle max messages' },
       ['<leader>o/'] =  { 'quick_chat',                   mode = { 'n', 'x' }, desc = 'Quick chat with current context' },
-      ['<leader>odu'] = { 'copy_server_url',                                   desc = 'Copy server url' },
+      ['<leader>oDu'] = { 'copy_server_url',                                   desc = 'Copy server url' },
 
     },
     output_window = {
@@ -103,7 +103,7 @@ M.defaults = {
       ['<leader>oB'] =  { 'navigate_session_tree', { 'sibling', 'picker' },   desc = 'Select sibling session' },
       ['<leader>oD'] =  { 'debug_message',                                     desc = 'Open raw message debug view' },
       ['<leader>oO'] =  { 'debug_output',                                      desc = 'Open raw output debug view' },
-      ['<leader>ods'] = { 'debug_session',                                     desc = 'Open raw session debug view' },
+      ['<leader>oDs'] = { 'debug_session',                                     desc = 'Open raw session debug view' },
     },
     tab_strip_window = {
       ['<LeftMouse>'] =   { 'select_session_tab_target', { 'mouse' },  nowait = true, desc = 'Select tab under mouse' },
@@ -132,7 +132,7 @@ M.defaults = {
       ['<leader>oB'] =  { 'navigate_session_tree', { 'sibling', 'picker' },   desc = 'Select sibling session' },
       ['<leader>oD'] =  { 'debug_message',                                     desc = 'Open raw message debug view'                              },
       ['<leader>oO'] =  { 'debug_output',                                      desc = 'Open raw output debug view'                               },
-      ['<leader>ods'] = { 'debug_session',                                     desc = 'Open raw session debug view'                              },
+      ['<leader>oDs'] = { 'debug_session',                                     desc = 'Open raw session debug view'                              },
     },
     session_picker = {
       rename_session = { '<C-r>',                                              desc = 'Rename selected session' },

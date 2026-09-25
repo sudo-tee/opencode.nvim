@@ -84,6 +84,30 @@ describe('formatter', function()
     assert.are.equal(' **  tool** ', output.lines[3])
   end)
 
+  it('renders V2 subagent description, agent, result, and child-session action', function()
+    local part = tool('subagent', {
+      input = { agent = 'explore', description = 'inspect repository', prompt = 'Find all callers' },
+      child_session = { id = 'ses_child' },
+      result = {
+        { kind = 'text', text = '<subagent sessionID="ses_child" state="completed">\nFound two callers\n</subagent>' },
+      },
+      time = { started = 1, completed = 2 },
+    })
+    local output = formatter.format_part(part, assistant(), true, {
+      get_child_parts = function()
+        return { tool('read', { target = { path = '/tmp/project' } }) }
+      end,
+    })
+
+    assert.is_truthy(output.lines[1]:find('subagent', 1, true))
+    assert.is_truthy(output.lines[1]:find('inspect repository (@explore)', 1, true))
+    assert.is_truthy(table.concat(output.lines, '\n'):find('Found two callers', 1, true))
+    assert.is_falsy(table.concat(output.lines, '\n'):find('<subagent', 1, true))
+    assert.is_falsy(table.concat(output.lines, '\n'):find('</subagent>', 1, true))
+    assert.is_truthy(table.concat(output.lines, '\n'):find('read', 1, true))
+    assert.same({ 'ses_child' }, output.actions[1].args)
+  end)
+
   it('renders task child bash commands on one line', function()
     local message = assistant()
     local part = tool('task', {

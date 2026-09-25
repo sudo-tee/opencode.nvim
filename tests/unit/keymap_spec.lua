@@ -239,6 +239,7 @@ describe('opencode.keymap', function()
       }, bufnr, true)
 
       assert.equal(0, #set_keymaps)
+      assert.equal(0, #notify_calls)
       vim.g.mapleader = original_mapleader
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)

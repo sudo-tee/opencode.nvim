@@ -1,9 +1,11 @@
 local icons = require('opencode.ui.icons')
+local context = require('opencode.context')
 
 local M = {}
 local stats_ns = vim.api.nvim_create_namespace('OpencodeSessionDiffStats')
 local title_ns = vim.api.nvim_create_namespace('OpencodeSessionDiffTitle')
 local turns_ns = vim.api.nvim_create_namespace('OpencodeSessionDiffTurns')
+local comments_ns = vim.api.nvim_create_namespace('OpencodeSessionDiffComments')
 local status_highlights = { added = 'Added', modified = 'DiagnosticWarn', deleted = 'Removed' }
 
 ---@class OpencodeSessionDiffNode
@@ -51,6 +53,16 @@ end
 function M.tree(view, file_icon)
   local lines = { '' }
   local rows = { view.tree }
+  ---@type table<string, OpencodeContextReviewComment[]>
+  local comments_by_file = {}
+  for _, comment in ipairs(context.get_review_comments()) do
+    local comments = comments_by_file[comment.file]
+    if not comments then
+      comments = {}
+      comments_by_file[comment.file] = comments
+    end
+    comments[#comments + 1] = comment
+  end
   ---@type {row: integer, start: integer, finish: integer, group: string}[]
   local marks = {}
   ---@param node OpencodeSessionDiffNode
@@ -67,9 +79,14 @@ function M.tree(view, file_icon)
       if child.file_index then
         local file = assert(view.files[child.file_index])
         local icon, highlight = file_icon(child.name)
-        local prefix = '  ' .. file.status:sub(1, 1):upper() .. '     ' .. indent
-        lines[#lines + 1] = ('%s%s %s  +%d -%d'):format(
-          prefix, icon, child.name, file.additions, file.deletions
+        local prefix = '  ' .. file.status:sub(1, 1):upper() .. ' ' .. indent .. '  '
+        local comments = comments_by_file[file.file] or {}
+        lines[#lines + 1] = ('%s%s %s  +%d -%d%s'):format(
+          prefix, icon, child.name, file.additions, file.deletions,
+          #comments > 0 and ('  %s%d%s'):format(icons.get('review_comment'), #comments,
+            #vim.tbl_filter(function(comment)
+              return comment.session_id ~= view.session.id or comment.from ~= view.from or comment.to ~= view.to
+            end, comments) > 0 and '*' or '') or ''
         )
         marks[#marks + 1] = { row = #lines, start = 2, finish = 3, group = status_highlights[file.status] }
         if highlight then
@@ -83,7 +100,7 @@ function M.tree(view, file_icon)
           last = last.children[1]
           name = name .. '/' .. last.name
         end
-        local prefix = '    ' .. indent .. (child.expanded and '▾ ' or '▸ ')
+        local prefix = '  ' .. '  ' .. indent .. (child.expanded and '▾ ' or '▸ ')
         lines[#lines + 1] = prefix .. icons.get('folder') .. name .. '/'
         marks[#marks + 1] = { row = #lines, start = #prefix, finish = #lines[#lines], group = 'Directory' }
         rows[#rows + 1] = child
@@ -109,16 +126,100 @@ function M.tree(view, file_icon)
     if node.file_index then
       local file = view.files[node.file_index] --[[@as OpencodeV2FileDiff]]
       local line = assert(lines[row])
-      local add_start = #line - #('+' .. file.additions .. ' -' .. file.deletions)
-      local del_start = #line - #('-' .. file.deletions)
+      local stats = '+' .. file.additions .. ' -' .. file.deletions
+      local add_start = assert(line:find(stats, 1, true)) - 1
+      local del_start = add_start + #('+' .. file.additions .. ' ')
       vim.api.nvim_buf_set_extmark(view.list_buf, stats_ns, row - 1, add_start, {
         end_col = del_start - 1,
         hl_group = 'Added',
       })
       vim.api.nvim_buf_set_extmark(view.list_buf, stats_ns, row - 1, del_start, {
-        end_col = #line,
+        end_col = del_start + #('-' .. file.deletions),
         hl_group = 'Removed',
       })
+      if comments_by_file[file.file] then
+        vim.api.nvim_buf_set_extmark(view.list_buf, stats_ns, row - 1, del_start + #('-' .. file.deletions), {
+          end_col = #line,
+          hl_group = 'OpencodeContextReviewComment',
+        })
+      end
+    end
+  end
+end
+
+---@param view OpencodeSessionDiffView
+function M.comments(view)
+  local file = assert(view.files[view.index])
+  local map = view.mode == 'patch' and view.patch_map or nil
+  for _, win in ipairs(view.right_win and { view.preview_win, view.right_win } or { view.preview_win }) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    vim.api.nvim_buf_clear_namespace(buf, comments_ns, 0, -1)
+    local count = vim.api.nvim_buf_line_count(buf)
+    for _, comment in ipairs(context.get_review_comments(file.file)) do
+      local same_range = comment.session_id == view.session.id and comment.from == view.from and comment.to == view.to
+      local start_line, end_line = comment.start_line, comment.end_line
+      local found = same_range
+      if not same_range and comment.session_id == view.session.id then
+        local side_lines
+        if map then
+          side_lines = comment.side == 'after' and view.after_lines or view.before_lines
+        elseif (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after') then
+          side_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+        end
+        if side_lines then
+          local code = vim.split(comment.code, '\n', { plain = true })
+          for index = 1, #side_lines - #code + 1 do
+            if table.concat(vim.list_slice(side_lines, index, index + #code - 1), '\n') == comment.code then
+              start_line, end_line = index, index + #code - 1
+              found = true
+              break
+            end
+          end
+        end
+      end
+      local rows = {}
+      if found then
+        if map then
+          for row, entry in ipairs(map) do
+            local number = comment.side == 'after' and entry.new or nil
+            if comment.side == 'before' then
+              number = entry.old
+            end
+            if number and number >= start_line and number <= end_line then
+              rows[#rows + 1] = row
+            end
+          end
+        elseif (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after') then
+          for row = start_line, end_line do
+            rows[#rows + 1] = row
+          end
+        end
+      end
+      if #rows > 0 then
+        for _, row in ipairs(rows) do
+          if row <= count then
+            vim.api.nvim_buf_set_extmark(buf, comments_ns, row - 1, 0, {
+              sign_text = icons.get('review_comment'),
+              sign_hl_group = same_range and 'OpencodeReviewCommentSign' or 'Comment',
+            })
+          end
+        end
+        local last = rows[#rows]
+        if last and last <= count then
+          local parts = vim.split(comment.comment, '\n', { plain = true })
+          local label = parts[1]:sub(1, 72) .. (#parts > 1 and (' (+%d lines)'):format(#parts - 1) or '')
+          local resolution = comment.resolution
+          local status = resolution and resolution.status
+          local badge = not same_range and ' from another turn' or status == 'moved' and (' moved → L' .. resolution.start_line)
+            or status == 'modified' and ' changed since review'
+            or status == 'removed' and ' code removed'
+            or status == 'missing_file' and ' file missing' or ''
+          vim.api.nvim_buf_set_extmark(buf, comments_ns, last - 1, 0, {
+            virt_lines = { { { '  ' .. label, same_range and 'OpencodeReviewComment' or 'Comment' },
+              { badge, same_range and 'OpencodeReviewCommentStale' or 'Comment' } } },
+          })
+        end
+      end
     end
   end
 end
@@ -140,6 +241,15 @@ function M.title(view)
   lines[#lines + 1] = { { '  ' .. line, 'Title' } }
   lines[#lines + 1] = { { ' ' } }
   lines[#lines + 1] = { { ('  Changes (%d)'):format(#view.files), 'Normal' } }
+  if view.range_key then
+    local message_count = view.range_mode and view.turn_to - view.turn_from + 1 or view.message_count
+    local message_label = message_count == 1 and '1 message' or message_count and (message_count .. ' messages') or 'Message range'
+    lines[#lines + 1] = {
+      { '  ' .. message_label .. ' · ', 'Comment' },
+      { '<' .. view.range_key .. '>', 'OpencodeInputLegend' },
+      { ' choose range', 'Comment' },
+    }
+  end
   if view.from then
     local last = view.to or view.from
     local label = view.from == last and view.from:sub(-12) or view.from:sub(-8) .. ' → ' .. last:sub(-8)

@@ -47,6 +47,9 @@ local function prepare_message(observation, prompt, opts)
   context.load()
 
   local submission_context = vim.deepcopy(context.get_context())
+  submission_context.review_comments = vim.tbl_filter(function(comment)
+    return comment.session_id == state.active_session.id
+  end, submission_context.review_comments or {})
   submission_context.automatic_context = {}
   local previous_context = state.last_sent_context and vim.deepcopy(state.last_sent_context)
   local selected = {

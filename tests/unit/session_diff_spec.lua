@@ -61,6 +61,28 @@ describe('session diff', function()
     assert.is_false(mapped(message_buf, 'p'))
   end)
 
+  it('aligns folders and files at the same tree depth', function()
+    local cwd = vim.fn.getcwd()
+    diff.open({
+      file(cwd .. '/lua/opencode/ui/session_diff.lua', '@@ -1 +1 @@\n-old\n+new'),
+      file(cwd .. '/lua/opencode/ui/session_diff/render.lua', '@@ -1 +1 @@\n-old\n+new'),
+    }, { id = 'ses_tree' })
+
+    local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 0, -1, false)
+    local function column(name)
+      for _, line in ipairs(lines) do
+        local start = line:find(name, 1, true)
+        if start then
+          return vim.fn.strdisplaywidth(line:sub(1, start - 1))
+        end
+      end
+      error('missing tree item: ' .. name)
+    end
+
+    assert.equals(column('session_diff.lua'), column('session_diff/'))
+    assert.is_true(column('render.lua') > column('session_diff.lua'))
+  end)
+
   it('toggles help with configured keys and shows only active mappings', function()
     config.keymap.session_diff.list['g?'] = false
     config.keymap.session_diff.list['?'] = { 'toggle_help', desc = 'Show keymaps' }
@@ -110,6 +132,127 @@ describe('session diff', function()
     }, '\n'))
     assert.same({ 'unchanged', 'old', 'middle', 'tail', 'last' }, before)
     assert.same({ 'unchanged', 'new', 'middle', 'end', 'last' }, after)
+  end)
+
+  it('maps patch buffer rows across headers and multiple hunks', function()
+    assert.same({ {}, {}, {}, { old = 1, new = 1 }, { old = 2 }, { new = 2 },
+      {}, { old = 3, new = 3 }, { old = 4 }, { new = 4 } }, patch.line_map(table.concat({
+      '--- a/file', '+++ b/file', '@@ -1,2 +1,2 @@', ' unchanged', '-old', '+new',
+      '@@ -3,2 +3,2 @@', ' context', '-tail', '+end',
+    }, '\n')))
+  end)
+
+  it('adds and edits snapshot comments on either side, then redraws markers', function()
+    local context = require('opencode.context')
+    local comment_input = require('opencode.ui.session_diff.comment_input')
+    local original_open = comment_input.open
+    local saved = context.snapshot()
+    context.clear_review_comments()
+    local path = vim.fn.getcwd() .. '/review-snapshot.lua'
+    local content = '@@ -1,2 +1,2 @@\n unchanged\n-old\n+new'
+    comment_input.open = function(opts) opts.on_submit('Please check') end
+    diff.open({ file(path, content) }, { id = 'session' }, { from = 'turn' })
+    local list_buf = vim.api.nvim_get_current_buf()
+    local wins = vim.api.nvim_tabpage_list_wins(0)
+    local before, after
+    for _, win in ipairs(wins) do
+      local title = vim.wo[win].winbar
+      if title:find('Before:', 1, true) then before = win end
+      if title:find('After:', 1, true) then after = win end
+    end
+    vim.api.nvim_set_current_win(after)
+    vim.api.nvim_win_set_cursor(after, { 2, 0 })
+    diff.add_comment()
+    local title_ns = vim.api.nvim_get_namespaces().OpencodeSessionDiffTitle
+    local title_marks = vim.api.nvim_buf_get_extmarks(list_buf, title_ns, 0, -1, { details = true })
+    local title_visible = false
+    for _, mark in ipairs(title_marks) do
+      for _, line in ipairs(mark[4].virt_lines or {}) do
+        title_visible = title_visible or table.concat(vim.tbl_map(function(chunk) return chunk[1] end, line))
+          :find('Changes (1)', 1, true) ~= nil
+      end
+    end
+    assert.is_true(title_visible)
+    local entry = context.get_review_comments(path)[1]
+    assert.equals('after', entry.side)
+    assert.equals(2, entry.start_line)
+    assert.equals('new', entry.code)
+    assert.equals('turn', entry.from)
+    local ns = vim.api.nvim_get_namespaces().OpencodeSessionDiffComments
+    local marks = vim.api.nvim_buf_get_extmarks(vim.api.nvim_win_get_buf(after), ns, 0, -1, { details = true })
+    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
+      return mark[4].sign_text
+    end, marks), icons.get('review_comment')))
+    vim.api.nvim_set_current_win(before)
+    vim.api.nvim_win_set_cursor(before, { 2, 0 })
+    diff.add_comment()
+    assert.equals('before', context.get_review_comments(path)[2].side)
+    assert.equals('old', context.get_review_comments(path)[2].code)
+    diff.delete_comment()
+    assert.equals(1, #context.get_review_comments(path))
+    diff.close()
+    comment_input.open = original_open
+    context.restore(saved)
+  end)
+
+  it('anchors unified deleted and added rows to their respective sides', function()
+    local context = require('opencode.context')
+    local comment_input = require('opencode.ui.session_diff.comment_input')
+    local original_open, saved = comment_input.open, context.snapshot()
+    local original_line_map, map_calls = patch.line_map, 0
+    patch.line_map = function(text)
+      map_calls = map_calls + 1
+      return original_line_map(text)
+    end
+    context.clear_review_comments()
+    local path = vim.fn.getcwd() .. '/review-patch.lua'
+    comment_input.open = function(opts) opts.on_submit('Review') end
+    diff.open({ file(path, '@@ -1,2 +1,2 @@\n same\n-old\n+new') }, { id = 'session' })
+    diff.show_patch()
+    local preview
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.wo[win].winbar == path then preview = win end
+    end
+    vim.api.nvim_set_current_win(preview)
+    vim.api.nvim_win_set_cursor(preview, { 3, 0 })
+    local calls_before_comment = map_calls
+    diff.add_comment()
+    assert.equals(calls_before_comment, map_calls)
+    vim.api.nvim_win_set_cursor(preview, { 4, 0 })
+    diff.add_comment()
+    local comments = context.get_review_comments(path)
+    assert.same({ 'before', 'after' }, { comments[1].side, comments[2].side })
+    assert.same({ 'old', 'new' }, { comments[1].code, comments[2].code })
+    vim.api.nvim_win_set_cursor(preview, { 3, 0 })
+    diff.jump_comment(1)
+    assert.equals(4, vim.api.nvim_win_get_cursor(preview)[1])
+    diff.close()
+    patch.line_map = original_line_map
+    comment_input.open = original_open
+    context.restore(saved)
+  end)
+
+  it('captures a visual range of snapshot lines', function()
+    local context = require('opencode.context')
+    local comment_input = require('opencode.ui.session_diff.comment_input')
+    local original_open, saved = comment_input.open, context.snapshot()
+    context.clear_review_comments()
+    local path = vim.fn.getcwd() .. '/review-visual.lua'
+    comment_input.open = function(opts) opts.on_submit('Both lines') end
+    diff.open({ file(path, '@@ -1,3 +1,3 @@\n first\n-old\n+new\n last') }, { id = 'session' })
+    local after
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.wo[win].winbar:find('After:', 1, true) then after = win end
+    end
+    vim.api.nvim_set_current_win(after)
+    vim.api.nvim_win_set_cursor(after, { 1, 0 })
+    vim.cmd('normal! Vj')
+    diff.add_comment()
+    local comment = context.get_review_comments(path)[1]
+    assert.same({ 1, 2, 'first\nnew' }, { comment.start_line, comment.end_line, comment.code })
+    diff.close()
+    comment_input.open = original_open
+    context.restore(saved)
   end)
 
   it('handles additions and deletions without reading working files', function()
@@ -179,8 +322,8 @@ describe('session diff', function()
           { id = 'msg_three', text = 'Latest prompt' },
         })
       end,
-      review_range = function(from, to)
-        requested = { from, to }
+      review_range = function(from, to, message_count)
+        requested = { from, to, message_count }
         return Promise.new():resolve(nil)
       end,
     })
@@ -196,6 +339,8 @@ describe('session diff', function()
     end))
     local title_marks = vim.api.nvim_buf_get_extmarks(list_buf, -1, 0, -1, { details = true })
     local found_change_count = false
+    local found_message_range_hint = false
+    local highlighted_range_key = false
     local found_turns_help = false
     for _, mark in ipairs(title_marks) do
       if mark[4].virt_lines then
@@ -204,11 +349,19 @@ describe('session diff', function()
             return chunk[1]
           end, virtual_line))
           found_change_count = found_change_count or line:find('Changes (1)', 1, true) ~= nil
+          found_message_range_hint = found_message_range_hint
+            or line:find('1 message · <r> choose range', 1, true) ~= nil
+          for _, chunk in ipairs(virtual_line) do
+            highlighted_range_key = highlighted_range_key
+              or (chunk[1] == '<r>' and chunk[2] == 'OpencodeInputLegend')
+          end
           found_turns_help = found_turns_help or line:find('Turns', 1, true) ~= nil
         end
       end
     end
     assert.is_true(found_change_count)
+    assert.is_true(found_message_range_hint)
+    assert.is_true(highlighted_range_key)
     assert.is_false(found_turns_help)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     assert.matches('First prompt with detail', lines[1])
@@ -245,8 +398,18 @@ describe('session diff', function()
     vim.api.nvim_win_set_cursor(win, { 3, 0 })
     diff.mark_range('to')
     assert.equals('   T  Latest prompt', vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1])
+    local updated_message_count = false
+    for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(list_buf, -1, 0, -1, { details = true })) do
+      for _, virtual_line in ipairs(mark[4].virt_lines or {}) do
+        local line = table.concat(vim.tbl_map(function(chunk)
+          return chunk[1]
+        end, virtual_line))
+        updated_message_count = updated_message_count or line:find('3 messages · <r> choose range', 1, true) ~= nil
+      end
+    end
+    assert.is_true(updated_message_count)
     diff.activate()
-    assert.same({ 'msg_one', 'msg_three' }, requested)
+    assert.same({ 'msg_one', 'msg_three', 3 }, requested)
     diff.toggle_range()
     assert.equals(1, calls)
     assert.equals(list_buf, vim.api.nvim_get_current_buf())
@@ -359,8 +522,8 @@ describe('session diff', function()
     assert.same({
       '',
       '    ▾ ' .. icons.get('folder') .. 'src/nested/',
-      '  M       ' .. vim.trim(icons.get('file')) .. ' one.lua  +1 -1',
-      '  M       ' .. vim.trim(icons.get('file')) .. ' two.lua  +1 -1',
+      '  M     ' .. vim.trim(icons.get('file')) .. ' one.lua  +1 -1',
+      '  M     ' .. vim.trim(icons.get('file')) .. ' two.lua  +1 -1',
     }, lines)
     local highlights = vim.api.nvim_buf_get_extmarks(list_buf, -1, 0, -1, { details = true })
     assert.equals(8, #highlights)

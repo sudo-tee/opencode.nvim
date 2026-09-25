@@ -46,7 +46,7 @@ local function v2_connection()
   return connection and connection.protocol == 'v2' and connection or nil
 end
 
-local function review_turn(context, message_id, to, file_path)
+local function review_turn(context, message_id, to, file_path, message_count)
   if file_path and session_diff.toggle_file(file_path, message_id, context.session.id) then
     return
   end
@@ -59,12 +59,13 @@ local function review_turn(context, message_id, to, file_path)
   session_diff.open(files, context.session, {
     from = message_id,
     to = to,
+    message_count = message_count,
     file = file_path,
     load_turns = function()
       return M.list_review_turns()
     end,
-    review_range = function(from, last)
-      return M.review(from, last)
+    review_range = function(from, last, count)
+      return M.review(from, last, count)
     end,
   })
 end
@@ -168,10 +169,10 @@ local function display(context, file)
   end
 end
 
----@type fun(ref?: string, to?: string): Promise<nil>
-M.review = review_action(function(context, ref, to)
+---@type fun(ref?: string, to?: string, message_count?: integer): Promise<nil>
+M.review = review_action(function(context, ref, to, message_count)
   if v2_connection() then
-    return review_turn(context, ref, to)
+    return review_turn(context, ref, to, nil, message_count)
   end
   local files = get_changed_files(context, ref)
   if #files == 0 and is_current(context) then
@@ -405,7 +406,7 @@ end)
 
 function M.close_diff()
   generation = generation + 1
-  session_diff.close()
+  session_diff.close({ focus_input = true })
   diff_tab.close_diff_tab()
 end
 

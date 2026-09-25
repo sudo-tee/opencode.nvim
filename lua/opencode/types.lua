@@ -171,7 +171,7 @@
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
----@field session_diff {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
+---@field session_diff {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, comment: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
 ---@field tab_strip_window table<string, OpencodeKeymapEntry>
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field session_tab_picker OpencodeSessionTabPickerKeymap
@@ -331,6 +331,7 @@
 ---@field diagnostics { enabled:boolean, info: boolean, warning: boolean, error: boolean, only_closest: boolean}
 ---@field current_file { enabled: boolean }
 ---@field selection { enabled: boolean }
+---@field review_comments { enabled: boolean }
 ---@field agents { enabled: boolean }
 ---@field buffer { enabled: boolean }
 ---@field git_diff { enabled: boolean }
@@ -338,6 +339,7 @@
 ---@alias OpencodeToggleableContextKey
 ---| 'current_file'
 ---| 'selection'
+---| 'review_comments'
 ---| 'diagnostics'
 ---| 'cursor_data'
 ---| 'buffer'
@@ -572,6 +574,7 @@
 ---@field mentioned_files string[]|nil
 ---@field mentioned_subagents string[]|nil
 ---@field selections OpencodeContextSelection[]|nil
+---@field review_comments? OpencodeContextReviewComment[]
 ---@field linter_errors OpencodeDiagnostic[]|nil
 ---@field automatic_context? table<string, string> Fingerprints for automatic payloads considered by the last submission
 
@@ -579,6 +582,31 @@
 ---@field file OpencodeContextFile
 ---@field content string|nil
 ---@field lines string|nil
+
+---@alias OpencodeReviewCommentSide 'before'|'after'
+---@alias OpencodeReviewCommentStatus 'exact'|'moved'|'modified'|'removed'|'missing_file'
+
+---@class OpencodeReviewCommentResolution
+---@field status OpencodeReviewCommentStatus
+---@field start_line? integer
+---@field end_line? integer
+---@field current_code? string
+
+---@class OpencodeContextReviewComment
+---@field id integer
+---@field file string
+---@field side OpencodeReviewCommentSide
+---@field start_line integer
+---@field end_line integer
+---@field code string
+---@field comment string
+---@field session_id string
+---@field from? string
+---@field to? string
+---@field context_before string[]
+---@field context_after string[]
+---@field anchor_side_line integer
+---@field resolution? OpencodeReviewCommentResolution
 
 ---@class OpencodeContextCursorData
 ---@field line number

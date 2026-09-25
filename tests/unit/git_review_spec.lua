@@ -179,8 +179,10 @@ describe('asynchronous git review', function()
       { id = 'msg_old', text = 'First prompt', created = 10 },
       { id = 'msg_new', text = 'Latest prompt', created = 20 },
     }, options.load_turns():wait())
-    options.review_range('msg_new', nil):wait()
-    assert.same({ 'one', 'msg_new' }, requested)
+    local review_range = options.review_range
+    review_range('msg_old', 'msg_new', 2):wait()
+    assert.same({ 'one', 'msg_old', 'msg_new' }, requested)
+    assert.equals(2, options.message_count)
   end)
 
   it('resolves tool message to its user turn and selects its file', function()

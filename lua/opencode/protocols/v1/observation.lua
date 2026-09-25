@@ -733,6 +733,7 @@ end
 
 local context_types = {
   selection = 'selection',
+  review_comment = 'review-comment',
   diagnostics = 'diagnostics',
   cursor = 'cursor-data',
   buffer = 'file-content',

@@ -1059,7 +1059,7 @@ function M.scroll_to_bottom(force, ctx)
     return
   end
 
-  if force or config.ui.output.always_scroll_to_bottom or output_window.is_at_bottom(output_win) then
+  if force or output_window.is_at_bottom(output_win) then
     scroll.scroll_win_to_bottom(output_win, output_buf)
   end
 end

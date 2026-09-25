@@ -18,6 +18,9 @@ M.markdown_namespace = vim.api.nvim_create_namespace('opencode_output_markdown')
 M._last_visible_bottom_by_win = {}
 M._was_at_bottom_by_win = {}
 M._prev_line_count_by_win = {}
+M._manual_scroll_by_win = {}
+M._last_visible_top_by_win = {}
+M._last_skipcol_by_win = {}
 
 local OUTPUT_FOLD_FILLCHARS = {
   fold = '-',
@@ -139,11 +142,14 @@ end
 ---@param win? integer Window ID, defaults to state.windows.output_win
 ---@return boolean
 function M.is_at_bottom(win)
+  win = win or (state.windows and state.windows.output_win)
+
+  if win and M._manual_scroll_by_win[win] then
+    return false
+  end
   if config.ui.output.always_scroll_to_bottom then
     return true
   end
-
-  win = win or (state.windows and state.windows.output_win)
 
   if not win or not vim.api.nvim_win_is_valid(win) then
     return true
@@ -175,6 +181,37 @@ function M.is_at_bottom(win)
     return false
   end
   return cursor[1] >= prev_effective_bottom or cursor[1] >= effective_bottom
+end
+
+---@param win integer
+function M.on_user_navigation(win)
+  local windows = state.windows
+  if not M.mounted(windows) or windows.output_win ~= win then
+    return
+  end
+
+  local top = M.get_visible_top_line(win)
+  local previous_top = M._last_visible_top_by_win[win]
+  M._last_visible_top_by_win[win] = top
+  local skipcol = vim.api.nvim_win_call(win, function()
+    return vim.fn.winsaveview().skipcol
+  end)
+  local previous_skipcol = M._last_skipcol_by_win[win]
+  M._last_skipcol_by_win[win] = skipcol
+  local bottom = M.get_visible_bottom_line(win)
+  local effective_bottom = M.get_scroll_bottom_line(windows.output_buf)
+  local cursor_line = vim.api.nvim_win_get_cursor(win)[1]
+
+  if
+    (top and previous_top and top < previous_top)
+    or (top == previous_top and previous_skipcol and skipcol < previous_skipcol)
+    or (bottom and bottom < effective_bottom)
+    or cursor_line < effective_bottom
+  then
+    M._manual_scroll_by_win[win] = true
+  elseif bottom and bottom >= effective_bottom and cursor_line >= effective_bottom then
+    M._manual_scroll_by_win[win] = nil
+  end
 end
 
 ---@param buf integer
@@ -265,12 +302,18 @@ function M.reset_scroll_tracking(win)
     M._last_visible_bottom_by_win[win] = nil
     M._was_at_bottom_by_win[win] = nil
     M._prev_line_count_by_win[win] = nil
+    M._manual_scroll_by_win[win] = nil
+    M._last_visible_top_by_win[win] = nil
+    M._last_skipcol_by_win[win] = nil
     return
   end
 
   M._last_visible_bottom_by_win = {}
   M._was_at_bottom_by_win = {}
   M._prev_line_count_by_win = {}
+  M._manual_scroll_by_win = {}
+  M._last_visible_top_by_win = {}
+  M._last_skipcol_by_win = {}
 end
 
 ---@param win? integer
@@ -294,6 +337,7 @@ function M.sync_cursor_with_viewport(win)
   end
 
   M._last_visible_bottom_by_win[win] = visible_bottom
+  M.on_user_navigation(win)
 end
 
 ---@param windows OpencodeWindowState
@@ -344,6 +388,10 @@ function M.setup(windows)
   M.update_dimensions(windows)
   M.reset_scroll_tracking(output_win)
   M._last_visible_bottom_by_win[output_win] = M.get_visible_bottom_line(output_win)
+  M._last_visible_top_by_win[output_win] = M.get_visible_top_line(output_win)
+  M._last_skipcol_by_win[output_win] = vim.api.nvim_win_call(output_win, function()
+    return vim.fn.winsaveview().skipcol
+  end)
 end
 
 ---@param windows OpencodeWindowState?

@@ -2,6 +2,155 @@ local context = require('opencode.context')
 local state = require('opencode.state')
 local assert = require('luassert')
 
+describe('review comment context', function()
+  local saved
+  before_each(function() saved = context.snapshot(); context.clear_review_comments() end)
+  after_each(function() context.restore(saved) end)
+
+  it('deduplicates snapshot anchors, consumes sent comments, and restores failed sends', function()
+    local item = {
+      id = 0, file = '/nonexistent/review.lua', side = 'after', start_line = 1, end_line = 1,
+      code = 'old', comment = 'Fix this', session_id = 'session', context_before = {},
+      context_after = {}, anchor_side_line = 1,
+    }
+    local first = context.add_review_comment(item)
+    assert.equals(first.id, context.add_review_comment(vim.tbl_extend('force', {}, item, { comment = 'Better' })).id)
+    assert.equals('Better', first.comment)
+    local frozen = context.snapshot()
+    context.consume_attachments(frozen)
+    assert.equals(0, #context.get_review_comments())
+    context.restore(frozen)
+    assert.equals(1, #context.get_review_comments())
+    context.remove_review_comment(first.id)
+    assert.equals(0, #context.get_review_comments())
+  end)
+
+  it('stores comment immediately and resolves its current-file status asynchronously', function()
+    local path = vim.fn.tempname() .. '.lua'
+    vim.fn.writefile({ 'unchanged' }, path)
+    local added = context.add_review_comment({
+      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
+      code = 'unchanged', comment = 'Check', session_id = 'session',
+      context_before = {}, context_after = {}, anchor_side_line = 1,
+    })
+    assert.same(added, context.get_review_comments(path)[1])
+    assert.is_true(vim.wait(1000, function() return added.resolution ~= nil end))
+    assert.equals('exact', added.resolution.status)
+    vim.fn.delete(path)
+  end)
+
+  it('sends only the reviewed snippet when no code buffer exists', function()
+    local base = require('opencode.context.base_context')
+    local original = base.get_current_buf
+    context.add_review_comment({
+      id = 0, file = '/nonexistent/review.lua', side = 'before', start_line = 3, end_line = 3,
+      code = 'removed', comment = 'Restore this', session_id = 'session', from = 'turn',
+      context_before = {}, context_after = {}, anchor_side_line = 3,
+    })
+    base.get_current_buf = function() return nil, nil end
+    local captured = context.format_message('Please review'):wait()
+    base.get_current_buf = original
+    assert.equals(1, #captured.context)
+    local payload = vim.json.decode(captured.context[1].text)
+    assert.equals('review-comment', payload.context_type)
+    assert.equals('missing_file', payload.comments[1].current.status)
+    assert.equals('removed', payload.comments[1].code)
+    assert.equals('before', payload.comments[1].side)
+    assert.equals('3-3', payload.comments[1].lines)
+    assert.is_nil(payload.snapshot)
+    assert.is_nil(payload.diff)
+    assert.is_nil(payload.context_before)
+    assert.is_true(#captured.context[1].text < 400)
+    assert.equals('turn', context.get_review_comments()[1].from)
+  end)
+
+  it('omits redundant current code and status when reviewed code is unchanged', function()
+    local path = vim.fn.tempname() .. '.lua'
+    vim.fn.writefile({ 'stable' }, path)
+    context.add_review_comment({
+      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
+      code = 'stable', comment = 'Good', session_id = 'session', context_before = {},
+      context_after = {}, anchor_side_line = 1,
+    })
+    local base = require('opencode.context.base_context')
+    local original = base.get_current_buf
+    base.get_current_buf = function() return nil, nil end
+    local captured = context.format_message('Review'):wait()
+    base.get_current_buf = original
+    vim.fn.delete(path)
+    local payload = vim.json.decode(captured.context[1].text)
+    assert.is_nil(payload.comments[1].current)
+    assert.equals('stable', payload.comments[1].code)
+  end)
+
+  it('sends multiple comments on the same file with one path and instruction', function()
+    local path = '/nonexistent/review.lua'
+    for index = 1, 2 do
+      context.add_review_comment({
+        id = 0, file = path, side = 'after', start_line = index, end_line = index,
+        code = 'line ' .. index, comment = 'Comment ' .. index, session_id = 'session',
+        context_before = {}, context_after = {}, anchor_side_line = index,
+      })
+    end
+    local base = require('opencode.context.base_context')
+    local original = base.get_current_buf
+    base.get_current_buf = function() return nil, nil end
+    local captured = context.format_message('Review'):wait()
+    base.get_current_buf = original
+    assert.equals(1, #captured.context)
+    local payload = vim.json.decode(captured.context[1].text)
+    assert.equals(path, payload.file)
+    assert.equals(2, #payload.comments)
+    assert.same({ 'Comment 1', 'Comment 2' }, { payload.comments[1].comment, payload.comments[2].comment })
+    assert.is_nil(captured.context[1].source.range)
+    local _, occurrences = captured.context[1].text:gsub('Session diff snapshot', '')
+    assert.equals(1, occurrences)
+    local _, path_occurrences = captured.context[1].text:gsub(vim.pesc(path), '')
+    assert.equals(1, path_occurrences)
+  end)
+
+  it('skips automatic current file only when a review comment on that file is sent', function()
+    local chat = require('opencode.context.chat_context')
+    local base = require('opencode.context.base_context')
+    local original_get_current_buf = base.get_current_buf
+    local original_get_current_selection = base.get_current_selection
+    local original_get_diagnostics = chat.get_diagnostics
+    local path = vim.fn.tempname() .. '.lua'
+    vim.fn.writefile({ 'reviewed' }, path)
+    chat.context.current_file = { path = path:gsub('^/', '/./'), name = vim.fn.fnamemodify(path, ':t'), extension = 'lua' }
+    local comment = context.add_review_comment({
+      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
+      code = 'reviewed', comment = 'Check this', session_id = state.active_session and state.active_session.id or 'session',
+      context_before = {}, context_after = {}, anchor_side_line = 1,
+    })
+    base.get_current_buf = function() return 1, 1 end
+    base.get_current_selection = function() return nil end
+    chat.get_diagnostics = function() return nil end
+    local opts = {
+      current_file = { enabled = true }, selection = { enabled = false },
+      review_comments = { enabled = true }, diagnostics = { enabled = false },
+      cursor_data = { enabled = false }, buffer = { enabled = false }, git_diff = { enabled = false },
+    }
+    local with_comment = context.format_message('Review', opts):wait()
+    opts.review_comments.enabled = false
+    local without_comment = context.format_message('Review', opts):wait()
+    opts.review_comments.enabled = true
+    comment.file = path .. '.other'
+    local other_file = context.format_message('Review', opts):wait()
+    base.get_current_buf = original_get_current_buf
+    base.get_current_selection = original_get_current_selection
+    chat.get_diagnostics = original_get_diagnostics
+    vim.fn.delete(path)
+
+    assert.same({}, with_comment.files)
+    assert.equals('review_comment', with_comment.context[1].source.kind)
+    assert.equals(1, #without_comment.files)
+    assert.same({}, without_comment.context)
+    assert.equals(1, #other_file.files)
+    assert.equals('review_comment', other_file.context[1].source.kind)
+  end)
+end)
+
 describe('extract_from_opencode_message', function()
   it('extracts prompt, selected_text, and current_file from Entry content', function()
     local message = {

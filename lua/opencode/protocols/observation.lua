@@ -98,7 +98,7 @@ function M.decode_editor_context(context_type, text, part_id, synthetic, ignored
     base.text = text
     return base
   end
-  if context_type ~= 'selection' and context_type ~= 'diagnostics' and context_type ~= 'cursor-data' then
+  if context_type ~= 'selection' and context_type ~= 'review-comment' and context_type ~= 'diagnostics' and context_type ~= 'cursor-data' then
     return nil, 'unsupported editor context type: ' .. tostring(context_type)
   end
 
@@ -106,7 +106,36 @@ function M.decode_editor_context(context_type, text, part_id, synthetic, ignored
   if not ok or type(decoded) ~= 'table' or decoded.context_type ~= context_type then
     return nil, 'invalid ' .. tostring(context_type) .. ' editor context JSON'
   end
-  local file_name = type(decoded.file) == 'table' and (decoded.file.name or decoded.file.path) or nil
+  local file_name = type(decoded.file) == 'table' and (decoded.file.name or decoded.file.path)
+    or type(decoded.file) == 'string' and decoded.file or nil
+
+  if context_type == 'review-comment' then
+    if decoded.comments then
+      if type(decoded.comments) ~= 'table' or #decoded.comments == 0 then
+        return nil, 'invalid review-comment editor context'
+      end
+      for _, comment in ipairs(decoded.comments) do
+        if type(comment) ~= 'table' or type(comment.comment) ~= 'string'
+          or type(comment.code) ~= 'string' or type(comment.lines) ~= 'string'
+          or (comment.side ~= 'before' and comment.side ~= 'after') then
+          return nil, 'invalid review-comment editor context'
+        end
+      end
+      base.source = { kind = 'review_comment', file_name = file_name }
+      base.comments = decoded.comments
+      return base
+    end
+    local snapshot = type(decoded.snapshot) == 'table' and decoded.snapshot or decoded
+    if type(decoded.comment) ~= 'string' or type(snapshot.code) ~= 'string'
+      or type(snapshot.lines) ~= 'string' or (snapshot.side ~= 'before' and snapshot.side ~= 'after') then
+      return nil, 'invalid review-comment editor context'
+    end
+    base.source = { kind = 'review_comment', file_name = file_name,
+      range = snapshot.lines, side = snapshot.side }
+    base.text = decoded.comment
+    base.code = snapshot.code
+    return base
+  end
 
   if context_type == 'selection' then
     if type(decoded.content) ~= 'string' or (decoded.lines ~= nil and type(decoded.lines) ~= 'string') then

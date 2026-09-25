@@ -426,6 +426,28 @@ function M._format_selection_context(output, part)
   M.add_vertical_border(output, start_line, end_line, 'OpencodeMessageRoleUser', -3)
 end
 
+---@param output Output
+---@param part table
+function M._format_review_comment_context(output, part)
+  if part.kind ~= 'editor_context' or not part.source or part.source.kind ~= 'review_comment' then
+    return
+  end
+  local start_line = output:get_line_count() + 1
+  local comments = part.comments or { { comment = part.text, code = part.code, lines = part.source.range } }
+  local lang = part.source.file_name and vim.fn.fnamemodify(part.source.file_name, ':e') or ''
+  for _, comment in ipairs(comments) do
+    if comment.lines then
+      output:add_line('Lines ' .. comment.lines .. ' (' .. (comment.side or part.source.side or 'after') .. '):')
+    end
+    output:add_lines(vim.split(comment.comment or '', '\n'))
+    output:add_line('`````' .. lang)
+    output:add_lines(vim.split(comment.code or '', '\n'))
+    output:add_line('`````')
+    output:add_empty_line()
+  end
+  M.add_vertical_border(output, start_line, output:get_line_count(), 'OpencodeMessageRoleUser', -3)
+end
+
 ---@param output Output Output object to write to
 ---@param part table
 function M._format_cursor_data_context(output, part)
@@ -920,6 +942,7 @@ function M.format_part(part, message, is_last_part, context)
     elseif part.kind == 'text' and type(part.text) == 'string' then
       if part.synthetic == true then
         M._format_selection_context(output, part)
+        M._format_review_comment_context(output, part)
         M._format_cursor_data_context(output, part)
         M._format_diagnostics_context(output, part)
       else
@@ -928,6 +951,7 @@ function M.format_part(part, message, is_last_part, context)
       end
     elseif part.kind == 'editor_context' then
       M._format_selection_context(output, part)
+      M._format_review_comment_context(output, part)
       M._format_cursor_data_context(output, part)
       M._format_diagnostics_context(output, part)
       content_added = true

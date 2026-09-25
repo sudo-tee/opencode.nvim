@@ -8,6 +8,7 @@ local assert = require('luassert')
 describe('opencode.ui.context_bar', function()
   local original_get_context
   local original_is_context_enabled
+  local original_has_review_comment_for_file
   local original_get_icon
   local original_subscribe
   local original_schedule
@@ -34,6 +35,7 @@ describe('opencode.ui.context_bar', function()
   before_each(function()
     original_get_context = context.get_context
     original_is_context_enabled = context.is_context_enabled
+    original_has_review_comment_for_file = context.has_review_comment_for_file
     original_get_icon = icons.get
     original_subscribe = state.store.subscribe
     original_schedule = vim.schedule
@@ -54,6 +56,18 @@ describe('opencode.ui.context_bar', function()
 
     context.get_context = function()
       return mock_context
+    end
+
+    context.has_review_comment_for_file = function(path)
+      return vim.tbl_contains(vim.tbl_map(function(comment)
+        return comment.file
+      end, mock_context.review_comments or {}), path)
+    end
+
+    context.has_review_comment_for_file = function(path)
+      return vim.tbl_contains(vim.tbl_map(function(comment)
+        return comment.file
+      end, mock_context.review_comments or {}), path)
     end
 
     context.is_context_enabled = function(_)
@@ -98,6 +112,7 @@ describe('opencode.ui.context_bar', function()
   after_each(function()
     context.get_context = original_get_context
     context.is_context_enabled = original_is_context_enabled
+    context.has_review_comment_for_file = original_has_review_comment_for_file
     icons.get = original_get_icon
     state.store.subscribe = original_subscribe
     vim.schedule = original_schedule
@@ -134,6 +149,27 @@ describe('opencode.ui.context_bar', function()
 
       assert.is_string(winbar_capture.value)
       assert.is_not_nil(winbar_capture.value:find(icons.get('attached_file') .. 'test%.lua'))
+    end)
+
+    it('hides current file when a review comment already represents it', function()
+      mock_context.current_file = { name = 'test.lua', path = '/tmp/test.lua' }
+      mock_context.review_comments = { { file = '/tmp/test.lua' } }
+
+      local capture = create_mock_window(2004)
+      state.ui.set_windows({ input_win = 2004 })
+      context_bar.render()
+
+      assert.is_nil(capture.value:find(icons.get('attached_file') .. 'test%.lua'))
+      assert.is_not_nil(capture.value:find(icons.get('review_comment'), 1, true))
+    end)
+
+    it('shows pending review count and highlights stale comments', function()
+      mock_context.review_comments = { { resolution = { status = 'exact' } }, { resolution = { status = 'modified' } } }
+      local capture = create_mock_window(2040)
+      state.ui.set_windows({ input_win = 2040 })
+      context_bar.render()
+      assert.is_not_nil(capture.value:find('OpencodeContextWarning', 1, true))
+      assert.is_not_nil(capture.value:find('(2)', 1, true))
     end)
 
     it('renders current file with dimmed highlight when already sent', function()

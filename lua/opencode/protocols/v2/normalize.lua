@@ -576,7 +576,8 @@ end
 
 local function append_user_file(entry, file, index, text)
   shape(file, {}, 'invalid file attachment')
-  local context_name = type(file.name) == 'string' and file.name:match('^editor%-context:(%a+)') or nil
+  local context_name = type(file.name) == 'string' and file.name:match('^editor%-context:([%a_]+)') or nil
+  if context_name == 'review_comment' then context_name = 'review-comment' end
   if not context_name then
     entry.content[#entry.content + 1] = mapped_file(file, text)
     return

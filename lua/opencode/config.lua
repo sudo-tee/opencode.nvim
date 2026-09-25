@@ -33,9 +33,9 @@ M.defaults = {
     session_diff = {
       list = {
         ['<CR>'] = { 'activate', desc = 'Open file or toggle folder' },
-        ['r'] = { 'toggle_range', desc = 'Choose message range' },
+        ['r'] = { 'toggle_range', desc = 'Choose message range', nowait = true },
         ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
-        ['q'] = { 'close', desc = 'Close diff' },
+        ['q'] = { 'close', desc = 'Close diff', nowait = true },
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
       },
       messages = {
@@ -45,22 +45,32 @@ M.defaults = {
         ['t'] = { 'mark_to', desc = 'Mark range end' },
         ['K'] = { 'show_message_preview', desc = 'Preview message' },
         ['<Esc>'] = { 'toggle_range', desc = 'Return to files' },
-        ['q'] = { 'toggle_range', desc = 'Return to files' },
+        ['q'] = { 'toggle_range', desc = 'Return to files', nowait = true },
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
       },
       preview = {
-        ['q'] = { 'close', desc = 'Close diff' },
+        ['q'] = { 'close', desc = 'Close diff', nowait = true },
         ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+        ['c'] = { 'add_comment', mode = { 'n', 'x' },  desc = 'Add or edit review comment', nowait = true  },
+        ['dc'] = { 'delete_comment', desc = 'Delete review comment' },
+        [']r'] = { 'next_comment', desc = 'Next review comment' },
+        ['[r'] = { 'prev_comment', desc = 'Previous review comment' },
+      },
+      comment = {
+        ['<CR>'] = { 'submit_comment', mode = 'n', desc = 'Save review comment' },
+        ['<C-s>'] = { 'submit_comment', mode = { 'n', 'i' }, desc = 'Save review comment' },
+        ['q'] = { 'cancel_comment', desc = 'Cancel review comment', nowait = true },
+        ['<Esc>'] = { 'cancel_comment', desc = 'Cancel review comment' },
       },
       message_preview = {
-        ['q'] = { 'hide_message_preview', desc = 'Close message preview' },
+        ['q'] = { 'hide_message_preview', desc = 'Close message preview', nowait = true },
         ['<Esc>'] = { 'hide_message_preview', desc = 'Close message preview' },
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
       },
       help = {
         ['g?'] = { 'toggle_help' },
-        ['q'] = { 'toggle_help' },
+        ['q'] = { 'toggle_help', nowait = true },
         ['<Esc>'] = { 'toggle_help' },
       },
     },
@@ -346,6 +356,9 @@ M.defaults = {
       show_full_path = true,
     },
     selection = {
+      enabled = true,
+    },
+    review_comments = {
       enabled = true,
     },
     agents = {

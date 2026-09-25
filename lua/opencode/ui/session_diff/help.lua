@@ -11,6 +11,12 @@ local action_order = {
   hide_message_preview = 7,
   close = 8,
   toggle_help = 9,
+  add_comment = 10,
+  delete_comment = 11,
+  next_comment = 12,
+  prev_comment = 13,
+  submit_comment = 14,
+  cancel_comment = 15,
 }
 
 ---@class OpencodeSessionDiffHelpSection
@@ -39,7 +45,7 @@ local function section(title, mappings)
   return { title = title, entries = entries, width = width }
 end
 
----@param keymaps {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
+---@param keymaps {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, comment: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
 ---@return integer, integer, integer
 function M.create(keymaps)
   local sections = {
@@ -47,6 +53,7 @@ function M.create(keymaps)
     section('MESSAGES', keymaps.messages),
     section('DIFF PREVIEW', keymaps.preview),
     section('MESSAGE PREVIEW', keymaps.message_preview),
+    section('REVIEW COMMENT', keymaps.comment),
   }
   local columns = math.max(sections[1].width, sections[3].width)
     + math.max(sections[2].width, sections[4].width) + 3 <= vim.o.columns - 8 and 2 or 1

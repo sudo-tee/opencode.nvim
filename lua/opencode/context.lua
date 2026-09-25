@@ -13,6 +13,7 @@ local M = {}
 local toggleable_context_keys = {
   current_file = true,
   selection = true,
+  review_comments = true,
   diagnostics = true,
   cursor_data = true,
   buffer = true,
@@ -46,6 +47,7 @@ function M.restore(snapshot)
   ChatContext.context = vim.deepcopy(snapshot or {
     mentioned_files = {},
     selections = {},
+    review_comments = {},
     mentioned_subagents = {},
     current_file = nil,
     cursor_data = nil,
@@ -143,6 +145,13 @@ end
 function M.clear_selections()
   ChatContext.clear_selections()
 end
+
+M.add_review_comment = ChatContext.add_review_comment
+M.update_review_comment = ChatContext.update_review_comment
+M.remove_review_comment = ChatContext.remove_review_comment
+M.clear_review_comments = ChatContext.clear_review_comments
+M.get_review_comments = ChatContext.get_review_comments
+M.has_review_comment_for_file = ChatContext.has_review_comment_for_file
 
 --- Captures the current visual selection and adds it to the context.
 --- This can be called from any buffer at any time, even when the panel is already open.

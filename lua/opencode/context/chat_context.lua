@@ -9,6 +9,7 @@ local M = {}
 M.context = {
   mentioned_files = {},
   selections = {},
+  review_comments = {},
   mentioned_subagents = {},
   current_file = nil,
   cursor_data = nil,
@@ -18,6 +19,114 @@ M.context = {
 local cleared_selections = {}
 local cleared_selections_context = nil
 local set_file_sent_timestamps
+local next_review_id = 0
+
+---@param comment OpencodeContextReviewComment
+function M.add_review_comment(comment)
+  next_review_id = next_review_id + 1
+  comment.id = next_review_id
+  local comments = M.context.review_comments or {}
+  for _, existing in ipairs(comments) do
+    if
+      existing.file == comment.file
+      and existing.side == comment.side
+      and existing.start_line == comment.start_line
+      and existing.end_line == comment.end_line
+      and existing.session_id == comment.session_id
+      and existing.from == comment.from
+      and existing.to == comment.to
+    then
+      existing.comment = comment.comment
+      state.context.set_context_updated_at(vim.uv.now())
+      return existing
+    end
+  end
+  comments[#comments + 1] = comment
+  M.context.review_comments = comments
+  state.context.set_context_updated_at(vim.uv.now())
+  -- Resolve file drift after the editor has returned to its event loop.
+  vim.defer_fn(function()
+    for _, stored in ipairs(M.get_review_comments()) do
+      if stored == comment then
+        comment.resolution = require('opencode.review_anchor').current(comment)
+        state.context.set_context_updated_at(vim.uv.now())
+        return
+      end
+    end
+  end, 25)
+  return comment
+end
+
+function M.get_review_comments(file)
+  local comments = M.context.review_comments or {}
+  if not file then
+    return comments
+  end
+  return vim.tbl_filter(function(comment)
+    return comment.file == file
+  end, comments)
+end
+
+---@param path string
+---@return boolean
+function M.has_review_comment_for_file(path)
+  local current_session_id = state.active_session and state.active_session.id
+  local current_path = vim.fn.resolve(vim.fn.fnamemodify(path, ':p'))
+  for _, comment in ipairs(M.get_review_comments()) do
+    if
+      (not current_session_id or comment.session_id == current_session_id)
+      and vim.fn.resolve(vim.fn.fnamemodify(comment.file, ':p')) == current_path
+    then
+      return true
+    end
+  end
+  return false
+end
+
+function M.update_review_comment(id, text)
+  for _, comment in ipairs(M.get_review_comments()) do
+    if comment.id == id then
+      comment.comment = text
+      state.context.set_context_updated_at(vim.uv.now())
+      return
+    end
+  end
+end
+
+function M.remove_review_comment(id)
+  for index, comment in ipairs(M.get_review_comments()) do
+    if comment.id == id then
+      table.remove(M.context.review_comments, index)
+      state.context.set_context_updated_at(vim.uv.now())
+      return
+    end
+  end
+end
+
+function M.clear_review_comments()
+  M.context.review_comments = {}
+  state.context.set_context_updated_at(vim.uv.now())
+end
+
+---@param comment OpencodeContextReviewComment
+local function capture_review_comment(comment, hint)
+  local resolution = require('opencode.review_anchor').current(comment, hint)
+  comment.resolution = resolution
+  local current = resolution.status ~= 'exact'
+      and {
+        status = resolution.status,
+        lines = resolution.start_line and (resolution.start_line .. '-' .. resolution.end_line) or nil,
+        code = resolution.current_code,
+      }
+    or nil
+  return {
+    comment = comment.comment,
+    side = comment.side,
+    lines = comment.start_line .. '-' .. comment.end_line,
+    code = comment.code,
+    current = current,
+  }
+end
 
 ---@param left OpencodeContextSelection|nil
 ---@param right OpencodeContextSelection|nil
@@ -195,12 +304,11 @@ end
 
 function M.clear_selections()
   M.context.selections = {}
+  M.context.review_comments = {}
   state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.add_file(file)
-  local is_file = vim.fn.filereadable(file) == 1
-  local is_dir = vim.fn.isdirectory(file) == 1
   file = vim.fn.fnamemodify(file, ':p')
 
   if not M.context.mentioned_files then
@@ -319,6 +427,14 @@ function M.consume_attachments(sent, target)
     end
   end
   target.selections = remaining
+  target.review_comments = vim.tbl_filter(function(comment)
+    for _, sent_comment in ipairs(sent.review_comments or {}) do
+      if comment.id == sent_comment.id then
+        return false
+      end
+    end
+    return true
+  end, target.review_comments or {})
   if is_same_selection({ file = target.current_file, lines = '' }, { file = sent.current_file, lines = '' }) then
     set_file_sent_timestamps(target.current_file)
   end
@@ -422,6 +538,15 @@ end
 -- Load function that populates the global context state
 -- This is the core loading logic that was originally in the main context module
 function M.load()
+  local changed = false
+  for _, comment in ipairs(M.get_review_comments()) do
+    local resolution = require('opencode.review_anchor').current(comment)
+    changed = changed or not vim.deep_equal(comment.resolution, resolution)
+    comment.resolution = resolution
+  end
+  if changed then
+    state.context.set_context_updated_at(vim.uv.now())
+  end
   local selections_cleared_by_send = {}
   if cleared_selections_context == M.context then
     selections_cleared_by_send = cleared_selections
@@ -566,6 +691,57 @@ M.format_message = Promise.async(function(prompt, opts)
     captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
   end
 
+  if base_context.is_context_enabled('review_comments', context_config) then
+    local by_file, order, diffs_by_range = {}, {}, {}
+    for _, comment in ipairs(M.get_review_comments()) do
+      if not state.active_session or comment.session_id == state.active_session.id then
+        local hint
+        local connection = state.opencode_server
+        local end_message = comment.to or comment.from
+        if
+          end_message
+          and connection
+          and connection.protocol == 'v2'
+          and state.active_session
+          and state.active_session.id == comment.session_id
+        then
+          if diffs_by_range[end_message] == nil then
+            local ok, files = pcall(function()
+              return connection.operations
+                .diff_session(connection, comment.session_id, end_message, nil, util.apply_reverse_path_map)
+                :await()
+            end)
+            diffs_by_range[end_message] = ok and files or false
+          end
+          for _, file in ipairs(diffs_by_range[end_message] or {}) do
+            if file.file == comment.file then
+              hint = require('opencode.review_anchor').translate(comment.anchor_side_line, file.patch)
+              break
+            end
+          end
+        end
+        local rel_path = vim.fn.fnamemodify(comment.file, ':~:.')
+        if not by_file[rel_path] then
+          by_file[rel_path] = {
+            context_type = 'review-comment',
+            file = rel_path,
+            comments = {},
+            note = 'Session diff snapshot: locate code by content, not line number. Check changed code before acting.',
+          }
+          order[#order + 1] = rel_path
+        end
+        local group = by_file[rel_path]
+        group.comments[#group.comments + 1] = capture_review_comment(comment, hint)
+      end
+    end
+    for _, file in ipairs(order) do
+      captured.context[#captured.context + 1] = {
+        text = vim.json.encode(by_file[file]),
+        source = { kind = 'review_comment', file_name = file },
+      }
+    end
+  end
+
   if not buf then
     return captured
   end
@@ -599,16 +775,14 @@ M.format_message = Promise.async(function(prompt, opts)
     for _, sel in ipairs(M.context.selections or {}) do
       table.insert(selections, sel)
     end
-
   end
 
-  local current_file_selected = false
+  local current_file_selected = M.context.current_file
+      and base_context.is_context_enabled('review_comments', context_config)
+      and M.has_review_comment_for_file(M.context.current_file.path)
+    or false
   for _, selection in ipairs(selections) do
-    if
-      M.context.current_file
-      and selection.file
-      and selection.file.path == M.context.current_file.path
-    then
+    if M.context.current_file and selection.file and selection.file.path == M.context.current_file.path then
       current_file_selected = true
       break
     end

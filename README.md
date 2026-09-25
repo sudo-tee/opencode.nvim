@@ -153,6 +153,7 @@ require('opencode').setup({
       list = { ['p'] = false, ['v'] = { 'toggle_view' }, ['g?'] = false, ['?'] = { 'toggle_help' } },
       messages = { ['f'] = false, ['s'] = { 'mark_from' } },
       preview = { ['p'] = false, ['v'] = { 'toggle_view' } },
+      comment = { ['<C-s>'] = { 'submit_comment', mode = { 'n', 'i' } } },
       message_preview = { ['q'] = false, ['x'] = { 'hide_message_preview' } },
     },
     editor = {
@@ -349,6 +350,9 @@ require('opencode').setup({
     },
     selection = {
       enabled = true, -- Include selected text in the context
+    },
+    review_comments = {
+      enabled = true, -- Include pending session-diff review comments in the context
     },
     buffer = {
       enabled = false, -- Disable entire buffer context by default, only used in quick chat
@@ -827,6 +831,7 @@ When a selection targets the current file, the automatic current-file attachment
 | Mentioned files | File info added through [mentions](#file-mentions)   |
 | Diagnostics     | Diagnostics from the current file (if any)           |
 | Cursor position | Current cursor position and line content in the file |
+| Review comments | Saved session-diff feedback, included when enabled   |
 
 <a id="file-mentions"></a>
 
@@ -858,6 +863,7 @@ You can quickly reference available context items by typing `#` in the input win
 - **Selection** - Currently selected text in visual mode
 - **Diagnostics** - LSP diagnostics from the current file
 - **Cursor Data** - Current cursor position and line content
+- **Review comments** - Pending comments added to session diffs; select the group to toggle it or select a comment to remove it
 - **[filename]** - Files that have been mentioned in the conversation
 - **Agents** - Available agents to switch to
 - **Selections** - Previously made selections in visual mode
@@ -1171,6 +1177,18 @@ Press `r` to select a range of turns/messages: move through user prompts, mark t
 ![Turn-range picker with start and end markers](https://github.com/user-attachments/assets/7b28dbe7-9769-4144-bad7-6ca49ecbeb2d)
 
 Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
+
+### Comment on a session diff
+
+In a diff preview, press `c` on a line or visual selection to add or edit a review comment. Use `dc` to remove one; `]r` and `[r` move between comments. In the comment editor, `<C-s>` or `:w` saves, while `q` or `<Esc>` cancels. Comments appear as signs and in the file tree; closing the review focuses the input when comments are pending. Comments are sent with the next prompt and include the reviewed snapshot and a best-effort current-file status.
+
+![Review comment editor open on a changed line](https://github.com/user-attachments/assets/aa4348f1-7075-4449-a0cd-e3322d3c6a77)
+
+![Saved review comment shown beside its changed line in a session diff](https://github.com/user-attachments/assets/e7f1794e-57d5-4757-b7c5-ce2e1fdf102a)
+
+The context bar shows a review-comment icon and count while comments are pending. Type `#` in the input to toggle the **Review comments** context group or remove individual comments. Set `context.review_comments.enabled = false` to disable sending review comments by default. See the [session diff review recipe](docs/recipes/review-session-diff.md) for the step-by-step workflow.
+
+![Review comments context item and individual comment in the input completion menu](https://github.com/user-attachments/assets/c4280eca-4480-4c17-a4d1-d4a9b8fb5e4a)
 
 Diffs come from OpenCode's session diff API; side-by-side buffers display the recorded revisions, not current files on disk.
 

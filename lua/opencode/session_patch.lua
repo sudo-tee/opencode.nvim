@@ -1,5 +1,37 @@
 local M = {}
 
+---@class OpencodeSessionPatchLine
+---@field old? integer
+---@field new? integer
+
+---@param patch string
+---@return OpencodeSessionPatchLine[]
+function M.line_map(patch)
+  local map = {}
+  local old, new = 0, 0
+  local old_left, new_left = 0, 0
+  for row, line in ipairs(vim.split(patch:gsub('\r\n', '\n'), '\n', { plain = true, trimempty = true })) do
+    local old_start, old_size, new_start, new_size = line:match('^@@ %-(%d+),?(%d*) %+(%d+),?(%d*) @@')
+    map[row] = {}
+    if old_start then
+      old, new = tonumber(old_start) - 1, tonumber(new_start) - 1
+      old_left = old_size == '' and 1 or tonumber(old_size)
+      new_left = new_size == '' and 1 or tonumber(new_size)
+    elseif line:sub(1, 1) == ' ' and old_left > 0 and new_left > 0 then
+      old, new = old + 1, new + 1
+      old_left, new_left = old_left - 1, new_left - 1
+      map[row] = { old = old, new = new }
+    elseif line:sub(1, 1) == '-' and old_left > 0 then
+      old, old_left = old + 1, old_left - 1
+      map[row] = { old = old }
+    elseif line:sub(1, 1) == '+' and new_left > 0 then
+      new, new_left = new + 1, new_left - 1
+      map[row] = { new = new }
+    end
+  end
+  return map
+end
+
 ---Reconstruct both revisions from a full-context unified patch.
 ---@param patch string
 ---@return string[]?, string[]?

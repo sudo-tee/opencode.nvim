@@ -52,7 +52,9 @@ local function create_winbar_segments()
   local segments = {}
 
   local current_file = get_current_file_info(ctx)
-  if context.is_context_enabled('current_file') and current_file then
+  local current_file_has_review_comment = current_file and context.is_context_enabled('review_comments')
+    and context.has_review_comment_for_file(current_file.path)
+  if context.is_context_enabled('current_file') and current_file and not current_file_has_review_comment then
     local highlight = 'OpencodeContextCurrentFile'
     if ctx.current_file and ctx.current_file.sent_at then
       highlight = 'OpencodeContextCurrentFileNotUpdated'
@@ -88,6 +90,18 @@ local function create_winbar_segments()
       icon = icons.get('selection'),
       text = '(' .. #ctx.selections .. ')',
       highlight = 'OpencodeContextSelection',
+    })
+  end
+
+  if context.is_context_enabled('review_comments') and #(ctx.review_comments or {}) > 0 then
+    local stale = false
+    for _, comment in ipairs(ctx.review_comments) do
+      local status = comment.resolution and comment.resolution.status
+      stale = stale or status == 'modified' or status == 'removed' or status == 'missing_file'
+    end
+    table.insert(segments, {
+      icon = icons.get('review_comment'), text = '(' .. #ctx.review_comments .. ')',
+      highlight = stale and 'OpencodeContextWarning' or 'OpencodeContextReviewComment',
     })
   end
 

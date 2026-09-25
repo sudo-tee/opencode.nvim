@@ -53,6 +53,7 @@ describe('context completion', function()
       remove_file = function() end,
       remove_subagent = function() end,
       remove_selection = function() end,
+      remove_review_comment = function() end,
       toggle_context = function(type)
         if
           not vim.tbl_contains(
@@ -181,6 +182,22 @@ describe('context completion', function()
       local selection_detail = find_item_by_pattern(items, 'Selection 1')
       assert.is_not_nil(selection_detail)
       assert.are.equal('selection_item', selection_detail.data.type)
+    end)
+
+    it('lists individual review comments with status and preview', function()
+      local original = mock_context.get_context
+      mock_context.get_context = function()
+        local ctx = original()
+        ctx.review_comments = { { id = 7, file = '/project/main.lua', start_line = 2,
+          end_line = 3, comment = 'Please revise', code = 'code', resolution = { status = 'modified' } } }
+        return ctx
+      end
+      local items = source.complete({ trigger_char = '#', input = '' }):wait()
+      local item = find_item_by_pattern(items, 'Comment 1')
+      assert.equals('review_comment_item', item.data.type)
+      assert.equals(7, item.data.additional_data)
+      assert.is_true(item.label:find('modified', 1, true) ~= nil)
+      assert.is_true(item.documentation:find('Please revise', 1, true) ~= nil)
     end)
 
     it('should include mentioned files when they exist', function()

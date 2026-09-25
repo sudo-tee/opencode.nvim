@@ -6,6 +6,7 @@ local Promise = require('opencode.promise')
 local M = {}
 local kind_priority = {
   selection_item = 3,
+  review_comment_item = 3,
   mentioned_file = 4,
   subagent = 5,
 }
@@ -156,6 +157,23 @@ end
 
 ---@param ctx OpencodeContext
 ---@return CompletionItem[]
+local function add_review_comment_items(ctx)
+  local items = {
+    create_context_item('Review comments' .. (#(ctx.review_comments or {}) > 0 and (' (' .. #ctx.review_comments .. ')') or ''),
+      'review_comments', context.is_context_enabled('review_comments'), 'Manage review comments'),
+  }
+  for index, comment in ipairs(ctx.review_comments or {}) do
+    local status = comment.resolution and comment.resolution.status or 'exact'
+    items[#items + 1] = create_context_item(
+      ('Comment %d %s:%d-%d (%s)'):format(index, vim.fn.fnamemodify(comment.file, ':~:.'),
+        comment.start_line, comment.end_line, status), 'review_comment_item', true,
+      comment.comment .. '\n\n' .. comment.code, icons.get('review_comment'), comment.id, kind_priority.review_comment_item)
+  end
+  return items
+end
+
+---@param ctx OpencodeContext
+---@return CompletionItem[]
 local function add_subagents_items(ctx)
   if not (context.is_context_enabled('agents') or ctx.mentioned_subagents) then
     return {}
@@ -248,6 +266,7 @@ local context_source = {
       add_cursor_data_item(ctx),
     }
     vim.list_extend(items, add_selection_items(ctx))
+    vim.list_extend(items, add_review_comment_items(ctx))
     vim.list_extend(items, add_mentioned_files_items(ctx))
     vim.list_extend(items, add_subagents_items(ctx))
 
@@ -266,7 +285,9 @@ local context_source = {
     end
 
     local type = item.data.type
-    context.toggle_context(type)
+    if type ~= 'review_comment_item' then
+      context.toggle_context(type)
+    end
 
     if type == 'mentioned_file' then
       local file_path = item.data.additional_data and item.data.additional_data.file_path or item.data.name
@@ -277,6 +298,8 @@ local context_source = {
       input_win.remove_mention(subagent_name)
     elseif type == 'selection_item' then
       context.remove_selection(item.data.additional_data --[[@as OpencodeContextSelection]])
+    elseif type == 'review_comment_item' then
+      context.remove_review_comment(item.data.additional_data)
     end
 
     vim.schedule(function()

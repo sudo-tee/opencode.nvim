@@ -160,14 +160,24 @@ function M.setup_autocmds(windows)
     end,
   })
 
-  vim.api.nvim_create_autocmd({ 'BufWinEnter', 'BufFilePost', 'WinLeave' }, {
+  vim.api.nvim_create_autocmd({ 'BufEnter', 'WinEnter', 'TabEnter', 'BufFilePost' }, {
     group = group,
-    pattern = '*',
-    callback = function(args)
-      if args.file == '' then
+    callback = function()
+      if state.windows ~= windows or not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
         return
       end
-      state.ui.set_code_context(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
+
+      local win = vim.api.nvim_get_current_win()
+      local buf = vim.api.nvim_get_current_buf()
+      if
+        vim.api.nvim_win_get_tabpage(win) ~= vim.api.nvim_win_get_tabpage(windows.output_win)
+        or vim.api.nvim_win_get_config(win).relative ~= ''
+        or not require('opencode.util').is_buf_a_file(buf)
+      then
+        return
+      end
+
+      state.ui.set_code_context(win, buf)
     end,
   })
 

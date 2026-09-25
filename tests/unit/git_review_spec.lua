@@ -2,6 +2,7 @@ local Promise = require('opencode.promise')
 local state = require('opencode.state')
 local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
+local session_diff = require('opencode.ui.session_diff')
 local picker = require('opencode.ui.picker')
 
 describe('asynchronous git review', function()
@@ -13,6 +14,8 @@ describe('asynchronous git review', function()
       session = state.active_session,
       server = state.opencode_server,
       display = diff_tab.open_diff_tab,
+      session_display = session_diff.open,
+      toggle_file = session_diff.toggle_file,
       select = picker.select,
     }
     cwd, displayed = '/project', {}
@@ -43,6 +46,8 @@ describe('asynchronous git review', function()
     state.session.set_active(original.session)
     state.jobs.set_server(original.server)
     diff_tab.open_diff_tab, picker.select = original.display, original.select
+    session_diff.open = original.session_display
+    session_diff.toggle_file = original.toggle_file
     package.loaded['opencode.git_review'] = nil
   end)
   it('does not display stale results after a directory switch', function()
@@ -109,5 +114,116 @@ describe('asynchronous git review', function()
 
     assert.equals('first', review.get_first_snapshot())
     assert.equals('latest', review.get_latest_snapshot())
+  end)
+
+  it('uses V2 session turns and ignores responses after switching workspaces', function()
+    local pending = Promise.new()
+    local requested
+    state.jobs.set_server({
+      protocol = 'v2',
+      is_ready = function()
+        return false
+      end,
+      operations = {
+        diff_session = function(_, session_id, from)
+          requested = { session_id, from }
+          return pending
+        end,
+      },
+    })
+    session_diff.open = function(files)
+      displayed[#displayed + 1] = files
+    end
+    local result = review.review()
+    assert.same({ 'one' }, requested)
+    cwd = '/other'
+    pending:resolve({ { file = '/project/file.lua', patch = 'patch' } })
+    result:wait()
+    assert.same({}, displayed)
+  end)
+
+  it('loads all user prompts in chronological order and passes selected range to V2', function()
+    local requested, options
+    state.jobs.set_server({
+      protocol = 'v2',
+      is_ready = function()
+        return false
+      end,
+      operations = {
+        list_messages = function(_, _, cursor)
+          if cursor then
+            return Promise.new():resolve({
+              data = { { id = 'msg_old', type = 'user', text = 'First prompt', time = { created = 10 } } }, cursor = {},
+            })
+          end
+          return Promise.new():resolve({
+            data = {
+              { id = 'msg_new', type = 'user', text = 'Latest prompt', time = { created = 20 } },
+              { id = 'msg_assistant', type = 'assistant' },
+            },
+            cursor = { next = 'older' },
+          })
+        end,
+        diff_session = function(_, session_id, from, to)
+          requested = { session_id, from, to }
+          return Promise.new():resolve({ { file = '/project/file.lua', patch = 'patch' } })
+        end,
+      },
+    })
+    session_diff.open = function(_, _, actions)
+      options = actions
+    end
+    review.review('msg_old', 'msg_new'):wait()
+    assert.same({ 'one', 'msg_old', 'msg_new' }, requested)
+    assert.same({
+      { id = 'msg_old', text = 'First prompt', created = 10 },
+      { id = 'msg_new', text = 'Latest prompt', created = 20 },
+    }, options.load_turns():wait())
+    options.review_range('msg_new', nil):wait()
+    assert.same({ 'one', 'msg_new' }, requested)
+  end)
+
+  it('resolves tool message to its user turn and selects its file', function()
+    local requested, selected
+    local observed = {
+      entry_order = { 'msg_user', 'msg_assistant', 'msg_steer', 'msg_tool' },
+      entries_by_id = {
+        msg_user = { id = 'msg_user', kind = 'user', content = {} },
+        msg_assistant = { id = 'msg_assistant', kind = 'assistant', content = {} },
+        msg_steer = { id = 'msg_steer', kind = 'user', content = {} },
+        msg_tool = { id = 'msg_tool', kind = 'assistant', content = {} },
+      },
+    }
+    state.jobs.set_server({
+      protocol = 'v2',
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return { read = function() return observed end }
+      end,
+      operations = {
+        diff_session = function(_, session_id, from)
+          requested = { session_id, from }
+          return Promise.new():resolve({ { file = '/project/selected.lua', patch = 'patch' } })
+        end,
+      },
+    })
+    session_diff.toggle_file = function(path, from, session_id)
+      selected = { path, from, session_id }
+      return false
+    end
+    session_diff.open = function(_, _, options)
+      assert.equals('/project/selected.lua', options.file)
+    end
+    review.toggle_file('msg_tool', '/project/selected.lua', 'one'):wait()
+    assert.same({ 'one', 'msg_steer' }, requested)
+    assert.same({ '/project/selected.lua', 'msg_steer', 'one' }, selected)
+    requested = nil
+    session_diff.toggle_file = function()
+      return true
+    end
+    review.toggle_file('msg_tool', '/project/selected.lua', 'one'):wait()
+    assert.is_nil(requested)
   end)
 end)

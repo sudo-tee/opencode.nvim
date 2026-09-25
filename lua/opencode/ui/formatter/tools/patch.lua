@@ -61,7 +61,7 @@ end
 
 ---@param output Output
 ---@param part table
-function M.format(output, part)
+function M.format(output, part, context, _, message)
   local formatter_utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
   local patch_text = part.input and part.input.patchText
@@ -113,6 +113,7 @@ function M.format(output, part)
         output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
       end
     end
+    formatter_utils.add_tool_diff_action(output, message, context, file.path, action_line - 1, output:get_line_count() - 1)
   end
 end
 

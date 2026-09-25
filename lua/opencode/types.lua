@@ -171,6 +171,7 @@
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
+---@field session_diff {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
 ---@field tab_strip_window table<string, OpencodeKeymapEntry>
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field session_tab_picker OpencodeSessionTabPickerKeymap
@@ -455,7 +456,7 @@
 
 ---@class OutputAction
 ---@field text string Action text
----@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open'|'diff_restore_snapshot_file'|'diff_restore_snapshot_all'|'navigate_session_tree'|'toggle_max_messages'|'undo'|'copy_message'|'fork_session'
+---@field type 'diff_revert_all'|'diff_revert_selected_file'|'diff_open'|'diff_toggle_file'|'diff_restore_snapshot_file'|'diff_restore_snapshot_all'|'navigate_session_tree'|'toggle_max_messages'|'undo'|'copy_message'|'fork_session'
 ---@field args? string[] Optional arguments for the command
 ---@field key string keybinding for the action
 ---@field display_line number Line number to display the action

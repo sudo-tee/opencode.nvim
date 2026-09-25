@@ -60,6 +60,30 @@ function M.format_action(output, icon, tool_type, value, duration_text)
   output:add_line(M.build_action_line(icon, tool_type, value, duration_text))
 end
 
+---@param output Output
+---@param message? table
+---@param context? FormatterContext
+---@param path string
+---@param first_line integer
+---@param last_line integer
+function M.add_tool_diff_action(output, message, context, path, first_line, last_line)
+  if not context or not context.interactive or not message then
+    return
+  end
+  local connection = require('opencode.state').opencode_server
+  if not connection or connection.protocol ~= 'v2' then
+    return
+  end
+  output:add_action({
+    text = '[D]iff file',
+    type = 'diff_toggle_file',
+    args = { message.id, path, message.session_id },
+    key = 'D',
+    display_line = first_line,
+    range = { from = first_line, to = last_line },
+  })
+end
+
 ---@param tool string|nil
 ---@return boolean
 function M.should_fold_tool(tool)

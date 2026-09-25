@@ -30,6 +30,40 @@ M.defaults = {
   },
   -- stylua: ignore
   keymap = {
+    session_diff = {
+      list = {
+        ['<CR>'] = { 'activate', desc = 'Open file or toggle folder' },
+        ['r'] = { 'toggle_range', desc = 'Choose message range' },
+        ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
+        ['q'] = { 'close', desc = 'Close diff' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      messages = {
+        ['<CR>'] = { 'activate', desc = 'Review selected range' },
+        ['r'] = { 'toggle_range', desc = 'Return to files' },
+        ['f'] = { 'mark_from', desc = 'Mark range start' },
+        ['t'] = { 'mark_to', desc = 'Mark range end' },
+        ['K'] = { 'show_message_preview', desc = 'Preview message' },
+        ['<Esc>'] = { 'toggle_range', desc = 'Return to files' },
+        ['q'] = { 'toggle_range', desc = 'Return to files' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      preview = {
+        ['q'] = { 'close', desc = 'Close diff' },
+        ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      message_preview = {
+        ['q'] = { 'hide_message_preview', desc = 'Close message preview' },
+        ['<Esc>'] = { 'hide_message_preview', desc = 'Close message preview' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      help = {
+        ['g?'] = { 'toggle_help' },
+        ['q'] = { 'toggle_help' },
+        ['<Esc>'] = { 'toggle_help' },
+      },
+    },
     editor = {
       ['<leader>og'] =  { 'toggle',                                            desc = 'Toggle Opencode window' },
       ['<leader>oi'] =  { 'open_input',                                        desc = 'Open input window' },

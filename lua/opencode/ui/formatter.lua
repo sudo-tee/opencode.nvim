@@ -840,7 +840,7 @@ end
 ---@param output Output Output object to write to
 ---@param part table
 ---@param context FormatterContext
-function M.format_tool(output, part, context)
+function M.format_tool(output, part, context, message)
   local tool = part.name
   if not tool or not part.state then
     return
@@ -850,7 +850,7 @@ function M.format_tool(output, part, context)
 
   local formatter = tool_formatters[tool] or (tool:match('_') and tool_formatters.mcp) or tool_formatters.tool
   local fold_count = #output.fold_ranges
-  formatter.format(output, part, context, tool_formatters)
+  formatter.format(output, part, context, tool_formatters, message)
 
   if not format_utils.should_fold_tool(tool) then
     for idx = #output.fold_ranges, fold_count + 1, -1 do
@@ -957,7 +957,7 @@ function M.format_part(part, message, is_last_part, context)
       M._format_reasoning(output, part)
       content_added = true
     elseif part.kind == 'tool' then
-      M.format_tool(output, part, context)
+      M.format_tool(output, part, context, message)
       content_added = true
     elseif part.kind == 'patch' and part.hash then
       M._format_patch(output, part)

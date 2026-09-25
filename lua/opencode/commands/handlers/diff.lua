@@ -43,6 +43,10 @@ M.actions.diff_open = with_output_open(function(from_snapshot_id, _to_snapshot_i
   return git_review.review(extract_hash_arg(from_snapshot_id))
 end, true)
 
+M.actions.diff_toggle_file = with_output_open(function(message_id, file_path, session_id)
+  return git_review.toggle_file(message_id, file_path, session_id)
+end, true)
+
 M.actions.diff_next = with_output_open(function()
   return git_review.next_diff()
 end, false)
@@ -237,6 +241,7 @@ M.command_defs = {
       return M.actions.diff_restore_snapshot_all(args and args[1])
     end,
   },
+  diff_toggle_file = { desc = 'Toggle diff for tool file', execute = M.actions.diff_toggle_file },
   -- action name aliases for keymap compatibility
   diff_open = { desc = 'Open diff view', execute = M.actions.diff_open },
   diff_next = { desc = 'Next diff', execute = M.actions.diff_next },

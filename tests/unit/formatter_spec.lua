@@ -226,6 +226,47 @@ describe('formatter', function()
     assert.is_nil(rendered:find('No newline at end of file', 1, true), rendered)
   end)
 
+  it('anchors V2 file diff actions to each edit and patch file row', function()
+    local state = require('opencode.state')
+    local original = state.opencode_server
+    state.jobs.set_server({ protocol = 'v2', is_ready = function() return false end })
+    local context = { interactive = true }
+    local message = assistant()
+    local edit = formatter.format_part(tool('edit', {
+      target = { path = '/workspace/a.lua' },
+      changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+    }), message, true, context)
+    assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, edit.actions[1].args)
+    assert.equals('diff_toggle_file', edit.actions[1].type)
+    assert.equals(0, edit.actions[1].display_line)
+    assert.is_true(edit.actions[1].range.to > edit.actions[1].display_line)
+    assert.equals('diff_toggle_file', edit:get_actions_for_line(edit.actions[1].range.to)[1].type)
+
+    for _, name in ipairs({ 'patch', 'apply_patch' }) do
+      local output = formatter.format_part(tool(name, {
+        changes = {
+          { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+          { path = '/workspace/b.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+        },
+      }), message, true, context)
+      assert.equals(2, #output.actions)
+      assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, output.actions[1].args)
+      assert.same({ 'msg_1', '/workspace/b.lua', 'ses_1' }, output.actions[2].args)
+      assert.is_true(output.actions[2].display_line > output.actions[1].display_line)
+      assert.equals(output.actions[2].display_line - 1, output.actions[1].range.to)
+      assert.is_true(output.actions[2].range.to > output.actions[2].display_line)
+      assert.same({ '/workspace/b.lua' }, vim.tbl_map(function(action)
+        return action.args[2]
+      end, output:get_actions_for_line(output.actions[2].range.to)))
+    end
+    state.jobs.set_server({ protocol = 'v1', is_ready = function() return false end })
+    assert.same({}, formatter.format_part(tool('edit', {
+      target = { path = '/workspace/a.lua' },
+      changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+    }), message, true, context).actions)
+    state.jobs.set_server(original)
+  end)
+
   it('shortens file tool paths relative to the current workspace', function()
     local absolute_path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
     local output = formatter.format_part(tool('edit', {

@@ -112,7 +112,7 @@ describe('contextual actions', function()
       end
     end
     assert.equals(1, found)
-    assert.equals(0, file_action.display_line)
+    assert.equals(2, file_action.display_line)
     assert.equals('D', mapping(buf, 'D').desc)
     contextual_actions.teardown()
     actions:revert()

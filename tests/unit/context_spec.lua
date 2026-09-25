@@ -4,8 +4,16 @@ local assert = require('luassert')
 
 describe('review comment context', function()
   local saved
-  before_each(function() saved = context.snapshot(); context.clear_review_comments() end)
-  after_each(function() context.restore(saved) end)
+  local saved_active_session
+  before_each(function()
+    saved = context.snapshot()
+    saved_active_session = state.active_session
+    context.clear_review_comments()
+  end)
+  after_each(function()
+    context.restore(saved)
+    state.session.set_active(saved_active_session)
+  end)
 
   it('deduplicates snapshot anchors, consumes sent comments, and restores failed sends', function()
     local item = {
@@ -85,6 +93,7 @@ describe('review comment context', function()
 
   it('sends multiple comments on the same file with one path and instruction', function()
     local path = '/nonexistent/review.lua'
+    state.session.set_active({ id = 'session' })
     for index = 1, 2 do
       context.add_review_comment({
         id = 0, file = path, side = 'after', start_line = index, end_line = index,

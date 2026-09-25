@@ -76,7 +76,7 @@ end
 ---@param part table?
 ---@return string?
 local function get_child_session_id_for_task_part(part)
-  if not part or part.kind ~= 'tool' or part.name ~= 'task' then
+  if not part or part.kind ~= 'tool' or (part.name ~= 'task' and part.name ~= 'subagent') then
     return nil
   end
   return part.child_session and part.child_session.id or nil

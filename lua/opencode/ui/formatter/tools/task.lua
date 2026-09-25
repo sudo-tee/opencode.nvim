@@ -25,16 +25,19 @@ end
 ---@param context? FormatterContext
 ---@param tool_formatters? table registry passed in by the dispatch site
 function M.format(output, part, context, tool_formatters)
-  if part.name ~= 'task' then
+  if part.name ~= 'task' and part.name ~= 'subagent' then
     return
   end
 
   local tool_output = require('opencode.ui.formatter.utils').tool_result_text(part)
+  if part.name == 'subagent' then
+    tool_output = tool_output:match('^<subagent[^>]*>%s*(.-)%s*</subagent>%s*$') or tool_output
+  end
 
   local start_line = output:get_line_count() + 1
 
-  local description = part.description or ''
-  local agent_type = part.input and part.input.subagent_type
+  local description = part.description or (part.input and part.input.description) or ''
+  local agent_type = part.input and (part.input.subagent_type or part.input.agent)
   if agent_type then
     description = string.format('%s (@%s)', description, agent_type)
   end
@@ -42,7 +45,7 @@ function M.format(output, part, context, tool_formatters)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  utils.format_action(output, icons.get('task'), 'task', description, utils.get_duration_text(part))
+  utils.format_action(output, icons.get('task'), part.name, description, utils.get_duration_text(part))
 
   local output_start_line = output:get_line_count() + 1
   if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then
@@ -97,7 +100,7 @@ end
 ---@param part table
 ---@return string, string, string
 function M.summary(part)
-  return icons.get('task'), 'task', part.description or ''
+  return icons.get('task'), part.name, part.description or (part.input and part.input.description) or ''
 end
 
 return M

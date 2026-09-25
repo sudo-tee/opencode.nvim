@@ -204,6 +204,31 @@ describe('V2 protocol Observation interpretation', function()
     }, content[4].changes)
   end)
 
+  it('projects V2 subagent session metadata into a navigable child session', function()
+    local observed = observation('ses-target')
+    local message = assistant('msg-subagent')
+    message.content = {
+      {
+        type = 'tool',
+        id = 'tool-subagent',
+        name = 'subagent',
+        time = { created = 201, ran = 202, completed = 203 },
+        state = {
+          status = 'completed',
+          input = { agent = 'explore', description = 'inspect repository' },
+          metadata = { sessionID = 'ses-child' },
+          content = { { type = 'text', text = 'Found two callers' } },
+        },
+      },
+    }
+
+    observation_module.ingest_snapshot(observed, { message })
+    local part = observed:read().entries_by_id['msg-subagent'].content[1]
+    assert.same({ id = 'ses-child' }, part.child_session)
+    assert.equals('explore', part.input.agent)
+    assert.equals('Found two callers', part.result[1].text)
+  end)
+
   it('keeps each native kind as a distinct Entry shape', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

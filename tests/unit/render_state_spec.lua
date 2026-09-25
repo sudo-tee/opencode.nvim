@@ -110,6 +110,17 @@ describe('RenderState', function()
 
       assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
     end)
+
+    it('indexes subagent parts by child session ID', function()
+      render_state:set_part({
+        id = 'part1',
+        kind = 'tool',
+        name = 'subagent',
+        child_session = { id = 'child-1' },
+      }, 'msg1', 'part1', 1, 2)
+
+      assert.equals('part1', render_state:get_task_part_by_child_session('child-1'))
+    end)
   end)
 
   describe('get_part_at_line', function()

@@ -342,6 +342,7 @@ local tool_metadata_shape = v.object({
   diff = v.optional('string'),
   files = v.optional(v.array(tool_file_change_shape)),
 })
+local subagent_metadata_shape = v.object({ sessionID = v.optional('string') })
 
 ---@class OpencodeV2ToolChange
 ---@field path string
@@ -471,12 +472,20 @@ local function apply_patch_metadata(result, metadata)
   end
 end
 
+local function apply_subagent_metadata(result, metadata)
+  local parsed = subagent_metadata_shape:parse(metadata, 'V2 observation: invalid subagent metadata')
+  if parsed.sessionID then
+    result.child_session = { id = parsed.sessionID }
+  end
+end
+
 ---@type table<string, OpencodeV2ToolMetadataApplier?>
 local tool_metadata_appliers = {
   skill = apply_skill_metadata,
   edit = apply_edit_metadata,
   patch = apply_patch_metadata,
   apply_patch = apply_patch_metadata,
+  subagent = apply_subagent_metadata,
 }
 
 ---@param result table

@@ -44,6 +44,27 @@ describe('V2 protocol operations', function()
     assert.equals(operations.revert_message, connection.operations.revert_message)
   end)
 
+  it('requests session turn diffs and maps file paths in the data envelope', function()
+    local request
+    transport.request = function(_, value)
+      request = value
+      return Promise.new():resolve({
+        status = 200,
+        body = vim.json.encode({ data = { {
+          file = '/server/file.lua', patch = '@@ -1 +1 @@\n-old\n+new',
+          additions = 1, deletions = 1, status = 'modified',
+        } } }),
+      })
+    end
+    local files = operations.diff_session(ready_connection(), 'ses_123', 'msg_one', 'msg_two', function(path)
+      return path:gsub('^/server', '/host')
+    end):wait()
+    assert.equals('/api/session/ses_123/diff', request.path)
+    assert.equals('from=msg_one&to=msg_two', request.query)
+    assert.equals('/host/file.lua', files[1].file)
+    assert.equals('@@ -1 +1 @@\n-old\n+new', files[1].patch)
+  end)
+
   it('uses direct, location/data, and page response contracts from the V2 fixtures', function()
     local bodies = {
       ['/api/config'] = fixture('config.json'),

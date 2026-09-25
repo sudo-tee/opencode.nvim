@@ -29,6 +29,13 @@
 ---@field reply 'once'|'always'|'reject'
 ---@field message? string
 
+---@class OpencodeV2FileDiff
+---@field file string
+---@field patch string
+---@field additions integer
+---@field deletions integer
+---@field status 'added'|'deleted'|'modified'
+
 ---@class OpencodeV2Operations
 ---@field get_current_project fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
 ---@field get_config fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table>
@@ -50,6 +57,7 @@
 ---@field revert_message fun(connection: OpencodeV2Connection, session_id: string, location: OpencodeLocation?, input: {messageID: string}, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<SessionRevertInfo>
 ---@field unrevert_messages fun(connection: OpencodeV2Connection, session_id: string): Promise<boolean>
 ---@field list_messages fun(connection: OpencodeV2Connection, session_id: string, cursor?: string, limit?: integer, reverse_path_map?: OpencodeV2PathMap): Promise<OpencodeV2Page<table>>
+---@field diff_session fun(connection: OpencodeV2Connection, session_id: string, from?: string, to?: string, reverse_path_map?: OpencodeV2PathMap): Promise<OpencodeV2FileDiff[]>
 ---@field set_session_agent fun(connection: OpencodeV2Connection, session_id: string, agent: string): Promise<boolean>
 ---@field set_session_model fun(connection: OpencodeV2Connection, session_id: string, model: OpencodeV2ModelInput): Promise<boolean>
 ---@field send_command fun(connection: OpencodeV2Connection, session_id: string, location: OpencodeLocation?, input: OpencodeV2CommandInput): Promise<boolean>

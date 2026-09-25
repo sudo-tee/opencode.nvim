@@ -324,6 +324,21 @@ end
 
 ---@param connection OpencodeV2Connection
 ---@param session_id string
+---@param from? string
+---@param to? string
+---@param reverse_path_map? OpencodeV2PathMap
+---@return Promise<OpencodeV2FileDiff[]>
+function M.diff_session(connection, session_id, from, to, reverse_path_map)
+  return json_request(connection, 'V2 diff_session', 'GET', '/api/session/' .. session_id .. '/diff', {
+    from = from,
+    to = to,
+  }):and_then(function(value)
+    return require_table('V2 diff_session', unwrap_data('V2 diff_session', value, reverse_path_map))
+  end)
+end
+
+---@param connection OpencodeV2Connection
+---@param session_id string
 ---@param agent string
 function M.set_session_agent(connection, session_id, agent)
   return empty_request(connection, 'V2 set_session_agent', 'POST', '/api/session/' .. session_id .. '/agent', {
@@ -778,6 +793,7 @@ M.contract = {
   { 'GET', '/api/session' },
   { 'GET', '/api/session/active' },
   { 'GET', '/api/session/{sessionID}' },
+  { 'GET', '/api/session/{sessionID}/diff' },
   { 'GET', '/api/session/{sessionID}/inbox' },
   { 'GET', '/api/session/{sessionID}/message' },
   { 'GET', '/api/skill' },

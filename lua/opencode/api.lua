@@ -70,6 +70,7 @@ local action_groups = {
     diff_revert_this_last_prompt = diff.diff_revert_this_last_prompt,
     set_review_breakpoint = diff.set_review_breakpoint,
     diff_open = diff.diff_open,
+    diff_toggle_file = diff.diff_toggle_file,
     diff_revert_all = diff.diff_revert_all,
     diff_revert_selected_file = diff.diff_revert_selected_file,
     diff_restore_snapshot_file = diff.diff_restore_snapshot_file,

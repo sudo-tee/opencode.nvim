@@ -19,6 +19,7 @@
 ## ✨ Description
 
 > [!IMPORTANT]
+>
 > ### 🚀 Testing OpenCode v2?
 >
 > Use the [`v2` branch](https://github.com/sudo-tee/opencode.nvim/tree/v2) of this plugin for OpenCode v2 support — now available for testing. Expect changes while development continues.
@@ -146,6 +147,14 @@ require('opencode').setup({
   },
 
   keymap = {
+    -- Session diff mappings are buffer-local. g? opens help showing active mappings.
+    -- Set old keys to false when remapping.
+    session_diff = {
+      list = { ['p'] = false, ['v'] = { 'toggle_view' }, ['g?'] = false, ['?'] = { 'toggle_help' } },
+      messages = { ['f'] = false, ['s'] = { 'mark_from' } },
+      preview = { ['p'] = false, ['v'] = { 'toggle_view' } },
+      message_preview = { ['q'] = false, ['x'] = { 'hide_message_preview' } },
+    },
     editor = {
       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened
       ['<leader>oi'] = { 'open_input' }, -- Opens and focuses on input window on insert mode
@@ -674,14 +683,14 @@ Panel tabs are logical tabs inside the Opencode UI. They do not create or switch
 | Open opencode. Close if opened                              | `<leader>og`                          | `:Opencode`                                 | `require('opencode.api').toggle()`                                     |
 | Open input window (current session)                         | `<leader>oi`                          | `:Opencode open input`                      | `require('opencode.api').open_input()`                                 |
 | Open input window (new session)                             | `<leader>oI`                          | `:Opencode open input_new_session`          | `require('opencode.api').open_input_new_session()`                     |
-| Open a new session in a panel tab                            | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
-| Select a panel tab                                           | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
-| Select panel tab by index                                    | `<leader>o1` ... `<leader>o9`          | `:Opencode tab select [index]`              | `require('opencode.api').select_session_tab(index)`                    |
-| Switch panel tabs                                            | `<leader>o<` / `<leader>o>`            | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
+| Open a new session in a panel tab                           | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
+| Select a panel tab                                          | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
+| Select panel tab by index                                   | `<leader>o1` ... `<leader>o9`         | `:Opencode tab select [index]`              | `require('opencode.api').select_session_tab(index)`                    |
+| Switch panel tabs                                           | `<leader>o<` / `<leader>o>`           | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
 | Close the current panel tab                                 | `<leader>oQ`                          | `:Opencode tab close`                       | `require('opencode.api').close_session_tab()`                          |
 | Open output window                                          | `<leader>oo`                          | `:Opencode open output`                     | `require('opencode.api').open_output()`                                |
 | Create and switch to a named session                        | -                                     | `:Opencode session new <name>`              | `:Opencode session new <name>` (user command)                          |
-| Open the selected session in a new panel tab                 | `<C-t>` (session picker)              | -                                           | -                                                                      |
+| Open the selected session in a new panel tab                | `<C-t>` (session picker)              | -                                           | -                                                                      |
 | Rename current session                                      | `<leader>oR`                          | `:Opencode session rename <name>`           | `:Opencode session rename <name>` (user command)                       |
 | Toggle focus opencode / last window                         | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                            | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |
@@ -1146,6 +1155,26 @@ You can also run user commands by name with `:Opencode command <name>`.
 <img src="https://i.imgur.com/YQhhoPS.png" alt="Opencode.nvim contextual actions" width="90%" />
 
 See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details.
+
+## Session diffs (OpenCode V2)
+
+`:Opencode diff open` opens a review tab for the latest session turn, with a session-labeled, collapsible changed-file tree and side-by-side before/after revisions. Move through files with `j`/`k`, and press `<CR>` on a directory to expand or collapse it.
+
+![Changed-file tree with side-by-side before and after revisions](https://github.com/user-attachments/assets/e62aa9df-848a-47fc-9bb5-dabce0422f03)
+
+Press `p` to switch to a unified patch for the selected file.
+
+![Changed-file tree with a unified patch preview](https://github.com/user-attachments/assets/ee061cfd-8d12-4fc5-9ebb-ff8889d1f49c)
+
+Press `r` to select a range of turns/messages: move through user prompts, mark the start with `f` and end with `t`, then press `<CR>` to review the range; `r` returns to the file tree.
+
+![Turn-range picker with start and end markers](https://github.com/user-attachments/assets/7b28dbe7-9769-4144-bad7-6ca49ecbeb2d)
+
+Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
+
+Diffs come from OpenCode's session diff API; side-by-side buffers display the recorded revisions, not current files on disk.
+
+In V2 output, press `D` anywhere in an edit, patch, or apply-patch file block to open its turn's diff with that file selected. Repeat from the same block to close the review tab; selecting another file focuses it in the existing review.
 
 ## 📸 Contextual Actions for Snapshots
 

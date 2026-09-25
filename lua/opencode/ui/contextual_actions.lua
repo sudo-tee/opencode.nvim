@@ -122,7 +122,13 @@ local function refresh_contextual_actions(buf)
   end
 
   local line = vim.api.nvim_win_get_cursor(0)[1] - 1
-  M.show_contextual_actions_menu(buf, require('opencode.ui.renderer').get_actions_for_line(line))
+  local actions = require('opencode.ui.renderer').get_actions_for_line(line)
+  for index, action in ipairs(actions or {}) do
+    if action.type == 'diff_toggle_file' then
+      actions[index] = vim.tbl_extend('force', {}, action, { display_line = line })
+    end
+  end
+  M.show_contextual_actions_menu(buf, actions)
 end
 
 ---@param windows OpencodeWindowState

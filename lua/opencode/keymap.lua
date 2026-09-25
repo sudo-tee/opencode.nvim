@@ -80,13 +80,15 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, pre
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
       opts.desc = config_entry.desc or vim.tbl_get(command_defs, func_name, 'desc') or ''
 
-      if callback and #modes > 0 then
+      if not callback then
+        if type(func_name) ~= 'string' then
+          vim.notify(string.format('No action found for keymap: %s -> %s', key_binding, func_name), vim.log.levels.WARN)
+        end
+      elseif #modes > 0 then
         if config_entry.defer_to_completion then
           callback = wrap_with_completion_check(key_binding, callback)
         end
         vim.keymap.set(modes, key_binding, callback, opts)
-      elseif type(func_name) ~= 'string' then
-        vim.notify(string.format('No action found for keymap: %s -> %s', key_binding, func_name), vim.log.levels.WARN)
       end
     end
   end

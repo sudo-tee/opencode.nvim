@@ -1176,11 +1176,10 @@ Diffs come from OpenCode's session diff API; side-by-side buffers display the re
 
 In V2 output, press `D` anywhere in an edit, patch, or apply-patch file block to open its turn's diff with that file selected. Repeat from the same block to close the review tab; selecting another file focuses it in the existing review.
 
-## 📸 Contextual Actions for Snapshots
+## 📸 Contextual Actions for Snapshots (V1 only)
 
-> [!WARNING] > _Snapshots are an experimental feature_
-> in opencode and sometimes the dev team may disable them or change their behavior.
-> This repository will be updated to match the latest opencode changes as soon as possible.
+> [!WARNING]
+> Snapshots are experimental and were never an official OpenCode V1 feature. This implementation relies on Git worktree snapshots, which are being replaced in V2 by the more robust [session diffs](#session-diffs-opencode-v2).
 
 Opencode.nvim automatically creates **snapshots** of your workspace at key moments (such as after running prompts or making changes). These snapshots are like lightweight git commits, allowing you to review, compare, and restore your project state at any time.
 

@@ -435,6 +435,51 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(10, cursor[1])
   end)
 
+  it('pauses following after viewport scroll while cursor remains at bottom', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    local top = output_window.get_visible_top_line(win)
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! \25')
+    end)
+    assert.is_true(output_window.get_visible_top_line(win) < top)
+    output_window.on_user_navigation(win)
+
+    assert.is_false(output_window.is_at_bottom(win))
+    local selected_line = vim.api.nvim_win_get_cursor(win)[1]
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+    assert.equals(selected_line, vim.api.nvim_win_get_cursor(win)[1])
+
+    renderer.scroll_to_bottom(true)
+    assert.equals(51, vim.api.nvim_win_get_cursor(win)[1])
+    assert.is_true(output_window.is_at_bottom(win))
+  end)
+
+  it('pauses following when user selects a line in output', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    vim.api.nvim_win_set_cursor(win, { 45, 0 })
+    output_window.on_user_navigation(win)
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+    assert.equals(45, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
+  it('does not follow a pending flush after user selects a line', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    local snapshot = scroll.pre_flush(buf)
+
+    vim.api.nvim_win_set_cursor(win, { 45, 0 })
+    output_window.on_user_navigation(win)
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    scroll.post_flush(snapshot, buf)
+
+    assert.equals(45, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
   it('still scrolls when always_scroll_to_bottom is enabled', function()
     config.values.ui.output.always_scroll_to_bottom = true
     vim.api.nvim_win_set_cursor(win, { 10, 0 })

@@ -63,6 +63,9 @@ local function setup_panel_autocmds(windows, group)
         if name == 'output' and viewport_is_at_rendered_top() then
           load_more_at_top()
         end
+        if name == 'output' then
+          output_window.on_user_navigation(windows.output_win --[[@as integer]])
+        end
       end,
     })
   end

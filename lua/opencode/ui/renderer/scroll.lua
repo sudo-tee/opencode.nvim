@@ -145,6 +145,11 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   output_window._prev_line_count_by_win[win] = line_count
+  output_window._manual_scroll_by_win[win] = nil
+  output_window._last_visible_top_by_win[win] = output_window.get_visible_top_line(win)
+  output_window._last_skipcol_by_win[win] = vim.api.nvim_win_call(win, function()
+    return vim.fn.winsaveview().skipcol
+  end)
 end
 
 ---@param buf integer|nil
@@ -178,7 +183,11 @@ function M.post_flush(snapshot, buf)
   if not snapshot or not snapshot.follow or not buf or not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  if not vim.api.nvim_win_is_valid(snapshot.win) or vim.api.nvim_win_get_buf(snapshot.win) ~= buf then
+  if
+    not vim.api.nvim_win_is_valid(snapshot.win)
+    or vim.api.nvim_win_get_buf(snapshot.win) ~= buf
+    or output_window._manual_scroll_by_win[snapshot.win]
+  then
     return
   end
   M.scroll_win_to_bottom(snapshot.win, buf)

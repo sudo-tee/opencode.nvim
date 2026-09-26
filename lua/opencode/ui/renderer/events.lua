@@ -111,6 +111,12 @@ local function replay_orphan_parts(message_id, revert_index)
   end
 end
 
+---@param tokens MessageTokenCount
+---@return number
+local function total_tokens(tokens)
+  return tokens.input + tokens.output + (tokens.reasoning or 0) + tokens.cache.read + tokens.cache.write
+end
+
 ---Update token stats in state from a message
 ---@param message OpencodeMessage
 local function update_stats(message)
@@ -119,8 +125,8 @@ local function update_stats(message)
   end
 
   local tokens = message.info.tokens
-  if tokens and tokens.input > 0 then
-    state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
+  if tokens and tokens.output > 0 then
+    state.renderer.set_tokens_count(total_tokens(tokens))
   end
 end
 
@@ -409,9 +415,9 @@ function M.on_part_updated(properties, revert_index)
   message.parts[existing_part_index or #message.parts + 1] = part
 
   if part.type == 'step-start' or part.type == 'step-finish' then
-    if part.type == 'step-finish' and part.tokens and part.tokens.input > 0 then
+    if part.type == 'step-finish' and part.tokens and part.tokens.output > 0 then
       local tokens = part.tokens
-      state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
+      state.renderer.set_tokens_count(total_tokens(tokens))
     end
     return
   end

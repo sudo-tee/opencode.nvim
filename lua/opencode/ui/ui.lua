@@ -454,12 +454,6 @@ function M.create_windows()
   windows.input_win = win_ids.input_win
   windows.output_win = win_ids.output_win
   windows.tab_strip_win = win_ids.tab_strip_win
-
-  local filetype = config.ui.output.filetype or 'opencode_output'
-  vim.api.nvim_win_call(windows.output_win, function()
-    vim.api.nvim_set_option_value('filetype', filetype, { buf = windows.output_buf })
-  end)
-
   windows.saved_width_ratio = state.last_window_width_ratio
 
   input_window.setup(windows)

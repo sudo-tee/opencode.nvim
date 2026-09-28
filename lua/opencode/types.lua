@@ -135,6 +135,8 @@
 ---@field agent string|nil
 ---@field model { id: string, providerID: string, variant?: string }|nil
 ---@field directory? string
+---@field cost? number
+---@field tokens? { input: number, output: number, reasoning: number, cache: { read: number, write: number } }
 ---@field revert? SessionRevertInfo
 ---@field share? SessionShareInfo
 

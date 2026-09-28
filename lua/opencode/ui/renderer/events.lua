@@ -111,7 +111,13 @@ local function replay_orphan_parts(message_id, revert_index)
   end
 end
 
----Update token/cost stats in state from a message
+---@param tokens MessageTokenCount
+---@return number
+local function total_tokens(tokens)
+  return tokens.input + tokens.output + (tokens.reasoning or 0) + tokens.cache.read + tokens.cache.write
+end
+
+---Update token stats in state from a message
 ---@param message OpencodeMessage
 local function update_stats(message)
   if not state.current_model and message.info.providerID and message.info.providerID ~= '' then
@@ -119,12 +125,8 @@ local function update_stats(message)
   end
 
   local tokens = message.info.tokens
-  if tokens and tokens.input > 0 and message.info.cost and type(message.info.cost) == 'number' then
-    state.renderer.set_stats(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write, message.info.cost)
-  elseif tokens and tokens.input > 0 then
-    state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
-  elseif message.info.cost and type(message.info.cost) == 'number' then
-    state.renderer.set_cost(message.info.cost)
+  if tokens and tokens.output > 0 then
+    state.renderer.set_tokens_count(total_tokens(tokens))
   end
 end
 
@@ -413,13 +415,9 @@ function M.on_part_updated(properties, revert_index)
   message.parts[existing_part_index or #message.parts + 1] = part
 
   if part.type == 'step-start' or part.type == 'step-finish' then
-    if part.type == 'step-finish' and part.tokens then
+    if part.type == 'step-finish' and part.tokens and part.tokens.output > 0 then
       local tokens = part.tokens
-      if tokens.input > 0 and part.cost and type(part.cost) == 'number' then
-        state.renderer.set_stats(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write, part.cost)
-      elseif tokens.input > 0 then
-        state.renderer.set_tokens_count(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write)
-      end
+      state.renderer.set_tokens_count(total_tokens(tokens))
     end
     return
   end
@@ -549,6 +547,8 @@ function M.on_session_updated(properties)
     -- Set without emitting a change event to avoid a double re-render
     state.store.set_raw('active_session', updated_session)
   end
+
+  state.renderer.set_cost(updated_session.cost or 0)
 
   if revert_changed then
     local real_messages = vim.tbl_filter(function(msg)

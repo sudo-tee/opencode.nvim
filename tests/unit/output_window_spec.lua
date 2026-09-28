@@ -17,32 +17,26 @@ local function parse_fillchars(value)
   return result
 end
 
-describe('ui.create_windows output filetype', function()
-  local ui = require('opencode.ui.ui')
+describe('output_window.create_buf', function()
   local original_config
-  local windows
 
   before_each(function()
     original_config = vim.deepcopy(config.values)
     config.values = vim.deepcopy(config.defaults)
-    state.ui.set_windows(nil)
   end)
 
   after_each(function()
-    if windows then
-      pcall(ui.close_windows, windows, false)
-      windows = nil
-    end
-    state.ui.set_windows(nil)
     config.values = original_config
   end)
 
   it('uses default output filetype', function()
     config.setup({})
-    windows = ui.create_windows()
+    local buf = output_window.create_buf()
 
-    local filetype = vim.api.nvim_get_option_value('filetype', { buf = windows.output_buf })
+    local filetype = vim.api.nvim_get_option_value('filetype', { buf = buf })
     assert.equals('opencode_output', filetype)
+
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
   end)
 
   it('uses configured output filetype', function()
@@ -54,10 +48,12 @@ describe('ui.create_windows output filetype', function()
       },
     })
 
-    windows = ui.create_windows()
-    local filetype = vim.api.nvim_get_option_value('filetype', { buf = windows.output_buf })
+    local buf = output_window.create_buf()
+    local filetype = vim.api.nvim_get_option_value('filetype', { buf = buf })
 
     assert.equals('markdown', filetype)
+
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
   end)
 end)
 

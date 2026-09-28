@@ -458,8 +458,11 @@ local function prompt_body(input, path_map)
       end
       local server_uri = file.server_uri
       if server_uri and server_uri:match('^file:///') then
-        local path = server_uri:sub(8)
-        uri = 'file://' .. (path_map and path_map(path) or path)
+        local path = vim.uri_to_fname(server_uri)
+        if path_map then
+          path = path_map(path)
+        end
+        uri = vim.uri_from_fname(path)
       elseif not uri then
         error('V2 submit server_uri must be an absolute file URI')
       end

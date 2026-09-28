@@ -281,6 +281,51 @@ describe('V2 protocol operations', function()
     }, vim.json.decode(calls[1].body))
   end)
 
+  it('preserves Windows file URIs and maps URI-decoded paths', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request
+      return Promise.new():resolve({ status = 200, body = '{"data":{"id":"inbox-1","delivery":"steer"}}' })
+    end
+    local input = {
+      text = 'attach',
+      context = {},
+      files = {
+        {
+          server_uri = 'file:///C:/Users/test/a%20file%231.lua',
+          media_type = 'text/plain',
+          name = 'a file#1.lua',
+        },
+      },
+      agents = {},
+    }
+
+    operations.submit(ready_connection(), 'ses-1', input):wait()
+    assert.equals('file:///C:/Users/test/a%20file%231.lua', vim.json.decode(calls[1].body).files[1].uri)
+
+    local mapped_path
+    operations
+      .submit(ready_connection(), 'ses-1', {
+        text = 'attach',
+        context = {},
+        files = {
+          {
+            server_uri = 'file:///host/project/a%20file.lua',
+            media_type = 'text/plain',
+            name = 'a file.lua',
+          },
+        },
+        agents = {},
+      }, function(path)
+        mapped_path = path
+        return path:gsub('^/host', '/server')
+      end)
+      :wait()
+
+    assert.equals('/host/project/a file.lua', mapped_path)
+    assert.equals('file:///server/project/a%20file.lua', vim.json.decode(calls[2].body).files[1].uri)
+  end)
+
   it('uses the fixed 2.0.1 active-session and inbox recovery contracts', function()
     local contract = vim.json.decode(fixture('observation-operations-2.0.1.json'))
     local calls = {}

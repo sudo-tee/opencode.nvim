@@ -169,7 +169,7 @@ local function capture_file(path, prompt)
   local file = {
     name = rel_path,
     media_type = mime_type,
-    server_uri = 'file://' .. util.apply_path_map(path),
+    server_uri = vim.uri_from_fname(util.apply_path_map(path)),
   }
   if pos then
     file.mention = { start_byte = pos - 1, end_byte = pos - 1 + #mention }

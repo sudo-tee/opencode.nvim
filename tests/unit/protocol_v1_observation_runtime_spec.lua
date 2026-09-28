@@ -710,9 +710,9 @@ describe('V1 protocol Observation runtime', function()
       files = {
         { bytes = 'raw', media_type = 'text/plain', name = 'note.txt' },
         {
-          server_uri = 'file:///server/project/main.lua',
+          server_uri = 'file:///server/project/main%20file.lua',
           media_type = 'text/plain',
-          name = 'main.lua',
+          name = 'main file.lua',
           mention = { start_byte = 15, end_byte = 20 },
         },
       },
@@ -732,7 +732,7 @@ describe('V1 protocol Observation runtime', function()
     assert.equals('data:text/plain;base64,' .. vim.base64.encode('raw'), input.parts[2].url)
     assert.same({
       type = 'file',
-      path = '/server/project/main.lua',
+      path = '/server/project/main file.lua',
       text = { value = '@file', start = 11, ['end'] = 16 },
     }, input.parts[3].source)
     assert.same({ value = '@review', start = 3, ['end'] = 10 }, input.parts[4].source)

@@ -250,6 +250,26 @@ describe('format_message', function()
     assert.same({ start_byte = 16, end_byte = 23 }, input.agents[1].mention)
   end)
 
+  it('encodes mentioned file paths as absolute file URIs', function()
+    local ChatContext = require('opencode.context.chat_context')
+    local path = '/tmp/a file#1%.lua'
+    ChatContext.context.mentioned_files = { path }
+
+    local input = context.format_message('attach file'):wait()
+
+    assert.equals(vim.uri_from_fname(require('opencode.util').apply_path_map(path)), input.files[1].server_uri)
+    assert.equals('file:///tmp/a%20file%231%25.lua', input.files[1].server_uri)
+  end)
+
+  it('converts Windows attachment paths to drive-letter file URIs', function()
+    local ChatContext = require('opencode.context.chat_context')
+    ChatContext.context.mentioned_files = { 'C:\\Users\\test\\a file#1.lua' }
+
+    local input = context.format_message('attach file'):wait()
+
+    assert.equals('file:///C:/Users/test/a%20file%231.lua', input.files[1].server_uri)
+  end)
+
   it('captures pasted image mentions by basename', function()
     local ChatContext = require('opencode.context.chat_context')
     local original_context = ChatContext.context

@@ -834,7 +834,7 @@ local function submit_parts(input)
     if file.mention then
       source = {
         type = 'file',
-        path = file.server_uri:sub(8),
+        path = vim.uri_to_fname(file.server_uri),
         text = native_mention(input.text, file.mention),
       }
     end

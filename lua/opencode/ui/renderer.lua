@@ -55,12 +55,18 @@ end
 
 ---@param message table|nil
 ---@return boolean
-local function is_renderer_synthetic_message(message)
+local function is_renderer_owned_message(message)
   local message_id = message and message.id
   return message_id == REVERT_MESSAGE_ID
     or message_id == HIDDEN_MESSAGES_NOTICE_MESSAGE_ID
     or message_id == PERMISSION_DISPLAY_MESSAGE_ID
     or message_id == QUESTION_DISPLAY_MESSAGE_ID
+end
+
+---@param message table
+---@return boolean
+local function is_non_conversation_record(message)
+  return message.kind == 'agent-switched' or message.kind == 'model-switched' or message.kind == 'synthetic'
 end
 
 ---@param message table|nil
@@ -74,7 +80,9 @@ end
 ---@return table[]
 local function get_real_session_messages(messages)
   return vim.tbl_filter(function(message)
-    return is_active_session_message(message) and not is_renderer_synthetic_message(message)
+    return is_active_session_message(message)
+      and not is_renderer_owned_message(message)
+      and not is_non_conversation_record(message)
   end, messages or {})
 end
 
@@ -521,7 +529,7 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
     desired[entry.id] = true
   end
   for message_id in pairs(ctx.render_state._messages) do
-    if not desired[message_id] and not is_renderer_synthetic_message({ id = message_id }) then
+    if not desired[message_id] and not is_renderer_owned_message({ id = message_id }) then
       hide_rendered_message(ctx, message_id)
     end
   end
@@ -1334,7 +1342,7 @@ end
 function M.get_next_rendered_message(current_line, ctx)
   ctx = ctx or contexts.current()
   for _, message in ipairs(ctx.entries) do
-    if not is_renderer_synthetic_message(message) then
+    if not is_renderer_owned_message(message) then
       local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start then
         local jump_line = first_jump_line(ctx, message.id) or rendered.line_start
@@ -1355,7 +1363,7 @@ function M.get_prev_rendered_message(current_line, ctx)
   ctx = ctx or contexts.current()
   for i = #ctx.entries, 1, -1 do
     local message = ctx.entries[i]
-    if message and not is_renderer_synthetic_message(message) then
+    if message and not is_renderer_owned_message(message) then
       local rendered = ctx.render_state:get_message(message.id)
       if rendered and rendered.line_start then
         local jump_line = first_jump_line(ctx, message.id) or rendered.line_start

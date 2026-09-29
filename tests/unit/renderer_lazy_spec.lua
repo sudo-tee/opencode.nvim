@@ -88,6 +88,31 @@ describe('lazy render', function()
     assert.is_nil(contexts.current().render_state:get_message('msg-system'))
   end)
 
+  it('hides V2 agent, model, and synthetic context records from conversation history', function()
+    local data = {
+      make_message('msg-user', 'user'),
+      { id = 'msg-agent', session_id = 'ses_test', kind = 'agent-switched', agent = 'plan', content = {} },
+      { id = 'msg-model', session_id = 'ses_test', kind = 'model-switched', content = {} },
+      {
+        id = 'msg-context', session_id = 'ses_test', kind = 'synthetic',
+        content = { { kind = 'text', text = 'editor-context:current-file' } },
+      },
+      make_message('msg-assistant', 'assistant'),
+    }
+    config.ui.output.max_messages = 2
+
+    renderer._render_full_session_data(data)
+
+    assert.equals(2, count_rendered_messages())
+    for _, id in ipairs({ 'msg-agent', 'msg-model', 'msg-context' }) do
+      assert.is_nil(contexts.current().render_state:get_message(id))
+    end
+    assert.is_false(renderer.load_more_messages())
+    local lines = table.concat(vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false), '\n')
+    assert.is_nil(lines:find('editor-context:current-file', 1, true))
+    assert.is_nil(lines:find('older messages not displayed', 1, true))
+  end)
+
   it('truncates to lazy_render_count from the end', function()
     local session_data = make_session_data(50) -- 100 messages total
 

@@ -384,6 +384,7 @@ require('opencode').setup({
     on_session_loaded = nil, -- Called after a session is loaded.
     on_done_thinking = nil, -- Called when a session becomes idle, including sessions started outside Neovim.
     on_permission_requested = nil, -- Called when a permission request is issued.
+    on_question_asked = nil, -- Called when a question is asked.
   },
   quick_chat = {
     default_model = nil,   -- works better with a fast model like gpt-4.1
@@ -1280,6 +1281,7 @@ You can define custom functions to be called at specific events in Opencode:
 - `on_session_loaded`: Called after a session is loaded.
 - `on_done_thinking`: Called when a session becomes idle, including sessions started outside Neovim.
 - `on_permission_requested`: Called when a permission request is issued.
+- `on_question_asked`: Called when a question is asked.
 
 ```lua
 require('opencode').setup({
@@ -1299,6 +1301,10 @@ require('opencode').setup({
     on_permission_requested = function()
       -- Custom logic when a permission is requested
       print("Permission requested!")
+    end,
+    on_question_asked = function(session)
+      -- Custom logic when a question is asked
+      print("Question asked in session " .. session.id)
     end,
   },
 })

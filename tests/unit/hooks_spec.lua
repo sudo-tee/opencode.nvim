@@ -6,6 +6,7 @@ local session_runtime = require('opencode.services.session_runtime')
 local helpers = require('tests.helpers')
 local service_support = require('tests.unit.services_spec_support')
 local ui = require('opencode.ui.ui')
+local question_window = require('opencode.ui.question_window')
 
 local function expect_nil_hook_no_error(run)
   assert.has_no.errors(run)
@@ -53,6 +54,7 @@ describe('hooks', function()
       on_session_loaded = nil,
       on_done_thinking = nil,
       on_permission_requested = nil,
+      on_question_asked = nil,
     }
   end)
 
@@ -65,6 +67,7 @@ describe('hooks', function()
       on_session_loaded = nil,
       on_done_thinking = nil,
       on_permission_requested = nil,
+      on_question_asked = nil,
     }
   end)
 
@@ -224,6 +227,63 @@ describe('hooks', function()
       end, function()
         state.renderer.set_pending_permissions({ { tool = 'test_tool', action = 'read' } })
       end)
+    end)
+  end)
+
+  describe('on_question_asked', function()
+    it('notifies once for each new pending question with its owning session', function()
+      local calls = {}
+      config.hooks.on_question_asked = function(session)
+        calls[#calls + 1] = session.id
+      end
+      local requests = {
+        first = { id = 'first', status = 'pending', session_id = 'session-a' },
+      }
+      local observation = {
+        read = function()
+          return { session = { id = 'session-a' }, question_requests_by_id = requests }
+        end,
+      }
+      local show = stub(question_window, 'show_question')
+      question_window.clear_all()
+
+      question_window.sync({ observation })
+      question_window.sync({ observation })
+      requests.second = { id = 'second', status = 'pending', session_id = 'session-a' }
+      question_window.sync({ observation })
+
+      assert.same({ 'session-a', 'session-a' }, calls)
+      requests.first.status = 'answered'
+      question_window.sync({ observation })
+      requests.first.status = 'pending'
+      question_window.sync({ observation })
+      assert.same({ 'session-a', 'session-a', 'session-a' }, calls)
+
+      show:revert()
+      question_window.clear_all()
+    end)
+
+    it('does not crash when hook throws', function()
+      config.hooks.on_question_asked = function()
+        error('test error')
+      end
+      local observation = {
+        read = function()
+          return {
+            session = { id = 'session-a' },
+            question_requests_by_id = { first = { id = 'first', status = 'pending' } },
+          }
+        end,
+      }
+      local show = stub(question_window, 'show_question')
+      question_window.clear_all()
+
+      assert.has_no.errors(function()
+        question_window.sync({ observation })
+      end)
+
+      show:revert()
+      question_window.clear_all()
     end)
   end)
 end)

@@ -367,6 +367,7 @@
 ---@field on_session_loaded? fun(session: OpencodeSession): nil
 ---@field on_done_thinking? fun(session: OpencodeSession): nil Called when a session becomes idle.
 ---@field on_permission_requested? fun(session: OpencodeSession): nil
+---@field on_question_asked? fun(session: OpencodeSession): nil
 ---@field on_command_before? OpencodeCommandDispatchHook
 ---@field on_command_after? OpencodeCommandDispatchHook
 ---@field on_command_error? OpencodeCommandDispatchHook

@@ -19,6 +19,7 @@ M._dialog = nil
 M._inline_input = nil
 M._empty_confirm_armed = false
 M._observations = {}
+local notified_questions = {}
 
 ---@param index integer
 ---@return string[]|nil
@@ -156,6 +157,7 @@ end
 function M.clear_all()
   reset_question()
   M._observations = {}
+  notified_questions = {}
 end
 
 ---@return OpencodeQuestionInfo|nil
@@ -826,11 +828,17 @@ end
 function M.sync(observations)
   local pending = {}
   local owners = {}
+  local current_questions = {}
   for _, observation in ipairs(observations or {}) do
-    for _, request in pairs(observation:read().question_requests_by_id or {}) do
+    local observed = observation:read()
+    for _, request in pairs(observed.question_requests_by_id or {}) do
       if request.status == 'pending' and not request.unavailable_reason then
         pending[#pending + 1] = request
         owners[request.id] = observation
+        current_questions[request.id] = true
+        if not notified_questions[request.id] and config.hooks and config.hooks.on_question_asked then
+          pcall(config.hooks.on_question_asked, observed.session)
+        end
         if request.session_id then
           local runtime = session_tabs.find_by_session_id(request.session_id)
           if runtime then
@@ -840,6 +848,7 @@ function M.sync(observations)
       end
     end
   end
+  notified_questions = current_questions
   M._observations = owners
   table.sort(pending, function(left, right)
     if left.session_id ~= right.session_id then

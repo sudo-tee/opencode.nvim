@@ -121,16 +121,17 @@ end
 
 ---@param messages table[]|nil
 ---@param session table|nil
+---@param ctx RendererCtx
 ---@return table[] visible_messages
 ---@return integer hidden_count
-local function get_visible_session_messages(messages, session)
+local function get_visible_session_messages(messages, session, ctx)
   local real_messages = get_real_session_messages(messages)
   local revert_index = get_revert_index(messages, session)
   if revert_index then
     real_messages = vim.list_slice(real_messages, 1, revert_index - 1)
   end
 
-  local limit = get_max_rendered_messages()
+  local limit = not ctx.history_expanded and get_max_rendered_messages()
   if not limit or #real_messages <= limit then
     return real_messages, 0
   end
@@ -149,7 +150,7 @@ end
 ---@return integer Messages the current session would show at full window size.
 ---@param ctx RendererCtx
 local function visible_message_count(ctx)
-  return #get_visible_session_messages(ctx.entries, current_session(ctx))
+  return #get_visible_session_messages(ctx.entries, current_session(ctx), ctx)
 end
 
 ---@param hidden_count integer
@@ -254,7 +255,7 @@ local function reconcile_rendered_message_limit(ctx)
     return
   end
 
-  local limit = get_max_rendered_messages()
+  local limit = not ctx.history_expanded and get_max_rendered_messages()
   if not limit then
     if ctx.render_state:get_message(HIDDEN_MESSAGES_NOTICE_MESSAGE_ID) then
       hide_rendered_message(ctx, HIDDEN_MESSAGES_NOTICE_MESSAGE_ID)
@@ -263,7 +264,7 @@ local function reconcile_rendered_message_limit(ctx)
   end
 
   local observation_state = ctx.observation:read()
-  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, observation_state.session)
+  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, observation_state.session, ctx)
   local visible_ids = {}
   for _, message in ipairs(visible_messages) do
     local message_id = message.id
@@ -295,7 +296,7 @@ local function is_message_visible(ctx, message_id)
     return false
   end
 
-  for _, message in ipairs(get_visible_session_messages(ctx.entries, current_session(ctx))) do
+  for _, message in ipairs(get_visible_session_messages(ctx.entries, current_session(ctx), ctx)) do
     if message.id == message_id then
       return true
     end
@@ -504,7 +505,7 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
   local previous_refs = reference_facts.current_refs()
   reference_facts.rebuild(session.id, entries, session.location)
   local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
-  local visible, hidden_count = get_visible_session_messages(entries, session)
+  local visible, hidden_count = get_visible_session_messages(entries, session, ctx)
   local local_submission = has_pending_local_submission(ctx, visible)
   if ctx.lazy_render_count == nil then
     local initial = get_initial_render_count()
@@ -770,6 +771,7 @@ local function grow_window_with_older_page(ctx)
   end
   local window_before = window_size(ctx)
   local entries_before = #ordered_entries(observation)
+  local navigation_revision = ctx.history_navigation_revision
   local anchor = M.capture_top_anchor(ctx)
   local cursor_anchor = capture_cursor_anchor()
   local ok, request = pcall(function()
@@ -782,11 +784,15 @@ local function grow_window_with_older_page(ctx)
     if not ctx:is_active() or ctx.observation ~= observation then
       return
     end
+    if ctx.history_navigation_revision ~= navigation_revision then
+      return
+    end
     -- nothing merged (complete history or a concurrent pull elsewhere):
     -- leave the window alone
     if #ordered_entries(observation) <= entries_before then
       return
     end
+    ctx.entries = ordered_entries(observation)
     if not apply_window_growth(ctx, window_before + get_initial_render_count()) then
       -- the window already covered everything cached: drop the window limit
       -- so the merged prefix renders, without pulling more pages
@@ -799,34 +805,43 @@ local function grow_window_with_older_page(ctx)
   return true
 end
 
----Pull the complete remaining history, render all of it, and land the
----cursor at the true top of the session.
+---Pull the complete remaining history and render all of it.
 ---@return boolean Whether a history load was started
 ---@param ctx RendererCtx
-local function load_complete_history_to_top(ctx)
+---@param scroll_to_top boolean
+local function load_complete_history(ctx, scroll_to_top)
   local observation = ctx.observation
   if not observation or type(observation.load_complete_history) ~= 'function' then
     return false
   end
   local win = state.windows and state.windows.output_win
+  local navigation_revision = ctx.history_navigation_revision
   local ok, request = pcall(function()
     return observation:load_complete_history()
   end)
   if not ok then
+    ctx.history_top_pending = false
     return false
   end
   request:and_then(function()
-    if not ctx:is_active() or ctx.observation ~= observation then
+    if not ctx:is_active() or ctx.observation ~= observation or ctx.history_navigation_revision ~= navigation_revision then
       return
     end
     -- grow to the merged total only; the rendering primitive does not
     -- touch the protocol, so this callback cannot re-enter the pull
+    ctx.entries = ordered_entries(observation)
     apply_window_growth(ctx, math.huge)
-    if win and vim.api.nvim_win_is_valid(win) then
+    if scroll_to_top and win and vim.api.nvim_win_is_valid(win) then
       pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
       pcall(output_window.restore_view_topline, win, 1)
     end
-  end, notify_history_failure)
+    ctx.history_top_pending = false
+  end):catch(function(err)
+    if ctx.history_navigation_revision == navigation_revision then
+      ctx.history_top_pending = false
+    end
+    notify_history_failure(err)
+  end)
   return true
 end
 
@@ -886,14 +901,20 @@ end
 function M._render_full_session_data(entries, session, ctx, opts)
   ctx = ctx or contexts.current()
   local lazy_limit = ctx.lazy_render_count
+  local history_expanded = ctx.history_expanded
+  local navigation_revision = ctx.history_navigation_revision
+  local history_top_pending = ctx.history_top_pending
   M.reset(ctx)
+  ctx.history_expanded = history_expanded
+  ctx.history_navigation_revision = navigation_revision
+  ctx.history_top_pending = history_top_pending
   if ctx.observation then
     update_observation_stats(ctx.observation)
   end
   ctx.entries = entries or {}
   session = session or current_session(ctx)
   reference_facts.rebuild(session.id, ctx.entries, session.location)
-  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, session)
+  local visible_messages, hidden_count = get_visible_session_messages(ctx.entries, session, ctx)
 
   if lazy_limit == nil then
     local initial = get_initial_render_count()
@@ -948,8 +969,14 @@ end
 ---@param ctx? RendererCtx
 function M.load_more_messages(ctx)
   ctx = ctx or contexts.current()
-  if #ctx.entries == 0 then
+  if #ctx.entries == 0 or ctx.history_top_pending then
     return false
+  end
+  local capped_total = visible_message_count(ctx)
+  local _, hidden_count = get_visible_session_messages(ctx.entries, current_session(ctx), ctx)
+  if hidden_count > 0 then
+    ctx.history_expanded = true
+    ctx.lazy_render_count = capped_total
   end
   local total = visible_message_count(ctx)
   if total == 0 then
@@ -969,23 +996,34 @@ function M.load_more_messages(ctx)
 end
 
 ---Load all remaining messages and re-render.
----Used when user explicitly navigates to the top (gg) to ensure
----the full history is available for navigation and search.
+---Used for navigation and search; by default, gg lands at the true top.
 ---@return boolean Whether any messages were loaded
 ---@param ctx? RendererCtx
-function M.load_all_messages(ctx)
+---@param opts? {scroll_to_top?: boolean}
+function M.load_all_messages(ctx, opts)
   ctx = ctx or contexts.current()
   if #ctx.entries == 0 then
     return false
   end
+  local scroll_to_top = not opts or opts.scroll_to_top ~= false
+  if scroll_to_top then
+    ctx.history_navigation_revision = ctx.history_navigation_revision + 1
+    ctx.history_top_pending = true
+  end
+  ctx.history_expanded = true
   local total = visible_message_count(ctx)
   if total == 0 then
+    ctx.history_top_pending = false
     return false
   end
   -- Expand to everything cached; when the cache itself is a protocol page,
   -- the complete history is pulled and this path re-runs on the merge
   local expanded = apply_window_growth(ctx, total)
-  return load_complete_history_to_top(ctx) or expanded
+  local loading = load_complete_history(ctx, scroll_to_top)
+  if not loading then
+    ctx.history_top_pending = false
+  end
+  return loading or expanded
 end
 
 ---Render the currently observed state synchronously; this does not load history.

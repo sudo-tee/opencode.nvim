@@ -30,6 +30,9 @@ M.prompt_controllers = {}
 ---@field output_buf integer|nil
 ---@field needs_reconcile boolean
 ---@field lazy_render_count integer|nil
+---@field history_expanded boolean
+---@field history_navigation_revision integer
+---@field history_top_pending boolean
 ---@field get_child_parts fun(session_id: string): table[]|nil
 ---@field prompt_controllers {permission?: PermissionController, question?: QuestionController}
 ---@field formatted_parts table<string, Output>
@@ -129,6 +132,9 @@ function ctx:reset()
   self.global_folds = {}
   self.part_folds = {}
   self.entries = {}
+  self.history_expanded = false
+  self.history_navigation_revision = 0
+  self.history_top_pending = false
   self.file_revision = 0
   self.needs_reconcile = false
   self:bulk_reset()

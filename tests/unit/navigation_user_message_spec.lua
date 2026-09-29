@@ -5,6 +5,7 @@ local navigation = require('opencode.ui.navigation')
 local renderer = require('opencode.ui.renderer')
 local state = require('opencode.state')
 local contexts = require('opencode.ui.renderer.ctx')
+local Promise = require('opencode.promise')
 
 ---@param entries table[] list of { id, kind, line_start?, line_end? }
 local function seed(entries)
@@ -298,6 +299,58 @@ describe('navigation user message jumps', function()
 
       assert.equals(2, vim.api.nvim_win_get_cursor(output_win)[1])
     end)
+  end)
+
+  it('keeps user-message jumps after a completed history request resolves asynchronously', function()
+    seed({
+      { id = 'u1', kind = 'user', line_start = 1 },
+      { id = 'a1', kind = 'assistant', line_start = 20 },
+      { id = 'u2', kind = 'user', line_start = 40 },
+      { id = 'a2', kind = 'assistant', line_start = 60 },
+      { id = 'u3', kind = 'user', line_start = 80 },
+    })
+    local ctx = contexts.current()
+    local original_observation = ctx.observation
+    local original_session = state.active_session
+    state.session.set_active({ id = 'ses_test' })
+    for _, entry in ipairs(ctx.entries) do
+      entry.session_id = 'ses_test'
+    end
+    local entry_order, entries_by_id = {}, {}
+    for _, entry in ipairs(ctx.entries) do
+      entry_order[#entry_order + 1] = entry.id
+      entries_by_id[entry.id] = entry
+    end
+    local calls = 0
+    ctx.observation = {
+      read = function()
+        return { session = { id = 'ses_test' }, entry_order = entry_order, entries_by_id = entries_by_id }
+      end,
+      load_complete_history = function()
+        calls = calls + 1
+        return Promise.new():resolve(nil)
+      end,
+    }
+
+    local ok, err = pcall(function()
+      vim.api.nvim_win_set_cursor(output_win, { 5, 0 })
+      navigation.goto_next_user_message()
+      assert.equals(41, vim.api.nvim_win_get_cursor(output_win)[1])
+      assert.is_true(vim.wait(100, function() return false end, 10) == false)
+      assert.equals(41, vim.api.nvim_win_get_cursor(output_win)[1])
+
+      vim.api.nvim_win_set_cursor(output_win, { 81, 0 })
+      navigation.goto_prev_user_message()
+      assert.equals(41, vim.api.nvim_win_get_cursor(output_win)[1])
+      assert.is_true(vim.wait(100, function() return false end, 10) == false)
+      assert.equals(41, vim.api.nvim_win_get_cursor(output_win)[1])
+      assert.equals(2, calls)
+    end)
+    ctx.observation = original_observation
+    state.session.set_active(original_session)
+    if not ok then
+      error(err)
+    end
   end)
 
   describe('jumplist preservation', function()

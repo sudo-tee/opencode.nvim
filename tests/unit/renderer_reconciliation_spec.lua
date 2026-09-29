@@ -25,6 +25,7 @@ describe('renderer incremental reconciliation', function()
   before_each(function()
     helpers.replay_setup()
     max_messages = config.ui.output.max_messages
+    config.ui.output.max_messages = nil
     throttle_ms = config.ui.output.rendering.event_throttle_ms
     collapsing = config.ui.output.rendering.event_collapsing
     controllers = contexts.current().prompt_controllers

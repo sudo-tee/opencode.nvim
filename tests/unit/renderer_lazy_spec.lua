@@ -231,6 +231,72 @@ describe('lazy render', function()
     assert.are.equal(max_msgs_visible, count_rendered_messages())
   end)
 
+  it('loads older messages past max_messages without changing the configured limit', function()
+    config.ui.output.max_messages = 10
+    local session_data = make_session_data(20)
+    contexts.current().lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+    assert.are.equal(10, count_rendered_messages())
+
+    assert.is_true(renderer.load_more_messages())
+    assert.is_true(count_rendered_messages() > 10)
+    assert.are.equal(10, config.ui.output.max_messages)
+
+    renderer._render_full_session_data(session_data)
+    assert.is_true(count_rendered_messages() > 10)
+    assert.is_true(renderer.load_all_messages())
+    assert.are.equal(#session_data, count_rendered_messages())
+
+    contexts.current():reset()
+    renderer._render_full_session_data(session_data)
+    assert.are.equal(10, count_rendered_messages())
+  end)
+
+  it('gg expands beyond max_messages to the first cached message', function()
+    config.ui.output.max_messages = 10
+    local session_data = make_session_data(20)
+    contexts.current().lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    vim.api.nvim_win_set_cursor(win, { vim.api.nvim_buf_line_count(state.windows.output_buf), 0 })
+    require('opencode.ui.navigation').goto_first_message()
+
+    assert.are.equal(#session_data, count_rendered_messages())
+    assert.are.equal(1, vim.api.nvim_win_get_cursor(win)[1])
+    assert.are.equal(10, config.ui.output.max_messages)
+  end)
+
+  it('[[ crosses max_messages boundary to an older message', function()
+    config.ui.output.max_messages = 10
+    local session_data = make_session_data(20)
+    contexts.current().lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    local first_visible = renderer.get_next_rendered_message(1)
+    vim.api.nvim_win_set_cursor(win, { first_visible.line_start + 1, 0 })
+    require('opencode.ui.navigation').goto_prev_message()
+
+    assert.is_true(count_rendered_messages() > 10)
+    assert.is_true(vim.api.nvim_win_get_cursor(win)[1] > 1)
+    assert.are.equal(10, config.ui.output.max_messages)
+  end)
+
+  it('[[ moves past the hidden-messages notice when cursor is on line one', function()
+    config.ui.output.max_messages = 10
+    local session_data = make_session_data(20)
+    contexts.current().lazy_render_count = 10
+    renderer._render_full_session_data(session_data)
+
+    local win = state.windows.output_win
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    require('opencode.ui.navigation').goto_prev_message()
+
+    assert.is_true(count_rendered_messages() > 10)
+    assert.is_true(vim.api.nvim_win_get_cursor(win)[1] > 1)
+  end)
+
   it('unrendered messages are not in the buffer', function()
     local session_data = make_session_data(50) -- 100 messages total
 
@@ -437,18 +503,22 @@ describe('older history bridge', function()
   local session_state
   local Promise = require('opencode.promise')
   local stub = require('luassert.stub')
+  local previous_max_messages
 
   before_each(function()
     helpers.replay_setup()
+    previous_max_messages = config.ui.output.max_messages
     renderer = require('opencode.ui.renderer')
     session_state = require('opencode.state.session')
     -- let on_session_changed from the previous test settle before stubbing
     vim.wait(100, function() return false end)
     stub(session_state, 'active_observation')
     state.session.set_active({ id = 'ses_test', location = { directory = helpers.MOCK_CWD } })
+    vim.wait(100, function() return false end)
   end)
 
   after_each(function()
+    config.ui.output.max_messages = previous_max_messages
     session_state.active_observation:revert()
     contexts.current():reset()
     if state.windows then
@@ -460,7 +530,11 @@ describe('older history bridge', function()
   ---lives inside the observation (entries_by_id/entry_order), and
   ---load_older merges an older page into it, the way reconcile would see.
   local function observation_with_older_page()
-    local older, newer = make_session_data(5), make_session_data(20)
+    local older, newer = {}, make_session_data(20)
+    for i = 1, 5 do
+      older[#older + 1] = make_message('older_u' .. i, 'user')
+      older[#older + 1] = make_message('older_a' .. i, 'assistant')
+    end
     local remaining_pages = 1
     local entries_by_id, entry_order = {}, {}
     local function set_entries(list)
@@ -519,6 +593,7 @@ describe('older history bridge', function()
     contexts.current().lazy_render_count = 5
     renderer._render_full_session_data(newer)
     assert.are.equal(5, count_rendered_messages())
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { 2, 0 })
 
     local started = renderer.load_all_messages()
     assert.is_true(started, 'load_all should start the older-page pull')
@@ -528,9 +603,83 @@ describe('older history bridge', function()
     end))
 
     assert.are.equal(0, pages_left(), 'history should be complete')
+    assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
     local first = contexts.current().entries[1]
     assert.is_truthy(contexts.current().render_state:get_message(first.id).line_start, 'oldest message should be rendered')
     assert.are.equal(#older + #newer, count_rendered_messages())
+  end)
+
+  it('gg reaches the first protocol message on its first press with max_messages', function()
+    config.ui.output.max_messages = 10
+    local observation, older, newer = observation_with_older_page()
+    local ctx = contexts.current()
+    ctx.observation = observation
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(newer)
+
+    require('opencode.ui.navigation').goto_first_message()
+    assert.is_true(ctx.history_expanded, 'gg should expand history synchronously')
+    assert.is_true(vim.wait(1000, function()
+      return #ctx.entries == #older + #newer
+    end), 'history callback should observe all merged entries')
+    assert.is_true(ctx.history_expanded)
+    assert.are.equal(#older + #newer, ctx.lazy_render_count)
+    assert.is_true(vim.wait(1000, function()
+      local first = ctx.render_state:get_message(older[1].id)
+      return first ~= nil and first.line_start ~= nil
+    end))
+    assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
+    assert.are.equal(older[1].id, ctx.entries[1].id)
+    assert.are.equal(#older + #newer, count_rendered_messages())
+  end)
+
+  it('gg is not undone by an older-page callback started before the jump', function()
+    config.ui.output.max_messages = 10
+    local older = { make_message('older_user', 'user') }
+    local newer = make_session_data(20)
+    local entries = newer
+    local page_request = Promise.new()
+    local full_request = Promise.new()
+    local observation = {
+      read = function()
+        local by_id, order = {}, {}
+        for _, entry in ipairs(entries) do
+          by_id[entry.id] = entry
+          order[#order + 1] = entry.id
+        end
+        return { session = { id = 'ses_test' }, entries_by_id = by_id, entry_order = order }
+      end,
+      load_older = function()
+        return page_request
+      end,
+      load_complete_history = function()
+        return full_request
+      end,
+    }
+    local ctx = contexts.current()
+    ctx.observation = observation
+    ctx.lazy_render_count = 10
+    renderer._render_full_session_data(newer)
+    while ctx.lazy_render_count < #newer do
+      assert.is_true(renderer.load_more_messages())
+    end
+    local first = renderer.get_next_rendered_message(0)
+    vim.api.nvim_win_set_cursor(state.windows.output_win, { first.line_start + 1, 0 })
+    assert.is_true(renderer.load_more_messages())
+
+    require('opencode.ui.navigation').goto_first_message()
+    assert.is_false(renderer.load_more_messages(), 'top jump owns the history pull')
+    entries = { older[1] }
+    vim.list_extend(entries, newer)
+    full_request:resolve(nil)
+    assert.is_true(vim.wait(1000, function()
+      return ctx.render_state:get_message(older[1].id) ~= nil
+    end))
+    assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
+
+    page_request:resolve(nil)
+    vim.wait(100, function() return false end)
+    assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
   end)
 
   it('load_more_messages pulls an older page when the cached window is exhausted', function()

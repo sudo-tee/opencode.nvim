@@ -118,10 +118,32 @@ describe('opencode.services.messaging', function()
 
     messaging.send_message('hello'):wait()
 
-    assert.same({ { operation = 'submit', selected = { model = 'provider/selected-model', variant = 'high' } } }, calls)
+    assert.same({
+      { operation = 'submit', selected = { mode = state.current_mode, model = 'provider/selected-model', variant = 'high' } },
+    }, calls)
     observation.submit = original_submit
     state.model.set_model(previous_model)
     state.model.set_variant(previous_variant)
+  end)
+
+  it('passes the selected mode to the V2 submission', function()
+    state.session.set_active({ id = 'sess-v2' })
+    connection.protocol = 'v2'
+    local previous_mode = state.current_mode
+    state.model.set_mode('plan')
+    local observation = state.session.active_observation()
+    local original_submit = observation.submit
+    local selected_mode
+    observation.submit = function(_, _, selected)
+      selected_mode = selected.mode
+      return successful_submission()
+    end
+
+    messaging.send_message('hello'):wait()
+
+    assert.equal('plan', selected_mode)
+    observation.submit = original_submit
+    state.model.set_mode(previous_mode)
   end)
 
   it('rejects a V2 default system prompt before submitting', function()

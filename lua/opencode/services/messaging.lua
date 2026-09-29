@@ -31,7 +31,7 @@ end
 ---@class PreparedMessage
 ---@field params table
 ---@field submission_context OpencodeContext
----@field selected_model {model?: string, variant?: string}
+---@field selected_model {mode?: string, model?: string, variant?: string}
 ---@field model_update OpencodeSessionTabModelUpdate
 
 ---@param observation OpencodeObservation
@@ -39,7 +39,11 @@ end
 ---@param opts SendMessageOpts
 ---@return PreparedMessage
 local function prepare_message(observation, prompt, opts)
-  local selected_model = { model = state.current_model, variant = state.current_variant }
+  local selected_model = {
+    mode = state.current_mode or config.default_mode,
+    model = state.current_model,
+    variant = state.current_variant,
+  }
   observation:validate_message_options(opts, config.default_system_prompt)
 
   opts.context = vim.tbl_deep_extend('force', {}, state.current_context_config or {}, opts.context or {})

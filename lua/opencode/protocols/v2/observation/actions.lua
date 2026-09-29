@@ -147,8 +147,11 @@ function M.attach(observation, connection)
 
   ---@param input OpencodeV2SubmitInput
   ---@return Promise<OpencodeSubmission>
-  ---@param selected? {model?: string, variant?: string}
+  ---@param selected? {mode?: string, model?: string, variant?: string}
   function observation:submit(input, selected)
+    if selected and selected.mode then
+      input = vim.tbl_extend('force', {}, input, { agent = selected.mode })
+    end
     if selected and selected.model then
       local provider, model = selected.model:match('^(.-)/(.+)$')
       if provider and model then

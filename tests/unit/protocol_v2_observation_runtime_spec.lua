@@ -561,7 +561,7 @@ describe('V2 protocol Observation runtime', function()
     assert.is_false(observed:_watches('messages'))
   end)
 
-  it('passes selected model through the V2 submit operation', function()
+  it('passes selected agent and model through the V2 submit operation', function()
     local value = connection()
     local sent
     install_operations(value, {
@@ -573,11 +573,30 @@ describe('V2 protocol Observation runtime', function()
     local observed = value:observe({ id = 'ses-main' })
     local input = { text = 'hello', context = {}, files = {}, agents = {} }
 
-    observed:submit(input, { model = 'provider/selected-model', variant = 'high' }):wait()
+    observed:submit(input, { mode = 'plan', model = 'provider/selected-model', variant = 'high' }):wait()
 
+    assert.equals('plan', sent.agent)
     assert.same({ providerID = 'provider', modelID = 'selected-model' }, sent.model)
     assert.equals('high', sent.variant)
+    assert.is_nil(input.agent)
     assert.is_nil(input.model)
+  end)
+
+  it('passes selected agent without a selected model through V2 submit', function()
+    local value = connection()
+    local sent
+    install_operations(value, {
+      submit = function(_, _, input)
+        sent = input
+        return resolved({ id = 'msg-local', delivery = 'queue' })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+
+    observed:submit({ text = 'hello', context = {}, files = {}, agents = {} }, { mode = 'plan' }):wait()
+
+    assert.equals('plan', sent.agent)
+    assert.is_nil(sent.model)
   end)
 
   it('correlates only a delivered admission with the following same-session terminal', function()
@@ -642,6 +661,28 @@ describe('V2 protocol Observation runtime', function()
     assert.same({}, observed._v2_admissions)
     assert.is_nil(value.observations['ses-main'])
     assert.is_true(streams[1].handle.stopped)
+  end)
+
+  it('does not count non-user inbox deliveries as competing prompt inputs', function()
+    local value = connection()
+    local streams = install_operations(value, {
+      submit = function()
+        return resolved({ id = 'msg-local', delivery = 'queue' })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local accepted = observed:submit({ text = 'hello' }):wait()
+    emit(streams[1], event('ses-main', 'session.inbox.enqueued', {
+      inboxID = 'synthetic-1',
+      item = { type = 'synthetic', payload = { text = 'agent changed' }, delivery = 'queue' },
+    }, 10))
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'synthetic-1' }, 11))
+    emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 12))
+    emit(streams[1], event('ses-main', 'session.execution.started', {}, 13))
+    emit(streams[1], event('ses-main', 'session.execution.succeeded', {}, 14))
+
+    assert.equals('succeeded', accepted.completion:wait().outcome)
+    assert.is_nil(observed._v2_delivered['synthetic-1'])
   end)
 
   it('rejects ambiguous delivery even when the HTTP admissions arrive after the terminal', function()

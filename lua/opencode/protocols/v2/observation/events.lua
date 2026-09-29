@@ -141,7 +141,8 @@ local function finish_inbox(status)
   ---@param data table
   return function(observation, event, data)
     terminal_inbox(observation, data.inboxID, status, event.created)
-    if status == 'delivered' then
+    local item = observation:read().inbox.items_by_id[data.inboxID]
+    if status == 'delivered' and (item.kind == 'user' or item.kind == 'unknown') then
       actions.delivered(observation, data.inboxID)
     end
   end

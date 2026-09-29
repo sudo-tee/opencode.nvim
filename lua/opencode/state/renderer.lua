@@ -26,9 +26,21 @@ function M.set_tokens_count(count)
   return store.set('tokens_count', count)
 end
 
+---@param tokens_count number
+---@param cost number
+function M.set_stats(tokens_count, cost)
+  return store.batch(function()
+    store.set('tokens_count', tokens_count)
+    if cost > 0 then
+      store.set('cost', cost)
+    end
+  end)
+end
+
 function M.reset()
   return store.batch(function()
     store.set('tokens_count', 0)
+    store.set('cost', 0)
     store.set('pending_permissions', {})
   end)
 end

@@ -112,6 +112,8 @@ describe('native V2 service discovery', function()
       vim.schedule(function()
         if opts.url:match('/api/info$') then
           opts.callback({ status = 200, body = '{"version":"2.0.1","pid":123}' })
+        elseif opts.url:match('/openapi%.json$') then
+          opts.callback({ status = 404, body = '{}' })
         else
           acquired = state.opencode_server
           assert.matches('^http://127%.0%.0%.1:49374/api/config%?', opts.url)

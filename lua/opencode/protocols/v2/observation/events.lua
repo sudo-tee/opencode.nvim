@@ -418,6 +418,10 @@ function M.route(connection, event)
       observation:_event_changed(resource)
     end
   end
+  vim.api.nvim_exec_autocmds('User', {
+    pattern = 'OpencodeEvent:' .. event.type,
+    data = { event = { type = event.type, properties = event.data } },
+  })
 end
 
 ---@param observation OpencodeV2Observation

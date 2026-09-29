@@ -96,6 +96,33 @@ local function flush(predicate)
 end
 
 describe('V2 protocol Observation runtime', function()
+  it('forwards each valid SSE event to User autocmds once with documented payload', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local first = value:observe({ id = 'ses-a' })
+    local second = value:observe({ id = 'ses-b' })
+    local stop_first = first:watch({ 'messages' }, function() end)
+    local stop_second = second:watch({ 'messages' }, function() end)
+    local received = {}
+    local group = vim.api.nvim_create_augroup('OpencodeV2SseAutocmdTest', { clear = true })
+    vim.api.nvim_create_autocmd('User', {
+      group = group,
+      pattern = 'OpencodeEvent:*',
+      callback = function(args)
+        received[#received + 1] = { pattern = args.match, event = args.data.event }
+      end,
+    })
+
+    local data = { sessionID = 'ses-a', detail = 'hello' }
+    emit(streams[1], event('ses-a', 'custom.unknown', data))
+    emit(streams[1], { type = 'custom.invalid', data = {} })
+
+    assert.same({ { pattern = 'OpencodeEvent:custom.unknown', event = { type = 'custom.unknown', properties = data } } }, received)
+    vim.api.nvim_del_augroup_by_id(group)
+    stop_first()
+    stop_second()
+  end)
+
   it('shares one event stream across Observations and stops it after the last watcher', function()
     local value = connection()
     local streams = install_operations(value)

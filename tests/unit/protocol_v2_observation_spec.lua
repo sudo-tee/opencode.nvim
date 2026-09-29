@@ -229,6 +229,52 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('Found two callers', part.result[1].text)
   end)
 
+  it('projects V2 grep match counts from metadata or result text', function()
+    local observed = observation('ses-target')
+    local message = assistant('msg-grep')
+    message.content = {
+      {
+        type = 'tool', id = 'grep-metadata', name = 'grep', time = { created = 1 },
+        state = {
+          status = 'completed', input = { pattern = 'foo' },
+          metadata = { matches = 3, truncated = true },
+          content = { { type = 'text', text = 'Found 2 matches\nfile.lua: foo' } },
+        },
+      },
+      {
+        type = 'tool', id = 'grep-result', name = 'grep', time = { created = 2 },
+        state = {
+          status = 'completed', input = { pattern = 'bar' },
+          content = { { type = 'text', text = 'Found 1 match\nfile.lua: bar' } },
+        },
+      },
+      {
+        type = 'tool', id = 'grep-empty', name = 'grep', time = { created = 3 },
+        state = {
+          status = 'completed', input = { pattern = 'missing' },
+          metadata = { count = 0 },
+          content = { { type = 'text', text = 'No matches found' } },
+        },
+      },
+      {
+        type = 'tool', id = 'grep-empty-result', name = 'grep', time = { created = 4 },
+        state = {
+          status = 'completed', input = { pattern = 'missing' },
+          content = { { type = 'text', text = 'No matches found' } },
+        },
+      },
+    }
+
+    observation_module.ingest_snapshot(observed, { message })
+    local content = observed:read().entries_by_id['msg-grep'].content
+    assert.same({ count = 3, truncated = true }, content[1].search)
+    assert.same({ count = 1 }, content[2].search)
+    assert.same({ count = 0 }, content[3].search)
+    assert.same({ count = 0 }, content[4].search)
+    local formatted = require('opencode.ui.formatter').format_part(content[2], observed:read().entries_by_id['msg-grep'], true)
+    assert.equals('Found `1` match', formatted.lines[2])
+  end)
+
   it('keeps each native kind as a distinct Entry shape', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

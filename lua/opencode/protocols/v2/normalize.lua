@@ -479,6 +479,14 @@ local function apply_subagent_metadata(result, metadata)
   end
 end
 
+local function apply_grep_metadata(result, metadata)
+  local count = metadata.count or metadata.matches
+  if count ~= nil then
+    v.number():parse(count, 'V2 observation: invalid grep match count')
+    result.search = { count = count, truncated = metadata.truncated }
+  end
+end
+
 ---@type table<string, OpencodeV2ToolMetadataApplier?>
 local tool_metadata_appliers = {
   skill = apply_skill_metadata,
@@ -486,6 +494,7 @@ local tool_metadata_appliers = {
   patch = apply_patch_metadata,
   apply_patch = apply_patch_metadata,
   subagent = apply_subagent_metadata,
+  grep = apply_grep_metadata,
 }
 
 ---@param result table
@@ -539,6 +548,20 @@ local function mapped_tool(part)
     result.error = mapped_error(part.state.error)
   end
   apply_tool_metadata(result, part.name, part.state.metadata)
+  if part.name == 'grep' and result.search == nil and result.result then
+    for _, item in ipairs(result.result) do
+      if item.kind == 'text' then
+        local count = item.text:match('^Found (%d+) match')
+        if count then
+          result.search = { count = tonumber(count) }
+          break
+        elseif item.text:match('^No matches found') then
+          result.search = { count = 0 }
+          break
+        end
+      end
+    end
+  end
   return result
 end
 

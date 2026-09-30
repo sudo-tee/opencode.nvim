@@ -25,6 +25,16 @@
 
 ---@alias OpencodeV2LocationListOperation fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table[]>
 
+---@class OpencodeV2McpServer
+---@field name string
+---@field status {status: 'connected'|'pending'|'disabled'|'failed'|'needs_auth', error?: string}
+---@field integrationID? string
+
+---@class OpencodeV2McpPickerServer
+---@field status 'connected'|'pending'|'disabled'|'failed'|'needs_auth'
+---@field error? string
+---@field integrationID? string
+
 ---@class OpencodeV2PermissionReply
 ---@field reply 'once'|'always'|'reject'
 ---@field message? string
@@ -77,7 +87,7 @@
 ---@field get_user_commands fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table<string, table>>
 ---@field list_commands OpencodeV2LocationListOperation
 ---@field list_skills OpencodeV2LocationListOperation
----@field list_mcp_servers OpencodeV2LocationListOperation
+---@field list_mcp_servers fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table<string, OpencodeV2McpPickerServer>>
 ---@field find_files fun(connection: OpencodeV2Connection, query: string, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<string[]>
 ---@field get_file_status fun(connection: OpencodeV2Connection, location: OpencodeLocation, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<table[]>
 ---@field connect_mcp fun(connection: OpencodeV2Connection, name: string, location: OpencodeLocation, path_map?: OpencodeV2PathMap): Promise<boolean>

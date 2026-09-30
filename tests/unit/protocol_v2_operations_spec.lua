@@ -44,6 +44,42 @@ describe('V2 protocol operations', function()
     assert.equals(operations.revert_message, connection.operations.revert_message)
   end)
 
+  it('normalizes MCP server names, nested statuses, and errors for the picker', function()
+    transport.request = function()
+      return Promise.new():resolve({
+        status = 200,
+        body = vim.json.encode({
+          location = { directory = '/server/project' },
+          data = {
+            { name = 'connected', status = { status = 'connected' } },
+            { name = 'pending', status = { status = 'pending' } },
+            { name = 'disabled', status = { status = 'disabled' } },
+            { name = 'failed', status = { status = 'failed', error = 'Connection refused' } },
+            { name = 'auth', status = { status = 'needs_auth', error = 'Sign in required' }, integrationID = 'oauth' },
+          },
+        }),
+      })
+    end
+
+    local servers = operations.list_mcp_servers(ready_connection(), { directory = '/server/project' }):wait()
+
+    assert.same({
+      connected = { status = 'connected' },
+      pending = { status = 'pending' },
+      disabled = { status = 'disabled' },
+      failed = { status = 'failed', error = 'Connection refused' },
+      auth = { status = 'needs_auth', error = 'Sign in required', integrationID = 'oauth' },
+    }, servers)
+  end)
+
+  it('normalizes an empty MCP server list to an empty picker map', function()
+    transport.request = function()
+      return Promise.new():resolve({ status = 200, body = '{"data":[]}' })
+    end
+
+    assert.same({}, operations.list_mcp_servers(ready_connection(), { directory = '/server/project' }):wait())
+  end)
+
   it('requests session turn diffs and maps file paths in the data envelope', function()
     local request
     transport.request = function(_, value)
@@ -604,7 +640,7 @@ describe('V2 protocol operations', function()
       ['/api/model/default'] = '{"data":{"providerID":"provider","id":"model"}}',
       ['/api/command'] = '{"data":[{"name":"test"}]}',
       ['/api/skill'] = '{"data":[{"name":"test"}]}',
-      ['/api/mcp'] = '{"data":{"test":{"status":"connected"}}}',
+      ['/api/mcp'] = '{"data":[{"name":"test","status":{"status":"connected"}}]}',
       ['/api/fs/find'] = '{"data":[{"path":"/server/project/main.lua"}]}',
       ['/api/vcs/status'] = '{"data":[{"file":"/server/project/main.lua","additions":1,"deletions":0}]}',
     }

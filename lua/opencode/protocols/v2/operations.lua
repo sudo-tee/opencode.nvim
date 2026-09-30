@@ -702,7 +702,21 @@ end
 
 ---@param connection OpencodeV2Connection
 function M.list_mcp_servers(connection, location, path_map, reverse_path_map)
-  return data_list(connection, 'V2 list_mcp_servers', '/api/mcp', location, path_map, reverse_path_map)
+  return data_list(connection, 'V2 list_mcp_servers', '/api/mcp', location, path_map, reverse_path_map):and_then(
+    function(entries)
+      ---@cast entries OpencodeV2McpServer[]
+      ---@type table<string, OpencodeV2McpPickerServer>
+      local servers = {}
+      for _, entry in ipairs(entries) do
+        servers[entry.name] = {
+          status = entry.status.status,
+          error = entry.status.error,
+          integrationID = entry.integrationID,
+        }
+      end
+      return servers
+    end
+  )
 end
 
 ---@param connection OpencodeV2Connection

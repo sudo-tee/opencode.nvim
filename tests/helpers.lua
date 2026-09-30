@@ -57,6 +57,35 @@ local function new_replay_connection()
   function operations.list_questions()
     return resolved({})
   end
+  function operations.get_config()
+    return resolved({
+      theme = 'opencode',
+      autoshare = false,
+      autoupdate = false,
+      model = '',
+      agent = { build = {}, plan = {} },
+      mcp = {},
+      mode = {},
+      command = {},
+      plugin = {},
+      username = 'replay',
+    })
+  end
+  function operations.get_model_catalog()
+    return resolved({ providers = {}, default = {} })
+  end
+  function operations.get_current_project()
+    return resolved({ id = 'project-replay', worktree = M.MOCK_CWD, vcs = 'git', time = { created = 1 } })
+  end
+  function operations.list_primary_agents()
+    return resolved({ 'build', 'plan' })
+  end
+  function operations.list_subagents()
+    return resolved({})
+  end
+  function operations.get_user_commands()
+    return resolved({})
+  end
   connection.operations = operations
   return connection
 end
@@ -87,6 +116,7 @@ function M.replay_setup()
   state.session.clear_active()
   M._replay_stream = nil
   M._replay_started = false
+  M._v2_replay_messages = {}
   state.jobs.set_server(new_replay_connection())
 
   renderer.reset()
@@ -360,6 +390,17 @@ function M.map_v1_messages(messages, session)
 end
 
 function M.load_session_from_events(events)
+  if events[1] and events[1].type == 'replay.v2.message' then
+    local entries, indices = {}, {}
+    local session = M.get_session_from_events(events)
+    for _, event in ipairs(events) do
+      local info = event.properties.info
+      local index = indices[info.id] or (#entries + 1)
+      indices[info.id] = index
+      entries[index] = require('opencode.protocols.v2.normalize').mapped_message(session.id, info)
+    end
+    return entries
+  end
   return M.map_v1_messages(native_messages_from_events(events), M.get_session_from_events(events))
 end
 
@@ -403,11 +444,8 @@ function M.get_session_from_events(events, with_session_updates)
   return nil
 end
 
-function M.replay_event(event)
+function M.wait_for_replay_ready()
   local state = require('opencode.state')
-  if type(event) == 'table' and type(event.payload) == 'table' then
-    event = vim.tbl_extend('force', { directory = event.directory }, event.payload)
-  end
   if not M._replay_started then
     local ready = vim.wait(1000, function()
       local observation = state.session.active_observation()
@@ -426,6 +464,32 @@ function M.replay_event(event)
       }))
     end
     M._replay_started = true
+  end
+end
+
+function M.replay_event(event)
+  local state = require('opencode.state')
+  if type(event) == 'table' and type(event.payload) == 'table' then
+    event = vim.tbl_extend('force', { directory = event.directory }, event.payload)
+  end
+  M.wait_for_replay_ready()
+  if event.type == 'replay.v2.message' then
+    assert(require('tests.manual.renderer_replay').wait_for_idle(), 'Replay setup did not settle')
+    local info = event.properties.info
+    local messages = M._v2_replay_messages
+    local replaced = false
+    for index, message in ipairs(messages) do
+      if message.properties.info.id == info.id then
+        messages[index] = event
+        replaced = true
+        break
+      end
+    end
+    if not replaced then
+      messages[#messages + 1] = event
+    end
+    require('opencode.ui.renderer')._render_full_session_data(M.load_session_from_events(messages), state.active_session)
+    return
   end
   local active = assert(state.active_session, 'V1 replay requires an active session')
   local directory = active.location and active.location.directory or M.MOCK_CWD

@@ -7,15 +7,7 @@ local output_window = require('opencode.ui.output_window')
 local M = {}
 
 local function wait_for_idle(timeout_ms)
-  timeout_ms = timeout_ms or 5000
-  local ctx = require('opencode.ui.renderer.ctx').current()
-  local flush = require('opencode.ui.renderer.flush')
-  return vim.wait(timeout_ms, function()
-    if ctx:has_pending_work() then
-      flush.flush()
-    end
-    return not ctx:has_pending_work()
-  end, 10)
+  return require('tests.manual.renderer_replay').wait_for_idle(timeout_ms)
 end
 
 local function with_ftplugin_disabled(fn)

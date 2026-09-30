@@ -5,6 +5,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT" || exit 1
 
+unset VIM VIMRUNTIME
+
 echo "Starting Streaming Renderer Replay Test..."
 echo ""
 

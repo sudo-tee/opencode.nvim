@@ -13,6 +13,36 @@ local M = {
   headless_mode = false,
 }
 
+---@type (fun())?
+local restore_connection_hooks
+---@type (fun())?
+local restore_environment
+
+local function isolate_connection()
+  local server_job = require('opencode.server_job')
+  local connection = state.opencode_server --[[@as OpencodeServer]]
+  local ensure_server = server_job.ensure_server
+  local set_server = state.jobs.set_server
+  local clear_server = state.jobs.clear_server
+
+  -- Interactive replay can run after normal plugin setup, including in-flight discovery.
+  server_job.ensure_server = function()
+    return require('opencode.promise').new():resolve(connection)
+  end
+  state.jobs.set_server = function()
+    return connection
+  end
+  state.jobs.clear_server = function()
+    return connection
+  end
+
+  restore_connection_hooks = function()
+    server_job.ensure_server = ensure_server
+    state.jobs.set_server = set_server
+    state.jobs.clear_server = clear_server
+  end
+end
+
 function M.load_events(file_path)
   file_path = file_path or 'tests/data/simple-session.json'
   local data_file = file_path
@@ -43,8 +73,23 @@ function M.load_events(file_path)
 end
 
 function M.setup_windows(opts)
+  if restore_connection_hooks then
+    restore_connection_hooks()
+    restore_connection_hooks = nil
+  end
+  if restore_environment then
+    restore_environment()
+  end
+  local getcwd = vim.fn.getcwd
+  local util = require('opencode.util')
+  local format_time = util.format_time
+  restore_environment = function()
+    vim.fn.getcwd = getcwd
+    util.format_time = format_time
+  end
   require('opencode.ui.highlight').setup()
   helpers.replay_setup()
+  isolate_connection()
 
   vim.schedule(function()
     if state.windows and state.windows.output_win then
@@ -60,6 +105,25 @@ function M.setup_windows(opts)
   end)
 
   return true
+end
+
+function M.exit()
+  M.stop = true
+  state.jobs.set_count(0)
+  renderer.reset()
+  state.session.clear_active()
+  require('opencode.ui.ui').close_windows(state.windows --[[@as OpencodeWindowState]])
+  local connection = state.opencode_server --[[@as OpencodeServer]]
+  connection:close()
+  if restore_connection_hooks then
+    restore_connection_hooks()
+    restore_connection_hooks = nil
+  end
+  if restore_environment then
+    restore_environment()
+    restore_environment = nil
+  end
+  state.jobs.clear_server()
 end
 
 function M.replay_next(steps)
@@ -98,6 +162,9 @@ function M.replay_all(delay_ms)
   state.jobs.set_count(1)
 
   local function tick()
+    if M.stop then
+      return
+    end
     M.replay_next()
     if M.event_index >= #M.events or M.stop then
       state.jobs.set_count(0)
@@ -123,6 +190,7 @@ function M.reset()
   M.stop = true
   M.event_index = 0
   M.events_received = 0
+  helpers._v2_replay_messages = {}
   M.clear()
 end
 
@@ -180,7 +248,12 @@ function M.wait_for_idle(timeout_ms)
   local flush = require('opencode.ui.renderer.flush')
 
   return vim.wait(timeout_ms, function()
-    if ctx:has_pending_work() then
+    local pending = ctx.pending
+    local has_pending = next(pending.dirty_messages) ~= nil
+      or next(pending.dirty_parts) ~= nil
+      or next(pending.removed_messages) ~= nil
+      or next(pending.removed_parts) ~= nil
+    if has_pending then
       if ctx.bulk_mode then
         flush.end_bulk_mode()
       else
@@ -188,7 +261,7 @@ function M.wait_for_idle(timeout_ms)
       end
     end
 
-    return not ctx:has_pending_work()
+    return not has_pending and not ctx.flush_scheduled and not ctx.reconcile_scheduled
   end, 10)
 end
 
@@ -234,6 +307,8 @@ function M.replay_full_session()
   end
 
   state.session.set_active(helpers.get_session_from_events(M.events, true))
+  helpers.wait_for_replay_ready()
+  assert(M.wait_for_idle(), 'Replay setup did not settle')
   local session_data = helpers.load_session_from_events(M.events)
 
   renderer._render_full_session_data(session_data)
@@ -315,6 +390,7 @@ function M.start(opts)
     '  :ReplayNext [step]        - Replay next [step] event(s) (default 1) (<leader>n or .)',
     '  :ReplayAll [ms]           - Replay all events with delay (default 50ms) (<leader>a)',
     '  :ReplayStop               - Stop auto-replay (<leader>s)',
+    '  :ReplayExit               - Close replay and restore normal connection handling',
     '  :ReplayReset              - Reset to beginning (<leader>r)',
     '  :ReplayClear              - Clear output buffer (<leader>c)',
     '  :ReplaySave [file]        - Save snapshot (auto-derives from loaded file)',
@@ -343,6 +419,10 @@ function M.start(opts)
   vim.api.nvim_create_user_command('ReplayStop', function()
     M.replay_stop()
   end, { desc = 'Stop auto-replay' })
+
+  vim.api.nvim_create_user_command('ReplayExit', function()
+    M.exit()
+  end, { desc = 'Close replay and restore normal connection handling' })
 
   vim.api.nvim_create_user_command('ReplayReset', function()
     M.reset()
@@ -381,7 +461,6 @@ function M.start(opts)
   vim.keymap.set('n', '<leader>r', ':ReplayReset<CR>')
 
   M.setup_windows(opts)
-
 end
 
 return M

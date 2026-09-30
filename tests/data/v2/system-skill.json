@@ -1,0 +1,32 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_system",
+        "sessionID": "ses_v2_formatters",
+        "text": "Provider catalog updated.\nNew models are available.",
+        "time": {
+          "created": 1700000001000
+        },
+        "type": "system"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_skill",
+        "name": "Code review",
+        "sessionID": "ses_v2_formatters",
+        "skill": "review",
+        "text": "# Review checklist\n\n- Check correctness and edge cases.\n- Run relevant tests.",
+        "time": {
+          "created": 1700000002000
+        },
+        "type": "skill"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

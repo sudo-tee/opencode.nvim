@@ -861,7 +861,7 @@ end
 
 ---@param output Output Output object to write to
 ---@param part table
----@param context FormatterContext
+---@param context? FormatterContext
 function M.format_tool(output, part, context, message)
   local tool = part.name
   if not tool or not part.state then
@@ -914,102 +914,250 @@ function M.add_vertical_border(output, start_line, end_line, hl_group, win_col, 
   end
 end
 
+---@param output Output
+---@param part table
+local function format_editor_context(output, part)
+  M._format_selection_context(output, part)
+  M._format_review_comment_context(output, part)
+  M._format_cursor_data_context(output, part)
+  M._format_diagnostics_context(output, part)
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@return boolean
+local function format_user_file(output, part, message)
+  local file_line = M._format_context_file(output, part.name or (part.source and part.source.path))
+  if not file_line then
+    return false
+  end
+
+  local previous_kind, next_kind = get_user_part_neighbors(message, part)
+  local previous_is_context = previous_kind == 'selection'
+    or previous_kind == 'cursor-data'
+    or previous_kind == 'diagnostics'
+
+  if next_kind == 'text' or (previous_is_context and not next_kind) then
+    M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
+  elseif next_kind == 'file' then
+    M.add_vertical_border(output, file_line, file_line + 1, 'OpencodeMessageRoleUser', -3)
+  else
+    M.add_vertical_border(output, file_line, file_line, 'OpencodeMessageRoleUser', -3)
+  end
+  return true
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@return Output, boolean
+local function format_user_part(output, part, message)
+  if is_compaction_part(part) then
+    format_compaction_divider(output)
+    return output, true
+  elseif part.kind == 'text' and type(part.text) == 'string' then
+    if part.synthetic == true then
+      format_editor_context(output, part)
+    else
+      M._format_user_prompt(output, vim.trim(part.text), message)
+      return output, true
+    end
+  elseif part.kind == 'editor_context' then
+    format_editor_context(output, part)
+    return output, true
+  elseif part.kind == 'file' then
+    return output, format_user_file(output, part, message)
+  end
+  return output, false
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@param context? FormatterContext
+---@return Output, boolean
+local function format_assistant_part(output, part, message, context)
+  if part.kind == 'text' and part.text then
+    M._format_assistant_message(output, vim.trim(part.text), part, message, context)
+  elseif part.kind == 'reasoning' then
+    M._format_reasoning(output, part)
+  elseif part.kind == 'tool' then
+    M.format_tool(output, part, context, message)
+  elseif part.kind == 'patch' and part.hash then
+    M._format_patch(output, part)
+  else
+    return output, false
+  end
+  return output, true
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@return Output, boolean
+local function format_system_part(output, part, message)
+  if part.kind == 'text' then
+    output:add_lines(vim.split(part.text, '\n'))
+    return output, true
+  elseif system_formatters.format(part.kind, output) then
+    return output, true
+  elseif part.kind == 'revert_display' then
+    local revert_index = part.revert_index
+    if revert_index then
+      output = M._format_revert_message(message.entries or {}, revert_index, part.revert)
+      return output, output:get_line_count() > 0
+    end
+  elseif part.kind == 'hidden_messages_display' then
+    local hidden_count = part.hidden_count
+    if type(hidden_count) == 'number' and hidden_count > 0 then
+      output = M._format_hidden_messages_notice(hidden_count)
+      return output, output:get_line_count() > 0
+    end
+  end
+  return output, false
+end
+
+---@param output Output
+---@param part table
+---@param message table
+---@return Output, boolean
+local function format_skill_part(output, part, message)
+  if part.kind == 'text' then
+    format_utils.format_action(output, icons.get('skill'), 'Loaded skill', message.name)
+    output:add_empty_line()
+    output:add_lines(vim.split(part.text, '\n'))
+    return output, true
+  end
+  return output, false
+end
+
+---@param output Output
+---@param part table
+---@return Output, boolean
+local function format_shell_part(output, part)
+  if part.kind == 'shell' then
+    format_utils.format_action(output, icons.get('run'), 'Shell ' .. part.state, part.command)
+    if part.exit ~= nil then
+      output:add_line('Exit code: ' .. tostring(part.exit))
+    end
+    if part.text ~= '' then
+      format_utils.format_code(output, vim.split(part.text, '\n'), 'text')
+    end
+    if part.truncated then
+      output:add_line('> Shell output truncated.')
+    end
+    return output, true
+  end
+  return output, false
+end
+
+local compaction_statuses = {
+  running = { icon = 'running', text = 'Compacting session…', highlight = 'OpencodeCompactionRunning' },
+  completed = { icon = 'completed', text = 'Session compacted', highlight = 'OpencodeCompactionCompleted' },
+  failed = { icon = 'error', text = 'Compaction failed', highlight = 'OpencodeCompactionFailed' },
+}
+
+---@param output Output
+---@param part table
+---@return Output, boolean
+local function format_compaction_part(output, part)
+  if part.kind == 'compaction' then
+    local status = compaction_statuses[part.state]
+    local title = vim.trim(icons.get(status.icon)) .. ' ' .. status.text
+    output:add_line(title)
+    output:add_extmark(0, { start_col = 0, hl_group = status.highlight, end_col = #title })
+    output:add_extmark(0, {
+      start_col = 0,
+      virt_text = { { part.reason == 'auto' and 'Automatic' or 'Manual', 'OpencodeHint' } },
+      virt_text_pos = 'right_align',
+    })
+    if part.state == 'running' then
+      output:add_line('  Condensing conversation history.')
+      output:add_extmark(
+        1,
+        { start_col = 0, hl_group = 'OpencodeHint', end_col = #'  Condensing conversation history.' }
+      )
+    end
+    for _, section in ipairs({
+      { title = 'Summary', text = part.summary },
+      { title = 'Recent context', text = part.recent },
+    }) do
+      if section.text and vim.trim(section.text) ~= '' then
+        output:add_empty_line()
+        output:add_line('**' .. section.title .. '**')
+        output:add_lines(vim.split(section.text, '\n'))
+      end
+    end
+    if part.error then
+      output:add_empty_line()
+      for _, line in ipairs(vim.split(part.error.message or part.error.type, '\n')) do
+        local text = '  ' .. line
+        output:add_line(text)
+        output:add_extmark(
+          output:get_line_count() - 1,
+          { start_col = 0, hl_group = 'OpencodeCompactionFailed', end_col = #text }
+        )
+      end
+    end
+    return output, true
+  end
+  return output, false
+end
+
+---@param output Output
+---@param part table
+---@return Output, boolean
+local function format_location_part(output, part)
+  if part.kind == 'location' then
+    output:add_line('Session directory: `' .. part.directory .. '`')
+    if part.previous_directory then
+      output:add_line('Previous directory: `' .. part.previous_directory .. '`')
+    end
+    return output, true
+  end
+  return output, false
+end
+
+---@alias MessagePartFormatter fun(output: Output, part: table, message: table, context?: FormatterContext): Output, boolean
+
+---@type table<string, MessagePartFormatter?>
+local part_formatters = {
+  user = format_user_part,
+  assistant = format_assistant_part,
+  system = format_system_part,
+  skill = format_skill_part,
+  shell = format_shell_part,
+  compaction = format_compaction_part,
+  ['location-switched'] = format_location_part,
+}
+
 ---Formats a single message part and returns the resulting output object
----@param part table The part to format
----@param message? table Optional message object to extract role and mentions from
----@param is_last_part? boolean Whether this is the last part in the message, used to show an error if there is one
----@param context FormatterContext
+---@param part table
+---@param message? table
+---@param is_last_part? boolean
+---@param context? FormatterContext
 ---@return Output
 function M.format_part(part, message, is_last_part, context)
   local output = Output.new()
-
   if not message or not message.kind then
     return output
   end
-
-  local content_added = false
-
   if is_compaction_summary_message(message) and part.kind ~= 'text' then
     return output
   end
 
-  local role = message.kind
-
-  if role == 'user' then
-    if is_compaction_part(part) then
-      format_compaction_divider(output)
-      content_added = true
-    elseif part.kind == 'text' and type(part.text) == 'string' then
-      if part.synthetic == true then
-        M._format_selection_context(output, part)
-        M._format_review_comment_context(output, part)
-        M._format_cursor_data_context(output, part)
-        M._format_diagnostics_context(output, part)
-      else
-        M._format_user_prompt(output, vim.trim(part.text), message)
-        content_added = true
-      end
-    elseif part.kind == 'editor_context' then
-      M._format_selection_context(output, part)
-      M._format_review_comment_context(output, part)
-      M._format_cursor_data_context(output, part)
-      M._format_diagnostics_context(output, part)
-      content_added = true
-    elseif part.kind == 'file' then
-      local file_line = M._format_context_file(output, part.name or (part.source and part.source.path))
-      if file_line then
-        local previous_kind, next_kind = get_user_part_neighbors(message, part)
-        local previous_is_context = previous_kind == 'selection'
-          or previous_kind == 'cursor-data'
-          or previous_kind == 'diagnostics'
-
-        if next_kind == 'text' or (previous_is_context and not next_kind) then
-          M.add_vertical_border(output, file_line - 1, file_line, 'OpencodeMessageRoleUser', -3)
-        elseif next_kind == 'file' then
-          M.add_vertical_border(output, file_line, file_line + 1, 'OpencodeMessageRoleUser', -3)
-        else
-          M.add_vertical_border(output, file_line, file_line, 'OpencodeMessageRoleUser', -3)
-        end
-        content_added = true
-      end
-    end
-  elseif role == 'assistant' then
-    if part.kind == 'text' and part.text then
-      M._format_assistant_message(output, vim.trim(part.text), part, message, context)
-      content_added = true
-    elseif part.kind == 'reasoning' then
-      M._format_reasoning(output, part)
-      content_added = true
-    elseif part.kind == 'tool' then
-      M.format_tool(output, part, context, message)
-      content_added = true
-    elseif part.kind == 'patch' and part.hash then
-      M._format_patch(output, part)
-      content_added = true
-    end
-  elseif role == 'system' then
-    if system_formatters.format(part.kind, output) then
-      content_added = true
-    elseif part.kind == 'revert_display' then
-      local revert_index = part.revert_index
-      if revert_index then
-        output = M._format_revert_message(message.entries or {}, revert_index, part.revert)
-        content_added = output:get_line_count() > 0
-      end
-    elseif part.kind == 'hidden_messages_display' then
-      local hidden_count = part.hidden_count
-      if type(hidden_count) == 'number' and hidden_count > 0 then
-        output = M._format_hidden_messages_notice(hidden_count)
-        content_added = output:get_line_count() > 0
-      end
-    end
+  local content_added = false
+  local formatter = part_formatters[message.kind]
+  if formatter then
+    output, content_added = formatter(output, part, message, context)
   end
 
   if content_added then
     output:add_empty_line()
   end
 
-  if is_last_part and role == 'assistant' and message.error then
+  if is_last_part and message.kind == 'assistant' and message.error then
     local error_message = message.error.message or message.error.type or vim.inspect(message.error)
     M._format_callout(output, 'ERROR', error_message)
     output:add_empty_line()

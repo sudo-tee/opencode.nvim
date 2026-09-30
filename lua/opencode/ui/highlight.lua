@@ -144,6 +144,9 @@ function M.setup()
     vim.api.nvim_set_hl(0, 'OpencodeQuestionKeyHint', { fg = '#61AFEF', bold = true, default = true })
     vim.api.nvim_set_hl(0, 'OpencodeChangedLines', { bg = '#3D3520', default = true })
   end
+  vim.api.nvim_set_hl(0, 'OpencodeCompactionRunning', { link = 'DiagnosticInfo', default = true })
+  vim.api.nvim_set_hl(0, 'OpencodeCompactionCompleted', { link = 'Added', default = true })
+  vim.api.nvim_set_hl(0, 'OpencodeCompactionFailed', { link = 'DiagnosticError', default = true })
 end
 
 return M

@@ -55,6 +55,26 @@ describe('formatter', function()
     assert.are.equal('Second line', output.lines[5])
   end)
 
+  it('ignores unsupported message roles and part kinds without adding spacing', function()
+    assert.same({}, formatter.format_part({ kind = 'text', text = 'hidden' }, { kind = 'unknown' }).lines)
+    assert.same({}, formatter.format_part({ kind = 'unknown' }, assistant()).lines)
+    assert.same({}, formatter.format_part({ kind = 'text', text = 'hidden' }, nil).lines)
+  end)
+
+  it('preserves replacement output and actions for system display parts', function()
+    local output = formatter.format_part({ kind = 'hidden_messages_display', hidden_count = 2 }, { kind = 'system' })
+    assert.equals('> 2 older messages are not displayed.', output.lines[1])
+    assert.equals('toggle_max_messages', output.actions[1].type)
+    assert.equals(2, #output.lines)
+  end)
+
+  it('keeps final assistant errors when its part kind is unsupported', function()
+    local message = assistant({}, { error = { message = 'Request failed' } })
+    local output = formatter.format_part({ kind = 'unknown' }, message, true)
+    assert.is_truthy(table.concat(output.lines, '\n'):find('Request failed', 1, true))
+    assert.same({}, formatter.format_part({ kind = 'unknown' }, message, false).lines)
+  end)
+
   it('renders task child question tools with generic summary fallback', function()
     local message = assistant()
     local part = tool('task', {

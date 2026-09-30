@@ -700,10 +700,14 @@ local function mapped_shell(entry, info)
   entry.command = info.command
   entry.state = info.status
   entry.exit = info.exit
-  if info.output ~= nil then
-    entry.content[1] =
-      { kind = 'text', text = type(info.output) == 'string' and info.output or vim.inspect(info.output) }
-  end
+  entry.content[1] = {
+    kind = 'shell',
+    command = entry.command,
+    state = entry.state,
+    exit = entry.exit,
+    text = info.output ~= nil and (type(info.output) == 'string' and info.output or info.output.output) or '',
+    truncated = type(info.output) == 'table' and info.output.truncated or nil,
+  }
   return entry
 end
 
@@ -717,6 +721,14 @@ local function mapped_compaction(entry, info)
   entry.error = mapped_error(info.error)
   entry.cost = info.cost
   entry.tokens = mapped_tokens(info.tokens)
+  entry.content[1] = {
+    kind = 'compaction',
+    state = entry.state,
+    reason = entry.reason,
+    summary = entry.summary,
+    recent = entry.recent,
+    error = entry.error,
+  }
   return entry
 end
 
@@ -745,6 +757,11 @@ local function mapped_location_switch(entry, info)
       subpath = info.previous.subpath,
     }
   end
+  entry.content[1] = {
+    kind = 'location',
+    directory = entry.location.directory,
+    previous_directory = entry.previous and entry.previous.location.directory,
+  }
   return entry
 end
 

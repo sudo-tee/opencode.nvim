@@ -21,6 +21,8 @@ M._prev_line_count_by_win = {}
 M._manual_scroll_by_win = {}
 M._last_visible_top_by_win = {}
 M._last_skipcol_by_win = {}
+---@type table<integer, integer[]>
+M._last_cursor_by_win = {}
 
 local OUTPUT_FOLD_FILLCHARS = {
   fold = '-',
@@ -176,6 +178,11 @@ function M.is_at_bottom(win)
 
   local prev_line_count = M._prev_line_count_by_win[win] or line_count
   local prev_effective_bottom = M.get_scroll_bottom_line(output_buf, prev_line_count)
+  local previous_cursor = M._last_cursor_by_win[win]
+  if previous_cursor and cursor[1] == previous_cursor[1] and cursor[2] < previous_cursor[2] then
+    M._manual_scroll_by_win[win] = true
+    return false
+  end
   -- buffer writes are suppressing WinScrolled autocmds.
   local visible_bottom = M.get_visible_bottom_line(win)
   M._last_visible_bottom_by_win[win] = visible_bottom
@@ -202,16 +209,25 @@ function M.on_user_navigation(win)
   M._last_skipcol_by_win[win] = skipcol
   local bottom = M.get_visible_bottom_line(win)
   local effective_bottom = M.get_scroll_bottom_line(windows.output_buf)
-  local cursor_line = vim.api.nvim_win_get_cursor(win)[1]
+  local cursor = vim.api.nvim_win_get_cursor(win)
+  local cursor_line = cursor[1]
+  local previous_cursor = M._last_cursor_by_win[win]
+  M._last_cursor_by_win[win] = cursor
+  local bottom_text = vim.api.nvim_buf_get_lines(windows.output_buf, effective_bottom - 1, effective_bottom, false)[1] --[[@as string]]
+  local cursor_at_end = cursor_line >= effective_bottom and cursor[2] >= math.max(0, vim.fn.match(bottom_text, '.$'))
+  local moved_toward_end = (previous_cursor and (cursor_line > previous_cursor[1] or cursor[2] > previous_cursor[2]))
+    or (top and previous_top and top > previous_top)
+    or (top == previous_top and previous_skipcol and skipcol > previous_skipcol)
 
   if
     (top and previous_top and top < previous_top)
     or (top == previous_top and previous_skipcol and skipcol < previous_skipcol)
     or (bottom and bottom < effective_bottom)
     or cursor_line < effective_bottom
+    or (previous_cursor and cursor_line == previous_cursor[1] and cursor[2] < previous_cursor[2])
   then
     M._manual_scroll_by_win[win] = true
-  elseif bottom and bottom >= effective_bottom and cursor_line >= effective_bottom then
+  elseif bottom and bottom >= effective_bottom and cursor_at_end and moved_toward_end then
     M._manual_scroll_by_win[win] = nil
   end
 end
@@ -307,6 +323,7 @@ function M.reset_scroll_tracking(win)
     M._manual_scroll_by_win[win] = nil
     M._last_visible_top_by_win[win] = nil
     M._last_skipcol_by_win[win] = nil
+    M._last_cursor_by_win[win] = nil
     return
   end
 
@@ -316,6 +333,7 @@ function M.reset_scroll_tracking(win)
   M._manual_scroll_by_win = {}
   M._last_visible_top_by_win = {}
   M._last_skipcol_by_win = {}
+  M._last_cursor_by_win = {}
 end
 
 ---@param win? integer

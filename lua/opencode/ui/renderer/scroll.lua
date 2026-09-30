@@ -150,6 +150,7 @@ function M.scroll_win_to_bottom(win, buf)
   output_window._last_skipcol_by_win[win] = vim.api.nvim_win_call(win, function()
     return vim.fn.winsaveview().skipcol
   end)
+  output_window._last_cursor_by_win[win] = vim.api.nvim_win_get_cursor(win)
 end
 
 ---@param buf integer|nil
@@ -170,6 +171,9 @@ function M.pre_flush(buf)
   if ok and line_count and line_count > 0 then
     output_window._prev_line_count_by_win[win] = line_count
   end
+
+  -- Navigation autocmds may not have run before a scheduled streaming flush.
+  output_window.on_user_navigation(win)
 
   return {
     win = win,

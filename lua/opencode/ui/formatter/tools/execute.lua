@@ -19,6 +19,7 @@ function M.format(output, part)
     utils.format_code(output, vim.split(input.code, '\n'), 'javascript')
     output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
   end
+  utils.format_tool_result(output, part)
 end
 
 ---@param part table

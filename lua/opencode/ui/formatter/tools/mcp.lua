@@ -61,7 +61,6 @@ function M.format(output, part)
   local title_line = output:get_line_count() + 1
   output:add_line(title)
 
-  -- Content rendering (input only, not output)
   local content_start = nil
   local _, content_value = find_content_field(input)
   if not content_value and next(input) ~= nil then
@@ -70,7 +69,7 @@ function M.format(output, part)
       content_value = json_str
     end
   end
-  if content_value then
+  if content_value and (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
     content_start = output:get_line_count() + 1
     output:add_empty_line()
 
@@ -95,6 +94,7 @@ function M.format(output, part)
   for line = title_line, end_line do
     output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 } --[[@as OutputExtmark]])
   end
+  utils.format_tool_result(output, part)
 end
 
 ---@param part table

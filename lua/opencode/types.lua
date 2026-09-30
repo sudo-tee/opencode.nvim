@@ -499,12 +499,13 @@
 ---@field end_col integer Output-local column, 0-based exclusive
 
 ---@class OutputTarget
----@field kind 'file'|'diff'|'symbol'
+---@field kind 'file'|'diff'|'symbol'|'uri'
 ---@field range OutputTargetRange
 ---@field path? string
 ---@field line? integer
 ---@field col? integer
 ---@field token? string
+---@field uri? string
 
 ---@class RenderedTarget: OutputTarget
 ---@field part_id string

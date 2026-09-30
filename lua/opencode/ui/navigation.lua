@@ -306,6 +306,11 @@ local function jump_to_symbol_target(target)
 end
 
 local function jump_to_rendered_target(target)
+  if target.kind == 'uri' then
+    vim.ui.open(target.uri)
+    return
+  end
+
   if target.kind == 'file' or target.kind == 'diff' then
     M.navigate_to_location(target.path, target.line, target.col)
     return

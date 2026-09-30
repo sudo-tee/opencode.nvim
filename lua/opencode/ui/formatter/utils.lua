@@ -27,6 +27,68 @@ function M.tool_result_text(part)
   return table.concat(text, '\n')
 end
 
+---@param output Output
+---@param input? table
+function M.format_tool_input(output, input)
+  local tools = config.ui.output.tools
+  if not input or next(input) == nil or not (tools.show_output or tools.use_folds) then
+    return
+  end
+  output:add_empty_line()
+  local start_line = output:add_line('**Input**')
+  M.format_code(output, vim.split(vim.json.encode(input), '\n'), 'json')
+  output:add_fold_with_threshold(start_line, tools.show_output, tools.use_folds)
+end
+
+---@param output Output
+---@param part {result?: OpencodeV2NormalizedToolResult[]}
+function M.format_tool_result(output, part)
+  local tools = config.ui.output.tools
+  if not (tools.show_output or tools.use_folds) then
+    return
+  end
+
+  ---@type integer?
+  local start_line
+  for _, item in ipairs(part.result or {}) do
+    if item.kind == 'file' or (item.kind == 'text' and item.text ~= '') then
+      if not start_line then
+        output:add_empty_line()
+        start_line = output:add_line('**Result**')
+        output:add_empty_line()
+      end
+      if item.kind == 'text' then
+        output:add_lines(util.sanitize_lines(vim.split(item.text, '\n')))
+      else
+        local inline = vim.startswith(item.uri, 'data:')
+        local name = item.name or (inline and 'Inline attachment' or item.uri)
+        local label = name:gsub('[\r\n]', ' ')
+        local line = string.format('Attachment: %s (%s)', label, item.media_type)
+        if not inline then
+          line = string.format('Attachment: [%s](<%s>) (%s)', label, item.uri, item.media_type)
+        end
+        local line_idx = output:add_line(line)
+        if vim.startswith(item.uri, 'file://') then
+          output:add_target({
+            kind = 'file',
+            path = vim.uri_to_fname(item.uri),
+            range = { line = line_idx, start_col = 0, end_col = #line },
+          })
+        elseif item.uri:match('^https?://') then
+          output:add_target({
+            kind = 'uri',
+            uri = item.uri,
+            range = { line = line_idx, start_col = 0, end_col = #line },
+          })
+        end
+      end
+    end
+  end
+  if start_line then
+    output:add_fold_with_threshold(start_line, tools.show_output, tools.use_folds)
+  end
+end
+
 ---@param session_id string
 ---@return string[]
 function M.get_session_action_args(session_id)

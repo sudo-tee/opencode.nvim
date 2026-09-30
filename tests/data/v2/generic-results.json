@@ -1,0 +1,75 @@
+[
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_generic_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000006000 },
+        "content": [
+          {
+            "id": "prt_custom_results",
+            "type": "tool",
+            "name": "custom",
+            "time": { "created": 1700000006000, "ran": 1700000006000 },
+            "state": { "status": "running", "input": { "path": "results/report.txt" } }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_generic_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000006000, "completed": 1700000009000 },
+        "content": [
+          {
+            "id": "prt_custom_results",
+            "type": "tool",
+            "name": "custom",
+            "time": { "created": 1700000006000, "ran": 1700000006000, "completed": 1700000007000 },
+            "state": {
+              "status": "completed",
+              "input": { "path": "results/report.txt" },
+              "content": [
+                { "type": "text", "text": "Report generated.\nThree checks passed." },
+                { "type": "file", "uri": "file:///project/results/report.txt", "mime": "text/plain" },
+                { "type": "file", "uri": "data:image/png;base64,iVBORw0KGgo=", "mime": "image/png" }
+              ]
+            }
+          },
+          {
+            "id": "prt_browser_results",
+            "type": "tool",
+            "name": "browser.tabs.list",
+            "time": { "created": 1700000007000, "ran": 1700000007000, "completed": 1700000008000 },
+            "state": {
+              "status": "completed",
+              "input": {},
+              "content": [ { "type": "text", "text": "No tabs open." } ]
+            }
+          },
+          {
+            "id": "prt_session_results",
+            "type": "tool",
+            "name": "opencode.session_move",
+            "time": { "created": 1700000008000, "ran": 1700000008000, "completed": 1700000009000 },
+            "state": {
+              "status": "error",
+              "input": { "directory": "/project/worktrees/missing" },
+              "content": [ { "type": "text", "text": "Resolved requested destination.\nMove was not applied." } ],
+              "error": { "name": "NotFoundError", "message": "Destination directory does not exist." }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,55 @@
+[
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_execute_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000001000 },
+        "content": [
+          {
+            "id": "prt_execute_results",
+            "type": "tool",
+            "name": "execute",
+            "time": { "created": 1700000001000, "ran": 1700000001000 },
+            "state": {
+              "status": "running",
+              "input": { "code": "const files = await tools.browser.tabs.list()\nreturn files" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_execute_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000001000, "completed": 1700000003000 },
+        "content": [
+          {
+            "id": "prt_execute_results",
+            "type": "tool",
+            "name": "execute",
+            "time": { "created": 1700000001000, "ran": 1700000001000, "completed": 1700000003000 },
+            "state": {
+              "status": "completed",
+              "input": { "code": "const files = await tools.browser.tabs.list()\nreturn files" },
+              "content": [
+                { "type": "text", "text": "Found two tabs.\nSaved the active tab screenshot." },
+                { "type": "file", "uri": "file:///project/results/active%20tab.png", "mime": "image/png", "name": "active tab.png" },
+                { "type": "text", "text": "Capture complete." }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+]

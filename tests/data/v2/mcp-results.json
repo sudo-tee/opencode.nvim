@@ -1,0 +1,53 @@
+[
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_mcp_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000004000 },
+        "content": [
+          {
+            "id": "prt_mcp_results",
+            "type": "tool",
+            "name": "docs_lookup",
+            "time": { "created": 1700000004000, "ran": 1700000004000 },
+            "state": { "status": "running", "input": { "query": "Shared tool-result rendering" } }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "replay.v2.message",
+    "properties": {
+      "info": {
+        "id": "msg_mcp_results",
+        "sessionID": "ses_v2_tool_results",
+        "type": "assistant",
+        "agent": "build",
+        "time": { "created": 1700000004000, "completed": 1700000005000 },
+        "content": [
+          {
+            "id": "prt_mcp_results",
+            "type": "tool",
+            "name": "docs_lookup",
+            "time": { "created": 1700000004000, "ran": 1700000004000, "completed": 1700000005000 },
+            "state": {
+              "status": "completed",
+              "input": { "query": "Shared tool-result rendering" },
+              "content": [
+                { "type": "text", "text": "# Rendering guide\n\nText and file results retain their original order." },
+                { "type": "file", "uri": "https://example.com/rendering-guide.pdf", "mime": "application/pdf", "name": "Rendering guide" },
+                { "type": "text", "text": "Inline diagram:" },
+                { "type": "file", "uri": "data:image/png;base64,iVBORw0KGgo=", "mime": "image/png", "name": "diagram.png" }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+]

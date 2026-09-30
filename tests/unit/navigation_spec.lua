@@ -75,6 +75,22 @@ describe('output token navigation', function()
     target_stub:revert()
   end)
 
+  it('opens HTTP attachment targets on <CR>', function()
+    local target_stub = stub(renderer, 'get_target_at_position').returns({
+      kind = 'uri',
+      uri = 'https://example.com/report.pdf',
+    })
+    local open_stub = stub(vim.ui, 'open')
+    vim.api.nvim_buf_set_lines(output_buf, 0, -1, false, { 'Attachment: Report' })
+    vim.api.nvim_win_set_cursor(output_win, { 1, 0 })
+
+    navigation.jump_to_target_at_cursor()
+    assert.stub(open_stub).was_called_with('https://example.com/report.pdf')
+
+    open_stub:revert()
+    target_stub:revert()
+  end)
+
   it('executes file and diff rendered targets on <CR>', function()
     local original_navigate_to_location = navigation.navigate_to_location
     local navigated = {}
@@ -250,24 +266,24 @@ describe('output token navigation', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
     local original_navigate_to_location = navigation.navigate_to_location
     local navigated
-      local target_stub = stub(renderer, 'get_target_at_position').returns({
-        kind = 'symbol',
-        token = 'foo',
-        part_id = 'part_1',
-        message_id = 'msg_1',
-      })
-      local available_stub = stub(reference_facts, 'available_files').returns({ existing_path })
-      package.loaded['opencode.ui.symbol_snapshot'] = {
-        new_cycle = function()
-          return { cycle = 'fresh' }
-        end,
-        targets_for_token = function(cycle, token, candidate_files)
-          assert.same({ cycle = 'fresh' }, cycle)
-          assert.equal('foo', token)
-          assert.same({ existing_path }, candidate_files)
-          return { { token = 'foo', path = existing_path, line = 3, col = 1 } }
-        end,
-      }
+    local target_stub = stub(renderer, 'get_target_at_position').returns({
+      kind = 'symbol',
+      token = 'foo',
+      part_id = 'part_1',
+      message_id = 'msg_1',
+    })
+    local available_stub = stub(reference_facts, 'available_files').returns({ existing_path })
+    package.loaded['opencode.ui.symbol_snapshot'] = {
+      new_cycle = function()
+        return { cycle = 'fresh' }
+      end,
+      targets_for_token = function(cycle, token, candidate_files)
+        assert.same({ cycle = 'fresh' }, cycle)
+        assert.equal('foo', token)
+        assert.same({ existing_path }, candidate_files)
+        return { { token = 'foo', path = existing_path, line = 3, col = 1 } }
+      end,
+    }
     navigation.navigate_to_location = function(path, line, col)
       navigated = { path = path, line = line, col = col }
       return true

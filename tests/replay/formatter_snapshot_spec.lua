@@ -20,7 +20,16 @@ describe('V2 formatter JSON replay snapshots', function()
     ui.close_windows(state.windows)
   end)
 
-  for _, name in ipairs({ 'formatters', 'system-skill', 'shell', 'compaction', 'location-switched' }) do
+  for _, name in ipairs({
+    'formatters',
+    'system-skill',
+    'shell',
+    'compaction',
+    'location-switched',
+    'execute-results',
+    'mcp-results',
+    'generic-results',
+  }) do
     it('replays tests/data/v2/' .. name .. '.json into its expected snapshot', function()
       local input_file = 'tests/data/v2/' .. name .. '.json'
       local expected_file = replay.get_expected_filename(input_file)

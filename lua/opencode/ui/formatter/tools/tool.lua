@@ -6,6 +6,8 @@ local M = {}
 ---@param part table
 function M.format(output, part)
   utils.format_action(output, icons.get('tool'), 'tool', part.name, utils.get_duration_text(part))
+  utils.format_tool_input(output, part.input)
+  utils.format_tool_result(output, part)
 end
 
 ---@param part table

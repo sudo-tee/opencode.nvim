@@ -29,6 +29,74 @@ describe('opencode.services.messaging', function()
     connection = support.mock_connection()
   end)
 
+  it('activates a V2 skill by catalog ID without sending user-authored instructions', function()
+    state.session.set_active({ id = 'sess-skill' })
+    connection.protocol = 'v2'
+    connection.operations.list_skills = function()
+      return Promise.new():resolve({ { id = '/skills/review', name = 'review', content = 'private instructions' } })
+    end
+    local observation = state.session.active_observation()
+    local activated
+    observation.activate_skill = function(_, id)
+      activated = id
+      return Promise.new():resolve(true)
+    end
+    local send = stub(messaging, 'send_message')
+    assert.is_true(messaging.run_skill('review'):wait())
+    assert.equals('/skills/review', activated)
+    assert.stub(send).was_not_called()
+    send:revert()
+  end)
+
+  it('uses a native attachment for V2 skill selection with user instructions', function()
+    state.session.set_active({ id = 'sess-skill' })
+    connection.protocol = 'v2'
+    connection.operations.list_skills = function()
+      return Promise.new():resolve({ { id = 'native-review', name = 'review', content = 'private instructions' } })
+    end
+    local send = stub(messaging, 'send_message').returns(Promise.new():resolve(true))
+    messaging.run_skill('review', 'Review current changes'):wait()
+    assert.stub(send).was_called_with('Review current changes', { skills = { { id = 'native-review' } } })
+    send:revert()
+  end)
+
+  it('keeps V1 skill content-pasting behavior separate', function()
+    state.session.set_active({ id = 'sess-skill' })
+    connection.operations.list_skills = function()
+      return Promise.new():resolve({ { name = 'review', content = 'skill instructions' } })
+    end
+    local send = stub(messaging, 'send_message').returns(Promise.new():resolve(true))
+    messaging.run_skill('review', 'Review current changes'):wait()
+    assert.stub(send).was_called_with('skill instructions\n\nReview current changes', {})
+    send:revert()
+  end)
+
+  it('rejects an unknown skill without submitting a prompt', function()
+    state.session.set_active({ id = 'sess-skill' })
+    connection.operations.list_skills = function()
+      return Promise.new():resolve({})
+    end
+    local send = stub(messaging, 'send_message')
+    local ok, err = pcall(function() messaging.run_skill('missing'):wait() end)
+    assert.is_false(ok)
+    assert.matches('Unknown skill: missing', tostring(err))
+    assert.stub(send).was_not_called()
+    send:revert()
+  end)
+
+  it('blocks skill activation in read-only child sessions', function()
+    state.session.set_active({ id = 'sess-child', parentID = 'sess-parent' })
+    connection.protocol = 'v2'
+    state.session.active_observation()._state.session.parentID = 'sess-parent'
+    local previous = config.values.child_readonly
+    config.values.child_readonly = true
+    local list = stub(connection.operations, 'list_skills')
+    assert.is_false(messaging.run_skill('review'):wait())
+    assert.stub(list).was_not_called()
+    list:revert()
+    config.values.child_readonly = previous
+  end)
+
   it('sends frozen input through the active Observation', function()
     state.ui.set_windows({ mock = 'windows' })
     state.session.set_active({ id = 'sess1' })

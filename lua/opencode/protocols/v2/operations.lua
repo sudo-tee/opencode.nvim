@@ -18,6 +18,23 @@ local map_paths = http.map_paths
 local require_table = http.require_table
 
 ---@param connection OpencodeV2Connection
+---@param attachments boolean
+---@return Promise<boolean>
+local function require_skill_support(connection, attachments)
+  return json_request(connection, 'V2 skill capabilities', 'GET', '/openapi.json'):and_then(function(spec)
+    local path = attachments and '/api/session/{sessionID}/prompt' or '/api/experimental/session/{sessionID}/skill'
+    local operation = spec.paths[path] and spec.paths[path].post
+    if not operation then
+      error('OpenCode server does not support native skill activation; update the OpenCode CLI', 0)
+    end
+    if attachments and not operation.requestBody.content['application/json'].schema.properties.skills then
+      error('OpenCode server does not support prompt skill attachments; update the OpenCode CLI', 0)
+    end
+    return true
+  end)
+end
+
+---@param connection OpencodeV2Connection
 ---@param operation string
 ---@param method OpencodeHttpMethod
 ---@param path string
@@ -478,6 +495,12 @@ local function prompt_body(input, path_map)
       body.agents[#body.agents + 1] = { name = agent.name, mention = mention(agent.mention) }
     end
   end
+  if input.skills and #input.skills > 0 then
+    body.skills = {}
+    for _, skill in ipairs(input.skills) do
+      body.skills[#body.skills + 1] = { id = skill.id, mention = mention(skill.mention) }
+    end
+  end
   return body
 end
 
@@ -490,6 +513,9 @@ end
 function M.submit(connection, session_id, input, path_map, reverse_path_map)
   local body = prompt_body(input, path_map)
   return Promise.async(function()
+    if input.skills and #input.skills > 0 then
+      require_skill_support(connection, true):await()
+    end
     if input.agent then
       M.set_session_agent(connection, session_id, input.agent):await()
     end
@@ -516,6 +542,19 @@ function M.submit(connection, session_id, input, path_map, reverse_path_map)
     end
     return admission
   end)
+end
+
+---@param connection OpencodeV2Connection
+---@param session_id string
+---@param skill_id string
+---@return Promise<boolean>
+function M.activate_skill(connection, session_id, skill_id)
+  return Promise.async(function()
+    require_skill_support(connection, false):await()
+    return empty_request(connection, 'V2 activate_skill', 'POST', '/api/experimental/session/' .. session_id .. '/skill', {
+      id = skill_id,
+    }):await()
+  end)()
 end
 
 ---@param connection OpencodeV2Connection
@@ -821,6 +860,7 @@ M.contract = {
   { 'PATCH', '/api/session/{sessionID}' },
   { 'POST', '/api/experimental/mcp/{server}/connect' },
   { 'POST', '/api/experimental/mcp/{server}/disconnect' },
+  { 'POST', '/api/experimental/session/{sessionID}/skill' },
   { 'POST', '/api/session' },
   { 'POST', '/api/session/{sessionID}/agent' },
   { 'POST', '/api/session/{sessionID}/command' },

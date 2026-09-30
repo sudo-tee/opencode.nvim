@@ -163,6 +163,67 @@ M.send_message = Promise.async(function(prompt, opts)
   return submit_message(observation, prompt, tab_id, session_fact.id, prepared)
 end)
 
+---@param name string Skill name from the server catalog
+---@param prompt? string User instructions; omitted or empty activates the skill directly
+--- Resolves after activation or prompt completion; rejects on catalog/activation failure.
+M.run_skill = Promise.async(function(name, prompt)
+  local connection = assert(state.opencode_server, 'Connection is not ready')
+  ---@cast connection OpencodeV1Connection|OpencodeV2Connection
+  local observation = state.session.active_observation()
+  if not observation then
+    error('No active session observation')
+  end
+  local observed = observation:read()
+  local session = observed.session
+  if not session or not observed.sync or not observed.sync.session or observed.sync.session.state ~= 'current' then
+    error('Session metadata is not ready')
+  end
+  if session.parentID and config.child_readonly then
+    return false
+  end
+  local allowed, err_msg = util.check_prompt_allowed(config.prompt_guard, context.get_context().mentioned_files or {})
+  if not allowed then
+    log.notify(err_msg or 'Prompt denied by prompt_guard', vim.log.levels.ERROR)
+    return false
+  end
+  local directory = state.current_cwd
+  ---@cast directory string
+  local location = session.location or { directory = directory }
+  ---@type table[]
+  local skills
+  if connection.protocol == 'v2' then
+    local v2_connection = connection --[[@as OpencodeV2Connection]]
+    skills = v2_connection.operations
+      .list_skills(v2_connection, location, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+  else
+    local v1_connection = connection --[[@as OpencodeV1Connection]]
+    skills = v1_connection.operations
+      .list_skills(v1_connection, location, util.apply_path_map, util.apply_reverse_path_map)
+      :await()
+  end
+  if state.session.active_observation() ~= observation then
+    error('Active session changed while loading skill')
+  end
+  for _, skill in ipairs(skills) do
+    if skill.name == name then
+      if connection.protocol == 'v2' then
+        if prompt and prompt:match('%S') then
+          return M.send_message(prompt, { skills = { { id = skill.id } } }):await()
+        end
+        ---@cast observation OpencodeV2Observation
+        return observation:activate_skill(skill.id):await()
+      end
+      local message = skill.content
+      if prompt and prompt ~= '' then
+        message = message .. '\n\n' .. prompt
+      end
+      return M.send_message(message, {}):await()
+    end
+  end
+  error('Unknown skill: ' .. name)
+end)
+
 ---@param prompt string
 ---@param tab_id? string|OpencodeContext
 ---@param submission_context? OpencodeContext

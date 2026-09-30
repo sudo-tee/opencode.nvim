@@ -32,6 +32,79 @@ describe('V2 protocol operations', function()
     state.context.set_current_cwd(original_cwd)
   end)
 
+  it('activates a native skill by ID after checking server capabilities', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request
+      if request.path == '/openapi.json' then
+        return Promise.new():resolve({ status = 200, body = fixture('openapi.json') })
+      end
+      return Promise.new():resolve({ status = 204, body = '' })
+    end
+    assert.is_true(operations.activate_skill(ready_connection(), 'ses_123', 'skill/path'):wait())
+    assert.equals(2, #calls)
+    assert.equals('POST', calls[2].method)
+    assert.equals('/api/experimental/session/ses_123/skill', calls[2].path)
+    assert.same({ id = 'skill/path' }, vim.json.decode(calls[2].body))
+  end)
+
+  it('rejects native activation on servers without the endpoint', function()
+    local calls = 0
+    transport.request = function()
+      calls = calls + 1
+      return Promise.new():resolve({ status = 200, body = '{"paths":{}}' })
+    end
+    local ok, err = pcall(function()
+      operations.activate_skill(ready_connection(), 'ses_123', 'skill'):wait()
+    end)
+    assert.is_false(ok)
+    assert.matches('does not support native skill activation', tostring(err))
+    assert.equals(1, calls)
+  end)
+
+  it('sends ordered native skill attachments with UTF-16 mention offsets', function()
+    local prompt
+    transport.request = function(_, request)
+      if request.path == '/openapi.json' then
+        return Promise.new():resolve({ status = 200, body = vim.json.encode({ paths = {
+          ['/api/session/{sessionID}/prompt'] = { post = { requestBody = { content = {
+            ['application/json'] = { schema = { properties = { skills = {} } } },
+          } } } },
+        } }) })
+      end
+      prompt = vim.json.decode(request.body)
+      return Promise.new():resolve({ status = 200, body = '{"data":{"id":"inbox_123"}}' })
+    end
+    operations.submit(ready_connection(), 'ses_123', {
+      text = '😀 /review fix this', context = {}, files = {}, agents = {},
+      skills = { { id = 'review-id', mention = { start_byte = 5, end_byte = 12 } }, { id = 'other-id' } },
+    }):wait()
+    assert.same({
+      text = '😀 /review fix this',
+      skills = { { id = 'review-id', mention = { start = 3, ['end'] = 10, text = '/review' } }, { id = 'other-id' } },
+    }, prompt)
+  end)
+
+  it('rejects unsupported skill attachments before mutating session settings', function()
+    local calls = {}
+    transport.request = function(_, request)
+      calls[#calls + 1] = request.path
+      return Promise.new():resolve({ status = 200, body = vim.json.encode({ paths = {
+        ['/api/session/{sessionID}/prompt'] = { post = { requestBody = { content = {
+          ['application/json'] = { schema = { properties = { text = {} } } },
+        } } } },
+      } }) })
+    end
+    local ok, err = pcall(function()
+      operations.submit(ready_connection(), 'ses_123', {
+        text = 'fix this', context = {}, files = {}, agents = {}, agent = 'build', skills = { { id = 'review' } },
+      }):wait()
+    end)
+    assert.is_false(ok)
+    assert.matches('does not support prompt skill attachments', tostring(err))
+    assert.same({ '/openapi.json' }, calls)
+  end)
+
   it('binds the native operation table when the Connection becomes ready', function()
     local connection = ready_connection()
     assert.equals(operations, connection.operations)

@@ -47,7 +47,7 @@ local skill_source = {
 
     for _, skill in ipairs(skills) do
       local item = {
-        label = expected_trigger .. skill.name,
+        label = expected_trigger .. skill.name .. ' *',
         kind = 'skill',
         kind_icon = icons.get('skill'),
         detail = skill.description or '',
@@ -66,18 +66,6 @@ local skill_source = {
 
     return items
   end),
-  on_complete = function(item)
-    if item.kind ~= 'skill' or not item.data or not item.data.content then
-      return
-    end
-
-    vim.defer_fn(function()
-      require('opencode.services.session_runtime').open({ new_session = false, focus = 'output' }):and_then(function()
-        return require('opencode.services.messaging').send_message(item.data.content, {})
-      end)
-    end, 10)
-    require('opencode.ui.input_window').set_content('')
-  end,
   get_trigger_character = function()
     local config = require('opencode.config')
     return config.get_key_for_function('input_window', 'slash_commands') or '/'

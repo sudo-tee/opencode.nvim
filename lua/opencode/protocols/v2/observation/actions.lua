@@ -140,6 +140,9 @@ function M.attach(observation, connection)
   function observation.validate_message_options(_, opts, default_system)
     M.validate_message_options(opts, default_system)
   end
+  function observation.prepare_message(_, opts)
+    return { skills = opts.skills }, {}
+  end
   observation._v2_delivered = {}
   observation._v2_admissions = {}
   observation._v2_stream_generation = 0
@@ -207,6 +210,17 @@ function M.attach(observation, connection)
   ---@return Promise<boolean>
   function observation:interrupt()
     return self:_start_action(connection.operations.interrupt, self._session_id)
+  end
+
+  ---@param skill_id string
+  ---@return Promise<boolean>
+  function observation:activate_skill(skill_id)
+    return self:_start_state_action(connection.operations.activate_skill, function()
+      -- Native skill lifecycle events are not projected yet; reload the appended message.
+      self:_event_changed('messages')
+      self:_start_resource('messages')
+      return true
+    end, self._session_id, skill_id)
   end
 
   ---@param message_id string

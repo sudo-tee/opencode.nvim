@@ -108,6 +108,7 @@ local action_groups = {
     run_new_session = workflow.run_new_session,
     quick_chat = workflow.quick_chat,
     run_user_command = workflow.run_user_command,
+    run_skill = workflow.run_skill,
     review = workflow.review,
     add_visual_selection = workflow.add_visual_selection,
     add_visual_selection_inline = workflow.add_visual_selection_inline,

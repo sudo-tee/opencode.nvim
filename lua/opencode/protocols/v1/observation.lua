@@ -24,6 +24,9 @@ local M = {}
 ---@param selected {mode?: string, model?: string, variant?: string, default_mode?: string}
 ---@return table, OpencodeSessionTabModelUpdate
 function M.prepare_message(opts, selected)
+  if opts.skills and #opts.skills > 0 then
+    error('V1 submit does not support native skill attachments')
+  end
   ---@type {mode?: string, model?: string, variant?: string, default_mode?: string, default_model?: string, available_agents?: string[]}
   local message_selection = {
     mode = selected.mode,

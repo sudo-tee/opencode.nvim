@@ -59,6 +59,34 @@ local function event(session_id, kind, data, created)
 end
 
 describe('V2 protocol Observation interpretation', function()
+  it('preserves native skill attachments while preparing a message', function()
+    local observed = observation('ses-skill')
+    local skills = { { id = 'skill-id', mention = { start_byte = 0, end_byte = 7 } } }
+    local params, update = observed:prepare_message({ skills = skills }, {})
+    assert.same({ skills = skills }, params)
+    assert.same({}, update)
+  end)
+
+  it('refreshes messages after successful native skill activation', function()
+    local observed = observation('ses-skill')
+    local operations = observed._connection.operations
+    local original = operations.activate_skill
+    local original_refresh = observed._start_resource
+    local refreshed
+    operations.activate_skill = function(_, session_id, skill_id)
+      assert.equals('ses-skill', session_id)
+      assert.equals('native-id', skill_id)
+      return require('opencode.promise').new():resolve(true)
+    end
+    observed._start_resource = function(_, resource)
+      refreshed = resource
+    end
+    assert.is_true(observed:activate_skill('native-id'):wait())
+    assert.equals('messages', refreshed)
+    operations.activate_skill = original
+    observed._start_resource = original_refresh
+  end)
+
   it('validates a complete snapshot before replacing existing entries', function()
     local observed = observation('ses-target')
     local message = assistant('msg-assistant')

@@ -125,20 +125,11 @@ M.get_commands = Promise.async(function()
   end)
   if ok and skills then
     for _, skill in ipairs(skills) do
-      local skill_content = skill.content
       table.insert(result, {
         slash_cmd = '/' .. skill.name,
         desc = skill.description or 'Skill',
         fn = function(args)
-          local message = skill_content
-          if args and #args > 0 then
-            message = skill_content .. '\n\n' .. table.concat(args, ' ')
-          end
-          require('opencode.services.session_runtime')
-            .open({ new_session = false, focus = 'output' })
-            :and_then(function()
-              return require('opencode.services.messaging').send_message(message, {})
-            end)
+          return dispatch_parsed('skill', vim.list_extend({ skill.name }, args or {}))
         end,
         args = true,
       })

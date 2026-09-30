@@ -84,6 +84,14 @@ function M.actions.run_new_session(prompt, opts)
   return run_with_opts(prompt, opts)
 end
 
+---@param name string
+---@param prompt? string
+function M.actions.run_skill(name, prompt)
+  return session_runtime.open({ new_session = false, focus = 'output' }):and_then(function()
+    return require('opencode.services.messaging').run_skill(name, prompt)
+  end)
+end
+
 ---@param debug_action string
 local function run_debug_action(debug_action)
   if not config.debug.enabled then
@@ -588,6 +596,17 @@ M.command_defs = {
         error({ code = 'invalid_arguments', message = 'Command name required' }, 0)
       end
       return M.actions.run_user_command(name, vim.list_slice(args, 2))
+    end,
+  },
+  skill = {
+    desc = 'Activate a skill or run it with user instructions',
+    nargs = '+',
+    execute = function(args)
+      local name = args[1]
+      if not name or name == '' then
+        error({ code = 'invalid_arguments', message = 'Skill name required' }, 0)
+      end
+      return M.actions.run_skill(name, table.concat(vim.list_slice(args, 2), ' '))
     end,
   },
   history = {

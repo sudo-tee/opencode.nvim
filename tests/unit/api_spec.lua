@@ -164,6 +164,17 @@ describe('opencode.api', function()
   end)
 
   describe('command routing', function()
+    it('routes command and public API skill activation through the same service', function()
+      local open = stub(session_runtime, 'open').returns(resolved(true))
+      local activate = stub(messaging, 'run_skill').returns(resolved(true))
+      commands.execute_command_opts({ args = 'skill review fix current changes', range = 0 }):wait()
+      api.run_skill('review', 'fix current changes'):wait()
+      assert.stub(activate).was_called(2)
+      assert.stub(activate).was_called_with('review', 'fix current changes')
+      activate:revert()
+      open:revert()
+    end)
+
     it('reports invalid nested subcommand before execution', function()
       local notify_stub = stub(vim, 'notify')
 

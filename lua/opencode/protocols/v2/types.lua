@@ -73,6 +73,7 @@
 ---@field send_command fun(connection: OpencodeV2Connection, session_id: string, location: OpencodeLocation?, input: OpencodeV2CommandInput): Promise<boolean>
 ---@field submit fun(connection: OpencodeV2Connection, session_id: string, input: OpencodeV2SubmitInput, path_map?: OpencodeV2PathMap, reverse_path_map?: OpencodeV2PathMap): Promise<OpencodeV2Admission>
 ---@field interrupt fun(connection: OpencodeV2Connection, session_id: string): Promise<boolean>
+---@field activate_skill fun(connection: OpencodeV2Connection, session_id: string, skill_id: string): Promise<boolean>
 ---@field list_permissions OpencodeV2LocationListOperation
 ---@field reply_permission fun(connection: OpencodeV2Connection, session_id: string, request_id: string, answer: OpencodeV2PermissionReply): Promise<boolean>
 ---@field list_questions OpencodeV2LocationListOperation
@@ -233,11 +234,16 @@
 ---@field context OpencodeV2ContextInput[]
 ---@field files OpencodeV2FileInput[]
 ---@field agents OpencodeV2AgentInput[]
+---@field skills? OpencodeV2SkillInput[]
 ---@field agent? string
 ---@field model? {providerID: string, modelID: string}
 ---@field variant? string Requires model
 ---@field system? string Rejected by V2; present in the shared submission contract
 ---@field tools? table<string, boolean> Nonempty tool overrides are rejected by V2
+
+---@class OpencodeV2SkillInput
+---@field id string
+---@field mention? OpencodeV2Mention
 
 ---@class OpencodeV2ModelInput
 ---@field providerID string
@@ -298,6 +304,7 @@
 ---@field _v2_permission_terminal table<string, {answer: string}|nil>
 ---@field _v2_question_terminal table<string, {status: string, answers?: OpencodeV2FormAnswers}|nil>
 ---@field submit fun(self: OpencodeV2Observation, input: OpencodeV2SubmitInput): Promise<OpencodeSubmission>
+---@field activate_skill fun(self: OpencodeV2Observation, skill_id: string): Promise<boolean>
 ---@field load_older fun(self: OpencodeV2Observation): Promise<nil>
 ---@field load_complete_history fun(self: OpencodeV2Observation): Promise<nil>
 ---@field interrupt fun(self: OpencodeV2Observation): Promise<boolean>

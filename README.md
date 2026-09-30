@@ -1124,7 +1124,11 @@ Skills are reusable, installable instruction packs that enhance opencode.nvim wi
 - **Via slash command:** Type `/skills` in the input window to open the skills picker
 - **Via completion:** Type `/` in the input window and select a skill from the completion menu
 
-The skills picker displays each skill with its name, description, and full content rendered as markdown in the preview pane. Selecting a skill executes it directly — opening a session and sending the skill's content as a prompt.
+The skills picker displays each skill with its name, description, and full content rendered as markdown in the preview pane. Selecting a skill inserts `/skill-name` into the input window.
+
+On V2, submitting `/skill-name` activates the native server-managed skill. Add instructions, such as `/skill-name review current changes`, to send a prompt with a native skill attachment instead. Servers without these capabilities report an error; update the OpenCode CLI to enable them. V1 continues sending the skill's content as an ordinary prompt.
+
+The same behavior is available through `:Opencode skill <name> [instructions]` and `require('opencode.api').run_skill(name, instructions)`. V2 API callers can also pass `skills = { { id = skill_id } }` in `run` options. Optional `mention = { start_byte = ..., end_byte = ... }` ranges use zero-based UTF-8 byte offsets relative to the prompt text, with an exclusive end.
 
 ### Installing Skills
 

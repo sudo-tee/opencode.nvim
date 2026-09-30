@@ -538,6 +538,7 @@
 ---@field agent? string
 ---@field variant? string
 ---@field system? string
+---@field skills? OpencodeV2SkillInput[] Native V2 skill attachments
 
 ---@class CompletionContext
 ---@field trigger_char string The character that triggered completion
@@ -561,7 +562,7 @@
 ---@field name string Name of the completion source
 ---@field priority number Priority for ordering sources
 ---@field complete fun(context: CompletionContext): Promise<CompletionItem[]> Function to generate completion items
----@field on_complete fun(item: CompletionItem): nil Optional callback when item is selected
+---@field on_complete? fun(item: CompletionItem): nil Callback when item is selected
 ---@field is_incomplete? boolean Whether the completion results are incomplete (for sources that support pagination)
 ---@field get_trigger_character? fun(): string|nil Optional function returning the trigger character for this source
 ---@field custom_kind? integer Custom LSP CompletionItemKind registered for this source

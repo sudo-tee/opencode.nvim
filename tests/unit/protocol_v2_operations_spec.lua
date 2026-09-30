@@ -471,7 +471,7 @@ describe('V2 protocol operations', function()
     assert.matches('invalid response', tostring(err))
   end)
 
-  it('uses the fixed 2.0.1 session command contract and session settings', function()
+  it('uses the V2 session command name contract and session settings', function()
     local calls = {}
     transport.request = function(_, request)
       calls[#calls + 1] = request
@@ -491,7 +491,7 @@ describe('V2 protocol operations', function()
     assert.same({ agent = 'build' }, vim.json.decode(calls[1].body))
     assert.same({ model = { providerID = 'provider', id = 'model', variant = 'high' } }, vim.json.decode(calls[2].body))
     assert.equals('/api/session/ses-1/command', calls[3].path)
-    assert.same({ command = 'review', text = 'staged changes' }, vim.json.decode(calls[3].body))
+    assert.same({ name = 'review', text = 'staged changes' }, vim.json.decode(calls[3].body))
   end)
 
   it('applies shared submission settings before the native V2 prompt', function()

@@ -1,6 +1,7 @@
 local command_parse = require('opencode.commands.parse')
 local command_dispatch = require('opencode.commands.dispatch')
 local command_complete = require('opencode.commands.complete')
+local Promise = require('opencode.promise')
 
 local M = {}
 
@@ -80,6 +81,13 @@ function M.execute_parsed_intent(parsed, execute_override)
     return nil
   end
 
+  if Promise.is_promise(dispatched.result) then
+    return dispatched.result:catch(function(err)
+      local normalized = command_dispatch.normalize_error(err, 'execution_error', 'Command execution failed')
+      vim.notify(normalized.message, vim.log.levels.ERROR)
+      error(err, 0)
+    end)
+  end
   return dispatched.result
 end
 

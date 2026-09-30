@@ -378,39 +378,37 @@ end
 ---@param name string
 ---@param args? string[]
 M.actions.run_user_command = Promise.async(function(name, args)
-  return window_handler.actions.open_input():and_then(function()
-    local user_commands = config_file.get_user_commands():await()
-    local command_cfg = user_commands and user_commands[name]
-    if not command_cfg then
-      vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
-      return
+  window_handler.actions.open_input():await()
+  local user_commands = config_file.get_user_commands():await()
+  local command_cfg = user_commands and user_commands[name]
+  if not command_cfg then
+    vim.notify('Unknown user command: ' .. name, vim.log.levels.WARN)
+    return
+  end
+
+  local model = command_cfg.model or state.current_model
+  local agent = command_cfg.agent or state.current_mode
+
+  if command_cfg.agent then
+    local available_agents = config_file.get_opencode_agents():await()
+    if vim.tbl_contains(available_agents, agent) then
+      agent_model.switch_to_mode(agent)
     end
+  end
 
-    local model = command_cfg.model or state.current_model
-    local agent = command_cfg.agent or state.current_mode
+  local active_session = get_active_session_or_warn('No active session')
+  if not active_session then
+    return
+  end
 
-    if command_cfg.agent then
-      local available_agents = config_file.get_opencode_agents():await()
-      if vim.tbl_contains(available_agents, agent) then
-        agent_model.switch_to_mode(agent)
-      end
-    end
-
-    local active_session = get_active_session_or_warn('No active session')
-    if not active_session then
-      return
-    end
-
-    send_user_command(active_session, {
-      command = name,
-      arguments = join_args(args),
-      model = model,
-      agent = agent,
-      variant = state.current_variant,
-    }):and_then(function()
-      schedule_slash_history(name, args)
-    end)
-  end) --[[@as Promise<void> ]]
+  send_user_command(active_session, {
+    command = name,
+    arguments = join_args(args),
+    model = model,
+    agent = agent,
+    variant = state.current_variant,
+  }):await()
+  schedule_slash_history(name, args)
 end)
 
 function M.actions.first_message()
@@ -503,7 +501,7 @@ M.actions.review = Promise.async(function(args)
 
   state.session.set_active(new_session)
   window_handler.actions.open_input():await()
-  send_user_command(state.active_session, {
+  return send_user_command(state.active_session, {
     command = 'review',
     arguments = join_args(args),
     model = state.current_model,

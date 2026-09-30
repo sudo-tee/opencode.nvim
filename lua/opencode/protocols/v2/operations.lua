@@ -393,7 +393,7 @@ function M.send_command(connection, session_id, _location, input)
       }):await()
     end
     return empty_request(connection, 'V2 send_command', 'POST', '/api/session/' .. session_id .. '/command', {
-      command = input.command,
+      name = input.command,
       text = input.arguments or '',
       files = input.files,
       agents = input.agents,

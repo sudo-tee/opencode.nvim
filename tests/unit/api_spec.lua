@@ -164,6 +164,20 @@ describe('opencode.api', function()
   end)
 
   describe('command routing', function()
+    it('notifies asynchronous handler failures and preserves rejection', function()
+      local notify = stub(vim, 'notify')
+      local pending = Promise.new()
+      local result = commands.execute_parsed_intent(commands.build_parsed_intent('command', { 'foo' }), function()
+        return pending
+      end)
+      pending:reject('Command lookup failed')
+      local ok, err = pcall(function() result:wait() end)
+      assert.is_false(ok)
+      assert.matches('Command lookup failed', tostring(err))
+      assert.stub(notify).was_called_with('Command lookup failed', vim.log.levels.ERROR)
+      notify:revert()
+    end)
+
     it('routes command and public API skill activation through the same service', function()
       local open = stub(session_runtime, 'open').returns(resolved(true))
       local activate = stub(messaging, 'run_skill').returns(resolved(true))
@@ -478,6 +492,90 @@ describe('opencode.api', function()
   end)
 
   describe('slash commands with user commands', function()
+    it('awaits asynchronous command and agent lookups before sending a user command', function()
+      with_session_snapshot(function()
+        local workflow = require('opencode.commands.handlers.workflow')
+        local window = require('opencode.commands.handlers.window')
+        local config_file = require('opencode.config_file')
+        local commands_pending = Promise.new()
+        local agents_pending = Promise.new()
+        local open_stub = stub(window.actions, 'open_input').returns(resolved(true))
+        local commands_stub = stub(config_file, 'get_user_commands').returns(commands_pending)
+        local agents_stub = stub(config_file, 'get_opencode_agents').returns(agents_pending)
+        state.session.set_active(mk_session('command-session'))
+        local original_server = state.opencode_server
+        local sent = {}
+        state.jobs.set_server({
+          is_ready = function() return true end,
+          operations = {
+            send_command = function(_, _, _, input)
+              sent[#sent + 1] = input
+              return resolved(true)
+            end,
+          },
+        })
+        local result = workflow.actions.run_user_command('foo')
+        commands_pending:resolve({ foo = { agent = 'custom-agent' } })
+        vim.wait(50, function() return result:is_resolved() end)
+        local resolved_early = result:is_resolved()
+        agents_pending:resolve({})
+        local ok, err = pcall(function() result:wait() end)
+        state.jobs.set_server(original_server)
+        open_stub:revert()
+        commands_stub:revert()
+        agents_stub:revert()
+        assert.is_false(resolved_early)
+        assert.is_true(ok, tostring(err))
+        assert.equals(1, #sent)
+        assert.equals('foo', sent[1].command)
+      end)
+    end)
+
+    for _, name in ipairs({ 'foo', 'review' }) do
+      it('waits for /' .. name .. ' and propagates request failures', function()
+        with_user_commands({ foo = { template = 'Run foo' } }, function()
+          with_session_snapshot(function()
+            local workflow = require('opencode.commands.handlers.workflow')
+            local window = require('opencode.commands.handlers.window')
+            local session = mk_session('command-session')
+            state.session.set_active(session)
+            local original_model = state.current_model
+            state.model.set_model('provider/model')
+            local open_stub = stub(window.actions, 'open_input').returns(resolved(true))
+            local create_stub = stub(session_runtime, 'create_new_session').returns(resolved(session))
+            local model_stub = stub(agent_model, 'initialize_current_model').returns(resolved(true))
+
+            local request = Promise.new()
+            local original_server = state.opencode_server
+            state.jobs.set_server({
+              is_ready = function() return true end,
+              operations = {
+                send_command = function()
+                  return request
+                end,
+              },
+            })
+
+            local result = name == 'review' and workflow.actions.review()
+              or workflow.actions.run_user_command(name)
+            vim.wait(100, function() return result:is_resolved() end)
+            local resolved_early = result:is_resolved()
+            request:reject('Command request failed')
+            local ok, err = pcall(function() result:wait() end)
+            state.jobs.set_server(original_server)
+            state.model.set_model(original_model)
+            open_stub:revert()
+            create_stub:revert()
+            model_stub:revert()
+
+            assert.is_false(resolved_early)
+            assert.is_false(ok)
+            assert.matches('Command request failed', tostring(err))
+          end)
+        end)
+      end)
+    end
+
     describe('user command model/agent selection', function()
       before_each(function()
         stub(api, 'open_input').invokes(function()

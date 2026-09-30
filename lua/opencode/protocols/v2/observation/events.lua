@@ -102,7 +102,12 @@ local function finish_execution(observation, event, data)
     idle_at = event.created,
     error = event.type == 'session.execution.failed' and normalize.mapped_error(data.error) or nil,
   }
-  observation:read().execution = { activity = 'idle', last_outcome = outcome, last_idle = event.created }
+  observation:read().execution = {
+    activity = 'idle',
+    last_outcome = outcome,
+    last_idle = event.created,
+    error = terminal.error,
+  }
   actions.execution_finished(observation, terminal)
 end
 execution_handlers['session.execution.succeeded'] = finish_execution

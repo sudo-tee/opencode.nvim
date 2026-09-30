@@ -11,6 +11,7 @@ describe('active session observation', function()
   local function observation(id)
     local observed = {
       session = { id = id, title = id },
+      execution = { activity = 'idle' },
       sync = { session = { state = 'current' }, messages = { state = 'loading' } },
       entry_order = { 'message' },
       entries_by_id = {
@@ -22,7 +23,7 @@ describe('active session observation', function()
       return observed
     end
     function result:watch(resources, callback)
-      assert.same({ 'session', 'messages' }, resources)
+      assert.same({ 'session', 'messages', 'execution' }, resources)
       self.subscriptions = self.subscriptions + 1
       self.changed = function(resource)
         callback(self, resource)
@@ -103,6 +104,49 @@ describe('active session observation', function()
     source.changed('session')
     assert.is_true(vim.wait(1000, function() return state.current_model == 'provider/one' end))
     assert.equals('one', state.active_session.title)
+  end)
+
+  it('notifies execution failures without assistant messages and only once per failure', function()
+    local source = observation('one')
+    activate('one')
+    source.facts.sync.session.state = 'loading'
+    source.facts.entry_order = {}
+    source.facts.entries_by_id = {}
+    local notify = stub(require('opencode.log'), 'notify')
+    source.facts.execution = {
+      activity = 'idle', last_outcome = 'failed', last_idle = 10,
+      error = { message = 'Model unavailable: github-copilot/gpt-4.1' },
+    }
+    source.changed('execution')
+    source.changed('execution')
+    source.changed('messages')
+    assert.stub(notify).was_called(1)
+    assert.stub(notify).was_called_with('Model unavailable: github-copilot/gpt-4.1', vim.log.levels.ERROR)
+
+    source.facts.execution.last_idle = 20
+    source.changed('execution')
+    assert.stub(notify).was_called(2)
+    notify:revert()
+  end)
+
+  it('does not notify historical failures, interruptions, or failures from replaced sessions', function()
+    local source = observation('one')
+    source.facts.execution = {
+      activity = 'idle', last_outcome = 'failed', last_idle = 10, error = { message = 'Old failure' },
+    }
+    local notify = stub(require('opencode.log'), 'notify')
+    activate('one')
+    source.changed('execution')
+    source.facts.execution = { activity = 'idle', last_outcome = 'interrupted', last_idle = 20 }
+    source.changed('execution')
+    observation('two')
+    activate('two')
+    source.facts.execution = {
+      activity = 'idle', last_outcome = 'failed', last_idle = 30, error = { message = 'Stale failure' },
+    }
+    source.changed('execution')
+    assert.stub(notify).was_not_called()
+    notify:revert()
   end)
 
   it('ignores callbacks from a replaced session, even before scheduled rebinding', function()

@@ -35,7 +35,11 @@ local function observe_active_session()
     return
   end
 
-  local binding = { observation = observation, runtime = runtime }
+  local binding = {
+    observation = observation,
+    runtime = runtime,
+    last_failure_idle = observation:read().execution.last_idle,
+  }
   active_binding = binding
   local session_id = observation:read().session.id
   local connection = state.opencode_server
@@ -53,6 +57,11 @@ local function observe_active_session()
       return
     end
     local observed = observation:read()
+    local execution = observed.execution
+    if execution.last_outcome == 'failed' and execution.error and execution.last_idle ~= binding.last_failure_idle then
+      binding.last_failure_idle = execution.last_idle
+      log.notify(execution.error.message or 'Session execution failed. Check OpenCode server logs.', vim.log.levels.ERROR)
+    end
     local sync = observed.sync or {}
     if not (sync.session and sync.session.state == 'current') then
       return
@@ -81,7 +90,7 @@ local function observe_active_session()
         end)
     end
   end
-  binding.unsubscribe = observation:watch({ 'session', 'messages' }, changed)
+  binding.unsubscribe = observation:watch({ 'session', 'messages', 'execution' }, changed)
   changed()
 end
 

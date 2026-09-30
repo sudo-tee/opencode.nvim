@@ -303,6 +303,47 @@ describe('V2 protocol Observation interpretation', function()
     assert.equals('Found `1` match', formatted.lines[2])
   end)
 
+  it('projects V2 glob file counts and truncation into formatted output', function()
+    local observed = observation('ses-target')
+    local message = assistant('msg-glob')
+    message.content = {
+      {
+        type = 'tool', id = 'glob-metadata', name = 'glob', time = { created = 1 },
+        state = {
+          status = 'completed', input = { pattern = '**/*.lua' },
+          metadata = { count = 3, truncated = true },
+          content = { { type = 'text', text = 'a.lua\nb.lua\nc.lua' } },
+        },
+      },
+      {
+        type = 'tool', id = 'glob-empty', name = 'glob', time = { created = 2 },
+        state = {
+          status = 'completed', input = { pattern = '**/*.missing' },
+          metadata = { count = 0, truncated = false },
+          content = { { type = 'text', text = 'No files found' } },
+        },
+      },
+      {
+        type = 'tool', id = 'glob-matches', name = 'glob', time = { created = 3 },
+        state = {
+          status = 'completed', input = { pattern = '**/*.txt' },
+          metadata = { matches = 1 },
+          content = { { type = 'text', text = 'a.txt' } },
+        },
+      },
+    }
+
+    observation_module.ingest_snapshot(observed, { message })
+    local entry = observed:read().entries_by_id['msg-glob']
+    assert.same({ count = 3, truncated = true }, entry.content[1].search)
+    assert.same({ count = 0, truncated = false }, entry.content[2].search)
+    assert.same({ count = 1 }, entry.content[3].search)
+    local formatter = require('opencode.ui.formatter')
+    assert.equals('Found more than `3` file(s):', formatter.format_part(entry.content[1], entry, true).lines[2])
+    assert.equals('Found `0` file(s):', formatter.format_part(entry.content[2], entry, true).lines[2])
+    assert.equals('Found `1` file(s):', formatter.format_part(entry.content[3], entry, true).lines[2])
+  end)
+
   it('keeps each native kind as a distinct Entry shape', function()
     local observed = observation('ses-target')
     observation_module.ingest_snapshot(observed, {

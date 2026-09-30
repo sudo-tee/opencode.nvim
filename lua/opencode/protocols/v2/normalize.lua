@@ -479,10 +479,10 @@ local function apply_subagent_metadata(result, metadata)
   end
 end
 
-local function apply_grep_metadata(result, metadata)
+local function apply_search_metadata(result, metadata)
   local count = metadata.count or metadata.matches
   if count ~= nil then
-    v.number():parse(count, 'V2 observation: invalid grep match count')
+    v.number():parse(count, 'V2 observation: invalid search count')
     result.search = { count = count, truncated = metadata.truncated }
   end
 end
@@ -494,7 +494,8 @@ local tool_metadata_appliers = {
   patch = apply_patch_metadata,
   apply_patch = apply_patch_metadata,
   subagent = apply_subagent_metadata,
-  grep = apply_grep_metadata,
+  grep = apply_search_metadata,
+  glob = apply_search_metadata,
 }
 
 ---@param result table

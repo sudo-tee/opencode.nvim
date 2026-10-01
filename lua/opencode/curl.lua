@@ -148,7 +148,7 @@ end
 
 --- Make an HTTP request
 --- @param opts table Request options
---- @return table|nil job Job object for streaming requests, nil for regular requests
+--- @return {is_running: fun(): boolean, shutdown: fun()}
 function M.request(opts)
   local args = build_curl_args(opts)
 
@@ -228,6 +228,10 @@ function M.request(opts)
   else
     table.insert(args, 2, '-i')
 
+    -- job.pid is not cleared on process exit
+    local is_running = true
+    local shutdown_requested = false
+
     local job_opts = {
       text = true,
     }
@@ -236,7 +240,12 @@ function M.request(opts)
       job_opts.stdin = opts.body
     end
 
-    vim.system(args, job_opts, function(result)
+    local job = vim.system(args, job_opts, function(result)
+      is_running = false
+      if shutdown_requested then
+        return
+      end
+
       if result.code ~= 0 then
         if opts.on_error then
           local err_msg = (result.stderr and result.stderr ~= '') and result.stderr or 'curl failed'
@@ -251,6 +260,28 @@ function M.request(opts)
         opts.callback(response)
       end
     end)
+
+    return {
+      _job = job,
+      is_running = function()
+        return is_running
+      end,
+      shutdown = function()
+        if not is_running then
+          return
+        end
+        is_running = false
+        shutdown_requested = true
+        if job and job.pid then
+          pcall(function()
+            job:kill(15) -- SIGTERM
+          end)
+        end
+        if opts.on_cancel then
+          opts.on_cancel()
+        end
+      end,
+    }
   end
 end
 

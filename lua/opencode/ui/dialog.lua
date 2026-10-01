@@ -14,6 +14,9 @@
 ---@field hide_input? boolean Whether to hide the input window when dialog is active (default: true)
 ---@field show_dismiss_legend? boolean Whether to render the generic dismiss hint (default: true)
 
+---@class DialogResolvedConfig: DialogConfig
+---@field check_focused fun(): boolean
+
 ---@class DialogKeymaps
 ---@field up? string[] Keys for navigating up (default: {'k', '<Up>'})
 ---@field down? string[] Keys for navigating down (default: {'j', '<Down>'})
@@ -27,7 +30,7 @@
 ---@field number_shortcuts? boolean Enable 1-9 number shortcuts (default: true)
 
 ---@class Dialog
----@field private _config DialogConfig
+---@field private _config DialogResolvedConfig
 ---@field private _keymaps string[] List of key bindings for cleanup
 ---@field private _key_capture_ns integer? Namespace for vim.on_key
 ---@field private _selected_index integer Currently selected option index
@@ -59,12 +62,12 @@ function Dialog.new(config)
   self._config = vim.tbl_deep_extend('force', {
     keymaps = default_keymaps,
     namespace_prefix = 'opencode_dialog',
-      check_focused = function()
-        return true
-      end,
-      hide_input = true,
-      show_dismiss_legend = true,
-  } --[[@as DialogConfig]], config)
+    check_focused = function()
+      return true
+    end,
+    hide_input = true,
+    show_dismiss_legend = true,
+  } --[[@as DialogResolvedConfig]], config)
 
   self._keymaps = {}
   self._key_capture_ns = nil
@@ -98,7 +101,7 @@ end
 
 ---@param index integer
 function Dialog:set_group_selection(index)
-  local group_count = self._config.get_group_count and self._config.get_group_count() or 0
+  local group_count = (self._config.get_group_count and self._config.get_group_count() or 0) --[[@as integer]]
   if group_count == 0 then
     self._group_index = 1
     return
@@ -149,7 +152,7 @@ function Dialog:navigate_group(delta)
   self._group_index = self._group_index + delta
 
   if self._group_index < 1 then
-    self._group_index = group_count
+    self._group_index = group_count --[[@as integer]]
   elseif self._group_index > group_count then
     self._group_index = 1
   end
@@ -258,11 +261,11 @@ function Dialog:format_legend(output, options)
     end
 
     if keymaps.up and #keymaps.up > 0 and keymaps.down and #keymaps.down > 0 then
-      local line = output:add_line('Move: `j/k` or `↑/↓`')
+      output:add_line('Move: `j/k` or `↑/↓`')
     end
 
     if keymaps.left and #keymaps.left > 0 and keymaps.right and #keymaps.right > 0 then
-      local line = output:add_line('Question: `h/l` or `<-/->`')
+      output:add_line('Question: `h/l` or `<-/->`')
     end
 
     if self._is_multiple then
@@ -399,9 +402,9 @@ function Dialog:format_options(output, options)
     local line_text = is_cursor and (prefix .. label .. ' ') or (prefix .. label)
 
     local added_idx = output:add_line(line_text)
-    local extmark_idx = added_idx - 1
+    local extmark_idx = added_idx - 1 --[[@as integer]]
 
-    self._option_positions[i] = { line = extmark_idx, col = #prefix }
+    self._option_positions[i] = { line = math.floor(extmark_idx), col = #prefix }
 
     if is_cursor then
       output:add_extmark(extmark_idx, { line_hl_group = 'OpencodeDialogOptionHover' } --[[@as OutputExtmark]])
@@ -435,7 +438,7 @@ function Dialog:_setup_keymaps()
     return
   end
 
-  local keymaps = self._config.keymaps
+  local keymaps = self._config.keymaps or {}
   local keymap_opts = { buffer = buf, silent = true }
 
   local function map_select(key)

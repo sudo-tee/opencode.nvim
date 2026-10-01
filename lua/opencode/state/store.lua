@@ -19,22 +19,18 @@ local M = {}
 ---@field last_sent_context OpencodeContext|nil
 ---@field current_context_config OpencodeContextConfig|nil
 ---@field context_updated_at number|nil
----@field active_session Session|nil
+---@field active_session {id: string, location?: table}|nil
 ---@field restore_points RestorePoint[]
 ---@field current_model string|nil
 ---@field user_mode_model_map table<string, string>
 ---@field current_model_info table|nil
 ---@field current_variant string|nil
----@field messages OpencodeMessage[]|nil
----@field current_message OpencodeMessage|nil
 ---@field pending_permissions OpencodePermission[]
 ---@field cost number
 ---@field tokens_count number
 ---@field job_count number
 ---@field user_message_count table<string, number>
 ---@field opencode_server OpencodeServer|nil
----@field api_client OpencodeApiClient|nil
----@field event_manager EventManager|nil
 ---@field pre_zoom_width integer|nil
 ---@field last_window_width_ratio number|nil
 ---@field required_version string
@@ -71,16 +67,12 @@ local _state = {
   user_mode_model_map = {},
   current_model_info = nil,
   current_variant = nil,
-  messages = nil,
-  current_message = nil,
   pending_permissions = {},
   cost = 0,
   tokens_count = 0,
   job_count = 0,
   user_message_count = {},
   opencode_server = nil,
-  api_client = nil,
-  event_manager = nil,
   required_version = '0.6.3',
   opencode_cli_version = nil,
   current_cwd = vim.fn.getcwd(),

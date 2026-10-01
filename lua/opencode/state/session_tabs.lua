@@ -1,8 +1,9 @@
 local store = require('opencode.state.store')
+local renderer_context = require('opencode.ui.renderer.ctx')
 
 ---@class OpencodeSessionTabRuntime
 ---@field id string Logical panel-tab identifier
----@field active_session Session|nil
+---@field active_session OpencodeSession|nil
 ---@field windows OpencodeWindowState|nil Buffers and the currently mounted panel windows
 ---@field is_opening boolean
 ---@field input_content table
@@ -27,8 +28,8 @@ local store = require('opencode.state.store')
 ---@field current_variant string|nil
 ---@field messages OpencodeMessage[]|nil
 ---@field current_message OpencodeMessage|nil
----@field pending_permissions OpencodePermission[]
----@field pending_prompt_permissions OpencodePermission[]
+---@field pending_permissions PermissionRequest[]
+---@field pending_prompt_permissions PermissionRequest[]
 ---@field pending_questions OpencodeQuestionRequest[]
 ---@field cost number
 ---@field tokens_count number
@@ -39,8 +40,8 @@ local store = require('opencode.state.store')
 ---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field context_data OpencodeContext|nil
----@field renderer_context table|nil Renderer caches associated with the preserved output buffer
----@field renderer_dirty boolean Cached renderer missed background session events
+---@field renderer_context RendererCtx Renderer state and subscriptions owned by this tab
+---@field model_restored_session_id string|nil Session whose saved model has been adopted
 ---@field background_notifications table<string, boolean> Notifications emitted for pending background prompts
 
 ---@class OpencodeSessionTabStateMutations
@@ -156,20 +157,21 @@ local function default_runtime(id)
     session_locked = nil,
     _hidden_buffers = nil,
     context_data = nil,
-    renderer_context = nil,
-    renderer_dirty = false,
+    renderer_context = renderer_context.new(),
     background_notifications = {},
   }
 end
 
 local function copy_from_store(runtime)
   for _, key in ipairs(RUNTIME_KEYS) do
+    ---@diagnostic disable-next-line: generic-constraint-mismatch
     runtime[key] = store.get(key)
   end
 end
 
 local function copy_to_store(runtime)
   for _, key in ipairs(RUNTIME_KEYS) do
+    ---@diagnostic disable-next-line: generic-constraint-mismatch
     store.set(key, runtime[key])
   end
 end
@@ -179,6 +181,16 @@ local function clear_ui(runtime)
   for key, _ in pairs(UI_KEYS) do
     runtime[key] = defaults[key]
   end
+end
+
+local function normalize_session(session)
+  if type(session) ~= 'table' or session.location ~= nil or type(session.directory) ~= 'string' then
+    return session
+  end
+
+  local normalized = vim.deepcopy(session)
+  normalized.location = { directory = normalized.directory }
+  return normalized
 end
 
 local function runtime_from_current(id, preserve_ui)
@@ -244,41 +256,10 @@ function M.find_by_session_id(session_id)
       end
     end
   end
-
-  local current = M.current()
-  if current and current.active_session and current.active_session.id then
-    local render_state = require('opencode.ui.renderer.ctx').render_state
-    if render_state:get_task_part_by_child_session(session_id) then
-      return current
-    end
-  end
-end
-
----@param session_id string|nil
-function M.mark_renderer_dirty(session_id)
-  if not session_id then
-    return
-  end
-
-  local runtime_count = 0
-  for _ in pairs(runtimes) do
-    runtime_count = runtime_count + 1
-    if runtime_count > 1 then
-      break
-    end
-  end
-  if runtime_count < 2 then
-    return
-  end
-
-  local runtime = M.find_by_session_id(session_id)
-  if runtime and runtime.id ~= M.active_id() then
-    runtime.renderer_dirty = true
-  end
 end
 
 ---@param tab_id string
----@param permission OpencodePermission
+---@param permission PermissionRequest
 function M.add_pending_permission(tab_id, permission)
   local runtime = runtimes[tab_id]
   if not runtime or not permission or not permission.id then
@@ -383,6 +364,7 @@ end
 ---@return OpencodeSessionTabRuntime|nil
 function M.current()
   local runtime = runtimes[store.get('active_session_tab')]
+  ---@diagnostic disable-next-line: unnecessary-if
   if runtime then
     capture_runtime(runtime.id)
   end
@@ -411,14 +393,14 @@ end
 function M.set_context(context_data)
   local runtime = M.current()
   if runtime then
-    runtime.context_data = vim.deepcopy(context_data)
+    runtime.context_data = vim.deepcopy(context_data --[[@as table]]) --[[@as OpencodeContext?]]
   end
 end
 
 ---@return OpencodeContext|nil
 function M.get_context()
   local runtime = M.current()
-  return runtime and vim.deepcopy(runtime.context_data) or nil
+  return runtime and vim.deepcopy(runtime.context_data --[[@as table]]) --[[@as OpencodeContext]] or nil
 end
 
 ---@param tab_id string
@@ -430,13 +412,14 @@ function M.update_user_message_count(tab_id, session_id, delta)
     return
   end
 
+  ---@type table<string, number>
   local counts = vim.deepcopy(runtime.user_message_count or {})
   local next_count = (counts[session_id] or 0) + delta
   counts[session_id] = math.max(0, next_count)
   runtime.user_message_count = counts
 
   if store.get('active_session_tab') == tab_id then
-    store.set('user_message_count', runtime.user_message_count)
+    store.set('user_message_count', counts)
   end
 end
 
@@ -448,7 +431,7 @@ function M.set_last_sent_context(tab_id, context_data)
     return
   end
 
-  runtime.last_sent_context = vim.deepcopy(context_data)
+  runtime.last_sent_context = vim.deepcopy(context_data --[[@as table]]) --[[@as OpencodeContext?]]
   if store.get('active_session_tab') == tab_id then
     store.set('last_sent_context', runtime.last_sent_context)
   end
@@ -501,12 +484,14 @@ function M.ensure_current()
   local id = store.get('active_session_tab')
   if id and runtimes[id] then
     capture_runtime(id)
+    renderer_context.select(runtimes[id].renderer_context)
     return runtimes[id]
   end
 
   id = new_id()
   local runtime = runtime_from_current(id, false)
   runtimes[id] = runtime
+  renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', id)
   return runtime
 end
@@ -525,6 +510,7 @@ function M.activate(runtime)
     capture_runtime(previous_id)
   end
 
+  renderer_context.select(runtime.renderer_context)
   if previous_id ~= runtime.id then
     store.batch(function()
       copy_to_store(runtime)
@@ -537,11 +523,11 @@ function M.activate(runtime)
   return true
 end
 
----@param session Session|nil
+---@param session OpencodeSession|nil
 ---@return OpencodeSessionTabRuntime
 function M.create(session)
   local runtime = runtime_from_current(new_id(), false)
-  runtime.active_session = session
+  runtime.active_session = normalize_session(session)
   runtime.messages = nil
   runtime.current_message = nil
   runtime.pending_permissions = {}
@@ -562,15 +548,21 @@ function M.remove(runtime)
   if not runtime then
     return
   end
+  runtime.renderer_context:close()
   runtimes[runtime.id] = nil
   notify_change()
   if store.get('active_session_tab') == runtime.id then
+    renderer_context.select()
     store.set('active_session_tab', nil)
   end
 end
 
 ---Reset the in-memory tab registry. Intended for teardown and tests.
 function M.reset()
+  for _, runtime in pairs(runtimes) do
+    runtime.renderer_context:close()
+  end
+  renderer_context.select()
   runtimes = {}
   next_id = 1
   setup_done = false
@@ -585,6 +577,7 @@ function M.setup()
 
   local runtime = runtime_from_current(new_id(), true)
   runtimes[runtime.id] = runtime
+  renderer_context.select(runtime.renderer_context)
   store.set('active_session_tab', runtime.id)
 end
 

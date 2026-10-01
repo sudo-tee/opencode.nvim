@@ -1,18 +1,17 @@
 local M = {}
 local icons = require('opencode.ui.icons')
 
----@param part OpencodeMessagePart
+---@param part table
 ---@param status string
 ---@param utils table
+---@param tool_formatters table registry of tool formatters (passed in by the
+--- dispatch site; requiring the registry module here would form a cycle)
 ---@return string
-function M.tool_action_line(part, status, utils)
-  local tool_formatters = require('opencode.ui.formatter.tools')
-  local tool = part.tool
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
+function M.tool_action_line(part, status, utils, tool_formatters)
+  local tool = part.name
   local formatter = tool_formatters[tool] or tool_formatters.tool
   local summary = formatter.summary or tool_formatters.tool.summary
-  local icon, tool_label, tool_value = summary(part, input, metadata)
+  local icon, tool_label, tool_value = summary(part)
 
   if status ~= 'completed' then
     icon = icons.get(status)
@@ -22,21 +21,23 @@ function M.tool_action_line(part, status, utils)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 ---@param context? FormatterContext
-function M.format(output, part, context)
-  if part.tool ~= 'task' then
+---@param tool_formatters? table registry passed in by the dispatch site
+function M.format(output, part, context, tool_formatters)
+  if part.name ~= 'task' and part.name ~= 'subagent' then
     return
   end
 
-  local input = part.state and part.state.input or {}
-  local metadata = part.state and part.state.metadata or {}
-  local tool_output = part.state and part.state.output or ''
+  local tool_output = require('opencode.ui.formatter.utils').tool_result_text(part)
+  if part.name == 'subagent' then
+    tool_output = tool_output:match('^<subagent[^>]*>%s*(.-)%s*</subagent>%s*$') or tool_output
+  end
 
   local start_line = output:get_line_count() + 1
 
-  local description = input.description or ''
-  local agent_type = input.subagent_type
+  local description = part.description or (part.input and part.input.description) or ''
+  local agent_type = part.input and (part.input.subagent_type or part.input.agent)
   if agent_type then
     description = string.format('%s (@%s)', description, agent_type)
   end
@@ -44,11 +45,11 @@ function M.format(output, part, context)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  utils.format_action(output, icons.get('task'), 'task', description, utils.get_duration_text(part))
+  utils.format_action(output, icons.get('task'), part.name, description, utils.get_duration_text(part))
 
   local output_start_line = output:get_line_count() + 1
   if config.ui.output.tools.show_output or config.ui.output.tools.use_folds then
-    local child_session_id = metadata.sessionId
+    local child_session_id = part.child_session and part.child_session.id
     local child_parts = child_session_id
       and context
       and context.get_child_parts
@@ -58,9 +59,9 @@ function M.format(output, part, context)
       output:add_empty_line()
 
       for _, item in ipairs(child_parts) do
-        if item.tool then
-          local status = item.state and item.state.status or 'pending'
-          output:add_line(' ' .. M.tool_action_line(item, status, utils))
+        if item.kind == 'tool' then
+          local status = item.state or 'pending'
+          output:add_line(' ' .. M.tool_action_line(item, status, utils, tool_formatters))
         end
       end
 
@@ -84,11 +85,11 @@ function M.format(output, part, context)
   end
 
   local end_line = output:get_line_count()
-  if metadata.sessionId then
+  if part.child_session then
     output:add_action({
       text = '[S] Open this Session',
       type = 'navigate_session_tree',
-      args = utils.get_session_action_args(metadata.sessionId),
+      args = utils.get_session_action_args(part.child_session.id),
       key = 'S',
       display_line = start_line,
       range = { from = start_line + 1, to = end_line + 1 },
@@ -96,11 +97,10 @@ function M.format(output, part, context)
   end
 end
 
----@param _ OpencodeMessagePart
----@param input TaskToolInput
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
-  return icons.get('task'), 'task', input.description or ''
+function M.summary(part)
+  return icons.get('task'), part.name, part.description or (part.input and part.input.description) or ''
 end
 
 return M

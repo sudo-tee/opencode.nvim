@@ -1,8 +1,8 @@
 local state = require('opencode.state')
 local snapshot = require('opencode.snapshot')
 local diff_tab = require('opencode.ui.diff_tab')
+local session_diff = require('opencode.ui.session_diff')
 local utils = require('opencode.util')
-local session = require('opencode.session')
 local picker = require('opencode.ui.picker')
 local Promise = require('opencode.promise')
 
@@ -11,8 +11,65 @@ local breakpoint
 local review_cache
 local generation = 0
 
+local function entry_snapshot_ids(entry)
+  local result = {}
+  local seen = {}
+  for _, content in ipairs(entry and entry.content or {}) do
+    if content.kind == 'patch' and content.hash and not seen[content.hash] then
+      seen[content.hash] = true
+      result[#result + 1] = content.hash
+    end
+  end
+  return result
+end
+
+local function observed_entries()
+  local observation = state.session.active_observation()
+  local observed = observation and observation:read() or nil
+  local entries = {}
+  for _, id in ipairs(observed and observed.entry_order or {}) do
+    local entry = observed.entries_by_id[id]
+    if not entry then
+      error('Observation entry order contains an unknown id: ' .. id)
+    end
+    entries[#entries + 1] = entry
+  end
+  return entries
+end
+
 local function is_current(context)
   return context.generation == generation and state.active_session == context.session and vim.fn.getcwd() == context.cwd
+end
+
+local function v2_connection()
+  local connection = state.opencode_server
+  return connection and connection.protocol == 'v2' and connection or nil
+end
+
+local function review_turn(context, message_id, to, file_path, message_count)
+  if file_path and session_diff.toggle_file(file_path, message_id, context.session.id) then
+    return
+  end
+  local connection = assert(v2_connection())
+  ---@cast connection OpencodeV2Connection
+  local files = connection.operations
+    .diff_session(connection, context.session.id, message_id, to, utils.apply_reverse_path_map)
+    :await()
+  if not is_current(context) then
+    return
+  end
+  session_diff.open(files, context.session, {
+    from = message_id,
+    to = to,
+    message_count = message_count,
+    file = file_path,
+    load_turns = function()
+      return M.list_review_turns()
+    end,
+    review_range = function(from, last, count)
+      return M.review(from, last, count)
+    end,
+  })
 end
 
 local function run_snapshot(context, name, ...)
@@ -49,9 +106,20 @@ function M.get_first_snapshot()
   if breakpoint and breakpoint.session == state.active_session and breakpoint.cwd == vim.fn.getcwd() then
     return breakpoint.id
   end
-  for _, msg in ipairs(state.messages or {}) do
-    local ids = session.get_message_snapshot_ids(msg)
-    if ids and #ids > 0 then
+  for _, entry in ipairs(observed_entries()) do
+    local ids = entry_snapshot_ids(entry)
+    if #ids > 0 then
+      return ids[1]
+    end
+  end
+end
+
+---@return string|nil
+function M.get_latest_snapshot()
+  local entries = observed_entries()
+  for index = #entries, 1, -1 do
+    local ids = entry_snapshot_ids(entries[index])
+    if #ids > 0 then
       return ids[1]
     end
   end
@@ -103,14 +171,67 @@ local function display(context, file)
   end
 end
 
----@type fun(ref?: string): Promise<nil>
-M.review = review_action(function(context, ref)
+---@type fun(ref?: string, to?: string, message_count?: integer): Promise<nil>
+M.review = review_action(function(context, ref, to, message_count)
+  if v2_connection() then
+    return review_turn(context, ref, to, nil, message_count)
+  end
   local files = get_changed_files(context, ref)
   if #files == 0 and is_current(context) then
     vim.notify('No changes to review.')
     return
   end
   display(context, select_file(context, files, 'Select a file to review:'))
+end)
+
+---@type fun(message_id: string, path: string, session_id: string): Promise<nil>
+M.toggle_file = review_action(function(context, message_id, path, session_id)
+  if context.session.id ~= session_id or not v2_connection() then
+    return
+  end
+  ---@type string?
+  local from
+  for _, entry in ipairs(observed_entries()) do
+    if entry.kind == 'user' then
+      from = entry.id
+    end
+    if entry.id == message_id then
+      if not from then
+        error('Tool has no preceding user message')
+      end
+      return review_turn(context, from, nil, path)
+    end
+  end
+  error('Tool message is no longer in the active session')
+end)
+
+---@type fun(): Promise<table[]>
+M.list_review_turns = review_action(function(context)
+  local connection = assert(v2_connection())
+  ---@cast connection OpencodeV2Connection
+  local turns = {}
+  local cursor
+  local seen = {}
+  repeat
+    local page = connection.operations.list_messages(connection, context.session.id, cursor, 100):await()
+    if not is_current(context) then
+      return {}
+    end
+    for _, message in ipairs(page.data) do
+      if message.type == 'user' then
+        turns[#turns + 1] = { id = message.id, text = message.text, created = message.time.created }
+      end
+    end
+    cursor = page.cursor.next
+    if cursor then
+      if seen[cursor] then
+        error('V2 list_messages returned a repeated cursor', 0)
+      end
+      seen[cursor] = true
+    end
+  until cursor == nil
+  -- V2 pages arrive newest first; range endpoints are ordered oldest to newest.
+  return vim.fn.reverse(turns)
 end)
 
 local function navigate(context, ref, direction)
@@ -140,10 +261,22 @@ end
 
 ---@type fun(ref?: string): Promise<nil>
 M.next_diff = review_action(function(context, ref)
+  if v2_connection() then
+    if not session_diff.select(1) then
+      return review_turn(context, ref)
+    end
+    return
+  end
   return navigate(context, ref, 1)
 end)
 ---@type fun(ref?: string): Promise<nil>
 M.prev_diff = review_action(function(context, ref)
+  if v2_connection() then
+    if not session_diff.select(-1) then
+      return review_turn(context, ref)
+    end
+    return
+  end
   return navigate(context, ref, -1)
 end)
 
@@ -275,6 +408,7 @@ end)
 
 function M.close_diff()
   generation = generation + 1
+  session_diff.close({ focus_input = true })
   diff_tab.close_diff_tab()
 end
 

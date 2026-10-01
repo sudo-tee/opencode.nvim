@@ -10,7 +10,9 @@ local function caller_info()
   local level = 2
   while true do
     local info = debug.getinfo(level, 'Sl')
-    if not info then return '' end
+    if not info then
+      return ''
+    end
     local file = info.source:gsub('^@', '')
     if not file:match('/log%.lua$') then
       return string.format(' [%s:%d]', file, info.currentline)

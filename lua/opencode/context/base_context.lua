@@ -171,8 +171,7 @@ function M.get_current_cursor_data(buf, win, context_config)
     return nil
   end
 
-  local num_lines = config.context.cursor_data.context_lines --[[@as integer]]
-    or 0
+  local num_lines = config.context.cursor_data.context_lines --[[@as integer]] or 0
   local cursor_pos = vim.fn.getcurpos(win)
   local start_line = (cursor_pos[2] - 1) --[[@as integer]]
   local cursor_content = vim.api.nvim_buf_get_lines(buf, start_line, cursor_pos[2], false)[1] or ''

@@ -19,9 +19,18 @@
 ## ✨ Description
 
 > [!IMPORTANT]
-> ### 🚀 Testing OpenCode v2?
 >
-> Use the [`v2` branch](https://github.com/sudo-tee/opencode.nvim/tree/v2) of this plugin for OpenCode v2 support — now available for testing. Expect changes while development continues.
+> ### OpenCode V1 and V2 support
+>
+> This implementation supports OpenCode V1 and V2 through automatic protocol detection and includes a major internal rewrite.
+>
+> To keep using the legacy plugin implementation, pin the [`v1` branch](https://github.com/sudo-tee/opencode.nvim/tree/v1):
+>
+> ```lua
+> { "sudo-tee/opencode.nvim", branch = "v1" }
+> ```
+>
+> The `v1` branch is a legacy implementation, not a requirement for connecting to an OpenCode V1 server.
 
 This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.
 
@@ -68,6 +77,7 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Quick Chat](#quick-chat)
 - [Setting up Opencode](#-setting-up-opencode)
 - [Recipes](./docs/recipes)
+- [Development](#development)
 
 ## ⚠️Caution
 
@@ -85,14 +95,13 @@ If your upgrade breaks the plugin, please open an issue or downgrade to the last
 
 Install the plugin with your favorite package manager. See the [Configuration](#️-configuration) section below for customization options.
 
-To test the OpenCode v2-compatible branch, set `branch = "v2"` in your plugin specification:
+To keep using the legacy implementation instead, add `branch = "v1"` to your plugin specification.
 
 ### With lazy.nvim
 
 ```lua
 {
   "sudo-tee/opencode.nvim",
-  branch = "v2", -- Use the v2 branch for testing with OpenCode v2
   config = function()
     require("opencode").setup({})
   end,
@@ -142,9 +151,19 @@ require('opencode').setup({
     path_map = nil,        -- Map host paths to server paths: string ('/app') or function(path) -> string
     username = nil,        -- Username for Basic auth. Falls back to OPENCODE_SERVER_USERNAME env var, then "opencode"
     password = nil,        -- Password for Basic auth. Falls back to OPENCODE_SERVER_PASSWORD env var
+    password_file = nil,   -- Shared V1 password file; fixed ports default to an owner-only per-port state file
   },
 
   keymap = {
+    -- Session diff mappings are buffer-local. g? opens help showing active mappings.
+    -- Set old keys to false when remapping.
+    session_diff = {
+      list = { ['p'] = false, ['v'] = { 'toggle_view' }, ['g?'] = false, ['?'] = { 'toggle_help' } },
+      messages = { ['f'] = false, ['s'] = { 'mark_from' } },
+      preview = { ['p'] = false, ['v'] = { 'toggle_view' } },
+      comment = { ['<C-s>'] = { 'submit_comment', mode = { 'n', 'i' } } },
+      message_preview = { ['q'] = false, ['x'] = { 'hide_message_preview' } },
+    },
     editor = {
       ['<leader>og'] = { 'toggle' }, -- Open opencode. Close if opened
       ['<leader>oi'] = { 'open_input' }, -- Opens and focuses on input window on insert mode
@@ -268,7 +287,7 @@ require('opencode').setup({
         markdown_debounce_ms = 250, -- Debounce time for markdown rendering on new data (default: 250ms)
         on_data_rendered = nil, -- Called when new data is rendered; set to false to disable default RenderMarkdown/Markview behavior
       },
-      max_messages = nil, -- Max number of messages to keep in the output buffer; older messages will be removed as new ones arrive (default: nil, which means no limit)
+      max_messages = nil, -- Initial output limit; older messages can be loaded by scrolling up, [[, or gg (default: nil, no limit)
     },
     input = {
       min_height = 0.10, -- min height of prompt input as percentage of window height
@@ -327,7 +346,7 @@ require('opencode').setup({
       info = false, -- Include diagnostics info in the context (default to false
       warning = true, -- Include diagnostics warnings in the context
       error = true, -- Include diagnostics errors in the context
-      only_closest = false, -- If true, only diagnostics for cursor/selection
+      only_closest = true, -- Only diagnostics for cursor/selection; disable to include the whole buffer
     },
     current_file = {
       enabled = true, -- Include current file path and content in the context
@@ -339,6 +358,9 @@ require('opencode').setup({
     },
     selection = {
       enabled = true, -- Include selected text in the context
+    },
+    review_comments = {
+      enabled = true, -- Include pending session-diff review comments in the context
     },
     buffer = {
       enabled = false, -- Disable entire buffer context by default, only used in quick chat
@@ -370,6 +392,7 @@ require('opencode').setup({
     on_session_loaded = nil, -- Called after a session is loaded.
     on_done_thinking = nil, -- Called when a session becomes idle, including sessions started outside Neovim.
     on_permission_requested = nil, -- Called when a permission request is issued.
+    on_question_asked = nil, -- Called when a question is asked.
   },
   quick_chat = {
     default_model = nil,   -- works better with a fast model like gpt-4.1
@@ -540,7 +563,7 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 
 ### Window Persistence Behavior
 
-`ui.persist_state` controls how `toggle` behaves:
+`ui.persist_state` controls how `toggle` and `close` behave:
 
 - `persist_state = true` (default): `toggle()` hides/restores the UI and keeps buffers/session view in memory for fast restore.
 - `persist_state = false`: `toggle()` fully tears down UI buffers and recreates them on next open.
@@ -548,7 +571,7 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 Related APIs:
 
 - `require('opencode.api').toggle()` follows the `persist_state` behavior above.
-- `require('opencode.api').close()` always fully closes and clears hidden snapshot state.
+- `require('opencode.api').close()` preserves buffers when `persist_state = true`; otherwise it fully closes.
 - `require('opencode.api').hide()` preserves buffers only when `persist_state = true`; otherwise it behaves like close.
 
 ### Picker Layout
@@ -673,14 +696,14 @@ Panel tabs are logical tabs inside the Opencode UI. They do not create or switch
 | Open opencode. Close if opened                              | `<leader>og`                          | `:Opencode`                                 | `require('opencode.api').toggle()`                                     |
 | Open input window (current session)                         | `<leader>oi`                          | `:Opencode open input`                      | `require('opencode.api').open_input()`                                 |
 | Open input window (new session)                             | `<leader>oI`                          | `:Opencode open input_new_session`          | `require('opencode.api').open_input_new_session()`                     |
-| Open a new session in a panel tab                            | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
-| Select a panel tab                                           | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
-| Select panel tab by index                                    | `<leader>o1` ... `<leader>o9`          | `:Opencode tab select [index]`              | `require('opencode.api').select_session_tab(index)`                    |
-| Switch panel tabs                                            | `<leader>o<` / `<leader>o>`            | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
+| Open a new session in a panel tab                           | `<leader>oN`                          | `:Opencode tab new [name]`                  | `require('opencode.api').open_session_tab([name])`                     |
+| Select a panel tab                                          | `<leader>o?`                          | `:Opencode tab select`                      | `require('opencode.api').select_session_tab()`                         |
+| Select panel tab by index                                   | `<leader>o1` ... `<leader>o9`         | `:Opencode tab select [index]`              | `require('opencode.api').select_session_tab(index)`                    |
+| Switch panel tabs                                           | `<leader>o<` / `<leader>o>`           | `:Opencode tab previous` / `next`           | `require('opencode.api').prev_session_tab()` / `next_session_tab()`    |
 | Close the current panel tab                                 | `<leader>oQ`                          | `:Opencode tab close`                       | `require('opencode.api').close_session_tab()`                          |
 | Open output window                                          | `<leader>oo`                          | `:Opencode open output`                     | `require('opencode.api').open_output()`                                |
 | Create and switch to a named session                        | -                                     | `:Opencode session new <name>`              | `:Opencode session new <name>` (user command)                          |
-| Open the selected session in a new panel tab                 | `<C-t>` (session picker)              | -                                           | -                                                                      |
+| Open the selected session in a new panel tab                | `<C-t>` (session picker)              | -                                           | -                                                                      |
 | Rename current session                                      | `<leader>oR`                          | `:Opencode session rename <name>`           | `:Opencode session rename <name>` (user command)                       |
 | Toggle focus opencode / last window                         | `<leader>ot`                          | `:Opencode toggle focus`                    | `require('opencode.api').toggle_focus()`                               |
 | Close UI windows                                            | `<leader>oq`                          | `:Opencode close`                           | `require('opencode.api').close()`                                      |
@@ -806,6 +829,10 @@ Opencode can issue permission requests for potentially destructive operations (f
 
 The following editor context is automatically captured and included in your conversations.
 
+Unchanged automatic payloads (diagnostics, buffer, cursor data, and staged diff) are sent once per session, then sent again only after their content changes. Explicit file mentions and selections are always sent.
+
+When a selection targets the current file, the automatic current-file attachment is skipped. The selected lines provide focused context; the agent can read more of the file when needed. An explicit file mention is still honored.
+
 | Context Type    | Description                                          |
 | --------------- | ---------------------------------------------------- |
 | Current file    | Path to the focused file before entering opencode    |
@@ -813,6 +840,7 @@ The following editor context is automatically captured and included in your conv
 | Mentioned files | File info added through [mentions](#file-mentions)   |
 | Diagnostics     | Diagnostics from the current file (if any)           |
 | Cursor position | Current cursor position and line content in the file |
+| Review comments | Saved session-diff feedback, included when enabled   |
 
 <a id="file-mentions"></a>
 
@@ -844,6 +872,7 @@ You can quickly reference available context items by typing `#` in the input win
 - **Selection** - Currently selected text in visual mode
 - **Diagnostics** - LSP diagnostics from the current file
 - **Cursor Data** - Current cursor position and line content
+- **Review comments** - Pending comments added to session diffs; select the group to toggle it or select a comment to remove it
 - **[filename]** - Files that have been mentioned in the conversation
 - **Agents** - Available agents to switch to
 - **Selections** - Previously made selections in visual mode
@@ -1103,7 +1132,11 @@ Skills are reusable, installable instruction packs that enhance opencode.nvim wi
 - **Via slash command:** Type `/skills` in the input window to open the skills picker
 - **Via completion:** Type `/` in the input window and select a skill from the completion menu
 
-The skills picker displays each skill with its name, description, and full content rendered as markdown in the preview pane. Selecting a skill executes it directly — opening a session and sending the skill's content as a prompt.
+The skills picker displays each skill with its name, description, and full content rendered as markdown in the preview pane. Selecting a skill inserts `/skill-name` into the input window.
+
+On V2, submitting `/skill-name` activates the native server-managed skill. Add instructions, such as `/skill-name review current changes`, to send a prompt with a native skill attachment instead. Servers without these capabilities report an error; update the OpenCode CLI to enable them. V1 continues sending the skill's content as an ordinary prompt.
+
+The same behavior is available through `:Opencode skill <name> [instructions]` and `require('opencode.api').run_skill(name, instructions)`. V2 API callers can also pass `skills = { { id = skill_id } }` in `run` options. Optional `mention = { start_byte = ..., end_byte = ... }` ranges use zero-based UTF-8 byte offsets relative to the prompt text, with an exclusive end.
 
 ### Installing Skills
 
@@ -1142,11 +1175,42 @@ You can also run user commands by name with `:Opencode command <name>`.
 
 See [User Commands Documentation](https://opencode.ai/docs/commands/) for more details.
 
-## 📸 Contextual Actions for Snapshots
+## Session diffs (OpenCode V2)
 
-> [!WARNING] > _Snapshots are an experimental feature_
-> in opencode and sometimes the dev team may disable them or change their behavior.
-> This repository will be updated to match the latest opencode changes as soon as possible.
+`:Opencode diff open` opens a review tab for the latest session turn, with a session-labeled, collapsible changed-file tree and side-by-side before/after revisions. Move through files with `j`/`k`, and press `<CR>` on a directory to expand or collapse it.
+
+![Changed-file tree with side-by-side before and after revisions](https://github.com/user-attachments/assets/e62aa9df-848a-47fc-9bb5-dabce0422f03)
+
+Press `p` to switch to a unified patch for the selected file.
+
+![Changed-file tree with a unified patch preview](https://github.com/user-attachments/assets/ee061cfd-8d12-4fc5-9ebb-ff8889d1f49c)
+
+Press `r` to select a range of turns/messages: move through user prompts, mark the start with `f` and end with `t`, then press `<CR>` to review the range; `r` returns to the file tree.
+
+![Turn-range picker with start and end markers](https://github.com/user-attachments/assets/7b28dbe7-9769-4144-bad7-6ca49ecbeb2d)
+
+Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
+
+### Comment on a session diff
+
+In a diff preview, press `c` on a line or visual selection to add or edit a review comment. Use `dc` to remove one; `]r` and `[r` move between comments. In the comment editor, `<C-s>` or `:w` saves, while `q` or `<Esc>` cancels. Comments appear as signs and in the file tree; closing the review focuses the input when comments are pending. Comments are sent with the next prompt and include the reviewed snapshot and a best-effort current-file status.
+
+![Review comment editor open on a changed line](https://github.com/user-attachments/assets/aa4348f1-7075-4449-a0cd-e3322d3c6a77)
+
+![Saved review comment shown beside its changed line in a session diff](https://github.com/user-attachments/assets/e7f1794e-57d5-4757-b7c5-ce2e1fdf102a)
+
+The context bar shows a review-comment icon and count while comments are pending. Type `#` in the input to toggle the **Review comments** context group or remove individual comments. Set `context.review_comments.enabled = false` to disable sending review comments by default. See the [session diff review recipe](docs/recipes/review-session-diff.md) for the step-by-step workflow.
+
+![Review comments context item and individual comment in the input completion menu](https://github.com/user-attachments/assets/c4280eca-4480-4c17-a4d1-d4a9b8fb5e4a)
+
+Diffs come from OpenCode's session diff API; side-by-side buffers display the recorded revisions, not current files on disk.
+
+In V2 output, press `D` anywhere in an edit, patch, or apply-patch file block to open its turn's diff with that file selected. Repeat from the same block to close the review tab; selecting another file focuses it in the existing review.
+
+## 📸 Contextual Actions for Snapshots (V1 only)
+
+> [!WARNING]
+> Snapshots are experimental and were never an official OpenCode V1 feature. This implementation relies on Git worktree snapshots, which are being replaced in V2 by the more robust [session diffs](#session-diffs-opencode-v2).
 
 Opencode.nvim automatically creates **snapshots** of your workspace at key moments (such as after running prompts or making changes). These snapshots are like lightweight git commits, allowing you to review, compare, and restore your project state at any time.
 
@@ -1229,6 +1293,7 @@ You can define custom functions to be called at specific events in Opencode:
 - `on_session_loaded`: Called after a session is loaded.
 - `on_done_thinking`: Called when a session becomes idle, including sessions started outside Neovim.
 - `on_permission_requested`: Called when a permission request is issued.
+- `on_question_asked`: Called when a question is asked.
 
 ```lua
 require('opencode').setup({
@@ -1248,6 +1313,10 @@ require('opencode').setup({
     on_permission_requested = function()
       -- Custom logic when a permission is requested
       print("Permission requested!")
+    end,
+    on_question_asked = function(session)
+      -- Custom logic when a question is asked
+      print("Question asked in session " .. session.id)
     end,
   },
 })
@@ -1337,6 +1406,39 @@ If you're new to opencode:
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file
+
+## Development
+
+Run development commands through the Makefile from the repository root. Use `make help` to list all targets and examples.
+
+| Command | Purpose |
+| ------- | ------- |
+| `make check` | Run formatting checks, Lua type checks, and all tests |
+| `make format-check` | Check Lua formatting without modifying files |
+| `make format` | Format Lua files in place |
+| `make typecheck` | Check Lua types |
+| `make test` | Run all tests |
+| `make test-minimal` | Run minimal tests |
+| `make test-unit` | Run unit tests |
+| `make test-replay` | Run automated replay tests |
+| `make replay` | Launch the interactive replay tester |
+| `make replay-regenerate` | Regenerate expected replay snapshots with confirmation |
+| `make topology` | Scan dependency topology |
+| `make topology-diff` | Compare dependency topology snapshots |
+
+Use `TEST` to select a test suite or file, `FILTER` to filter tests, and `ARGS` to pass additional options to the underlying tool:
+
+```sh
+make test TEST=tests/unit/formatter_spec.lua
+make test TEST=unit FILTER="Timer"
+make typecheck ARGS="-f github"
+make replay ARGS="-c ReplayAll"
+make replay-regenerate FILE=v2/formatters.json
+make topology ARGS="--json"
+make topology-diff ARGS="--from main --to HEAD --json"
+```
+
+For snapshot regeneration, `FILE` is relative to `tests/data`. See the [dependency topology documentation](./scripts/dependency-topology/README.md) for scanner options and policy details.
 
 ## 🙏 Acknowledgements
 

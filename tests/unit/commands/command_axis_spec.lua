@@ -67,7 +67,9 @@ describe('commands axis contract', function()
     }
 
     package.loaded['opencode.commands.complete'] = {
-      complete_command = function() return {} end,
+      complete_command = function()
+        return {}
+      end,
     }
 
     local toggle_execute = function(args)

@@ -3,13 +3,13 @@ local config = require('opencode.config')
 local state = require('opencode.state')
 
 describe('file completion responsiveness', function()
-  local original_system, original_executable, original_client, original_config
+  local original_system, original_executable, original_server, original_config
   local source
 
   before_each(function()
     original_system = vim.system
     original_executable = vim.fn.executable
-    original_client = state.api_client
+    original_server = state.opencode_server
     original_config = vim.deepcopy(config.ui.completion.file_sources)
     config.ui.completion.file_sources.preferred_cli_tool = 'server'
     config.ui.completion.file_sources.enabled = true
@@ -21,7 +21,7 @@ describe('file completion responsiveness', function()
   after_each(function()
     vim.system = original_system
     vim.fn.executable = original_executable
-    state.jobs.set_api_client(original_client)
+    state.jobs.set_server(original_server)
     config.ui.completion.file_sources = original_config
     package.loaded['opencode.ui.completion.files'] = nil
   end)
@@ -32,11 +32,11 @@ describe('file completion responsiveness', function()
 
   it('returns control while the server search is pending', function()
     local search = Promise.new()
-    state.jobs.set_api_client({
+    state.jobs.set_server({ operations = {
       find_files = function()
         return search
       end,
-    })
+    } })
     local result = complete()
     assert.is_false(result:is_resolved())
     search:resolve({ 'file.lua' })
@@ -44,10 +44,12 @@ describe('file completion responsiveness', function()
   end)
 
   it('falls back asynchronously when the server search rejects', function()
-    state.jobs.set_api_client({
-      find_files = function()
-        return Promise.new():reject('offline')
-      end,
+    state.jobs.set_server({
+      operations = {
+        find_files = function()
+          return Promise.new():reject('offline')
+        end,
+      },
     })
     vim.fn.executable = function(tool)
       return tool == 'fd' and 1 or 0
@@ -75,10 +77,12 @@ describe('file completion responsiveness', function()
     vim.system = function()
       error('unavailable tools must not run')
     end
-    state.jobs.set_api_client({
-      find_files = function()
-        return Promise.new():resolve({ 'file.lua', 'file2.lua' })
-      end,
+    state.jobs.set_server({
+      operations = {
+        find_files = function()
+          return Promise.new():resolve({ 'file.lua', 'file2.lua' })
+        end,
+      },
     })
     assert.equals(1, #complete():wait())
   end)

@@ -126,4 +126,25 @@ describe('slash command mapping', function()
     assert.equal('command build --fast', captured_parsed[1].intent.source.raw_args)
     assert.equal(1, #captured_ctx)
   end)
+
+  it('maps skill slash commands onto the shared skill command axis', function()
+    local state = require('opencode.state')
+    local previous = state.opencode_server
+    state.jobs.set_server({
+      operations = {
+        list_skills = function()
+          return Promise.new():resolve({ { id = 'native-id', name = 'test-skill', content = 'instructions' } })
+        end,
+      },
+    })
+    local entries = slash.get_commands():wait()
+    state.jobs.set_server(previous)
+    local cmd = vim.tbl_filter(function(entry)
+      return entry.slash_cmd == '/test-skill'
+    end, entries)[1]
+    assert.truthy(cmd)
+    cmd.fn({ 'fix', 'bug' })
+    assert.equals('skill', captured_parsed[1].intent.name)
+    assert.same({ 'test-skill', 'fix', 'bug' }, captured_parsed[1].intent.args)
+  end)
 end)

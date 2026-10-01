@@ -1,0 +1,59 @@
+[
+  {
+    "properties": {
+      "info": {
+        "command": "make test",
+        "id": "msg_shell-running",
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_running",
+        "status": "running",
+        "time": {
+          "created": 1700000003000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "command": "make test",
+        "exit": 0,
+        "id": "msg_shell-exited",
+        "output": {
+          "cursor": 39,
+          "output": "Running unit tests...\n12 tests passed.",
+          "size": 39,
+          "truncated": true
+        },
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_exited",
+        "status": "exited",
+        "time": {
+          "created": 1700000004000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "command": "make lint",
+        "exit": 1,
+        "id": "msg_shell-failed",
+        "output": "src/main.lua:10: unused variable",
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_failed",
+        "status": "exited",
+        "time": {
+          "created": 1700000005000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

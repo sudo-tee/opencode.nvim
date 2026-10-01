@@ -1,7 +1,4 @@
 local git_review = require('opencode.git_review')
-local session_store = require('opencode.session')
----@type OpencodeState
-local state = require('opencode.state')
 local session_runtime = require('opencode.services.session_runtime')
 
 local M = {
@@ -46,6 +43,10 @@ M.actions.diff_open = with_output_open(function(from_snapshot_id, _to_snapshot_i
   return git_review.review(extract_hash_arg(from_snapshot_id))
 end, true)
 
+M.actions.diff_toggle_file = with_output_open(function(message_id, file_path, session_id)
+  return git_review.toggle_file(message_id, file_path, session_id)
+end, true)
+
 M.actions.diff_next = with_output_open(function()
   return git_review.next_diff()
 end, false)
@@ -71,8 +72,7 @@ end, false)
 
 ---@return string|nil
 local function get_last_prompt_snapshot_id_or_warn()
-  local snapshots = session_store.get_message_snapshot_ids(state.current_message)
-  local snapshot_id = snapshots and snapshots[1]
+  local snapshot_id = git_review.get_latest_snapshot()
   if not snapshot_id then
     vim.notify('No snapshots found for the current message', vim.log.levels.WARN)
     return nil
@@ -241,6 +241,7 @@ M.command_defs = {
       return M.actions.diff_restore_snapshot_all(args and args[1])
     end,
   },
+  diff_toggle_file = { desc = 'Toggle diff for tool file', execute = M.actions.diff_toggle_file },
   -- action name aliases for keymap compatibility
   diff_open = { desc = 'Open diff view', execute = M.actions.diff_open },
   diff_next = { desc = 'Next diff', execute = M.actions.diff_next },

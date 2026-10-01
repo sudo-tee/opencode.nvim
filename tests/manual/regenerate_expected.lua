@@ -7,16 +7,7 @@ local output_window = require('opencode.ui.output_window')
 local M = {}
 
 local function wait_for_idle(timeout_ms)
-  timeout_ms = timeout_ms or 5000
-
-  return vim.wait(timeout_ms, function()
-    local emitter = state.event_manager and state.event_manager.throttling_emitter
-    if not emitter then
-      return true
-    end
-
-    return #emitter.queue == 0 and not emitter.drain_scheduled
-  end, 10)
+  return require('tests.manual.renderer_replay').wait_for_idle(timeout_ms)
 end
 
 local function with_ftplugin_disabled(fn)

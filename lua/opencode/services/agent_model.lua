@@ -3,50 +3,59 @@ local config_file = require('opencode.config_file')
 local util = require('opencode.util')
 local Promise = require('opencode.promise')
 local log = require('opencode.log')
-local ui = require('opencode.ui.ui')
+local session_tabs = require('opencode.state.session_tabs')
 
 local M = {}
 
-function M.configure_provider()
-  require('opencode.model_picker').select(function(selection)
-    if not selection then
-      if state.ui.is_visible() then
-        ui.focus_input()
-      end
-      return
-    end
-    local model_str = string.format('%s/%s', selection.provider, selection.model)
-    state.model.set_model(model_str)
+---Persist accepted message model/mode/variant to its originating tab, or global state when no tab owns it.
+---@param tab_id? string
+---@param update OpencodeSessionTabModelUpdate
+function M.apply_message_update(tab_id, update)
+  if tab_id then
+    session_tabs.update_model_state(tab_id, update)
+    return
+  end
 
-    if state.current_mode then
-      state.model.set_mode_model_override(state.current_mode, model_str)
-    end
-
-    if state.ui.is_visible() then
-      ui.focus_input()
-    else
-      log.notify('Changed provider to ' .. model_str, vim.log.levels.INFO)
-    end
-  end)
+  if update.model then
+    state.model.set_model(update.model)
+  end
+  if update.mode then
+    state.model.set_mode(update.mode)
+  end
+  if update.variant then
+    state.model.set_variant(update.variant)
+  end
 end
 
-function M.configure_variant()
-  require('opencode.variant_picker').select(function(selection)
-    if not selection then
-      if state.ui.is_visible() then
-        ui.focus_input()
-      end
-      return
-    end
+local function active_session_fact()
+  local observation = state.session.active_observation()
+  return observation and observation:read().session or nil
+end
 
-    state.model.set_variant(selection.value)
+---Apply a selected model and remember it as the active mode's override.
+---@param provider string
+---@param model string
+---@return string model_id
+function M.set_model(provider, model)
+  local model_id = string.format('%s/%s', provider, model)
+  state.model.set_model(model_id)
+  if state.current_mode then
+    state.model.set_mode_model_override(state.current_mode, model_id)
+  end
+  return model_id
+end
 
-    if state.ui.is_visible() then
-      ui.focus_input()
-    else
-      log.notify('Changed variant to ' .. selection.name, vim.log.levels.INFO)
-    end
-  end)
+---Apply a variant and persist it for the selected model. Nil selects the default.
+---@param variant? string
+function M.set_variant(variant)
+  state.model.set_variant(variant)
+  local provider, model
+  if state.current_model then
+    provider, model = state.current_model:match('^(.-)/(.+)$')
+  end
+  if provider and model then
+    require('opencode.model_state').set_variant(provider, model, variant)
+  end
 end
 
 M.cycle_variant = Promise.async(function()
@@ -61,6 +70,7 @@ M.cycle_variant = Promise.async(function()
   end
 
   local config_file = require('opencode.config_file')
+  config_file.get_opencode_providers():await()
   local model_info = config_file.get_model_info(provider, model)
 
   if not model_info or not model_info.variants then
@@ -99,10 +109,7 @@ M.cycle_variant = Promise.async(function()
     next_variant = variants[next_index]
   end
 
-  state.model.set_variant(next_variant)
-
-  local model_state = require('opencode.model_state')
-  model_state.set_variant(provider, model, next_variant)
+  M.set_variant(next_variant)
 end)
 
 --- Apply mode and resolve its associated model from config.
@@ -125,7 +132,8 @@ local apply_mode = Promise.async(function(mode)
 end)
 
 M.switch_to_mode = Promise.async(function(mode)
-  if state.active_session and state.active_session.parentID then
+  local session = active_session_fact()
+  if session and session.parentID then
     log.notify('Cannot switch agent in child session', vim.log.levels.WARN)
     return false
   end
@@ -150,59 +158,65 @@ M.switch_to_mode = Promise.async(function(mode)
 end)
 
 M.ensure_current_mode = Promise.async(function()
-  if state.current_mode == nil then
-    local available_agents = config_file.get_opencode_agents():await()
-
-    if not available_agents or #available_agents == 0 then
-      log.notify('No available agents found', vim.log.levels.ERROR)
-      return false
-    end
-
-    local default_mode = require('opencode.config').default_mode
-
-    local mode = (default_mode and vim.tbl_contains(available_agents, default_mode))
-        and default_mode
-      or available_agents[1]
-
-    -- Initialize directly; the child-session guard in switch_to_mode
-    -- is for user-initiated changes, not system initialization.
-    apply_mode(mode):await()
+  local available_agents = config_file.get_opencode_agents():await()
+  if not available_agents or #available_agents == 0 then
+    log.notify('No available agents found', vim.log.levels.ERROR)
+    return false
   end
+  if state.current_mode and vim.tbl_contains(available_agents, state.current_mode) then
+    return true
+  end
+  local default_mode = require('opencode.config').default_mode
+  local mode = (default_mode and vim.tbl_contains(available_agents, default_mode)) and default_mode
+    or available_agents[1]
+  apply_mode(mode):await()
   return true
 end)
 
 ---@class InitializeCurrentModelOpts
 ---@field restore_from_messages? boolean Restore model/mode from the most recent session message
+---@field is_current? fun(): boolean Prevent writes after the requesting session is detached
 
 ---@param opts? InitializeCurrentModelOpts
 ---@return string|nil The current model
 M.initialize_current_model = Promise.async(function(opts)
   opts = opts or {}
+  local function is_current()
+    return not opts.is_current or opts.is_current()
+  end
+  if not is_current() then
+    return
+  end
 
-  if opts.restore_from_messages and state.messages then
-    -- Child sessions scan forward (first message is reliable);
-    -- parent sessions scan backward (most recent is current choice)
-    local is_child = state.active_session and state.active_session.parentID ~= nil
-    local start_idx, end_idx, step = #state.messages, 1, -1
+  local observation = state.session.active_observation()
+  local observed = observation and observation:read() or nil
+  if opts.restore_from_messages and observed then
+    local order = observed.entry_order or {}
+    local is_child = observed.session and observed.session.parentID ~= nil
+    local start_idx, end_idx, step = #order, 1, -1
     if is_child then
-      start_idx, end_idx, step = 1, #state.messages, 1
+      start_idx, end_idx, step = 1, #order, 1
     end
     for i = start_idx, end_idx, step do
-      local msg = state.messages[i]
-      if msg and msg.info and msg.info.modelID and msg.info.providerID then
-        local model_str = msg.info.providerID .. '/' .. msg.info.modelID
+      local entry = observed.entries_by_id[order[i]]
+      if entry and entry.model and entry.model.modelID and entry.model.providerID then
+        local model_str = entry.model.providerID .. '/' .. entry.model.modelID
+        local should_restore_mode = false
+        if entry.agent and state.current_mode ~= entry.agent then
+          should_restore_mode = is_child
+          if not should_restore_mode then
+            local available_agents = config_file.get_opencode_agents():await()
+            should_restore_mode = vim.tbl_contains(available_agents, entry.agent)
+          end
+        end
+        if not is_current() then
+          return
+        end
         if state.current_model ~= model_str then
           state.model.set_model(model_str)
         end
-        if msg.info.mode and state.current_mode ~= msg.info.mode then
-          local should_restore_mode = is_child
-          if not should_restore_mode then
-            local available_agents = config_file.get_opencode_agents():await()
-            should_restore_mode = vim.tbl_contains(available_agents, msg.info.mode)
-          end
-          if should_restore_mode then
-            state.model.set_mode(msg.info.mode)
-          end
+        if should_restore_mode then
+          state.model.set_mode(entry.agent)
         end
         return state.current_model
       end
@@ -214,8 +228,22 @@ M.initialize_current_model = Promise.async(function(opts)
   end
 
   local cfg = config_file.get_opencode_config():await()
+  if not is_current() then
+    return
+  end
   if cfg and cfg.model and cfg.model ~= '' then
     state.model.set_model(cfg.model)
+  else
+    local catalog = config_file.get_opencode_providers():await()
+    if not is_current() then
+      return
+    end
+    local providers = vim.tbl_keys(catalog and catalog.default or {})
+    table.sort(providers)
+    local provider = providers[1]
+    if provider and catalog.default[provider] then
+      state.model.set_model(provider .. '/' .. catalog.default[provider])
+    end
   end
 
   return state.current_model

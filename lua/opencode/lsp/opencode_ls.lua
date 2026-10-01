@@ -96,8 +96,7 @@ end
 ---@return OpencodeLspItem
 local function to_lsp_item(item, index, params, word)
   local source = require('opencode.ui.completion').get_source_by_name(item.source_name)
-  local kind = (source and source.custom_kind) or
-  vim.lsp.protocol.CompletionItemKind.Function ---@type lsp.CompletionItemKind
+  local kind = (source and source.custom_kind) or vim.lsp.protocol.CompletionItemKind.Function ---@type lsp.CompletionItemKind
   local priority = source and source.priority or 999
   local line = params.position.line
   local col = params.position.character
@@ -167,29 +166,29 @@ handlers[ms.textDocument_completion] = function(params, callback)
   end
 
   Promise.all(promises)
-      :and_then(function(results)
-        ---@type OpencodeLspItem[]
-        local all_items = {}
-        local is_incomplete = false
+    :and_then(function(results)
+      ---@type OpencodeLspItem[]
+      local all_items = {}
+      local is_incomplete = false
 
-        for _, items in ipairs(results) do
-          for j, item in ipairs(items or {}) do
-            local source = completion.get_source_by_name(item.source_name)
-            if source and source.is_incomplete then
-              is_incomplete = true
-            end
-
-            table.insert(all_items, to_lsp_item(item, j, params, word))
+      for _, items in ipairs(results) do
+        for j, item in ipairs(items or {}) do
+          local source = completion.get_source_by_name(item.source_name)
+          if source and source.is_incomplete then
+            is_incomplete = true
           end
-        end
 
-        callback(nil, { isIncomplete = is_incomplete, items = all_items })
-      end)
-      :catch(function(err)
-        local log = require('opencode.log')
-        log.error('Error in completion handler: ' .. tostring(err))
-        callback(nil, { isIncomplete = false, items = {} })
-      end)
+          table.insert(all_items, to_lsp_item(item, j, params, word))
+        end
+      end
+
+      callback(nil, { isIncomplete = is_incomplete, items = all_items })
+    end)
+    :catch(function(err)
+      local log = require('opencode.log')
+      log.error('Error in completion handler: ' .. tostring(err))
+      callback(nil, { isIncomplete = false, items = {} })
+    end)
 end
 
 ---Create the LSP server configuration
@@ -237,7 +236,7 @@ function M.start(bufnr)
       local completed_item = vim.v.completed_item
       if completed_item and completed_item.user_data then
         local data = vim.tbl_get(completed_item, 'user_data', 'nvim', 'lsp', 'completion_item', 'data')
-            or vim.tbl_get(completed_item, 'user_data', 'lsp', 'item', 'data')
+          or vim.tbl_get(completed_item, 'user_data', 'lsp', 'item', 'data')
 
         local item = data and data._opencode_item
 

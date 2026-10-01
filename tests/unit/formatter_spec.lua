@@ -2,11 +2,28 @@ local assert = require('luassert')
 local config = require('opencode.config')
 local formatter = require('opencode.ui.formatter')
 local Output = require('opencode.ui.output')
-local state = require('opencode.state')
 local util = require('opencode.util')
 local icons = require('opencode.ui.icons')
 
 describe('formatter', function()
+  local function assistant(content, fields)
+    return vim.tbl_extend('force', {
+      id = 'msg_1',
+      kind = 'assistant',
+      session_id = 'ses_1',
+      content = content or {},
+    }, fields or {})
+  end
+
+  local function tool(name, fields)
+    return vim.tbl_extend('force', {
+      id = 'prt_1',
+      kind = 'tool',
+      name = name,
+      state = 'completed',
+    }, fields or {})
+  end
+
   before_each(function()
     config.setup({
       ui = {
@@ -20,121 +37,58 @@ describe('formatter', function()
     })
   end)
 
-  it('marks queued user messages in the header', function()
-    local output = formatter.format_message_header({
-      info = {
-        id = 'msg_queued',
-        role = 'user',
-        sessionID = 'ses_1',
-        queued = true,
-      },
-      parts = {},
-    })
-
-    assert.are.same({ ' QUEUED', 'OpencodeQueued' }, output.extmarks[1][1].virt_text[4])
-  end)
-
   it('formats multiline question answers', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
-
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'question',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          questions = {
-            {
-              question = 'What should we do?',
-              header = 'Question',
-              options = {},
-            },
-          },
-        },
-        metadata = {
-          answers = {
-            { 'First line\nSecond line' },
-          },
-        },
-        time = {
-          start = 1,
-          ['end'] = 2,
+    local message = assistant()
+    local part = tool('question', {
+      answers = {
+        {
+          question = 'What should we do?',
+          header = 'Question',
+          values = { 'First line\nSecond line' },
         },
       },
-    }
+      time = { started = 1, completed = 2 },
+    })
 
     local output = formatter.format_part(part, message, true)
     assert.are.equal('**A1:** First line', output.lines[4])
     assert.are.equal('Second line', output.lines[5])
   end)
 
-  it('renders task child question tools with generic summary fallback', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
+  it('ignores unsupported message roles and part kinds without adding spacing', function()
+    assert.same({}, formatter.format_part({ kind = 'text', text = 'hidden' }, { kind = 'unknown' }).lines)
+    assert.same({}, formatter.format_part({ kind = 'unknown' }, assistant()).lines)
+    assert.same({}, formatter.format_part({ kind = 'text', text = 'hidden' }, nil).lines)
+  end)
 
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'task',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          description = 'review changes',
-          subagent_type = 'explore',
-        },
-        metadata = {
-          sessionId = 'ses_child',
-        },
-        time = {
-          start = 1,
-          ['end'] = 2,
-        },
-      },
-    }
+  it('preserves replacement output and actions for system display parts', function()
+    local output = formatter.format_part({ kind = 'hidden_messages_display', hidden_count = 2 }, { kind = 'system' })
+    assert.equals('> 2 older messages are not displayed.', output.lines[1])
+    assert.equals('toggle_max_messages', output.actions[1].type)
+    assert.equals(2, #output.lines)
+  end)
+
+  it('keeps final assistant errors when its part kind is unsupported', function()
+    local message = assistant({}, { error = { message = 'Request failed' } })
+    local output = formatter.format_part({ kind = 'unknown' }, message, true)
+    assert.is_truthy(table.concat(output.lines, '\n'):find('Request failed', 1, true))
+    assert.same({}, formatter.format_part({ kind = 'unknown' }, message, false).lines)
+  end)
+
+  it('renders task child question tools with generic summary fallback', function()
+    local message = assistant()
+    local part = tool('task', {
+      description = 'review changes',
+      input = { subagent_type = 'explore' },
+      child_session = { id = 'ses_child' },
+      time = { started = 1, completed = 2 },
+    })
 
     local child_parts = {
-      {
+      tool('question', {
         id = 'prt_child_1',
-        type = 'tool',
-        tool = 'question',
-        messageID = 'msg_child_1',
-        sessionID = 'ses_child',
-        state = {
-          status = 'completed',
-          input = {
-            questions = {
-              {
-                question = 'What should we do?',
-                header = 'Question',
-                options = {},
-              },
-            },
-          },
-          metadata = {
-            answers = {
-              { 'Ship it' },
-            },
-          },
-        },
-      },
+        answers = { { question = 'What should we do?', header = 'Question', values = { 'Ship it' } } },
+      }),
     }
 
     local output = formatter.format_part(part, message, true, {
@@ -150,48 +104,43 @@ describe('formatter', function()
     assert.are.equal(' **  tool** ', output.lines[3])
   end)
 
-  it('renders task child bash commands on one line', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
+  it('renders V2 subagent description, agent, result, and child-session action', function()
+    local part = tool('subagent', {
+      input = { agent = 'explore', description = 'inspect repository', prompt = 'Find all callers' },
+      child_session = { id = 'ses_child' },
+      result = {
+        { kind = 'text', text = '<subagent sessionID="ses_child" state="completed">\nFound two callers\n</subagent>' },
       },
-      parts = {},
-    }
+      time = { started = 1, completed = 2 },
+    })
+    local output = formatter.format_part(part, assistant(), true, {
+      get_child_parts = function()
+        return { tool('read', { target = { path = '/tmp/project' } }) }
+      end,
+    })
 
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'task',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          description = 'inspect repository',
-        },
-        metadata = {
-          sessionId = 'ses_child',
-        },
-      },
-    }
+    assert.is_truthy(output.lines[1]:find('subagent', 1, true))
+    assert.is_truthy(output.lines[1]:find('inspect repository (@explore)', 1, true))
+    assert.is_truthy(table.concat(output.lines, '\n'):find('Found two callers', 1, true))
+    assert.is_falsy(table.concat(output.lines, '\n'):find('<subagent', 1, true))
+    assert.is_falsy(table.concat(output.lines, '\n'):find('</subagent>', 1, true))
+    assert.is_truthy(table.concat(output.lines, '\n'):find('read', 1, true))
+    assert.same({ 'ses_child' }, output.actions[1].args)
+  end)
+
+  it('renders task child bash commands on one line', function()
+    local message = assistant()
+    local part = tool('task', {
+      description = 'inspect repository',
+      child_session = { id = 'ses_child' },
+    })
 
     local child_parts = {
-      {
+      tool('bash', {
         id = 'prt_child_1',
-        type = 'tool',
-        tool = 'bash',
-        messageID = 'msg_child_1',
-        sessionID = 'ses_child',
-        state = {
-          status = 'completed',
-          input = {
-            command = 'git status\n--short',
-            description = 'show repository status',
-          },
-        },
-      },
+        command = 'git status\n--short',
+        description = 'show repository status',
+      }),
     }
 
     local output = formatter.format_part(part, message, true, {
@@ -208,55 +157,19 @@ describe('formatter', function()
   end)
 
   it('renders task child apply_patch tools without formatter errors', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
-
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'task',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          description = 'apply changes',
-          subagent_type = 'coder',
-        },
-        metadata = {
-          sessionId = 'ses_child',
-        },
-        time = {
-          start = 1,
-          ['end'] = 2,
-        },
-      },
-    }
+    local message = assistant()
+    local part = tool('task', {
+      description = 'apply changes',
+      input = { subagent_type = 'coder' },
+      child_session = { id = 'ses_child' },
+      time = { started = 1, completed = 2 },
+    })
 
     local child_parts = {
-      {
+      tool('apply_patch', {
         id = 'prt_child_1',
-        type = 'tool',
-        tool = 'apply_patch',
-        messageID = 'msg_child_1',
-        sessionID = 'ses_child',
-        state = {
-          status = 'completed',
-          metadata = {
-            files = {
-              {
-                filePath = '/tmp/project/lua/foo.lua',
-              },
-            },
-          },
-        },
-      },
+        changes = { { path = '/tmp/project/lua/foo.lua' } },
+      }),
     }
 
     local output = formatter.format_part(part, message, true, {
@@ -280,33 +193,318 @@ describe('formatter', function()
     assert.is_true(found)
   end)
 
-  it('renders loaded skill name for skill tool calls', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
+  it('renders V2 shell output with its native tool name', function()
+    local message = assistant()
+    local part = tool('shell', {
+      input = { command = 'printf ok', description = 'show output' },
+      result = { { kind = 'text', text = 'ok' } },
+      state = 'completed',
+      time = { started = 1, completed = 2 },
+    })
 
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'skill',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          name = 'context7-cli',
+    local output = formatter.format_part(part, message, true)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('```bash', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('ok', 1, true) ~= nil, rendered)
+  end)
+
+  it('renders V2 websearch tools with their query', function()
+    local output = formatter.format_part(
+      tool('websearch', {
+        input = { query = 'OpenCode V2 tool format' },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
+
+    assert.is_true(output.lines[1]:find('search', 1, true) ~= nil, output.lines[1])
+    assert.is_true(output.lines[1]:find('OpenCode V2 tool format', 1, true) ~= nil, output.lines[1])
+  end)
+
+  it('renders V2 websearch text results', function()
+    local output = formatter.format_part(
+      tool('websearch', {
+        input = { query = 'OpenCode' },
+        result = {
+          {
+            kind = 'text',
+            text = 'OpenCode\nhttps://opencode.ai',
+          },
         },
-        time = {
-          start = 1,
-          ['end'] = 2,
+      }),
+      assistant(),
+      true
+    )
+
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('OpenCode\nhttps://opencode.ai', 1, true) ~= nil, rendered)
+  end)
+
+  it('renders V2 execute tools with their code', function()
+    local output = formatter.format_part(
+      tool('execute', {
+        input = { code = 'return await mcp.server.list()\n' },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
+
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(output.lines[1]:find('execute', 1, true) ~= nil, output.lines[1])
+    assert.is_true(rendered:find('```javascript', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('return await mcp.server.list()', 1, true) ~= nil, rendered)
+  end)
+
+  it('renders V2 edit changes supplied by the server', function()
+    local part = tool('edit', {
+      input = {
+        path = '/tmp/project/init.lua',
+        oldString = 'local old = true',
+        newString = 'local new = true',
+      },
+      target = { path = '/tmp/project/init.lua' },
+      changes = {
+        {
+          path = '/tmp/project/init.lua',
+          diff = '@@ -1,1 +1,1 @@\n-local old = true\n+local new = true\n\\ No newline at end of file\n',
         },
       },
-    }
+      time = { started = 1, completed = 2 },
+    })
+
+    local output = formatter.format_part(part, assistant(), true)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('`/tmp/project/init.lua`', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('local old = true', 1, true) ~= nil, rendered)
+    assert.is_true(rendered:find('local new = true', 1, true) ~= nil, rendered)
+    assert.is_nil(rendered:find('No newline at end of file', 1, true), rendered)
+  end)
+
+  it('anchors V2 file diff actions to each edit and patch file row', function()
+    local state = require('opencode.state')
+    local original = state.opencode_server
+    state.jobs.set_server({
+      protocol = 'v2',
+      is_ready = function()
+        return false
+      end,
+    })
+    local context = { interactive = true }
+    local message = assistant()
+    local edit = formatter.format_part(
+      tool('edit', {
+        target = { path = '/workspace/a.lua' },
+        changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+      }),
+      message,
+      true,
+      context
+    )
+    assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, edit.actions[1].args)
+    assert.equals('diff_toggle_file', edit.actions[1].type)
+    assert.equals(0, edit.actions[1].display_line)
+    assert.is_true(edit.actions[1].range.to > edit.actions[1].display_line)
+    assert.equals('diff_toggle_file', edit:get_actions_for_line(edit.actions[1].range.to)[1].type)
+
+    for _, name in ipairs({ 'patch', 'apply_patch' }) do
+      local output = formatter.format_part(
+        tool(name, {
+          changes = {
+            { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+            { path = '/workspace/b.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+          },
+        }),
+        message,
+        true,
+        context
+      )
+      assert.equals(2, #output.actions)
+      assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, output.actions[1].args)
+      assert.same({ 'msg_1', '/workspace/b.lua', 'ses_1' }, output.actions[2].args)
+      assert.is_true(output.actions[2].display_line > output.actions[1].display_line)
+      assert.equals(output.actions[2].display_line - 1, output.actions[1].range.to)
+      assert.is_true(output.actions[2].range.to > output.actions[2].display_line)
+      assert.same(
+        { '/workspace/b.lua' },
+        vim.tbl_map(function(action)
+          return action.args[2]
+        end, output:get_actions_for_line(output.actions[2].range.to))
+      )
+    end
+    state.jobs.set_server({
+      protocol = 'v1',
+      is_ready = function()
+        return false
+      end,
+    })
+    assert.same(
+      {},
+      formatter.format_part(
+        tool('edit', {
+          target = { path = '/workspace/a.lua' },
+          changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+        }),
+        message,
+        true,
+        context
+      ).actions
+    )
+    state.jobs.set_server(original)
+  end)
+
+  it('shortens file tool paths relative to the current workspace', function()
+    local absolute_path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    local output = formatter.format_part(
+      tool('edit', {
+        target = { path = absolute_path },
+      }),
+      assistant(),
+      true
+    )
+
+    assert.is_true(output.lines[1]:find('`lua/opencode/config.lua`', 1, true) ~= nil, output.lines[1])
+  end)
+
+  it('renders V2 patch tools with their native tool name', function()
+    local message = assistant()
+    local part = tool('patch', {
+      input = { description = 'update files', patchText = '*** Begin Patch\n*** Update File: foo.lua\n+new' },
+      result = { { kind = 'text', text = 'patched' } },
+      state = 'completed',
+      time = { started = 1, completed = 2 },
+    })
+
+    local output = formatter.format_part(part, message, true)
+    local found = false
+    for _, line in ipairs(output.lines) do
+      if line:find('apply patch', 1, true) then
+        found = true
+        break
+      end
+    end
+    assert.is_true(found)
+    local rendered = table.concat(output.lines, '\n')
+    assert.is_true(rendered:find('*** Begin Patch', 1, true) == nil)
+    assert.is_true(rendered:find('apply patch.*foo.lua') ~= nil)
+    assert.is_true(rendered:find('*** Update File', 1, true) == nil)
+    assert.is_true(rendered:find('patched', 1, true) == nil)
+  end)
+
+  it('renders V2 add-file patches with numbered diff highlights', function()
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = table.concat({
+            '*** Begin Patch',
+            '*** Add File: lua/new.lua',
+            '+local value = 1',
+            '+return value',
+            '*** End Patch',
+          }, '\n'),
+        },
+      }),
+      assistant(),
+      true
+    )
+
+    assert.is_true(vim.tbl_contains(output.lines, '   local value = 1'))
+    assert.is_true(vim.tbl_contains(output.lines, '   return value'))
+
+    local gutters = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group == 'OpencodeDiffAdd' then
+          gutters[#gutters + 1] = mark.virt_text[1]
+        end
+      end
+    end
+    table.sort(gutters, function(left, right)
+      return left[1] < right[1]
+    end)
+    assert.same({
+      { '1', 'OpencodeDiffAddGutter' },
+      { '2', 'OpencodeDiffAddGutter' },
+    }, gutters)
+  end)
+
+  it('renders unnumbered V2 update hunks with diff highlights', function()
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = table.concat({
+            '*** Begin Patch',
+            '*** Update File: lua/changed.lua',
+            '@@ local function changed()',
+            '-local old = true',
+            '+local new = true',
+            '*** End Patch',
+          }, '\n'),
+        },
+      }),
+      assistant(),
+      true
+    )
+
+    local highlights = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group then
+          highlights[mark.hl_group] = true
+        end
+      end
+    end
+    assert.is_true(highlights.OpencodeDiffDelete)
+    assert.is_true(highlights.OpencodeDiffAdd)
+  end)
+
+  it('uses server-generated V2 patch metadata for line numbers', function()
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = '*** Begin Patch\n*** Update File: changed.lua\n@@\n-old\n+new\n*** End Patch',
+        },
+        changes = {
+          {
+            path = 'changed.lua',
+            diff = '@@ -41,1 +41,1 @@\n-old\n+new',
+          },
+        },
+      }),
+      assistant(),
+      true
+    )
+
+    local gutters = {}
+    for _, line_marks in pairs(output.extmarks) do
+      for _, mark in ipairs(line_marks) do
+        if mark.hl_group == 'OpencodeDiffAdd' or mark.hl_group == 'OpencodeDiffDelete' then
+          gutters[mark.hl_group] = mark.virt_text[1][1]
+        end
+      end
+    end
+    assert.equals('41', gutters.OpencodeDiffAdd)
+    assert.equals('41', gutters.OpencodeDiffDelete)
+    assert.same({
+      kind = 'file',
+      path = 'changed.lua',
+      range = { line = 1, start_col = 0, end_col = #output.lines[1] },
+    }, output.targets[1])
+    assert.same({
+      kind = 'diff',
+      path = 'changed.lua',
+      line = 41,
+      range = { line = 6, start_col = 0, end_col = #output.lines[6] },
+    }, output.targets[2])
+  end)
+
+  it('renders loaded skill name for skill tool calls', function()
+    local message = assistant()
+    local part = tool('skill', {
+      input = { name = 'context7-cli' },
+      time = { started = 1, completed = 2 },
+    })
 
     local output = formatter.format_part(part, message, true)
 
@@ -315,33 +513,14 @@ describe('formatter', function()
   end)
 
   it('renders directory reads with trailing slash', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
+    local message = assistant()
+    local part = tool('read', {
+      target = { path = '/tmp/project' },
+      result = {
+        { kind = 'text', text = '<path>/tmp/project</path>\n<type>directory</type>\n<entries>\nfoo\n</entries>' },
       },
-      parts = {},
-    }
-
-    local part = {
-      id = 'prt_1',
-      type = 'tool',
-      tool = 'read',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          filePath = '/tmp/project',
-        },
-        output = '<path>/tmp/project</path>\n<type>directory</type>\n<entries>\nfoo\n</entries>',
-        time = {
-          start = 1,
-          ['end'] = 2,
-        },
-      },
-    }
+      time = { started = 1, completed = 2 },
+    })
 
     local output = formatter.format_part(part, message, true)
     assert.are.equal('**  read** `/tmp/project/` 1s', output.lines[1])
@@ -408,28 +587,13 @@ describe('formatter', function()
       error('assistant render must consume reference facts, not parse assistant text')
     end
 
-    local original_messages = state.messages
-    state.renderer.set_messages(setmetatable({}, {
-      __pairs = function()
-        error('assistant render must not scan state.messages')
-      end,
-      __ipairs = function()
-        error('assistant render must not scan state.messages')
-      end,
-    }))
-
     local text = 'See `src/foo.lua` now'
     local part = {
       id = 'part_render_boundary',
-      type = 'text',
+      kind = 'text',
       text = text,
-      messageID = 'msg_render_boundary',
-      sessionID = 'ses_1',
     }
-    local message = {
-      info = { id = 'msg_render_boundary', role = 'assistant', sessionID = 'ses_1' },
-      parts = { part },
-    }
+    local message = assistant({ part }, { id = 'msg_render_boundary' })
 
     local ok, err = pcall(function()
       local output = formatter.format_part(part, message, true, {
@@ -443,7 +607,6 @@ describe('formatter', function()
     end)
 
     reference_parser.parse_references = original_parse_references
-    state.renderer.set_messages(original_messages)
 
     assert.is_true(ok, err)
   end)
@@ -454,15 +617,10 @@ describe('formatter', function()
     local raw_text = '  See `src/foo.lua:12:3` now  '
     local part = {
       id = 'part_trimmed_ref',
-      type = 'text',
+      kind = 'text',
       text = raw_text,
-      messageID = 'msg_trimmed_ref',
-      sessionID = 'ses_1',
     }
-    local message = {
-      info = { id = 'msg_trimmed_ref', role = 'assistant', sessionID = 'ses_1' },
-      parts = { part },
-    }
+    local message = assistant({ part }, { id = 'msg_trimmed_ref' })
 
     reference_facts.clear()
     reference_facts.rebuild('ses_1', { message })
@@ -496,8 +654,8 @@ describe('formatter', function()
   it('leaves unavailable file mentions inert', function()
     local text = 'See `src/missing.lua` now'
     local ref_start, ref_end = text:find('`src/missing.lua`', 1, true)
-    local part = { id = 'part_missing_ref', text = text }
-    local message = { info = { id = 'msg_missing_ref' }, parts = { part } }
+    local part = { id = 'part_missing_ref', kind = 'text', text = text }
+    local message = assistant({ part }, { id = 'msg_missing_ref' })
 
     local output = Output.new()
     formatter._format_assistant_message(output, text, part, message, {
@@ -533,8 +691,10 @@ describe('formatter', function()
 
     local output = Output.new()
     formatter._format_assistant_message(output, 'foo', { id = 'part_symbol_only' }, {
-      info = { id = 'msg_symbol_only', role = 'assistant', sessionID = 'ses_1' },
-      parts = {},
+      id = 'msg_symbol_only',
+      kind = 'assistant',
+      session_id = 'ses_1',
+      content = {},
     }, {
       interactive = true,
       current_files = { vim.fn.getcwd() .. '/src/foo.lua' },
@@ -610,23 +770,16 @@ describe('formatter', function()
   end)
 
   it('uses part identity to select assistant text reference facts', function()
-    local message = {
-      info = { id = 'msg_same', role = 'assistant', sessionID = 'ses_1' },
-      parts = {},
-    }
+    local message = assistant({}, { id = 'msg_same' })
     local part_a = {
       id = 'part_a',
-      type = 'text',
+      kind = 'text',
       text = 'See `a.lua`',
-      messageID = 'msg_same',
-      sessionID = 'ses_1',
     }
     local part_b = {
       id = 'part_b',
-      type = 'text',
+      kind = 'text',
       text = 'See `b.lua`',
-      messageID = 'msg_same',
-      sessionID = 'ses_1',
     }
     local a_start, a_end = part_a.text:find('`a.lua`', 1, true)
     local b_start, b_end = part_b.text:find('`b.lua`', 1, true)
@@ -661,8 +814,8 @@ describe('formatter', function()
     local original_symbol_snapshot = package.loaded['opencode.ui.symbol_snapshot']
     local text = 'See `src/main.lua` foo: call this'
     local ref_start, ref_end = text:find('`src/main.lua`', 1, true)
-    local part = { id = 'part_colon', text = text }
-    local message = { info = { id = 'msg_colon' }, parts = { part } }
+    local part = { id = 'part_colon', kind = 'text', text = text }
+    local message = assistant({ part }, { id = 'msg_colon' })
     package.loaded['opencode.ui.symbol_snapshot'] = {
       targets_for_token = function(_, token, candidate_files)
         assert.are.same({ vim.fn.getcwd() .. '/src/main.lua' }, candidate_files)
@@ -698,37 +851,13 @@ describe('formatter', function()
   end)
 
   it('formats grep tools when streamed input contains vim.NIL placeholders', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
-
-    local part = {
+    local message = assistant()
+    local part = tool('grep', {
       id = 'prt_grep_1',
-      type = 'tool',
-      tool = 'grep',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          path = vim.NIL,
-          include = '*.lua',
-          pattern = 'eventignore',
-        },
-        metadata = {
-          matches = 3,
-        },
-        time = {
-          start = 1,
-          ['end'] = 2,
-        },
-      },
-    }
+      input = { path = vim.NIL, include = '*.lua', pattern = 'eventignore' },
+      search = { count = 3 },
+      time = { started = 1, completed = 2 },
+    })
 
     local output = formatter.format_part(part, message, true)
 
@@ -752,21 +881,12 @@ describe('formatter', function()
       return {}
     end
 
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
+    local message = assistant()
 
     local part = {
       id = 'prt_patch_1',
-      type = 'patch',
+      kind = 'patch',
       hash = 'abcdef123456',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
     }
 
     local output = formatter.format_part(part, message, true)
@@ -781,20 +901,6 @@ describe('formatter', function()
     )
   end)
 
-  it('falls back to current mode for assistant messages without a stamped mode', function()
-    state.model.set_mode('build')
-    local output = formatter.format_message_header({
-      info = {
-        id = 'msg_current',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    })
-
-    assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
-  end)
-
   it('renders minimal same-mode assistant headers with only right-aligned time', function()
     config.setup({
       ui = {
@@ -804,26 +910,10 @@ describe('formatter', function()
       },
     })
 
-    local output = formatter.format_message_header({
-      info = {
-        id = 'msg_current',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-        time = {
-          created = 1,
-        },
-      },
-      parts = {},
-    }, {
-      info = {
-        id = 'msg_prev',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-      },
-      parts = {},
-    })
+    local output = formatter.format_message_header(
+      assistant({}, { id = 'msg_current', agent = 'build', time = { created = 1 } }),
+      assistant({}, { id = 'msg_prev', agent = 'build' })
+    )
 
     assert.are.same({ '', '' }, output.lines)
     assert.is_truthy(output.extmarks[0])
@@ -840,26 +930,10 @@ describe('formatter', function()
       },
     })
 
-    local output = formatter.format_message_header({
-      info = {
-        id = 'msg_current',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-        time = {
-          created = 1,
-        },
-      },
-      parts = {},
-    }, {
-      info = {
-        id = 'msg_prev',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-      },
-      parts = {},
-    })
+    local output = formatter.format_message_header(
+      assistant({}, { id = 'msg_current', agent = 'build', time = { created = 1 } }),
+      assistant({}, { id = 'msg_prev', agent = 'build' })
+    )
 
     assert.are.same({}, output.lines)
     assert.is_nil(output.extmarks[0])
@@ -874,41 +948,20 @@ describe('formatter', function()
       },
     })
 
-    local previous_message = {
-      info = {
-        id = 'msg_prev',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-      },
-      parts = {},
-    }
-
-    local current_message = {
-      info = {
-        id = 'msg_current',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-      },
-      parts = {},
-    }
+    local previous_message = assistant({}, { id = 'msg_prev', agent = 'build' })
+    local current_message = assistant({}, { id = 'msg_current', agent = 'build' })
 
     local previous_part = formatter.format_part({
       id = 'prt_prev',
-      type = 'text',
+      kind = 'text',
       text = 'First reply',
-      messageID = 'msg_prev',
-      sessionID = 'ses_1',
     }, previous_message, true)
 
     local header = formatter.format_message_header(current_message, previous_message)
     local current_part = formatter.format_part({
       id = 'prt_current',
-      type = 'text',
+      kind = 'text',
       text = 'Second reply',
-      messageID = 'msg_current',
-      sessionID = 'ses_1',
     }, current_message, true)
 
     local combined_lines = {}
@@ -928,77 +981,27 @@ describe('formatter', function()
       },
     })
 
-    local output = formatter.format_message_header({
-      info = {
-        id = 'msg_current',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'build',
-        time = {
-          created = 1,
-        },
-      },
-      parts = {},
-    }, {
-      info = {
-        id = 'msg_prev',
-        role = 'assistant',
-        sessionID = 'ses_1',
-        mode = 'plan',
-      },
-      parts = {},
-    })
+    local output = formatter.format_message_header(
+      assistant({}, { id = 'msg_current', agent = 'build', time = { created = 1 } }),
+      assistant({}, { id = 'msg_prev', agent = 'plan' })
+    )
 
     assert.are.same({ '----', '', '' }, output.lines)
     assert.are.equal('BUILD', output.extmarks[1][1].virt_text[3][1])
   end)
 
   it('anchors task child-session action to the rendered task block', function()
-    local message = {
-      info = {
-        id = 'msg_1',
-        role = 'assistant',
-        sessionID = 'ses_1',
-      },
-      parts = {},
-    }
-
-    local part = {
+    local message = assistant()
+    local part = tool('task', {
       id = 'prt_task_1',
-      type = 'tool',
-      tool = 'task',
-      messageID = 'msg_1',
-      sessionID = 'ses_1',
-      state = {
-        status = 'completed',
-        input = {
-          description = 'review changes',
-          subagent_type = 'explore',
-        },
-        metadata = {
-          sessionId = 'ses_child',
-        },
-        time = {
-          start = 1,
-          ['end'] = 2,
-        },
-      },
-    }
+      description = 'review changes',
+      input = { subagent_type = 'explore' },
+      child_session = { id = 'ses_child' },
+      time = { started = 1, completed = 2 },
+    })
 
     local child_parts = {
-      {
-        id = 'prt_child_1',
-        type = 'tool',
-        tool = 'read',
-        messageID = 'msg_child_1',
-        sessionID = 'ses_child',
-        state = {
-          status = 'completed',
-          input = {
-            filePath = '/tmp/project',
-          },
-        },
-      },
+      tool('read', { id = 'prt_child_1', target = { path = '/tmp/project' } }),
     }
 
     local output = formatter.format_part(part, message, true, {
@@ -1028,16 +1031,16 @@ describe('formatter', function()
 
     local output = formatter.format_part({
       id = 'prt_task_tab',
-      type = 'tool',
-      tool = 'task',
-      state = {
-        status = 'completed',
-        input = { description = 'inspect changes' },
-        metadata = { sessionId = 'ses_child_tab' },
-      },
+      kind = 'tool',
+      name = 'task',
+      state = 'completed',
+      description = 'inspect changes',
+      child_session = { id = 'ses_child_tab' },
     }, {
-      info = { id = 'msg_task_tab', role = 'assistant', sessionID = 'ses_parent' },
-      parts = {},
+      id = 'msg_task_tab',
+      session_id = 'ses_parent',
+      kind = 'assistant',
+      content = {},
     }, true, { interactive = true })
 
     config.values.ui.output.actions.open_in_new_tab = original
@@ -1047,39 +1050,20 @@ describe('formatter', function()
 
   describe('fold_exclude', function()
     local function make_bash_part()
-      return {
+      return tool('bash', {
         id = 'prt_bash',
-        type = 'tool',
-        tool = 'bash',
-        messageID = 'msg_1',
-        sessionID = 'ses_1',
-        state = {
-          status = 'completed',
-          input = {
-            command = 'echo hello',
-          },
-          metadata = {
-            output = 'hello\nworld\nfoo\nbar\nbaz\nqux',
-          },
-          time = { start = 1, ['end'] = 2 },
-        },
-      }
+        command = 'echo hello',
+        result = { { kind = 'text', text = 'hello\nworld\nfoo\nbar\nbaz\nqux' } },
+        time = { started = 1, completed = 2 },
+      })
     end
 
     local function make_mcp_part()
-      return {
+      return tool('sequential-thinking_sequentialthinking', {
         id = 'prt_mcp',
-        type = 'tool',
-        tool = 'sequential-thinking_sequentialthinking',
-        messageID = 'msg_1',
-        sessionID = 'ses_1',
-        state = {
-          status = 'completed',
-          input = { thought = 'thinking...' },
-          metadata = {},
-          time = { start = 1, ['end'] = 2 },
-        },
-      }
+        input = { thought = 'thinking...' },
+        time = { started = 1, completed = 2 },
+      })
     end
 
     it('removes folds for built-in tools matched by string', function()
@@ -1095,7 +1079,7 @@ describe('formatter', function()
         },
       })
 
-      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local message = assistant()
       local output = formatter.format_part(make_bash_part(), message, true)
       assert.are.same({}, output.fold_ranges)
     end)
@@ -1113,7 +1097,7 @@ describe('formatter', function()
         },
       })
 
-      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local message = assistant()
       local output = formatter.format_part(make_mcp_part(), message, true)
       assert.are.same({}, output.fold_ranges)
       -- Verify thought content is rendered
@@ -1140,7 +1124,7 @@ describe('formatter', function()
         },
       })
 
-      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local message = assistant()
       local output = formatter.format_part(make_bash_part(), message, true)
       assert.is_true(#output.fold_ranges > 0)
     end)
@@ -1158,15 +1142,15 @@ describe('formatter', function()
         },
       })
 
-      local message = { info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' }, parts = {} }
+      local message = assistant()
       local output = formatter.format_part(make_bash_part(), message, true)
       assert.is_true(#output.fold_ranges > 0)
     end)
 
     describe('message actions', function()
       it('does not assign R/C/F to an individual user text part', function()
-        local message = { info = { id = 'msg-user', role = 'user' }, parts = {} }
-        local output = formatter.format_part({ type = 'text', text = 'first\nsecond' }, message, true, {})
+        local message = { id = 'msg-user', kind = 'user', session_id = 'ses_1', content = {} }
+        local output = formatter.format_part({ kind = 'text', text = 'first\nsecond' }, message, true, {})
 
         assert.same({ 'first', 'second', '' }, output.lines)
         assert.same({}, output.actions)

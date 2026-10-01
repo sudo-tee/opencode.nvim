@@ -1,0 +1,37 @@
+{
+  "serverVersion": "2.0.1",
+  "observedAt": "2026-09-14",
+  "contracts": [
+    {"method":"GET","path":"/api/project","query":"location.directory","status":200,"body":"direct-array"},
+    {"method":"GET","path":"/api/project/current","query":"location.directory","status":200,"body":"direct-object"},
+    {"method":"GET","path":"/api/config","query":"location.directory","status":200,"body":"direct-array"},
+    {"method":"GET","path":"/api/provider","query":"location.directory","status":200,"body":"location-data"},
+    {"method":"GET","path":"/api/location","query":"location.directory","status":200,"body":"direct-object"},
+    {"method":"GET","path":"/api/session","query":"directory,cursor","status":200,"body":"data-cursor"},
+    {"method":"POST","path":"/api/session","bodyInput":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/session/{sessionID}","query":"none","status":200,"body":"data"},
+    {"method":"DELETE","path":"/api/session/{sessionID}","query":"none","status":204,"body":"empty"},
+    {"method":"POST","path":"/api/session/{sessionID}/rename","bodyInput":"title","status":204,"body":"empty"},
+    {"method":"POST","path":"/api/session/{sessionID}/agent","bodyInput":"agent","status":204,"body":"empty"},
+    {"method":"POST","path":"/api/session/{sessionID}/model","bodyInput":"model.id,model.providerID,model.variant?","status":204,"body":"empty"},
+    {"method":"POST","path":"/api/session/{sessionID}/interrupt","query":"none","status":200,"body":"interrupted-boolean"},
+    {"method":"POST","path":"/api/session/{sessionID}/prompt","bodyInput":"text,files?,agents?,skills?,metadata?,delivery?,resume?,id?","status":200,"body":"data-admission"},
+    {"method":"GET","path":"/api/session/{sessionID}/message","query":"limit,cursor","status":200,"body":"data-cursor"},
+    {"method":"GET","path":"/api/agent","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/model","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/model/default","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/command","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/skill","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/mcp","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/fs/find","query":"query,type,location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/fs/list","query":"path,location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/fs/read","query":"path,location.directory","status":200,"body":"raw-bytes"},
+    {"method":"GET","path":"/api/vcs/status","query":"location.directory","status":200,"body":"data"},
+    {"method":"GET","path":"/api/event","query":"none","status":200,"body":"sse-data-lines"}
+  ],
+  "negativeObservations": [
+    {"path":"/api/session","query":"directory=/tmp/nonexistent","result":"empty-data"},
+    {"path":"/api/session","query":"location.directory=/tmp/nonexistent","result":"workspace-data-query-ignored"},
+    {"path":"/global/health","status":200,"body":"html-not-health"}
+  ]
+}

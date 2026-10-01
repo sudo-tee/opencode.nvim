@@ -1,5 +1,4 @@
 -- Default and user-provided settings for opencode.nvim
-
 ---@type OpencodeConfigModule
 ---@diagnostic disable-next-line: missing-fields
 local M = {}
@@ -19,6 +18,7 @@ M.defaults = {
     port = nil,
     timeout = 5,
     retry_delay = 2000,
+    health_check_ttl_ms = 5000,
     spawn_command = nil,
     kill_command = nil,
     auto_kill = true,
@@ -26,9 +26,54 @@ M.defaults = {
     reverse_path_map = nil,
     username = nil,
     password = nil,
+    password_file = nil,
   },
   -- stylua: ignore
   keymap = {
+    session_diff = {
+      list = {
+        ['<CR>'] = { 'activate', desc = 'Open file or toggle folder' },
+        ['r'] = { 'toggle_range', desc = 'Choose message range', nowait = true },
+        ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
+        ['q'] = { 'close', desc = 'Close diff', nowait = true },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      messages = {
+        ['<CR>'] = { 'activate', desc = 'Review selected range' },
+        ['r'] = { 'toggle_range', desc = 'Return to files' },
+        ['f'] = { 'mark_from', desc = 'Mark range start' },
+        ['t'] = { 'mark_to', desc = 'Mark range end' },
+        ['K'] = { 'show_message_preview', desc = 'Preview message' },
+        ['<Esc>'] = { 'toggle_range', desc = 'Return to files' },
+        ['q'] = { 'toggle_range', desc = 'Return to files', nowait = true },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      preview = {
+        ['q'] = { 'close', desc = 'Close diff', nowait = true },
+        ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+        ['c'] = { 'add_comment', mode = { 'n', 'x' },  desc = 'Add or edit review comment', nowait = true  },
+        ['dc'] = { 'delete_comment', desc = 'Delete review comment' },
+        [']r'] = { 'next_comment', desc = 'Next review comment' },
+        ['[r'] = { 'prev_comment', desc = 'Previous review comment' },
+      },
+      comment = {
+        ['<CR>'] = { 'submit_comment', mode = 'n', desc = 'Save review comment' },
+        ['<C-s>'] = { 'submit_comment', mode = { 'n', 'i' }, desc = 'Save review comment' },
+        ['q'] = { 'cancel_comment', desc = 'Cancel review comment', nowait = true },
+        ['<Esc>'] = { 'cancel_comment', desc = 'Cancel review comment' },
+      },
+      message_preview = {
+        ['q'] = { 'hide_message_preview', desc = 'Close message preview', nowait = true },
+        ['<Esc>'] = { 'hide_message_preview', desc = 'Close message preview' },
+        ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
+      },
+      help = {
+        ['g?'] = { 'toggle_help' },
+        ['q'] = { 'toggle_help', nowait = true },
+        ['<Esc>'] = { 'toggle_help' },
+      },
+    },
     editor = {
       ['<leader>og'] =  { 'toggle',                                            desc = 'Toggle Opencode window' },
       ['<leader>oi'] =  { 'open_input',                                        desc = 'Open input window' },
@@ -78,9 +123,11 @@ M.defaults = {
       ['<leader>ott'] = { 'toggle_tool_output',                                desc = 'Toggle tool output' },
       ['<leader>otm'] = { 'toggle_max_messages',                               desc = 'Toggle max messages' },
       ['<leader>o/'] =  { 'quick_chat',                   mode = { 'n', 'x' }, desc = 'Quick chat with current context' },
+      ['<leader>oDu'] = { 'copy_server_url',                                   desc = 'Copy server url' },
 
     },
     output_window = {
+      ['gg'] =         { 'first_message',                                     desc = 'Load history and go to the first message' },
       ['<esc>'] =       { 'close',                                             desc = 'Close Opencode windows' },
       ['<C-c>'] =       { 'cancel',                                            desc = 'Cancel running request' },
       [']]']   =        { 'next_message',                                      desc = 'Go to next message' },
@@ -100,7 +147,12 @@ M.defaults = {
       ['<leader>oB'] =  { 'navigate_session_tree', { 'sibling', 'picker' },   desc = 'Select sibling session' },
       ['<leader>oD'] =  { 'debug_message',                                     desc = 'Open raw message debug view' },
       ['<leader>oO'] =  { 'debug_output',                                      desc = 'Open raw output debug view' },
-      ['<leader>ods'] = { 'debug_session',                                     desc = 'Open raw session debug view' },
+      ['<leader>oDs'] = { 'debug_session',                                     desc = 'Open raw session debug view' },
+    },
+    tab_strip_window = {
+      ['<LeftMouse>'] =   { 'select_session_tab_target', { 'mouse' },  nowait = true, desc = 'Select tab under mouse' },
+      ['<2-LeftMouse>'] = { 'select_session_tab_target', { 'mouse' },  nowait = true, desc = 'Select tab under mouse' },
+      ['<CR>'] =          { 'select_session_tab_target', { 'cursor' }, nowait = true, desc = 'Select tab under cursor' },
     },
     input_window = {
       ['<cr>']   =      { 'submit_input_prompt',          mode = { 'n' },      desc = 'Submit prompt'                                            },
@@ -124,7 +176,7 @@ M.defaults = {
       ['<leader>oB'] =  { 'navigate_session_tree', { 'sibling', 'picker' },   desc = 'Select sibling session' },
       ['<leader>oD'] =  { 'debug_message',                                     desc = 'Open raw message debug view'                              },
       ['<leader>oO'] =  { 'debug_output',                                      desc = 'Open raw output debug view'                               },
-      ['<leader>ods'] = { 'debug_session',                                     desc = 'Open raw session debug view'                              },
+      ['<leader>oDs'] = { 'debug_session',                                     desc = 'Open raw session debug view'                              },
     },
     session_picker = {
       rename_session = { '<C-r>',                                              desc = 'Rename selected session' },
@@ -293,7 +345,7 @@ M.defaults = {
       info = false,
       warning = true,
       error = true,
-      only_closest = false, -- If true, only diagnostics for cursor/selection
+      only_closest = true, -- Only diagnostics for cursor/selection; disable to include the whole buffer
     },
     current_file = {
       enabled = true,
@@ -304,6 +356,9 @@ M.defaults = {
       show_full_path = true,
     },
     selection = {
+      enabled = true,
+    },
+    review_comments = {
       enabled = true,
     },
     agents = {
@@ -340,6 +395,7 @@ M.defaults = {
     on_session_loaded = nil,
     on_done_thinking = nil,
     on_permission_requested = nil,
+    on_question_asked = nil,
   },
   quick_chat = {
     default_model = nil,

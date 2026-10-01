@@ -19,10 +19,40 @@ local function get_text_width(win)
   return math.max(1, width - textoff)
 end
 
+---@param buf integer
+---@param win integer
+---@param target_line integer
+---@return integer
+local function get_bottom_aligned_topline(buf, win, target_line)
+  local height = vim.api.nvim_win_get_height(win)
+  local text_width = get_text_width(win)
+
+  return vim.api.nvim_win_call(win, function()
+    local rows = 0
+    local line = target_line
+
+    while line >= 1 and rows < height do
+      local fold_start = vim.fn.foldclosed(line)
+      if fold_start ~= -1 then
+        rows = rows + 1
+        line = fold_start - 1
+      else
+        local text = vim.api.nvim_buf_get_lines(buf, line - 1, line, false)[1] or ''
+        local display_width = math.max(1, vim.fn.strdisplaywidth(text))
+        rows = rows + math.max(1, math.ceil(display_width / text_width))
+        line = line - 1
+      end
+    end
+
+    return math.max(1, line + 1)
+  end)
+end
+
+---@param buf integer
 ---@param win integer
 ---@param line integer
-local function restore_view_with_line_at_bottom(win, line)
-  output_window.restore_view_topline(win, line - vim.api.nvim_win_get_height(win) + 1)
+local function restore_view_with_line_at_bottom(buf, win, line)
+  output_window.restore_view_topline(win, get_bottom_aligned_topline(buf, win, line))
 end
 
 ---@param buf integer
@@ -103,6 +133,7 @@ function M.scroll_win_to_bottom(win, buf)
   end
   local visible_bottom = output_window.get_visible_bottom_line(win)
   vim.api.nvim_win_set_cursor(win, { target_line, #target_text })
+  state.ui.set_cursor_position('output', { target_line, #target_text })
 
   local needs_bottom_align = not visible_bottom or target_line > visible_bottom
   if not needs_bottom_align and window_wraps(win) then
@@ -110,10 +141,16 @@ function M.scroll_win_to_bottom(win, buf)
   end
 
   if needs_bottom_align then
-    restore_view_with_line_at_bottom(win, target_line)
+    restore_view_with_line_at_bottom(buf, win, target_line)
   end
 
   output_window._prev_line_count_by_win[win] = line_count
+  output_window._manual_scroll_by_win[win] = nil
+  output_window._last_visible_top_by_win[win] = output_window.get_visible_top_line(win)
+  output_window._last_skipcol_by_win[win] = vim.api.nvim_win_call(win, function()
+    return vim.fn.winsaveview().skipcol
+  end)
+  output_window._last_cursor_by_win[win] = vim.api.nvim_win_get_cursor(win)
 end
 
 ---@param buf integer|nil
@@ -135,6 +172,9 @@ function M.pre_flush(buf)
     output_window._prev_line_count_by_win[win] = line_count
   end
 
+  -- Navigation autocmds may not have run before a scheduled streaming flush.
+  output_window.on_user_navigation(win)
+
   return {
     win = win,
     follow = output_window.is_at_bottom(win),
@@ -147,7 +187,11 @@ function M.post_flush(snapshot, buf)
   if not snapshot or not snapshot.follow or not buf or not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  if not vim.api.nvim_win_is_valid(snapshot.win) or vim.api.nvim_win_get_buf(snapshot.win) ~= buf then
+  if
+    not vim.api.nvim_win_is_valid(snapshot.win)
+    or vim.api.nvim_win_get_buf(snapshot.win) ~= buf
+    or output_window._manual_scroll_by_win[snapshot.win]
+  then
     return
   end
   M.scroll_win_to_bottom(snapshot.win, buf)

@@ -1,0 +1,13 @@
+{
+  "location": {
+    "directory": "/workspace"
+  },
+  "data": [
+    {
+      "file": "lua/opencode/api_client.lua",
+      "additions": 4,
+      "deletions": 1,
+      "status": "modified"
+    }
+  ]
+}

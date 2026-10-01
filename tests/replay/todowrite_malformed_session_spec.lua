@@ -2,7 +2,7 @@ local helpers = require('tests.helpers')
 local state = require('opencode.state')
 local renderer = require('opencode.ui.renderer')
 local flush = require('opencode.ui.renderer.flush')
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local output_window = require('opencode.ui.output_window')
 
 describe('replay malformed todowrite session fixture', function()
@@ -11,7 +11,7 @@ describe('replay malformed todowrite session fixture', function()
   end)
 
   after_each(function()
-    if ctx.bulk_mode then
+    if contexts.current().bulk_mode then
       flush.end_bulk_mode()
     end
   end)
@@ -34,14 +34,16 @@ describe('replay malformed todowrite session fixture', function()
     end
     assert.is_true(malformed_found)
 
-    state.session.set_active({ id = session_data[1].info.sessionID })
+    local session = { id = session_data[1].info.sessionID, location = { directory = helpers.MOCK_CWD } }
+    state.session.set_active(session)
+    local entries = helpers.map_v1_messages(session_data, session)
 
     local ok, err = pcall(function()
-      renderer._render_full_session_data(session_data)
+      renderer._render_full_session_data(entries)
     end)
 
     assert.is_true(ok, tostring(err))
-    assert.is_false(ctx.bulk_mode)
+    assert.is_false(contexts.current().bulk_mode)
 
     local actual = helpers.capture_output(state.windows and state.windows.output_buf, output_window.namespace)
     assert.is_true(#(actual.lines or {}) > 0)

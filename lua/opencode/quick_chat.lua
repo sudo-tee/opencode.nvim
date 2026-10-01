@@ -2,7 +2,6 @@ local context = require('opencode.context')
 local state = require('opencode.state')
 local config = require('opencode.config')
 local util = require('opencode.util')
-local session = require('opencode.session')
 local Promise = require('opencode.promise')
 local CursorSpinner = require('opencode.quick_chat.spinner')
 local session_runtime = require('opencode.services.session_runtime')
@@ -17,6 +16,11 @@ local M = {}
 ---@field spinner CursorSpinner Spinner instance
 ---@field timestamp integer Timestamp when session started
 ---@field range table|nil Range information
+---@field connection table
+---@field observation table
+---@field session table
+---@field reply_waiter? table
+---@field cancelled? boolean
 
 ---@type table<string, OpencodeQuickChatRunningSession>
 local running_sessions = {}
@@ -24,6 +28,15 @@ local running_sessions = {}
 --- Global keymaps that are active during quick chat sessions
 ---@type table<string, boolean>
 local active_global_keymaps = {}
+
+local function delete_session(session_info)
+  return session_info.connection.operations.delete_session(
+    session_info.connection,
+    session_info.session.id,
+    session_info.session.location,
+    util.apply_path_map
+  )
+end
 
 --- Creates a quick chat session title
 ---@param buf integer Buffer handle
@@ -53,27 +66,34 @@ end
 --- Cancels all running quick chat sessions
 local function cancel_all_quick_chat_sessions()
   for session_id, session_info in pairs(running_sessions) do
-    if state.api_client then
-      local ok, result = pcall(function()
-        return state.api_client:abort_session(session_id):wait()
-      end)
+    session_info.cancelled = true
 
-      if not ok then
-        vim.notify('Quick chat abort error: ' .. vim.inspect(result), vim.log.levels.WARN)
-      end
+    if session_info.reply_waiter then
+      session_info.reply_waiter.stop('Quick chat cancelled')
     end
 
-    if session_info and session_info.spinner then
+    if session_info.spinner then
       session_info.spinner:stop()
     end
 
-    if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
-      state.api_client:delete_session(session_id):catch(function(err)
-        vim.notify('Error deleting quickchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
-      end)
-    end
-
     running_sessions[session_id] = nil
+
+    local ok, request = pcall(function()
+      return session_info.observation:interrupt()
+    end)
+    if not ok then
+      vim.notify('Quick chat abort error: ' .. vim.inspect(request), vim.log.levels.WARN)
+    else
+      request
+        :and_then(function()
+          if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
+            return delete_session(session_info)
+          end
+        end)
+        :catch(function(err)
+          vim.notify('Quick chat abort error: ' .. vim.inspect(err), vim.log.levels.WARN)
+        end)
+    end
   end
 
   -- Teardown keymaps once at the end
@@ -105,12 +125,27 @@ end
 ---@param session_id string Session ID
 ---@param message string|nil Optional message to display
 local function cleanup_session(session_info, session_id, message)
+  if not session_info then
+    running_sessions[session_id] = nil
+    if not next(running_sessions) then
+      teardown_global_keymaps()
+    end
+    if message then
+      vim.notify(message, vim.log.levels.WARN)
+    end
+    return
+  end
+
+  if session_info and session_info.reply_waiter then
+    session_info.reply_waiter.stop()
+  end
+
   if session_info and session_info.spinner then
     session_info.spinner:stop()
   end
 
-  if config.debug.quick_chat and not config.debug.quick_chat.keep_session then
-    state.api_client:delete_session(session_id):catch(function(err)
+  if not session_info.cancelled and config.debug.quick_chat and not config.debug.quick_chat.keep_session then
+    delete_session(session_info):catch(function(err)
       vim.notify('Error deleting quickchat session: ' .. vim.inspect(err), vim.log.levels.WARN)
     end)
   end
@@ -127,8 +162,7 @@ local function cleanup_session(session_info, session_id, message)
   end
 end
 
---- Extracts text from message parts
----@param message OpencodeMessage Message object
+---@param message table
 ---@return string response_text
 local function extract_response_text(message)
   if not message then
@@ -136,8 +170,8 @@ local function extract_response_text(message)
   end
 
   local response_text = ''
-  for _, part in ipairs(message.parts or {}) do
-    if part.type == 'text' and part.text then
+  for _, part in ipairs(message.content or {}) do
+    if part.kind == 'text' and part.text then
       response_text = response_text .. part.text
     end
   end
@@ -148,6 +182,22 @@ local function extract_response_text(message)
   response_text = response_text:gsub('`([^`\n]*)`', '%1') -- Remove inline code backticks but keep content
 
   return response_text
+end
+
+---@param message table|nil
+---@return boolean
+local function is_safe_reply(message)
+  if not message or message.kind ~= 'assistant' or message.finish ~= 'stop' or message.error then
+    return false
+  end
+
+  for _, part in ipairs(message.content or {}) do
+    if part.kind == 'tool' and part.state ~= 'completed' then
+      return false
+    end
+  end
+
+  return true
 end
 
 --- Applies raw code response to buffer (simple replacement)
@@ -176,19 +226,16 @@ local function apply_raw_code_response(buf, response_text, row, range)
   return true
 end
 
---- Processes response from quickchat session
----@param session_info table Session tracking info
----@param messages OpencodeMessage[] Session messages
+---@param session_info table
+---@param message table
 ---@param range table|nil Range information
 ---@return boolean success Whether the response was processed successfully
-local function process_response(session_info, messages, range)
-  local response_message = messages[#messages]
-  if #messages < 2 and (not response_message or response_message.info.role ~= 'assistant') then
+local function process_response(session_info, message, range)
+  if not is_safe_reply(message) then
     return false
   end
-  ---@cast response_message OpencodeMessage
 
-  local response_text = extract_response_text(response_message) or ''
+  local response_text = extract_response_text(message) or ''
   if response_text == '' then
     vim.notify('Quick chat: Received empty response from assistant', vim.log.levels.WARN)
     return false
@@ -204,32 +251,6 @@ local function process_response(session_info, messages, range)
 
   return success
 end
-
---- Hook function called when a session is done thinking (no more pending messages)
----@param active_session Session The session object
-local on_done = Promise.async(function(active_session)
-  if not (active_session.title and vim.startswith(active_session.title, '[QuickChat]')) then
-    return
-  end
-
-  local running_session = running_sessions[active_session.id]
-  if not running_session then
-    return
-  end
-
-  local messages = session.get_messages(active_session):await() --[[@as OpencodeMessage[] ]]
-  if not messages then
-    cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
-    return
-  end
-
-  local success = process_response(running_session, messages, running_session.range)
-  if success then
-    cleanup_session(running_session, active_session.id)
-  else
-    cleanup_session(running_session, active_session.id, 'Failed to update file with quick chat response')
-  end
-end)
 
 ---@param message string|nil The message to validate
 ---@return boolean valid
@@ -297,13 +318,13 @@ local function generate_raw_code_instructions(context_config)
   }
 end
 
---- Creates message parameters for quick chat
+--- Creates protocol-independent submission parameters for quick chat
 ---@param message string The user message
 ---@param buf integer Buffer handle
 ---@param range table|nil Range information
 ---@param context_config OpencodeContextConfig Context configuration
 ---@param options table Options including model and agent
----@return table params Message parameters
+---@return table params Submission parameters
 local create_message = Promise.async(function(message, buf, range, context_config, options)
   local quick_chat_config = config.quick_chat or {}
 
@@ -316,12 +337,12 @@ local create_message = Promise.async(function(message, buf, range, context_confi
 
   local instructions = quick_chat_config.instructions or generate_raw_code_instructions(context_config)
 
-  local parts = {
-    { type = 'text', text = table.concat(instructions, '\n') },
-    { type = 'text', text = result.text },
+  local params = {
+    text = table.concat(instructions, '\n') .. '\n' .. result.text,
+    context = {},
+    files = {},
+    agents = {},
   }
-
-  local params = { parts = parts }
 
   local current_model = agent_model.initialize_current_model():await()
   local target_model = options.model or quick_chat_config.default_model or current_model
@@ -332,7 +353,10 @@ local create_message = Promise.async(function(message, buf, range, context_confi
     end
   end
 
-  local target_agent = options.agent or quick_chat_config.default_agent or state.current_mode or config.default_mode
+  local target_agent = options.agent or quick_chat_config.default_agent
+  if not target_agent and agent_model.ensure_current_mode():await() then
+    target_agent = state.current_mode
+  end
   if target_agent then
     params.agent = target_agent
   end
@@ -369,40 +393,61 @@ M.quick_chat = Promise.async(function(message, options, range)
   end
 
   local title = create_session_title(buf)
-  local quick_chat_session = session_runtime.create_new_session(title):await()
-  if not quick_chat_session then
-    spinner:stop()
-    return Promise.new():reject('Failed to create quickchat session')
-  end
-
-  if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
-    state.session.set_active(quick_chat_session)
-  end
-
-  running_sessions[quick_chat_session.id] = {
-    buf = buf,
-    row = row,
-    col = col,
-    spinner = spinner,
-    timestamp = vim.uv.now(),
-    range = range,
-  }
-
-  -- Set up global keymaps for quick chat
-  setup_global_keymaps()
-
-  local context_config = vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
-  local params = create_message(message, buf, range, context_config, options):await()
-
+  local quick_chat_session_id
+  local quick_chat_session_info
   local success, err = pcall(function()
-    state.api_client:create_message(quick_chat_session.id, params):await()
-    on_done(quick_chat_session):await()
+    local detached = session_runtime.create_detached_session(title):await()
+    local quick_chat_session = detached.session
+    quick_chat_session_id = quick_chat_session.id
+
+    if config.debug.quick_chat and config.debug.quick_chat.set_active_session then
+      state.session.set_active(quick_chat_session)
+    end
+
+    quick_chat_session_info = {
+      buf = buf,
+      row = row,
+      col = col,
+      spinner = spinner,
+      timestamp = vim.uv.now(),
+      range = range,
+      connection = detached.connection,
+      observation = detached.observation,
+      session = quick_chat_session,
+    }
+    running_sessions[quick_chat_session.id] = quick_chat_session_info
+
+    local observation = detached.observation
+
+    setup_global_keymaps()
+
+    local context_config =
+      vim.tbl_deep_extend('force', create_context_config(range ~= nil), options.context_config or {})
+    local params = create_message(message, buf, range, context_config, options):await()
+    local request = observation:request_reply(params)
+    quick_chat_session_info.reply_waiter = request
+    local response = request.promise:await()
+    if not process_response(running_sessions[quick_chat_session.id], response, range) then
+      error('Quick chat did not receive a safe reply for its input')
+    end
+    cleanup_session(running_sessions[quick_chat_session.id], quick_chat_session.id)
   end)
 
   if not success then
-    spinner:stop()
-    running_sessions[quick_chat_session.id] = nil
-    vim.notify('Error in quick chat: ' .. vim.inspect(err), vim.log.levels.ERROR)
+    local session_info = quick_chat_session_id and running_sessions[quick_chat_session_id]
+    local cancelled = (session_info or quick_chat_session_info) and (session_info or quick_chat_session_info).cancelled
+    local error_message = not cancelled and ('Error in quick chat: ' .. vim.inspect(err)) or nil
+    if session_info then
+      cleanup_session(session_info, quick_chat_session_id, error_message)
+    else
+      spinner:stop()
+      if not next(running_sessions) then
+        teardown_global_keymaps()
+      end
+      if not cancelled then
+        vim.notify(error_message, vim.log.levels.WARN)
+      end
+    end
   end
 end)
 
@@ -416,6 +461,9 @@ function M.setup()
       local buf = ev.buf
       for session_id, session_info in pairs(running_sessions) do
         if session_info.buf == buf then
+          if session_info.reply_waiter then
+            session_info.reply_waiter.stop()
+          end
           ---@diagnostic disable-next-line: undefined-field
           if session_info.spinner and session_info.spinner.stop then
             ---@diagnostic disable-next-line: undefined-field
@@ -431,6 +479,9 @@ function M.setup()
     group = augroup,
     callback = function()
       for _session_id, session_info in pairs(running_sessions) do
+        if session_info.reply_waiter then
+          session_info.reply_waiter.stop()
+        end
         ---@diagnostic disable-next-line: undefined-field
         if session_info.spinner and session_info.spinner.stop then
           ---@diagnostic disable-next-line: undefined-field

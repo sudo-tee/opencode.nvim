@@ -1,0 +1,72 @@
+---@alias OpencodeV1PathMap fun(path: string): string
+
+---@alias OpencodeV1LocationTableOperation fun(connection: OpencodeV1Connection, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+
+---@class OpencodeV1Operations
+---@field get_current_project OpencodeV1LocationTableOperation
+---@field get_config OpencodeV1LocationTableOperation
+---@field list_providers OpencodeV1LocationTableOperation
+---@field get_model_catalog OpencodeV1LocationTableOperation
+---@field list_primary_agents fun(connection: OpencodeV1Connection, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<string[]>
+---@field list_subagents fun(connection: OpencodeV1Connection, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<string[]>
+---@field get_user_commands OpencodeV1LocationTableOperation
+---@field list_sessions fun(connection: OpencodeV1Connection, location: OpencodeLocation, limit?: integer, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table[]>
+---@field list_sessions_project OpencodeV1LocationTableOperation
+---@field list_session_status OpencodeV1LocationTableOperation
+---@field list_sessions_global fun(connection: OpencodeV1Connection, reverse_path_map?: OpencodeV1PathMap): Promise<table[]>
+---@field create_session fun(connection: OpencodeV1Connection, location: OpencodeLocation, input?: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field delete_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field rename_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, title: string, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field get_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field list_children fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table[]>
+---@field init_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field share_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field unshare_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field summarize_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field fork_session fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field list_messages fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, limit?: integer, before?: string, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table[]>
+---@field submit fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field submit_async fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field send_command fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field revert_message fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, input: table, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<SessionRevertInfo>
+---@field unrevert_messages fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<table>
+---@field interrupt fun(connection: OpencodeV1Connection, session_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field list_permissions OpencodeV1LocationTableOperation
+---@field reply_permission fun(connection: OpencodeV1Connection, request_id: string, location: OpencodeLocation, answer: table, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field list_questions OpencodeV1LocationTableOperation
+---@field reply_question fun(connection: OpencodeV1Connection, request_id: string, location: OpencodeLocation, answers: string[][], path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field reject_question fun(connection: OpencodeV1Connection, request_id: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field list_commands OpencodeV1LocationTableOperation
+---@field find_files fun(connection: OpencodeV1Connection, query: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<string[]>
+---@field get_file_status OpencodeV1LocationTableOperation
+---@field list_agents OpencodeV1LocationTableOperation
+---@field list_skills OpencodeV1LocationTableOperation
+---@field list_mcp_servers OpencodeV1LocationTableOperation
+---@field connect_mcp fun(connection: OpencodeV1Connection, name: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field disconnect_mcp fun(connection: OpencodeV1Connection, name: string, location: OpencodeLocation, path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field subscribe_events fun(connection: OpencodeV1Connection, on_chunk: fun(chunk: string), on_disconnect?: fun(reason: any)): table
+
+---@class OpencodeV1Connection: OpencodeServer
+---@field operations OpencodeV1Operations
+---@field observations table<string, OpencodeV1Observation>
+
+---@class OpencodeV1Observation: OpencodeObservation
+---@field _connection OpencodeV1Connection
+---@field _v1_submissions table<table, function|nil>
+---@field _v1_permission_terminal table<string, table|nil>
+---@field _v1_question_terminal table<string, table|nil>
+---@field _v1_unresolved_mentions table<string, table>
+---@field _v1_history_complete boolean
+---@field _v1_history_limit integer
+---@field _v1_older_loading boolean
+---@field submit fun(self: OpencodeV1Observation, input: table, opts?: {async?: boolean}): Promise<OpencodeSubmission>
+---@field load_older fun(self: OpencodeV1Observation): Promise<nil>
+---@field load_complete_history fun(self: OpencodeV1Observation): Promise<nil>
+---@field interrupt fun(self: OpencodeV1Observation): Promise<boolean>
+---@field revert_message fun(self: OpencodeV1Observation, message_id: string, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<SessionRevertInfo>
+---@field unrevert_messages fun(self: OpencodeV1Observation, path_map?: OpencodeV1PathMap, reverse_path_map?: OpencodeV1PathMap): Promise<boolean>
+---@field reply_permission fun(self: OpencodeV1Observation, request_id: string, answer: table): Promise<boolean>
+---@field reply_question fun(self: OpencodeV1Observation, request_id: string, answers: table<string, string[]>): Promise<boolean>
+---@field reject_question fun(self: OpencodeV1Observation, request_id: string): Promise<boolean>
+
+return {}

@@ -14,11 +14,40 @@ jobs:
     name: lint
     steps:
       - uses: actions/checkout@v4
-      - uses: JohnnyMorganz/stylua-action@v4
+      - name: Install StyLua
+        uses: JohnnyMorganz/stylua-action@v4
         with:
           version: latest
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --check . -g '*.lua' -g '!deps/'
+          args: 'false'
+
+      - name: Check formatting
+        run: make format-check
+
+  typecheck:
+    runs-on: ubuntu-latest
+    name: typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup neovim
+        id: setup_nvim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.11.4
+
+      - name: Add nvim to PATH
+        run: echo "${{ steps.setup_nvim.outputs.executable }}" >> $GITHUB_PATH
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install emmylua_check
+        run: cargo install emmylua_check --version 0.25.1 --locked
+
+      - name: Run type checks
+        run: make typecheck ARGS="-f github"
 
   test:
     timeout-minutes: 4
@@ -45,7 +74,7 @@ jobs:
         run: echo "${{ steps.setup_nvim.outputs.executable }}" >> $GITHUB_PATH
 
       - name: Run tests
-        run: ./run_tests.sh
+        run: make test
 
       # # For sshing in to debug GH actions
       # - name: Setup tmate session

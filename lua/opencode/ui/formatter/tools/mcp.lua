@@ -35,9 +35,9 @@ local function find_content_field(input)
 end
 
 ---@param output Output
----@param part OpencodeMessagePart
+---@param part table
 function M.format(output, part)
-  local tool_name = part.tool
+  local tool_name = part.name
   if not tool_name then
     return
   end
@@ -47,7 +47,7 @@ function M.format(output, part)
     return
   end
 
-  local input = part.state and part.state.input
+  local input = part.input
   if type(input) ~= 'table' then
     input = {}
   end
@@ -61,7 +61,6 @@ function M.format(output, part)
   local title_line = output:get_line_count() + 1
   output:add_line(title)
 
-  -- Content rendering (input only, not output)
   local content_start = nil
   local _, content_value = find_content_field(input)
   if not content_value and next(input) ~= nil then
@@ -70,7 +69,7 @@ function M.format(output, part)
       content_value = json_str
     end
   end
-  if content_value then
+  if content_value and (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then
     content_start = output:get_line_count() + 1
     output:add_empty_line()
 
@@ -93,14 +92,15 @@ function M.format(output, part)
   -- Apply dimmed highlight to title and all content lines
   local end_line = output:get_line_count()
   for line = title_line, end_line do
-    output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 })
+    output:add_extmark(line - 1, { line_hl_group = 'OpencodeHint', priority = 5000 } --[[@as OutputExtmark]])
   end
+  utils.format_tool_result(output, part)
 end
 
----@param _ OpencodeMessagePart
----@param input table
+---@param part table
 ---@return string, string, string
-function M.summary(_, input)
+function M.summary(part)
+  local input = part.input
   return icons.get('tool'), 'mcp', (input and (input.query or input.url)) or ''
 end
 

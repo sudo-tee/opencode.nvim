@@ -22,7 +22,7 @@ end
 
 ---Add a new line
 ---@param line string|nil
----@return number index of the first line added (0 if line was nil)
+---@return integer index of the first line added
 function Output:add_line(line)
   if line == nil then
     table.insert(self.lines, '')
@@ -120,7 +120,7 @@ function Output:add_fold_with_threshold(start_line, show, use_folds)
 end
 
 ---Get the number of lines
----@return number
+---@return integer
 function Output:get_line_count()
   return #self.lines
 end

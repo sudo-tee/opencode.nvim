@@ -1,0 +1,361 @@
+{
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "COMPACTION",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_compaction-completed]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:26",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
+      3,
+      0,
+      {
+        "end_col": 22,
+        "end_right_gravity": false,
+        "end_row": 3,
+        "hl_eol": false,
+        "hl_group": "OpencodeCompactionCompleted",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      4,
+      3,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "Automatic",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      5,
+      12,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "COMPACTION",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_compaction-running]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
+      12,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:27",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      7,
+      14,
+      0,
+      {
+        "end_col": 25,
+        "end_right_gravity": false,
+        "end_row": 14,
+        "hl_eol": false,
+        "hl_group": "OpencodeCompactionRunning",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      8,
+      14,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "Manual",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      9,
+      15,
+      0,
+      {
+        "end_col": 34,
+        "end_right_gravity": false,
+        "end_row": 15,
+        "hl_eol": false,
+        "hl_group": "OpencodeHint",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      10,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "COMPACTION",
+            "OpencodeMessageRoleCompaction"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_compaction-failed]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      11,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:28",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      12,
+      20,
+      0,
+      {
+        "end_col": 21,
+        "end_right_gravity": false,
+        "end_row": 20,
+        "hl_eol": false,
+        "hl_group": "OpencodeCompactionFailed",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      13,
+      20,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "Manual",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      14,
+      22,
+      0,
+      {
+        "end_col": 23,
+        "end_right_gravity": false,
+        "end_row": 22,
+        "hl_eol": false,
+        "hl_group": "OpencodeCompactionFailed",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ],
+    [
+      15,
+      23,
+      0,
+      {
+        "end_col": 18,
+        "end_right_gravity": false,
+        "end_row": 23,
+        "hl_eol": false,
+        "hl_group": "OpencodeCompactionFailed",
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true
+      }
+    ]
+  ],
+  "lines": [
+    "----",
+    "",
+    "",
+    "󰄳 Session compacted",
+    "",
+    "**Summary**",
+    "Implemented native V2 message formatters.",
+    "",
+    "**Recent context**",
+    "Add renderer snapshots before merging.",
+    "",
+    "----",
+    "",
+    "",
+    " Compacting session…",
+    "  Condensing conversation history.",
+    "",
+    "----",
+    "",
+    "",
+    " Compaction failed",
+    "",
+    "  Provider unavailable.",
+    "  Try again later.",
+    "",
+    ""
+  ],
+  "timestamp": 1790768833,
+  "window": {
+    "cursor": [
+      25,
+      0
+    ],
+    "effective_bottom": 25,
+    "line_count": 26,
+    "visible_bottom": 25
+  }
+}

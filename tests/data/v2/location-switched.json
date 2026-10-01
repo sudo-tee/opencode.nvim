@@ -1,0 +1,42 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_location-switched",
+        "location": {
+          "directory": "/project/worktrees/review"
+        },
+        "previous": {
+          "location": {
+            "directory": "/project"
+          },
+          "projectID": "project"
+        },
+        "projectID": "project",
+        "sessionID": "ses_v2_formatters",
+        "time": {
+          "created": 1700000009000
+        },
+        "type": "location-switched"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_location-initial",
+        "location": {
+          "directory": "/project"
+        },
+        "projectID": "project",
+        "sessionID": "ses_v2_formatters",
+        "time": {
+          "created": 1700000010000
+        },
+        "type": "location-switched"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

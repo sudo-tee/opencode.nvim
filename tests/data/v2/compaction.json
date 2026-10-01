@@ -1,0 +1,55 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_compaction-completed",
+        "reason": "auto",
+        "recent": "Add renderer snapshots before merging.",
+        "sessionID": "ses_v2_formatters",
+        "status": "completed",
+        "summary": "Implemented native V2 message formatters.",
+        "time": {
+          "created": 1700000006000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_compaction-running",
+        "reason": "manual",
+        "recent": "",
+        "sessionID": "ses_v2_formatters",
+        "status": "running",
+        "summary": "",
+        "time": {
+          "created": 1700000007000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "error": {
+          "message": "Provider unavailable.\nTry again later.",
+          "name": "ProviderError"
+        },
+        "id": "msg_compaction-failed",
+        "reason": "manual",
+        "sessionID": "ses_v2_formatters",
+        "status": "failed",
+        "time": {
+          "created": 1700000008000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

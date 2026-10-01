@@ -5,9 +5,11 @@ local Promise = require('opencode.promise')
 
 local M = {}
 
+---@type OpencodeContext
 M.context = {
   mentioned_files = {},
   selections = {},
+  review_comments = {},
   mentioned_subagents = {},
   current_file = nil,
   cursor_data = nil,
@@ -16,6 +18,115 @@ M.context = {
 
 local cleared_selections = {}
 local cleared_selections_context = nil
+local set_file_sent_timestamps
+local next_review_id = 0
+
+---@param comment OpencodeContextReviewComment
+function M.add_review_comment(comment)
+  next_review_id = next_review_id + 1
+  comment.id = next_review_id
+  local comments = M.context.review_comments or {}
+  for _, existing in ipairs(comments) do
+    if
+      existing.file == comment.file
+      and existing.side == comment.side
+      and existing.start_line == comment.start_line
+      and existing.end_line == comment.end_line
+      and existing.session_id == comment.session_id
+      and existing.from == comment.from
+      and existing.to == comment.to
+    then
+      existing.comment = comment.comment
+      state.context.set_context_updated_at(vim.uv.now())
+      return existing
+    end
+  end
+  comments[#comments + 1] = comment
+  M.context.review_comments = comments
+  state.context.set_context_updated_at(vim.uv.now())
+  -- Resolve file drift after the editor has returned to its event loop.
+  vim.defer_fn(function()
+    for _, stored in ipairs(M.get_review_comments()) do
+      if stored == comment then
+        comment.resolution = require('opencode.review_anchor').current(comment)
+        state.context.set_context_updated_at(vim.uv.now())
+        return
+      end
+    end
+  end, 25)
+  return comment
+end
+
+function M.get_review_comments(file)
+  local comments = M.context.review_comments or {}
+  if not file then
+    return comments
+  end
+  return vim.tbl_filter(function(comment)
+    return comment.file == file
+  end, comments)
+end
+
+---@param path string
+---@return boolean
+function M.has_review_comment_for_file(path)
+  local current_session_id = state.active_session and state.active_session.id
+  local current_path = vim.fn.resolve(vim.fn.fnamemodify(path, ':p'))
+  for _, comment in ipairs(M.get_review_comments()) do
+    if
+      (not current_session_id or comment.session_id == current_session_id)
+      and vim.fn.resolve(vim.fn.fnamemodify(comment.file, ':p')) == current_path
+    then
+      return true
+    end
+  end
+  return false
+end
+
+function M.update_review_comment(id, text)
+  for _, comment in ipairs(M.get_review_comments()) do
+    if comment.id == id then
+      comment.comment = text
+      state.context.set_context_updated_at(vim.uv.now())
+      return
+    end
+  end
+end
+
+function M.remove_review_comment(id)
+  for index, comment in ipairs(M.get_review_comments()) do
+    if comment.id == id then
+      table.remove(M.context.review_comments, index)
+      state.context.set_context_updated_at(vim.uv.now())
+      return
+    end
+  end
+end
+
+function M.clear_review_comments()
+  M.context.review_comments = {}
+  state.context.set_context_updated_at(vim.uv.now())
+end
+
+---@param comment OpencodeContextReviewComment
+local function capture_review_comment(comment, hint)
+  local resolution = require('opencode.review_anchor').current(comment, hint)
+  comment.resolution = resolution
+  local current = resolution.status ~= 'exact'
+      and {
+        status = resolution.status,
+        lines = resolution.start_line and (resolution.start_line .. '-' .. resolution.end_line) or nil,
+        code = resolution.current_code,
+      }
+    or nil
+  return {
+    comment = comment.comment,
+    side = comment.side,
+    lines = comment.start_line .. '-' .. comment.end_line,
+    code = comment.code,
+    current = current,
+  }
+end
 
 ---@param left OpencodeContextSelection|nil
 ---@param right OpencodeContextSelection|nil
@@ -33,12 +144,15 @@ end
 
 ---@param path string
 ---@param prompt? string
----@return OpencodeMessagePart
-local function format_file_part(path, prompt)
+---@return table
+local function capture_file(path, prompt)
   local rel_path = vim.fn.fnamemodify(path, ':~:.')
+  local filename = vim.fn.fnamemodify(path, ':t')
+  if filename:match('^pasted_image_') then
+    rel_path = filename
+  end
   local mention = '@' .. rel_path
-  local pos = prompt and prompt:find(mention)
-  pos = pos and pos - 1 or 0 -- convert to 0-based index
+  local pos = prompt and prompt:find(mention, 1, true)
 
   local ext = vim.fn.fnamemodify(path, ':e'):lower()
   local mime_type = 'text/plain'
@@ -52,41 +166,37 @@ local function format_file_part(path, prompt)
     mime_type = 'image/webp'
   end
 
-  local file_part = { filename = rel_path, type = 'file', mime = mime_type, url = 'file://' .. path }
-  if prompt then
-    file_part.source = {
-      path = path,
-      type = 'file',
-      text = { start = pos, value = mention, ['end'] = pos + #mention },
-    }
+  local file = {
+    name = rel_path,
+    media_type = mime_type,
+    server_uri = vim.uri_from_fname(util.apply_path_map(path)),
+  }
+  if pos then
+    file.mention = { start_byte = pos - 1, end_byte = pos - 1 + #mention }
   end
-  return file_part
+  return file
 end
 
 ---@param selection OpencodeContextSelection
----@return OpencodeMessagePart
-local function format_selection_part(selection)
+---@return table
+local function capture_selection(selection)
   local lang = util.get_markdown_filetype(selection.file and selection.file.name or '') or ''
 
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'selection',
-    },
     text = vim.json.encode({
       context_type = 'selection',
       file = selection.file,
       content = string.format('`````%s\n%s\n`````', lang, selection.content),
       lines = selection.lines,
     }),
-    synthetic = true,
+    source = { kind = 'selection', file_name = selection.file and selection.file.name, range = selection.lines },
   }
 end
 
 ---@param diagnostics OpencodeDiagnostic[]
 ---@param range? { start_line: integer, end_line: integer }|nil
----@return OpencodeMessagePart
-local function format_diagnostics_part(diagnostics, range)
+---@return table
+local function capture_diagnostics(diagnostics, range)
   local diag_list = {}
   for _, diag in ipairs(diagnostics) do
     if not range or (diag.lnum >= range.start_line and diag.lnum <= range.end_line) then
@@ -98,27 +208,18 @@ local function format_diagnostics_part(diagnostics, range)
     end
   end
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'diagnostics',
-    },
     text = vim.json.encode({ context_type = 'diagnostics', content = diag_list }),
-    synthetic = true,
+    source = { kind = 'diagnostics' },
   }
 end
 
 ---@param cursor_data table
 ---@param get_current_buf fun(): integer|nil Function to get current buffer
----@return OpencodeMessagePart
-local function format_cursor_data_part(cursor_data, get_current_buf)
+---@return table
+local function capture_cursor_data(cursor_data, get_current_buf)
   local buf = (get_current_buf() or 0) --[[@as integer]]
   local lang = util.get_markdown_filetype(vim.api.nvim_buf_get_name(buf)) or ''
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'cursor-data',
-      lang = lang,
-    },
     text = vim.json.encode({
       context_type = 'cursor-data',
       line = cursor_data.line,
@@ -127,52 +228,40 @@ local function format_cursor_data_part(cursor_data, get_current_buf)
       lines_before = cursor_data.lines_before,
       lines_after = cursor_data.lines_after,
     }),
-    synthetic = true,
+    source = { kind = 'cursor' },
   }
 end
 
 ---@param agent string
 ---@param prompt string
----@return OpencodeMessagePart
-local function format_subagents_part(agent, prompt)
+---@return table
+local function capture_agent(agent, prompt)
   local mention = '@' .. agent
   local pos = prompt:find(mention)
-  pos = pos and pos - 1 or 0 -- convert to 0-based index
-
-  return {
-    type = 'agent',
-    name = agent,
-    source = { value = mention, start = pos, ['end'] = pos + #mention },
-  }
+  local result = { name = agent }
+  if pos then
+    result.mention = { start_byte = pos - 1, end_byte = pos - 1 + #mention }
+  end
+  return result
 end
 
 ---@param buf integer
----@return OpencodeMessagePart
-local function format_buffer_part(buf)
+---@return table
+local function capture_buffer(buf)
   local file = vim.api.nvim_buf_get_name(buf)
   local rel_path = vim.fn.fnamemodify(file, ':~:.')
   return {
-    type = 'text',
     text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '\n'),
-    metadata = {
-      context_type = 'file-content',
-      filename = rel_path,
-      mime = 'text/plain',
-    },
-    synthetic = true,
+    source = { kind = 'buffer', file_name = rel_path },
   }
 end
 
 ---@param diff_text string
----@return OpencodeMessagePart
-local function format_git_diff_part(diff_text)
+---@return table
+local function capture_git_diff(diff_text)
   return {
-    type = 'text',
-    metadata = {
-      context_type = 'git-diff',
-    },
     text = diff_text,
-    synthetic = true,
+    source = { kind = 'git_diff' },
   }
 end
 
@@ -215,12 +304,11 @@ end
 
 function M.clear_selections()
   M.context.selections = {}
+  M.context.review_comments = {}
   state.context.set_context_updated_at(vim.uv.now())
 end
 
 function M.add_file(file)
-  local is_file = vim.fn.filereadable(file) == 1
-  local is_dir = vim.fn.isdirectory(file) == 1
   file = vim.fn.fnamemodify(file, ':p')
 
   if not M.context.mentioned_files then
@@ -305,6 +393,54 @@ function M.unload_attachments(selections)
   M.context.mentioned_files = {}
   M.context.selections = {}
   state.context.set_context_updated_at(vim.uv.now())
+end
+
+---@param sent OpencodeContext
+---@param target? OpencodeContext
+function M.consume_attachments(sent, target)
+  target = target or M.context
+
+  local function remove_values(current, consumed)
+    local result = {}
+    for _, value in ipairs(current or {}) do
+      if not vim.tbl_contains(consumed or {}, value) then
+        result[#result + 1] = value
+      end
+    end
+    return result
+  end
+
+  if target == M.context then
+    cleared_selections = vim.deepcopy(sent.selections or {})
+    cleared_selections_context = M.context
+  end
+  target.mentioned_files = remove_values(target.mentioned_files, sent.mentioned_files)
+  target.mentioned_subagents = remove_values(target.mentioned_subagents, sent.mentioned_subagents)
+  local remaining = {}
+  for _, selection in ipairs(target.selections or {}) do
+    local consumed = false
+    for _, sent_selection in ipairs(sent.selections or {}) do
+      consumed = consumed or is_same_selection(selection, sent_selection)
+    end
+    if not consumed then
+      remaining[#remaining + 1] = selection
+    end
+  end
+  target.selections = remaining
+  target.review_comments = vim.tbl_filter(function(comment)
+    for _, sent_comment in ipairs(sent.review_comments or {}) do
+      if comment.id == sent_comment.id then
+        return false
+      end
+    end
+    return true
+  end, target.review_comments or {})
+  if is_same_selection({ file = target.current_file, lines = '' }, { file = sent.current_file, lines = '' }) then
+    set_file_sent_timestamps(target.current_file)
+  end
+  if target == M.context then
+    state.context.set_context_updated_at(vim.uv.now())
+  end
 end
 
 function M.get_mentioned_files()
@@ -402,6 +538,15 @@ end
 -- Load function that populates the global context state
 -- This is the core loading logic that was originally in the main context module
 function M.load()
+  local changed = false
+  for _, comment in ipairs(M.get_review_comments()) do
+    local resolution = require('opencode.review_anchor').current(comment)
+    changed = changed or not vim.deep_equal(comment.resolution, resolution)
+    comment.resolution = resolution
+  end
+  if changed then
+    state.context.set_context_updated_at(vim.uv.now())
+  end
   local selections_cleared_by_send = {}
   if cleared_selections_context == M.context then
     selections_cleared_by_send = cleared_selections
@@ -473,7 +618,7 @@ function M.load()
 end
 
 ---@param current_file table
-local function set_file_sent_timestamps(current_file)
+set_file_sent_timestamps = function(current_file)
   if not current_file then
     return
   end
@@ -484,88 +629,125 @@ local function set_file_sent_timestamps(current_file)
   end
 end
 
--- This function creates a context snapshot with delta logic against the last sent context
-function M.delta_context(opts)
-  local config = require('opencode.config')
+---@class OpencodeAutomaticContextPayload
+---@field key string
+---@field part table
+---@field present boolean
+---@field cleared table
 
-  opts = opts or state.current_context_config or config.context
-  if opts.enabled == false then
-    return {
-      current_file = nil,
-      mentioned_files = nil,
-      selections = nil,
-      linter_errors = nil,
-      cursor_data = nil,
-      mentioned_subagents = nil,
-    }
+---Return automatic payload parts changed since the previous accepted submission.
+---@param payloads OpencodeAutomaticContextPayload[]
+---@param previous_context? OpencodeContext
+---@param submission_context? OpencodeContext
+---@return table[]
+function M.delta_context(payloads, previous_context, submission_context)
+  local delta = {}
+  if not submission_context then
+    for _, payload in ipairs(payloads) do
+      if payload.present then
+        delta[#delta + 1] = payload.part
+      end
+    end
+    return delta
   end
 
-  local buf, win = base_context.get_current_buf()
-  if not buf then
-    return {}
-  end
-
-  local ctx = vim.deepcopy(M.context)
-
-  if ctx.current_file and M.context.current_file then
-    set_file_sent_timestamps(M.context.current_file)
-    set_file_sent_timestamps(ctx.current_file)
-  end
-
-  -- no need to send subagents again
-  local last_context = state.last_sent_context
-  if last_context then
-    if
-      ctx.mentioned_subagents
-      and last_context.mentioned_subagents
-      and vim.deep_equal(ctx.mentioned_subagents, last_context.mentioned_subagents)
-    then
-      ctx.mentioned_subagents = nil
-      M.context.mentioned_subagents = nil
+  local previous = previous_context and previous_context.automatic_context or {}
+  submission_context.automatic_context = {}
+  for _, payload in ipairs(payloads) do
+    local fingerprint = vim.fn.sha256(payload.part.text)
+    local previous_fingerprint = previous[payload.key]
+    submission_context.automatic_context[payload.key] = fingerprint
+    if previous_fingerprint ~= fingerprint then
+      if payload.present then
+        delta[#delta + 1] = payload.part
+      elseif previous_fingerprint ~= nil then
+        delta[#delta + 1] = payload.cleared
+      end
     end
   end
-
-  state.context.set_context_updated_at(vim.uv.now())
-  return ctx
+  return delta
 end
 
---- Formats context as structured message parts for the main chat interface
---- This is the main function that includes global state (mentioned files, selections, etc.)
+--- Capture the protocol-independent input for one submission.
 ---@param prompt string The user's instruction/prompt
----@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig }
----@return table result { parts: OpencodeMessagePart[] }
+---@param opts? { range?: { start: integer, stop: integer }, context_config?: OpencodeContextConfig, previous_context?: OpencodeContext, submission_context?: OpencodeContext }
+---@return table
 M.format_message = Promise.async(function(prompt, opts)
   opts = opts or {}
   local context_config = opts.context_config
+  local previous_context = opts.previous_context
+  local submission_context = opts.submission_context
   local buf, win = base_context.get_current_buf()
   local range = opts.range
-  local parts = {}
+  local captured = { text = prompt, context = {}, files = {}, agents = {} }
+  ---@type OpencodeAutomaticContextPayload[]
+  local automatic_context = {}
 
   for _, file_path in ipairs(M.context.mentioned_files or {}) do
-    table.insert(parts, format_file_part(file_path, prompt))
+    captured.files[#captured.files + 1] = capture_file(file_path, prompt)
   end
 
   for _, agent in ipairs(M.context.mentioned_subagents or {}) do
-    table.insert(parts, format_subagents_part(agent, prompt))
+    captured.agents[#captured.agents + 1] = capture_agent(agent, prompt)
+  end
+
+  if base_context.is_context_enabled('review_comments', context_config) then
+    local by_file, order, diffs_by_range = {}, {}, {}
+    for _, comment in ipairs(M.get_review_comments()) do
+      if not state.active_session or comment.session_id == state.active_session.id then
+        local hint
+        local connection = state.opencode_server
+        local end_message = comment.to or comment.from
+        if
+          end_message
+          and connection
+          and connection.protocol == 'v2'
+          and state.active_session
+          and state.active_session.id == comment.session_id
+        then
+          if diffs_by_range[end_message] == nil then
+            local ok, files = pcall(function()
+              return connection.operations
+                .diff_session(connection, comment.session_id, end_message, nil, util.apply_reverse_path_map)
+                :await()
+            end)
+            diffs_by_range[end_message] = ok and files or false
+          end
+          for _, file in ipairs(diffs_by_range[end_message] or {}) do
+            if file.file == comment.file then
+              hint = require('opencode.review_anchor').translate(comment.anchor_side_line, file.patch)
+              break
+            end
+          end
+        end
+        local rel_path = vim.fn.fnamemodify(comment.file, ':~:.')
+        if not by_file[rel_path] then
+          by_file[rel_path] = {
+            context_type = 'review-comment',
+            file = rel_path,
+            comments = {},
+            note = 'Session diff snapshot: locate code by content, not line number. Check changed code before acting.',
+          }
+          order[#order + 1] = rel_path
+        end
+        local group = by_file[rel_path]
+        group.comments[#group.comments + 1] = capture_review_comment(comment, hint)
+      end
+    end
+    for _, file in ipairs(order) do
+      captured.context[#captured.context + 1] = {
+        text = vim.json.encode(by_file[file]),
+        source = { kind = 'review_comment', file_name = file },
+      }
+    end
   end
 
   if not buf then
-    table.insert(parts, { type = 'text', text = prompt })
-    return { parts = parts }
+    return captured
   end
 
-  if
-    base_context.is_context_enabled('current_file', context_config)
-    and M.context.current_file
-    and not M.context.current_file.sent_at
-  then
-    table.insert(parts, format_file_part(M.context.current_file.path))
-    set_file_sent_timestamps(M.context.current_file)
-  end
-
+  local selections = {}
   if base_context.is_context_enabled('selection', context_config) then
-    local selections = {}
-
     if range and range.start and range.stop then
       local file = base_context.get_current_file_for_selection(buf)
       if file then
@@ -593,14 +775,35 @@ M.format_message = Promise.async(function(prompt, opts)
     for _, sel in ipairs(M.context.selections or {}) do
       table.insert(selections, sel)
     end
+  end
 
-    for _, sel in ipairs(selections) do
-      table.insert(parts, format_selection_part(sel))
+  local current_file_selected = M.context.current_file
+      and base_context.is_context_enabled('review_comments', context_config)
+      and M.has_review_comment_for_file(M.context.current_file.path)
+    or false
+  for _, selection in ipairs(selections) do
+    if M.context.current_file and selection.file and selection.file.path == M.context.current_file.path then
+      current_file_selected = true
+      break
     end
   end
 
+  if
+    base_context.is_context_enabled('current_file', context_config)
+    and M.context.current_file
+    and not M.context.current_file.sent_at
+    and not current_file_selected
+  then
+    captured.files[#captured.files + 1] = capture_file(M.context.current_file.path)
+  end
+
+  for _, selection in ipairs(selections) do
+    captured.context[#captured.context + 1] = capture_selection(selection)
+  end
+
   if base_context.is_context_enabled('buffer', context_config) then
-    table.insert(parts, format_buffer_part(buf))
+    local buffer = capture_buffer(buf)
+    automatic_context[#automatic_context + 1] = { key = 'buffer', part = buffer, present = true, cleared = buffer }
   end
 
   local diag_range = nil
@@ -608,32 +811,44 @@ M.format_message = Promise.async(function(prompt, opts)
     diag_range = { start_line = math.floor(range.start) - 1, end_line = math.floor(range.stop) - 1 }
   end
   local diagnostics = M.get_diagnostics(buf, context_config, diag_range)
-  if diagnostics and #diagnostics > 0 then
-    table.insert(parts, format_diagnostics_part(diagnostics, diag_range))
+  if diagnostics then
+    local diagnostic_context = capture_diagnostics(diagnostics, diag_range)
+    automatic_context[#automatic_context + 1] = {
+      key = 'diagnostics',
+      part = diagnostic_context,
+      present = #diagnostics > 0,
+      cleared = diagnostic_context,
+    }
   end
 
   if base_context.is_context_enabled('cursor_data', context_config) then
     local cursor_data = base_context.get_current_cursor_data(buf, win, context_config)
     if cursor_data then
-      table.insert(
-        parts,
-        format_cursor_data_part(cursor_data, function()
-          return buf
-        end)
-      )
+      local cursor_context = capture_cursor_data(cursor_data, function()
+        return buf
+      end)
+      automatic_context[#automatic_context + 1] = {
+        key = 'cursor_data',
+        part = cursor_context,
+        present = true,
+        cleared = cursor_context,
+      }
     end
   end
 
   if base_context.is_context_enabled('git_diff', context_config) then
     local diff_text = base_context.get_git_diff(context_config):await()
-    if diff_text and diff_text ~= '' then
-      table.insert(parts, format_git_diff_part(diff_text))
-    end
+    local git_diff = capture_git_diff(diff_text or '')
+    automatic_context[#automatic_context + 1] = {
+      key = 'git_diff',
+      part = git_diff,
+      present = diff_text ~= nil and diff_text ~= '',
+      cleared = capture_git_diff('No staged changes.'),
+    }
   end
 
-  table.insert(parts, { type = 'text', text = prompt })
-
-  return { parts = parts }
+  vim.list_extend(captured.context, M.delta_context(automatic_context, previous_context, submission_context))
+  return captured
 end)
 
 return M

@@ -1,0 +1,182 @@
+[
+  {
+    "properties": {
+      "info": {
+        "id": "msg_system",
+        "sessionID": "ses_v2_formatters",
+        "text": "Provider catalog updated.\nNew models are available.",
+        "time": {
+          "created": 1700000001000
+        },
+        "type": "system"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_skill",
+        "name": "Code review",
+        "sessionID": "ses_v2_formatters",
+        "skill": "review",
+        "text": "# Review checklist\n\n- Check correctness and edge cases.\n- Run relevant tests.",
+        "time": {
+          "created": 1700000002000
+        },
+        "type": "skill"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "command": "make test",
+        "id": "msg_shell-running",
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_running",
+        "status": "running",
+        "time": {
+          "created": 1700000003000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "command": "make test",
+        "exit": 0,
+        "id": "msg_shell-exited",
+        "output": {
+          "cursor": 39,
+          "output": "Running unit tests...\n12 tests passed.",
+          "size": 39,
+          "truncated": true
+        },
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_exited",
+        "status": "exited",
+        "time": {
+          "created": 1700000004000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "command": "make lint",
+        "exit": 1,
+        "id": "msg_shell-failed",
+        "output": "src/main.lua:10: unused variable",
+        "sessionID": "ses_v2_formatters",
+        "shellID": "sh_failed",
+        "status": "exited",
+        "time": {
+          "created": 1700000005000
+        },
+        "type": "shell"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_compaction-completed",
+        "reason": "auto",
+        "recent": "Add renderer snapshots before merging.",
+        "sessionID": "ses_v2_formatters",
+        "status": "completed",
+        "summary": "Implemented native V2 message formatters.",
+        "time": {
+          "created": 1700000006000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_compaction-running",
+        "reason": "manual",
+        "recent": "",
+        "sessionID": "ses_v2_formatters",
+        "status": "running",
+        "summary": "",
+        "time": {
+          "created": 1700000007000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "error": {
+          "message": "Provider unavailable.\nTry again later.",
+          "name": "ProviderError"
+        },
+        "id": "msg_compaction-failed",
+        "reason": "manual",
+        "sessionID": "ses_v2_formatters",
+        "status": "failed",
+        "time": {
+          "created": 1700000008000
+        },
+        "type": "compaction"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_location-switched",
+        "location": {
+          "directory": "/project/worktrees/review"
+        },
+        "previous": {
+          "location": {
+            "directory": "/project"
+          },
+          "projectID": "project"
+        },
+        "projectID": "project",
+        "sessionID": "ses_v2_formatters",
+        "time": {
+          "created": 1700000009000
+        },
+        "type": "location-switched"
+      }
+    },
+    "type": "replay.v2.message"
+  },
+  {
+    "properties": {
+      "info": {
+        "id": "msg_location-initial",
+        "location": {
+          "directory": "/project"
+        },
+        "projectID": "project",
+        "sessionID": "ses_v2_formatters",
+        "time": {
+          "created": 1700000010000
+        },
+        "type": "location-switched"
+      }
+    },
+    "type": "replay.v2.message"
+  }
+]

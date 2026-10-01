@@ -11,6 +11,12 @@ local function mark_jump_position(win)
   end)
 end
 
+function M.goto_first_message()
+  renderer.load_all_messages()
+  mark_jump_position(vim.api.nvim_get_current_win())
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+end
+
 function M.goto_message_by_id(message_id)
   require('opencode.ui.ui').focus_output()
   local windows = state.windows or {}
@@ -70,6 +76,19 @@ function M.goto_prev_message()
     return
   end
 
+  local first_message = renderer.get_next_rendered_message(0)
+  if renderer.load_more_messages() then
+    local first_after_growth = first_message and renderer.get_rendered_message(first_message.message.id)
+    previous_message = first_after_growth
+      and first_after_growth.line_start
+      and renderer.get_prev_rendered_message(first_after_growth.line_start + 1)
+    if previous_message and previous_message.line_start then
+      mark_jump_position(win)
+      vim.api.nvim_win_set_cursor(win, { previous_message.line_start + 1, 0 })
+      return
+    end
+  end
+
   mark_jump_position(win)
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
 end
@@ -84,9 +103,9 @@ function M.goto_next_user_message()
     return
   end
 
-  -- Mirror `gg` in output_window.setup_keymaps: under lazy render the target
+  -- Like `gg`, under lazy render the target
   -- message may not yet have a line_start, so force a full render first.
-  renderer.load_all_messages()
+  renderer.load_all_messages(nil, { scroll_to_top = false })
 
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
   local next_message = renderer.get_next_user_message(current_line)
@@ -109,7 +128,7 @@ function M.goto_prev_user_message()
     return
   end
 
-  renderer.load_all_messages()
+  renderer.load_all_messages(nil, { scroll_to_top = false })
 
   local current_line = vim.api.nvim_win_get_cursor(win)[1]
   local previous_message = renderer.get_prev_user_message(current_line)
@@ -142,9 +161,10 @@ local function open_silent(path)
   if not pcall(function()
     vim.cmd('buffer ' .. escaped)
   end) then
-    return pcall(function()
+    local success = pcall(function()
       vim.cmd('edit ' .. escaped)
     end)
+    return success
   end
   return true
 end
@@ -241,7 +261,7 @@ local function pick_symbol_target(targets)
       end
     end,
     title = 'Symbol References (' .. #targets .. ')',
-    width = config.ui.picker_width,
+    width = config.ui.picker_width or nil,
     preview = 'file',
     layout_opts = config.ui.picker,
   })
@@ -286,6 +306,11 @@ local function jump_to_symbol_target(target)
 end
 
 local function jump_to_rendered_target(target)
+  if target.kind == 'uri' then
+    vim.ui.open(target.uri)
+    return
+  end
+
   if target.kind == 'file' or target.kind == 'diff' then
     M.navigate_to_location(target.path, target.line, target.col)
     return

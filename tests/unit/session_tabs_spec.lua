@@ -10,10 +10,12 @@ describe('opencode session panel tabs', function()
   before_each(function()
     original_state = vim.deepcopy(store.state())
     session_tabs.reset()
+    require('opencode.ui.autocmds').setup_subscriptions()
   end)
 
   after_each(function()
     vim.wait(50)
+    require('opencode.ui.autocmds').setup_subscriptions(false)
     session_tabs.reset()
     for key, value in pairs(original_state) do
       store.set(key, value)
@@ -21,27 +23,52 @@ describe('opencode session panel tabs', function()
     vim.wait(50)
   end)
 
+  it('deletes visible and preserved buffers when closing an inactive tab', function()
+    local first = session_tabs.ensure_current()
+    local inactive = session_tabs.create({ id = 'inactive-session' })
+    local output = vim.api.nvim_create_buf(false, true)
+    local strip = vim.api.nvim_create_buf(false, true)
+    local hidden_input = vim.api.nvim_create_buf(false, true)
+    inactive.windows = { output_buf = output, tab_strip_buf = strip }
+    inactive._hidden_buffers = { input_buf = hidden_input, output_buf = output }
+    local delete = require('luassert.spy').on(vim.api, 'nvim_buf_delete')
+    local ok, err = pcall(function()
+      assert.is_true(require('opencode.services.session_runtime').close_session_tab(inactive.id))
+      assert.spy(delete).was_called(3)
+      assert.is_false(vim.api.nvim_buf_is_valid(output))
+      assert.is_false(vim.api.nvim_buf_is_valid(strip))
+      assert.is_false(vim.api.nvim_buf_is_valid(hidden_input))
+      assert.is_nil(session_tabs.get(inactive.id))
+      assert.equals(first.id, session_tabs.active_id())
+    end)
+    delete:revert()
+    for _, buf in ipairs({ output, strip, hidden_input }) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end
+    if not ok then
+      error(err)
+    end
+  end)
+
   it('keeps session state isolated when switching logical tabs', function()
     local first = session_tabs.ensure_current()
     state.session.set_active({ id = 'session-one', title = 'One' })
-    state.renderer.set_messages({ { info = { id = 'message-one' }, parts = {} } })
     state.ui.set_input_content({ 'prompt for one' })
 
     local second = session_tabs.create({ id = 'session-two', title = 'Two' })
     session_tabs.activate(second)
-    state.renderer.set_messages({ { info = { id = 'message-two' }, parts = {} } })
     state.ui.set_input_content({ 'prompt for two' })
 
     session_tabs.activate(first)
 
     assert.equals('session-one', state.active_session.id)
-    assert.equals('message-one', state.messages[1].info.id)
     assert.same({ 'prompt for one' }, state.input_content)
 
     session_tabs.activate(second)
 
     assert.equals('session-two', state.active_session.id)
-    assert.equals('message-two', state.messages[1].info.id)
     assert.same({ 'prompt for two' }, state.input_content)
   end)
 
@@ -55,6 +82,26 @@ describe('opencode session panel tabs', function()
     assert.is_nil(runtime.windows)
     assert.same({}, runtime.input_content)
     assert.equals('old input', state.input_content[1])
+  end)
+
+  it('normalizes V1 session directories before activating a tab', function()
+    local observed_ref
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function(_, ref)
+        observed_ref = ref
+        return {}
+      end,
+    })
+
+    local runtime = session_tabs.create({ id = 'legacy-session', directory = '/workspace' })
+    session_tabs.activate(runtime)
+
+    assert.same({ directory = '/workspace' }, state.active_session.location)
+    assert.is_not_nil(state.session.active_observation())
+    assert.same({ directory = '/workspace' }, observed_ref.location)
   end)
 
   it('updates a background tab message count without changing the active tab', function()
@@ -114,17 +161,40 @@ describe('opencode session panel tabs', function()
     local ui = require('opencode.ui.ui')
 
     local server = {
-      is_running = function()
+      is_ready = function()
         return true
+      end,
+      can_release_process = function()
+        return false
       end,
       check_health = function()
         return Promise.new():resolve(true)
       end,
-      shutdown = function() end,
+      close = function()
+        return Promise.new():resolve(true)
+      end,
+      observe = function(_, ref)
+        return {
+          read = function()
+            return {
+              session = { id = ref.id, title = ref.id },
+              sync = { session = { state = 'current' } },
+              entries_by_id = {},
+              entry_order = {},
+              children = { order = {}, by_id = {} },
+              permission_requests_by_id = {},
+              question_requests_by_id = {},
+              files = { revision = 0 },
+            }
+          end,
+          watch = function()
+            return function() end
+          end,
+        }
+      end,
     }
 
     state.jobs.set_server(server)
-    state.jobs.set_api_client({})
     state.context.set_current_cwd(vim.fn.getcwd())
 
     local create_session_stub =

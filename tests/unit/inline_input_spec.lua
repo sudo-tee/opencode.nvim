@@ -60,7 +60,11 @@ describe('inline_input', function()
   local function change_text(input, text, expected_height)
     vim.api.nvim_buf_set_lines(input.buf, 0, 1, false, { text })
     vim.api.nvim_exec_autocmds('TextChangedI', { buffer = input.buf, modeline = false })
-    assert.is_true(vim.wait(100, function()
+    -- the resize runs through vim.schedule; under load (concurrent spec runs
+    -- on CI) it can exceed a short wait, so poll long and let the event loop
+    -- progress between checks.
+    assert.is_true(vim.wait(2000, function()
+      vim.cmd('mode')
       return vim.api.nvim_win_get_config(input.win).height == expected_height
     end))
   end
@@ -252,9 +256,14 @@ describe('inline_input', function()
     vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
     vim.api.nvim_exec_autocmds('TextChanged', { buffer = input.buf, modeline = false })
 
-    assert.is_true(vim.wait(100, function()
-      return vim.api.nvim_win_get_config(input.win).height == #lines
-    end))
+    local actual
+    assert.is_true(
+      vim.wait(1000, function()
+        actual = vim.api.nvim_win_get_config(input.win).height
+        return actual == #lines
+      end),
+      ('resize did not settle within 1s, height=%s'):format(tostring(actual))
+    )
     input.close()
   end)
 
@@ -473,12 +482,12 @@ describe('inline_input', function()
       -- position (insert-mode). Production runs in insert mode, so this
       -- matches user-visible behavior either way.
       assert.are.equal(1, cursor1[1])
-      assert.is_true(cursor1[2] == #('first') or cursor1[2] == #('first') - 1)
+      assert.is_true(cursor1[2] == #'first' or cursor1[2] == #'first' - 1)
 
       call_keymap(input, '<C-p>')
       local cursor2 = vim.api.nvim_win_get_cursor(input.win)
       assert.are.equal(1, cursor2[1])
-      assert.is_true(cursor2[2] == #('second') or cursor2[2] == #('second') - 1)
+      assert.is_true(cursor2[2] == #'second' or cursor2[2] == #'second' - 1)
     end)
 
     it('after restoring the draft, <C-p> re-enters history from the snapshot', function()

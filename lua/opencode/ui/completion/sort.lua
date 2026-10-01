@@ -43,4 +43,3 @@ function M.sort_by_relevance(items, input, get_name, compare)
 end
 
 return M
-

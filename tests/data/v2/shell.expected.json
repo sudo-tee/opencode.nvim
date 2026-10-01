@@ -1,0 +1,216 @@
+{
+  "actions": [],
+  "extmarks": [
+    [
+      1,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "SHELL",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_shell-running]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      2,
+      1,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:23",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      3,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "SHELL",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_shell-exited]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      4,
+      6,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:24",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ],
+    [
+      5,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 10,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " ",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "SHELL",
+            "OpencodeMessageRoleShell"
+          ],
+          [
+            " "
+          ],
+          [
+            "",
+            "OpencodeHint"
+          ],
+          [
+            " [msg_shell-failed]",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": false,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      6,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 9,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            " 2023-11-14 22:13:25",
+            "OpencodeHint"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "right_align",
+        "virt_text_repeat_linebreak": false
+      }
+    ]
+  ],
+  "lines": [
+    "----",
+    "",
+    "",
+    "**  Shell running** `make test`",
+    "",
+    "----",
+    "",
+    "",
+    "**  Shell exited** `make test`",
+    "Exit code: 0",
+    "",
+    "`````text",
+    "Running unit tests...",
+    "12 tests passed.",
+    "`````",
+    "> Shell output truncated.",
+    "",
+    "----",
+    "",
+    "",
+    "**  Shell exited** `make lint`",
+    "Exit code: 1",
+    "",
+    "`````text",
+    "src/main.lua:10: unused variable",
+    "`````",
+    "",
+    ""
+  ],
+  "timestamp": 1790768833,
+  "window": {
+    "cursor": [
+      27,
+      0
+    ],
+    "effective_bottom": 27,
+    "line_count": 28,
+    "visible_bottom": 27
+  }
+}

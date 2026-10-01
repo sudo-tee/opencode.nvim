@@ -1,4 +1,4 @@
-local ctx = require('opencode.ui.renderer.ctx')
+local contexts = require('opencode.ui.renderer.ctx')
 local state = require('opencode.state')
 local output_window = require('opencode.ui.output_window')
 local diff = require('opencode.ui.renderer.output_diff')
@@ -27,14 +27,15 @@ local function is_pinned_top_message(message_id)
 end
 
 ---@param extmarks table<number, OutputExtmark[]|fun(): OutputExtmark>[]|table<number, OutputExtmark[]>|nil
----@return boolean
+---@return TypeGuard<table<number, OutputExtmark[]>>
 local function has_extmarks(extmarks)
   return type(extmarks) == 'table' and next(extmarks) ~= nil
 end
 
 ---@param extmarks table<number, OutputExtmark[]>
 ---@param line_start integer
-local function accumulate_bulk_extmarks(extmarks, line_start)
+---@param ctx RendererCtx
+local function accumulate_bulk_extmarks(ctx, extmarks, line_start)
   for line_idx, marks in pairs(extmarks) do
     local actual_line = line_start + line_idx
     local bucket = ctx.bulk_extmarks_by_line[actual_line]
@@ -54,7 +55,8 @@ end
 
 ---@param folds table<{from: number, to: number}>
 ---@param line_start integer
-local function accumulate_bulk_folds(folds, line_start)
+---@param ctx RendererCtx
+local function accumulate_bulk_folds(ctx, folds, line_start)
   for _, range in ipairs(folds or {}) do
     table.insert(ctx.bulk_folds, {
       from = line_start + range.from,
@@ -203,7 +205,8 @@ end
 
 ---@param message_id string
 ---@return integer
-local function get_message_insert_line(message_id)
+---@param ctx RendererCtx
+local function get_message_insert_line(ctx, message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if rendered_message and rendered_message.line_start then
     return rendered_message.line_start
@@ -226,10 +229,10 @@ local function get_message_insert_line(message_id)
     end
   end
 
-  local messages = state.messages or {}
+  local messages = ctx.entries
   local message_index = nil
   for i, message in ipairs(messages) do
-    if message.info and message.info.id == message_id then
+    if message.id == message_id then
       message_index = i
       break
     end
@@ -256,15 +259,15 @@ local function get_message_insert_line(message_id)
 
   for i = message_index + 1, #messages do
     local next_message = messages[i]
-    if next_message and next_message.info and next_message.info.id then
-      if is_pinned_bottom_message(next_message.info.id) then
-        local next_rendered = ctx.render_state:get_message(next_message.info.id)
+    if next_message and next_message.id then
+      if is_pinned_bottom_message(next_message.id) then
+        local next_rendered = ctx.render_state:get_message(next_message.id)
         if next_rendered and next_rendered.line_start then
           return next_rendered.line_start
         end
       end
 
-      local next_rendered = ctx.render_state:get_message(next_message.info.id)
+      local next_rendered = ctx.render_state:get_message(next_message.id)
       if next_rendered and next_rendered.line_start then
         return next_rendered.line_start
       end
@@ -284,7 +287,8 @@ end
 ---@param part_id string
 ---@param message_id string
 ---@return integer|nil
-local function get_part_insertion_line(part_id, message_id)
+---@param ctx RendererCtx
+local function get_part_insertion_line(ctx, part_id, message_id)
   local rendered_message = ctx.render_state:get_message(message_id)
   if not rendered_message or not rendered_message.message or not rendered_message.line_end then
     return nil
@@ -294,8 +298,8 @@ local function get_part_insertion_line(part_id, message_id)
   local insertion_line = rendered_message.line_end + 1
   local current_part_index = nil
 
-  for i, part in ipairs(message.parts or {}) do
-    if part.id == part_id then
+  for i in ipairs(message.content or {}) do
+    if ctx.content_key(message, i) == part_id then
       current_part_index = i
       break
     end
@@ -306,9 +310,9 @@ local function get_part_insertion_line(part_id, message_id)
   end
 
   for i = current_part_index - 1, 1, -1 do
-    local previous = message.parts[i]
-    if previous and previous.id then
-      local previous_rendered = ctx.render_state:get_part(previous.id)
+    local previous = message.content[i]
+    if previous then
+      local previous_rendered = ctx.render_state:get_part(ctx.content_key(message, i))
       if previous_rendered and previous_rendered.line_end then
         return previous_rendered.line_end + 1
       end
@@ -334,7 +338,8 @@ end
 ---@param part_id string
 ---@param formatted_data Output
 ---@param line_start integer
-local function apply_part_render_data(part_id, formatted_data, line_start)
+---@param ctx RendererCtx
+local function apply_part_render_data(ctx, part_id, formatted_data, line_start)
   ctx.render_state:clear_actions(part_id)
   if has_actions(formatted_data.actions) then
     ctx.render_state:add_actions(part_id, vim.deepcopy(formatted_data.actions), line_start)
@@ -349,30 +354,34 @@ local function apply_part_render_data(part_id, formatted_data, line_start)
   end
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return string|nil
-function M.get_last_part_for_message(message)
-  if not message or not message.parts or #message.parts == 0 then
+---@param ctx? RendererCtx
+function M.get_last_part_for_message(message, ctx)
+  ctx = ctx or contexts.current()
+  if not message or not message.content or #message.content == 0 then
     return nil
   end
-  for i = #message.parts, 1, -1 do
-    local part = message.parts[i]
-    if part.type ~= 'step-start' and part.type ~= 'step-finish' and part.id then
-      return part.id
+  for i = #message.content, 1, -1 do
+    local part = message.content[i]
+    if part.kind ~= 'step_start' and part.kind ~= 'step_finish' then
+      return ctx.content_key(message, i)
     end
   end
   return nil
 end
 
----@param message OpencodeMessage|nil
+---@param message table|nil
 ---@return string|nil
-function M.find_text_part_for_message(message)
-  if not message or not message.parts then
+---@param ctx? RendererCtx
+function M.find_text_part_for_message(message, ctx)
+  ctx = ctx or contexts.current()
+  if not message or not message.content then
     return nil
   end
-  for _, part in ipairs(message.parts) do
-    if part.type == 'text' and not part.synthetic then
-      return part.id
+  for index, part in ipairs(message.content) do
+    if part.kind == 'text' and not part.synthetic then
+      return ctx.content_key(message, index)
     end
   end
   return nil
@@ -381,7 +390,9 @@ end
 ---@param call_id string
 ---@param message_id string
 ---@return string|nil
-function M.find_part_by_call_id(call_id, message_id)
+---@param ctx? RendererCtx
+function M.find_part_by_call_id(call_id, message_id, ctx)
+  ctx = ctx or contexts.current()
   return ctx.render_state:get_part_by_call_id(call_id, message_id)
 end
 
@@ -389,7 +400,9 @@ end
 ---@param formatted_data Output
 ---@param previous_formatted Output|nil
 ---@return boolean
-function M.upsert_message_now(message_id, formatted_data, previous_formatted)
+---@param ctx? RendererCtx
+function M.upsert_message_now(message_id, formatted_data, previous_formatted, ctx)
+  ctx = ctx or contexts.current()
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
     local line_end = line_start + #formatted_data.lines - 1
@@ -398,10 +411,10 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
       ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
     end
     if has_extmarks(formatted_data.extmarks) then
-      accumulate_bulk_extmarks(formatted_data.extmarks, line_start)
+      accumulate_bulk_extmarks(ctx, formatted_data.extmarks, line_start)
     end
     if formatted_data.fold_ranges then
-      accumulate_bulk_folds(formatted_data.fold_ranges, line_start)
+      accumulate_bulk_folds(ctx, formatted_data.fold_ranges, line_start)
     end
 
     local message_data = ctx.render_state:get_message(message_id)
@@ -427,7 +440,7 @@ function M.upsert_message_now(message_id, formatted_data, previous_formatted)
     return true
   end
 
-  local insert_at = get_message_insert_line(message_id)
+  local insert_at = get_message_insert_line(ctx, message_id)
   local message_data = ctx.render_state:get_message(message_id)
   if message_data and message_data.message then
     local range = write_at(formatted_data.lines, insert_at, insert_at)
@@ -449,7 +462,9 @@ end
 ---@param formatted_data Output
 ---@param previous_formatted Output|nil
 ---@return boolean
-function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatted)
+---@param ctx? RendererCtx
+function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatted, ctx)
+  ctx = ctx or contexts.current()
   if ctx.bulk_mode then
     local line_start = #ctx.bulk_buffer_lines
     local line_end = line_start + #formatted_data.lines - 1
@@ -458,16 +473,16 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
       ctx.bulk_buffer_lines[#ctx.bulk_buffer_lines + 1] = line
     end
     if has_extmarks(formatted_data.extmarks) then
-      accumulate_bulk_extmarks(formatted_data.extmarks, line_start)
+      accumulate_bulk_extmarks(ctx, formatted_data.extmarks, line_start)
     end
     if formatted_data.fold_ranges then
-      accumulate_bulk_folds(formatted_data.fold_ranges, line_start)
+      accumulate_bulk_folds(ctx, formatted_data.fold_ranges, line_start)
     end
 
     local part_data = ctx.render_state:get_part(part_id)
     if part_data then
-      ctx.render_state:set_part(part_data.part, line_start, line_end)
-      apply_part_render_data(part_id, formatted_data, line_start)
+      ctx.render_state:set_part(part_data.part, message_id, part_id, line_start, line_end)
+      apply_part_render_data(ctx, part_id, formatted_data, line_start)
     end
 
     return true
@@ -477,7 +492,7 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   if cached and cached.line_start and cached.line_end then
     local prefix_len, old_line_end, new_line_end = write_in_place(cached, previous_formatted, formatted_data)
 
-    apply_part_render_data(part_id, formatted_data, cached.line_start)
+    apply_part_render_data(ctx, part_id, formatted_data, cached.line_start)
 
     if new_line_end ~= cached.line_end then
       local delta = new_line_end - old_line_end
@@ -487,13 +502,13 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     apply_extmarks(previous_formatted, formatted_data, cached.line_start, old_line_end, new_line_end, prefix_len, true)
 
     if formatted_data.fold_ranges then
-      M.update_part_folds(part_id)
+      M.update_part_folds(part_id, ctx)
     end
 
     return true
   end
 
-  local insert_at = get_part_insertion_line(part_id, message_id)
+  local insert_at = get_part_insertion_line(ctx, part_id, message_id)
   if not insert_at then
     return false
   end
@@ -503,14 +518,14 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
     local range = write_at(formatted_data.lines, insert_at, insert_at)
     ctx.render_state:shift_all(insert_at, #formatted_data.lines)
     output_window.shift_folds(insert_at, #formatted_data.lines)
-    ctx.render_state:set_part(part_data.part, range.line_start, range.line_end)
-    apply_part_render_data(part_id, formatted_data, range.line_start)
+    ctx.render_state:set_part(part_data.part, message_id, part_id, range.line_start, range.line_end)
+    apply_part_render_data(ctx, part_id, formatted_data, range.line_start)
     if has_extmarks(formatted_data.extmarks) then
       output_window.set_extmarks(formatted_data.extmarks, range.line_start)
     end
 
     if formatted_data.fold_ranges and #formatted_data.fold_ranges > 0 then
-      M.set_all_folds()
+      M.set_all_folds(ctx)
     end
 
     return true
@@ -519,7 +534,9 @@ function M.upsert_part_now(part_id, message_id, formatted_data, previous_formatt
   return false
 end
 
-function M.set_all_folds()
+---@param ctx? RendererCtx
+function M.set_all_folds(ctx)
+  ctx = ctx or contexts.current()
   local all_folds = {}
   ctx.part_folds = {}
   for part_id_iter, data in pairs(ctx.formatted_parts) do
@@ -560,11 +577,13 @@ end
 
 ---Update folds for a single part during streaming, avoiding a full rebuild.
 ---@param part_id string
-function M.update_part_folds(part_id)
+---@param ctx? RendererCtx
+function M.update_part_folds(part_id, ctx)
+  ctx = ctx or contexts.current()
   local formatted_data = ctx.formatted_parts[part_id]
   if not formatted_data or not formatted_data.fold_ranges then
     ctx.part_folds[part_id] = nil
-    M.set_all_folds()
+    M.set_all_folds(ctx)
     return
   end
   local cached_part = ctx.render_state:get_part(part_id)
@@ -587,7 +606,7 @@ function M.update_part_folds(part_id)
   ctx.part_folds[part_id] = new_folds
   local new_global = {}
   for pid, data in pairs(ctx.formatted_parts) do
-    if data.fold_ranges then
+    if #data.fold_ranges > 0 then
       local p = ctx.render_state:get_part(pid)
       if p and p.line_start then
         for _, f in ipairs(data.fold_ranges) do
@@ -607,11 +626,28 @@ function M.update_part_folds(part_id)
 end
 
 ---@param part_id string
+---@param formatted_data Output
+---@param ctx? RendererCtx
+function M.refresh_part_metadata(part_id, formatted_data, previous, ctx)
+  ctx = ctx or contexts.current()
+  local cached = ctx.render_state:get_part(part_id)
+  if not cached or cached.line_start == nil then
+    return
+  end
+  apply_part_render_data(ctx, part_id, formatted_data, cached.line_start)
+  if not vim.deep_equal(previous and previous.fold_ranges or {}, formatted_data.fold_ranges or {}) then
+    M.update_part_folds(part_id, ctx)
+  end
+end
+
+---@param part_id string
 ---@param extra_lines string[]
 ---@param extra_extmarks table<number, OutputExtmark[]>|nil
 ---@param previous_formatted Output|nil
 ---@return boolean
-function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_formatted)
+---@param ctx? RendererCtx
+function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_formatted, ctx)
+  ctx = ctx or contexts.current()
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end or #extra_lines == 0 then
     return false
@@ -622,13 +658,13 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
   output_window.set_lines(extra_lines, insert_at, insert_at)
   highlight_written_lines(insert_at, extra_lines)
 
-  local new_line_end = cached.line_end + #extra_lines
+  local new_line_end = old_line_end + #extra_lines
   ctx.render_state:update_part_lines(part_id, cached.line_start, new_line_end)
   output_window.shift_folds(insert_at, #extra_lines)
 
   local formatted_data = ctx.formatted_parts[part_id]
   if formatted_data then
-    apply_part_render_data(part_id, formatted_data, cached.line_start)
+    apply_part_render_data(ctx, part_id, formatted_data, cached.line_start)
     local prefix_len = diff.unchanged_prefix_lines(previous_formatted, formatted_data)
     apply_appended_extmarks(
       previous_formatted,
@@ -639,7 +675,7 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
       prefix_len
     )
     if formatted_data.fold_ranges then
-      M.update_part_folds(part_id)
+      M.update_part_folds(part_id, ctx)
     end
   elseif has_extmarks(extra_extmarks) then
     output_window.set_extmarks(extra_extmarks, insert_at)
@@ -649,19 +685,22 @@ function M.append_part_now(part_id, extra_lines, extra_extmarks, previous_format
 end
 
 ---@param part_id string
-function M.remove_part_now(part_id)
+---@return boolean
+---@param ctx? RendererCtx
+function M.remove_part_now(part_id, ctx)
+  ctx = ctx or contexts.current()
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
     -- Just track that this part should be excluded
     ctx.render_state:remove_part(part_id)
-    return
+    return false
   end
 
   local cached = ctx.render_state:get_part(part_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_part(part_id)
     ctx.part_folds[part_id] = nil
-    return
+    return false
   end
 
   output_window.clear_extmarks(cached.line_start - 1, cached.line_end + 1)
@@ -670,22 +709,26 @@ function M.remove_part_now(part_id)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_part(part_id)
   ctx.part_folds[part_id] = nil
-  M.set_all_folds()
+  M.set_all_folds(ctx)
+  return true
 end
 
 ---@param message_id string
-function M.remove_message_now(message_id)
+---@return boolean
+---@param ctx? RendererCtx
+function M.remove_message_now(message_id, ctx)
+  ctx = ctx or contexts.current()
   if ctx.bulk_mode then
     -- In bulk mode, we don't actually remove from buffer since we're building fresh
     -- Just track that this message should be excluded
     ctx.render_state:remove_message(message_id)
-    return
+    return false
   end
 
   local cached = ctx.render_state:get_message(message_id)
   if not cached or not cached.line_start or not cached.line_end then
     ctx.render_state:remove_message(message_id)
-    return
+    return false
   end
 
   output_window.clear_extmarks(cached.line_start, cached.line_end + 1)
@@ -693,7 +736,8 @@ function M.remove_message_now(message_id)
   local delta = -(cached.line_end - cached.line_start + 1)
   output_window.shift_folds(cached.line_start, delta)
   ctx.render_state:remove_message(message_id)
-  M.set_all_folds()
+  M.set_all_folds(ctx)
+  return true
 end
 
 return M

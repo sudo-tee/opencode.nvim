@@ -26,37 +26,6 @@ local function mk_session(id)
   }
 end
 
----@return OpencodeApiClient
-local function mk_api_client_for_test()
-  ---@type OpencodeApiClient
-  local client = {
-    base_url = 'http://127.0.0.1:4000',
-    create_message = function(_, _, _)
-      local promise = Promise.new()
-      promise:resolve({
-        info = {
-          id = 'message-1',
-          sessionID = 'session-1',
-          tokens = { reasoning = 0, input = 0, output = 0, cache = { write = 0, read = 0 } },
-          system = {},
-          time = { created = 0, completed = 0 },
-          cost = 0,
-          path = { cwd = '/mock/workspace', root = '/mock/workspace' },
-          modelID = 'model',
-          providerID = 'provider',
-          role = 'assistant',
-          system_role = nil,
-          mode = nil,
-          error = {},
-        },
-        parts = { { type = 'text', text = 'ok' } },
-      })
-      return promise
-    end,
-  }
-  return client
-end
-
 ---@generic T
 ---@param value T
 ---@return Promise<T>
@@ -102,13 +71,11 @@ end
 local function with_model_runtime_snapshot(fn)
   local original_model = state.current_model
   local original_mode = state.current_mode
-  local original_messages = state.messages
 
   local ok, err = pcall(fn)
 
   state.model.set_model(original_model)
   state.model.set_mode(original_mode)
-  state.renderer.set_messages(original_messages)
 
   if not ok then
     error(err)
@@ -116,14 +83,12 @@ local function with_model_runtime_snapshot(fn)
 end
 
 ---@param fn fun()
-local function with_session_client_snapshot(fn)
+local function with_session_snapshot(fn)
   local original_active_session = state.active_session
-  local original_api_client = state.api_client
 
   local ok, err = pcall(fn)
 
   state.session.set_active(original_active_session)
-  state.jobs.set_api_client(original_api_client)
 
   if not ok then
     error(err)
@@ -199,6 +164,33 @@ describe('opencode.api', function()
   end)
 
   describe('command routing', function()
+    it('notifies asynchronous handler failures and preserves rejection', function()
+      local notify = stub(vim, 'notify')
+      local pending = Promise.new()
+      local result = commands.execute_parsed_intent(commands.build_parsed_intent('command', { 'foo' }), function()
+        return pending
+      end)
+      pending:reject('Command lookup failed')
+      local ok, err = pcall(function()
+        result:wait()
+      end)
+      assert.is_false(ok)
+      assert.matches('Command lookup failed', tostring(err))
+      assert.stub(notify).was_called_with('Command lookup failed', vim.log.levels.ERROR)
+      notify:revert()
+    end)
+
+    it('routes command and public API skill activation through the same service', function()
+      local open = stub(session_runtime, 'open').returns(resolved(true))
+      local activate = stub(messaging, 'run_skill').returns(resolved(true))
+      commands.execute_command_opts({ args = 'skill review fix current changes', range = 0 }):wait()
+      api.run_skill('review', 'fix current changes'):wait()
+      assert.stub(activate).was_called(2)
+      assert.stub(activate).was_called_with('review', 'fix current changes')
+      activate:revert()
+      open:revert()
+    end)
+
     it('reports invalid nested subcommand before execution', function()
       local notify_stub = stub(vim, 'notify')
 
@@ -274,14 +266,31 @@ describe('opencode.api', function()
 
     it('routes copy_message through the command axis with its message id', function()
       local original_active_session = state.active_session
-      local original_messages = state.messages
+      local original_server = state.opencode_server
+      local original_observation = state.session.active_observation
       state.session.set_active(mk_session('session-copy'))
-      state.renderer.set_messages({
-        {
-          info = { id = 'message-copy', role = 'user' },
-          parts = { { type = 'text', text = 'copy source' } },
-        },
+      state.jobs.set_server({
+        is_ready = function()
+          return true
+        end,
       })
+      state.session.active_observation = function()
+        return {
+          read = function()
+            return {
+              session = { id = 'session-copy' },
+              entry_order = { 'message-copy' },
+              entries_by_id = {
+                ['message-copy'] = {
+                  id = 'message-copy',
+                  kind = 'user',
+                  content = { { kind = 'text', text = 'copy source' } },
+                },
+              },
+            }
+          end,
+        }
+      end
 
       local build_stub = stub(commands, 'build_parsed_intent').invokes(function(name, args)
         assert.equal('copy_message', name)
@@ -300,8 +309,9 @@ describe('opencode.api', function()
       setreg_stub:revert()
       execute_stub:revert()
       build_stub:revert()
-      state.renderer.set_messages(original_messages)
+      state.session.active_observation = original_observation
       state.session.set_active(original_active_session)
+      state.jobs.set_server(original_server)
     end)
   end)
 
@@ -341,11 +351,10 @@ describe('opencode.api', function()
       assert_send_message_called_with('test prompt new', true)
     end)
 
-    it('routes submit_input_prompt through handle_submit, send_message, and after_run', function()
-      with_session_client_snapshot(function()
+    it('routes submit_input_prompt through take_input, send_message, and after_run', function()
+      with_session_snapshot(function()
         with_model_runtime_snapshot(function()
           state.session.set_active(mk_session('session-1'))
-          state.jobs.set_api_client(mk_api_client_for_test())
 
           stub(context, 'get_context').returns({ mentioned_files = {} })
           stub(context, 'load')
@@ -361,21 +370,18 @@ describe('opencode.api', function()
             require('opencode.services.messaging').after_run(prompt)
             return true
           end)
-          local handle_submit_stub = stub(input_window, 'handle_submit').invokes(function()
-            require('opencode.services.messaging').send_message('hello')
-            return true
-          end)
+          local take_input_stub = stub(input_window, 'take_input').returns('hello')
           local is_hidden_stub = stub(input_window, 'is_hidden').returns(true)
 
           api.submit_input_prompt():wait()
 
-          assert.stub(handle_submit_stub).was_called()
+          assert.stub(take_input_stub).was_called()
           assert.stub(send_message_stub).was_called_with('hello')
           assert.stub(after_run_stub).was_called_with('hello')
 
           send_message_stub:revert()
           after_run_stub:revert()
-          handle_submit_stub:revert()
+          take_input_stub:revert()
           agent_model.initialize_current_model:revert()
           context.format_message:revert()
           context.load:revert()
@@ -491,6 +497,101 @@ describe('opencode.api', function()
   end)
 
   describe('slash commands with user commands', function()
+    it('awaits asynchronous command and agent lookups before sending a user command', function()
+      with_session_snapshot(function()
+        local workflow = require('opencode.commands.handlers.workflow')
+        local window = require('opencode.commands.handlers.window')
+        local config_file = require('opencode.config_file')
+        local commands_pending = Promise.new()
+        local agents_pending = Promise.new()
+        local open_stub = stub(window.actions, 'open_input').returns(resolved(true))
+        local commands_stub = stub(config_file, 'get_user_commands').returns(commands_pending)
+        local agents_stub = stub(config_file, 'get_opencode_agents').returns(agents_pending)
+        state.session.set_active(mk_session('command-session'))
+        local original_server = state.opencode_server
+        local sent = {}
+        state.jobs.set_server({
+          is_ready = function()
+            return true
+          end,
+          operations = {
+            send_command = function(_, _, _, input)
+              sent[#sent + 1] = input
+              return resolved(true)
+            end,
+          },
+        })
+        local result = workflow.actions.run_user_command('foo')
+        commands_pending:resolve({ foo = { agent = 'custom-agent' } })
+        vim.wait(50, function()
+          return result:is_resolved()
+        end)
+        local resolved_early = result:is_resolved()
+        agents_pending:resolve({})
+        local ok, err = pcall(function()
+          result:wait()
+        end)
+        state.jobs.set_server(original_server)
+        open_stub:revert()
+        commands_stub:revert()
+        agents_stub:revert()
+        assert.is_false(resolved_early)
+        assert.is_true(ok, tostring(err))
+        assert.equals(1, #sent)
+        assert.equals('foo', sent[1].command)
+      end)
+    end)
+
+    for _, name in ipairs({ 'foo', 'review' }) do
+      it('waits for /' .. name .. ' and propagates request failures', function()
+        with_user_commands({ foo = { template = 'Run foo' } }, function()
+          with_session_snapshot(function()
+            local workflow = require('opencode.commands.handlers.workflow')
+            local window = require('opencode.commands.handlers.window')
+            local session = mk_session('command-session')
+            state.session.set_active(session)
+            local original_model = state.current_model
+            state.model.set_model('provider/model')
+            local open_stub = stub(window.actions, 'open_input').returns(resolved(true))
+            local create_stub = stub(session_runtime, 'create_new_session').returns(resolved(session))
+            local model_stub = stub(agent_model, 'initialize_current_model').returns(resolved(true))
+
+            local request = Promise.new()
+            local original_server = state.opencode_server
+            state.jobs.set_server({
+              is_ready = function()
+                return true
+              end,
+              operations = {
+                send_command = function()
+                  return request
+                end,
+              },
+            })
+
+            local result = name == 'review' and workflow.actions.review() or workflow.actions.run_user_command(name)
+            vim.wait(100, function()
+              return result:is_resolved()
+            end)
+            local resolved_early = result:is_resolved()
+            request:reject('Command request failed')
+            local ok, err = pcall(function()
+              result:wait()
+            end)
+            state.jobs.set_server(original_server)
+            state.model.set_model(original_model)
+            open_stub:revert()
+            create_stub:revert()
+            model_stub:revert()
+
+            assert.is_false(resolved_early)
+            assert.is_false(ok)
+            assert.matches('Command request failed', tostring(err))
+          end)
+        end)
+      end)
+    end
+
     describe('user command model/agent selection', function()
       before_each(function()
         stub(api, 'open_input').invokes(function()
@@ -509,20 +610,21 @@ describe('opencode.api', function()
             agent = 'tester',
           },
         }, function()
-          with_session_client_snapshot(function()
+          with_session_snapshot(function()
             state.session.set_active(mk_session('test-session'))
 
             local send_command_calls = {}
-            state.jobs.set_api_client({
-              base_url = 'http://127.0.0.1:4000',
-              send_command = function(_self, session_id, command_data)
-                table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
-                return {
-                  and_then = function()
-                    return {}
-                  end,
-                }
+            local original_server = state.opencode_server
+            state.jobs.set_server({
+              is_ready = function()
+                return true
               end,
+              operations = {
+                send_command = function(_self, session_id, _location, command_data)
+                  table.insert(send_command_calls, { session_id = session_id, command_data = command_data })
+                  return resolved(true)
+                end,
+              },
             })
 
             local slash_commands = slash.get_commands():wait()
@@ -537,6 +639,7 @@ describe('opencode.api', function()
             assert.equal('', send_command_calls[1].command_data.arguments)
             assert.equal('openai/gpt-4', send_command_calls[1].command_data.model)
             assert.equal('tester', send_command_calls[1].command_data.agent)
+            state.jobs.set_server(original_server)
           end)
         end)
       end)
@@ -580,7 +683,6 @@ describe('opencode.api', function()
       with_model_runtime_snapshot(function()
         state.model.clear_model()
         state.model.clear_mode()
-        state.renderer.set_messages(nil)
 
         with_opencode_config({ model = 'testmodel' }, function()
           local model = api.current_model():wait()
@@ -593,16 +695,6 @@ describe('opencode.api', function()
       with_model_runtime_snapshot(function()
         state.model.set_model('openai/gpt-4.1')
         state.model.set_mode('plan')
-        state.renderer.set_messages({
-          {
-            info = {
-              id = 'm1',
-              providerID = 'anthropic',
-              modelID = 'claude-3-opus',
-              mode = 'build',
-            },
-          },
-        })
 
         local model = api.current_model():wait()
 

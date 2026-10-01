@@ -4,15 +4,89 @@ local config = require('opencode.config')
 local M = {}
 
 ---Compute duration text for a tool part, returning nil when not applicable.
----@param part OpencodeMessagePart
+---@param part table
 ---@return string|nil
 function M.get_duration_text(part)
-  local status = part.state and part.state.status
+  local status = part.state
   if status == 'pending' then
     return nil
   end
-  local time = part.state and part.state.time or {}
-  return util.format_duration_seconds(time.start, time['end'])
+  local time = part.time or {}
+  return util.format_duration_seconds(time.started, time.completed)
+end
+
+---@param part table
+---@return string
+function M.tool_result_text(part)
+  local text = {}
+  for _, item in ipairs(part.result or {}) do
+    if item.kind == 'text' and type(item.text) == 'string' then
+      text[#text + 1] = item.text
+    end
+  end
+  return table.concat(text, '\n')
+end
+
+---@param output Output
+---@param input? table
+function M.format_tool_input(output, input)
+  local tools = config.ui.output.tools
+  if not input or next(input) == nil or not (tools.show_output or tools.use_folds) then
+    return
+  end
+  output:add_empty_line()
+  local start_line = output:add_line('**Input**')
+  M.format_code(output, vim.split(vim.json.encode(input), '\n'), 'json')
+  output:add_fold_with_threshold(start_line, tools.show_output, tools.use_folds)
+end
+
+---@param output Output
+---@param part {result?: OpencodeV2NormalizedToolResult[]}
+function M.format_tool_result(output, part)
+  local tools = config.ui.output.tools
+  if not (tools.show_output or tools.use_folds) then
+    return
+  end
+
+  ---@type integer?
+  local start_line
+  for _, item in ipairs(part.result or {}) do
+    if item.kind == 'file' or (item.kind == 'text' and item.text ~= '') then
+      if not start_line then
+        output:add_empty_line()
+        start_line = output:add_line('**Result**')
+        output:add_empty_line()
+      end
+      if item.kind == 'text' then
+        output:add_lines(util.sanitize_lines(vim.split(item.text, '\n')))
+      else
+        local inline = vim.startswith(item.uri, 'data:')
+        local name = item.name or (inline and 'Inline attachment' or item.uri)
+        local label = name:gsub('[\r\n]', ' ')
+        local line = string.format('Attachment: %s (%s)', label, item.media_type)
+        if not inline then
+          line = string.format('Attachment: [%s](<%s>) (%s)', label, item.uri, item.media_type)
+        end
+        local line_idx = output:add_line(line)
+        if vim.startswith(item.uri, 'file://') then
+          output:add_target({
+            kind = 'file',
+            path = vim.uri_to_fname(item.uri),
+            range = { line = line_idx, start_col = 0, end_col = #line },
+          })
+        elseif item.uri:match('^https?://') then
+          output:add_target({
+            kind = 'uri',
+            uri = item.uri,
+            range = { line = line_idx, start_col = 0, end_col = #line },
+          })
+        end
+      end
+    end
+  end
+  if start_line then
+    output:add_fold_with_threshold(start_line, tools.show_output, tools.use_folds)
+  end
 end
 
 ---@param session_id string
@@ -46,6 +120,30 @@ function M.format_action(output, icon, tool_type, value, duration_text)
     return
   end
   output:add_line(M.build_action_line(icon, tool_type, value, duration_text))
+end
+
+---@param output Output
+---@param message? table
+---@param context? FormatterContext
+---@param path string
+---@param first_line integer
+---@param last_line integer
+function M.add_tool_diff_action(output, message, context, path, first_line, last_line)
+  if not context or not context.interactive or not message then
+    return
+  end
+  local connection = require('opencode.state').opencode_server
+  if not connection or connection.protocol ~= 'v2' then
+    return
+  end
+  output:add_action({
+    text = '[D]iff file',
+    type = 'diff_toggle_file',
+    args = { message.id, path, message.session_id },
+    key = 'D',
+    display_line = first_line,
+    range = { from = first_line, to = last_line },
+  })
 end
 
 ---@param tool string|nil
@@ -93,6 +191,7 @@ local function parse_diff_line_numbers(lines)
   local numbered_lines = {}
   local old_line
   local new_line
+  local in_hunk = false
   local max_line_number = 0
 
   for idx, line in ipairs(lines) do
@@ -101,22 +200,33 @@ local function parse_diff_line_numbers(lines)
     if old_start and new_start then
       old_line = tonumber(old_start)
       new_line = tonumber(new_start)
-    elseif old_line and new_line then
+      in_hunk = true
+    elseif line:match('^@@') then
+      old_line = nil
+      new_line = nil
+      in_hunk = true
+    elseif in_hunk then
       local first_char = line:sub(1, 1)
 
       if first_char == ' ' then
         numbered_lines[idx] = { old = old_line, new = new_line }
-        max_line_number = math.max(max_line_number, old_line, new_line)
-        old_line = old_line + 1
-        new_line = new_line + 1
+        if old_line and new_line then
+          max_line_number = math.max(max_line_number, old_line, new_line)
+          old_line = old_line + 1
+          new_line = new_line + 1
+        end
       elseif first_char == '+' and not line:match('^%+%+%+%s') then
         numbered_lines[idx] = { old = nil, new = new_line }
-        max_line_number = math.max(max_line_number, new_line)
-        new_line = new_line + 1
+        if new_line then
+          max_line_number = math.max(max_line_number, new_line)
+          new_line = new_line + 1
+        end
       elseif first_char == '-' and not line:match('^%-%-%-%s') then
         numbered_lines[idx] = { old = old_line, new = nil }
-        max_line_number = math.max(max_line_number, old_line)
-        old_line = old_line + 1
+        if old_line then
+          max_line_number = math.max(max_line_number, old_line)
+          old_line = old_line + 1
+        end
       end
     end
   end
@@ -190,8 +300,14 @@ function M.format_diff(output, code, file_type, source_path)
   --- NOTE: use longer code fence because code could contain ```
   output:add_line('`````' .. file_type)
   local full_lines = vim.split(code, '\n')
+  for index = #full_lines, 1, -1 do
+    if full_lines[index] == '\\ No newline at end of file' then
+      table.remove(full_lines, index)
+    end
+  end
   local numbered_lines, line_number_width = parse_diff_line_numbers(full_lines)
-  local first_visible_line = #full_lines > 5 and 6 or 1
+  local first_line = full_lines[1] --[[@as string]]
+  local first_visible_line = first_line:match('^@@') and 1 or (#full_lines > 5 and 6 or 1)
   local lines = first_visible_line > 1 and vim.list_slice(full_lines, first_visible_line) or full_lines
 
   for idx, line in ipairs(lines) do
@@ -205,7 +321,7 @@ function M.format_diff(output, code, file_type, source_path)
   output:add_line('`````')
 end
 ---Calculate statistics for reverted messages and tool calls
----@param messages {info: MessageInfo, parts: OpencodeMessagePart[]}[] All messages in the session
+---@param messages table[] All entries in the session
 ---@param revert_index number Index of the message where revert occurred
 ---@param revert_info SessionRevertInfo|nil Revert information
 ---@return {messages: number, tool_calls: number, files: table<string, {additions: number, deletions: number}>}
@@ -218,12 +334,12 @@ function M.calculate_revert_stats(messages, revert_index, revert_info)
 
   for i = revert_index, #messages do
     local msg = messages[i]
-    if msg and msg.info and msg.info.role == 'user' then
+    if msg and msg.kind == 'user' then
       stats.messages = stats.messages + 1
     end
-    if msg and msg.parts then
-      for _, part in ipairs(msg.parts) do
-        if part.type == 'tool' then
+    if msg and msg.content then
+      for _, part in ipairs(msg.content) do
+        if part.kind == 'tool' then
           stats.tool_calls = stats.tool_calls + 1
         end
       end

@@ -1,8 +1,4 @@
--- tests/unit/session_picker_spec.lua
--- Tests for session_picker helpers and delete action behaviour
-
 local session_picker = require('opencode.ui.session_picker')
-local session_mod = require('opencode.session')
 local session_runtime = require('opencode.services.session_runtime')
 local state = require('opencode.state')
 local store = require('opencode.state.store')
@@ -12,64 +8,35 @@ local assert = require('luassert')
 local support = require('tests.unit.services_spec_support')
 
 describe('opencode.ui.session_picker', function()
-  -- -----------------------------------------------------------------------
-  -- Pure unit tests for the helper – no mocks needed
-  -- -----------------------------------------------------------------------
-  describe('_is_session_or_ancestor_deleted', function()
-    local root = { id = 'root', parentID = nil }
-    local child = { id = 'child', parentID = 'root' }
-    local grandchild = { id = 'grandchild', parentID = 'child' }
-    local unrelated = { id = 'unrelated', parentID = nil }
-    local all_sessions = { root, child, grandchild, unrelated }
-
-    it('returns true when the session itself is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('child', { child = true }, all_sessions))
-    end)
-
-    it('returns true when the direct parent is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('child', { root = true }, all_sessions))
-    end)
-
-    it('returns true when a grandparent is in the delete set', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('grandchild', { root = true }, all_sessions))
-    end)
-
-    it('returns false when an unrelated session is deleted', function()
-      assert.is_false(session_picker._is_session_or_ancestor_deleted('child', { unrelated = true }, all_sessions))
-    end)
-
-    it('returns false when only a sibling is deleted', function()
-      local sibling = { id = 'sibling', parentID = 'root' }
-      assert.is_false(
-        session_picker._is_session_or_ancestor_deleted(
-          'child',
-          { sibling = true },
-          { root, child, sibling, grandchild }
-        )
-      )
-    end)
-
-    it('returns false for a root session when an unrelated root is deleted', function()
-      assert.is_false(session_picker._is_session_or_ancestor_deleted('root', { unrelated = true }, all_sessions))
-    end)
-
-    it('returns true for root session when root itself is deleted', function()
-      assert.is_true(session_picker._is_session_or_ancestor_deleted('root', { root = true }, all_sessions))
-    end)
-  end)
-
   describe('preview_fn contract', function()
-    local original_api_client
+    local original
     local original_pick
+    local connection
+
+    local function set_entries(entries)
+      local observation = connection:observe({ id = 's1' })
+      observation._state.entries_by_id = {}
+      observation._state.entry_order = {}
+      for _, entry in ipairs(entries) do
+        observation._state.entries_by_id[entry.id] = entry
+        observation._state.entry_order[#observation._state.entry_order + 1] = entry.id
+      end
+      observation._state.sync.messages = { state = 'current' }
+      observation.watch = function(self, _, changed)
+        changed(self)
+        return function() end
+      end
+    end
 
     before_each(function()
-      original_api_client = state.api_client
+      original = support.snapshot_state()
+      connection = support.mock_connection()
       local base_picker = require('opencode.ui.base_picker')
       original_pick = base_picker.pick
     end)
 
     after_each(function()
-      state.jobs.set_api_client(original_api_client)
+      support.restore_state(original)
       require('opencode.ui.base_picker').pick = original_pick
     end)
 
@@ -81,11 +48,7 @@ describe('opencode.ui.session_picker', function()
         return true
       end
 
-      state.jobs.set_api_client({
-        list_messages = function()
-          return Promise.new():resolve({})
-        end,
-      })
+      set_entries({})
 
       session_picker.pick({ { id = 's1', title = 'Session', time = { updated = 'now' } } }, function() end)
       assert.is_table(captured_opts)
@@ -110,7 +73,66 @@ describe('opencode.ui.session_picker', function()
       end)
 
       assert.are.same({ 'Loading...' }, writes[1])
-      assert.are.same({ 'No messages or failed to load' }, writes[2])
+      assert.are.same({ 'No messages' }, writes[2])
+    end)
+
+    it('renders loaded messages before releasing the observation state', function()
+      local lifecycle = require('opencode.protocols.observation')
+      local request = Promise.new()
+      local ref = { id = 's1' }
+      local observation = lifecycle.attach(connection, ref, lifecycle.new_state(ref), {
+        name = 'preview-test',
+        stream_resource = function()
+          return false
+        end,
+        request_resource = function()
+          return request
+        end,
+        apply_resource = function(observed, _, entries)
+          observed:read().entry_order = { entries[1].id }
+          observed:read().entries_by_id = { [entries[1].id] = entries[1] }
+        end,
+      })
+      connection.observations.s1 = observation
+      local captured_opts
+      require('opencode.ui.base_picker').pick = function(opts)
+        captured_opts = opts
+        return true
+      end
+      session_picker.pick({ ref }, function() end)
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      local writes = {}
+      local target = {
+        get_bufnr = function()
+          return bufnr
+        end,
+        is_valid = function()
+          return true
+        end,
+        set_lines = function(_, lines)
+          writes[#writes + 1] = lines
+          vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+        end,
+        with_window = function() end,
+      }
+      captured_opts.preview_fn(ref, target)
+      request:resolve({
+        {
+          id = 'msg_1',
+          kind = 'assistant',
+          session_id = 's1',
+          content = { { id = 'part_1', kind = 'text', text = 'Loaded preview message' } },
+        },
+      })
+      vim.wait(1000, function()
+        return #writes >= 2
+      end)
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+
+      assert.is_truthy(table.concat(writes[#writes], '\n'):find('Loaded preview message', 1, true))
+      assert.same({}, observation:read().entry_order)
+      assert.is_nil(connection.observations.s1)
     end)
 
     it('formats preview parts with non-interactive formatter context', function()
@@ -131,17 +153,15 @@ describe('opencode.ui.session_picker', function()
         return true
       end
 
-      state.jobs.set_api_client({
-        list_messages = function()
-          return Promise.new():resolve({
-            {
-              info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' },
-              parts = {
-                { id = 'part_1', type = 'text', text = 'See `src/main.lua`.' },
-              },
-            },
-          })
-        end,
+      set_entries({
+        {
+          id = 'msg_1',
+          kind = 'assistant',
+          session_id = 'ses_1',
+          content = {
+            { id = 'part_1', kind = 'text', text = 'See `src/main.lua`.' },
+          },
+        },
       })
 
       session_picker.pick({ { id = 's1', title = 'Session', time = { updated = 'now' } } }, function() end)
@@ -191,17 +211,15 @@ describe('opencode.ui.session_picker', function()
         return true
       end
 
-      state.jobs.set_api_client({
-        list_messages = function()
-          return Promise.new():resolve({
-            {
-              info = { id = 'msg_1', role = 'assistant', sessionID = 'ses_1' },
-              parts = {
-                { id = 'part_1', type = 'text', text = 'See `src/main.lua` then call foo.' },
-              },
-            },
-          })
-        end,
+      set_entries({
+        {
+          id = 'msg_1',
+          kind = 'assistant',
+          session_id = 'ses_1',
+          content = {
+            { id = 'part_1', kind = 'text', text = 'See `src/main.lua` then call foo.' },
+          },
+        },
       })
 
       session_picker.pick({ { id = 's1', title = 'Session', time = { updated = 'now' } } }, function() end)
@@ -234,103 +252,10 @@ describe('opencode.ui.session_picker', function()
     end)
   end)
 
-  it('opens the selected session in a new panel tab', function()
-    local base_picker = require('opencode.ui.base_picker')
-    local original_pick = base_picker.pick
-    local session_runtime = require('opencode.services.session_runtime')
-    local selected_session = { id = 'session-in-tab', title = 'Session in tab' }
-    local captured_action
-
-    base_picker.pick = function(opts)
-      captured_action = opts.actions.open_in_tab
-      return true
-    end
-
-    session_picker.pick({ selected_session }, function() end)
-
-    local open_stub = stub(session_runtime, 'open_session_in_tab').returns(Promise.new():resolve(selected_session))
-    local closed = false
-    assert.is_true(captured_action.multi_selection)
-    captured_action
-      .fn(selected_session, {
-        close = function()
-          closed = true
-        end,
-      })
-      :wait()
-
-    assert.is_true(closed)
-    assert.stub(open_stub).was_called_with(selected_session)
-
-    open_stub:revert()
-    base_picker.pick = original_pick
-  end)
-
-  it('opens multiple selected sessions in panel tabs', function()
-    local base_picker = require('opencode.ui.base_picker')
-    local original_pick = base_picker.pick
-    local sessions = {
-      { id = 'session-1', title = 'First session' },
-      { id = 'session-2', title = 'Second session' },
-    }
-    local captured_action
-    local captured_multi_select
-
-    base_picker.pick = function(opts)
-      captured_action = opts.actions.open_in_tab
-      captured_multi_select = opts.multi_select_fn
-      return true
-    end
-
-    session_picker.pick(sessions, function() end)
-
-    local opened = {}
-    local open_stub = stub(session_runtime, 'open_session_in_tab').invokes(function(session)
-      opened[#opened + 1] = session
-      return Promise.new():resolve(session)
-    end)
-    local closed = false
-    local original_delay = Promise.delay
-    local close_delay = Promise.new()
-    local between_opens_delay = Promise.new()
-    local delays = { close_delay, between_opens_delay, Promise.new():resolve(true) }
-    Promise.delay = function()
-      return table.remove(delays, 1)
-    end
-
-    assert.equal(captured_action.fn, captured_multi_select)
-    local action_promise = captured_multi_select(sessions, {
-      close = function()
-        closed = true
-      end,
-    })
-    assert.is_true(closed)
-    assert.same({}, opened)
-
-    close_delay:resolve(true)
-    vim.wait(50, function()
-      return #opened == 1
-    end)
-    assert.same({ sessions[1] }, opened)
-
-    between_opens_delay:resolve(true)
-    action_promise:wait()
-    Promise.delay = original_delay
-
-    assert.same(sessions, opened)
-    assert.stub(open_stub).was_called(2)
-
-    open_stub:revert()
-    base_picker.pick = original_pick
-  end)
-
-  -- -----------------------------------------------------------------------
-  -- Integration tests: delete action triggers switch when parent/grandparent
-  -- of the active session is deleted
-  -- -----------------------------------------------------------------------
   describe('delete action – session switch on ancestor deletion', function()
     local original
     local switch_stub
+    local connection
 
     local root_session = { id = 'root', parentID = nil, title = 'Root', time = { updated = '2024-01-01' } }
     local other_root = { id = 'other-root', parentID = nil, title = 'Other', time = { updated = '2024-01-01' } }
@@ -345,79 +270,163 @@ describe('opencode.ui.session_picker', function()
         fn()
       end
 
-      support.mock_api_client()
-
-      -- Stub delete_session on the api_client so it doesn't error
-      state.api_client.delete_session = function(_, _id)
+      connection = support.mock_connection()
+      connection.operations.delete_session = function(_, _id)
         return Promise.new():resolve(true)
       end
 
-      -- Stub get_all_workspace_sessions to return our fixture tree
-      stub(session_mod, 'get_all_workspace_sessions').invokes(function()
+      stub(session_runtime, 'list_sessions_by_scope').invokes(function()
         return Promise.new():resolve({ root_session, other_root, child_session, grandchild_session })
       end)
 
-      -- Stub switch_session so we can assert it was called
-      switch_stub = stub(session_runtime, 'switch_session').invokes(function(_id)
+      switch_stub = stub(require('opencode.services.session_runtime'), 'select_session').invokes(function(_id)
         return Promise.new():resolve(true)
       end)
     end)
 
     after_each(function()
       support.restore_state(original)
-      if session_mod.get_all_workspace_sessions.revert then
-        session_mod.get_all_workspace_sessions:revert()
+      if session_runtime.list_sessions_by_scope.revert then
+        session_runtime.list_sessions_by_scope:revert()
       end
-      if session_runtime.switch_session.revert then
-        session_runtime.switch_session:revert()
+      if require('opencode.services.session_runtime').select_session.revert then
+        require('opencode.services.session_runtime').select_session:revert()
       end
     end)
 
-    -- Helper: build a minimal opts table with items and invoke the delete fn
-    local function run_delete(active, items_in_picker, sessions_to_delete)
-      state.session.set_active(active)
-
-      -- Extract the delete action fn from the picker actions by opening a
-      -- dummy picker and grabbing the action directly from the module.
-      -- Because `pick()` closes over the actions, we re-create them here
-      -- by invoking the delete fn directly through a fake opts table.
-      local delete_fn = nil
-      -- Monkey-patch base_picker.pick to capture the actions
+    local function picker_actions()
+      local captured
       local base_picker = require('opencode.ui.base_picker')
       local orig_pick = base_picker.pick
       base_picker.pick = function(opts)
-        -- grab delete fn from the actions passed in
-        delete_fn = opts.actions.delete.fn
+        captured = opts.actions
+        return true
       end
-      session_picker.pick(items_in_picker, function() end)
+      session_picker.pick({ root_session, other_root }, function() end, { scope = 'project' })
       base_picker.pick = orig_pick
-
-      assert.truthy(delete_fn, 'delete fn should have been captured')
-
-      local opts = { items = vim.deepcopy(items_in_picker) }
-      delete_fn(sessions_to_delete, opts):wait()
+      return captured
     end
 
+    local function run_delete(active, items_in_picker, sessions_to_delete)
+      state.session.set_active(active)
+      local opts = { items = vim.deepcopy(items_in_picker) }
+      picker_actions().delete.fn(sessions_to_delete, opts):wait()
+    end
+
+    it('keeps successful deletions reflected in the picker when a later deletion fails', function()
+      state.session.set_active(nil)
+      local deleted = {}
+      connection.operations.delete_session = function(_, id)
+        deleted[#deleted + 1] = id
+        if id == other_root.id then
+          return Promise.new():reject('delete failed')
+        end
+        return Promise.new():resolve(true)
+      end
+      local opts = { items = { root_session, other_root } }
+      local ok = pcall(function()
+        picker_actions().delete.fn({ root_session, other_root }, opts):wait()
+      end)
+      assert.is_false(ok)
+      assert.same({ 'root', 'other-root' }, deleted)
+      assert.same({ other_root }, opts.items)
+    end)
+
+    it('renames through the service without invoking command hooks', function()
+      local config = require('opencode.config')
+      local original_hooks = config.hooks
+      local events = {}
+      config.hooks = {
+        on_command_before = function(ctx)
+          events[#events + 1] = ctx.intent.name
+        end,
+      }
+      connection.operations.rename_session = function(_, id, _, title)
+        assert.equals('root', id)
+        assert.equals('Renamed', title)
+        return Promise.new():resolve(true)
+      end
+      local input_stub = stub(vim.ui, 'input').invokes(function(_, callback)
+        callback('Renamed')
+      end)
+      local opts = { items = { root_session } }
+      local ok, result = pcall(function()
+        return picker_actions().rename.fn(root_session, opts):wait()
+      end)
+      input_stub:revert()
+      config.hooks = original_hooks
+      assert.is_true(ok, tostring(result))
+      assert.same({}, events)
+      assert.equals('Renamed', result[1].title)
+      assert.equals('Root', root_session.title)
+    end)
+
+    it('leaves the picker unchanged when renaming is cancelled or fails', function()
+      local requested_title
+      local calls = 0
+      connection.operations.rename_session = function()
+        calls = calls + 1
+        return Promise.new():reject('rename failed')
+      end
+      local input_stub = stub(vim.ui, 'input').invokes(function(_, callback)
+        callback(requested_title)
+      end)
+      local opts = { items = { root_session } }
+      local action = picker_actions().rename.fn
+      local ok, err = pcall(function()
+        assert.is_nil(action(root_session, opts):wait())
+        assert.equals(0, calls)
+        requested_title = 'Renamed'
+        assert.is_nil(action(root_session, opts):wait())
+        assert.equals(1, calls)
+        assert.equals('Root', opts.items[1].title)
+      end)
+      input_stub:revert()
+      assert.is_true(ok, tostring(err))
+    end)
+
+    it('preserves command lifecycle hooks for API renames', function()
+      local config = require('opencode.config')
+      local original_hooks = config.hooks
+      local events = {}
+      config.hooks = {
+        on_command_before = function(ctx)
+          events[#events + 1] = 'before:' .. ctx.intent.name
+        end,
+        on_command_after = function(ctx)
+          events[#events + 1] = 'after:' .. ctx.intent.name
+        end,
+      }
+      connection.operations.rename_session = function()
+        return Promise.new():resolve(true)
+      end
+      local ok, result = pcall(function()
+        return require('opencode.api').rename_session(root_session, 'Renamed'):wait()
+      end)
+      config.hooks = original_hooks
+      assert.is_true(ok, tostring(result))
+      assert.same({ 'before:rename_session', 'after:rename_session' }, events)
+      assert.equals('Renamed', result.title)
+      assert.equals('Root', root_session.title)
+    end)
+
     it('switches session when the active session direct parent is deleted', function()
-      -- Active = child, deleting root (parent of child), other_root remains
       run_delete(child_session, { root_session, other_root }, root_session)
 
       assert.stub(switch_stub).was_called()
       local called_with = switch_stub.calls[1].vals[1]
-      assert.equals('other-root', called_with)
+      assert.equals('other-root', called_with.id)
     end)
 
     it('switches session when active session grandparent is deleted', function()
-      -- Active = grandchild, deleting root (grandparent), other_root remains
       run_delete(grandchild_session, { root_session, other_root }, root_session)
 
       assert.stub(switch_stub).was_called()
       local called_with = switch_stub.calls[1].vals[1]
-      assert.equals('other-root', called_with)
+      assert.equals('other-root', called_with.id)
     end)
 
     it('does NOT switch session when an unrelated root is deleted', function()
-      -- Active = child (parentID=root), deleting other_root (unrelated)
       run_delete(child_session, { root_session, other_root }, other_root)
 
       assert.stub(switch_stub).was_not_called()
@@ -427,17 +436,13 @@ describe('opencode.ui.session_picker', function()
       local agent_model = require('opencode.services.agent_model')
       local store = require('opencode.state.store')
 
-      -- Simulate being stuck in a subagent mode (e.g. EXPLORE)
       store.set('current_mode', 'explore')
 
-      -- Stub ensure_current_mode to clear the mode (simulating default reset)
       local ensure_stub = stub(agent_model, 'ensure_current_mode').invokes(function()
         store.set('current_mode', 'default')
         return Promise.new():resolve(true)
       end)
 
-      -- Active = child session, only session in the picker is root (which is being deleted)
-      -- No remaining sessions after deletion
       run_delete(child_session, { root_session }, root_session)
 
       assert.stub(switch_stub).was_not_called()

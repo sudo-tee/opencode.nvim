@@ -22,13 +22,21 @@ local skill_source = {
     end
 
     local state = require('opencode.state')
-    local api_client = state and state.api_client
-    if not api_client then
+    local connection = state and state.opencode_server
+    if not connection or not connection.operations then
       return {}
     end
 
     local ok, skills = pcall(function()
-      return api_client:list_skills():await()
+      local util = require('opencode.util')
+      return connection.operations
+        .list_skills(
+          connection,
+          { directory = state.current_cwd or vim.fn.getcwd() },
+          util.apply_path_map,
+          util.apply_reverse_path_map
+        )
+        :await()
     end)
     if not ok or not skills then
       return {}
@@ -39,7 +47,7 @@ local skill_source = {
 
     for _, skill in ipairs(skills) do
       local item = {
-        label = expected_trigger .. skill.name,
+        label = expected_trigger .. skill.name .. ' *',
         kind = 'skill',
         kind_icon = icons.get('skill'),
         detail = skill.description or '',
@@ -58,18 +66,6 @@ local skill_source = {
 
     return items
   end),
-  on_complete = function(item)
-    if item.kind ~= 'skill' or not item.data or not item.data.content then
-      return
-    end
-
-    vim.defer_fn(function()
-      require('opencode.services.session_runtime').open({ new_session = false, focus = 'output' }):and_then(function()
-        return require('opencode.services.messaging').send_message(item.data.content, {})
-      end)
-    end, 10)
-    require('opencode.ui.input_window').set_content('')
-  end,
   get_trigger_character = function()
     local config = require('opencode.config')
     return config.get_key_for_function('input_window', 'slash_commands') or '/'

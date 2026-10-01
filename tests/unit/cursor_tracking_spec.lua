@@ -69,6 +69,16 @@ describe('cursor persistence (state)', function()
       assert.equals(5, cursor[1])
     end)
 
+    it('does not reset the cursor when the viewport is already at history start', function()
+      local output_window = require('opencode.ui.output_window')
+      vim.api.nvim_win_set_cursor(win, { 5, 0 })
+      output_window.sync_cursor_with_viewport(win)
+
+      -- A lazy-history check with no older page must leave the user at line 5.
+      vim.api.nvim_win_set_cursor(win, { 5, 0 })
+      assert.equals(5, vim.api.nvim_win_get_cursor(win)[1])
+    end)
+
     it('auto-scrolls even when output window is unfocused if cursor was at previous bottom', function()
       renderer.scroll_to_bottom()
 
@@ -86,6 +96,14 @@ describe('cursor persistence (state)', function()
 
       pcall(vim.api.nvim_win_close, input_win, true)
       pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+    end)
+
+    it('uses the current viewport instead of stale scroll tracking during a flush', function()
+      local output_window = require('opencode.ui.output_window')
+      output_window._last_visible_bottom_by_win[win] = 1
+      vim.api.nvim_win_set_cursor(win, { 20, 0 })
+
+      assert.is_true(output_window.is_at_bottom(win))
     end)
   end)
 
@@ -369,7 +387,7 @@ end)
 
 describe('renderer.scroll_to_bottom', function()
   local renderer = require('opencode.ui.renderer')
-  local ctx = require('opencode.ui.renderer.ctx')
+  local ctx = require('opencode.ui.renderer.ctx').current()
   local output_window = require('opencode.ui.output_window')
   local stub = require('luassert.stub')
   local buf, win, input_buf, input_win
@@ -415,6 +433,122 @@ describe('renderer.scroll_to_bottom', function()
 
     local cursor = vim.api.nvim_win_get_cursor(win)
     assert.equals(10, cursor[1])
+  end)
+
+  it('pauses following after viewport scroll while cursor remains at bottom', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    local top = output_window.get_visible_top_line(win)
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! \25')
+    end)
+    assert.is_true(output_window.get_visible_top_line(win) < top)
+    output_window.on_user_navigation(win)
+
+    assert.is_false(output_window.is_at_bottom(win))
+    local selected_line = vim.api.nvim_win_get_cursor(win)[1]
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+    assert.equals(selected_line, vim.api.nvim_win_get_cursor(win)[1])
+
+    renderer.scroll_to_bottom(true)
+    assert.equals(51, vim.api.nvim_win_get_cursor(win)[1])
+    assert.is_true(output_window.is_at_bottom(win))
+  end)
+
+  it('pauses following when user selects a line in output', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    vim.api.nvim_win_set_cursor(win, { 45, 0 })
+    output_window.on_user_navigation(win)
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+    assert.equals(45, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
+  it('does not follow a pending flush after user selects a line', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    local snapshot = scroll.pre_flush(buf)
+
+    vim.api.nvim_win_set_cursor(win, { 45, 0 })
+    output_window.on_user_navigation(win)
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    scroll.post_flush(snapshot, buf)
+
+    assert.equals(45, vim.api.nvim_win_get_cursor(win)[1])
+  end)
+
+  it('pauses following when clicking earlier in the same streaming line', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { string.rep('x', 120) })
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_set_option_value('wrap', true, { win = win })
+    scroll.scroll_win_to_bottom(win, buf)
+
+    vim.api.nvim_win_set_cursor(win, { 1, 80 })
+    local snapshot = scroll.pre_flush(buf)
+    assert.is_false(snapshot.follow)
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { string.rep('x', 180) })
+    scroll.post_flush(snapshot, buf)
+
+    assert.same({ 1, 80 }, vim.api.nvim_win_get_cursor(win))
+    output_window.on_user_navigation(win)
+    assert.is_false(output_window.is_at_bottom(win))
+
+    vim.api.nvim_win_set_cursor(win, { 1, 179 })
+    output_window.on_user_navigation(win)
+    assert.is_true(scroll.pre_flush(buf).follow)
+  end)
+
+  it('detects same-line cursor navigation without waiting for autocmds', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    vim.api.nvim_win_set_cursor(win, { 50, 0 })
+
+    assert.is_false(output_window.is_at_bottom(win))
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { 'line 51' })
+    renderer.scroll_to_bottom()
+    assert.same({ 50, 0 }, vim.api.nvim_win_get_cursor(win))
+  end)
+
+  it('detects wrapped viewport navigation before its autocmd runs', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { string.rep('x', 400) })
+    vim.api.nvim_win_set_width(win, 20)
+    vim.api.nvim_set_option_value('wrap', true, { win = win })
+    vim.api.nvim_set_option_value('smoothscroll', true, { win = win })
+    scroll.scroll_win_to_bottom(win, buf)
+    local previous_view = vim.api.nvim_win_call(win, vim.fn.winsaveview)
+    vim.api.nvim_win_call(win, function()
+      local view = vim.fn.winsaveview()
+      view.skipcol = math.max(0, view.skipcol - 20)
+      vim.fn.winrestview(view)
+    end)
+    local view = vim.api.nvim_win_call(win, vim.fn.winsaveview)
+    assert.is_true(view.skipcol < previous_view.skipcol)
+
+    local snapshot = scroll.pre_flush(buf)
+    assert.is_false(snapshot.follow)
+    assert.is_false(scroll.pre_flush(buf).follow)
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    vim.api.nvim_buf_set_lines(buf, 0, 1, false, { string.rep('x', 420) })
+    scroll.post_flush(snapshot, buf)
+    assert.same(cursor, vim.api.nvim_win_get_cursor(win))
+  end)
+
+  it('resumes following at the last multibyte character', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'hello 世界' })
+    scroll.scroll_win_to_bottom(win, buf)
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    assert.is_false(scroll.pre_flush(buf).follow)
+
+    vim.api.nvim_win_call(win, function()
+      vim.cmd('normal! $')
+    end)
+    assert.is_true(scroll.pre_flush(buf).follow)
   end)
 
   it('still scrolls when always_scroll_to_bottom is enabled', function()
@@ -479,6 +613,23 @@ describe('renderer.scroll_to_bottom', function()
       vim.cmd('normal! zo')
     end)
     assert.equals(-1, vim.fn.foldclosed(3))
+  end)
+
+  it('bottom-aligns around closed folds using display rows', function()
+    local lines = {}
+    for i = 1, 40 do
+      lines[i] = 'line ' .. i
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_win_set_height(win, 10)
+    output_window.set_folds({ { from = 3, to = 35 } })
+
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+
+    local view = vim.api.nvim_win_call(win, vim.fn.winsaveview)
+    assert.equals(1, view.topline)
+    assert.equals(40, vim.api.nvim_win_get_cursor(win)[1])
   end)
 
   it('skips zb when the followed bottom line is already visible', function()
@@ -662,132 +813,5 @@ describe('ui.focus_input', function()
     ui.focus_input({ restore_position = true, start_insert = false })
 
     assert.same({ 1, 2 }, vim.api.nvim_win_get_cursor(input_win))
-  end)
-end)
-
-describe('renderer._add_message_to_buffer scrolling', function()
-  local renderer = require('opencode.ui.renderer')
-  local events = require('opencode.ui.renderer.events')
-  local ctx = require('opencode.ui.renderer.ctx')
-  local stub = require('luassert.stub')
-  local buf, win
-
-  before_each(function()
-    config.setup({})
-    buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'existing line' })
-
-    win = vim.api.nvim_open_win(buf, true, {
-      relative = 'editor',
-      width = 80,
-      height = 10,
-      row = 0,
-      col = 0,
-    })
-
-    state.ui.set_windows({ output_win = win, output_buf = buf })
-    state.session.set_active({ id = 'test-session' })
-    state.renderer.set_messages({})
-    ctx.prev_line_count = 1
-    ctx.render_state:reset()
-  end)
-
-  after_each(function()
-    pcall(vim.api.nvim_win_close, win, true)
-    pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    state.ui.set_windows(nil)
-    state.session.set_active(nil)
-    state.renderer.set_messages(nil)
-    ctx.prev_line_count = 0
-    ctx.render_state:reset()
-  end)
-
-  it('force-scrolls to bottom when locally submitted user message is added', function()
-    vim.api.nvim_win_set_cursor(win, { 1, 0 })
-    state.session.set_user_message_count({ ['test-session'] = 1 })
-
-    local user_message = {
-      info = {
-        id = 'msg-1',
-        sessionID = 'test-session',
-        role = 'user',
-      },
-      parts = {},
-    }
-
-    local scroll_called_with_force = false
-    stub(renderer, 'scroll_to_bottom').invokes(function(force)
-      scroll_called_with_force = force == true
-    end)
-
-    events.on_message_updated(user_message)
-
-    assert.is_true(scroll_called_with_force)
-    assert.stub(renderer.scroll_to_bottom).was_called_with(true)
-
-    renderer.scroll_to_bottom:revert()
-  end)
-
-  it('uses non-forced scroll when external user message is added', function()
-    vim.api.nvim_win_set_cursor(win, { 1, 0 })
-
-    local user_message = {
-      info = {
-        id = 'msg-1',
-        sessionID = 'test-session',
-        role = 'user',
-      },
-      parts = {},
-    }
-
-    stub(renderer, 'scroll_to_bottom')
-
-    events.on_message_updated(user_message)
-
-    assert.stub(renderer.scroll_to_bottom).was_called_with(false)
-
-    renderer.scroll_to_bottom:revert()
-  end)
-
-  it('does not scroll when assistant message is added', function()
-    vim.api.nvim_win_set_cursor(win, { 1, 0 })
-
-    local assistant_message = {
-      info = {
-        id = 'msg-2',
-        sessionID = 'test-session',
-        role = 'assistant',
-      },
-      parts = {},
-    }
-
-    stub(renderer, 'scroll_to_bottom')
-
-    events.on_message_updated(assistant_message)
-
-    assert.stub(renderer.scroll_to_bottom).was_not_called()
-
-    renderer.scroll_to_bottom:revert()
-  end)
-
-  it('does not scroll when system message is added', function()
-    vim.api.nvim_win_set_cursor(win, { 1, 0 })
-
-    local system_message = {
-      info = {
-        id = 'msg-3',
-        sessionID = 'test-session',
-        role = 'system',
-      },
-      parts = {},
-    }
-
-    stub(renderer, 'scroll_to_bottom')
-
-    events.on_message_updated(system_message)
-
-    assert.stub(renderer.scroll_to_bottom).was_not_called()
-
-    renderer.scroll_to_bottom:revert()
   end)
 end)

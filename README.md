@@ -77,6 +77,7 @@ Refer to the [Quick Chat](#-quick-chat) section for more details.
 - [Quick Chat](#quick-chat)
 - [Setting up Opencode](#-setting-up-opencode)
 - [Recipes](./docs/recipes)
+- [Development](#development)
 
 ## ⚠️Caution
 
@@ -1405,6 +1406,39 @@ If you're new to opencode:
 3. **Configuration:**
    - Run `opencode auth login` to set up your LLM provider
    - Configure your preferred LLM provider and model in the `~/.config/opencode/config.json` or `~/.config/opencode/opencode.json` file
+
+## Development
+
+Run development commands through the Makefile from the repository root. Use `make help` to list all targets and examples.
+
+| Command | Purpose |
+| ------- | ------- |
+| `make check` | Run formatting checks, Lua type checks, and all tests |
+| `make format-check` | Check Lua formatting without modifying files |
+| `make format` | Format Lua files in place |
+| `make typecheck` | Check Lua types |
+| `make test` | Run all tests |
+| `make test-minimal` | Run minimal tests |
+| `make test-unit` | Run unit tests |
+| `make test-replay` | Run automated replay tests |
+| `make replay` | Launch the interactive replay tester |
+| `make replay-regenerate` | Regenerate expected replay snapshots with confirmation |
+| `make topology` | Scan dependency topology |
+| `make topology-diff` | Compare dependency topology snapshots |
+
+Use `TEST` to select a test suite or file, `FILTER` to filter tests, and `ARGS` to pass additional options to the underlying tool:
+
+```sh
+make test TEST=tests/unit/formatter_spec.lua
+make test TEST=unit FILTER="Timer"
+make typecheck ARGS="-f github"
+make replay ARGS="-c ReplayAll"
+make replay-regenerate FILE=v2/formatters.json
+make topology ARGS="--json"
+make topology-diff ARGS="--from main --to HEAD --json"
+```
+
+For snapshot regeneration, `FILE` is relative to `tests/data`. See the [dependency topology documentation](./scripts/dependency-topology/README.md) for scanner options and policy details.
 
 ## 🙏 Acknowledgements
 

@@ -2,9 +2,20 @@
 
 ## Build, Lint, and Test
 
-- **Run all tests:** `./run_tests.sh`
-- **Run a single test:** Replace the directory in the above command with the test file path, e.g.:
-  - `./run_tests.sh -t tests/unit/test_example.lua`
+- **List development commands:** `make help`
+- **Run all checks:** `make check`
+- **Run all tests:** `make test`
+- **Run a single test:** `make test TEST=tests/unit/test_example.lua`
+- **Check types:** `make typecheck`
+- **Check formatting:** `make format-check`
+- **Launch replay tester:** `make replay`
+
+## Formatting (Mandatory)
+
+- After creating or editing Lua files, run StyLua on those files before marking the task complete: `stylua path/to/changed.lua ...`. Use the repository's `.stylua.toml` configuration.
+- Format only files changed for the task. Do not reformat unrelated files unless explicitly requested.
+- Run `make format-check` to verify workspace formatting. Report unrelated existing formatting failures rather than silently expanding the task.
+- If StyLua is unavailable, report the blocker; do not claim formatting was validated.
 
 # Developer Environment: EmmyLua Analyzer Rust (emmylua_ls)
 
@@ -18,7 +29,7 @@
 
 Before you mark a Lua code generation task as complete, you must validate your types against the project's static analysis rules:
 
-1. Run the `./check_types.sh` CLI tool over the generated workspace to execute `emmylua_check`.
+1. Run `make typecheck` (which wraps `./check_types.sh`) over the generated workspace to execute `emmylua_check`.
 2. Review the output for any static analysis diagnostics (e.g., syntax errors, type mismatches, missing fields).
 3. If `emmylua_check` flags any type mismatches, you must fix the code's annotations or types—**do not write manual runtime boilerplate checking (`type()`) to quiet the linter**.
 4. Iterate until `emmylua_check` passes with zero errors.

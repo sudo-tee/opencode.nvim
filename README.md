@@ -20,9 +20,17 @@
 
 > [!IMPORTANT]
 >
-> ### 🚀 Testing OpenCode v2?
+> ### OpenCode V1 and V2 support
 >
-> Use the [`v2` branch](https://github.com/sudo-tee/opencode.nvim/tree/v2) of this plugin for OpenCode v2 support — now available for testing. Expect changes while development continues.
+> This implementation supports OpenCode V1 and V2 through automatic protocol detection and includes a major internal rewrite.
+>
+> To keep using the legacy plugin implementation, pin the [`v1` branch](https://github.com/sudo-tee/opencode.nvim/tree/v1):
+>
+> ```lua
+> { "sudo-tee/opencode.nvim", branch = "v1" }
+> ```
+>
+> The `v1` branch is a legacy implementation, not a requirement for connecting to an OpenCode V1 server.
 
 This plugin provides a bridge between neovim and the [opencode](https://github.com/sst/opencode) AI agent, creating a chat interface while capturing editor context (current file, selections) to enhance your prompts. It maintains persistent sessions tied to your workspace, allowing for continuous conversations with the AI assistant similar to what tools like Cursor AI offer.
 
@@ -86,14 +94,13 @@ If your upgrade breaks the plugin, please open an issue or downgrade to the last
 
 Install the plugin with your favorite package manager. See the [Configuration](#️-configuration) section below for customization options.
 
-To test the OpenCode v2-compatible branch, set `branch = "v2"` in your plugin specification:
+To keep using the legacy implementation instead, add `branch = "v1"` to your plugin specification.
 
 ### With lazy.nvim
 
 ```lua
 {
   "sudo-tee/opencode.nvim",
-  branch = "v2", -- Use the v2 branch for testing with OpenCode v2
   config = function()
     require("opencode").setup({})
   end,

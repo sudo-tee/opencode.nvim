@@ -34,6 +34,14 @@ describe('V2 formatter JSON replay snapshots', function()
       local input_file = 'tests/data/v2/' .. name .. '.json'
       local expected_file = replay.get_expected_filename(input_file)
       local expected = helpers.load_test_data(expected_file)
+      if vim.fn.has('nvim-0.11') == 0 then
+        -- Neovim 0.10 escapes forward slashes in JSON; newer versions do not.
+        for index, line in ipairs(expected.lines) do
+          if line:match('^{.*}$') then
+            expected.lines[index] = vim.json.encode(vim.json.decode(line))
+          end
+        end
+      end
       assert.is_true(replay.load_events(input_file))
       assert.is_true(replay.replay_full_session())
       local initial = helpers.output_snapshot(state.windows.output_buf, output_window.namespace, expected_file)

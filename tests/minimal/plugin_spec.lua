@@ -40,7 +40,6 @@ describe('opencode.nvim plugin', function()
         end,
       }
     end
-
   end)
 
   after_each(function()

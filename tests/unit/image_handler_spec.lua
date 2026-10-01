@@ -267,10 +267,12 @@ describe('image_handler', function()
     assert.is_true(ok, tostring(err))
     assert.same({ 'pasted_image_20240101_120000.png' }, names)
     assert.same({ path }, mocks.added_files)
-    assert.same({ {
-      msg = 'Image saved and added to context: pasted_image_20240101_120000.png',
-      level = vim.log.levels.INFO,
-    } }, mocks.notifications)
+    assert.same({
+      {
+        msg = 'Image saved and added to context: pasted_image_20240101_120000.png',
+        level = vim.log.levels.INFO,
+      },
+    }, mocks.notifications)
   end)
 
   it('only warns when the paste command finds no image', function()
@@ -287,10 +289,13 @@ describe('image_handler', function()
     assert.is_true(ok, tostring(err))
     assert.equals(0, mentions)
     assert.same({}, mocks.added_files)
-    assert.same({ {
-      msg = 'No image found in clipboard.',
-      level = vim.log.levels.WARN,
-    } }, mocks.notifications)
+    assert.same(
+      { {
+        msg = 'No image found in clipboard.',
+        level = vim.log.levels.WARN,
+      } },
+      mocks.notifications
+    )
   end)
 
   it('restores image path when file exists and name is valid', function()

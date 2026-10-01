@@ -100,7 +100,12 @@ describe('contextual actions', function()
 
   it('shows a file diff action beside the cursor anywhere in its file block', function()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'file', 'diff', 'last line' })
-    local file_action = action('D', 'diff_toggle_file', { 'msg_1', '/workspace/file.lua', 'ses_1' }, { from = 0, to = 2 })
+    local file_action = action(
+      'D',
+      'diff_toggle_file',
+      { 'msg_1', '/workspace/file.lua', 'ses_1' },
+      { from = 0, to = 2 }
+    )
     local actions = stub(require('opencode.ui.renderer'), 'get_actions_for_line').returns({ file_action })
     contextual_actions.setup()
     vim.api.nvim_win_set_cursor(0, { 2, 0 })

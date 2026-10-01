@@ -117,7 +117,10 @@ describe('V2 protocol Observation runtime', function()
     emit(streams[1], event('ses-a', 'custom.unknown', data))
     emit(streams[1], { type = 'custom.invalid', data = {} })
 
-    assert.same({ { pattern = 'OpencodeEvent:custom.unknown', event = { type = 'custom.unknown', properties = data } } }, received)
+    assert.same(
+      { { pattern = 'OpencodeEvent:custom.unknown', event = { type = 'custom.unknown', properties = data } } },
+      received
+    )
     vim.api.nvim_del_augroup_by_id(group)
     stop_first()
     stop_second()
@@ -699,10 +702,13 @@ describe('V2 protocol Observation runtime', function()
     })
     local observed = value:observe({ id = 'ses-main' })
     local accepted = observed:submit({ text = 'hello' }):wait()
-    emit(streams[1], event('ses-main', 'session.inbox.enqueued', {
-      inboxID = 'synthetic-1',
-      item = { type = 'synthetic', payload = { text = 'agent changed' }, delivery = 'queue' },
-    }, 10))
+    emit(
+      streams[1],
+      event('ses-main', 'session.inbox.enqueued', {
+        inboxID = 'synthetic-1',
+        item = { type = 'synthetic', payload = { text = 'agent changed' }, delivery = 'queue' },
+      }, 10)
+    )
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'synthetic-1' }, 11))
     emit(streams[1], event('ses-main', 'session.inbox.delivered', { inboxID = 'msg-local' }, 12))
     emit(streams[1], event('ses-main', 'session.execution.started', {}, 13))

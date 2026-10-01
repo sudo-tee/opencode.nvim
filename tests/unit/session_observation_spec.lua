@@ -37,7 +37,9 @@ describe('active session observation', function()
   end
 
   local function settle()
-    vim.wait(30, function() return false end)
+    vim.wait(30, function()
+      return false
+    end)
   end
 
   local function activate(id)
@@ -53,7 +55,12 @@ describe('active session observation', function()
     state.model.set_mode('build')
     tabs.ensure_current()
     agents = stub(config_file, 'get_opencode_agents').returns(Promise.new():resolve({ 'build', 'plan' }))
-    connection = { observations = {}, is_ready = function() return true end }
+    connection = {
+      observations = {},
+      is_ready = function()
+        return true
+      end,
+    }
     function connection:observe(ref)
       return assert(self.observations[ref.id])
     end
@@ -79,7 +86,9 @@ describe('active session observation', function()
 
     source.facts.sync.messages.state = 'current'
     source.changed('messages')
-    assert.is_true(vim.wait(1000, function() return tab.model_restored_session_id == 'one' end))
+    assert.is_true(vim.wait(1000, function()
+      return tab.model_restored_session_id == 'one'
+    end))
     assert.equals('provider/one', state.current_model)
     assert.equals('plan', state.current_mode)
 
@@ -102,7 +111,9 @@ describe('active session observation', function()
     assert.equals('provider/previous', state.current_model)
     source.facts.sync.session.state = 'current'
     source.changed('session')
-    assert.is_true(vim.wait(1000, function() return state.current_model == 'provider/one' end))
+    assert.is_true(vim.wait(1000, function()
+      return state.current_model == 'provider/one'
+    end))
     assert.equals('one', state.active_session.title)
   end)
 
@@ -114,7 +125,9 @@ describe('active session observation', function()
     source.facts.entries_by_id = {}
     local notify = stub(require('opencode.log'), 'notify')
     source.facts.execution = {
-      activity = 'idle', last_outcome = 'failed', last_idle = 10,
+      activity = 'idle',
+      last_outcome = 'failed',
+      last_idle = 10,
       error = { message = 'Model unavailable: github-copilot/gpt-4.1' },
     }
     source.changed('execution')
@@ -132,7 +145,10 @@ describe('active session observation', function()
   it('does not notify historical failures, interruptions, or failures from replaced sessions', function()
     local source = observation('one')
     source.facts.execution = {
-      activity = 'idle', last_outcome = 'failed', last_idle = 10, error = { message = 'Old failure' },
+      activity = 'idle',
+      last_outcome = 'failed',
+      last_idle = 10,
+      error = { message = 'Old failure' },
     }
     local notify = stub(require('opencode.log'), 'notify')
     activate('one')
@@ -142,7 +158,10 @@ describe('active session observation', function()
     observation('two')
     activate('two')
     source.facts.execution = {
-      activity = 'idle', last_outcome = 'failed', last_idle = 30, error = { message = 'Stale failure' },
+      activity = 'idle',
+      last_outcome = 'failed',
+      last_idle = 30,
+      error = { message = 'Stale failure' },
     }
     source.changed('execution')
     assert.stub(notify).was_not_called()
@@ -185,14 +204,18 @@ describe('active session observation', function()
     local first = observation('one')
     first.facts.sync.messages.state = 'current'
     local first_tab = activate('one')
-    assert.is_true(vim.wait(1000, function() return first_tab.model_restored_session_id == 'one' end))
+    assert.is_true(vim.wait(1000, function()
+      return first_tab.model_restored_session_id == 'one'
+    end))
     state.model.set_model('provider/chosen')
     tabs.sync()
     local second = observation('two')
     second.facts.sync.messages.state = 'current'
     local second_tab = tabs.create({ id = 'two' })
     tabs.activate(second_tab)
-    assert.is_true(vim.wait(1000, function() return second_tab.model_restored_session_id == 'two' end))
+    assert.is_true(vim.wait(1000, function()
+      return second_tab.model_restored_session_id == 'two'
+    end))
     tabs.activate(first_tab)
     settle()
     assert.equals('provider/chosen', state.current_model)
@@ -203,14 +226,20 @@ describe('active session observation', function()
     local first = observation('one')
     first.facts.sync.messages.state = 'current'
     local tab = activate('one')
-    assert.is_true(vim.wait(1000, function() return tab.model_restored_session_id == 'one' end))
+    assert.is_true(vim.wait(1000, function()
+      return tab.model_restored_session_id == 'one'
+    end))
     local second = observation('two')
     second.facts.sync.messages.state = 'current'
     activate('two')
-    assert.is_true(vim.wait(1000, function() return tab.model_restored_session_id == 'two' end))
+    assert.is_true(vim.wait(1000, function()
+      return tab.model_restored_session_id == 'two'
+    end))
     assert.equals('provider/two', state.current_model)
     activate('one')
-    assert.is_true(vim.wait(1000, function() return tab.model_restored_session_id == 'one' end))
+    assert.is_true(vim.wait(1000, function()
+      return tab.model_restored_session_id == 'one'
+    end))
     assert.equals('provider/one', state.current_model)
   end)
 

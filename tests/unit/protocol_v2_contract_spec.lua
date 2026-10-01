@@ -28,7 +28,8 @@ describe('V2 operations contract', function()
   it('reports contract endpoints the live server lacks', function()
     stub(transport, 'request').invokes(function(_, request)
       assert.equals('/openapi.json', request.path)
-      return Promise.new():resolve({ status = 200, body = '{"paths":{"/api/session":{"get":{},"post":{},"patch":{},"delete":{}}}}' })
+      return Promise.new()
+        :resolve({ status = 200, body = '{"paths":{"/api/session":{"get":{},"post":{},"patch":{},"delete":{}}}}' })
     end)
     local warned = stub(log, 'warn').invokes(function() end)
 
@@ -38,7 +39,12 @@ describe('V2 operations contract', function()
     assert.truthy(#missing >= 33, 'most endpoints must be reported missing')
     assert.truthy(vim.tbl_contains(missing, 'POST /api/session/{sessionID}/prompt'))
     assert.falsy(vim.tbl_contains(missing, 'GET /api/session'))
-    assert.stub(warned).was_called_with('opencode %s API drift: server openapi lacks %d endpoint(s) used by this plugin: %s', '2.0.14', #missing, table.concat(missing, ', '))
+    assert.stub(warned).was_called_with(
+      'opencode %s API drift: server openapi lacks %d endpoint(s) used by this plugin: %s',
+      '2.0.14',
+      #missing,
+      table.concat(missing, ', ')
+    )
 
     transport.request:revert()
     log.warn:revert()
@@ -82,7 +88,9 @@ describe('V2 operations contract', function()
     end)
 
     contract_check.check_async({ protocol = 'v1', version = '1.18.30' })
-    vim.wait(50, function() return false end)
+    vim.wait(50, function()
+      return false
+    end)
 
     transport.request:revert()
   end)

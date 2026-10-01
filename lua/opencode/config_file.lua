@@ -162,12 +162,14 @@ M.get_opencode_agents = Promise.async(function()
       end
       return Promise.new():reject(empty_agents)
     end)
-  end, 3, 500):catch(function(err)
-    if err == empty_agents then
-      return {}
-    end
-    return Promise.new():reject(err)
-  end):await()
+  end, 3, 500)
+    :catch(function(err)
+      if err == empty_agents then
+        return {}
+      end
+      return Promise.new():reject(err)
+    end)
+    :await()
 end)
 
 ---@type fun(): Promise<string[]>

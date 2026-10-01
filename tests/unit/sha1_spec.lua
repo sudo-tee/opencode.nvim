@@ -10,7 +10,10 @@ describe('sha1', function()
   end)
 
   it('produces correct hash for "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"', function()
-    assert.equals('84983e441c3bd26ebaae4aa1f95129e5e54670f1', sha1('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq'))
+    assert.equals(
+      '84983e441c3bd26ebaae4aa1f95129e5e54670f1',
+      sha1('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')
+    )
   end)
 
   it('produces correct hash for single character', function()

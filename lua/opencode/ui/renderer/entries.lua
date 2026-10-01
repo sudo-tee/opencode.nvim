@@ -7,11 +7,13 @@ local M = {}
 local function message_snapshot(entry, previous)
   local kinds = {}
   for index, content in ipairs(entry.content or {}) do
-    kinds[index] = entry.kind == 'user' and {
-      kind = content.kind,
-      visible_text = content.text ~= nil and content.text ~= '',
-      synthetic = content.synthetic,
-    } or content.kind
+    kinds[index] = entry.kind == 'user'
+        and {
+          kind = content.kind,
+          visible_text = content.text ~= nil and content.text ~= '',
+          synthetic = content.synthetic,
+        }
+      or content.kind
   end
   return {
     id = entry.id,
@@ -48,11 +50,8 @@ function M.reconcile(visible, references_changed, ctx)
   for entry_index, entry in ipairs(visible) do
     local previous = ctx.render_state:get_message(entry.id)
     ctx.render_state:set_message(entry, previous and previous.line_start, previous and previous.line_end)
-    local header_changed = accept_snapshot(
-      ctx.message_snapshots,
-      entry.id,
-      message_snapshot(entry, visible[entry_index - 1])
-    )
+    local header_changed =
+      accept_snapshot(ctx.message_snapshots, entry.id, message_snapshot(entry, visible[entry_index - 1]))
     if header_changed or not previous or previous.line_start == nil then
       flush.mark_message_dirty(entry.id, ctx)
     end

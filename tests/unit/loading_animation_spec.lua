@@ -26,14 +26,16 @@ describe('loading_animation', function()
         end
       end
     end
-    return observation, function(next_execution)
-      observation._state.execution = next_execution
-      if watcher then
-        watcher(observation)
+    return observation,
+      function(next_execution)
+        observation._state.execution = next_execution
+        if watcher then
+          watcher(observation)
+        end
+      end,
+      function()
+        return releases
       end
-    end, function()
-      return releases
-    end
   end
 
   before_each(function()

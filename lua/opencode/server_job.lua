@@ -179,11 +179,16 @@ end
 local function probe_until_ready(server, timeout_ms, retry_transport)
   local clock = vim.uv or vim.loop
   local deadline = clock.now() + timeout_ms
-  return Promise.retry(function()
-    return server:probe_connection(timeout_ms)
-  end, math.max(1, math.floor(timeout_ms / 100)), 100, function(err)
-    return retry_transport and type(err) == 'table' and err.kind == 'transport' and clock.now() < deadline
-  end)
+  return Promise.retry(
+    function()
+      return server:probe_connection(timeout_ms)
+    end,
+    math.max(1, math.floor(timeout_ms / 100)),
+    100,
+    function(err)
+      return retry_transport and type(err) == 'table' and err.kind == 'transport' and clock.now() < deadline
+    end
+  )
 end
 
 -- CLI capability selects the launcher only; authenticated health selects the protocol.

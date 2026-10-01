@@ -482,12 +482,12 @@ describe('inline_input', function()
       -- position (insert-mode). Production runs in insert mode, so this
       -- matches user-visible behavior either way.
       assert.are.equal(1, cursor1[1])
-      assert.is_true(cursor1[2] == #('first') or cursor1[2] == #('first') - 1)
+      assert.is_true(cursor1[2] == #'first' or cursor1[2] == #'first' - 1)
 
       call_keymap(input, '<C-p>')
       local cursor2 = vim.api.nvim_win_get_cursor(input.win)
       assert.are.equal(1, cursor2[1])
-      assert.is_true(cursor2[2] == #('second') or cursor2[2] == #('second') - 1)
+      assert.is_true(cursor2[2] == #'second' or cursor2[2] == #'second' - 1)
     end)
 
     it('after restoring the draft, <C-p> re-enters history from the snapshot', function()

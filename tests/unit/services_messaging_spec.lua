@@ -77,7 +77,9 @@ describe('opencode.services.messaging', function()
       return Promise.new():resolve({})
     end
     local send = stub(messaging, 'send_message')
-    local ok, err = pcall(function() messaging.run_skill('missing'):wait() end)
+    local ok, err = pcall(function()
+      messaging.run_skill('missing'):wait()
+    end)
     assert.is_false(ok)
     assert.matches('Unknown skill: missing', tostring(err))
     assert.stub(send).was_not_called()
@@ -187,7 +189,10 @@ describe('opencode.services.messaging', function()
     messaging.send_message('hello'):wait()
 
     assert.same({
-      { operation = 'submit', selected = { mode = state.current_mode, model = 'provider/selected-model', variant = 'high' } },
+      {
+        operation = 'submit',
+        selected = { mode = state.current_mode, model = 'provider/selected-model', variant = 'high' },
+      },
     }, calls)
     observation.submit = original_submit
     state.model.set_model(previous_model)

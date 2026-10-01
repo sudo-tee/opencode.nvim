@@ -113,7 +113,14 @@ function M.format(output, part, context, _, message)
         output:add_fold_with_threshold(start_line, config.ui.output.tools.show_output, config.ui.output.tools.use_folds)
       end
     end
-    formatter_utils.add_tool_diff_action(output, message, context, file.path, action_line - 1, output:get_line_count() - 1)
+    formatter_utils.add_tool_diff_action(
+      output,
+      message,
+      context,
+      file.path,
+      action_line - 1,
+      output:get_line_count() - 1
+    )
   end
 end
 

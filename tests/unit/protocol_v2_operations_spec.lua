@@ -66,19 +66,35 @@ describe('V2 protocol operations', function()
     local prompt
     transport.request = function(_, request)
       if request.path == '/openapi.json' then
-        return Promise.new():resolve({ status = 200, body = vim.json.encode({ paths = {
-          ['/api/session/{sessionID}/prompt'] = { post = { requestBody = { content = {
-            ['application/json'] = { schema = { properties = { skills = {} } } },
-          } } } },
-        } }) })
+        return Promise.new():resolve({
+          status = 200,
+          body = vim.json.encode({
+            paths = {
+              ['/api/session/{sessionID}/prompt'] = {
+                post = {
+                  requestBody = {
+                    content = {
+                      ['application/json'] = { schema = { properties = { skills = {} } } },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        })
       end
       prompt = vim.json.decode(request.body)
       return Promise.new():resolve({ status = 200, body = '{"data":{"id":"inbox_123"}}' })
     end
-    operations.submit(ready_connection(), 'ses_123', {
-      text = '😀 /review fix this', context = {}, files = {}, agents = {},
-      skills = { { id = 'review-id', mention = { start_byte = 5, end_byte = 12 } }, { id = 'other-id' } },
-    }):wait()
+    operations
+      .submit(ready_connection(), 'ses_123', {
+        text = '😀 /review fix this',
+        context = {},
+        files = {},
+        agents = {},
+        skills = { { id = 'review-id', mention = { start_byte = 5, end_byte = 12 } }, { id = 'other-id' } },
+      })
+      :wait()
     assert.same({
       text = '😀 /review fix this',
       skills = { { id = 'review-id', mention = { start = 3, ['end'] = 10, text = '/review' } }, { id = 'other-id' } },
@@ -89,16 +105,34 @@ describe('V2 protocol operations', function()
     local calls = {}
     transport.request = function(_, request)
       calls[#calls + 1] = request.path
-      return Promise.new():resolve({ status = 200, body = vim.json.encode({ paths = {
-        ['/api/session/{sessionID}/prompt'] = { post = { requestBody = { content = {
-          ['application/json'] = { schema = { properties = { text = {} } } },
-        } } } },
-      } }) })
+      return Promise.new():resolve({
+        status = 200,
+        body = vim.json.encode({
+          paths = {
+            ['/api/session/{sessionID}/prompt'] = {
+              post = {
+                requestBody = {
+                  content = {
+                    ['application/json'] = { schema = { properties = { text = {} } } },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      })
     end
     local ok, err = pcall(function()
-      operations.submit(ready_connection(), 'ses_123', {
-        text = 'fix this', context = {}, files = {}, agents = {}, agent = 'build', skills = { { id = 'review' } },
-      }):wait()
+      operations
+        .submit(ready_connection(), 'ses_123', {
+          text = 'fix this',
+          context = {},
+          files = {},
+          agents = {},
+          agent = 'build',
+          skills = { { id = 'review' } },
+        })
+        :wait()
     end)
     assert.is_false(ok)
     assert.matches('does not support prompt skill attachments', tostring(err))
@@ -159,15 +193,24 @@ describe('V2 protocol operations', function()
       request = value
       return Promise.new():resolve({
         status = 200,
-        body = vim.json.encode({ data = { {
-          file = '/server/file.lua', patch = '@@ -1 +1 @@\n-old\n+new',
-          additions = 1, deletions = 1, status = 'modified',
-        } } }),
+        body = vim.json.encode({
+          data = {
+            {
+              file = '/server/file.lua',
+              patch = '@@ -1 +1 @@\n-old\n+new',
+              additions = 1,
+              deletions = 1,
+              status = 'modified',
+            },
+          },
+        }),
       })
     end
-    local files = operations.diff_session(ready_connection(), 'ses_123', 'msg_one', 'msg_two', function(path)
-      return path:gsub('^/server', '/host')
-    end):wait()
+    local files = operations
+      .diff_session(ready_connection(), 'ses_123', 'msg_one', 'msg_two', function(path)
+        return path:gsub('^/server', '/host')
+      end)
+      :wait()
     assert.equals('/api/session/ses_123/diff', request.path)
     assert.equals('from=msg_one&to=msg_two', request.query)
     assert.equals('/host/file.lua', files[1].file)

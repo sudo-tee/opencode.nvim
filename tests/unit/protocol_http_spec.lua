@@ -21,7 +21,11 @@ describe('protocol HTTP helpers', function()
       return Promise.new():resolve({ status = 200, headers = {}, body = '{}' })
     end
 
-    local connection = { is_ready = function() return true end }
+    local connection = {
+      is_ready = function()
+        return true
+      end,
+    }
     http.json_request(connection, 'HTTP test', 'POST', '/test', nil, {}):wait()
 
     assert.equals('{}', captured.body)
@@ -34,10 +38,16 @@ describe('protocol HTTP helpers', function()
       return Promise.new():resolve({ status = 200, headers = {}, body = '{}' })
     end
 
-    local connection = { is_ready = function() return true end }
-    http.json_request(connection, 'HTTP test', 'GET', '/test', {
-      location = { directory = '/workspace' },
-    }):wait()
+    local connection = {
+      is_ready = function()
+        return true
+      end,
+    }
+    http
+      .json_request(connection, 'HTTP test', 'GET', '/test', {
+        location = { directory = '/workspace' },
+      })
+      :wait()
 
     assert.equals('location%5Bdirectory%5D=%2Fworkspace', captured.query)
   end)

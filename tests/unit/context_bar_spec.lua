@@ -59,15 +59,21 @@ describe('opencode.ui.context_bar', function()
     end
 
     context.has_review_comment_for_file = function(path)
-      return vim.tbl_contains(vim.tbl_map(function(comment)
-        return comment.file
-      end, mock_context.review_comments or {}), path)
+      return vim.tbl_contains(
+        vim.tbl_map(function(comment)
+          return comment.file
+        end, mock_context.review_comments or {}),
+        path
+      )
     end
 
     context.has_review_comment_for_file = function(path)
-      return vim.tbl_contains(vim.tbl_map(function(comment)
-        return comment.file
-      end, mock_context.review_comments or {}), path)
+      return vim.tbl_contains(
+        vim.tbl_map(function(comment)
+          return comment.file
+        end, mock_context.review_comments or {}),
+        path
+      )
     end
 
     context.is_context_enabled = function(_)

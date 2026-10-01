@@ -209,35 +209,47 @@ describe('formatter', function()
   end)
 
   it('renders V2 websearch tools with their query', function()
-    local output = formatter.format_part(tool('websearch', {
-      input = { query = 'OpenCode V2 tool format' },
-      time = { started = 1, completed = 2 },
-    }), assistant(), true)
+    local output = formatter.format_part(
+      tool('websearch', {
+        input = { query = 'OpenCode V2 tool format' },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
 
     assert.is_true(output.lines[1]:find('search', 1, true) ~= nil, output.lines[1])
     assert.is_true(output.lines[1]:find('OpenCode V2 tool format', 1, true) ~= nil, output.lines[1])
   end)
 
   it('renders V2 websearch text results', function()
-    local output = formatter.format_part(tool('websearch', {
-      input = { query = 'OpenCode' },
-      result = {
-        {
-          kind = 'text',
-          text = 'OpenCode\nhttps://opencode.ai',
+    local output = formatter.format_part(
+      tool('websearch', {
+        input = { query = 'OpenCode' },
+        result = {
+          {
+            kind = 'text',
+            text = 'OpenCode\nhttps://opencode.ai',
+          },
         },
-      },
-    }), assistant(), true)
+      }),
+      assistant(),
+      true
+    )
 
     local rendered = table.concat(output.lines, '\n')
     assert.is_true(rendered:find('OpenCode\nhttps://opencode.ai', 1, true) ~= nil, rendered)
   end)
 
   it('renders V2 execute tools with their code', function()
-    local output = formatter.format_part(tool('execute', {
-      input = { code = 'return await mcp.server.list()\n' },
-      time = { started = 1, completed = 2 },
-    }), assistant(), true)
+    local output = formatter.format_part(
+      tool('execute', {
+        input = { code = 'return await mcp.server.list()\n' },
+        time = { started = 1, completed = 2 },
+      }),
+      assistant(),
+      true
+    )
 
     local rendered = table.concat(output.lines, '\n')
     assert.is_true(output.lines[1]:find('execute', 1, true) ~= nil, output.lines[1])
@@ -273,13 +285,23 @@ describe('formatter', function()
   it('anchors V2 file diff actions to each edit and patch file row', function()
     local state = require('opencode.state')
     local original = state.opencode_server
-    state.jobs.set_server({ protocol = 'v2', is_ready = function() return false end })
+    state.jobs.set_server({
+      protocol = 'v2',
+      is_ready = function()
+        return false
+      end,
+    })
     local context = { interactive = true }
     local message = assistant()
-    local edit = formatter.format_part(tool('edit', {
-      target = { path = '/workspace/a.lua' },
-      changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
-    }), message, true, context)
+    local edit = formatter.format_part(
+      tool('edit', {
+        target = { path = '/workspace/a.lua' },
+        changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+      }),
+      message,
+      true,
+      context
+    )
     assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, edit.actions[1].args)
     assert.equals('diff_toggle_file', edit.actions[1].type)
     assert.equals(0, edit.actions[1].display_line)
@@ -287,35 +309,60 @@ describe('formatter', function()
     assert.equals('diff_toggle_file', edit:get_actions_for_line(edit.actions[1].range.to)[1].type)
 
     for _, name in ipairs({ 'patch', 'apply_patch' }) do
-      local output = formatter.format_part(tool(name, {
-        changes = {
-          { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
-          { path = '/workspace/b.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
-        },
-      }), message, true, context)
+      local output = formatter.format_part(
+        tool(name, {
+          changes = {
+            { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+            { path = '/workspace/b.lua', diff = '@@ -1 +1 @@\n-old\n+new' },
+          },
+        }),
+        message,
+        true,
+        context
+      )
       assert.equals(2, #output.actions)
       assert.same({ 'msg_1', '/workspace/a.lua', 'ses_1' }, output.actions[1].args)
       assert.same({ 'msg_1', '/workspace/b.lua', 'ses_1' }, output.actions[2].args)
       assert.is_true(output.actions[2].display_line > output.actions[1].display_line)
       assert.equals(output.actions[2].display_line - 1, output.actions[1].range.to)
       assert.is_true(output.actions[2].range.to > output.actions[2].display_line)
-      assert.same({ '/workspace/b.lua' }, vim.tbl_map(function(action)
-        return action.args[2]
-      end, output:get_actions_for_line(output.actions[2].range.to)))
+      assert.same(
+        { '/workspace/b.lua' },
+        vim.tbl_map(function(action)
+          return action.args[2]
+        end, output:get_actions_for_line(output.actions[2].range.to))
+      )
     end
-    state.jobs.set_server({ protocol = 'v1', is_ready = function() return false end })
-    assert.same({}, formatter.format_part(tool('edit', {
-      target = { path = '/workspace/a.lua' },
-      changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
-    }), message, true, context).actions)
+    state.jobs.set_server({
+      protocol = 'v1',
+      is_ready = function()
+        return false
+      end,
+    })
+    assert.same(
+      {},
+      formatter.format_part(
+        tool('edit', {
+          target = { path = '/workspace/a.lua' },
+          changes = { { path = '/workspace/a.lua', diff = '@@ -1 +1 @@\n-old\n+new' } },
+        }),
+        message,
+        true,
+        context
+      ).actions
+    )
     state.jobs.set_server(original)
   end)
 
   it('shortens file tool paths relative to the current workspace', function()
     local absolute_path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
-    local output = formatter.format_part(tool('edit', {
-      target = { path = absolute_path },
-    }), assistant(), true)
+    local output = formatter.format_part(
+      tool('edit', {
+        target = { path = absolute_path },
+      }),
+      assistant(),
+      true
+    )
 
     assert.is_true(output.lines[1]:find('`lua/opencode/config.lua`', 1, true) ~= nil, output.lines[1])
   end)
@@ -346,17 +393,21 @@ describe('formatter', function()
   end)
 
   it('renders V2 add-file patches with numbered diff highlights', function()
-    local output = formatter.format_part(tool('patch', {
-      input = {
-        patchText = table.concat({
-          '*** Begin Patch',
-          '*** Add File: lua/new.lua',
-          '+local value = 1',
-          '+return value',
-          '*** End Patch',
-        }, '\n'),
-      },
-    }), assistant(), true)
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = table.concat({
+            '*** Begin Patch',
+            '*** Add File: lua/new.lua',
+            '+local value = 1',
+            '+return value',
+            '*** End Patch',
+          }, '\n'),
+        },
+      }),
+      assistant(),
+      true
+    )
 
     assert.is_true(vim.tbl_contains(output.lines, '   local value = 1'))
     assert.is_true(vim.tbl_contains(output.lines, '   return value'))
@@ -379,18 +430,22 @@ describe('formatter', function()
   end)
 
   it('renders unnumbered V2 update hunks with diff highlights', function()
-    local output = formatter.format_part(tool('patch', {
-      input = {
-        patchText = table.concat({
-          '*** Begin Patch',
-          '*** Update File: lua/changed.lua',
-          '@@ local function changed()',
-          '-local old = true',
-          '+local new = true',
-          '*** End Patch',
-        }, '\n'),
-      },
-    }), assistant(), true)
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = table.concat({
+            '*** Begin Patch',
+            '*** Update File: lua/changed.lua',
+            '@@ local function changed()',
+            '-local old = true',
+            '+local new = true',
+            '*** End Patch',
+          }, '\n'),
+        },
+      }),
+      assistant(),
+      true
+    )
 
     local highlights = {}
     for _, line_marks in pairs(output.extmarks) do
@@ -405,17 +460,21 @@ describe('formatter', function()
   end)
 
   it('uses server-generated V2 patch metadata for line numbers', function()
-    local output = formatter.format_part(tool('patch', {
-      input = {
-        patchText = '*** Begin Patch\n*** Update File: changed.lua\n@@\n-old\n+new\n*** End Patch',
-      },
-      changes = {
-        {
-          path = 'changed.lua',
-          diff = '@@ -41,1 +41,1 @@\n-old\n+new',
+    local output = formatter.format_part(
+      tool('patch', {
+        input = {
+          patchText = '*** Begin Patch\n*** Update File: changed.lua\n@@\n-old\n+new\n*** End Patch',
         },
-      },
-    }), assistant(), true)
+        changes = {
+          {
+            path = 'changed.lua',
+            diff = '@@ -41,1 +41,1 @@\n-old\n+new',
+          },
+        },
+      }),
+      assistant(),
+      true
+    )
 
     local gutters = {}
     for _, line_marks in pairs(output.extmarks) do
@@ -457,7 +516,9 @@ describe('formatter', function()
     local message = assistant()
     local part = tool('read', {
       target = { path = '/tmp/project' },
-      result = { { kind = 'text', text = '<path>/tmp/project</path>\n<type>directory</type>\n<entries>\nfoo\n</entries>' } },
+      result = {
+        { kind = 'text', text = '<path>/tmp/project</path>\n<type>directory</type>\n<entries>\nfoo\n</entries>' },
+      },
       time = { started = 1, completed = 2 },
     })
 

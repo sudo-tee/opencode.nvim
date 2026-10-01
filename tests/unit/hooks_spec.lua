@@ -180,7 +180,6 @@ describe('hooks', function()
         session_runtime.on_session_request_completed('test-session'):wait()
       end)
     end)
-
   end)
 
   describe('on_permission_requested', function()

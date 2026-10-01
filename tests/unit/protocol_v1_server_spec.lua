@@ -44,10 +44,7 @@ describe('V1 server launcher', function()
   end)
 
   it('recognizes the legacy launcher readiness message', function()
-    assert.equals(
-      'http://127.0.0.1:4321',
-      server.listening_url('opencode server listening on http://127.0.0.1:4321')
-    )
+    assert.equals('http://127.0.0.1:4321', server.listening_url('opencode server listening on http://127.0.0.1:4321'))
     assert.is_nil(server.listening_url('starting'))
   end)
 end)

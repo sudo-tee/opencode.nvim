@@ -101,11 +101,17 @@ local function map_actions(buf, scope)
     hide_message_preview = M.hide_turn_preview,
     toggle_view = M.toggle_view,
     toggle_help = M.toggle_help,
-    close = function() M.close({ focus_input = true }) end,
+    close = function()
+      M.close({ focus_input = true })
+    end,
     add_comment = M.add_comment,
     delete_comment = M.delete_comment,
-    next_comment = function() M.jump_comment(1) end,
-    prev_comment = function() M.jump_comment(-1) end,
+    next_comment = function()
+      M.jump_comment(1)
+    end,
+    prev_comment = function()
+      M.jump_comment(-1)
+    end,
   }
   for key, entry in pairs(config.keymap.session_diff[scope]) do
     if entry ~= false then
@@ -430,7 +436,9 @@ local function comment_range(win, first, last)
   for row = first, last do
     local entry = map[row]
     local number = entry and (chosen == 'after' and entry.new or nil)
-    if entry and chosen == 'before' then number = entry.old end
+    if entry and chosen == 'before' then
+      number = entry.old
+    end
     if number then
       start_line = start_line or number
       end_line = number
@@ -443,7 +451,10 @@ local function comment_range(win, first, last)
   if chosen == 'before' then
     local after_line = anchor
     for row = last + 1, #map do
-      if map[row].new then after_line = map[row].new; break end
+      if map[row].new then
+        after_line = map[row].new
+        break
+      end
     end
     anchor = after_line
   end
@@ -452,8 +463,15 @@ end
 
 local function current_comment(file, side, number)
   for _, comment in ipairs(context.get_review_comments(file.file)) do
-    if comment.session_id == view.session.id and comment.from == view.from and comment.to == view.to
-      and comment.side == side and number and number >= comment.start_line and number <= comment.end_line then
+    if
+      comment.session_id == view.session.id
+      and comment.from == view.from
+      and comment.to == view.to
+      and comment.side == side
+      and number
+      and number >= comment.start_line
+      and number <= comment.end_line
+    then
       return comment
     end
   end
@@ -508,12 +526,27 @@ function M.add_comment()
     text = existing and existing.comment,
     on_submit = function(text)
       if existing then
-        if text == '' then context.remove_review_comment(existing.id) else context.update_review_comment(existing.id, text) end
+        if text == '' then
+          context.remove_review_comment(existing.id)
+        else
+          context.update_review_comment(existing.id, text)
+        end
       elseif text ~= '' then
-        context.add_review_comment({ id = 0, file = file.file, side = side, start_line = start_line,
-          end_line = end_line, code = code, comment = text, session_id = view.session.id,
-          from = view.from, to = view.to, context_before = preceding, context_after = following,
-          anchor_side_line = anchor or start_line })
+        context.add_review_comment({
+          id = 0,
+          file = file.file,
+          side = side,
+          start_line = start_line,
+          end_line = end_line,
+          code = code,
+          comment = text,
+          session_id = view.session.id,
+          from = view.from,
+          to = view.to,
+          context_before = preceding,
+          context_after = following,
+          anchor_side_line = anchor or start_line,
+        })
       end
       refresh_comments()
     end,
@@ -521,7 +554,9 @@ function M.add_comment()
 end
 
 function M.delete_comment()
-  if not in_view() then return end
+  if not in_view() then
+    return
+  end
   local win = vim.api.nvim_get_current_win()
   local side, number = comment_range(win, vim.api.nvim_win_get_cursor(win)[1], vim.api.nvim_win_get_cursor(win)[1])
   local comment = current_comment(assert(view.files[view.index]), side, number)
@@ -532,7 +567,9 @@ function M.delete_comment()
 end
 
 function M.jump_comment(direction)
-  if not in_view() then return end
+  if not in_view() then
+    return
+  end
   local win = vim.api.nvim_get_current_win()
   local file = assert(view.files[view.index])
   local map = view.mode == 'patch' and view.patch_map or nil
@@ -542,8 +579,12 @@ function M.jump_comment(direction)
       if map then
         for row, entry in ipairs(map) do
           local number = comment.side == 'after' and entry.new or nil
-          if comment.side == 'before' then number = entry.old end
-          if number == comment.start_line then rows[#rows + 1] = row end
+          if comment.side == 'before' then
+            number = entry.old
+          end
+          if number == comment.start_line then
+            rows[#rows + 1] = row
+          end
         end
       elseif view.sides[win] == comment.side then
         rows[#rows + 1] = comment.start_line
@@ -554,14 +595,24 @@ function M.jump_comment(direction)
   local cursor = vim.api.nvim_win_get_cursor(win)[1]
   if direction > 0 then
     for _, row in ipairs(rows) do
-      if row > cursor then vim.api.nvim_win_set_cursor(win, { row, 0 }); return end
+      if row > cursor then
+        vim.api.nvim_win_set_cursor(win, { row, 0 })
+        return
+      end
     end
-    if rows[1] then vim.api.nvim_win_set_cursor(win, { rows[1], 0 }) end
+    if rows[1] then
+      vim.api.nvim_win_set_cursor(win, { rows[1], 0 })
+    end
   else
     for index = #rows, 1, -1 do
-      if rows[index] < cursor then vim.api.nvim_win_set_cursor(win, { rows[index], 0 }); return end
+      if rows[index] < cursor then
+        vim.api.nvim_win_set_cursor(win, { rows[index], 0 })
+        return
+      end
     end
-    if rows[#rows] then vim.api.nvim_win_set_cursor(win, { rows[#rows], 0 }) end
+    if rows[#rows] then
+      vim.api.nvim_win_set_cursor(win, { rows[#rows], 0 })
+    end
   end
 end
 

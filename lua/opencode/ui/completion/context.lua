@@ -159,15 +159,30 @@ end
 ---@return CompletionItem[]
 local function add_review_comment_items(ctx)
   local items = {
-    create_context_item('Review comments' .. (#(ctx.review_comments or {}) > 0 and (' (' .. #ctx.review_comments .. ')') or ''),
-      'review_comments', context.is_context_enabled('review_comments'), 'Manage review comments'),
+    create_context_item(
+      'Review comments' .. (#(ctx.review_comments or {}) > 0 and (' (' .. #ctx.review_comments .. ')') or ''),
+      'review_comments',
+      context.is_context_enabled('review_comments'),
+      'Manage review comments'
+    ),
   }
   for index, comment in ipairs(ctx.review_comments or {}) do
     local status = comment.resolution and comment.resolution.status or 'exact'
     items[#items + 1] = create_context_item(
-      ('Comment %d %s:%d-%d (%s)'):format(index, vim.fn.fnamemodify(comment.file, ':~:.'),
-        comment.start_line, comment.end_line, status), 'review_comment_item', true,
-      comment.comment .. '\n\n' .. comment.code, icons.get('review_comment'), comment.id, kind_priority.review_comment_item)
+      ('Comment %d %s:%d-%d (%s)'):format(
+        index,
+        vim.fn.fnamemodify(comment.file, ':~:.'),
+        comment.start_line,
+        comment.end_line,
+        status
+      ),
+      'review_comment_item',
+      true,
+      comment.comment .. '\n\n' .. comment.code,
+      icons.get('review_comment'),
+      comment.id,
+      kind_priority.review_comment_item
+    )
   end
   return items
 end

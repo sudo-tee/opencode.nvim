@@ -24,13 +24,7 @@ function M.format(output, part)
   local command = part.command or input.command
   local description = part.description or input.description
 
-  utils.format_action(
-    output,
-    icons.get('run'),
-    'run',
-    description or command or '',
-    utils.get_duration_text(part)
-  )
+  utils.format_action(output, icons.get('run'), 'run', description or command or '', utils.get_duration_text(part))
 
   local start_line = output:get_line_count() + 1
   if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then

@@ -12,7 +12,11 @@ local definitions = {
   ['/help'] = { command_name = 'help', cmd_str = 'help' },
   ['/agent'] = { command_name = 'agent', preset_args = { 'select' }, cmd_str = 'agent select' },
   ['/agents_init'] = { command_name = 'session', preset_args = { 'agents_init' }, cmd_str = 'session agents_init' },
-  ['/child-sessions'] = { command_name = 'session', preset_args = { 'navigate', 'child', 'picker' }, cmd_str = 'session navigate child picker' },
+  ['/child-sessions'] = {
+    command_name = 'session',
+    preset_args = { 'navigate', 'child', 'picker' },
+    cmd_str = 'session navigate child picker',
+  },
   ['/command-list'] = { command_name = 'commands_list', cmd_str = 'commands_list' },
   ['/compact'] = { command_name = 'session', preset_args = { 'compact' }, cmd_str = 'session compact' },
   ['/history'] = { command_name = 'history', cmd_str = 'history' },

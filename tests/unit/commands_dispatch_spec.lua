@@ -238,7 +238,9 @@ describe('opencode.commands.dispatch', function()
       commands.build_parsed_intent('undo', { 'message-id' }),
       command_parse.command({ args = 'fork_session message-id', range = 0 }, commands.get_commands()),
     }) do
-      local result = command_dispatch.execute(make_ctx(parsed, function() return 'ok' end))
+      local result = command_dispatch.execute(make_ctx(parsed, function()
+        return 'ok'
+      end))
       assert.is_true(result.ok)
       assert.is_nil(parsed.intent.hook_key)
     end
@@ -255,7 +257,9 @@ describe('opencode.commands.dispatch', function()
     end, { command = 'custom' })
     local parsed = commands.build_parsed_intent('undo', {})
     parsed.intent.hook_key = 'custom'
-    local result = command_dispatch.execute(make_ctx(parsed, function() return 'ok' end))
+    local result = command_dispatch.execute(make_ctx(parsed, function()
+      return 'ok'
+    end))
     assert.is_true(result.ok)
     assert.same({ 'custom' }, seen)
   end)

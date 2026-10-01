@@ -52,7 +52,9 @@ local function review_turn(context, message_id, to, file_path, message_count)
   end
   local connection = assert(v2_connection())
   ---@cast connection OpencodeV2Connection
-  local files = connection.operations.diff_session(connection, context.session.id, message_id, to, utils.apply_reverse_path_map):await()
+  local files = connection.operations
+    .diff_session(connection, context.session.id, message_id, to, utils.apply_reverse_path_map)
+    :await()
   if not is_current(context) then
     return
   end

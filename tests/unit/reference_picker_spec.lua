@@ -235,7 +235,9 @@ describe('opencode.ui.reference_picker', function()
 
       rebuild_facts({
         {
-          id = 'msg1', kind = 'assistant', session_id = 'ses_1',
+          id = 'msg1',
+          kind = 'assistant',
+          session_id = 'ses_1',
           content = {
             { kind = 'text', id = 'part1', text = 'Check `src/main.lua:10`.' },
           },
@@ -255,7 +257,9 @@ describe('opencode.ui.reference_picker', function()
     it('uses references from reference_facts', function()
       rebuild_facts({
         {
-          id = 'msg1', kind = 'assistant', session_id = 'ses_1',
+          id = 'msg1',
+          kind = 'assistant',
+          session_id = 'ses_1',
           content = {
             { kind = 'text', id = 'part1', text = 'Check `src/main.lua:10` for details.' },
           },
@@ -279,7 +283,9 @@ describe('opencode.ui.reference_picker', function()
     it('deduplicates picker display items by path and line without changing facts', function()
       rebuild_facts({
         {
-          id = 'msg1', kind = 'assistant', session_id = 'ses_1',
+          id = 'msg1',
+          kind = 'assistant',
+          session_id = 'ses_1',
           content = {
             { kind = 'text', id = 'part1', text = 'First `src/main.lua:10`.' },
             { kind = 'text', id = 'part2', text = 'Second `src/main.lua:10`.' },

@@ -261,7 +261,10 @@ local function normalize_navigate_args(direction, interaction, wrap, empty_polic
     invalid_arguments('Invalid empty_policy: ' .. tostring(empty_policy))
   end
 
-  return direction --[[@as string]], interaction --[[@as 'direct'|'picker']], wrap, empty_policy
+  return direction, --[[@as string]]
+    interaction, --[[@as 'direct'|'picker']]
+    wrap,
+    empty_policy
 end
 
 -- parent: direct switch to parentID; child/sibling: target_id is filter, always picker
@@ -416,13 +419,7 @@ function M.actions.share()
   return with_active_session('No active session to share', function(_, _, session_fact, connection, location)
     local operations = connection.operations --[[@as OpencodeV1Operations]]
     notify_promise(
-      operations.share_session(
-        connection,
-        session_fact.id,
-        location,
-        util.apply_path_map,
-        util.apply_reverse_path_map
-      ),
+      operations.share_session(connection, session_fact.id, location, util.apply_path_map, util.apply_reverse_path_map),
       function(response)
         if response and response.share and response.share.url then
           vim.fn.setreg('+', response.share.url)

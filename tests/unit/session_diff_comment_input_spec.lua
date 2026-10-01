@@ -4,7 +4,12 @@ describe('session diff comment input', function()
   it('submits a written comment from the real acwrite float', function()
     local origin = vim.api.nvim_get_current_win()
     local submitted
-    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function(text) submitted = text end })
+    comment_input.open({
+      title = 'file.lua:1-1 (after)',
+      on_submit = function(text)
+        submitted = text
+      end,
+    })
     local buf = vim.api.nvim_get_current_buf()
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'Review this' })
     vim.cmd('stopinsert')
@@ -17,9 +22,12 @@ describe('session diff comment input', function()
     local triggered = false
     local group = vim.api.nvim_create_augroup('OpencodeCommentInputSpec', { clear = true })
     vim.api.nvim_create_autocmd('FileType', {
-      pattern = '*', group = group,
+      pattern = '*',
+      group = group,
       callback = function(args)
-        if vim.bo[args.buf].buftype == 'acwrite' then triggered = true end
+        if vim.bo[args.buf].buftype == 'acwrite' then
+          triggered = true
+        end
       end,
     })
     comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function() end })
@@ -44,7 +52,12 @@ describe('session diff comment input', function()
   it('submits with the configured key and cancels with q', function()
     local origin = vim.api.nvim_get_current_win()
     local submitted
-    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function(text) submitted = text end })
+    comment_input.open({
+      title = 'file.lua:1-1 (after)',
+      on_submit = function(text)
+        submitted = text
+      end,
+    })
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'Save with keymap' })
     vim.cmd('stopinsert')
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-s>', true, false, true), 'xt', false)
@@ -52,8 +65,15 @@ describe('session diff comment input', function()
     assert.equals(origin, vim.api.nvim_get_current_win())
 
     local cancelled = false
-    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function() error('submitted cancelled comment') end,
-      on_cancel = function() cancelled = true end })
+    comment_input.open({
+      title = 'file.lua:1-1 (after)',
+      on_submit = function()
+        error('submitted cancelled comment')
+      end,
+      on_cancel = function()
+        cancelled = true
+      end,
+    })
     vim.cmd('stopinsert')
     vim.api.nvim_feedkeys('q', 'xt', false)
     assert.is_true(cancelled)
@@ -62,7 +82,12 @@ describe('session diff comment input', function()
 
   it('submits with Enter in normal mode', function()
     local submitted
-    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function(text) submitted = text end })
+    comment_input.open({
+      title = 'file.lua:1-1 (after)',
+      on_submit = function(text)
+        submitted = text
+      end,
+    })
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'Save with Enter' })
     vim.cmd('stopinsert')
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'xt', false)
@@ -71,7 +96,12 @@ describe('session diff comment input', function()
 
   it('submits with Ctrl-S while typing in insert mode', function()
     local submitted
-    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function(text) submitted = text end })
+    comment_input.open({
+      title = 'file.lua:1-1 (after)',
+      on_submit = function(text)
+        submitted = text
+      end,
+    })
     vim.api.nvim_feedkeys('iType in insert mode', 'xt', false)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-s>', true, false, true), 'xt', false)
     assert.equals('Type in insert mode', submitted)

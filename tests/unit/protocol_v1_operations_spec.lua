@@ -94,9 +94,7 @@ describe('V1 protocol operations', function()
         return operations.delete_session(connection, 'ses-1', location, to_server):wait()
       end,
       rename_session = function()
-        return operations
-          .rename_session(connection, 'ses-1', location, 'Renamed', to_server, to_host)
-          :wait()
+        return operations.rename_session(connection, 'ses-1', location, 'Renamed', to_server, to_host):wait()
       end,
       list_children = function()
         return operations.list_children(connection, 'ses-1', location, to_server, to_host):wait()
@@ -222,19 +220,17 @@ describe('V1 protocol operations', function()
       return Promise.new():resolve({ status = 204, headers = {}, body = '' })
     end
 
-    assert.is_true(
-      operations
-        .submit_async(
-          connection,
-          'ses-1',
-          location,
-          { messageID = 'msg-1', parts = { { type = 'text', text = 'hello' } } },
-          function(path)
-            return path:gsub('^/host', '/server')
-          end
-        )
-        :wait()
-    )
+    assert.is_true(operations
+      .submit_async(
+        connection,
+        'ses-1',
+        location,
+        { messageID = 'msg-1', parts = { { type = 'text', text = 'hello' } } },
+        function(path)
+          return path:gsub('^/host', '/server')
+        end
+      )
+      :wait())
 
     assert.equals(connection, calls[1].connection)
     assert.equals('POST', calls[1].request.method)

@@ -551,9 +551,15 @@ end
 function M.activate_skill(connection, session_id, skill_id)
   return Promise.async(function()
     require_skill_support(connection, false):await()
-    return empty_request(connection, 'V2 activate_skill', 'POST', '/api/experimental/session/' .. session_id .. '/skill', {
-      id = skill_id,
-    }):await()
+    return empty_request(
+      connection,
+      'V2 activate_skill',
+      'POST',
+      '/api/experimental/session/' .. session_id .. '/skill',
+      {
+        id = skill_id,
+      }
+    ):await()
   end)()
 end
 

@@ -30,45 +30,48 @@ describe('renderer.output_diff.is_unchanged', function()
   end)
 
   it('returns true when lines and extmarks are identical', function()
-    assert.is_true(output_diff.is_unchanged(
-      { lines = { 'a', 'b' }, extmarks = {} },
-      { lines = { 'a', 'b' }, extmarks = {} }
-    ))
+    assert.is_true(
+      output_diff.is_unchanged({ lines = { 'a', 'b' }, extmarks = {} }, { lines = { 'a', 'b' }, extmarks = {} })
+    )
   end)
 
   it('returns false when line count differs', function()
-    assert.is_false(output_diff.is_unchanged(
-      { lines = { 'a' }, extmarks = {} },
-      { lines = { 'a', 'b' }, extmarks = {} }
-    ))
+    assert.is_false(
+      output_diff.is_unchanged({ lines = { 'a' }, extmarks = {} }, { lines = { 'a', 'b' }, extmarks = {} })
+    )
   end)
 
   it('returns false when any line content differs', function()
-    assert.is_false(output_diff.is_unchanged(
-      { lines = { 'a', 'b' }, extmarks = {} },
-      { lines = { 'a', 'X' }, extmarks = {} }
-    ))
+    assert.is_false(
+      output_diff.is_unchanged({ lines = { 'a', 'b' }, extmarks = {} }, { lines = { 'a', 'X' }, extmarks = {} })
+    )
   end)
 
   it('returns false when extmarks differ on an existing line', function()
-    assert.is_false(output_diff.is_unchanged(
-      { lines = { 'a' }, extmarks = { [0] = { { line_hl_group = 'A' } } } },
-      { lines = { 'a' }, extmarks = { [0] = { { line_hl_group = 'B' } } } }
-    ))
+    assert.is_false(
+      output_diff.is_unchanged(
+        { lines = { 'a' }, extmarks = { [0] = { { line_hl_group = 'A' } } } },
+        { lines = { 'a' }, extmarks = { [0] = { { line_hl_group = 'B' } } } }
+      )
+    )
   end)
 
   it('returns false when negative-line extmarks differ', function()
-    assert.is_false(output_diff.is_unchanged(
-      { lines = { 'a' }, extmarks = { [-1] = { { virt_text = { { 'old' } } } } } },
-      { lines = { 'a' }, extmarks = { [-1] = { { virt_text = { { 'new' } } } } } }
-    ))
+    assert.is_false(
+      output_diff.is_unchanged(
+        { lines = { 'a' }, extmarks = { [-1] = { { virt_text = { { 'old' } } } } } },
+        { lines = { 'a' }, extmarks = { [-1] = { { virt_text = { { 'new' } } } } } }
+      )
+    )
   end)
 
   it('returns false when extmark is added on a new line', function()
-    assert.is_false(output_diff.is_unchanged(
-      { lines = { 'a', 'b' }, extmarks = {} },
-      { lines = { 'a', 'b' }, extmarks = { [1] = { { line_hl_group = 'A' } } } }
-    ))
+    assert.is_false(
+      output_diff.is_unchanged(
+        { lines = { 'a', 'b' }, extmarks = {} },
+        { lines = { 'a', 'b' }, extmarks = { [1] = { { line_hl_group = 'A' } } } }
+      )
+    )
   end)
 end)
 

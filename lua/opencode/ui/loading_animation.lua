@@ -41,9 +41,7 @@ function M._format_execution_text(execution)
   end
 
   local retry = execution.retry or {}
-  local message = retry.message
-    or (type(retry.error) == 'table' and retry.error.message)
-    or 'Retrying request'
+  local message = retry.message or (type(retry.error) == 'table' and retry.error.message) or 'Retrying request'
   local details = {}
   if type(retry.attempt) == 'number' then
     table.insert(details, 'retry ' .. retry.attempt)

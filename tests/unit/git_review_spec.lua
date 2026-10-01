@@ -153,7 +153,8 @@ describe('asynchronous git review', function()
         list_messages = function(_, _, cursor)
           if cursor then
             return Promise.new():resolve({
-              data = { { id = 'msg_old', type = 'user', text = 'First prompt', time = { created = 10 } } }, cursor = {},
+              data = { { id = 'msg_old', type = 'user', text = 'First prompt', time = { created = 10 } } },
+              cursor = {},
             })
           end
           return Promise.new():resolve({
@@ -202,7 +203,11 @@ describe('asynchronous git review', function()
         return true
       end,
       observe = function()
-        return { read = function() return observed end }
+        return {
+          read = function()
+            return observed
+          end,
+        }
       end,
       operations = {
         diff_session = function(_, session_id, from)

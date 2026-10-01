@@ -42,8 +42,7 @@ function M.sides(patch)
   local old_count, new_count = 0, 0
   local saw_hunk = false
   for _, line in ipairs(vim.split(patch:gsub('\r\n', '\n'), '\n', { plain = true })) do
-    local old_start, old_size, new_start, new_size =
-      line:match('^@@ %-(%d+),?(%d*) %+(%d+),?(%d*) @@')
+    local old_start, old_size, new_start, new_size = line:match('^@@ %-(%d+),?(%d*) %+(%d+),?(%d*) @@')
     if old_start then
       if saw_hunk and (old_count ~= 0 or new_count ~= 0) then
         return nil, nil

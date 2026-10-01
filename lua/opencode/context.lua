@@ -301,13 +301,11 @@ end
 ---@return table
 M.format_message = Promise.async(function(prompt, opts, tracking)
   tracking = tracking or {}
-  return ChatContext
-    .format_message(prompt, {
-      context_config = opts,
-      previous_context = tracking.previous_context,
-      submission_context = tracking.submission_context,
-    })
-    :await()
+  return ChatContext.format_message(prompt, {
+    context_config = opts,
+    previous_context = tracking.previous_context,
+    submission_context = tracking.submission_context,
+  }):await()
 end)
 
 ---@param text string

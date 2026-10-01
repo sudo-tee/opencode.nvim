@@ -60,8 +60,10 @@ describe('review snapshot anchors', function()
       lines[index] = index % 2 == 1 and 'before' or 'different'
     end
     lines[3002] = 'after'
-    assert.same({ status = 'modified', start_line = 3000, end_line = 3001,
-      current_code = 'different\nbefore' }, anchor.resolve(item, lines))
+    assert.same(
+      { status = 'modified', start_line = 3000, end_line = 3001, current_code = 'different\nbefore' },
+      anchor.resolve(item, lines)
+    )
   end)
 
   it('prefers loaded unsaved buffer and reports missing files', function()

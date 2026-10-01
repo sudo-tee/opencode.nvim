@@ -35,9 +35,12 @@ describe('session diff', function()
     })
     local list_buf = vim.api.nvim_get_current_buf()
     local function mapped(buf, key)
-      return vim.tbl_contains(vim.tbl_map(function(entry)
-        return entry.lhs
-      end, vim.api.nvim_buf_get_keymap(buf, 'n')), key)
+      return vim.tbl_contains(
+        vim.tbl_map(function(entry)
+          return entry.lhs
+        end, vim.api.nvim_buf_get_keymap(buf, 'n')),
+        key
+      )
     end
     assert.is_true(mapped(list_buf, 'v'))
     assert.is_false(mapped(list_buf, 'p'))
@@ -97,20 +100,32 @@ describe('session diff', function()
     local help_win = vim.api.nvim_get_current_win()
     assert.not_equals(list_win, help_win)
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(line)
-      return line:find('Switch layout', 1, true) ~= nil
-    end, lines), true))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(line)
+        return line:find('Switch layout', 1, true) ~= nil
+      end, lines),
+      true
+    ))
     local first_group = vim.list_slice(lines, 1, vim.fn.index(lines, ''))
-    assert.is_false(vim.tbl_contains(vim.tbl_map(function(line)
-      return line:find('  p        Toggle diff layout', 1, true) ~= nil
-    end, first_group), true))
+    assert.is_false(vim.tbl_contains(
+      vim.tbl_map(function(line)
+        return line:find('  p        Toggle diff layout', 1, true) ~= nil
+      end, first_group),
+      true
+    ))
     local marks = vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].hl_group
-    end, marks), 'Title'))
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].hl_group
-    end, marks), 'Special'))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].hl_group
+      end, marks),
+      'Title'
+    ))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].hl_group
+      end, marks),
+      'Special'
+    ))
     vim.api.nvim_feedkeys('g?', 'xt', false)
     assert.equals(list_win, vim.api.nvim_get_current_win())
     assert.is_false(vim.api.nvim_win_is_valid(help_win))
@@ -135,11 +150,21 @@ describe('session diff', function()
   end)
 
   it('maps patch buffer rows across headers and multiple hunks', function()
-    assert.same({ {}, {}, {}, { old = 1, new = 1 }, { old = 2 }, { new = 2 },
-      {}, { old = 3, new = 3 }, { old = 4 }, { new = 4 } }, patch.line_map(table.concat({
-      '--- a/file', '+++ b/file', '@@ -1,2 +1,2 @@', ' unchanged', '-old', '+new',
-      '@@ -3,2 +3,2 @@', ' context', '-tail', '+end',
-    }, '\n')))
+    assert.same(
+      { {}, {}, {}, { old = 1, new = 1 }, { old = 2 }, { new = 2 }, {}, { old = 3, new = 3 }, { old = 4 }, { new = 4 } },
+      patch.line_map(table.concat({
+        '--- a/file',
+        '+++ b/file',
+        '@@ -1,2 +1,2 @@',
+        ' unchanged',
+        '-old',
+        '+new',
+        '@@ -3,2 +3,2 @@',
+        ' context',
+        '-tail',
+        '+end',
+      }, '\n'))
+    )
   end)
 
   it('adds and edits snapshot comments on either side, then redraws markers', function()
@@ -150,15 +175,21 @@ describe('session diff', function()
     context.clear_review_comments()
     local path = vim.fn.getcwd() .. '/review-snapshot.lua'
     local content = '@@ -1,2 +1,2 @@\n unchanged\n-old\n+new'
-    comment_input.open = function(opts) opts.on_submit('Please check') end
+    comment_input.open = function(opts)
+      opts.on_submit('Please check')
+    end
     diff.open({ file(path, content) }, { id = 'session' }, { from = 'turn' })
     local list_buf = vim.api.nvim_get_current_buf()
     local wins = vim.api.nvim_tabpage_list_wins(0)
     local before, after
     for _, win in ipairs(wins) do
       local title = vim.wo[win].winbar
-      if title:find('Before:', 1, true) then before = win end
-      if title:find('After:', 1, true) then after = win end
+      if title:find('Before:', 1, true) then
+        before = win
+      end
+      if title:find('After:', 1, true) then
+        after = win
+      end
     end
     vim.api.nvim_set_current_win(after)
     vim.api.nvim_win_set_cursor(after, { 2, 0 })
@@ -168,8 +199,13 @@ describe('session diff', function()
     local title_visible = false
     for _, mark in ipairs(title_marks) do
       for _, line in ipairs(mark[4].virt_lines or {}) do
-        title_visible = title_visible or table.concat(vim.tbl_map(function(chunk) return chunk[1] end, line))
-          :find('Changes (1)', 1, true) ~= nil
+        title_visible = title_visible
+          or table
+              .concat(vim.tbl_map(function(chunk)
+                return chunk[1]
+              end, line))
+              :find('Changes (1)', 1, true)
+            ~= nil
       end
     end
     assert.is_true(title_visible)
@@ -180,9 +216,12 @@ describe('session diff', function()
     assert.equals('turn', entry.from)
     local ns = vim.api.nvim_get_namespaces().OpencodeSessionDiffComments
     local marks = vim.api.nvim_buf_get_extmarks(vim.api.nvim_win_get_buf(after), ns, 0, -1, { details = true })
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].sign_text
-    end, marks), icons.get('review_comment')))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].sign_text
+      end, marks),
+      icons.get('review_comment')
+    ))
     vim.api.nvim_set_current_win(before)
     vim.api.nvim_win_set_cursor(before, { 2, 0 })
     diff.add_comment()
@@ -206,12 +245,16 @@ describe('session diff', function()
     end
     context.clear_review_comments()
     local path = vim.fn.getcwd() .. '/review-patch.lua'
-    comment_input.open = function(opts) opts.on_submit('Review') end
+    comment_input.open = function(opts)
+      opts.on_submit('Review')
+    end
     diff.open({ file(path, '@@ -1,2 +1,2 @@\n same\n-old\n+new') }, { id = 'session' })
     diff.show_patch()
     local preview
     for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if vim.wo[win].winbar == path then preview = win end
+      if vim.wo[win].winbar == path then
+        preview = win
+      end
     end
     vim.api.nvim_set_current_win(preview)
     vim.api.nvim_win_set_cursor(preview, { 3, 0 })
@@ -238,11 +281,15 @@ describe('session diff', function()
     local original_open, saved = comment_input.open, context.snapshot()
     context.clear_review_comments()
     local path = vim.fn.getcwd() .. '/review-visual.lua'
-    comment_input.open = function(opts) opts.on_submit('Both lines') end
+    comment_input.open = function(opts)
+      opts.on_submit('Both lines')
+    end
     diff.open({ file(path, '@@ -1,3 +1,3 @@\n first\n-old\n+new\n last') }, { id = 'session' })
     local after
     for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if vim.wo[win].winbar:find('After:', 1, true) then after = win end
+      if vim.wo[win].winbar:find('After:', 1, true) then
+        after = win
+      end
     end
     vim.api.nvim_set_current_win(after)
     vim.api.nvim_win_set_cursor(after, { 1, 0 })
@@ -270,7 +317,13 @@ describe('session diff', function()
     diff.open({
       { file = cwd .. '/new.lua', patch = '@@ -0,0 +1 @@\n+new', additions = 1, deletions = 0, status = 'added' },
       file(cwd .. '/nested/changed.lua', '@@ -1 +1 @@\n-old\n+new'),
-      { file = cwd .. '/nested/old.lua', patch = '@@ -1 +0,0 @@\n-old', additions = 0, deletions = 1, status = 'deleted' },
+      {
+        file = cwd .. '/nested/old.lua',
+        patch = '@@ -1 +0,0 @@\n-old',
+        additions = 0,
+        deletions = 1,
+        status = 'deleted',
+      },
     }, { id = 'ses_123' })
     local buf = vim.api.nvim_get_current_buf()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -302,9 +355,12 @@ describe('session diff', function()
     local buf = vim.api.nvim_get_current_buf()
     assert.matches(' sample.lua', vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1], 1, true)
     local marks = vim.api.nvim_buf_get_extmarks(buf, -1, 0, -1, { details = true })
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].hl_group
-    end, marks), 'DevIconLua'))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].hl_group
+      end, marks),
+      'DevIconLua'
+    ))
     with_icons.close()
     package.loaded['nvim-web-devicons'] = original_icons
     package.loaded['opencode.ui.session_diff'] = original_module
@@ -352,8 +408,7 @@ describe('session diff', function()
           found_message_range_hint = found_message_range_hint
             or line:find('1 message · <r> choose range', 1, true) ~= nil
           for _, chunk in ipairs(virtual_line) do
-            highlighted_range_key = highlighted_range_key
-              or (chunk[1] == '<r>' and chunk[2] == 'OpencodeInputLegend')
+            highlighted_range_key = highlighted_range_key or (chunk[1] == '<r>' and chunk[2] == 'OpencodeInputLegend')
           end
           found_turns_help = found_turns_help or line:find('Turns', 1, true) ~= nil
         end
@@ -375,9 +430,12 @@ describe('session diff', function()
     assert.equals('      Second prompt', lines[2])
     assert.equals('  FT  Latest prompt', lines[3])
     local message_marks = vim.api.nvim_buf_get_extmarks(buf, -1, 0, -1, { details = true })
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].virt_text and mark[4].virt_text[1][1]
-    end, message_marks), os.date('%Y-%m-%d %H:%M', 1700000000)))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].virt_text and mark[4].virt_text[1][1]
+      end, message_marks),
+      os.date('%Y-%m-%d %H:%M', 1700000000)
+    ))
     assert.equals(2, #vim.tbl_filter(function(mark)
       return mark[4].hl_group == 'Comment' and mark[4].end_col and mark[4].end_col > 6
     end, message_marks))
@@ -430,9 +488,12 @@ describe('session diff', function()
     })
     local list_buf = vim.api.nvim_get_current_buf()
     local marks = vim.api.nvim_buf_get_extmarks(list_buf, -1, 0, -1, { details = true })
-    assert.is_true(vim.tbl_contains(vim.tbl_map(function(mark)
-      return mark[4].virt_lines and mark[4].virt_lines[#mark[4].virt_lines][1][1]
-    end, marks), '  Range: msg_one'))
+    assert.is_true(vim.tbl_contains(
+      vim.tbl_map(function(mark)
+        return mark[4].virt_lines and mark[4].virt_lines[#mark[4].virt_lines][1][1]
+      end, marks),
+      '  Range: msg_one'
+    ))
     diff.toggle_range()
     assert.is_true(vim.wait(1000, function()
       return vim.api.nvim_get_current_buf() ~= list_buf
@@ -477,8 +538,15 @@ describe('session diff', function()
     local list_win = vim.api.nvim_get_current_win()
     assert.is_true(diff.toggle_file(cwd .. '/nested/b.lua', 'msg_123', 'ses_123'))
     assert.equals(review_tab, vim.api.nvim_get_current_tabpage())
-    assert.matches('b.lua', vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(list_win),
-      vim.api.nvim_win_get_cursor(list_win)[1] - 1, vim.api.nvim_win_get_cursor(list_win)[1], false)[1])
+    assert.matches(
+      'b.lua',
+      vim.api.nvim_buf_get_lines(
+        vim.api.nvim_win_get_buf(list_win),
+        vim.api.nvim_win_get_cursor(list_win)[1] - 1,
+        vim.api.nvim_win_get_cursor(list_win)[1],
+        false
+      )[1]
+    )
     assert.is_true(diff.toggle_file(cwd .. '/nested/b.lua', 'msg_123', 'ses_123'))
     assert.equals(previous, vim.api.nvim_get_current_tabpage())
   end)
@@ -490,8 +558,12 @@ describe('session diff', function()
       file(cwd .. '/b.lua', '@@ -1 +1 @@\n-old\n+new'),
     }, { id = 'ses_123' }, { from = 'msg_123', file = cwd .. '/b.lua' })
     local list_win = vim.api.nvim_get_current_win()
-    local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(list_win),
-      vim.api.nvim_win_get_cursor(list_win)[1] - 1, vim.api.nvim_win_get_cursor(list_win)[1], false)[1]
+    local line = vim.api.nvim_buf_get_lines(
+      vim.api.nvim_win_get_buf(list_win),
+      vim.api.nvim_win_get_cursor(list_win)[1] - 1,
+      vim.api.nvim_win_get_cursor(list_win)[1],
+      false
+    )[1]
     assert.matches('b.lua', line)
   end)
 

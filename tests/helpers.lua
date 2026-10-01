@@ -488,7 +488,10 @@ function M.replay_event(event)
     if not replaced then
       messages[#messages + 1] = event
     end
-    require('opencode.ui.renderer')._render_full_session_data(M.load_session_from_events(messages), state.active_session)
+    require('opencode.ui.renderer')._render_full_session_data(
+      M.load_session_from_events(messages),
+      state.active_session
+    )
     return
   end
   local active = assert(state.active_session, 'V1 replay requires an active session')
@@ -505,10 +508,13 @@ function M.replay_event(event)
   vim.schedule(function()
     rendered = true
   end)
-  assert(vim.wait(1000, function()
-    local ctx = require('opencode.ui.renderer.ctx').current()
-    return rendered and not ctx.reconcile_scheduled and not ctx.flush_scheduled
-  end), 'scheduled replay render did not finish')
+  assert(
+    vim.wait(1000, function()
+      local ctx = require('opencode.ui.renderer.ctx').current()
+      return rendered and not ctx.reconcile_scheduled and not ctx.flush_scheduled
+    end),
+    'scheduled replay render did not finish'
+  )
 end
 
 function M.replay_events(events)

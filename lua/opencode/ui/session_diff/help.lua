@@ -55,8 +55,10 @@ function M.create(keymaps)
     section('MESSAGE PREVIEW', keymaps.message_preview),
     section('REVIEW COMMENT', keymaps.comment),
   }
-  local columns = math.max(sections[1].width, sections[3].width)
-    + math.max(sections[2].width, sections[4].width) + 3 <= vim.o.columns - 8 and 2 or 1
+  local columns = math.max(sections[1].width, sections[3].width) + math.max(sections[2].width, sections[4].width) + 3
+        <= vim.o.columns - 8
+      and 2
+    or 1
   local lines = {}
   ---@type {row: integer, start: integer, finish: integer, group: string}[]
   local marks = {}

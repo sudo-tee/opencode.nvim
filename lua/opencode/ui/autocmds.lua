@@ -251,7 +251,11 @@ function M.setup_autocmds(windows)
         local current_win = vim.api.nvim_get_current_win()
         local current_buf = vim.api.nvim_get_current_buf()
 
-        if current_win ~= windows.output_win and current_win ~= windows.input_win and current_win ~= windows.tab_strip_win then
+        if
+          current_win ~= windows.output_win
+          and current_win ~= windows.input_win
+          and current_win ~= windows.tab_strip_win
+        then
           return
         end
 
@@ -290,7 +294,12 @@ function M.setup_resize_handler(windows)
     group = resize_group,
     callback = function(args)
       local win = tonumber(args.match) --[[@as integer]]
-      if state.windows ~= windows or not win or not vim.api.nvim_win_is_valid(win) or not output_window.mounted(windows) then
+      if
+        state.windows ~= windows
+        or not win
+        or not vim.api.nvim_win_is_valid(win)
+        or not output_window.mounted(windows)
+      then
         return
       end
 

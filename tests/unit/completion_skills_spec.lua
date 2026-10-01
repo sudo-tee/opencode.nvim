@@ -12,11 +12,13 @@ describe('skill completion', function()
   it('leaves the skill command editable instead of activating on selection', function()
     local previous_server = state.opencode_server
     local previous_sources = completion._sources
-    state.jobs.set_server({ operations = {
-      list_skills = function()
-        return Promise.new():resolve({ { name = 'skill-test', content = 'Test instructions' } })
-      end,
-    } })
+    state.jobs.set_server({
+      operations = {
+        list_skills = function()
+          return Promise.new():resolve({ { name = 'skill-test', content = 'Test instructions' } })
+        end,
+      },
+    })
     local source = skills.get_source()
     local items = source.complete({ trigger_char = '/', line = '/skill', input = '/skill', cursor_pos = 6 }):wait()
     state.jobs.set_server(previous_server)
@@ -29,7 +31,9 @@ describe('skill completion', function()
     local clear = stub(input_window, 'set_content')
     completion._sources = { source }
     completion.on_completion_done(items[1])
-    vim.wait(30, function() return false end)
+    vim.wait(30, function()
+      return false
+    end)
 
     assert.stub(open).was_not_called()
     assert.stub(send).was_not_called()

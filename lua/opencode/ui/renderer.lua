@@ -831,25 +831,31 @@ local function load_complete_history(ctx, scroll_to_top)
     ctx.history_top_pending = false
     return false
   end
-  request:and_then(function()
-    if not ctx:is_active() or ctx.observation ~= observation or ctx.history_navigation_revision ~= navigation_revision then
-      return
-    end
-    -- grow to the merged total only; the rendering primitive does not
-    -- touch the protocol, so this callback cannot re-enter the pull
-    ctx.entries = ordered_entries(observation)
-    apply_window_growth(ctx, math.huge)
-    if scroll_to_top and win and vim.api.nvim_win_is_valid(win) then
-      pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
-      pcall(output_window.restore_view_topline, win, 1)
-    end
-    ctx.history_top_pending = false
-  end):catch(function(err)
-    if ctx.history_navigation_revision == navigation_revision then
+  request
+    :and_then(function()
+      if
+        not ctx:is_active()
+        or ctx.observation ~= observation
+        or ctx.history_navigation_revision ~= navigation_revision
+      then
+        return
+      end
+      -- grow to the merged total only; the rendering primitive does not
+      -- touch the protocol, so this callback cannot re-enter the pull
+      ctx.entries = ordered_entries(observation)
+      apply_window_growth(ctx, math.huge)
+      if scroll_to_top and win and vim.api.nvim_win_is_valid(win) then
+        pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
+        pcall(output_window.restore_view_topline, win, 1)
+      end
       ctx.history_top_pending = false
-    end
-    notify_history_failure(err)
-  end)
+    end)
+    :catch(function(err)
+      if ctx.history_navigation_revision == navigation_revision then
+        ctx.history_top_pending = false
+      end
+      notify_history_failure(err)
+    end)
   return true
 end
 

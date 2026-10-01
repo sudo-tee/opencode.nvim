@@ -143,7 +143,9 @@ describe('native V2 service discovery', function()
     assert.is_false(acquired:is_ready())
     assert.is_false(killed)
     assert.is_true(vim.tbl_contains(messages, 'opencode v2 server 2.0.1 is reachable at http://127.0.0.1:49374'))
-    assert.is_true(vim.tbl_contains(messages, 'this Connection closes client resources only; the native service remains running'))
+    assert.is_true(
+      vim.tbl_contains(messages, 'this Connection closes client resources only; the native service remains running')
+    )
     assert.is_true(vim.tbl_contains(messages, 'opencode connection closed successfully'))
   end)
 

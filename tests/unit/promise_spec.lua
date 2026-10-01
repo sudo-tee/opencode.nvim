@@ -102,13 +102,20 @@ describe('Promise error propagation', function()
   it('retries selected errors and stops at the first non-retryable error', function()
     local attempts = 0
     local reason = { kind = 'credentials' }
-    local result = Promise.retry(function()
-      attempts = attempts + 1
-      return Promise.new():reject(attempts == 1 and { kind = 'transport' } or reason)
-    end, 3, 0, function(err)
-      return err.kind == 'transport'
+    local result = Promise.retry(
+      function()
+        attempts = attempts + 1
+        return Promise.new():reject(attempts == 1 and { kind = 'transport' } or reason)
+      end,
+      3,
+      0,
+      function(err)
+        return err.kind == 'transport'
+      end
+    )
+    local ok, err = pcall(function()
+      return result:wait()
     end)
-    local ok, err = pcall(function() return result:wait() end)
     assert.is_false(ok)
     assert.equals(reason, err)
     assert.equals(2, attempts)

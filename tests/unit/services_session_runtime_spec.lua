@@ -421,7 +421,13 @@ describe('opencode.services.session_runtime', function()
     end
 
     it('rejects when session creation returns no session', function()
-      local connection = { operations = { create_session = function() return Promise.new():resolve(nil) end } }
+      local connection = {
+        operations = {
+          create_session = function()
+            return Promise.new():resolve(nil)
+          end,
+        },
+      }
       ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
       local result = session_runtime.create_detached_session()
       assert.is_true(result:is_rejected())
@@ -431,13 +437,17 @@ describe('opencode.services.session_runtime', function()
       local deleted
       local connection = {
         operations = {
-          create_session = function() return Promise.new():resolve({ id = 'detached-id' }) end,
+          create_session = function()
+            return Promise.new():resolve({ id = 'detached-id' })
+          end,
           delete_session = function(_, id)
             deleted = id
             return Promise.new():resolve()
           end,
         },
-        observe = function() error('observation unavailable') end,
+        observe = function()
+          error('observation unavailable')
+        end,
       }
       ensure_server = stub(server_job, 'ensure_server').returns(Promise.new():resolve(connection))
       local result = session_runtime.create_detached_session()
@@ -966,7 +976,8 @@ describe('opencode.services.session_runtime', function()
       assert.stub(close).was_not_called()
       assert.stub(ensure_server).was_not_called()
       close:revert()
-      ensure_server:revert()    end)
+      ensure_server:revert()
+    end)
   end)
 
   describe('opencode_ok (version checks)', function()

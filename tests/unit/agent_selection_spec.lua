@@ -11,7 +11,9 @@ describe('agent selection', function()
 
   local function replace(object, name, fn)
     local replacement = stub(object, name)
-    if fn then replacement.invokes(fn) end
+    if fn then
+      replacement.invokes(fn)
+    end
     stubs[#stubs + 1] = replacement
     return replacement
   end
@@ -29,18 +31,26 @@ describe('agent selection', function()
     state.store.set_raw('current_variant', 'low')
     state.store.set_raw('user_mode_model_map', { plan = 'plan/model' })
     visible = true
-    replace(state.ui, 'is_visible', function() return visible end)
+    replace(state.ui, 'is_visible', function()
+      return visible
+    end)
     focus = replace(ui, 'focus_input')
     notify = replace(log, 'notify')
     persist = replace(model_state, 'set_variant')
-    replace(model_state, 'get_variant', function() return 'saved' end)
+    replace(model_state, 'get_variant', function()
+      return 'saved'
+    end)
     for _, module in ipairs({ 'opencode.model_picker', 'opencode.variant_picker' }) do
-      replace(require(module), 'select', function(selected) callback = selected end)
+      replace(require(module), 'select', function(selected)
+        callback = selected
+      end)
     end
   end)
 
   after_each(function()
-    for _, replacement in ipairs(stubs) do replacement:revert() end
+    for _, replacement in ipairs(stubs) do
+      replacement:revert()
+    end
     state.store.set_raw('current_model', saved.model)
     state.store.set_raw('current_mode', saved.mode)
     state.store.set_raw('current_variant', saved.variant)
@@ -112,8 +122,12 @@ describe('agent selection', function()
   it('shares variant application and persistence with cycling', function()
     local Promise = require('opencode.promise')
     local config_file = require('opencode.config_file')
-    replace(config_file, 'get_opencode_providers', function() return Promise.new():resolve({}) end)
-    replace(config_file, 'get_model_info', function() return { variants = { low = {}, high = {} } } end)
+    replace(config_file, 'get_opencode_providers', function()
+      return Promise.new():resolve({})
+    end)
+    replace(config_file, 'get_model_info', function()
+      return { variants = { low = {}, high = {} } }
+    end)
     agent_model.cycle_variant():wait()
     assert.equals('high', state.current_variant)
     assert.stub(persist).was_called(1)
@@ -124,12 +138,20 @@ describe('agent selection', function()
     require('opencode.variant_picker').select:revert()
     local Promise = require('opencode.promise')
     local config_file = require('opencode.config_file')
-    replace(config_file, 'get_opencode_providers', function() return Promise.new():resolve({}) end)
-    replace(config_file, 'get_model_info', function() return { variants = { high = {} } } end)
+    replace(config_file, 'get_opencode_providers', function()
+      return Promise.new():resolve({})
+    end)
+    replace(config_file, 'get_model_info', function()
+      return { variants = { high = {} } }
+    end)
     local choose
-    replace(require('opencode.ui.base_picker'), 'pick', function(options) choose = options.callback end)
+    replace(require('opencode.ui.base_picker'), 'pick', function(options)
+      choose = options.callback
+    end)
     agent.actions.configure_variant()
-    assert.is_true(vim.wait(1000, function() return choose ~= nil end))
+    assert.is_true(vim.wait(1000, function()
+      return choose ~= nil
+    end))
     choose({ name = 'high', value = 'high' })
     assert.equals('high', state.current_variant)
     assert.stub(persist).was_called(1)

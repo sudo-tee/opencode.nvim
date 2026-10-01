@@ -377,8 +377,9 @@ local function apply_part(ctx, part_id, message_id, render_context)
       part_id,
       output_diff.slice_lines(formatted.lines, tail_offset + 1),
       output_diff.slice_extmarks(formatted.extmarks, tail_offset),
-      previous
-    , ctx)
+      previous,
+      ctx
+    )
   end
 
   return buffer.upsert_part_now(part_id, message_id, formatted, previous, ctx)

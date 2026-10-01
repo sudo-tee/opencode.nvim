@@ -188,8 +188,17 @@ describe('context completion', function()
       local original = mock_context.get_context
       mock_context.get_context = function()
         local ctx = original()
-        ctx.review_comments = { { id = 7, file = '/project/main.lua', start_line = 2,
-          end_line = 3, comment = 'Please revise', code = 'code', resolution = { status = 'modified' } } }
+        ctx.review_comments = {
+          {
+            id = 7,
+            file = '/project/main.lua',
+            start_line = 2,
+            end_line = 3,
+            comment = 'Please revise',
+            code = 'code',
+            resolution = { status = 'modified' },
+          },
+        }
         return ctx
       end
       local items = source.complete({ trigger_char = '#', input = '' }):wait()

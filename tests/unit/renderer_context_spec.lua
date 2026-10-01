@@ -35,7 +35,9 @@ describe('renderer context ownership', function()
     end
     state.store.set_raw('active_session', nil)
     state.store.set_raw('opencode_server', nil)
-    vim.wait(20, function() return false end)
+    vim.wait(20, function()
+      return false
+    end)
   end)
 
   it('selects persistent instances without copying or invalidating their fields', function()
@@ -58,7 +60,9 @@ describe('renderer context ownership', function()
 
   it('holds an inactive flush without consuming another context pending work', function()
     local queued = {}
-    replace(vim, 'schedule', function(callback) queued[#queued + 1] = callback end)
+    replace(vim, 'schedule', function(callback)
+      queued[#queued + 1] = callback
+    end)
     local a, b = first.renderer_context, second.renderer_context
     a.pending.dirty_message_order = { 'first' }
     b.pending.dirty_message_order = { 'second' }
@@ -80,10 +84,16 @@ describe('renderer context ownership', function()
 
   it('cancels a removed tab subscription and scheduled writes', function()
     local queued = {}
-    replace(vim, 'schedule', function(callback) queued[#queued + 1] = callback end)
+    replace(vim, 'schedule', function(callback)
+      queued[#queued + 1] = callback
+    end)
     local a, b = first.renderer_context, second.renderer_context
     local releases = 0
-    a.render_session = { close = function() releases = releases + 1 end }
+    a.render_session = {
+      close = function()
+        releases = releases + 1
+      end,
+    }
     flush.schedule(a)
     local pending = queued[#queued]
     tabs.activate(second)
@@ -101,7 +111,9 @@ describe('renderer context ownership', function()
     replace(require('opencode.util'), 'debounce', function(callback)
       local timer = { callback = callback }
       timers[#timers + 1] = timer
-      return function(generation) timer.generation = generation end
+      return function(generation)
+        timer.generation = generation
+      end
     end)
     local a, b = first.renderer_context, second.renderer_context
     flush.trigger_on_data_rendered(a)
@@ -118,11 +130,17 @@ describe('renderer context ownership', function()
 
   it('finishes an inactive symbol refresh without clearing the active cycle', function()
     local queued = {}
-    replace(vim, 'defer_fn', function(callback) queued[#queued + 1] = callback end)
+    replace(vim, 'defer_fn', function(callback)
+      queued[#queued + 1] = callback
+    end)
     local refs = require('opencode.ui.reference_facts')
     replace(refs, 'refresh_current_files', function() end)
-    replace(refs, 'available_files', function() return {} end)
-    replace(require('opencode.ui.symbol_snapshot'), 'new_cycle', function() return {} end)
+    replace(refs, 'available_files', function()
+      return {}
+    end)
+    replace(require('opencode.ui.symbol_snapshot'), 'new_cycle', function()
+      return {}
+    end)
     state.store.set_raw('active_session', { id = 'one' })
     local a, b = first.renderer_context, second.renderer_context
     symbols.refresh(a)
@@ -130,7 +148,9 @@ describe('renderer context ownership', function()
     symbols.refresh(b)
     local cycle = b.symbol_refresh_cycle
     queued[1]()
-    vim.wait(20, function() return false end)
+    vim.wait(20, function()
+      return false
+    end)
     assert.is_false(a.symbol_refresh_pending)
     assert.is_true(b.symbol_refresh_pending)
     assert.equals(cycle, b.symbol_refresh_cycle)
@@ -145,8 +165,12 @@ describe('renderer context ownership', function()
     a.entries = { message }
     a.lazy_render_count = 1
     a.observation = {
-      read = function() return observed end,
-      load_older = function() return request end,
+      read = function()
+        return observed
+      end,
+      load_older = function()
+        return request
+      end,
     }
     assert.is_true(renderer.load_more_messages(a))
     tabs.activate(second)
@@ -155,7 +179,9 @@ describe('renderer context ownership', function()
     observed.entry_order = { 'older', 'message' }
     observed.entries_by_id.older = { id = 'older' }
     request:resolve()
-    vim.wait(20, function() return false end)
+    vim.wait(20, function()
+      return false
+    end)
     assert.stub(renders).was_not_called()
     assert.stub(scrolls).was_not_called()
     assert.equals(second.renderer_context, contexts.current())
@@ -167,22 +193,34 @@ describe('renderer context ownership', function()
       local observed = {
         session = { id = id },
         sync = { session = { state = 'current' }, messages = { state = 'current' } },
-        entries_by_id = { [id] = message }, entry_order = { id },
-        children = { order = {}, by_id = {} }, files = { revision = 0 },
+        entries_by_id = { [id] = message },
+        entry_order = { id },
+        children = { order = {}, by_id = {} },
+        files = { revision = 0 },
       }
       local result = { subscriptions = 0, releases = 0 }
-      function result:read() return observed end
+      function result:read()
+        return observed
+      end
       function result:watch(_, callback)
         self.subscriptions = self.subscriptions + 1
-        self.changed = function() callback(self, 'session') end
-        return function() self.releases = self.releases + 1 end
+        self.changed = function()
+          callback(self, 'session')
+        end
+        return function()
+          self.releases = self.releases + 1
+        end
       end
       return result
     end
     local one, two = source('one'), source('two')
     state.store.set_raw('opencode_server', {
-      is_ready = function() return true end,
-      observe = function(_, ref) return ref.id == 'one' and one or two end,
+      is_ready = function()
+        return true
+      end,
+      observe = function(_, ref)
+        return ref.id == 'one' and one or two
+      end,
     })
     state.store.set_raw('active_session', { id = 'one' })
     renderer.on_session_changed()
@@ -193,7 +231,9 @@ describe('renderer context ownership', function()
     one:read().entries_by_id.older = { id = 'older', session_id = 'one', kind = 'assistant', content = {} }
     table.insert(one:read().entry_order, 'older')
     one.changed()
-    assert.is_true(vim.wait(1000, function() return a.needs_reconcile end))
+    assert.is_true(vim.wait(1000, function()
+      return a.needs_reconcile
+    end))
     assert.equals(1, one.subscriptions)
     assert.equals(0, one.releases)
     assert.equals('two', b.entries[1].id)
@@ -203,7 +243,9 @@ describe('renderer context ownership', function()
     renderer.on_session_changed()
     assert.equals(original_session, a.render_session)
     -- A mounted display is needed to reconcile, but buffer painting is tested separately.
-    replace(require('opencode.ui.output_window'), 'mounted', function() return true end)
+    replace(require('opencode.ui.output_window'), 'mounted', function()
+      return true
+    end)
     replace(renderer, 'scroll_to_bottom', function() end)
     renderer.on_session_tab_changed(nil, first.id, second.id)
     assert.is_false(a.needs_reconcile)

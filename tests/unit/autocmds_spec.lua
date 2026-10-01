@@ -127,7 +127,11 @@ describe('panel autocmd subscriptions', function()
 
     local float_buf = file('unrelated-float.lua')
     local float_win = vim.api.nvim_open_win(float_buf, true, {
-      relative = 'editor', row = 1, col = 1, width = 20, height = 2,
+      relative = 'editor',
+      row = 1,
+      col = 1,
+      width = 20,
+      height = 2,
     })
     created_wins[#created_wins + 1] = float_win
     assert.equal(code_buf, state.current_code_buf)

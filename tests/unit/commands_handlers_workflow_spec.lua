@@ -290,7 +290,9 @@ describe('opencode.commands.handlers.workflow', function()
       buf_line_count:revert()
       prev_hist:revert()
       next_hist:revert()
-      if read_stub then read_stub:revert() end
+      if read_stub then
+        read_stub:revert()
+      end
       history.index = nil
     end)
 

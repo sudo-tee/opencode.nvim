@@ -17,9 +17,17 @@ describe('review comment context', function()
 
   it('deduplicates snapshot anchors, consumes sent comments, and restores failed sends', function()
     local item = {
-      id = 0, file = '/nonexistent/review.lua', side = 'after', start_line = 1, end_line = 1,
-      code = 'old', comment = 'Fix this', session_id = 'session', context_before = {},
-      context_after = {}, anchor_side_line = 1,
+      id = 0,
+      file = '/nonexistent/review.lua',
+      side = 'after',
+      start_line = 1,
+      end_line = 1,
+      code = 'old',
+      comment = 'Fix this',
+      session_id = 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 1,
     }
     local first = context.add_review_comment(item)
     assert.equals(first.id, context.add_review_comment(vim.tbl_extend('force', {}, item, { comment = 'Better' })).id)
@@ -37,12 +45,22 @@ describe('review comment context', function()
     local path = vim.fn.tempname() .. '.lua'
     vim.fn.writefile({ 'unchanged' }, path)
     local added = context.add_review_comment({
-      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
-      code = 'unchanged', comment = 'Check', session_id = 'session',
-      context_before = {}, context_after = {}, anchor_side_line = 1,
+      id = 0,
+      file = path,
+      side = 'after',
+      start_line = 1,
+      end_line = 1,
+      code = 'unchanged',
+      comment = 'Check',
+      session_id = 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 1,
     })
     assert.same(added, context.get_review_comments(path)[1])
-    assert.is_true(vim.wait(1000, function() return added.resolution ~= nil end))
+    assert.is_true(vim.wait(1000, function()
+      return added.resolution ~= nil
+    end))
     assert.equals('exact', added.resolution.status)
     vim.fn.delete(path)
   end)
@@ -51,11 +69,22 @@ describe('review comment context', function()
     local base = require('opencode.context.base_context')
     local original = base.get_current_buf
     context.add_review_comment({
-      id = 0, file = '/nonexistent/review.lua', side = 'before', start_line = 3, end_line = 3,
-      code = 'removed', comment = 'Restore this', session_id = 'session', from = 'turn',
-      context_before = {}, context_after = {}, anchor_side_line = 3,
+      id = 0,
+      file = '/nonexistent/review.lua',
+      side = 'before',
+      start_line = 3,
+      end_line = 3,
+      code = 'removed',
+      comment = 'Restore this',
+      session_id = 'session',
+      from = 'turn',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 3,
     })
-    base.get_current_buf = function() return nil, nil end
+    base.get_current_buf = function()
+      return nil, nil
+    end
     local captured = context.format_message('Please review'):wait()
     base.get_current_buf = original
     assert.equals(1, #captured.context)
@@ -76,13 +105,23 @@ describe('review comment context', function()
     local path = vim.fn.tempname() .. '.lua'
     vim.fn.writefile({ 'stable' }, path)
     context.add_review_comment({
-      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
-      code = 'stable', comment = 'Good', session_id = 'session', context_before = {},
-      context_after = {}, anchor_side_line = 1,
+      id = 0,
+      file = path,
+      side = 'after',
+      start_line = 1,
+      end_line = 1,
+      code = 'stable',
+      comment = 'Good',
+      session_id = 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 1,
     })
     local base = require('opencode.context.base_context')
     local original = base.get_current_buf
-    base.get_current_buf = function() return nil, nil end
+    base.get_current_buf = function()
+      return nil, nil
+    end
     local captured = context.format_message('Review'):wait()
     base.get_current_buf = original
     vim.fn.delete(path)
@@ -96,14 +135,24 @@ describe('review comment context', function()
     state.session.set_active({ id = 'session' })
     for index = 1, 2 do
       context.add_review_comment({
-        id = 0, file = path, side = 'after', start_line = index, end_line = index,
-        code = 'line ' .. index, comment = 'Comment ' .. index, session_id = 'session',
-        context_before = {}, context_after = {}, anchor_side_line = index,
+        id = 0,
+        file = path,
+        side = 'after',
+        start_line = index,
+        end_line = index,
+        code = 'line ' .. index,
+        comment = 'Comment ' .. index,
+        session_id = 'session',
+        context_before = {},
+        context_after = {},
+        anchor_side_line = index,
       })
     end
     local base = require('opencode.context.base_context')
     local original = base.get_current_buf
-    base.get_current_buf = function() return nil, nil end
+    base.get_current_buf = function()
+      return nil, nil
+    end
     local captured = context.format_message('Review'):wait()
     base.get_current_buf = original
     assert.equals(1, #captured.context)
@@ -127,19 +176,38 @@ describe('review comment context', function()
     local original_get_diagnostics = chat.get_diagnostics
     local path = vim.fn.tempname() .. '.lua'
     vim.fn.writefile({ 'reviewed' }, path)
-    chat.context.current_file = { path = path:gsub('^/', '/./'), name = vim.fn.fnamemodify(path, ':t'), extension = 'lua' }
+    chat.context.current_file =
+      { path = path:gsub('^/', '/./'), name = vim.fn.fnamemodify(path, ':t'), extension = 'lua' }
     local comment = context.add_review_comment({
-      id = 0, file = path, side = 'after', start_line = 1, end_line = 1,
-      code = 'reviewed', comment = 'Check this', session_id = state.active_session and state.active_session.id or 'session',
-      context_before = {}, context_after = {}, anchor_side_line = 1,
+      id = 0,
+      file = path,
+      side = 'after',
+      start_line = 1,
+      end_line = 1,
+      code = 'reviewed',
+      comment = 'Check this',
+      session_id = state.active_session and state.active_session.id or 'session',
+      context_before = {},
+      context_after = {},
+      anchor_side_line = 1,
     })
-    base.get_current_buf = function() return 1, 1 end
-    base.get_current_selection = function() return nil end
-    chat.get_diagnostics = function() return nil end
+    base.get_current_buf = function()
+      return 1, 1
+    end
+    base.get_current_selection = function()
+      return nil
+    end
+    chat.get_diagnostics = function()
+      return nil
+    end
     local opts = {
-      current_file = { enabled = true }, selection = { enabled = false },
-      review_comments = { enabled = true }, diagnostics = { enabled = false },
-      cursor_data = { enabled = false }, buffer = { enabled = false }, git_diff = { enabled = false },
+      current_file = { enabled = true },
+      selection = { enabled = false },
+      review_comments = { enabled = true },
+      diagnostics = { enabled = false },
+      cursor_data = { enabled = false },
+      buffer = { enabled = false },
+      git_diff = { enabled = false },
     }
     local with_comment = context.format_message('Review', opts):wait()
     opts.review_comments.enabled = false
@@ -228,7 +296,6 @@ describe('format_message', function()
     context.get_context = function()
       return mock_context
     end
-
   end)
 
   after_each(function()
@@ -289,10 +356,7 @@ describe('format_message', function()
     local input = context.format_message(prompt):wait()
     ChatContext.context = original_context
 
-    assert.same(
-      { start_byte = #('inspect '), end_byte = #('inspect ') + #mention },
-      input.files[1].mention
-    )
+    assert.same({ start_byte = #'inspect ', end_byte = #'inspect ' + #mention }, input.files[1].mention)
   end)
 
   it('includes selection even when current_file context is disabled', function()
@@ -600,7 +664,11 @@ describe('delta_context', function()
     local populated = { text = '{"content":["error"]}', source = { kind = 'diagnostics' } }
     local cleared = { text = '{"content":[]}', source = { kind = 'diagnostics' } }
     local previous = {}
-    context.delta_context({ { key = 'diagnostics', part = populated, present = true, cleared = populated } }, nil, previous)
+    context.delta_context(
+      { { key = 'diagnostics', part = populated, present = true, cleared = populated } },
+      nil,
+      previous
+    )
 
     local delta = context.delta_context(
       { { key = 'diagnostics', part = cleared, present = false, cleared = cleared } },
@@ -623,7 +691,6 @@ describe('add_file/add_selection/add_subagent', function()
     ChatContext.context.mentioned_files = {}
     ChatContext.context.selections = {}
     ChatContext.context.mentioned_subagents = {}
-
   end)
 
   after_each(function()

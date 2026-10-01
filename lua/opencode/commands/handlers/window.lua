@@ -90,8 +90,8 @@ M.actions.toggle = Promise.async(function(new_session)
 
   local function open_windows(restore_hidden)
     local ctx = build_toggle_open_context(restore_hidden == true)
-      return session_runtime
-        .open({
+    return session_runtime
+      .open({
         new_session = is_new_session,
         focus = ctx.focus,
         start_insert = false,
@@ -132,7 +132,7 @@ end)
 function M.actions.toggle_focus(new_session)
   if not ui.is_opencode_focused() then
     local focus = state.last_focused_opencode_window or 'input' ---@cast focus 'input' | 'output'
-      session_runtime.open({ new_session = new_session == true, focus = focus })
+    session_runtime.open({ new_session = new_session == true, focus = focus })
   else
     ui.return_to_last_code_win()
   end
@@ -183,7 +183,7 @@ M.command_defs = {
     end,
   },
   -- action name aliases for keymap compatibility
-  open_input  = { desc = 'Open input window',  execute = M.actions.open_input },
+  open_input = { desc = 'Open input window', execute = M.actions.open_input },
   open_output = { desc = 'Open output window', execute = M.actions.open_output },
   close = {
     desc = 'Close opencode windows',

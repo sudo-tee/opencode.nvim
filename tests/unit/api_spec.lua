@@ -171,7 +171,9 @@ describe('opencode.api', function()
         return pending
       end)
       pending:reject('Command lookup failed')
-      local ok, err = pcall(function() result:wait() end)
+      local ok, err = pcall(function()
+        result:wait()
+      end)
       assert.is_false(ok)
       assert.matches('Command lookup failed', tostring(err))
       assert.stub(notify).was_called_with('Command lookup failed', vim.log.levels.ERROR)
@@ -212,7 +214,6 @@ describe('opencode.api', function()
 
       notify_stub:revert()
     end)
-
   end)
 
   describe('setup', function()
@@ -268,7 +269,11 @@ describe('opencode.api', function()
       local original_server = state.opencode_server
       local original_observation = state.session.active_observation
       state.session.set_active(mk_session('session-copy'))
-      state.jobs.set_server({ is_ready = function() return true end })
+      state.jobs.set_server({
+        is_ready = function()
+          return true
+        end,
+      })
       state.session.active_observation = function()
         return {
           read = function()
@@ -506,7 +511,9 @@ describe('opencode.api', function()
         local original_server = state.opencode_server
         local sent = {}
         state.jobs.set_server({
-          is_ready = function() return true end,
+          is_ready = function()
+            return true
+          end,
           operations = {
             send_command = function(_, _, _, input)
               sent[#sent + 1] = input
@@ -516,10 +523,14 @@ describe('opencode.api', function()
         })
         local result = workflow.actions.run_user_command('foo')
         commands_pending:resolve({ foo = { agent = 'custom-agent' } })
-        vim.wait(50, function() return result:is_resolved() end)
+        vim.wait(50, function()
+          return result:is_resolved()
+        end)
         local resolved_early = result:is_resolved()
         agents_pending:resolve({})
-        local ok, err = pcall(function() result:wait() end)
+        local ok, err = pcall(function()
+          result:wait()
+        end)
         state.jobs.set_server(original_server)
         open_stub:revert()
         commands_stub:revert()
@@ -548,7 +559,9 @@ describe('opencode.api', function()
             local request = Promise.new()
             local original_server = state.opencode_server
             state.jobs.set_server({
-              is_ready = function() return true end,
+              is_ready = function()
+                return true
+              end,
               operations = {
                 send_command = function()
                   return request
@@ -556,12 +569,15 @@ describe('opencode.api', function()
               },
             })
 
-            local result = name == 'review' and workflow.actions.review()
-              or workflow.actions.run_user_command(name)
-            vim.wait(100, function() return result:is_resolved() end)
+            local result = name == 'review' and workflow.actions.review() or workflow.actions.run_user_command(name)
+            vim.wait(100, function()
+              return result:is_resolved()
+            end)
             local resolved_early = result:is_resolved()
             request:reject('Command request failed')
-            local ok, err = pcall(function() result:wait() end)
+            local ok, err = pcall(function()
+              result:wait()
+            end)
             state.jobs.set_server(original_server)
             state.model.set_model(original_model)
             open_stub:revert()
@@ -600,7 +616,9 @@ describe('opencode.api', function()
             local send_command_calls = {}
             local original_server = state.opencode_server
             state.jobs.set_server({
-              is_ready = function() return true end,
+              is_ready = function()
+                return true
+              end,
               operations = {
                 send_command = function(_self, session_id, _location, command_data)
                   table.insert(send_command_calls, { session_id = session_id, command_data = command_data })

@@ -904,7 +904,6 @@ function M.utf16_index_from_byte(text, byte_index)
   return units
 end
 
-
 --- Kill a process tree by PID (children first, then parent).
 --- SIGTERM is sent first, then SIGKILL immediately after as a backup.
 --- Recursion is required: the running server spawns MCP/tool processes that

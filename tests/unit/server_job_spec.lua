@@ -501,7 +501,6 @@ describe('server_job', function()
       vim.defer_fn = original_defer_fn
     end)
   end)
-
 end)
 
 describe('concurrent server startup', function()
@@ -586,7 +585,9 @@ describe('concurrent server startup', function()
   end)
   it('reuses the successful startup probe for immediately following operations', function()
     local connection = server_job.ensure_server()
-    assert.is_true(vim.wait(1000, function() return starts == 1 end))
+    assert.is_true(vim.wait(1000, function()
+      return starts == 1
+    end))
     ready(1)
     assert.equals(spawned[1], connection:wait())
     assert.equals(spawned[1], server_job.ensure_server():wait())
@@ -595,11 +596,17 @@ describe('concurrent server startup', function()
   for _, kind in ipairs({ 'transport', 'identity_changed' }) do
     it('reconnects after a cached server reports ' .. kind, function()
       state.jobs.set_server({
-        is_ready = function() return true end,
-        check_health = function() return Promise.new():reject({ kind = kind }) end,
+        is_ready = function()
+          return true
+        end,
+        check_health = function()
+          return Promise.new():reject({ kind = kind })
+        end,
       })
       local connection = server_job.ensure_server({ force_health_check = true })
-      assert.is_true(vim.wait(1000, function() return starts == 1 end))
+      assert.is_true(vim.wait(1000, function()
+        return starts == 1
+      end))
       ready(1)
       assert.equals(spawned[1], connection:wait())
       assert.equals(1, starts)
@@ -672,7 +679,9 @@ describe('cached connection health', function()
     probes = 0
     health = Promise.new():resolve(true)
     server = {
-      is_ready = function() return true end,
+      is_ready = function()
+        return true
+      end,
       check_health = function()
         probes = probes + 1
         return health
@@ -705,7 +714,9 @@ describe('cached connection health', function()
     local first = server_job.ensure_server()
     local second = server_job.ensure_server()
     assert.equals(first, second)
-    assert.is_true(vim.wait(1000, function() return probes == 2 end))
+    assert.is_true(vim.wait(1000, function()
+      return probes == 2
+    end))
     health:resolve(true)
     assert.equals(server, first:wait())
     assert.equals(2, probes)
@@ -714,10 +725,14 @@ describe('cached connection health', function()
   it('validates a replacement connection when the server changes during a health check', function()
     health = Promise.new()
     local connection = server_job.ensure_server()
-    assert.is_true(vim.wait(1000, function() return probes == 1 end))
+    assert.is_true(vim.wait(1000, function()
+      return probes == 1
+    end))
     local replacement_probes = 0
     local replacement = {
-      is_ready = function() return true end,
+      is_ready = function()
+        return true
+      end,
       check_health = function()
         replacement_probes = replacement_probes + 1
         return Promise.new():resolve(true)
@@ -732,7 +747,9 @@ describe('cached connection health', function()
 
   it('keeps credential failures visible', function()
     health = Promise.new():reject({ kind = 'credentials', message = 'unauthorized' })
-    local ok, err = pcall(function() server_job.ensure_server():wait() end)
+    local ok, err = pcall(function()
+      server_job.ensure_server():wait()
+    end)
     assert.is_false(ok)
     assert.equals('credentials', err.kind)
     assert.equals(server, state.opencode_server)

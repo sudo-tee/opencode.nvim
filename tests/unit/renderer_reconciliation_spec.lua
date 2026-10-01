@@ -40,13 +40,18 @@ describe('renderer incremental reconciliation', function()
     }
     for index, id in ipairs(observed.entry_order) do
       observed.entries_by_id[id] = {
-        id = id, session_id = 'ses_incremental', kind = 'assistant', agent = 'build',
+        id = id,
+        session_id = 'ses_incremental',
+        kind = 'assistant',
+        agent = 'build',
         content = { { id = 'part_' .. index, kind = 'text', text = 'message ' .. index } },
       }
     end
     local watchers = {}
     observation = {
-      read = function() return observed end,
+      read = function()
+        return observed
+      end,
       watch = function(_, _, callback)
         watchers[#watchers + 1] = callback
         changed = function(source, resource)
@@ -64,10 +69,19 @@ describe('renderer incremental reconciliation', function()
         end
       end,
     }
-    state.jobs.set_server({ is_ready = function() return true end, observe = function() return observation end })
+    state.jobs.set_server({
+      is_ready = function()
+        return true
+      end,
+      observe = function()
+        return observation
+      end,
+    })
     state.session.set_active({ id = 'ses_incremental' })
     renderer.on_session_changed(nil, state.active_session, nil)
-    vim.wait(50, function() return false end)
+    vim.wait(50, function()
+      return false
+    end)
     writes = stub(output_window, 'set_lines')
     markdown = stub(flush, 'request_on_data_rendered')
     dirty_part = spy.on(flush, 'mark_part_dirty')
@@ -78,8 +92,14 @@ describe('renderer incremental reconciliation', function()
     config.ui.output.max_messages = max_messages
     config.ui.output.rendering.event_throttle_ms = throttle_ms
     config.ui.output.rendering.event_collapsing = collapsing
-    if defer_stub then defer_stub:revert(); defer_stub = nil end
-    if files_stub then files_stub:revert(); files_stub = nil end
+    if defer_stub then
+      defer_stub:revert()
+      defer_stub = nil
+    end
+    if files_stub then
+      files_stub:revert()
+      files_stub = nil
+    end
     writes:revert()
     markdown:revert()
     dirty_part:revert()
@@ -88,7 +108,9 @@ describe('renderer incremental reconciliation', function()
     contexts.current().prompt_controllers = controllers
     state.session.clear_active()
     state.jobs.clear_server()
-    if state.windows then require('opencode.ui.ui').close_windows(state.windows) end
+    if state.windows then
+      require('opencode.ui.ui').close_windows(state.windows)
+    end
   end)
 
   it('writes the initial observed history once and preserves all rendered ranges', function()
@@ -103,7 +125,9 @@ describe('renderer incremental reconciliation', function()
       local id = 'msg_' .. index
       observed.entry_order[index] = id
       observed.entries_by_id[id] = {
-        id = id, session_id = 'ses_incremental', kind = index % 2 == 0 and 'user' or 'assistant',
+        id = id,
+        session_id = 'ses_incremental',
+        kind = index % 2 == 0 and 'user' or 'assistant',
         agent = 'build',
         content = {
           { id = id .. '_text', kind = 'text', text = 'first part ' .. index },
@@ -149,10 +173,7 @@ describe('renderer incremental reconciliation', function()
     notify('messages')
 
     assert.is_true(output_window.is_at_bottom(win))
-    assert.equals(
-      output_window.get_scroll_bottom_line(state.windows.output_buf),
-      vim.api.nvim_win_get_cursor(win)[1]
-    )
+    assert.equals(output_window.get_scroll_bottom_line(state.windows.output_buf), vim.api.nvim_win_get_cursor(win)[1])
   end)
 
   it('keeps the hidden-history notice above messages in the initial batch', function()
@@ -236,7 +257,9 @@ describe('renderer incremental reconciliation', function()
 
   it('discards a delayed render after its context is reset', function()
     local callback
-    defer_stub = stub(vim, 'defer_fn').invokes(function(fn) callback = fn end)
+    defer_stub = stub(vim, 'defer_fn').invokes(function(fn)
+      callback = fn
+    end)
     config.ui.output.rendering.event_throttle_ms = 40
     config.ui.output.rendering.event_collapsing = true
     observed.entries_by_id.msg_two.content[1].text = 'old context update'
@@ -250,7 +273,9 @@ describe('renderer incremental reconciliation', function()
 
   it('flushes the latest delayed text before detaching a session tab', function()
     local callback
-    defer_stub = stub(vim, 'defer_fn').invokes(function(fn) callback = fn end)
+    defer_stub = stub(vim, 'defer_fn').invokes(function(fn)
+      callback = fn
+    end)
     config.ui.output.rendering.event_throttle_ms = 40
     config.ui.output.rendering.event_collapsing = true
     observed.entries_by_id.msg_two.content[1].text = 'latest text before switching'
@@ -339,7 +364,9 @@ describe('renderer incremental reconciliation', function()
     contexts.current().prompt_controllers.permission = {
       sync = sync,
       clear_all = function() end,
-      get_all_permissions = function() return {} end,
+      get_all_permissions = function()
+        return {}
+      end,
     }
     notify('permissions')
     assert.spy(sync).was_called(1)
@@ -365,13 +392,19 @@ describe('renderer incremental reconciliation', function()
       permission = {
         sync = permission_sync,
         clear_all = function() end,
-        get_all_permissions = function() return {} end,
+        get_all_permissions = function()
+          return {}
+        end,
       },
       question = {
         sync = question_sync,
         clear_all = function() end,
-        get_current_request = function() return nil end,
-        has_question = function() return false end,
+        get_current_request = function()
+          return nil
+        end,
+        has_question = function()
+          return false
+        end,
       },
     }
     changed(observation, 'permissions')

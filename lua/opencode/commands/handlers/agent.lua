@@ -119,8 +119,8 @@ M.command_defs = {
     execute = M.actions.configure_provider,
   },
   -- action name aliases for keymap compatibility
-  configure_provider = { desc = 'Configure provider',     execute = M.actions.configure_provider },
-  configure_variant  = { desc = 'Configure model variant', execute = M.actions.configure_variant },
+  configure_provider = { desc = 'Configure provider', execute = M.actions.configure_provider },
+  configure_variant = { desc = 'Configure model variant', execute = M.actions.configure_variant },
   variant = {
     desc = 'Switch model variant',
     execute = M.actions.configure_variant,

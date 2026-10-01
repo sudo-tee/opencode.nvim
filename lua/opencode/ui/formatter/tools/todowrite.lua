@@ -10,13 +10,7 @@ function M.format(output, part)
   local utils = require('opencode.ui.formatter.utils')
   local config = require('opencode.config')
 
-  utils.format_action(
-    output,
-    icons.get('plan'),
-    'plan',
-    part.title or '',
-    utils.get_duration_text(part)
-  )
+  utils.format_action(output, icons.get('plan'), 'plan', part.title or '', utils.get_duration_text(part))
 
   local start_line = output:get_line_count() + 1
   if not (config.ui.output.tools.show_output or config.ui.output.tools.use_folds) then

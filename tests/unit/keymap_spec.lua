@@ -180,8 +180,12 @@ describe('opencode.keymap', function()
       store.set('windows', nil)
       store.set('windows', windows)
       local drained = false
-      vim.schedule(function() drained = true end)
-      assert.is_true(vim.wait(200, function() return drained end))
+      vim.schedule(function()
+        drained = true
+      end)
+      assert.is_true(vim.wait(200, function()
+        return drained
+      end))
       assert.equals('Custom gg', mapping(windows.output_buf, 'gg').desc)
     end)
 
@@ -206,8 +210,12 @@ describe('opencode.keymap', function()
       store.set('windows', nil)
       store.set('windows', windows)
       local drained = false
-      vim.schedule(function() drained = true end)
-      assert.is_true(vim.wait(200, function() return drained end))
+      vim.schedule(function()
+        drained = true
+      end)
+      assert.is_true(vim.wait(200, function()
+        return drained
+      end))
       assert.equals('Custom tab', mapping(windows.tab_strip_buf, '<CR>').desc)
     end)
 
@@ -259,14 +267,20 @@ describe('opencode.keymap', function()
         value.input_win = nil
       end)
       local drained = false
-      vim.schedule(function() drained = true end)
-      assert.is_true(vim.wait(200, function() return drained end))
+      vim.schedule(function()
+        drained = true
+      end)
+      assert.is_true(vim.wait(200, function()
+        return drained
+      end))
       assert.equals(2, #set_keymaps)
 
       store.mutate('windows', function(value)
         value.input_win = win
       end)
-      assert.is_true(vim.wait(200, function() return #set_keymaps == 3 end))
+      assert.is_true(vim.wait(200, function()
+        return #set_keymaps == 3
+      end))
       assert.equals(windows.input_buf, set_keymaps[3].opts.buffer)
     end)
 
@@ -287,11 +301,15 @@ describe('opencode.keymap', function()
       local windows = panel()
       store.set_raw('windows', windows)
       keymap.setup({ input_window = { x = { 'toggle', defer_to_completion = true } } })
-      mock_completion.is_completion_visible = function() return true end
+      mock_completion.is_completion_visible = function()
+        return true
+      end
       mapping(windows.input_buf, 'x').callback()
       assert.equals(1, #feedkeys_calls)
       assert.equals(0, #executed_parsed)
-      mock_completion.is_completion_visible = function() return false end
+      mock_completion.is_completion_visible = function()
+        return false
+      end
       mapping(windows.input_buf, 'x').callback()
       assert.equals(1, #executed_parsed)
     end)

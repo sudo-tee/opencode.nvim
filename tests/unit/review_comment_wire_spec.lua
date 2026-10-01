@@ -4,7 +4,8 @@ local formatter = require('opencode.ui.formatter')
 describe('review comment wire context', function()
   it('decodes grouped comments and renders each under its line range', function()
     local payload = vim.json.encode({
-      context_type = 'review-comment', file = 'src/one.lua',
+      context_type = 'review-comment',
+      file = 'src/one.lua',
       comments = {
         { comment = 'First', side = 'after', lines = '2-2', code = 'alpha' },
         { comment = 'Second', side = 'before', lines = '4-5', code = 'beta' },
@@ -23,7 +24,10 @@ describe('review comment wire context', function()
     local payload = vim.json.encode({
       context_type = 'review-comment',
       comment = 'Please simplify',
-      file = 'src/one.lua', side = 'before', lines = '4-5', code = 'local x = 1',
+      file = 'src/one.lua',
+      side = 'before',
+      lines = '4-5',
+      code = 'local x = 1',
     })
     local part, err = decode('review-comment', payload, 'part', true, false)
     assert.is_nil(err)
@@ -37,7 +41,8 @@ describe('review comment wire context', function()
 
   it('still decodes earlier nested snapshot comments in history', function()
     local payload = vim.json.encode({
-      context_type = 'review-comment', comment = 'Old review',
+      context_type = 'review-comment',
+      comment = 'Old review',
       file = { name = 'src/one.lua', path = '/tmp/src/one.lua' },
       snapshot = { side = 'after', lines = '2-2', code = 'previous' },
     })

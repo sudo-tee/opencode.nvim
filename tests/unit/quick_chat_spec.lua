@@ -94,11 +94,12 @@ describe('quick chat', function()
         return Promise.new():resolve(false)
       end,
     }
-    package.loaded['opencode.quick_chat.spinner'] = options.spinner or {
-      new = function()
-        return { stop = function() end }
-      end,
-    }
+    package.loaded['opencode.quick_chat.spinner'] = options.spinner
+      or {
+        new = function()
+          return { stop = function() end }
+        end,
+      }
     package.loaded['opencode.quick_chat'] = nil
     return require('opencode.quick_chat'), submitted
   end
@@ -196,19 +197,27 @@ describe('quick chat', function()
   it('deletes the detached session after applying its reply', function()
     local quick_chat, submitted = load_quick_chat(assistant_reply(), { keep_session = false })
     quick_chat.quick_chat('replace it'):wait()
-    assert.is_true(vim.wait(200, function() return submitted.deleted ~= nil end))
+    assert.is_true(vim.wait(200, function()
+      return submitted.deleted ~= nil
+    end))
     assert.same({ id = 'quick-session', location = { directory = '/workspace' } }, submitted.deleted)
   end)
 
   it('cancels a pending reply and deletes its detached session without changing the buffer', function()
     local quick_chat, submitted = load_quick_chat(nil, {
-      reply_promise = Promise.new(), keep_session = false, cancel_key = '<F12>',
+      reply_promise = Promise.new(),
+      keep_session = false,
+      cancel_key = '<F12>',
     })
     local request = quick_chat.quick_chat('replace it')
-    assert.is_true(vim.wait(200, function() return submitted.input ~= nil end))
+    assert.is_true(vim.wait(200, function()
+      return submitted.input ~= nil
+    end))
     vim.fn.maparg('<F12>', 'n', false, true).callback()
     request:wait()
-    assert.is_true(vim.wait(200, function() return submitted.deleted ~= nil end))
+    assert.is_true(vim.wait(200, function()
+      return submitted.deleted ~= nil
+    end))
     assert.is_true(submitted.stopped)
     assert.is_true(submitted.interrupted)
     assert.same({ 'old code' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))

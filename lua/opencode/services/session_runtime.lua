@@ -60,7 +60,10 @@ local function observe_active_session()
     local execution = observed.execution
     if execution.last_outcome == 'failed' and execution.error and execution.last_idle ~= binding.last_failure_idle then
       binding.last_failure_idle = execution.last_idle
-      log.notify(execution.error.message or 'Session execution failed. Check OpenCode server logs.', vim.log.levels.ERROR)
+      log.notify(
+        execution.error.message or 'Session execution failed. Check OpenCode server logs.',
+        vim.log.levels.ERROR
+      )
     end
     local sync = observed.sync or {}
     if not (sync.session and sync.session.state == 'current') then

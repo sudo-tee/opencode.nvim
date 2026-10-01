@@ -148,7 +148,9 @@ function M.rebuild(session_id, messages, location)
   local seen = {}
 
   for message_order, message in ipairs(messages or {}) do
-    if is_current_session_assistant_message(session_id, message) or is_current_session_user_message(session_id, message) then
+    if
+      is_current_session_assistant_message(session_id, message) or is_current_session_user_message(session_id, message)
+    then
       for part_order, part in ipairs(message.content or {}) do
         if part.id then
           seen[part.id] = true
@@ -173,8 +175,7 @@ function M.rebuild(session_id, messages, location)
             }
             part_refs[part.id] = cached
           elseif cached.message_order ~= message_order or cached.part_order ~= part_order then
-            local delta = (message_order - cached.message_order) * 1000000
-              + (part_order - cached.part_order) * 1000
+            local delta = (message_order - cached.message_order) * 1000000 + (part_order - cached.part_order) * 1000
             for _, ref in ipairs(cached.refs) do
               ref.order = ref.order + delta
             end

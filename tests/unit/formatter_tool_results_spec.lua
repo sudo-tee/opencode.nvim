@@ -86,28 +86,22 @@ describe('shared tool-result rendering', function()
   end)
 
   it('adds HTTP attachment targets', function()
-    local output = render(
-      'custom',
-      {
-        result = {
-          { kind = 'file', uri = 'https://example.com/result.pdf', name = 'Report', media_type = 'application/pdf' },
-        },
-      }
-    )
+    local output = render('custom', {
+      result = {
+        { kind = 'file', uri = 'https://example.com/result.pdf', name = 'Report', media_type = 'application/pdf' },
+      },
+    })
     assert.equals('uri', output.targets[1].kind)
     assert.equals('https://example.com/result.pdf', output.targets[1].uri)
     assert.is_truthy(text(output):find('[Report](<https://example.com/result.pdf>)', 1, true))
   end)
 
   it('labels inline attachments without displaying base64 payloads', function()
-    local output = render(
-      'custom',
-      {
-        result = {
-          { kind = 'file', uri = 'data:image/png;base64,SECRET_PAYLOAD', media_type = 'image/png' },
-        },
-      }
-    )
+    local output = render('custom', {
+      result = {
+        { kind = 'file', uri = 'data:image/png;base64,SECRET_PAYLOAD', media_type = 'image/png' },
+      },
+    })
     assert.is_truthy(text(output):find('Inline attachment (image/png)', 1, true))
     assert.is_falsy(text(output):find('SECRET_PAYLOAD', 1, true))
     assert.same({}, output.targets)

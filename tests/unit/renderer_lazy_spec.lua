@@ -94,7 +94,9 @@ describe('lazy render', function()
       { id = 'msg-agent', session_id = 'ses_test', kind = 'agent-switched', agent = 'plan', content = {} },
       { id = 'msg-model', session_id = 'ses_test', kind = 'model-switched', content = {} },
       {
-        id = 'msg-context', session_id = 'ses_test', kind = 'synthetic',
+        id = 'msg-context',
+        session_id = 'ses_test',
+        kind = 'synthetic',
         content = { { kind = 'text', text = 'editor-context:current-file' } },
       },
       make_message('msg-assistant', 'assistant'),
@@ -536,10 +538,14 @@ describe('older history bridge', function()
     renderer = require('opencode.ui.renderer')
     session_state = require('opencode.state.session')
     -- let on_session_changed from the previous test settle before stubbing
-    vim.wait(100, function() return false end)
+    vim.wait(100, function()
+      return false
+    end)
     stub(session_state, 'active_observation')
     state.session.set_active({ id = 'ses_test', location = { directory = helpers.MOCK_CWD } })
-    vim.wait(100, function() return false end)
+    vim.wait(100, function()
+      return false
+    end)
   end)
 
   after_each(function()
@@ -630,7 +636,10 @@ describe('older history bridge', function()
     assert.are.equal(0, pages_left(), 'history should be complete')
     assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
     local first = contexts.current().entries[1]
-    assert.is_truthy(contexts.current().render_state:get_message(first.id).line_start, 'oldest message should be rendered')
+    assert.is_truthy(
+      contexts.current().render_state:get_message(first.id).line_start,
+      'oldest message should be rendered'
+    )
     assert.are.equal(#older + #newer, count_rendered_messages())
   end)
 
@@ -644,9 +653,12 @@ describe('older history bridge', function()
 
     require('opencode.ui.navigation').goto_first_message()
     assert.is_true(ctx.history_expanded, 'gg should expand history synchronously')
-    assert.is_true(vim.wait(1000, function()
-      return #ctx.entries == #older + #newer
-    end), 'history callback should observe all merged entries')
+    assert.is_true(
+      vim.wait(1000, function()
+        return #ctx.entries == #older + #newer
+      end),
+      'history callback should observe all merged entries'
+    )
     assert.is_true(ctx.history_expanded)
     assert.are.equal(#older + #newer, ctx.lazy_render_count)
     assert.is_true(vim.wait(1000, function()
@@ -703,7 +715,9 @@ describe('older history bridge', function()
     assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
 
     page_request:resolve(nil)
-    vim.wait(100, function() return false end)
+    vim.wait(100, function()
+      return false
+    end)
     assert.are.equal(1, vim.api.nvim_win_get_cursor(state.windows.output_win)[1])
   end)
 
@@ -718,9 +732,12 @@ describe('older history bridge', function()
 
     local started = renderer.load_more_messages()
     assert.is_true(started, 'load_more should fall through to the protocol pull')
-    assert.is_true(vim.wait(1000, function()
-      return contexts.current().lazy_render_count > #newer
-    end), 'window should grow past the exhausted cached page')
+    assert.is_true(
+      vim.wait(1000, function()
+        return contexts.current().lazy_render_count > #newer
+      end),
+      'window should grow past the exhausted cached page'
+    )
 
     assert.are.equal(0, pages_left(), 'history should be complete')
   end)
@@ -765,7 +782,9 @@ describe('older history bridge', function()
     assert.is_true(renderer.load_more_messages())
     assert.are.equal(#newer, contexts.current().lazy_render_count)
     assert.are.equal(#newer, count_rendered_messages())
-    assert.is_true(vim.wait(100, function() return false end, 50) == false)
+    assert.is_true(vim.wait(100, function()
+      return false
+    end, 50) == false)
     assert.are.equal(#newer, count_rendered_messages(), 'no-op pull must not grow the window')
   end)
 end)

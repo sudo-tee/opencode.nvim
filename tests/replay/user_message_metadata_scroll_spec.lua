@@ -122,5 +122,4 @@ describe('replay user message metadata scroll behavior', function()
 
     assert_preserved_user_away_after_growth(before, capture_window())
   end)
-
 end)

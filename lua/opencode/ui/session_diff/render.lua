@@ -82,11 +82,16 @@ function M.tree(view, file_icon)
         local prefix = '  ' .. file.status:sub(1, 1):upper() .. ' ' .. indent .. '  '
         local comments = comments_by_file[file.file] or {}
         lines[#lines + 1] = ('%s%s %s  +%d -%d%s'):format(
-          prefix, icon, child.name, file.additions, file.deletions,
-          #comments > 0 and ('  %s%d%s'):format(icons.get('review_comment'), #comments,
-            #vim.tbl_filter(function(comment)
-              return comment.session_id ~= view.session.id or comment.from ~= view.from or comment.to ~= view.to
-            end, comments) > 0 and '*' or '') or ''
+          prefix,
+          icon,
+          child.name,
+          file.additions,
+          file.deletions,
+          #comments > 0
+              and ('  %s%d%s'):format(icons.get('review_comment'), #comments, #vim.tbl_filter(function(comment)
+                return comment.session_id ~= view.session.id or comment.from ~= view.from or comment.to ~= view.to
+              end, comments) > 0 and '*' or '')
+            or ''
         )
         marks[#marks + 1] = { row = #lines, start = 2, finish = 3, group = status_highlights[file.status] }
         if highlight then
@@ -96,7 +101,12 @@ function M.tree(view, file_icon)
       else
         local last = child
         local name = child.name
-        while last.expanded and #last.children == 1 and last.children[1].file_index == nil and last.children[1].expanded do
+        while
+          last.expanded
+          and #last.children == 1
+          and last.children[1].file_index == nil
+          and last.children[1].expanded
+        do
           last = last.children[1]
           name = name .. '/' .. last.name
         end
@@ -163,7 +173,9 @@ function M.comments(view)
         local side_lines
         if map then
           side_lines = comment.side == 'after' and view.after_lines or view.before_lines
-        elseif (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after') then
+        elseif
+          (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after')
+        then
           side_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
         end
         if side_lines then
@@ -189,7 +201,9 @@ function M.comments(view)
               rows[#rows + 1] = row
             end
           end
-        elseif (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after') then
+        elseif
+          (win == view.preview_win and comment.side == 'before') or (win == view.right_win and comment.side == 'after')
+        then
           for row = start_line, end_line do
             rows[#rows + 1] = row
           end
@@ -210,13 +224,19 @@ function M.comments(view)
           local label = parts[1]:sub(1, 72) .. (#parts > 1 and (' (+%d lines)'):format(#parts - 1) or '')
           local resolution = comment.resolution
           local status = resolution and resolution.status
-          local badge = not same_range and ' from another turn' or status == 'moved' and (' moved → L' .. resolution.start_line)
+          local badge = not same_range and ' from another turn'
+            or status == 'moved' and (' moved → L' .. resolution.start_line)
             or status == 'modified' and ' changed since review'
             or status == 'removed' and ' code removed'
-            or status == 'missing_file' and ' file missing' or ''
+            or status == 'missing_file' and ' file missing'
+            or ''
           vim.api.nvim_buf_set_extmark(buf, comments_ns, last - 1, 0, {
-            virt_lines = { { { '  ' .. label, same_range and 'OpencodeReviewComment' or 'Comment' },
-              { badge, same_range and 'OpencodeReviewCommentStale' or 'Comment' } } },
+            virt_lines = {
+              {
+                { '  ' .. label, same_range and 'OpencodeReviewComment' or 'Comment' },
+                { badge, same_range and 'OpencodeReviewCommentStale' or 'Comment' },
+              },
+            },
           })
         end
       end
@@ -243,7 +263,9 @@ function M.title(view)
   lines[#lines + 1] = { { ('  Changes (%d)'):format(#view.files), 'Normal' } }
   if view.range_key then
     local message_count = view.range_mode and view.turn_to - view.turn_from + 1 or view.message_count
-    local message_label = message_count == 1 and '1 message' or message_count and (message_count .. ' messages') or 'Message range'
+    local message_label = message_count == 1 and '1 message'
+      or message_count and (message_count .. ' messages')
+      or 'Message range'
     lines[#lines + 1] = {
       { '  ' .. message_label .. ' · ', 'Comment' },
       { '<' .. view.range_key .. '>', 'OpencodeInputLegend' },
@@ -290,8 +312,7 @@ function M.turns(view)
     local date = ''
     if turn.created then
       local timestamp = math.floor(turn.created / 1000)
-      date = os.date('%Y-%m-%d', timestamp) == os.date('%Y-%m-%d')
-          and os.date('%H:%M', timestamp)
+      date = os.date('%Y-%m-%d', timestamp) == os.date('%Y-%m-%d') and os.date('%H:%M', timestamp)
         or os.date('%Y-%m-%d %H:%M', timestamp)
     end
     local text = turn.text:gsub('%s+', ' ')

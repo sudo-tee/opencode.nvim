@@ -262,32 +262,48 @@ describe('V2 protocol Observation interpretation', function()
     local message = assistant('msg-grep')
     message.content = {
       {
-        type = 'tool', id = 'grep-metadata', name = 'grep', time = { created = 1 },
+        type = 'tool',
+        id = 'grep-metadata',
+        name = 'grep',
+        time = { created = 1 },
         state = {
-          status = 'completed', input = { pattern = 'foo' },
+          status = 'completed',
+          input = { pattern = 'foo' },
           metadata = { matches = 3, truncated = true },
           content = { { type = 'text', text = 'Found 2 matches\nfile.lua: foo' } },
         },
       },
       {
-        type = 'tool', id = 'grep-result', name = 'grep', time = { created = 2 },
+        type = 'tool',
+        id = 'grep-result',
+        name = 'grep',
+        time = { created = 2 },
         state = {
-          status = 'completed', input = { pattern = 'bar' },
+          status = 'completed',
+          input = { pattern = 'bar' },
           content = { { type = 'text', text = 'Found 1 match\nfile.lua: bar' } },
         },
       },
       {
-        type = 'tool', id = 'grep-empty', name = 'grep', time = { created = 3 },
+        type = 'tool',
+        id = 'grep-empty',
+        name = 'grep',
+        time = { created = 3 },
         state = {
-          status = 'completed', input = { pattern = 'missing' },
+          status = 'completed',
+          input = { pattern = 'missing' },
           metadata = { count = 0 },
           content = { { type = 'text', text = 'No matches found' } },
         },
       },
       {
-        type = 'tool', id = 'grep-empty-result', name = 'grep', time = { created = 4 },
+        type = 'tool',
+        id = 'grep-empty-result',
+        name = 'grep',
+        time = { created = 4 },
         state = {
-          status = 'completed', input = { pattern = 'missing' },
+          status = 'completed',
+          input = { pattern = 'missing' },
           content = { { type = 'text', text = 'No matches found' } },
         },
       },
@@ -299,7 +315,8 @@ describe('V2 protocol Observation interpretation', function()
     assert.same({ count = 1 }, content[2].search)
     assert.same({ count = 0 }, content[3].search)
     assert.same({ count = 0 }, content[4].search)
-    local formatted = require('opencode.ui.formatter').format_part(content[2], observed:read().entries_by_id['msg-grep'], true)
+    local formatted =
+      require('opencode.ui.formatter').format_part(content[2], observed:read().entries_by_id['msg-grep'], true)
     assert.equals('Found `1` match', formatted.lines[2])
   end)
 
@@ -308,25 +325,37 @@ describe('V2 protocol Observation interpretation', function()
     local message = assistant('msg-glob')
     message.content = {
       {
-        type = 'tool', id = 'glob-metadata', name = 'glob', time = { created = 1 },
+        type = 'tool',
+        id = 'glob-metadata',
+        name = 'glob',
+        time = { created = 1 },
         state = {
-          status = 'completed', input = { pattern = '**/*.lua' },
+          status = 'completed',
+          input = { pattern = '**/*.lua' },
           metadata = { count = 3, truncated = true },
           content = { { type = 'text', text = 'a.lua\nb.lua\nc.lua' } },
         },
       },
       {
-        type = 'tool', id = 'glob-empty', name = 'glob', time = { created = 2 },
+        type = 'tool',
+        id = 'glob-empty',
+        name = 'glob',
+        time = { created = 2 },
         state = {
-          status = 'completed', input = { pattern = '**/*.missing' },
+          status = 'completed',
+          input = { pattern = '**/*.missing' },
           metadata = { count = 0, truncated = false },
           content = { { type = 'text', text = 'No files found' } },
         },
       },
       {
-        type = 'tool', id = 'glob-matches', name = 'glob', time = { created = 3 },
+        type = 'tool',
+        id = 'glob-matches',
+        name = 'glob',
+        time = { created = 3 },
         state = {
-          status = 'completed', input = { pattern = '**/*.txt' },
+          status = 'completed',
+          input = { pattern = '**/*.txt' },
           metadata = { matches = 1 },
           content = { { type = 'text', text = 'a.txt' } },
         },
@@ -609,8 +638,12 @@ end)
 describe('V2 protocol editor-context attachments', function()
   it('maps editor-context file attachments onto the shared contract entry instead of plain files', function()
     local observed = observation('ses-target')
-    local payload =
-      vim.base64.encode(vim.json.encode({ context_type = 'selection', file = { name = 'test.py' }, content = 'selected code', lines = '1-2' }))
+    local payload = vim.base64.encode(vim.json.encode({
+      context_type = 'selection',
+      file = { name = 'test.py' },
+      content = 'selected code',
+      lines = '1-2',
+    }))
     observation_module.ingest_snapshot(observed, {
       {
         id = 'msg-user',

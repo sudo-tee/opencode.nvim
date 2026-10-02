@@ -181,11 +181,53 @@ local function mapped_content_time(value)
   return content_time_shape:parse(value, 'V1 observation: invalid content time')
 end
 
+local legacy_synthetic_context_shape = v.object({ synthetic = v.literal(true), text = 'string' })
+local legacy_context_marker_shape = v.object({
+  context_type = v.enum({ 'selection', 'diagnostics', 'cursor-data', 'review-comment' }),
+})
+local legacy_diagnostics_shape = v.object({
+  context_type = v.literal('diagnostics'),
+  content = v.array(v.union(
+    v.object({ msg = 'string', severity = v.enum({ 1, 2, 3, 4 }), pos = 'string' }),
+    v.object({
+      message = 'string',
+      severity = v.enum({ 1, 2, 3, 4 }),
+      lnum = v.integer():min(0),
+      col = v.integer():min(0),
+    }):convert(function(value)
+      return {
+        msg = value.message,
+        severity = value.severity,
+        pos = string.format('l%d:c%d', value.lnum + 1, value.col + 1),
+      }
+    end)
+  )),
+})
+
+local function legacy_context_content(part)
+  if not legacy_synthetic_context_shape:is(part) then
+    return nil
+  end
+  local ok, decoded = pcall(vim.json.decode, part.text)
+  if not ok or not legacy_context_marker_shape:is(decoded) then
+    return nil
+  end
+  local text = part.text
+  if decoded.context_type == 'diagnostics' then
+    if not legacy_diagnostics_shape:is(decoded) then
+      return nil, 'invalid diagnostics editor context'
+    end
+    -- Historical captures stored raw Neovim diagnostics with zero-based positions.
+    text = vim.json.encode(legacy_diagnostics_shape:parse(decoded))
+  end
+  return shared_decode_editor_context(decoded.context_type, text, part.id, part.synthetic, part.ignored)
+end
+
 local function context_content(part)
   local metadata = part.metadata
   local context_type = type(metadata) == 'table' and metadata.context_type or nil
   if context_type == nil then
-    return nil
+    return legacy_context_content(part)
   end
   if context_type == 'file-content' and type(metadata.mime) == 'string' then
     -- V1 carries the buffer media type in part metadata

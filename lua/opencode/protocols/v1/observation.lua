@@ -237,11 +237,20 @@ function M.ingest_snapshot(observation, messages)
     if existing then
       entry.cost = entry.cost ~= nil and entry.cost or existing.cost
       entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+      entry.queued = existing.queued
     end
     entries_by_id[entry.id] = replace_entry(existing, entry)
     order[#order + 1] = entry.id
   end
   state.entries_by_id, state.entry_order = entries_by_id, order
+  for _, entry in ipairs(mapped) do
+    if entry.kind == 'assistant' and entry.parent_message_id then
+      local parent = entries_by_id[entry.parent_message_id]
+      if parent then
+        parent.queued = nil
+      end
+    end
+  end
   observation._v1_unresolved_mentions = {}
   state.sync.messages = #diagnostics == 0 and { state = 'current' }
     or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
@@ -316,6 +325,15 @@ function M.ingest_event(observation, event)
     if existing then
       entry.cost = entry.cost ~= nil and entry.cost or existing.cost
       entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+      entry.queued = existing.queued
+    elseif entry.kind == 'user' then
+      entry.queued = state.execution.activity == 'running' or state.execution.activity == 'retrying'
+    end
+    if entry.kind == 'assistant' and entry.parent_message_id then
+      local parent = state.entries_by_id[entry.parent_message_id]
+      if parent then
+        parent.queued = nil
+      end
     end
     state.entries_by_id[entry.id] = replace_entry(existing, entry)
     if not existing then

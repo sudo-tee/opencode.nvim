@@ -303,6 +303,9 @@ function M.format_message_header(message, previous_message)
       { ' ' },
       { display_name, role_hl },
     }
+    if role == 'user' and message.queued then
+      header_virt_text[#header_virt_text + 1] = { ' QUEUED', 'OpencodeQueued' }
+    end
     vim.list_extend(header_virt_text, {
       { ' ' },
       { model_text, 'OpencodeHint' },
@@ -476,11 +479,12 @@ function M._format_diagnostics_context(output, part)
     return
   end
 
-  local diagnostics_count = { error = 0, warn = 0, info = 0 }
+  local diagnostics_count = { error = 0, warn = 0, info = 0, hint = 0 }
   local diagnostics_icons = {
     error = icons.get('error'),
     warn = icons.get('warning'),
     info = icons.get('info'),
+    hint = icons.get('info'),
   }
 
   for _, diag in ipairs(diagnostics) do
@@ -512,16 +516,16 @@ local function get_visible_user_part_kind(part)
     return 'file'
   end
 
+  if part.kind == 'editor_context' and part.source then
+    return part.source.kind == 'cursor' and 'cursor-data' or part.source.kind
+  end
+
   if part.kind ~= 'text' or not part.text or part.text == '' then
     return nil
   end
 
   if not part.synthetic then
     return 'text'
-  end
-
-  if part.kind == 'editor_context' and part.source then
-    return part.source.kind
   end
 
   return nil

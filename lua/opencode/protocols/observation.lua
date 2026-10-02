@@ -21,6 +21,7 @@ local resource_names = {
 ---@field id string Stable message identifier
 ---@field kind string Message kind, such as user or assistant
 ---@field content table[] Message content parts
+---@field queued? boolean User input awaiting assistant consumption, projected by the protocol adapter
 
 ---@class OpencodeObservationState
 ---@field session OpencodeSession
@@ -75,7 +76,8 @@ end
 --- Decode an editor-context payload (selection / diagnostics / cursor-data /
 --- file-content / git-diff) into the protocol-neutral contract entry.
 --- Both protocol adapters map their wire shapes onto this one: V1 carries it
---- as a synthetic text part with metadata.context_type, V2 as a file
+--- as a synthetic text part with metadata.context_type (or a validated legacy
+--- JSON context_type declaration), V2 as a file
 --- attachment whose name is prefixed with "editor-context:".
 --- @param context_type string the wire-declared context type
 --- @param text string JSON payload for selection/diagnostics/cursor-data,

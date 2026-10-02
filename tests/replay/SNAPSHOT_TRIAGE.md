@@ -13,6 +13,18 @@ full-session viewport metadata. These failures are not all stale snapshots.
 - **12 reviewed header updates:** only agent/model header text changed. Buffer
   lines, actions, extmark positions, and non-header extmark properties matched.
   No missing-content expectations were removed.
+- **V1 queued-message regression fixed:** new user input received during running
+  or retrying execution gets a protocol-owned queue fact. Message updates and
+  snapshot refreshes preserve it; a linked assistant reply clears it. Header
+  reconciliation now tracks that fact and renders `QUEUED`. The queue snapshot
+  retains its badge; only its unrelated missing-agent fallback changed to
+  `ASSISTANT`.
+- **Legacy V1 context decoding fixed:** validated synthetic JSON declarations map
+  to the same editor-context facts as current metadata. Raw Neovim diagnostics
+  become neutral diagnostics with one-based positions. Metadata stays authoritative;
+  ordinary synthetic text is unchanged. Selection/cursor borders and hint severity
+  rendering are covered by regressions. Remaining cosmetic differences were
+  reviewed separately; no source captures or missing-context expectations changed.
 
 ## Regeneration-only changes
 
@@ -37,12 +49,12 @@ full-session viewport metadata. These failures are not all stale snapshots.
 
 | Fixture | Evidence / next fix |
 | --- | --- |
-| `queue` | Expected `QUEUED` header badge disappears. Its highlight still exists, but no formatter emits the badge. Restore queued-message projection/display; do not classify this as an agent-label change. |
-| `selection` | Historical synthetic text carries `context_type` inside JSON, without `metadata.context_type`. V1 normalizer only recognizes the metadata form, so selection content disappears. Decide/support legacy persisted-context decoding. |
-| `cursor_data` | Same legacy-context encoding; cursor excerpt disappears. |
-| `diagnostics` | Same legacy-context encoding; diagnostic summary disappears. Historical diagnostic item fields also differ from current decoder contract. |
-| `permission-ask-new` | Missing diagnostics from legacy context, plus model header change. Fix context interpretation before updating cosmetic differences. |
-| `permission-ask-new-approve` | Same missing legacy diagnostics; do not regenerate them away. |
+| `queue` | Fixed: restored V1 queue projection, header badge, and invalidation when an assistant consumes the user. Regression tests cover busy/retry/idle, metadata updates, snapshot refreshes, and linked replies. |
+| `selection` | Fixed: both saved selections render again. Snapshot changed only to remove one duplicate border extmark; visible border rows, text, and actions match. |
+| `cursor_data` | Fixed: saved cursor excerpt renders; existing snapshot passes unchanged. |
+| `diagnostics` | Fixed: raw Neovim diagnostic records map to neutral facts; summary restored. Snapshot changed only for two relative tool paths. |
+| `permission-ask-new` | Fixed: legacy diagnostic summary restored. Snapshot changed only for user model header text. |
+| `permission-ask-new-approve` | Fixed: same restored diagnostics; only user model header expectation updated. |
 | `permission-prompt` | Capture uses historical `permission.updated` (`type`, `pattern`, `callID`), whereas current adapter accepts the newer permission contract. Missing prompt is a compatibility gap, not cosmetic drift. |
 | `shifting-and-multiple-perms` | Same unsupported historical permission events remove all prompts; added reference icon is independently cosmetic. |
 | `revert` | Historical `session.updated` lacks fields required by current `session_shape` (notably `slug`). Revert facts never reach rendering, so reverted messages remain visible. Resolve wire-version compatibility before changing expected output. |

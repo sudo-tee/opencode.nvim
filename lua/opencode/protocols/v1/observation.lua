@@ -17,6 +17,7 @@ local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
 local config_file = require('opencode.config_file')
+local event_capture = require('opencode.event_capture')
 
 local M = {}
 
@@ -111,6 +112,7 @@ local function route_event(connection, event)
     end
   end
   if decoded then
+    event_capture.record({ protocol = 'v1', type = decoded.type, properties = decoded.properties })
     vim.api.nvim_exec_autocmds('User', {
       pattern = 'OpencodeEvent:' .. decoded.type,
       data = { event = { type = decoded.type, properties = decoded.properties } },

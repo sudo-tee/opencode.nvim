@@ -3,7 +3,10 @@
 ---@field debug_output fun()
 ---@field debug_message fun()
 ---@field debug_session fun()
+---@field save_captured_events fun(filename?: string): integer|nil
 local M = {}
+
+local event_capture = require('opencode.event_capture')
 
 local state = require('opencode.state')
 
@@ -57,6 +60,10 @@ function M.debug_session()
     return
   end
   M.open_json_file(observation:read())
+end
+
+function M.save_captured_events(filename)
+  return event_capture.save(filename)
 end
 
 return M

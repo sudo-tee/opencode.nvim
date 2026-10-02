@@ -3,6 +3,7 @@ local lifecycle = require('opencode.protocols.observation')
 local boundary = require('opencode.protocols.v2.observation.boundary')
 local messages = require('opencode.protocols.v2.observation.messages')
 local actions = require('opencode.protocols.v2.observation.actions')
+local event_capture = require('opencode.event_capture')
 
 local M = {}
 
@@ -423,6 +424,13 @@ function M.route(connection, event)
       observation:_event_changed(resource)
     end
   end
+  event_capture.record({
+    protocol = 'v2',
+    id = event.id,
+    type = event.type,
+    created = event.created,
+    data = event.data,
+  })
   vim.api.nvim_exec_autocmds('User', {
     pattern = 'OpencodeEvent:' .. event.type,
     data = { event = { type = event.type, properties = event.data } },

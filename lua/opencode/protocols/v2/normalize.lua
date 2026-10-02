@@ -50,12 +50,31 @@ local function inbox_shape(status)
   end)
 end
 
+local permission_preview_shape = v.object({
+  command = v.optional('string'),
+  diff = v.optional('string'),
+  filePath = v.optional('string'),
+  path = v.optional('string'),
+}):convert(function(metadata)
+  return { command = metadata.command, diff = metadata.diff, path = metadata.filePath or metadata.path }
+end)
+
+local permission_source_shape = v.object({ type = v.literal('tool'), messageID = 'string', id = 'string' })
+
 local permission_shape = v.object({
   id = 'string',
   sessionID = 'string',
   action = 'string',
   resources = v.table(),
+  metadata = v.optional(permission_preview_shape),
+  source = v.optional(permission_source_shape),
+  message = v.optional('string'),
 }):convert(function(request)
+  local preview = request.metadata
+  if request.source then
+    preview = preview or {}
+    preview.source = { message_id = request.source.messageID, call_id = request.source.id }
+  end
   return {
     id = request.id,
     session_id = request.sessionID,
@@ -69,6 +88,7 @@ local permission_shape = v.object({
     status = 'pending',
     message = request.message,
     source = vim.deepcopy(request.source),
+    preview = vim.deepcopy(preview),
   }
 end)
 
@@ -338,6 +358,7 @@ local file_tool_input_shape = v.object({
 end)
 
 local skill_metadata_shape = v.object({ name = v.optional('string') })
+local shell_tool_input_shape = v.object({ command = v.optional('string'), description = v.optional('string') })
 local tool_metadata_shape = v.object({
   diff = v.optional('string'),
   files = v.optional(v.array(tool_file_change_shape)),
@@ -395,6 +416,12 @@ end
 ---@param name string
 ---@param input any
 local function apply_tool_input(result, name, input)
+  if name == 'bash' or name == 'shell' then
+    local parsed = shell_tool_input_shape:parse(input, 'V2 observation: invalid shell tool input')
+    result.command = parsed.command
+    result.description = parsed.description
+    return
+  end
   if name ~= 'read' and name ~= 'edit' and name ~= 'write' then
     return
   end
@@ -817,6 +844,47 @@ local function mapped_permission(request)
   return result
 end
 
+---Request metadata stays authoritative; only the explicitly linked tool can fill missing preview fields.
+---@param state OpencodeObservationState
+---@return boolean
+local function enrich_permission_previews(state)
+  local changed = false
+  for _, request in pairs(state.permission_requests_by_id) do
+    local preview = request.preview
+    local source = preview and preview.source
+    local entry = source and state.entries_by_id[source.message_id]
+    if request.status == 'pending' and preview and source and entry then
+      for _, content in ipairs(entry.content) do
+        ---@cast content {kind: string, call_id?: string, command?: string, description?: string, target?: {path: string}, changes?: OpencodeV2ToolChange[]}
+        if content.kind == 'tool' and content.call_id == source.call_id then
+          if not request.message and content.description then
+            request.message = content.description
+            changed = true
+          end
+          if not preview.command and content.command then
+            preview.command = content.command
+            changed = true
+          end
+          if not preview.path and content.target then
+            preview.path = content.target.path
+            changed = true
+          end
+          local changes = content.changes
+          if not preview.diff and changes and #changes == 1 then
+            local change = changes[1]
+            if not preview.path or preview.path == change.path then
+              preview.diff = change.diff
+              preview.path = change.path
+              changed = true
+            end
+          end
+        end
+      end
+    end
+  end
+  return changed
+end
+
 ---@param form table
 ---@return OpencodeV2QuestionRequest
 local function mapped_question(form)
@@ -836,5 +904,6 @@ return {
   mapped_session = mapped_session,
   mapped_inbox = mapped_inbox,
   mapped_permission = mapped_permission,
+  enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
 }

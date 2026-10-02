@@ -138,6 +138,7 @@ end
 ---@param value table
 function M.apply(observation, resource, value)
   apply[resource](observation, value)
+  normalize.enrich_permission_previews(observation:read())
 end
 
 ---@param observation OpencodeV2Observation

@@ -538,6 +538,131 @@ describe('V1 protocol Observation runtime', function()
     unsubscribe()
   end)
 
+  it(
+    'maps historical permissions, enriches linked previews, and preserves terminal replies across refreshes',
+    function()
+      local connection, server = runtime()
+      local observation = observe(connection, 'ses-legacy')
+      local unsubscribe = observation:watch({ 'messages', 'permissions' }, function() end)
+      local permission = {
+        id = 'per-legacy',
+        sessionID = 'ses-legacy',
+        type = 'bash',
+        title = 'Run command',
+        messageID = 'msg-tool',
+        callID = 'call-tool',
+        time = { created = 1 },
+        pattern = 'git *',
+        metadata = { command = 'git status' },
+      }
+      emit(server.streams[1], '/server/project', 'permission.updated', permission)
+      local request = observation:read().permission_requests_by_id['per-legacy']
+      assert.same({ 'git *' }, request.patterns)
+      assert.same({}, request.always)
+      assert.equals('git status', request.preview.command)
+      assert.equals('Run command', request.preview.title)
+
+      emit(server.streams[1], '/server/project', 'message.updated', {
+        sessionID = 'ses-legacy',
+        info = { id = 'msg-tool', sessionID = 'ses-legacy', role = 'assistant', time = { created = 1 } },
+      })
+      local part = {
+        id = 'prt-tool',
+        sessionID = 'ses-legacy',
+        messageID = 'msg-tool',
+        type = 'tool',
+        tool = 'bash',
+        callID = 'call-other',
+        state = { status = 'running', input = { description = 'Wrong tool', command = 'wrong command' } },
+      }
+      emit(server.streams[1], '/server/project', 'message.part.updated', { sessionID = 'ses-legacy', part = part })
+      assert.is_nil(request.message)
+      assert.equals('git status', request.preview.command)
+      part.callID = 'call-tool'
+      part.state.input = { description = 'Inspect changes', command = 'git status --short' }
+      emit(server.streams[1], '/server/project', 'message.part.updated', { sessionID = 'ses-legacy', part = part })
+      assert.equals('Inspect changes', request.message)
+      assert.equals('git status --short', request.preview.command)
+
+      emit(server.streams[1], '/server/project', 'permission.updated', permission)
+      request = observation:read().permission_requests_by_id['per-legacy']
+      assert.equals('Inspect changes', request.message)
+      assert.equals('git status --short', request.preview.command)
+      assert.is_true(observation:reply_permission(request.id, { choice = 'reject', message = 'Do not run' }):await())
+      assert.same({ reply = 'reject', message = 'Do not run' }, server.actions[1].answer)
+      assert.equals('per-legacy', server.actions[1].request_id)
+      assert.same({ directory = '/server/project' }, server.actions[1].location)
+
+      emit(server.streams[1], '/server/project', 'permission.replied', {
+        sessionID = 'ses-legacy',
+        permissionID = 'per-legacy',
+        response = 'reject',
+      })
+      emit(server.streams[1], '/server/project', 'permission.updated', permission)
+      assert.equals('answered', observation:read().permission_requests_by_id['per-legacy'].status)
+      assert.equals('reject', observation:read().permission_requests_by_id['per-legacy'].answer)
+      emit(server.streams[1], '/server/project', 'permission.replied', {
+        sessionID = 'ses-legacy',
+        permissionID = 'per-early',
+        response = 'once',
+      })
+      permission.id = 'per-early'
+      emit(server.streams[1], '/server/project', 'permission.updated', permission)
+      assert.equals('answered', observation:read().permission_requests_by_id['per-early'].status)
+      server.permissions[1]:resolve({ permission })
+      assert.is_true(vim.wait(500, function()
+        return #server.permissions == 2
+      end, 10))
+      server.permissions[2]:resolve({ permission })
+      assert.is_true(vim.wait(500, function()
+        return observation:read().sync.permissions.state == 'current'
+      end, 10))
+      assert.equals('answered', observation:read().permission_requests_by_id['per-early'].status)
+      unsubscribe()
+    end
+  )
+
+  it('accepts historical edits without patterns and rejects malformed legacy and current requests', function()
+    local connection, server = runtime()
+    local observation = observe(connection, 'ses-edit')
+    local unsubscribe = observation:watch({ 'permissions' }, function() end)
+    local permission = {
+      id = 'per-edit',
+      sessionID = 'ses-edit',
+      type = 'edit',
+      title = 'Edit file',
+      messageID = 'msg-tool',
+      callID = 'call-tool',
+      time = { created = 1 },
+      metadata = { diff = '@@ -1 +1 @@\n-old\n+new\n', filePath = '/server/project/file.lua' },
+    }
+    emit(server.streams[1], '/server/project', 'permission.updated', permission)
+    local request = observation:read().permission_requests_by_id['per-edit']
+    assert.same({}, request.patterns)
+    assert.equals(permission.metadata.diff, request.preview.diff)
+    assert.equals('/server/project/file.lua', request.preview.path)
+    permission.sessionID = 'ses-foreign'
+    permission.id = 'per-foreign'
+    emit(server.streams[1], '/server/project', 'permission.updated', permission)
+    assert.is_nil(observation:read().permission_requests_by_id['per-foreign'])
+    permission.sessionID = 'ses-edit'
+    permission.id = 'per-invalid'
+    permission.metadata.diff = 42
+    emit(server.streams[1], '/server/project', 'permission.updated', permission)
+    assert.equals('error', observation:read().sync.permissions.state)
+    assert.is_nil(observation:read().permission_requests_by_id['per-invalid'])
+    permission.metadata.diff = 'valid diff'
+    permission.pattern = { 42 }
+    emit(server.streams[1], '/server/project', 'permission.updated', permission)
+    assert.is_nil(observation:read().permission_requests_by_id['per-invalid'])
+    permission.pattern = nil
+    emit(server.streams[1], '/server/project', 'permission.asked', permission)
+    assert.equals('error', observation:read().sync.permissions.state)
+    assert.is_nil(observation:read().permission_requests_by_id['per-invalid'])
+    assert.equals('pending', request.status)
+    unsubscribe()
+  end)
+
   it('records missing native resource identities without changing another resource', function()
     local connection, server = runtime()
     local observation = observe(connection, 'ses-missing')

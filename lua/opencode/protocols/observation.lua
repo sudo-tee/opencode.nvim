@@ -23,6 +23,13 @@ local resource_names = {
 ---@field content table[] Message content parts
 ---@field queued? boolean User input awaiting assistant consumption, projected by the protocol adapter
 
+---@class OpencodePermissionPreview
+---@field title? string Request title, independent of tool description
+---@field command? string Exact command requiring approval
+---@field diff? string Unified diff requiring approval
+---@field path? string Target file path
+---@field source? {message_id: string, call_id: string} Linked tool supplying preview details
+
 ---@class OpencodeObservationState
 ---@field session OpencodeSession
 ---@field sync table<OpencodeObservedResource, OpencodeObservationSync>
@@ -31,7 +38,7 @@ local resource_names = {
 ---@field entry_order string[]
 ---@field inbox {items_by_id: table<string, table|nil>, order: string[]}
 ---@field execution {activity: string, last_outcome?: string, last_idle?: number, retry?: table, error?: table}
----@field permission_requests_by_id table<string, {id: string, status: string, choices: table[], answer?: string}|nil>
+---@field permission_requests_by_id table<string, {id: string, status: string, choices: table[], answer?: string, preview?: OpencodePermissionPreview}|nil>
 ---@field question_requests_by_id table<string, {id: string, status: string, unavailable_reason?: string, fields: table[], answers?: table}|nil>
 ---@field files {revision: integer, path?: string, change?: string, last?: {path: string, event: string}}
 

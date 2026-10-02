@@ -420,6 +420,9 @@ function M.route(connection, event)
       end
     end
 
+    if normalize.enrich_permission_previews(observation:read()) then
+      changed.permissions = true
+    end
     for resource in pairs(changed) do
       observation:_event_changed(resource)
     end

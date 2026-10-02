@@ -102,6 +102,13 @@ local session_shape = v.object({
   }
 end)
 
+local permission_metadata_shape = v.object({
+  command = v.string():optional(),
+  diff = v.string():optional(),
+  filePath = v.string():optional(),
+  filepath = v.string():optional(),
+})
+
 local permission_shape = v.object({
   id = 'string',
   sessionID = 'string',
@@ -125,6 +132,51 @@ local permission_shape = v.object({
     status = 'pending',
   }
 end)
+
+local legacy_permission_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  type = 'string',
+  title = 'string',
+  messageID = 'string',
+  callID = 'string',
+  time = v.object({ created = 'number' }),
+  pattern = v.union(v.string(), v.array('string')):optional(),
+  metadata = permission_metadata_shape,
+}):convert(function(request)
+  local patterns = request.pattern or {}
+  if type(patterns) == 'string' then
+    patterns = { patterns }
+  end
+  local mapped = permission_shape:parse({
+    id = request.id,
+    sessionID = request.sessionID,
+    permission = request.type,
+    patterns = patterns,
+    always = {},
+    metadata = request.metadata,
+    tool = { messageID = request.messageID, callID = request.callID },
+  })
+  mapped.preview = {
+    title = request.title,
+    command = request.metadata.command,
+    diff = request.metadata.diff,
+    path = request.metadata.filePath or request.metadata.filepath,
+    source = { message_id = request.messageID, call_id = request.callID },
+  }
+  return mapped
+end)
+
+local permission_reply_shape = v.union(
+  v.object({ sessionID = 'string', requestID = 'string', reply = v.enum({ 'once', 'always', 'reject' }) })
+    :convert(function(reply)
+      return { session_id = reply.sessionID, request_id = reply.requestID, reply = reply.reply }
+    end),
+  v.object({ sessionID = 'string', permissionID = 'string', response = v.enum({ 'once', 'always', 'reject' }) })
+    :convert(function(reply)
+      return { session_id = reply.sessionID, request_id = reply.permissionID, reply = reply.response }
+    end)
+)
 
 local question_shape = v.object({
   id = 'string',
@@ -654,7 +706,38 @@ end
 ---@param request table
 ---@return table
 local function mapped_permission(request)
+  if request.permission == nil and request.type ~= nil then
+    return legacy_permission_shape:parse(request, 'V1 observation: invalid legacy permission request')
+  end
   return permission_shape:parse(request, 'V1 observation: invalid permission request')
+end
+
+---Only validated, linked tool input can enrich the frozen permission preview.
+---@param state OpencodeObservationState
+---@return boolean
+local function enrich_permission_previews(state)
+  local changed = false
+  for _, request in pairs(state.permission_requests_by_id) do
+    local preview = request.preview
+    local source = preview and preview.source
+    local entry = source and state.entries_by_id[source.message_id]
+    if request.status == 'pending' and preview and source and entry then
+      for _, content in ipairs(entry.content) do
+        ---@cast content {kind: string, call_id?: string, description?: string, command?: string}
+        if content.kind == 'tool' and content.call_id == source.call_id then
+          if content.description and content.description ~= '' and request.message ~= content.description then
+            request.message = content.description
+            changed = true
+          end
+          if content.command and content.command ~= '' and preview.command ~= content.command then
+            preview.command = content.command
+            changed = true
+          end
+        end
+      end
+    end
+  end
+  return changed
 end
 
 ---@param request table
@@ -698,5 +781,15 @@ return {
   mapped_message = mapped_message,
   mapped_session = mapped_session,
   mapped_permission = mapped_permission,
+  mapped_legacy_permission = function(request)
+    return legacy_permission_shape:parse(request, 'V1 observation: invalid legacy permission request')
+  end,
+  mapped_current_permission = function(request)
+    return permission_shape:parse(request, 'V1 observation: invalid permission request')
+  end,
+  mapped_permission_reply = function(reply)
+    return permission_reply_shape:parse(reply, 'permission.replied is missing request identity or has invalid reply')
+  end,
+  enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
 }

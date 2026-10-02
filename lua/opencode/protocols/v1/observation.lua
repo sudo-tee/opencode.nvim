@@ -110,6 +110,9 @@ local function route_event(connection, event)
         observation:_event_changed(resource)
       end
     end
+    if normalize.enrich_permission_previews(observation:read()) then
+      observation:_event_changed('permissions')
+    end
   end
   if decoded then
     event_capture.record({ protocol = 'v1', type = decoded.type, properties = decoded.properties })
@@ -515,6 +518,7 @@ local function apply_resource(observation, resource, value)
   else
     fail('unsupported resource read: ' .. tostring(resource))
   end
+  normalize.enrich_permission_previews(state)
 end
 
 local function event_diagnostic(observation, resource, message)
@@ -661,11 +665,13 @@ ingest_resource_event = function(observation, event)
     end
     state.sync.execution = { state = 'current' }
     return 'execution'
-  elseif kind == 'permission.asked' then
+  elseif kind == 'permission.asked' or kind == 'permission.updated' then
     if not observation:_watches('permissions') then
       return nil
     end
-    local ok, request = pcall(mapped_permission, properties)
+    local mapper = kind == 'permission.updated' and normalize.mapped_legacy_permission
+      or normalize.mapped_current_permission
+    local ok, request = pcall(mapper, properties)
     if not ok then
       return event_diagnostic(observation, 'permissions', tostring(request))
     end
@@ -684,17 +690,18 @@ ingest_resource_event = function(observation, event)
     if not observation:_watches('permissions') then
       return nil
     end
-    if type(properties.sessionID) ~= 'string' or type(properties.requestID) ~= 'string' then
-      return event_diagnostic(observation, 'permissions', 'permission.replied is missing request identity')
+    local ok, reply = pcall(normalize.mapped_permission_reply, properties)
+    if not ok then
+      return event_diagnostic(observation, 'permissions', tostring(reply))
     end
-    if properties.sessionID ~= state.session.id then
+    if reply.session_id ~= state.session.id then
       return nil
     end
-    observation._v1_permission_terminal[properties.requestID] = { reply = properties.reply }
-    local request = state.permission_requests_by_id[properties.requestID]
+    observation._v1_permission_terminal[reply.request_id] = { reply = reply.reply }
+    local request = state.permission_requests_by_id[reply.request_id]
     if request then
       request.status = 'answered'
-      request.answer = properties.reply
+      request.answer = reply.reply
     end
     return 'permissions'
   elseif kind == 'question.asked' then

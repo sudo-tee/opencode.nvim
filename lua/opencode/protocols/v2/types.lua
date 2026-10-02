@@ -203,6 +203,7 @@
 ---@field status string
 ---@field message? string
 ---@field source? table
+---@field preview? OpencodePermissionPreview
 ---@field answer? string
 
 ---@class OpencodeV2QuestionRequest

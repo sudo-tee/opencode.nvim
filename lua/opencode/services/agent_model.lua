@@ -249,4 +249,36 @@ M.initialize_current_model = Promise.async(function(opts)
   return state.current_model
 end)
 
+---Pull the authoritative session model from the server so switches made in
+---another client while no stream event fires still follow here; same-value
+---calls are no-ops.
+---@return Promise|nil nil when there is no ready connection or active session
+function M.sync_from_server()
+  local connection = state.opencode_server
+  local session = state.active_session
+  if not (connection and session and session.id and connection:is_ready()) then
+    return nil
+  end
+  return connection.operations
+    .get_session(connection, session.id, session.location, util.apply_path_map, util.apply_reverse_path_map)
+    :and_then(function(fact)
+      local model = fact and fact.model
+      -- V2 GET returns {id, providerID, variant}; guard modelID for V1 shape.
+      local model_id = model and (model.id or model.modelID)
+      if not (model and model_id and model.providerID) then
+        return
+      end
+      local model_str = model.providerID .. '/' .. model_id
+      if state.current_model ~= model_str then
+        state.model.set_model(model_str)
+      end
+      if model.variant ~= nil and state.current_variant ~= model.variant then
+        state.model.set_variant(model.variant)
+      end
+    end)
+    :catch(function(err)
+      log.debug('Failed to sync session model from server', { error = err })
+    end)
+end
+
 return M

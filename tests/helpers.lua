@@ -467,7 +467,7 @@ function M.wait_for_replay_ready()
   end
 end
 
-function M.replay_event(event)
+local function dispatch_replay_event(event)
   local state = require('opencode.state')
   if type(event) == 'table' and type(event.payload) == 'table' then
     event = vim.tbl_extend('force', { directory = event.directory }, event.payload)
@@ -494,8 +494,9 @@ function M.replay_event(event)
     )
     return
   end
-  local active = assert(state.active_session, 'V1 replay requires an active session')
-  local directory = active.location and active.location.directory or M.MOCK_CWD
+  -- Session facts update synchronously; the UI's active session can lag behind a batch.
+  local observation = assert(state.session.active_observation(), 'V1 replay requires an active observation')
+  local directory = observation:read().session.location.directory
   local properties = vim.deepcopy(event.properties)
   properties.sessionID = properties.sessionID
     or (type(properties.info) == 'table' and properties.info.sessionID)
@@ -504,6 +505,10 @@ function M.replay_event(event)
     directory = event.directory or directory,
     payload = { type = event.type, properties = properties },
   }) .. '\n\n')
+end
+
+function M.replay_event(event)
+  dispatch_replay_event(event)
   local rendered = false
   vim.schedule(function()
     rendered = true
@@ -519,8 +524,9 @@ end
 
 function M.replay_events(events)
   for _, event in ipairs(events) do
-    M.replay_event(event)
+    dispatch_replay_event(event)
   end
+  assert(require('tests.manual.renderer_replay').wait_for_idle(), 'scheduled replay render did not finish')
 end
 
 function M.normalize_namespace_ids(extmarks)

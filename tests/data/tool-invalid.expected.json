@@ -177,6 +177,226 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -1
       }
+    ],
+    [
+      9,
+      9,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      10,
+      10,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      11,
+      11,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      12,
+      12,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      13,
+      13,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      14,
+      14,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      15,
+      15,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      16,
+      16,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      17,
+      17,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      18,
+      18,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      19,
+      19,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
     ]
   ],
   "lines": [
@@ -184,6 +404,17 @@
     "",
     "",
     "**  tool** `invalid`",
+    "",
+    "**Input**",
+    "",
+    "`````json",
+    "{\"error\":\"Invalid input for tool edit: JSON parsing failed: Text: {\\\"filePath\\\": \\\"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\\\", \\\"newString\\\": \\\"---Event handler for permission.replied events\\\\n---Re-renders part after permission is resolved\\\\n---@param event table Event object\\\\nfunctio.\\nError message: JSON Parse error: Unterminated string\",\"tool\":\"edit\"}",
+    "`````",
+    "",
+    "**Result**",
+    "",
+    "The arguments provided to the tool are invalid: Invalid input for tool edit: JSON parsing failed: Text: {\"filePath\": \"/Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/streaming_renderer.lua\", \"newString\": \"---Event handler for permission.replied events\\n---Re-renders part after permission is resolved\\n---@param event table Event object\\nfunctio.",
+    "Error message: JSON Parse error: Unterminated string",
     "",
     "> [!ERROR]",
     ">",
@@ -195,11 +426,11 @@
   "timestamp": 1770935243,
   "window": {
     "cursor": [
-      10,
+      21,
       0
     ],
-    "effective_bottom": 10,
-    "line_count": 11,
-    "visible_bottom": 11
+    "effective_bottom": 21,
+    "line_count": 22,
+    "visible_bottom": 21
   }
 }

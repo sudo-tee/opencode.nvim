@@ -129,14 +129,20 @@ end
 function M.replay_next(steps)
   steps = tonumber(steps) or 1
 
+  local events = {}
   for _ = 1, steps do
     if M.event_index < #M.events then
       M.event_index = M.event_index + 1
-      helpers.replay_event(M.events[M.event_index])
+      events[#events + 1] = M.events[M.event_index]
     else
       vim.notify('No more events to replay', vim.log.levels.WARN)
-      return
+      break
     end
+  end
+  if steps == 1 and #events == 1 then
+    helpers.replay_event(events[1])
+  else
+    helpers.replay_events(events)
   end
 
   if M.headless_mode and steps > 1 then

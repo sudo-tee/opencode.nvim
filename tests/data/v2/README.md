@@ -18,4 +18,4 @@ These synthetic V2 message fixtures have matching `.expected.json` renderer snap
 - `mcp-results.json`: running-to-completed MCP input, Markdown results, an HTTP attachment, and a named inline attachment.
 - `generic-results.json`: custom-tool JSON input, local and unnamed inline attachments, an empty-input browser tool, and a namespaced session tool with partial results and an error.
 
-Run `./run_tests.sh -t tests/replay/formatter_snapshot_spec.lua` to compare buffer lines, extmarks, and actions across full rendering, incremental replay, and reset/replay.
+Run `make test-replay` to compare buffer lines, extmarks, and actions across full rendering, incremental replay, and reset/replay.

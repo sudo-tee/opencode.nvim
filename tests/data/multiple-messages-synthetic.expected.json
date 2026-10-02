@@ -233,7 +233,7 @@
             " "
           ],
           [
-            "BUILD",
+            "ASSISTANT",
             "OpencodeMessageRoleAssistant"
           ],
           [
@@ -387,7 +387,7 @@
             " "
           ],
           [
-            "BUILD",
+            "ASSISTANT",
             "OpencodeMessageRoleAssistant"
           ],
           [
@@ -541,7 +541,7 @@
             " "
           ],
           [
-            "BUILD",
+            "ASSISTANT",
             "OpencodeMessageRoleAssistant"
           ],
           [

@@ -122,6 +122,25 @@ function M.setup_done_thinking_events(subscribe)
   })
 end
 
+local function setup_model_sync_events(enable)
+  vim.api.nvim_create_augroup('opencode_model_sync', { clear = true })
+  if not enable then
+    return
+  end
+  vim.api.nvim_create_autocmd('User', {
+    group = 'opencode_model_sync',
+    pattern = 'OpencodeEvent:session.model.selected',
+    callback = function(args)
+      local props = args.data and args.data.event and args.data.event.properties
+      local session = state.active_session
+      if not (props and props.sessionID and session and props.sessionID == session.id) then
+        return
+      end
+      agent_model.apply_server_selection(props.model)
+    end,
+  })
+end
+
 ---Keep active-session metadata and model selection current independently of rendering.
 ---Disabling releases the observation; enabling also adopts already-loaded facts.
 ---@param subscribe? boolean Defaults to true
@@ -139,6 +158,7 @@ function M.setup_subscriptions(subscribe)
   else
     observe_active_session()
   end
+  setup_model_sync_events(subscribe ~= false)
 end
 
 local function current_location()
@@ -398,6 +418,11 @@ M.open = Promise.async(function(opts)
     vim.notify('Error opening panel: ' .. tostring(err), vim.log.levels.ERROR)
     return Promise.new():reject(err)
   end
+
+  -- Re-sync model/variant from the server: the user may have switched them
+  -- in the TUI while this client was unfocused (no SSE broadcast on switch).
+  agent_model.sync_from_server()
+
   return Promise.new():resolve('ok')
 end)
 

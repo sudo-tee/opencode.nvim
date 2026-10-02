@@ -141,6 +141,9 @@ describe('persist_state', function()
         create_session = function()
           return Promise.new():resolve({ id = 'persist-test-session', title = 'Persist test', time = { updated = 1 } })
         end,
+        get_session = function(_, id)
+          return Promise.new():resolve({ id = id, title = id, time = { updated = 1 } })
+        end,
         list_primary_agents = function()
           return Promise.new():resolve({ 'build' })
         end,

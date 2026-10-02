@@ -883,7 +883,7 @@
     "",
     "Proceeding to update the file now.",
     "",
-    "**  write** `/home/francis/Projects/_nvim/opencode.nvim/poem.md`",
+    "**  write** `poem.md`",
     "",
     "`````markdown",
     "Lantern",

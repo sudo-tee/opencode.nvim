@@ -75,15 +75,7 @@ local file_source_shape = v.union(
   end)
 )
 
-local session_shape = v.object({
-  id = 'string',
-  slug = 'string',
-  projectID = 'string',
-  directory = 'string',
-  title = 'string',
-  version = 'string',
-  time = { created = 'number', updated = 'number' },
-}):convert(function(info)
+local function mapped_session_info(info)
   return {
     id = info.id,
     title = info.title,
@@ -100,7 +92,47 @@ local session_shape = v.object({
     share = vim.deepcopy(info.share),
     revert = vim.deepcopy(info.revert),
   }
-end)
+end
+
+local session_shape = v.object({
+  id = 'string',
+  slug = 'string',
+  projectID = 'string',
+  directory = 'string',
+  title = 'string',
+  version = 'string',
+  time = { created = 'number', updated = 'number' },
+}):convert(mapped_session_info)
+
+local legacy_revert_shape = v.object({
+  messageID = 'string',
+  partID = v.string():optional(),
+  snapshot = v.string():optional(),
+  diff = v.string():optional(),
+})
+
+local legacy_revert_session_shape = v.object({
+  id = 'string',
+  projectID = 'string',
+  directory = 'string',
+  title = 'string',
+  version = v.string():constraint(function(version)
+    return version:match('^0%.%d+%.%d+') ~= nil
+  end, 'legacy V1 version'),
+  time = { created = 'number', updated = 'number' },
+  revert = legacy_revert_shape,
+})
+  :constraint(function(info)
+    return info.slug == nil
+  end, 'legacy V1 session without slug')
+  :convert(mapped_session_info)
+
+local permission_metadata_shape = v.object({
+  command = v.string():optional(),
+  diff = v.string():optional(),
+  filePath = v.string():optional(),
+  filepath = v.string():optional(),
+})
 
 local permission_shape = v.object({
   id = 'string',
@@ -125,6 +157,51 @@ local permission_shape = v.object({
     status = 'pending',
   }
 end)
+
+local legacy_permission_shape = v.object({
+  id = 'string',
+  sessionID = 'string',
+  type = 'string',
+  title = 'string',
+  messageID = 'string',
+  callID = 'string',
+  time = v.object({ created = 'number' }),
+  pattern = v.union(v.string(), v.array('string')):optional(),
+  metadata = permission_metadata_shape,
+}):convert(function(request)
+  local patterns = request.pattern or {}
+  if type(patterns) == 'string' then
+    patterns = { patterns }
+  end
+  local mapped = permission_shape:parse({
+    id = request.id,
+    sessionID = request.sessionID,
+    permission = request.type,
+    patterns = patterns,
+    always = {},
+    metadata = request.metadata,
+    tool = { messageID = request.messageID, callID = request.callID },
+  })
+  mapped.preview = {
+    title = request.title,
+    command = request.metadata.command,
+    diff = request.metadata.diff,
+    path = request.metadata.filePath or request.metadata.filepath,
+    source = { message_id = request.messageID, call_id = request.callID },
+  }
+  return mapped
+end)
+
+local permission_reply_shape = v.union(
+  v.object({ sessionID = 'string', requestID = 'string', reply = v.enum({ 'once', 'always', 'reject' }) })
+    :convert(function(reply)
+      return { session_id = reply.sessionID, request_id = reply.requestID, reply = reply.reply }
+    end),
+  v.object({ sessionID = 'string', permissionID = 'string', response = v.enum({ 'once', 'always', 'reject' }) })
+    :convert(function(reply)
+      return { session_id = reply.sessionID, request_id = reply.permissionID, reply = reply.response }
+    end)
+)
 
 local question_shape = v.object({
   id = 'string',
@@ -181,11 +258,53 @@ local function mapped_content_time(value)
   return content_time_shape:parse(value, 'V1 observation: invalid content time')
 end
 
+local legacy_synthetic_context_shape = v.object({ synthetic = v.literal(true), text = 'string' })
+local legacy_context_marker_shape = v.object({
+  context_type = v.enum({ 'selection', 'diagnostics', 'cursor-data', 'review-comment' }),
+})
+local legacy_diagnostics_shape = v.object({
+  context_type = v.literal('diagnostics'),
+  content = v.array(v.union(
+    v.object({ msg = 'string', severity = v.enum({ 1, 2, 3, 4 }), pos = 'string' }),
+    v.object({
+      message = 'string',
+      severity = v.enum({ 1, 2, 3, 4 }),
+      lnum = v.integer():min(0),
+      col = v.integer():min(0),
+    }):convert(function(value)
+      return {
+        msg = value.message,
+        severity = value.severity,
+        pos = string.format('l%d:c%d', value.lnum + 1, value.col + 1),
+      }
+    end)
+  )),
+})
+
+local function legacy_context_content(part)
+  if not legacy_synthetic_context_shape:is(part) then
+    return nil
+  end
+  local ok, decoded = pcall(vim.json.decode, part.text)
+  if not ok or not legacy_context_marker_shape:is(decoded) then
+    return nil
+  end
+  local text = part.text
+  if decoded.context_type == 'diagnostics' then
+    if not legacy_diagnostics_shape:is(decoded) then
+      return nil, 'invalid diagnostics editor context'
+    end
+    -- Historical captures stored raw Neovim diagnostics with zero-based positions.
+    text = vim.json.encode(legacy_diagnostics_shape:parse(decoded))
+  end
+  return shared_decode_editor_context(decoded.context_type, text, part.id, part.synthetic, part.ignored)
+end
+
 local function context_content(part)
   local metadata = part.metadata
   local context_type = type(metadata) == 'table' and metadata.context_type or nil
   if context_type == nil then
-    return nil
+    return legacy_context_content(part)
   end
   if context_type == 'file-content' and type(metadata.mime) == 'string' then
     -- V1 carries the buffer media type in part metadata
@@ -604,15 +723,52 @@ local function mapped_message(message, location)
 end
 
 ---@param info table
----@return table
+---@return table session
+---@return boolean legacy_revert
 local function mapped_session(info)
-  return session_shape:parse(info, 'V1 observation: invalid session info')
+  local current_ok, session = pcall(session_shape.parse, session_shape, info)
+  if current_ok then
+    ---@cast session table
+    return session, false
+  end
+  return legacy_revert_session_shape:parse(info, 'V1 observation: invalid session info'), true
 end
 
 ---@param request table
 ---@return table
 local function mapped_permission(request)
+  if request.permission == nil and request.type ~= nil then
+    return legacy_permission_shape:parse(request, 'V1 observation: invalid legacy permission request')
+  end
   return permission_shape:parse(request, 'V1 observation: invalid permission request')
+end
+
+---Only validated, linked tool input can enrich the frozen permission preview.
+---@param state OpencodeObservationState
+---@return boolean
+local function enrich_permission_previews(state)
+  local changed = false
+  for _, request in pairs(state.permission_requests_by_id) do
+    local preview = request.preview
+    local source = preview and preview.source
+    local entry = source and state.entries_by_id[source.message_id]
+    if request.status == 'pending' and preview and source and entry then
+      for _, content in ipairs(entry.content) do
+        ---@cast content {kind: string, call_id?: string, description?: string, command?: string}
+        if content.kind == 'tool' and content.call_id == source.call_id then
+          if content.description and content.description ~= '' and request.message ~= content.description then
+            request.message = content.description
+            changed = true
+          end
+          if content.command and content.command ~= '' and preview.command ~= content.command then
+            preview.command = content.command
+            changed = true
+          end
+        end
+      end
+    end
+  end
+  return changed
 end
 
 ---@param request table
@@ -656,5 +812,15 @@ return {
   mapped_message = mapped_message,
   mapped_session = mapped_session,
   mapped_permission = mapped_permission,
+  mapped_legacy_permission = function(request)
+    return legacy_permission_shape:parse(request, 'V1 observation: invalid legacy permission request')
+  end,
+  mapped_current_permission = function(request)
+    return permission_shape:parse(request, 'V1 observation: invalid permission request')
+  end,
+  mapped_permission_reply = function(reply)
+    return permission_reply_shape:parse(reply, 'permission.replied is missing request identity or has invalid reply')
+  end,
+  enrich_permission_previews = enrich_permission_previews,
   mapped_question = mapped_question,
 }

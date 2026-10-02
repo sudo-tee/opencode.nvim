@@ -30,7 +30,7 @@ and directory changes with and without a previous location.
 Run the renderer snapshot tests:
 
 ```bash
-./run_tests.sh -t tests/replay/formatter_snapshot_spec.lua
+make test-replay
 ```
 
 Focused fixtures are `tests/data/v2/system-skill.json`, `shell.json`,

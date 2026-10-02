@@ -482,6 +482,252 @@ describe('V2 protocol Observation runtime', function()
     stop()
   end)
 
+  it('maps optional permission metadata from snapshots and events without inventing missing previews', function()
+    local value = connection()
+    local native = {
+      id = 'per-preview',
+      sessionID = 'ses-main',
+      action = 'bash',
+      resources = { 'git *' },
+      message = 'Inspect changes',
+      metadata = { command = 'git status --short' },
+    }
+    local streams = install_operations(value, {
+      list_permissions = function()
+        return resolved({ native })
+      end,
+    })
+    local observed = value:observe({ id = 'ses-main' })
+    local stop = observed:watch({ 'permissions' }, function() end)
+    flush(function()
+      return observed:read().sync.permissions.state == 'current'
+    end)
+    local request = observed:read().permission_requests_by_id['per-preview']
+    assert.same({ command = 'git status --short' }, request.preview)
+    assert.equals('Inspect changes', request.message)
+    assert.same({ 'git *' }, request.resources)
+    assert.equals('git status --short', native.metadata.command)
+
+    emit(
+      streams[1],
+      event('ses-main', 'permission.asked', {
+        id = 'per-edit',
+        action = 'edit',
+        resources = { 'file.lua' },
+        metadata = { diff = '@@ -1 +1 @@\n-old\n+new', filePath = 'file.lua' },
+      })
+    )
+    assert.same(
+      { diff = '@@ -1 +1 @@\n-old\n+new', path = 'file.lua' },
+      observed:read().permission_requests_by_id['per-edit'].preview
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'permission.asked', {
+        id = 'per-plain',
+        action = 'read',
+        resources = { 'file.lua' },
+      })
+    )
+    assert.is_nil(observed:read().permission_requests_by_id['per-plain'].preview)
+    local normalize = require('opencode.protocols.v2.normalize')
+    assert.has_error(function()
+      normalize.mapped_permission({
+        id = 'per-invalid',
+        sessionID = 'ses-main',
+        action = 'bash',
+        resources = {},
+        metadata = { command = 42 },
+      })
+    end)
+    assert.is_nil(observed:read().permission_requests_by_id['per-invalid'])
+    assert.has_error(function()
+      normalize.mapped_permission({
+        id = 'per-invalid-source',
+        sessionID = 'ses-main',
+        action = 'bash',
+        resources = {},
+        source = { type = 'tool', messageID = 'msg-tool' },
+      })
+    end)
+    assert.is_nil(observed:read().permission_requests_by_id['per-invalid-source'])
+    stop()
+  end)
+
+  it('fills previews from the exact linked tool and publishes them after online tool input arrives', function()
+    local value = connection()
+    local streams = install_operations(value)
+    local observed = value:observe({ id = 'ses-main' })
+    local permission_changes = 0
+    local stop = observed:watch({ 'messages', 'permissions' }, function(_, resource)
+      if resource == 'permissions' then
+        permission_changes = permission_changes + 1
+      end
+    end)
+    flush(function()
+      return observed:read().sync.messages.state == 'current' and observed:read().sync.permissions.state == 'current'
+    end)
+    emit(
+      streams[1],
+      event('ses-main', 'permission.asked', {
+        id = 'per-linked',
+        action = 'bash',
+        resources = { 'git *' },
+        source = { type = 'tool', messageID = 'msg-tool', id = 'tool-right' },
+      })
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'permission.asked', {
+        id = 'per-authoritative',
+        action = 'bash',
+        resources = { 'git *' },
+        message = 'Server description',
+        metadata = { command = 'server command' },
+        source = { type = 'tool', messageID = 'msg-tool', id = 'tool-right' },
+      })
+    )
+    emit(
+      streams[1],
+      event('ses-main', 'session.step.started', {
+        assistantMessageID = 'msg-tool',
+        agent = 'build',
+        model = { providerID = 'p', id = 'm' },
+      })
+    )
+    local function called(id, command)
+      emit(
+        streams[1],
+        event('ses-main', 'session.tool.input.started', {
+          assistantMessageID = 'msg-tool',
+          id = id,
+          name = 'bash',
+        })
+      )
+      emit(
+        streams[1],
+        event('ses-main', 'session.tool.called', {
+          assistantMessageID = 'msg-tool',
+          id = id,
+          name = 'bash',
+          input = { command = command, description = 'Inspect changes' },
+        })
+      )
+    end
+    called('tool-wrong', 'wrong command')
+    assert.is_nil(observed:read().permission_requests_by_id['per-linked'].preview.command)
+    local before = permission_changes
+    called('tool-right', 'git status --short')
+    local request = observed:read().permission_requests_by_id['per-linked']
+    assert.equals('git status --short', request.preview.command)
+    assert.equals('Inspect changes', request.message)
+    assert.equals(before + 1, permission_changes)
+    local authoritative = observed:read().permission_requests_by_id['per-authoritative']
+    assert.equals('server command', authoritative.preview.command)
+    assert.equals('Server description', authoritative.message)
+    emit(streams[1], event('ses-main', 'permission.replied', { requestID = 'per-linked', reply = 'once' }))
+    assert.equals('answered', request.status)
+    stop()
+  end)
+
+  for _, permissions_first in ipairs({ true, false }) do
+    it(
+      'restores linked edit previews regardless of snapshot arrival order: permissions first '
+        .. tostring(permissions_first),
+      function()
+        local value = connection()
+        local permission_page, message_page = Promise.new(), Promise.new()
+        install_operations(value, {
+          list_messages = function()
+            return message_page
+          end,
+          list_permissions = function()
+            return permission_page
+          end,
+        })
+        local observed = value:observe({ id = 'ses-main' })
+        local stop = observed:watch({ 'messages', 'permissions' }, function() end)
+        local permissions = {
+          {
+            id = 'per-edit',
+            sessionID = 'ses-main',
+            action = 'edit',
+            resources = { 'file.lua' },
+            message = 'Edit file',
+            source = { type = 'tool', messageID = 'msg-edit', id = 'tool-edit' },
+          },
+          {
+            id = 'per-diff-only',
+            sessionID = 'ses-main',
+            action = 'edit',
+            resources = { 'file.lua' },
+            metadata = { diff = 'server diff' },
+            source = { type = 'tool', messageID = 'msg-edit', id = 'tool-edit' },
+          },
+          {
+            id = 'per-conflict',
+            sessionID = 'ses-main',
+            action = 'edit',
+            resources = { 'other.lua' },
+            metadata = { filePath = 'other.lua' },
+            source = { type = 'tool', messageID = 'msg-edit', id = 'tool-edit' },
+          },
+        }
+        local page = {
+          data = {
+            {
+              id = 'msg-edit',
+              type = 'assistant',
+              agent = 'build',
+              time = { created = 1 },
+              content = {
+                {
+                  type = 'tool',
+                  id = 'tool-edit',
+                  name = 'edit',
+                  time = { created = 1 },
+                  state = {
+                    status = 'running',
+                    input = { filePath = 'file.lua' },
+                    metadata = { diff = '@@ -1 +1 @@\n-old\n+new' },
+                  },
+                },
+              },
+            },
+          },
+          cursor = {},
+        }
+        if permissions_first then
+          permission_page:resolve(permissions)
+          flush(function()
+            return observed:read().sync.permissions.state == 'current'
+          end)
+          message_page:resolve(page)
+        else
+          message_page:resolve(page)
+          flush(function()
+            return observed:read().sync.messages.state == 'current'
+          end)
+          permission_page:resolve(permissions)
+        end
+        flush(function()
+          return observed:read().sync.messages.state == 'current'
+            and observed:read().sync.permissions.state == 'current'
+        end)
+        local preview = observed:read().permission_requests_by_id['per-edit'].preview
+        assert.equals('@@ -1 +1 @@\n-old\n+new', preview.diff)
+        assert.equals('file.lua', preview.path)
+        local diff_only = observed:read().permission_requests_by_id['per-diff-only'].preview
+        assert.equals('server diff', diff_only.diff)
+        assert.equals('file.lua', diff_only.path)
+        local conflict = observed:read().permission_requests_by_id['per-conflict'].preview
+        assert.equals('other.lua', conflict.path)
+        assert.is_nil(conflict.diff)
+        stop()
+      end
+    )
+  end
+
   it('marks a known inbox item not_pending when an authority snapshot omits it', function()
     local value = connection()
     local inbox_page = Promise.new()

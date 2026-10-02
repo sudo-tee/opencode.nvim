@@ -240,26 +240,6 @@
     ],
     [
       10,
-      8,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      11,
       9,
       0,
       {
@@ -279,7 +259,7 @@
       }
     ],
     [
-      12,
+      11,
       10,
       0,
       {
@@ -299,8 +279,28 @@
       }
     ],
     [
-      13,
+      12,
       11,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeMessageRoleUser"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -3
+      }
+    ],
+    [
+      13,
+      12,
       0,
       {
         "ns_id": 3,
@@ -340,26 +340,6 @@
     ],
     [
       15,
-      12,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeMessageRoleUser"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      16,
       13,
       0,
       {
@@ -379,7 +359,7 @@
       }
     ],
     [
-      17,
+      16,
       16,
       0,
       {
@@ -417,7 +397,7 @@
       }
     ],
     [
-      18,
+      17,
       16,
       0,
       {

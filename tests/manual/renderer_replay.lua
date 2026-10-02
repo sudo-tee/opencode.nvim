@@ -13,6 +13,10 @@ local M = {
   headless_mode = false,
 }
 
+---@type OpencodeServer?
+local replay_connection
+---@type (fun(connection: OpencodeServer): nil)?
+local set_replay_connection
 ---@type (fun())?
 local restore_connection_hooks
 ---@type (fun())?
@@ -20,26 +24,53 @@ local restore_environment
 
 local function isolate_connection()
   local server_job = require('opencode.server_job')
-  local connection = state.opencode_server --[[@as OpencodeServer]]
+  replay_connection = state.opencode_server --[[@as OpencodeServer]]
   local ensure_server = server_job.ensure_server
   local set_server = state.jobs.set_server
   local clear_server = state.jobs.clear_server
 
   -- Interactive replay can run after normal plugin setup, including in-flight discovery.
   server_job.ensure_server = function()
-    return require('opencode.promise').new():resolve(connection)
+    return require('opencode.promise').new():resolve(replay_connection)
   end
   state.jobs.set_server = function()
-    return connection
+    return replay_connection
   end
   state.jobs.clear_server = function()
-    return connection
+    return replay_connection
+  end
+
+  set_replay_connection = function(connection)
+    if replay_connection and replay_connection ~= connection then
+      replay_connection:close()
+    end
+    replay_connection = connection
+    set_server(connection)
   end
 
   restore_connection_hooks = function()
     server_job.ensure_server = ensure_server
     state.jobs.set_server = set_server
     state.jobs.clear_server = clear_server
+    replay_connection = nil
+    set_replay_connection = nil
+  end
+end
+
+local function use_protocol(protocol)
+  local connection = state.opencode_server
+  if connection and connection.protocol == protocol then
+    return
+  end
+  helpers.clear_replay_stream()
+  local replacement = protocol == 'v2' and helpers.new_v2_replay_connection() or helpers.new_v1_replay_connection()
+  if set_replay_connection then
+    set_replay_connection(replacement)
+  else
+    if connection then
+      connection:close()
+    end
+    state.jobs.set_server(replacement)
   end
 end
 
@@ -60,9 +91,19 @@ function M.load_events(file_path)
     vim.notify('Failed to parse JSON: ' .. tostring(events), vim.log.levels.ERROR)
     return false
   end
+  ---@cast events table[]
+
+  local protocol = helpers.event_protocol(events)
+  if not protocol then
+    vim.notify('Event data mixes protocols or contains an unsupported protocol', vim.log.levels.ERROR)
+    return false
+  end
 
   M.events = events
   M.reset()
+  state.session.clear_active()
+  helpers.reset_replay_stream()
+  use_protocol(protocol)
   M.last_loaded_file = file_path
   vim.notify('Loaded ' .. #M.events .. ' events from ' .. data_file, vim.log.levels.INFO)
 
@@ -129,14 +170,20 @@ end
 function M.replay_next(steps)
   steps = tonumber(steps) or 1
 
+  local events = {}
   for _ = 1, steps do
     if M.event_index < #M.events then
       M.event_index = M.event_index + 1
-      helpers.replay_event(M.events[M.event_index])
+      events[#events + 1] = M.events[M.event_index]
     else
       vim.notify('No more events to replay', vim.log.levels.WARN)
-      return
+      break
     end
+  end
+  if steps == 1 and #events == 1 then
+    helpers.replay_event(events[1])
+  else
+    helpers.replay_events(events)
   end
 
   if M.headless_mode and steps > 1 then

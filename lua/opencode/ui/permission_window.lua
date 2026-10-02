@@ -13,6 +13,7 @@ local formatter_utils = require('opencode.ui.formatter.utils')
 ---@field message? string
 ---@field patterns? (string|table)[]
 ---@field resources? (string|table)[]
+---@field preview? OpencodePermissionPreview
 
 ---@class PermissionInteraction
 ---@field permission_id string
@@ -104,7 +105,7 @@ end
 ---@param permission PermissionRequest?
 ---@return string?
 local function get_child_session_id(permission)
-  local session_id = permission and permission.session_id
+  local session_id = permission and (permission.session_id or permission.sessionID)
   local active_session = state.active_session
   if not session_id or session_id == '' or (active_session and active_session.id == session_id) then
     return nil
@@ -139,7 +140,7 @@ function M.remove_permission(permission_id)
 
   for i, permission in ipairs(M._permission_queue) do
     if permission.id == permission_id then
-      local runtime = session_tabs.find_by_session_id(permission.sessionID)
+      local runtime = session_tabs.find_by_session_id(permission.session_id or permission.sessionID)
       if runtime then
         session_tabs.remove_pending_permission(runtime.id, permission_id)
       end
@@ -188,22 +189,48 @@ function M.format_display(output)
   local perm_type = permission.permission or permission.action or ''
   local description = permission.message
   local patterns = permission.patterns or permission.resources or {}
+  local preview = permission.preview
 
   if description and description ~= '' then
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* ' .. description)
+  elseif preview and preview.title then
+    table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '* `' .. preview.title .. '`')
   else
     table.insert(content, (icons.get(perm_type)) .. ' *' .. perm_type .. '*')
-    table.insert(content, string.format('```%s', perm_type))
-    for _, pattern in ipairs(patterns) do
-      pattern = type(pattern) == 'string' and pattern or vim.inspect(pattern)
-      for _, line in ipairs(vim.split(pattern, '\n')) do
-        table.insert(content, line)
+    if not preview or (not preview.command and not preview.diff) then
+      table.insert(content, string.format('```%s', perm_type))
+      for _, pattern in ipairs(patterns) do
+        pattern = type(pattern) == 'string' and pattern or vim.inspect(pattern)
+        for _, line in ipairs(vim.split(pattern, '\n')) do
+          table.insert(content, line)
+        end
       end
+      table.insert(content, '```')
     end
-    table.insert(content, '```')
   end
 
   table.insert(content, '')
+
+  if preview and preview.command then
+    table.insert(content, string.format('```%s', perm_type))
+    vim.list_extend(content, vim.split(preview.command, '\n'))
+    table.insert(content, '```')
+  end
+
+  local render_content
+  if preview and preview.diff then
+    local diff = preview.diff
+    local file_type = ''
+    if preview.path then
+      file_type = vim.fn.fnamemodify(preview.path, ':e')
+    end
+    render_content = function(out)
+      out:add_line(content[1])
+      out:add_line('')
+      out:add_line('')
+      formatter_utils.format_diff(out, diff, file_type)
+    end
+  end
 
   local options = {
     { label = 'Allow once' },
@@ -220,6 +247,7 @@ function M.format_display(output)
     title_hl = 'OpencodePermissionTitle',
     border_hl = 'OpencodePermissionBorder',
     content = content,
+    render_content = render_content,
     options = options,
     unfocused_message = 'Focus Opencode window to respond to permission',
     legend_lines = legend_lines,
@@ -447,8 +475,10 @@ function M.sync(observations)
     end
   end
   table.sort(pending, function(left, right)
-    if left.session_id ~= right.session_id then
-      return (left.session_id or '') < (right.session_id or '')
+    local left_session = left.session_id or left.sessionID or ''
+    local right_session = right.session_id or right.sessionID or ''
+    if left_session ~= right_session then
+      return left_session < right_session
     end
     return left.id < right.id
   end)

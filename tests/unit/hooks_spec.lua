@@ -167,6 +167,41 @@ describe('hooks', function()
       assert.equals('test-session', called_session.id)
     end)
 
+    it('should call hook when any session execution finishes', function()
+      local called_session
+      config.hooks.on_done_thinking = function(session)
+        called_session = session
+      end
+      session_runtime.setup_done_thinking_events()
+
+      vim.api.nvim_exec_autocmds('User', {
+        pattern = 'OpencodeEvent:session.execution.succeeded',
+        data = { event = { type = 'session.execution.succeeded', properties = { sessionID = 'test-session' } } },
+      })
+
+      vim.wait(1000, function()
+        return called_session ~= nil
+      end)
+      assert.equals('test-session', called_session.id)
+    end)
+
+    it('should call hook when any v1 session becomes idle', function()
+      local called_session
+      config.hooks.on_done_thinking = function(session)
+        called_session = session
+      end
+      session_runtime.setup_done_thinking_events()
+
+      require('opencode.protocols.v1.observation')._route_event({ observations = {} }, {
+        payload = { type = 'session.idle', properties = { sessionID = 'test-session' } },
+      })
+
+      vim.wait(1000, function()
+        return called_session ~= nil
+      end)
+      assert.equals('test-session', called_session.id)
+    end)
+
     it('should not error when hook is nil', function()
       expect_nil_hook_no_error(function()
         session_runtime.on_session_request_completed('test-session'):wait()

@@ -110,6 +110,12 @@ local function route_event(connection, event)
       end
     end
   end
+  if decoded then
+    vim.api.nvim_exec_autocmds('User', {
+      pattern = 'OpencodeEvent:' .. decoded.type,
+      data = { event = { type = decoded.type, properties = decoded.properties } },
+    })
+  end
 end
 
 ---@param message string
@@ -1233,5 +1239,7 @@ function M.new(connection, ref)
 
   return observation
 end
+
+M._route_event = route_event
 
 return M

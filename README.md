@@ -1306,9 +1306,11 @@ require('opencode').setup({
       -- Custom logic after a session is loaded
       print("Session loaded: " .. session_name)
     end,
-    on_done_thinking = function()
-      -- Custom logic when thinking is done
-      print("Done thinking!")
+    on_done_thinking = function(session)
+      -- Custom logic when thinking is done; skip subagent sessions
+      if not session.parentID then
+        print("Done thinking in session " .. session.id)
+      end
     end,
     on_permission_requested = function()
       -- Custom logic when a permission is requested

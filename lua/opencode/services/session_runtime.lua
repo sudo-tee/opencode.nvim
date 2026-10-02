@@ -97,10 +97,36 @@ local function observe_active_session()
   changed()
 end
 
+---Fire on_done_thinking whenever any session finishes executing, including sessions not open in Neovim.
+---@param subscribe? boolean Defaults to true
+function M.setup_done_thinking_events(subscribe)
+  local group = vim.api.nvim_create_augroup('OpencodeDoneThinking', { clear = true })
+  if subscribe == false then
+    return
+  end
+  vim.api.nvim_create_autocmd('User', {
+    group = group,
+    pattern = {
+      'OpencodeEvent:session.idle',
+      'OpencodeEvent:session.execution.succeeded',
+      'OpencodeEvent:session.execution.failed',
+      'OpencodeEvent:session.execution.interrupted',
+    },
+    callback = function(args)
+      local event = args.data and args.data.event
+      local session_id = event and event.properties and event.properties.sessionID
+      if type(session_id) == 'string' then
+        M.on_session_request_completed(session_id)
+      end
+    end,
+  })
+end
+
 ---Keep active-session metadata and model selection current independently of rendering.
 ---Disabling releases the observation; enabling also adopts already-loaded facts.
 ---@param subscribe? boolean Defaults to true
 function M.setup_subscriptions(subscribe)
+  M.setup_done_thinking_events(subscribe)
   for _, key in ipairs({ 'active_session', 'active_session_tab', 'opencode_server' }) do
     if subscribe == false then
       state.store.unsubscribe(key, observe_active_session)
@@ -819,7 +845,7 @@ M._on_user_message_count_change = Promise.async(function()
   require('opencode.ui.renderer.flush').flush_pending_on_data_rendered()
 end)
 
----Track a local send against its originating tab and session. Completion of the last request triggers the done hook.
+---Track a local send against its originating tab and session.
 ---@param tab_id? string
 ---@param session_id string
 ---@param delta integer
@@ -839,10 +865,6 @@ function M.update_sent_message_count(tab_id, session_id, delta)
     local updated_counts = vim.deepcopy(counts)
     updated_counts[session_id] = new_count
     state.session.set_user_message_count(updated_counts)
-  end
-
-  if old_count > 0 and new_count == 0 then
-    return M.on_session_request_completed(session_id)
   end
   return Promise.new():resolve(nil)
 end

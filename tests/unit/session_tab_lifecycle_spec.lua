@@ -40,7 +40,7 @@ describe('session tab lifecycle', function()
     return replacement
   end
 
-  it('notifies only when all requests complete, including in a background tab', function()
+  it('tracks request counts per tab, including in a background tab', function()
     local context = require('opencode.context')
     local messaging = require('opencode.services.messaging')
     local support = require('tests.unit.services_spec_support')
@@ -52,12 +52,6 @@ describe('session tab lifecycle', function()
     replace(context, 'format_message', Promise.new():resolve({}))
     replace(messaging, 'after_run', nil)
 
-    local completed = {}
-    config.hooks = {
-      on_done_thinking = function(session)
-        table.insert(completed, session.id)
-      end,
-    }
     local requests = {}
     local connection = support.mock_connection()
     connection.protocol = 'v1'
@@ -114,7 +108,6 @@ describe('session tab lifecycle', function()
     assert.equals(2, #requests)
     local second = tabs.create({ id = 'second' })
     tabs.activate(second)
-    assert.same({}, completed)
 
     requests[1]:resolve({
       kind = 'accepted',
@@ -124,7 +117,6 @@ describe('session tab lifecycle', function()
     assert.is_true(vim.wait(5000, function()
       return first.user_message_count.first == 1
     end))
-    assert.same({}, completed)
     requests[2]:resolve({
       kind = 'accepted',
       input = { id = 'input-two' },
@@ -132,11 +124,9 @@ describe('session tab lifecycle', function()
     })
     send_one:wait()
     send_two:wait()
-    assert.same({ 'first' }, completed)
     assert.equals(0, first.user_message_count.first)
     assert.same({}, state.user_message_count)
     tabs.activate(first)
-    assert.same({ 'first' }, completed)
   end)
 
   it('preserves tab variants while applying saved variants to actual model changes', function()

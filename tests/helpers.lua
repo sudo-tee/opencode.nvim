@@ -622,6 +622,7 @@ local function dispatch_replay_event(event)
     properties.sessionID = properties.sessionID
       or (type(properties.info) == 'table' and properties.info.sessionID)
       or (type(properties.part) == 'table' and properties.part.sessionID)
+      or nil
     M._replay_stream.on_chunk('data: ' .. vim.json.encode({
       directory = event.directory or directory,
       payload = { type = event.type, properties = properties },

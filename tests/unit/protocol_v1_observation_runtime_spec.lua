@@ -538,6 +538,81 @@ describe('V1 protocol Observation runtime', function()
     unsubscribe()
   end)
 
+  it('maps historical V1 revert updates without slug only for 0.x records', function()
+    local connection, server = runtime()
+    local observation = observe(connection, 'ses-legacy')
+    local unsubscribe = observation:watch({ 'session' }, function() end)
+    local revert = { messageID = 'msg-reverted', snapshot = 'snap-1', diff = 'diff' }
+
+    emit(server.streams[1], '/server/project', 'session.updated', {
+      info = {
+        id = 'ses-legacy',
+        projectID = 'project-1',
+        directory = '/server/project',
+        title = 'Historical session',
+        version = '0.15.8',
+        time = { created = 1, updated = 2 },
+        revert = revert,
+      },
+    })
+
+    local state = observation:read()
+    assert.equals('current', state.sync.session.state)
+    assert.equals('Historical session', state.session.title)
+    assert.same(revert, state.session.revert)
+
+    emit(server.streams[1], '/server/project', 'session.updated', {
+      sessionID = 'ses-legacy',
+      info = {
+        id = 'ses-legacy',
+        slug = 'current',
+        projectID = 'project-1',
+        directory = '/server/project',
+        title = 'Current session',
+        version = '1.18.30',
+        time = { created = 1, updated = 3 },
+        revert = revert,
+      },
+    })
+
+    assert.equals('current', state.sync.session.state)
+    assert.equals('Current session', state.session.title)
+
+    emit(server.streams[1], '/server/project', 'session.updated', {
+      sessionID = 'ses-legacy',
+      info = {
+        id = 'ses-legacy',
+        projectID = 'project-1',
+        directory = '/server/project',
+        title = 'Missing slug',
+        version = '1.18.30',
+        time = { created = 1, updated = 4 },
+        revert = revert,
+      },
+    })
+
+    assert.equals('error', state.sync.session.state)
+    assert.equals('Current session', state.session.title)
+
+    emit(server.streams[1], '/server/project', 'session.updated', {
+      sessionID = 'ses-other',
+      info = {
+        id = 'ses-legacy',
+        slug = 'current',
+        projectID = 'project-1',
+        directory = '/server/project',
+        title = 'Mismatched session',
+        version = '1.18.30',
+        time = { created = 1, updated = 5 },
+        revert = revert,
+      },
+    })
+
+    assert.equals('error', state.sync.session.state)
+    assert.equals('Current session', state.session.title)
+    unsubscribe()
+  end)
+
   it(
     'maps historical permissions, enriches linked previews, and preserves terminal replies across refreshes',
     function()

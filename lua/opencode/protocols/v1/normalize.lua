@@ -75,15 +75,7 @@ local file_source_shape = v.union(
   end)
 )
 
-local session_shape = v.object({
-  id = 'string',
-  slug = 'string',
-  projectID = 'string',
-  directory = 'string',
-  title = 'string',
-  version = 'string',
-  time = { created = 'number', updated = 'number' },
-}):convert(function(info)
+local function mapped_session_info(info)
   return {
     id = info.id,
     title = info.title,
@@ -100,7 +92,40 @@ local session_shape = v.object({
     share = vim.deepcopy(info.share),
     revert = vim.deepcopy(info.revert),
   }
-end)
+end
+
+local session_shape = v.object({
+  id = 'string',
+  slug = 'string',
+  projectID = 'string',
+  directory = 'string',
+  title = 'string',
+  version = 'string',
+  time = { created = 'number', updated = 'number' },
+}):convert(mapped_session_info)
+
+local legacy_revert_shape = v.object({
+  messageID = 'string',
+  partID = v.string():optional(),
+  snapshot = v.string():optional(),
+  diff = v.string():optional(),
+})
+
+local legacy_revert_session_shape = v.object({
+  id = 'string',
+  projectID = 'string',
+  directory = 'string',
+  title = 'string',
+  version = v.string():constraint(function(version)
+    return version:match('^0%.%d+%.%d+') ~= nil
+  end, 'legacy V1 version'),
+  time = { created = 'number', updated = 'number' },
+  revert = legacy_revert_shape,
+})
+  :constraint(function(info)
+    return info.slug == nil
+  end, 'legacy V1 session without slug')
+  :convert(mapped_session_info)
 
 local permission_metadata_shape = v.object({
   command = v.string():optional(),
@@ -698,9 +723,15 @@ local function mapped_message(message, location)
 end
 
 ---@param info table
----@return table
+---@return table session
+---@return boolean legacy_revert
 local function mapped_session(info)
-  return session_shape:parse(info, 'V1 observation: invalid session info')
+  local current_ok, session = pcall(session_shape.parse, session_shape, info)
+  if current_ok then
+    ---@cast session table
+    return session, false
+  end
+  return legacy_revert_session_shape:parse(info, 'V1 observation: invalid session info'), true
 end
 
 ---@param request table

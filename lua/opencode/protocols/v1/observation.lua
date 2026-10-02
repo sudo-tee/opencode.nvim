@@ -583,7 +583,7 @@ ingest_resource_event = function(observation, event)
   end
 
   if kind == 'session.created' or kind == 'session.updated' then
-    local ok, session = pcall(mapped_session, properties.info)
+    local ok, session, legacy_revert = pcall(mapped_session, properties.info)
     if not ok then
       if observation:_watches('session') or observation:_watches('children') then
         return event_diagnostic(
@@ -594,7 +594,7 @@ ingest_resource_event = function(observation, event)
       end
       return nil
     end
-    if type(properties.sessionID) ~= 'string' or properties.sessionID ~= session.id then
+    if properties.sessionID ~= session.id and not (legacy_revert and properties.sessionID == nil) then
       return event_diagnostic(
         observation,
         observation:_watches('session') and 'session' or 'children',

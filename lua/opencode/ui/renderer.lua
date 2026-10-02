@@ -389,12 +389,13 @@ local function get_child_parts(ctx, session_id)
 end
 
 ---@param ctx RendererCtx
+---@return boolean appeared Whether the prompt was not displayed before
 local function reconcile_prompt_display(ctx, message_id, part_id, kind, visible)
   if not visible then
     if ctx.render_state:get_message(message_id) then
       hide_rendered_message(ctx, message_id)
     end
-    return
+    return false
   end
   local session_id = state.active_session and state.active_session.id or ''
   local content = { id = part_id, kind = kind }
@@ -415,6 +416,7 @@ local function reconcile_prompt_display(ctx, message_id, part_id, kind, visible)
   )
   flush.mark_message_dirty(message_id, ctx)
   flush.mark_part_dirty(part_id, message_id, ctx)
+  return rendered_message == nil
 end
 
 ---@param ctx? RendererCtx
@@ -422,7 +424,7 @@ function M.refresh_prompts(ctx)
   ctx = ctx or contexts.current()
   local permission = ctx.prompt_controllers.permission
   local question = ctx.prompt_controllers.question
-  reconcile_prompt_display(
+  local permission_appeared = reconcile_prompt_display(
     ctx,
     PERMISSION_DISPLAY_MESSAGE_ID,
     'permission-display-part',
@@ -430,7 +432,7 @@ function M.refresh_prompts(ctx)
     permission and #permission.get_all_permissions() > 0
   )
   local request = question and question.get_current_request()
-  reconcile_prompt_display(
+  local question_appeared = reconcile_prompt_display(
     ctx,
     QUESTION_DISPLAY_MESSAGE_ID,
     'question-display-part',
@@ -438,6 +440,16 @@ function M.refresh_prompts(ctx)
     question and question.has_question() and not question.uses_vim_ui_select(request)
   )
   flush.schedule(ctx)
+  -- A pending prompt blocks the agent, so reveal it even when the user scrolled away.
+  -- Scheduled after flush.schedule so the prompt lines exist when scrolling.
+  if permission_appeared or question_appeared then
+    local generation = ctx.generation
+    vim.schedule(function()
+      if not ctx.closed and ctx.generation == generation and ctx:is_active() then
+        M.scroll_to_bottom(true, ctx)
+      end
+    end)
+  end
 end
 
 ---@param ctx RendererCtx

@@ -176,6 +176,41 @@ describe('renderer incremental reconciliation', function()
     assert.equals(output_window.get_scroll_bottom_line(state.windows.output_buf), vim.api.nvim_win_get_cursor(win)[1])
   end)
 
+  it('force-scrolls once when a pending prompt appears', function()
+    local pending = {}
+    contexts.current().prompt_controllers.permission = {
+      get_all_permissions = function()
+        return pending
+      end,
+      clear_all = function() end,
+    }
+    local scroll_to_bottom = spy.on(renderer, 'scroll_to_bottom')
+    local function forced_count()
+      return #vim.tbl_filter(function(call)
+        return call.vals[1] == true
+      end, scroll_to_bottom.calls)
+    end
+    local function settle()
+      local done = false
+      vim.schedule(function()
+        done = true
+      end)
+      assert.is_true(vim.wait(1000, function()
+        return done
+      end))
+    end
+
+    pending = { { id = 'per_1', status = 'pending' } }
+    renderer.refresh_prompts()
+    settle()
+    assert.equals(1, forced_count())
+
+    renderer.refresh_prompts()
+    settle()
+    scroll_to_bottom:revert()
+    assert.equals(1, forced_count())
+  end)
+
   it('does not force-scroll streaming updates because of unrendered older user messages', function()
     writes:revert()
     contexts.current():reset()

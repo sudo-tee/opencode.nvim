@@ -466,7 +466,8 @@ function M._hide()
   end
 
   local output_window = require('opencode.ui.output_window')
-  local was_at_bottom = output_window.is_at_bottom(windows.output_win)
+  local output_win = windows.output_win
+  local was_at_bottom = output_window.is_at_bottom(output_win)
 
   M._hidden = true
   M._toggling = true
@@ -489,9 +490,12 @@ function M._hide()
 
   output_window.focus_output(true)
 
-  if was_at_bottom then
+  if was_at_bottom and output_win then
+    -- The output window grew and Neovim may have lowered its topline; that is
+    -- not user navigation, so rebaseline before the next flush inspects it.
+    output_window.record_view_baseline(output_win)
     vim.schedule(function()
-      require('opencode.ui.renderer').scroll_to_bottom()
+      require('opencode.ui.renderer').scroll_to_bottom(true)
     end)
   end
 end

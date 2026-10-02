@@ -491,7 +491,7 @@ function M._hide()
 
   if was_at_bottom then
     vim.schedule(function()
-      require('opencode.ui.renderer').scroll_to_bottom(true)
+      require('opencode.ui.renderer').scroll_to_bottom()
     end)
   end
 end

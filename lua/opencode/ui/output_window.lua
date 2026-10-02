@@ -232,6 +232,17 @@ function M.on_user_navigation(win)
   end
 end
 
+---Record the current view as the navigation baseline so later diffs in
+---on_user_navigation only reflect user movement, not programmatic changes.
+---@param win integer
+function M.record_view_baseline(win)
+  M._last_visible_top_by_win[win] = M.get_visible_top_line(win)
+  M._last_skipcol_by_win[win] = vim.api.nvim_win_call(win, function()
+    return vim.fn.winsaveview().skipcol
+  end)
+  M._last_cursor_by_win[win] = vim.api.nvim_win_get_cursor(win)
+end
+
 ---@param buf integer
 ---@param line_count? integer
 ---@return integer

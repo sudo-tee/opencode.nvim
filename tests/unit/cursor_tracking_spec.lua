@@ -480,6 +480,22 @@ describe('renderer.scroll_to_bottom', function()
     assert.equals(45, vim.api.nvim_win_get_cursor(win)[1])
   end)
 
+  it('rebaselines navigation after a flush that does not follow', function()
+    local scroll = require('opencode.ui.renderer.scroll')
+    scroll.scroll_win_to_bottom(win, buf)
+    vim.api.nvim_win_set_cursor(win, { 45, 0 })
+    output_window.on_user_navigation(win)
+
+    local snapshot = scroll.pre_flush(buf)
+    assert.is_false(snapshot.follow)
+    vim.api.nvim_buf_set_lines(buf, 0, 0, false, { 'inserted 1', 'inserted 2' })
+    scroll.post_flush(snapshot, buf)
+
+    assert.same(vim.api.nvim_win_get_cursor(win), output_window._last_cursor_by_win[win])
+    assert.equals(output_window.get_visible_top_line(win), output_window._last_visible_top_by_win[win])
+    assert.is_true(output_window._manual_scroll_by_win[win])
+  end)
+
   it('pauses following when clicking earlier in the same streaming line', function()
     local scroll = require('opencode.ui.renderer.scroll')
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { string.rep('x', 120) })

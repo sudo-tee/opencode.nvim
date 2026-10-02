@@ -514,7 +514,6 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
   reference_facts.rebuild(session.id, entries, session.location)
   local references_changed = not vim.deep_equal(previous_refs, reference_facts.current_refs())
   local visible, hidden_count = get_visible_session_messages(entries, session, ctx)
-  local local_submission = has_pending_local_submission(ctx, visible)
   if ctx.lazy_render_count == nil then
     local initial = get_initial_render_count()
     if #visible > initial then
@@ -524,6 +523,7 @@ local function reconcile_conversation(ctx, session, entries, files_changed)
   if ctx.lazy_render_count and #visible > ctx.lazy_render_count then
     visible = vim.list_slice(visible, #visible - ctx.lazy_render_count + 1)
   end
+  local local_submission = has_pending_local_submission(ctx, visible)
   local desired = {}
   for _, entry in ipairs(visible) do
     desired[entry.id] = true

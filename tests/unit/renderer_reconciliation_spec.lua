@@ -176,6 +176,34 @@ describe('renderer incremental reconciliation', function()
     assert.equals(output_window.get_scroll_bottom_line(state.windows.output_buf), vim.api.nvim_win_get_cursor(win)[1])
   end)
 
+  it('does not force-scroll streaming updates because of unrendered older user messages', function()
+    writes:revert()
+    contexts.current():reset()
+    output_window.clear()
+    writes = stub(output_window, 'set_lines')
+    observed.entry_order = { 'msg_old_user', 'msg_one', 'msg_two' }
+    observed.entries_by_id.msg_old_user = {
+      id = 'msg_old_user',
+      session_id = 'ses_incremental',
+      kind = 'user',
+      content = { { id = 'part_old_user', kind = 'text', text = 'old prompt' } },
+    }
+    contexts.current().lazy_render_count = 2
+    notify('messages')
+    assert.is_nil(contexts.current().render_state:get_message('msg_old_user'))
+
+    local scroll_to_bottom = spy.on(renderer, 'scroll_to_bottom')
+    state.session.set_user_message_count({ ses_incremental = 1 })
+    observed.entries_by_id.msg_two.content[1].text = 'streaming update'
+    notify('messages')
+
+    local forced = vim.tbl_filter(function(call)
+      return call.vals[1] == true
+    end, scroll_to_bottom.calls)
+    scroll_to_bottom:revert()
+    assert.equals(0, #forced)
+  end)
+
   it('keeps the hidden-history notice above messages in the initial batch', function()
     writes:revert()
     contexts.current():reset()

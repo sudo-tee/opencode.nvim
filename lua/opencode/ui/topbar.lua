@@ -67,13 +67,44 @@ local function format_token_info()
     end
   end
 
-  local result = table.concat(parts, ' | ')
-  result = result:gsub('%%', '%%%%')
-  return result
+  return table.concat(parts, ' | ')
 end
 
-local function create_winbar_text(description, token_info, _)
-  return description .. '%=' .. token_info
+---@param hook OpencodeBarSegmentsHook|nil
+---@param segments OpencodeBarSegment[]
+---@return OpencodeBarSegment[]|nil
+local function apply_segments_hook(hook, segments)
+  if not hook then
+    return segments
+  end
+
+  local ok, transformed = pcall(hook, vim.deepcopy(segments))
+  if not ok then
+    return segments
+  end
+
+  return transformed
+end
+
+---@param segments OpencodeBarSegment[]
+local function create_winbar_text(segments)
+  local left_parts = {}
+  local right_parts = {}
+
+  for _, segment in ipairs(segments) do
+    local text = segment[1]:gsub('%%', '%%%%')
+    if segment[2] then
+      text = '%#' .. segment[2] .. '#' .. text .. '%*'
+    end
+
+    if segment.align == 'right' then
+      table.insert(right_parts, text)
+    else
+      table.insert(left_parts, text)
+    end
+  end
+
+  return table.concat(left_parts) .. '%=' .. table.concat(right_parts)
 end
 
 local function get_session_desc()
@@ -110,10 +141,14 @@ function M.render()
       return
     end
 
-    local desc = get_session_desc():gsub('%%', '%%%%')
+    local desc = get_session_desc()
     local token_info = format_token_info()
-    local winbar_str = create_winbar_text(desc, token_info, vim.api.nvim_win_get_width(win))
-    vim.wo[win].winbar = winbar_str
+    local segments = apply_segments_hook(config.hooks.on_topbar_render, {
+      { desc },
+      { token_info, align = 'right' },
+    })
+    -- An empty local winbar inherits the global value instead of clearing the bar.
+    vim.wo[win].winbar = segments and create_winbar_text(segments) or '%='
 
     winbar.update_highlights(win, 'OpencodeSessionDescription')
   end)

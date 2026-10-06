@@ -396,6 +396,8 @@ M.defaults = {
     on_done_thinking = nil,
     on_permission_requested = nil,
     on_question_asked = nil,
+    on_topbar_render = nil,
+    on_footer_render = nil,
   },
   quick_chat = {
     default_model = nil,

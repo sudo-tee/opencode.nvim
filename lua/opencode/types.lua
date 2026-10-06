@@ -362,7 +362,11 @@
 ---@class OpencodeCommandHookRegisterOptions
 ---@field command? OpencodeCommandHookScope
 
+---@alias OpencodeBarSegment { [1]: string, [2]?: string, align?: 'left'|'right' }
+---@alias OpencodeBarSegmentsHook fun(segments: OpencodeBarSegment[]): OpencodeBarSegment[]|nil
 ---@class OpencodeHooks
+---@field on_topbar_render? OpencodeBarSegmentsHook
+---@field on_footer_render? OpencodeBarSegmentsHook
 ---@field on_file_edited? fun(file: string): nil
 ---@field on_session_loaded? fun(session: OpencodeSession): nil
 ---@field on_done_thinking? fun(session: OpencodeSession): nil Called when a session becomes idle.

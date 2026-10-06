@@ -58,6 +58,39 @@ local function build_right_segments()
   return segments
 end
 
+---@param hook OpencodeBarSegmentsHook|nil
+---@param segments OpencodeBarSegment[]
+---@return OpencodeBarSegment[]|nil
+local function apply_segments_hook(hook, segments)
+  if not hook then
+    return segments
+  end
+
+  local ok, transformed = pcall(hook, vim.deepcopy(segments))
+  if not ok then
+    return segments
+  end
+
+  return transformed
+end
+
+---@param segments OpencodeBarSegment[]
+---@return OpencodeBarSegment[], OpencodeBarSegment[]
+local function split_segments(segments)
+  local left_segments = {}
+  local right_segments = {}
+
+  for _, segment in ipairs(segments) do
+    if segment.align == 'right' then
+      table.insert(right_segments, segment)
+    else
+      table.insert(left_segments, segment)
+    end
+  end
+
+  return left_segments, right_segments
+end
+
 local function add_segments(segments, parts, highlights, col)
   for _, segment in ipairs(segments) do
     local text = segment[1]
@@ -112,8 +145,19 @@ function M.render()
     return
   end
 
-  local left_segments = build_left_segments()
-  local right_segments = build_right_segments()
+  local segments = build_left_segments()
+  for _, segment in ipairs(build_right_segments()) do
+    segment.align = 'right'
+    table.insert(segments, segment)
+  end
+
+  local transformed_segments = apply_segments_hook(config.hooks.on_footer_render, segments)
+  if transformed_segments == nil then
+    M.set_content({})
+    return
+  end
+
+  local left_segments, right_segments = split_segments(transformed_segments)
   local win_width = vim.api.nvim_win_get_width(state.windows.output_win --[[@as integer]])
 
   local footer_text, highlights = build_footer_from_segments(left_segments, right_segments, win_width)

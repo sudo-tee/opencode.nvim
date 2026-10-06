@@ -393,6 +393,8 @@ require('opencode').setup({
     on_done_thinking = nil, -- Called when a session becomes idle, including sessions started outside Neovim.
     on_permission_requested = nil, -- Called when a permission request is issued.
     on_question_asked = nil, -- Called when a question is asked.
+    on_topbar_render = nil, -- Transform topbar segments; return nil to clear topbar.
+    on_footer_render = nil, -- Transform footer segments; return nil to clear footer.
   },
   quick_chat = {
     default_model = nil,   -- works better with a fast model like gpt-4.1
@@ -1294,6 +1296,10 @@ You can define custom functions to be called at specific events in Opencode:
 - `on_done_thinking`: Called when a session becomes idle, including sessions started outside Neovim.
 - `on_permission_requested`: Called when a permission request is issued.
 - `on_question_asked`: Called when a question is asked.
+- `on_topbar_render`: Receives topbar segments on each render and returns updated segments.
+- `on_footer_render`: Receives footer segments on each render and returns updated segments.
+
+Segments use `{ 'text', 'HighlightGroup', align = 'left'|'right' }`; highlight and alignment are optional, and alignment defaults to `'left'`. Right-aligned segments render after the bar's spacer. Return `nil` to clear that bar. If a hook errors, built-in segments render unchanged.
 
 ```lua
 require('opencode').setup({
@@ -1319,6 +1325,11 @@ require('opencode').setup({
     on_question_asked = function(session)
       -- Custom logic when a question is asked
       print("Question asked in session " .. session.id)
+    end,
+    on_footer_render = function(segments)
+      -- Add project context to the footer's left side.
+      table.insert(segments, 1, { 'repo:branch ', 'OpencodeHint' })
+      return segments
     end,
   },
 })

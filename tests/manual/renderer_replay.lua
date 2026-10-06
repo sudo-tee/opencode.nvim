@@ -237,7 +237,7 @@ function M.reset()
   M.stop = true
   M.event_index = 0
   M.events_received = 0
-  helpers._v2_replay_messages = {}
+  helpers.reset_replay_snapshots()
   M.clear()
 end
 

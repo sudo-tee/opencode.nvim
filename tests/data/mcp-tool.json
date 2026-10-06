@@ -121,7 +121,12 @@
             "start": 1766000001000,
             "end": 1766000001500
           },
-          "input": {}
+          "input": {
+            "thought": "Let me analyze this problem step by step.\n\nFirst, I need to understand the core issue.",
+            "nextThoughtNeeded": true,
+            "thoughtNumber": 1,
+            "totalThoughts": 2
+          }
         }
       }
     }

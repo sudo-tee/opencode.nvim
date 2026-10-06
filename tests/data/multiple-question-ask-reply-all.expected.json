@@ -590,6 +590,21 @@
         "virt_text_pos": "right_align",
         "virt_text_repeat_linebreak": false
       }
+    ],
+    [
+      24,
+      31,
+      37,
+      {
+        "end_col": 49,
+        "end_right_gravity": false,
+        "end_row": 31,
+        "hl_eol": false,
+        "hl_group": "OpencodeReference",
+        "ns_id": 3,
+        "priority": 1000,
+        "right_gravity": true
+      }
     ]
   ],
   "lines": [
@@ -624,7 +639,7 @@
     "Thanks for your answers! You've indicated:",
     "",
     "- Preferred testing framework: **busted**",
-    "- Typical test running method: **run_tests.sh (Recommended)**",
+    "- Typical test running method: ** run_tests.sh (Recommended)**",
     "",
     "I have this in mind for any future testing, troubleshooting, or automation tasks you request for this Neovim Lua codebase. If you have any follow-up questions or tasks (such as test writing, modification, running, debugging, or reporting), let me know—I'll tailor my workflow to these preferences for maximal compatibility and consistency!",
     "",

@@ -83,4 +83,86 @@ describe('replay event batching', function()
         :find('Can you ask me a question', 1, true)
     )
   end)
+
+  it('bootstraps child tools delivered before the child observation subscribes', function()
+    assert.is_true(replay.load_events('tests/data/explore.json'))
+    helpers.wait_for_replay_ready()
+    local session = require('opencode.ui.renderer.ctx').current().render_session
+    local child_id = 'ses_341f3e676ffez6WUF6zpok7dUZ'
+    assert.is_nil(session:child(child_id))
+    local connection = state.opencode_server
+    local root_id = state.active_session.id
+    assert.same({}, connection.operations.list_children(connection, root_id):wait())
+    assert.same({}, connection.operations.list_messages(connection, child_id):wait())
+
+    replay.replay_all(0)
+
+    local observed = assert(session:child(child_id)):read()
+    assert.equals('current', observed.sync.messages.state)
+    assert.equals(11, #observed.entry_order)
+    local tools = 0
+    for _, entry in pairs(observed.entries_by_id) do
+      for _, content in ipairs(entry.content) do
+        if content.kind == 'tool' then
+          tools = tools + 1
+          assert.equals('completed', content.state)
+        end
+      end
+    end
+    assert.equals(18, tools)
+    local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
+    local summaries = 0
+    for _, line in ipairs(lines) do
+      if line:match('^ %*%*') then
+        summaries = summaries + 1
+      end
+    end
+    assert.equals(18, summaries)
+  end)
+
+  it('rehydrates an unidentified early delta only from an authoritative part update', function()
+    assert.is_true(replay.load_events('tests/data/part-before-message-delta.json'))
+    replay.replay_next(#replay.events - 1)
+
+    local observation = assert(state.session.active_observation())
+    local assistant_id = 'msg_0000000000002'
+    assert.same({}, observation:read().entries_by_id[assistant_id].content)
+
+    replay.replay_next(1)
+
+    local content = observation:read().entries_by_id[assistant_id].content
+    assert.equals(1, #content)
+    assert.equals('text', content[1].kind)
+    assert.equals('Sure, I can help with that.', content[1].text)
+  end)
+
+  it('keeps explicit empty tool input authoritative in replay bootstrap snapshots', function()
+    assert.is_true(replay.load_events('tests/data/mcp-tool.json'))
+    local final_update = vim.deepcopy(replay.events[7])
+    final_update.properties.part.state.input = {}
+    local events = {}
+    for index = 1, 6 do
+      events[index] = replay.events[index]
+    end
+    events[7] = final_update
+    helpers.replay_events(events)
+
+    local connection = state.opencode_server
+    local messages = connection.operations.list_messages(connection, 'ses_mcp_test_1'):wait()
+    local tool
+    for _, message in ipairs(messages) do
+      for _, part in ipairs(message.parts) do
+        if part.id == 'prt_mcp_tool1' then
+          tool = part
+        end
+      end
+    end
+    assert.same({}, assert(tool).state.input)
+    assert.equals('completed', tool.state.status)
+
+    local entries = helpers.load_session_from_events(events)
+    local content = entries[2].content
+    assert.equals('prt_mcp_tool1', content[2].id)
+    assert.same({}, content[2].input)
+  end)
 end)

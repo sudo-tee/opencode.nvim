@@ -5,6 +5,11 @@ local M = {}
 
 M.MOCK_CWD = '/mock/project/path'
 
+-- Bootstrap reads must see only events already delivered, including child events
+-- delivered before the renderer subscribes to that child's observation.
+M._v1_replay_sessions = {}
+M._v1_replay_messages = {}
+
 local function resolved(value)
   return require('opencode.promise').new():resolve(value)
 end
@@ -40,13 +45,31 @@ local function new_replay_connection()
     return stream
   end
   function operations.get_session(_, session_id, location)
-    return resolved(replay_session(session_id, location))
+    return resolved(vim.deepcopy(M._v1_replay_sessions[session_id] or replay_session(session_id, location)))
   end
-  function operations.list_children()
-    return resolved({})
+  function operations.list_children(_, session_id)
+    local children = {}
+    for _, session in pairs(M._v1_replay_sessions) do
+      if session.parentID == session_id then
+        children[#children + 1] = vim.deepcopy(session)
+      end
+    end
+    table.sort(children, function(a, b)
+      return a.id < b.id
+    end)
+    return resolved(children)
   end
-  function operations.list_messages()
-    return resolved({})
+  function operations.list_messages(_, session_id)
+    local messages = {}
+    for _, message in pairs(M._v1_replay_messages) do
+      if message.info and message.info.sessionID == session_id then
+        messages[#messages + 1] = { info = vim.deepcopy(message.info), parts = vim.deepcopy(message.parts) }
+      end
+    end
+    table.sort(messages, function(a, b)
+      return a.info.id < b.info.id
+    end)
+    return resolved(messages)
   end
   function operations.list_session_status()
     return resolved({})
@@ -163,8 +186,15 @@ function M.event_protocol(events)
   return protocol or 'v1'
 end
 
+function M.reset_replay_snapshots()
+  M._v1_replay_sessions = {}
+  M._v1_replay_messages = {}
+  M._v2_replay_messages = {}
+end
+
 function M.reset_replay_stream()
   M._replay_started = false
+  M.reset_replay_snapshots()
 end
 
 function M.clear_replay_stream()
@@ -198,7 +228,7 @@ function M.replay_setup()
   state.session.clear_active()
   M._replay_stream = nil
   M._replay_started = false
-  M._v2_replay_messages = {}
+  M.reset_replay_snapshots()
   state.jobs.set_server(new_replay_connection())
 
   renderer.reset()
@@ -393,17 +423,6 @@ local function native_messages_from_events(events)
           end
 
           if existing_part then
-            -- Preserve state.input when the later event omits it
-            local new_input = part.state and part.state.input
-            local old_input = msg.parts[existing_part].state and msg.parts[existing_part].state.input
-            if
-              type(new_input) == 'table'
-              and next(new_input) == nil
-              and type(old_input) == 'table'
-              and next(old_input) ~= nil
-            then
-              part.state.input = old_input
-            end
             msg.parts[existing_part] = vim.deepcopy(part)
             parts_by_id[part.id] = msg.parts[existing_part]
           else
@@ -583,6 +602,51 @@ function M.wait_for_replay_ready()
   end
 end
 
+local function record_v1_replay_event(event)
+  local properties = event.properties
+  if type(properties) ~= 'table' then
+    return
+  end
+  if event.type == 'session.created' or event.type == 'session.updated' then
+    M._v1_replay_sessions[properties.info.id] = vim.deepcopy(properties.info)
+  elseif event.type == 'session.deleted' then
+    M._v1_replay_sessions[properties.info.id] = nil
+  elseif event.type == 'message.updated' then
+    local info = properties.info
+    local message = M._v1_replay_messages[info.id] or { parts = {} }
+    message.info = vim.deepcopy(info)
+    M._v1_replay_messages[info.id] = message
+  elseif event.type == 'message.removed' then
+    M._v1_replay_messages[properties.messageID] = nil
+  elseif event.type == 'message.part.updated' then
+    local part = properties.part
+    local message = M._v1_replay_messages[part.messageID] or { parts = {} }
+    M._v1_replay_messages[part.messageID] = message
+    for index, previous in ipairs(message.parts) do
+      if previous.id == part.id then
+        message.parts[index] = vim.deepcopy(part)
+        return
+      end
+    end
+    message.parts[#message.parts + 1] = vim.deepcopy(part)
+  elseif event.type == 'message.part.delta' or event.type == 'message.part.removed' then
+    local message = M._v1_replay_messages[properties.messageID]
+    if not message then
+      return
+    end
+    for index, part in ipairs(message.parts) do
+      if part.id == properties.partID then
+        if event.type == 'message.part.removed' then
+          table.remove(message.parts, index)
+        elseif (part.type == 'text' or part.type == 'reasoning') and properties.field == 'text' then
+          part.text = part.text .. properties.delta
+        end
+        return
+      end
+    end
+  end
+end
+
 local function dispatch_replay_event(event)
   local state = require('opencode.state')
   if type(event) == 'table' and type(event.payload) == 'table' then
@@ -615,12 +679,14 @@ local function dispatch_replay_event(event)
     native_event.protocol = nil
     M._replay_stream.on_chunk('data: ' .. vim.json.encode(native_event) .. '\n\n')
   else
+    record_v1_replay_event(event)
     -- Session facts update synchronously; the UI's active session can lag behind a batch.
     local observation = assert(state.session.active_observation(), 'V1 replay requires an active observation')
     local directory = observation:read().session.location.directory
     local properties = vim.deepcopy(event.properties)
     properties.sessionID = properties.sessionID
       or (type(properties.info) == 'table' and properties.info.sessionID)
+      or (event.type:match('^session%.') and type(properties.info) == 'table' and properties.info.id)
       or (type(properties.part) == 'table' and properties.part.sessionID)
       or nil
     M._replay_stream.on_chunk('data: ' .. vim.json.encode({

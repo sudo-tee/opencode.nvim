@@ -78,7 +78,7 @@
             " "
           ],
           [
-            "",
+            "github-copilot/claude-sonnet-4.6",
             "OpencodeHint"
           ],
           [
@@ -1607,63 +1607,6 @@
         "virt_text_repeat_linebreak": true,
         "virt_text_win_col": -1
       }
-    ],
-    [
-      77,
-      79,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 10,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " ",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "BUILD",
-            "OpencodeMessageRoleAssistant"
-          ],
-          [
-            " "
-          ],
-          [
-            "github-copilot/claude-sonnet-4.6",
-            "OpencodeHint"
-          ],
-          [
-            " [msg_cbe0d01950013Y9CVnC8K3Yyef]",
-            "OpencodeHint"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": false,
-        "virt_text_win_col": -3
-      }
-    ],
-    [
-      78,
-      79,
-      0,
-      {
-        "ns_id": 3,
-        "priority": 9,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            " 2026-03-05 12:50:49",
-            "OpencodeHint"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "right_align",
-        "virt_text_repeat_linebreak": false
-      }
     ]
   ],
   "lines": [
@@ -1677,22 +1620,22 @@
     "",
     "**  task** `Find task tool rendering (@explore)` 60s",
     "",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/`",
+    " **  read** `~/Projects/_nvim/opencode.nvim`",
     " **  glob** `**/*.lua`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua task`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/output.lua`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/types.lua`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/icons.lua`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
+    " **  read** `lua/opencode/ui/output.lua`",
+    " **  read** `lua/opencode/ui/formatter.lua`",
+    " **  read** `lua/opencode/types.lua`",
+    " **  read** `lua/opencode/ui/icons.lua`",
+    " **  read** `lua/opencode/ui/formatter.lua`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua format_tool_part\\|_format_task_tool\\|format_action`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/lua _format_tool\\b`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/lua/opencode/ui/formatter.lua`",
+    " **  read** `lua/opencode/ui/formatter.lua`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests _format_task\\|task_tool\\|TaskTool`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests task`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/unit/formatter_spec.lua`",
-    " **  read** `/home/francis/Projects/_nvim/opencode.nvim/tests/replay/renderer_spec.lua`",
+    " **  read** `tests/unit/formatter_spec.lua`",
+    " **  read** `tests/replay/renderer_spec.lua`",
     " **  glob** `**/*.json`",
     " **  grep** `/home/francis/Projects/_nvim/opencode.nvim/tests/data task`",
     "",
@@ -1748,7 +1691,7 @@
     "----",
     "",
     "",
-    "The task tool is rendered primarily in `lua/opencode/ui/formatter.lua`:",
+    "The task tool is rendered primarily in  `lua/opencode/ui/formatter.lua`:",
     "",
     "- **Lines 665–735** — `M._format_tool()`: the central dispatch function that routes tool names to their specific formatters. The `'task'` branch is at **lines 700–707**.",
     "- **Lines 737–801** — `M._format_task_tool()`: the full task tool renderer, which:",
@@ -1757,8 +1700,8 @@
     "  - Attaches a `select_child_session` contextual action (lines 793–800)",
     "",
     "Supporting files:",
-    "- `lua/opencode/types.lua:228–308` — type definitions for `TaskToolInput`, `TaskToolMetadata`, and `TaskToolSummaryItem`",
-    "- `lua/opencode/ui/icons.lua:13,55` — icon definitions for the task tool",
+    "- ` lua/opencode/types.lua:228–308` — type definitions for `TaskToolInput`, `TaskToolMetadata`, and `TaskToolSummaryItem`",
+    "- ` lua/opencode/ui/icons.lua:13,55` — icon definitions for the task tool",
     "",
     ""
   ],

@@ -51,5 +51,17 @@
         "tokens": { "input": 100, "output": 20, "reasoning": 0, "cache": { "read": 0, "write": 0 } }
       }
     }
+  },
+  {
+    "type": "message.part.updated",
+    "properties": {
+      "part": {
+        "id": "prt_0000000000002",
+        "messageID": "msg_0000000000002",
+        "sessionID": "ses_0000000000001",
+        "type": "text",
+        "text": "Sure, I can help with that."
+      }
+    }
   }
 ]

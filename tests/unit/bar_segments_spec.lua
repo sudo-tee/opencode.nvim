@@ -9,10 +9,12 @@ local ui = require('opencode.ui.ui')
 describe('bar segment hooks', function()
   local original_state
   local original_hooks
+  local original_winbar
 
   before_each(function()
     original_state = vim.deepcopy(store.state())
     original_hooks = config.hooks
+    original_winbar = vim.api.nvim_get_option_value('winbar', { scope = 'global' })
     config.hooks = vim.deepcopy(config.hooks)
     helpers.replay_setup()
   end)
@@ -23,6 +25,7 @@ describe('bar segment hooks', function()
       ui.close_windows(state.windows)
     end
     config.hooks = original_hooks
+    vim.api.nvim_set_option_value('winbar', original_winbar, { scope = 'global' })
     for key, value in pairs(original_state) do
       store.set_raw(key, value)
     end
@@ -49,8 +52,26 @@ describe('bar segment hooks', function()
     topbar.render()
 
     assert.is_true(vim.wait(1000, function()
-      return vim.wo[state.windows.output_win].winbar == ''
+      return vim.wo[state.windows.output_win].winbar == '%='
     end))
+  end)
+
+  it('suppresses the global winbar when hook returns nil', function()
+    vim.api.nvim_set_option_value('winbar', 'Global winbar', { scope = 'global' })
+    config.hooks.on_topbar_render = function()
+      return nil
+    end
+
+    topbar.render()
+
+    assert.is_true(vim.wait(1000, function()
+      return vim.api.nvim_get_option_value('winbar', { win = state.windows.output_win }) == '%='
+    end))
+    local rendered = vim.api.nvim_eval_statusline(vim.wo[state.windows.output_win].winbar, {
+      winid = state.windows.output_win,
+      use_winbar = true,
+    })
+    assert.equals('', vim.trim(rendered.str))
   end)
 
   it('lets footer hook prepend a left-aligned segment', function()

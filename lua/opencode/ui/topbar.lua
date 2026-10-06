@@ -147,7 +147,8 @@ function M.render()
       { desc },
       { token_info, align = 'right' },
     })
-    vim.wo[win].winbar = segments and create_winbar_text(segments) or ''
+    -- An empty local winbar inherits the global value instead of clearing the bar.
+    vim.wo[win].winbar = segments and create_winbar_text(segments) or '%='
 
     winbar.update_highlights(win, 'OpencodeSessionDescription')
   end)

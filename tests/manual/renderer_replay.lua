@@ -99,6 +99,7 @@ function M.load_events(file_path)
     return false
   end
 
+  helpers.isolate_replay_environment()
   M.events = events
   M.reset()
   state.session.clear_active()
@@ -150,6 +151,7 @@ end
 
 function M.exit()
   M.stop = true
+  helpers.restore_replay_environment()
   state.jobs.set_count(0)
   renderer.reset()
   state.session.clear_active()

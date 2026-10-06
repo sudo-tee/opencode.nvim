@@ -24,6 +24,7 @@ describe('JSON replay snapshots', function()
   end)
 
   after_each(function()
+    helpers.restore_replay_environment()
     config.debug.show_ids = original_show_ids
     vim.notify = original_notify
     ui.close_windows(state.windows)

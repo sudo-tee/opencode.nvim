@@ -21,6 +21,7 @@ describe('replay event batching', function()
   end)
 
   after_each(function()
+    helpers.restore_replay_environment()
     if wait_stub then
       wait_stub:revert()
       wait_stub = nil

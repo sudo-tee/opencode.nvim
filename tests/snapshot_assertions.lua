@@ -2,6 +2,19 @@ local assert = require('luassert')
 
 local M = {}
 
+local function normalize_json_slashes(line)
+  if not line:match('^%s*[%[{]') or not pcall(vim.json.decode, line) then
+    return line
+  end
+  -- Older Neovim encoders escape slashes even in single-line tool input dumps.
+  -- An even backslash run encodes a literal backslash, not an escaped slash.
+  return (
+    line:gsub('(\\+)/', function(backslashes)
+      return (#backslashes % 2 == 1 and backslashes:sub(2) or backslashes) .. '/'
+    end)
+  )
+end
+
 ---@param snapshot table
 ---@return table
 local function normalized(snapshot)
@@ -27,13 +40,16 @@ local function normalized(snapshot)
       fence = line:match('^(```+)json$')
       if fence then
         first_line = index + 1
+      else
+        copy.lines[index] = normalize_json_slashes(line)
       end
     end
   end
   return copy
 end
 
----Compare valid fenced JSON structurally; all other snapshot fields remain exact.
+---Compare fenced JSON structurally and equivalent inline JSON slash escaping.
+---All other snapshot fields remain exact.
 ---@param expected table
 ---@param actual table
 function M.assert_same(expected, actual)

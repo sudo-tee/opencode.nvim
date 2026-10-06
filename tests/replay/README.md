@@ -6,10 +6,18 @@ matching input JSON. Behavior tests live in `tests/unit`.
 Shared snapshot comparison decodes valid fenced JSON before comparing values,
 ignoring object-key order and equivalent escaping. Array order, surrounding text,
 line positions, extmarks, and actions remain exact. Malformed JSON stays literal.
+Single-line unfenced JSON also ignores equivalent slash escaping (`\/` versus
+`/`), but its key order remains exact.
 
 Native event batches settle once per playback, not once per event. Interactive
 single-step playback still settles each event. Synthetic V2 message records keep
 their full-session rendering behavior.
+
+Replay path display uses `/mock/project/path`, not the host process cwd or home.
+Recorded absolute paths outside that directory stay absolute. Captures have no
+filesystem availability snapshot, so replay does not infer reference icons from
+host files or loaded buffers. Reference availability remains covered by unit
+tests. These environment overrides are restored on replay exit and test cleanup.
 
 ## Restored V1 coverage
 

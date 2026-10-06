@@ -75,7 +75,8 @@ describe('manual replay startup', function()
     local result = vim.system(command, { text = true }):wait(10000)
 
     assert.equals(0, result.code, result.stderr)
-    assert.is_truthy(result.stderr:find('REPLAY_ISOLATION_OK', 1, true), result.stderr)
+    local output = result.stdout .. result.stderr
+    assert.is_truthy(output:find('REPLAY_ISOLATION_OK', 1, true), output)
   end)
 
   it('keeps the mock connection after startup callbacks and replays V2 JSON without service discovery', function()
@@ -123,6 +124,7 @@ describe('manual replay startup', function()
     local result = vim.system(command, { text = true }):wait(10000)
 
     assert.equals(0, result.code, result.stderr)
-    assert.is_truthy(result.stderr:find('REPLAY_STARTUP_OK', 1, true), result.stderr)
+    local output = result.stdout .. result.stderr
+    assert.is_truthy(output:find('REPLAY_STARTUP_OK', 1, true), output)
   end)
 end)

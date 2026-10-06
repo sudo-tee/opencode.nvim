@@ -40,6 +40,26 @@ describe('snapshot JSON comparison', function()
     end)
   end)
 
+  it('ignores equivalent slash escaping in unfenced JSON without ignoring key order', function()
+    snapshots.assert_same(
+      { lines = { '{"directory":"/project/worktrees/missing"}' } },
+      { lines = { '{"directory":"\\/project\\/worktrees\\/missing"}' } }
+    )
+    assert.has_error(function()
+      snapshots.assert_same({ lines = { '{"path":"a/b"}' } }, { lines = { '{"path":"a/c"}' } })
+    end)
+  end)
+
+  it('preserves literal backslashes before slashes in unfenced JSON', function()
+    snapshots.assert_same({ lines = { [[{"path":"a\\/b"}]] } }, { lines = { [[{"path":"a\\\/b"}]] } })
+    assert.has_error(function()
+      snapshots.assert_same({ lines = { [[{"path":"a\\/b"}]] } }, { lines = { [[{"path":"a/b"}]] } })
+    end)
+    assert.has_error(function()
+      snapshots.assert_same({ lines = { [[not JSON \/]] } }, { lines = { 'not JSON /' } })
+    end)
+  end)
+
   it('keeps malformed JSON exact and distinct from decoded strings', function()
     snapshots.assert_same(snapshot('not JSON'), snapshot('not JSON'))
     assert.has_error(function()

@@ -5,6 +5,42 @@ local M = {}
 
 M.MOCK_CWD = '/mock/project/path'
 
+---@type (fun())?
+local restore_replay_environment
+
+function M.restore_replay_environment()
+  if restore_replay_environment then
+    restore_replay_environment()
+    restore_replay_environment = nil
+  end
+end
+
+function M.isolate_replay_environment()
+  M.restore_replay_environment()
+  local fnamemodify = vim.fn.fnamemodify
+  local reference_facts = require('opencode.ui.reference_facts')
+  local available_files = reference_facts.available_files
+
+  -- Vim's :~:. uses the real process cwd/home, not the mocked getcwd().
+  ---@diagnostic disable-next-line: duplicate-set-field
+  vim.fn.fnamemodify = function(path, modifiers)
+    if modifiers == ':~:.' then
+      local prefix = M.MOCK_CWD .. '/'
+      return vim.startswith(path, prefix) and path:sub(#prefix + 1) or path
+    end
+    return fnamemodify(path, modifiers)
+  end
+  -- Captures contain no filesystem availability snapshot. Host files and loaded
+  -- buffers must not invent reference icons in otherwise identical replay data.
+  reference_facts.available_files = function()
+    return {}
+  end
+  restore_replay_environment = function()
+    vim.fn.fnamemodify = fnamemodify
+    reference_facts.available_files = available_files
+  end
+end
+
 -- Bootstrap reads must see only events already delivered, including child events
 -- delivered before the renderer subscribes to that child's observation.
 M._v1_replay_sessions = {}
@@ -203,6 +239,7 @@ function M.clear_replay_stream()
 end
 
 function M.replay_setup()
+  M.restore_replay_environment()
   local config = require('opencode.config')
   local config_file = require('opencode.config_file')
   local state = require('opencode.state')

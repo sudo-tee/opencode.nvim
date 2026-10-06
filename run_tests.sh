@@ -82,7 +82,7 @@ strip_ansi() {
 has_failures() {
     local plain_output
     plain_output=$(strip_ansi "$1")
-    grep -Eq "Fail.*\|\||Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" <<<"$plain_output"
+    grep -Eq "^Fail.*\|\||^Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" <<<"$plain_output"
 }
 
 # List spec files whose busted subprocess died outside of normal assertion
@@ -160,9 +160,12 @@ if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "unit" ]; then
 fi
 
 if [ "$TEST_TYPE" = "all" ] || [ "$TEST_TYPE" = "replay" ]; then
-    replay_output=$(nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1)
-    replay_status=$?
-    clean_output "$replay_output"
+    replay_log=$(mktemp)
+    nvim --headless -u tests/minimal/init.lua -c "lua require('plenary.test_harness').test_directory('./tests/replay', {minimal_init = './tests/minimal/init.lua'$FILTER_OPTION})" 2>&1 \
+        | tee "$replay_log" | grep --line-buffered -v "\[31mErrors : "
+    replay_status=${PIPESTATUS[0]}
+    replay_output=$(cat "$replay_log")
+    rm -f "$replay_log"
 
     if [ "$replay_status" -ne 0 ] || has_failures "$replay_output"; then
         echo -e "${RED}✗ Replay tests failed${NC}"
@@ -221,10 +224,10 @@ if has_failures "$all_output" \
     # Extract and format failures
     failures_file=$(mktemp)
     plain_output=$(strip_ansi "$all_output")
-    echo "$plain_output" | grep -B 0 -A 6 "Fail.*||" >"$failures_file"
-    failure_count=$(echo "$plain_output" | grep -c "Fail.*||")
+    echo "$plain_output" | grep -B 0 -A 6 "^Fail.*||" >"$failures_file"
+    failure_count=$(echo "$plain_output" | grep -c "^Fail.*||")
     if [ "$failure_count" -eq 0 ]; then
-        failure_count=$(echo "$plain_output" | grep -E "Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" | sed -E 's/.*Failed[[:space:]]*:[[:space:]]*([0-9]+).*/\1/' | awk '{sum+=$1} END {print sum+0}')
+        failure_count=$(echo "$plain_output" | grep -E "^Failed[[:space:]]*:[[:space:]]*[1-9][0-9]*" | sed -E 's/.*Failed[[:space:]]*:[[:space:]]*([0-9]+).*/\1/' | awk '{sum+=$1} END {print sum+0}')
     fi
 
     echo -e "${RED}Found $failure_count failing test(s):${NC}\n"
@@ -243,7 +246,7 @@ if has_failures "$all_output" \
         # Remove ANSI color codes
         clean_line=$(echo "$line" | sed -E 's/\x1B\[[0-9;]*[mK]//g')
 
-        if [[ "$clean_line" == *"Fail"*"||"* ]]; then
+        if [[ "$clean_line" == Fail*"||"* ]]; then
             # Extract test name
             test_name=$(echo "$clean_line" | sed -E 's/.*Fail.*\|\|\s*(.*)/\1/')
             echo -e "${RED}FAILED TEST:${NC} $test_name"

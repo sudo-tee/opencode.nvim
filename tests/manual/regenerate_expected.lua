@@ -40,6 +40,7 @@ function M.run(data_file, expected_file)
     with_ftplugin_disabled(function()
       helpers.replay_setup()
     end)
+    helpers.isolate_replay_environment()
 
     local events = helpers.load_test_data(data_file)
     state.session.set_active(helpers.get_session_from_events(events))
@@ -58,6 +59,7 @@ function M.run(data_file, expected_file)
     file:close()
   end, debug.traceback)
 
+  helpers.restore_replay_environment()
   if state.windows then
     ui.close_windows(state.windows)
   end

@@ -88,6 +88,106 @@ describe('permission_window', function()
       assert.are.equal('', captured_opts.content[2])
     end)
 
+    it('renders exact command previews alongside tool descriptions, not wildcard patterns', function()
+      local captured_opts
+      permission_window._dialog = {
+        format_dialog = function(_, _, opts)
+          captured_opts = opts
+        end,
+      }
+      permission_window._permission_queue = {
+        {
+          id = 'per_preview',
+          action = 'bash',
+          message = 'Inspect changes',
+          patterns = { 'git *' },
+          preview = { title = 'Run command', command = 'git status\ngit diff' },
+        },
+      }
+      permission_window.format_display(Output.new())
+      assert.is_truthy(captured_opts.content[1]:find('Inspect changes', 1, true))
+      assert.same({ '', '```bash', 'git status', 'git diff', '```' }, vim.list_slice(captured_opts.content, 2))
+    end)
+
+    it('renders only the full V2 command when description and title are absent', function()
+      local captured_opts
+      permission_window._dialog = {
+        format_dialog = function(_, _, opts)
+          captured_opts = opts
+        end,
+      }
+      local command =
+        'stylua lua/opencode/ui/permission_window.lua && make format-check && make typecheck 2>&1 | tail -30'
+      permission_window._permission_queue = {
+        {
+          id = 'per_shell',
+          action = 'shell',
+          resources = {
+            'stylua lua/opencode/ui/permission_window.lua',
+            'make format-check',
+            'make typecheck',
+            'tail -30',
+          },
+          preview = { command = command },
+        },
+      }
+      permission_window.format_display(Output.new())
+      assert.is_truthy(captured_opts.content[1]:find('*shell*', 1, true))
+      assert.same({ '', '```shell', command, '```' }, vim.list_slice(captured_opts.content, 2))
+
+      permission_window._permission_queue[1].resources = { command }
+      permission_window.format_display(Output.new())
+      assert.same({ '', '```shell', command, '```' }, vim.list_slice(captured_opts.content, 2))
+    end)
+
+    it('keeps V2 resource patterns as fallback when no preview is available', function()
+      local captured_opts
+      permission_window._dialog = {
+        format_dialog = function(_, _, opts)
+          captured_opts = opts
+        end,
+      }
+      permission_window._permission_queue = {
+        { id = 'per_shell', action = 'shell', resources = { 'make format-check', 'make typecheck' } },
+      }
+      permission_window.format_display(Output.new())
+      assert.same(
+        { '```shell', 'make format-check', 'make typecheck', '```', '' },
+        vim.list_slice(captured_opts.content, 2)
+      )
+    end)
+
+    it('renders a frozen diff preview with addition and deletion highlights', function()
+      local captured_opts
+      permission_window._dialog = {
+        format_dialog = function(_, _, opts)
+          captured_opts = opts
+        end,
+      }
+      permission_window._permission_queue = {
+        {
+          id = 'per_diff',
+          permission = 'edit',
+          preview = { title = 'Edit file', diff = '@@ -1 +1 @@\n-old\n+new\n', path = 'file.lua' },
+        },
+      }
+      permission_window.format_display(Output.new())
+      local output = Output.new()
+      captured_opts.render_content(output)
+      assert.is_truthy(output.lines[1]:find('`Edit file`', 1, true))
+      assert.is_truthy(vim.tbl_contains(output.lines, '`````lua'))
+      assert.is_truthy(table.concat(output.lines, '\n'):find('old', 1, true))
+      assert.is_truthy(table.concat(output.lines, '\n'):find('new', 1, true))
+      local highlights = {}
+      for _, extmarks in pairs(output.extmarks) do
+        for _, extmark in ipairs(extmarks) do
+          highlights[extmark.hl_group or ''] = true
+        end
+      end
+      assert.is_true(highlights.OpencodeDiffAdd)
+      assert.is_true(highlights.OpencodeDiffDelete)
+    end)
+
     it('renders multiple resource patterns from the frozen request', function()
       local captured_opts = nil
       permission_window._dialog = {
@@ -236,6 +336,36 @@ describe('permission_window', function()
     permission_window.reply(permission_window.get_all_permissions()[2], 'once'):await()
 
     assert.are.same({ 'ses_b:per_b' }, replies)
+  end)
+
+  it('keeps updated requests unique and advances the queue after replies', function()
+    local requests = {
+      per_a = { id = 'per_a', session_id = 'ses_a', status = 'pending', permission = 'bash' },
+      per_b = { id = 'per_b', session_id = 'ses_a', status = 'pending', permission = 'edit' },
+    }
+    local replies = {}
+    local observation = {
+      read = function()
+        return { permission_requests_by_id = requests }
+      end,
+      reply_permission = function(_, id, answer)
+        replies[#replies + 1] = { id = id, choice = answer.choice }
+        requests[id].status = 'answered'
+        return Promise.new():resolve(true)
+      end,
+    }
+    permission_window.sync({ observation })
+    requests.per_a.preview = { command = 'git status' }
+    permission_window.sync({ observation })
+    assert.equals(2, permission_window.get_permission_count())
+    assert.equals('git status', permission_window.get_current_permission().preview.command)
+    permission_window.reply(permission_window.get_current_permission(), 'once'):await()
+    permission_window.sync({ observation })
+    assert.equals('per_b', permission_window.get_current_permission().id)
+    permission_window.reply(permission_window.get_current_permission(), 'always'):await()
+    permission_window.sync({ observation })
+    assert.equals(0, permission_window.get_permission_count())
+    assert.same({ { id = 'per_a', choice = 'once' }, { id = 'per_b', choice = 'always' } }, replies)
   end)
 
   describe('interaction lifecycle', function()

@@ -155,7 +155,7 @@
             " "
           ],
           [
-            "BUILD",
+            "ASSISTANT",
             "OpencodeMessageRoleAssistant"
           ],
           [
@@ -386,15 +386,24 @@
       14,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       20,
-      14,
+      15,
       0,
       {
         "ns_id": 3,
@@ -414,173 +423,162 @@
     ],
     [
       21,
-      15,
+      16,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       22,
-      15,
+      18,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
       23,
-      16,
+      18,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       24,
-      16,
+      19,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
       25,
-      17,
+      19,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       26,
-      17,
+      20,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
       27,
-      18,
+      20,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       28,
-      18,
+      21,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
       29,
-      19,
+      21,
       0,
       {
-        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
       }
     ],
     [
       30,
-      19,
+      22,
       0,
       {
+        "line_hl_group": "OpencodeHint",
         "ns_id": 3,
-        "priority": 4096,
-        "right_gravity": true,
-        "virt_text": [
-          [
-            "▌",
-            "OpencodeToolBorder"
-          ]
-        ],
-        "virt_text_hide": false,
-        "virt_text_pos": "win_col",
-        "virt_text_repeat_linebreak": true,
-        "virt_text_win_col": -1
+        "priority": 5000,
+        "right_gravity": true
       }
     ],
     [
       31,
-      20,
-      0,
-      {
-        "line_hl_group": "OpencodeHint",
-        "ns_id": 3,
-        "priority": 5000,
-        "right_gravity": true
-      }
-    ],
-    [
-      32,
-      20,
+      22,
       0,
       {
         "ns_id": 3,
@@ -599,8 +597,8 @@
       }
     ],
     [
-      33,
-      21,
+      32,
+      23,
       0,
       {
         "line_hl_group": "OpencodeHint",
@@ -610,8 +608,130 @@
       }
     ],
     [
+      33,
+      23,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
       34,
-      21,
+      24,
+      0,
+      {
+        "line_hl_group": "OpencodeHint",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ],
+    [
+      35,
+      24,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      36,
+      25,
+      0,
+      {
+        "line_hl_group": "OpencodeHint",
+        "ns_id": 3,
+        "priority": 5000,
+        "right_gravity": true
+      }
+    ],
+    [
+      37,
+      25,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      38,
+      26,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      39,
+      27,
+      0,
+      {
+        "ns_id": 3,
+        "priority": 4096,
+        "right_gravity": true,
+        "virt_text": [
+          [
+            "▌",
+            "OpencodeToolBorder"
+          ]
+        ],
+        "virt_text_hide": false,
+        "virt_text_pos": "win_col",
+        "virt_text_repeat_linebreak": true,
+        "virt_text_win_col": -1
+      }
+    ],
+    [
+      40,
+      28,
       0,
       {
         "ns_id": 3,
@@ -645,6 +765,10 @@
     "",
     "First, I need to understand the core issue.",
     "",
+    "**Result**",
+    "",
+    "{\"thoughtNumber\": 1, \"totalThoughts\": 2, \"nextThoughtNeeded\": true, \"branches\": [], \"thoughtHistoryLength\": 1}",
+    "",
     "  sequential-thinking: sequentialthinking",
     "",
     "Second thought: the analysis is complete.",
@@ -653,17 +777,21 @@
     "- Finding A",
     "- Finding B",
     "",
+    "**Result**",
+    "",
+    "{\"thoughtNumber\": 2, \"totalThoughts\": 2, \"nextThoughtNeeded\": false, \"branches\": [], \"thoughtHistoryLength\": 2}",
+    "",
     "Based on my analysis, here is the answer.",
     "",
     ""
   ],
   "window": {
     "cursor": [
-      24,
+      32,
       0
     ],
-    "effective_bottom": 24,
-    "line_count": 25,
-    "visible_bottom": 25
+    "effective_bottom": 32,
+    "line_count": 33,
+    "visible_bottom": 32
   }
 }

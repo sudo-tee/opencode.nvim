@@ -172,6 +172,7 @@
         "opencode.id",                     // ID generation
         "opencode.curl",                   // HTTP low-level wrapper
         "opencode.throttling_emitter",     // batching primitive
+        "opencode.event_capture",          // streamed-event capture store (replay fixtures)
         "opencode.model_state",            // local model state file I/O
         "opencode.lru_cache",              // generic LRU container (pure data structure)
         "opencode.slash_commands",        // built-in slash command metadata

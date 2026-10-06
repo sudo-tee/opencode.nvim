@@ -17,6 +17,7 @@ local id = require('opencode.id')
 local Promise = require('opencode.promise')
 local util = require('opencode.util')
 local config_file = require('opencode.config_file')
+local event_capture = require('opencode.event_capture')
 
 local M = {}
 
@@ -109,8 +110,12 @@ local function route_event(connection, event)
         observation:_event_changed(resource)
       end
     end
+    if normalize.enrich_permission_previews(observation:read()) then
+      observation:_event_changed('permissions')
+    end
   end
   if decoded then
+    event_capture.record({ protocol = 'v1', type = decoded.type, properties = decoded.properties })
     vim.api.nvim_exec_autocmds('User', {
       pattern = 'OpencodeEvent:' .. decoded.type,
       data = { event = { type = decoded.type, properties = decoded.properties } },
@@ -235,11 +240,20 @@ function M.ingest_snapshot(observation, messages)
     if existing then
       entry.cost = entry.cost ~= nil and entry.cost or existing.cost
       entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+      entry.queued = existing.queued
     end
     entries_by_id[entry.id] = replace_entry(existing, entry)
     order[#order + 1] = entry.id
   end
   state.entries_by_id, state.entry_order = entries_by_id, order
+  for _, entry in ipairs(mapped) do
+    if entry.kind == 'assistant' and entry.parent_message_id then
+      local parent = entries_by_id[entry.parent_message_id]
+      if parent then
+        parent.queued = nil
+      end
+    end
+  end
   observation._v1_unresolved_mentions = {}
   state.sync.messages = #diagnostics == 0 and { state = 'current' }
     or { state = 'error', error = { kind = 'protocol_contract', message = table.concat(diagnostics, '; ') } }
@@ -314,6 +328,15 @@ function M.ingest_event(observation, event)
     if existing then
       entry.cost = entry.cost ~= nil and entry.cost or existing.cost
       entry.tokens = entry.tokens ~= nil and entry.tokens or existing.tokens
+      entry.queued = existing.queued
+    elseif entry.kind == 'user' then
+      entry.queued = state.execution.activity == 'running' or state.execution.activity == 'retrying'
+    end
+    if entry.kind == 'assistant' and entry.parent_message_id then
+      local parent = state.entries_by_id[entry.parent_message_id]
+      if parent then
+        parent.queued = nil
+      end
     end
     state.entries_by_id[entry.id] = replace_entry(existing, entry)
     if not existing then
@@ -495,6 +518,7 @@ local function apply_resource(observation, resource, value)
   else
     fail('unsupported resource read: ' .. tostring(resource))
   end
+  normalize.enrich_permission_previews(state)
 end
 
 local function event_diagnostic(observation, resource, message)
@@ -559,7 +583,7 @@ ingest_resource_event = function(observation, event)
   end
 
   if kind == 'session.created' or kind == 'session.updated' then
-    local ok, session = pcall(mapped_session, properties.info)
+    local ok, session, legacy_revert = pcall(mapped_session, properties.info)
     if not ok then
       if observation:_watches('session') or observation:_watches('children') then
         return event_diagnostic(
@@ -570,7 +594,7 @@ ingest_resource_event = function(observation, event)
       end
       return nil
     end
-    if type(properties.sessionID) ~= 'string' or properties.sessionID ~= session.id then
+    if properties.sessionID ~= session.id and not (legacy_revert and properties.sessionID == nil) then
       return event_diagnostic(
         observation,
         observation:_watches('session') and 'session' or 'children',
@@ -641,11 +665,13 @@ ingest_resource_event = function(observation, event)
     end
     state.sync.execution = { state = 'current' }
     return 'execution'
-  elseif kind == 'permission.asked' then
+  elseif kind == 'permission.asked' or kind == 'permission.updated' then
     if not observation:_watches('permissions') then
       return nil
     end
-    local ok, request = pcall(mapped_permission, properties)
+    local mapper = kind == 'permission.updated' and normalize.mapped_legacy_permission
+      or normalize.mapped_current_permission
+    local ok, request = pcall(mapper, properties)
     if not ok then
       return event_diagnostic(observation, 'permissions', tostring(request))
     end
@@ -664,17 +690,18 @@ ingest_resource_event = function(observation, event)
     if not observation:_watches('permissions') then
       return nil
     end
-    if type(properties.sessionID) ~= 'string' or type(properties.requestID) ~= 'string' then
-      return event_diagnostic(observation, 'permissions', 'permission.replied is missing request identity')
+    local ok, reply = pcall(normalize.mapped_permission_reply, properties)
+    if not ok then
+      return event_diagnostic(observation, 'permissions', tostring(reply))
     end
-    if properties.sessionID ~= state.session.id then
+    if reply.session_id ~= state.session.id then
       return nil
     end
-    observation._v1_permission_terminal[properties.requestID] = { reply = properties.reply }
-    local request = state.permission_requests_by_id[properties.requestID]
+    observation._v1_permission_terminal[reply.request_id] = { reply = reply.reply }
+    local request = state.permission_requests_by_id[reply.request_id]
     if request then
       request.status = 'answered'
-      request.answer = properties.reply
+      request.answer = reply.reply
     end
     return 'permissions'
   elseif kind == 'question.asked' then

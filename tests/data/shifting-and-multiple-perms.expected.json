@@ -1606,7 +1606,7 @@
     "  *edit* `Edit this file: /Users/cam/Dev/neovim-dev/opencode.nvim/lua/opencode/ui/renderer.lua`",
     "",
     "",
-    "`````",
+    "`````lua",
     "    M._part_cache = {}",
     "    M._prev_line_count = 0",
     "    M._message_map = MessageMap.new()",

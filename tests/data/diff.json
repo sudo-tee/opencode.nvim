@@ -94,9 +94,9 @@
         "source": {
           "type": "file",
           "text": {
-            "start": 0,
+            "start": 39,
             "value": "@diff-test.txt",
-            "end": 13
+            "end": 53
           },
           "path": "/Users/cam/tmp/a/diff-test.txt"
         },

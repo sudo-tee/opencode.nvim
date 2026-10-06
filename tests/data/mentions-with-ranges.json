@@ -62,7 +62,7 @@
           "type": "file",
           "text": {
             "value": "@lua/opencode/ui/streaming_renderer.lua",
-            "end": 43,
+            "end": 44,
             "start": 5
           }
         },
@@ -111,7 +111,7 @@
           "type": "file",
           "text": {
             "value": "@tests/data/planning.json",
-            "end": 215,
+            "end": 216,
             "start": 191
           }
         },

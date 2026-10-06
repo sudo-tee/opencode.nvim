@@ -1422,7 +1422,7 @@ Run development commands through the Makefile from the repository root. Use `mak
 | `make test` | Run all tests |
 | `make test-minimal` | Run minimal tests |
 | `make test-unit` | Run unit tests |
-| `make test-replay` | Run automated replay tests |
+| `make test-replay` | Run V1/V2 JSON snapshot replays only, with each fixture named in the output |
 | `make replay` | Launch the interactive replay tester |
 | `make replay-regenerate` | Regenerate expected replay snapshots with confirmation |
 | `make topology` | Scan dependency topology |

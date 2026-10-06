@@ -10,6 +10,7 @@ local spy = require('luassert.spy')
 
 describe('renderer incremental reconciliation', function()
   local observed, observation, changed, controllers, writes, markdown, dirty_part, dirty_message, max_messages, throttle_ms, collapsing, defer_stub, files_stub
+  local schedule_stub
 
   local function notify(resource)
     changed(observation, resource)
@@ -89,6 +90,10 @@ describe('renderer incremental reconciliation', function()
   end)
 
   after_each(function()
+    if schedule_stub then
+      schedule_stub:revert()
+      schedule_stub = nil
+    end
     config.ui.output.max_messages = max_messages
     config.ui.output.rendering.event_throttle_ms = throttle_ms
     config.ui.output.rendering.event_collapsing = collapsing
@@ -119,6 +124,24 @@ describe('renderer incremental reconciliation', function()
     contexts.current().lazy_render_count = math.huge
     output_window.clear()
     writes = spy.on(output_window, 'set_lines')
+    -- This checks batching and ranges, not how fast a CI host renders history.
+    local callbacks = {}
+    local next_callback = 1
+    local function schedule(callback)
+      callbacks[#callbacks + 1] = callback
+    end
+    schedule_stub = stub(vim, 'schedule').invokes(schedule)
+    defer_stub = stub(vim, 'defer_fn').invokes(schedule)
+    local function reconcile_messages()
+      changed(observation, 'messages')
+      while next_callback <= #callbacks do
+        local callback = callbacks[next_callback]
+        next_callback = next_callback + 1
+        callback()
+      end
+      assert.is_false(contexts.current().reconcile_scheduled)
+      assert.is_false(contexts.current().flush_scheduled)
+    end
     observed.entry_order = {}
     observed.entries_by_id = {}
     for index = 1, 40 do
@@ -135,7 +158,7 @@ describe('renderer incremental reconciliation', function()
         },
       }
     end
-    notify('messages')
+    reconcile_messages()
     assert.spy(writes).was_called(1)
     local lines = vim.api.nvim_buf_get_lines(state.windows.output_buf, 0, -1, false)
     for index = 1, 40 do
@@ -148,7 +171,7 @@ describe('renderer incremental reconciliation', function()
       assert.is_true(first.line_end < tail.line_start)
     end
     assert.is_false(contexts.current().bulk_mode)
-    notify('messages')
+    reconcile_messages()
     assert.spy(writes).was_called(1)
   end)
 

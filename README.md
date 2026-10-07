@@ -1191,7 +1191,7 @@ Press `r` to select a range of turns/messages: move through user prompts, mark t
 
 Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
 
-Press `gf` in the file list or diff preview to open the selected working-tree file in a new tab, keeping the snapshot review intact. If the file no longer exists on disk, a warning is shown instead. Remap this using the `open_file` action.
+Press `gf` in the file list or diff preview to open the selected working-tree file in a new tab, keeping the snapshot review intact. From a preview, it targets the corresponding post-change line (deleted lines use the next surviving line, or the last one), clamped to the current file's length. This is best-effort if the working tree has changed since the snapshot. Diff panes show absolute line numbers. If the file no longer exists on disk, a warning is shown instead. Remap this using the `open_file` action.
 
 ### Customize session-diff keymaps
 

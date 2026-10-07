@@ -144,6 +144,53 @@ describe('session diff', function()
     assert.equals(tab, vim.api.nvim_get_current_tabpage())
   end)
 
+  it('maps gf to post-change lines from both sides and unified patches', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    local text = '@@ -1,4 +1,5 @@\n+inserted\n first\n second\n-removed\n+replacement\n last'
+    diff.open({ file(path, text) }, { id = 'ses_gf_lines' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    local before, after
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+      if vim.wo[win].winbar:find('Before:', 1, true) then
+        before = win
+      elseif vim.wo[win].winbar:find('After:', 1, true) then
+        after = win
+      end
+    end
+    local function jump(win, row, expected)
+      assert.is_true(vim.wo[win].number)
+      assert.is_false(vim.wo[win].relativenumber)
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_win_set_cursor(win, { row, 0 })
+      vim.api.nvim_feedkeys('gf', 'xt', false)
+      assert.equals(expected, vim.api.nvim_win_get_cursor(0)[1])
+      vim.cmd('tabclose')
+      assert.equals(tab, vim.api.nvim_get_current_tabpage())
+    end
+    jump(before, 2, 3)
+    jump(before, 3, 4)
+    jump(after, 5, 5)
+    diff.show_patch()
+    jump(before, 1, 1)
+    jump(before, 4, 3)
+    jump(before, 5, 4)
+    jump(before, 7, 5)
+  end)
+
+  it('clamps gf line navigation to the current working-tree file length', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/session_patch.lua'
+    local count = #vim.fn.readfile(path)
+    local text = '@@ -1,100 +1,100 @@\n' .. string.rep(' context\n', 99) .. '-old\n+new'
+    diff.open({ file(path, text) }, { id = 'ses_gf_clamp' })
+    diff.show_patch()
+    local preview = vim.api.nvim_tabpage_list_wins(0)[2]
+    vim.api.nvim_set_current_win(preview)
+    vim.api.nvim_win_set_cursor(preview, { 102, 0 })
+    vim.api.nvim_feedkeys('gf', 'xt', false)
+    assert.equals(count, vim.api.nvim_win_get_cursor(0)[1])
+    vim.cmd('tabclose')
+  end)
+
   it('disables list wrapping even when enabled globally', function()
     local wrap = vim.o.wrap
     vim.o.wrap = true

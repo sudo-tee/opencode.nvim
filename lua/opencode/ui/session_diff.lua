@@ -405,6 +405,8 @@ local function set_preview(win, lines, filetype)
   vim.api.nvim_win_set_buf(win, scratch(lines, filetype))
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
   vim.wo[win].signcolumn = 'yes:1'
+  vim.wo[win].number = true
+  vim.wo[win].relativenumber = false
 end
 
 local function refresh_comments()
@@ -739,17 +741,52 @@ function M.activate()
   vim.api.nvim_win_set_cursor(view.list_win, { row, 0 })
 end
 
+---@param win integer
+---@return integer
+local function working_tree_line(win)
+  local row = vim.api.nvim_win_get_cursor(win)[1]
+  if view.sides[win] == 'after' then
+    return row
+  end
+  if view.sides[win] == 'before' then
+    for index, entry in ipairs(view.patch_map) do
+      if entry.old == row then
+        row = index
+        break
+      end
+    end
+  end
+  -- Deleted lines and patch headers target the next surviving line, or the last one.
+  for index = row, #view.patch_map do
+    local number = view.patch_map[index].new
+    if number then
+      return number
+    end
+  end
+  for index = math.min(row - 1, #view.patch_map), 1, -1 do
+    local number = view.patch_map[index].new
+    if number then
+      return number
+    end
+  end
+  return 1
+end
+
 function M.open_file()
   if not in_view() or #view.files == 0 then
     return
   end
   local index = view.index
-  if vim.api.nvim_get_current_win() == view.list_win then
+  local win = vim.api.nvim_get_current_win()
+  local line = 1
+  if win == view.list_win then
     local node = view.rows[vim.api.nvim_win_get_cursor(view.list_win)[1]]
     if not node or not node.file_index then
       return
     end
     index = node.file_index
+  elseif win == view.preview_win or win == view.right_win then
+    line = working_tree_line(win)
   end
   local file = view.files[index]
   if vim.fn.filereadable(file.file) == 0 then
@@ -758,6 +795,7 @@ function M.open_file()
   end
   -- Keep snapshot previews intact while editing the current working-tree revision.
   vim.cmd('tabedit ' .. vim.fn.fnameescape(file.file))
+  vim.api.nvim_win_set_cursor(0, { math.min(line, vim.api.nvim_buf_line_count(0)), 0 })
 end
 
 function M.select(direction)

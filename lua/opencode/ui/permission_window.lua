@@ -24,6 +24,7 @@ local formatter_utils = require('opencode.ui.formatter.utils')
 ---@class PermissionWindow: PermissionController
 ---@field _permission_queue PermissionRequest[]
 ---@field _dialog? Dialog
+---@field _dialog_permission_id? string
 ---@field _processing boolean
 ---@field _interaction? PermissionInteraction
 ---@field _observations table<string, OpencodeObservation>
@@ -301,6 +302,16 @@ function M._setup_dialog()
   end
   local interaction = interaction_for(current_permission)
 
+  if
+    M._dialog
+    and M._dialog:is_active()
+    and M._dialog_permission_id == current_permission.id
+    and state.windows
+    and M._dialog:get_buffer() == state.windows.output_buf
+  then
+    return
+  end
+
   local saved_selection = nil
   if M._dialog then
     saved_selection = M._dialog:get_selection()
@@ -416,7 +427,7 @@ function M._setup_dialog()
       if interaction.deny_armed then
         clear_deny_timer(interaction)
         M._processing = true
-        M.reply(current_permission, 'reject')
+        M.reply(M.get_current_permission() or current_permission, 'reject')
         return
       end
 
@@ -443,6 +454,7 @@ function M._setup_dialog()
   })
 
   M._dialog:setup()
+  M._dialog_permission_id = current_permission.id
 
   if saved_selection then
     M._dialog:set_selection(saved_selection)
@@ -455,6 +467,7 @@ function M._clear_dialog(preserve_interaction)
     M._dialog:teardown()
     M._dialog = nil
   end
+  M._dialog_permission_id = nil
   if not preserve_interaction then
     clear_interaction()
   end

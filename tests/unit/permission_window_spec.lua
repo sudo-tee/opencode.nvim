@@ -6,7 +6,11 @@ local stub = require('luassert.stub')
 describe('permission_window', function()
   after_each(function()
     permission_window._permission_queue = {}
+    if permission_window._dialog and permission_window._dialog.teardown then
+      permission_window._dialog:teardown()
+    end
     permission_window._dialog = nil
+    permission_window._dialog_permission_id = nil
     permission_window._processing = false
     permission_window._interaction = nil
   end)
@@ -430,6 +434,39 @@ describe('permission_window', function()
       if vim.api.nvim_buf_is_valid(output_buf) then
         vim.api.nvim_buf_delete(output_buf, { force = true })
       end
+    end)
+
+    it('keeps the same dialog when a sync repeats the pending permission', function()
+      local request = { id = 'per_stable', permission = 'bash', status = 'pending' }
+      local observation = {
+        read = function()
+          return { permission_requests_by_id = { [request.id] = request } }
+        end,
+      }
+
+      permission_window.sync({ observation })
+      local dialog = permission_window._dialog
+      permission_window._dialog:set_selection(3)
+      permission_window.sync({ observation })
+      permission_window.sync({ observation })
+
+      assert.are.equal(dialog, permission_window._dialog)
+      assert.are.equal(3, permission_window._dialog:get_selection())
+      assert.stub(input_window._hide).was_called(1)
+      assert.stub(input_window._show).was_not_called()
+    end)
+
+    it('rebuilds the dialog when the next permission becomes current', function()
+      permission_window.add_permission({ id = 'per_a', permission = 'bash', status = 'pending' })
+      permission_window.add_permission({ id = 'per_b', permission = 'bash', status = 'pending' })
+      local first = permission_window._dialog
+
+      permission_window.remove_permission('per_a')
+
+      assert.are_not.equal(first, permission_window._dialog)
+      assert.are.equal('per_b', permission_window.get_current_permission().id)
+      vim.wait(20)
+      assert.stub(input_window._show).was_not_called()
     end)
 
     it('responds once when the same choice is triggered repeatedly', function()

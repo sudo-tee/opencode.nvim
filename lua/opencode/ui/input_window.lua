@@ -469,6 +469,8 @@ function M._hide()
   local output_window = require('opencode.ui.output_window')
   local output_win = windows.output_win
   local was_at_bottom = output_window.is_at_bottom(output_win)
+  local current_win = vim.api.nvim_get_current_win()
+  local was_focused = current_win == windows.input_win or current_win == output_win
 
   M._hidden = true
   M._toggling = true
@@ -490,7 +492,9 @@ function M._hide()
     M._toggling = false
   end)
 
-  output_window.focus_output(true)
+  if was_focused then
+    output_window.focus_output(true)
+  end
 
   if was_at_bottom and output_win then
     -- The output window grew and Neovim may have lowered its topline; that is

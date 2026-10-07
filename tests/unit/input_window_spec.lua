@@ -661,6 +661,62 @@ describe('input_window', function()
     end)
   end)
 
+  describe('_hide focus', function()
+    local editor_win, input_win, output_win, input_buf, output_buf
+
+    before_each(function()
+      editor_win = vim.api.nvim_get_current_win()
+      input_buf = vim.api.nvim_create_buf(false, true)
+      output_buf = vim.api.nvim_create_buf(false, true)
+      output_win = vim.api.nvim_open_win(output_buf, false, {
+        relative = 'editor',
+        row = 0,
+        col = 0,
+        width = 40,
+        height = 10,
+      })
+      input_win = vim.api.nvim_open_win(input_buf, false, {
+        relative = 'editor',
+        row = 12,
+        col = 0,
+        width = 40,
+        height = 3,
+      })
+      state.ui.set_windows({
+        input_buf = input_buf,
+        input_win = input_win,
+        output_buf = output_buf,
+        output_win = output_win,
+      })
+    end)
+
+    after_each(function()
+      pcall(vim.api.nvim_win_close, input_win, true)
+      pcall(vim.api.nvim_win_close, output_win, true)
+      pcall(vim.api.nvim_buf_delete, input_buf, { force = true })
+      pcall(vim.api.nvim_buf_delete, output_buf, { force = true })
+      state.ui.clear_windows()
+      input_window._hidden = false
+    end)
+
+    it('keeps focus in the editor when the panel is not focused', function()
+      vim.api.nvim_set_current_win(editor_win)
+
+      input_window._hide()
+
+      assert.are.equal(editor_win, vim.api.nvim_get_current_win())
+      assert.is_false(vim.api.nvim_win_is_valid(input_win))
+    end)
+
+    it('moves focus to the output when the input was focused', function()
+      vim.api.nvim_set_current_win(input_win)
+
+      input_window._hide()
+
+      assert.are.equal(output_win, vim.api.nvim_get_current_win())
+    end)
+  end)
+
   local function make_entry(content)
     return {
       id = 'msg_1',

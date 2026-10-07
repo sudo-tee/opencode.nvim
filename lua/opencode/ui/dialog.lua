@@ -41,6 +41,36 @@
 local Dialog = {}
 Dialog.__index = Dialog
 
+-- Dialogs that currently keep the input window hidden. Shared so that
+-- rebuilding one dialog, or overlapping permission/question dialogs, does not
+-- toggle the input window (each toggle reflows and refocuses the panel).
+---@type table<Dialog, true>
+local input_holders = {}
+
+local function hold_input(dialog)
+  local was_held = next(input_holders) ~= nil
+  input_holders[dialog] = true
+  if not was_held then
+    require('opencode.ui.input_window')._hide()
+  end
+end
+
+local function release_input(dialog)
+  if not input_holders[dialog] then
+    return
+  end
+  input_holders[dialog] = nil
+  if next(input_holders) ~= nil then
+    return
+  end
+  vim.schedule(function()
+    if next(input_holders) ~= nil or require('opencode.config').ui.input.auto_hide then
+      return
+    end
+    require('opencode.ui.input_window')._show()
+  end)
+end
+
 ---Create a new dialog instance
 ---@param config DialogConfig Dialog configuration
 ---@return Dialog
@@ -208,10 +238,8 @@ function Dialog:setup()
 
   self._active = true
 
-  -- Hide input window if configured
   if self._config.hide_input then
-    local input_window = require('opencode.ui.input_window')
-    input_window._hide()
+    hold_input(self)
   end
 
   self:_setup_keymaps()
@@ -221,15 +249,12 @@ end
 function Dialog:teardown()
   self._active = false
   self:_clear_keymaps()
+  release_input(self)
+end
 
-  -- Show input window if it was hidden, but only if auto_hide is disabled
-  if self._config.hide_input then
-    local config = require('opencode.config')
-    local input_window = require('opencode.ui.input_window')
-    if not config.ui.input.auto_hide then
-      input_window._show()
-    end
-  end
+---@return integer
+function Dialog:get_buffer()
+  return self._config.buffer
 end
 
 ---Check if dialog is currently active

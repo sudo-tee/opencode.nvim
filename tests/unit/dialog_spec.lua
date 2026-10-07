@@ -78,6 +78,9 @@ describe('Dialog', function()
 
       dialog:setup()
       dialog:teardown()
+      vim.wait(100, function()
+        return show_called
+      end)
 
       assert.is_true(show_called, 'input window should be shown when auto_hide is disabled')
     end)
@@ -162,6 +165,7 @@ describe('Dialog', function()
       dialog:setup()
 
       assert.is_true(hide_called, 'input window should be hidden during dialog setup')
+      dialog:teardown()
     end)
 
     it('should hide input window during setup even with auto_hide enabled', function()
@@ -188,6 +192,7 @@ describe('Dialog', function()
       dialog:setup()
 
       assert.is_true(hide_called, 'input window should be hidden during dialog setup regardless of auto_hide')
+      dialog:teardown()
     end)
   end)
 
@@ -222,6 +227,7 @@ describe('Dialog', function()
 
       show_called = false -- reset
       dialog:teardown()
+      vim.wait(20)
       assert.is_false(show_called, 'input should NOT be shown after answering question with auto_hide enabled')
     end)
 
@@ -255,6 +261,7 @@ describe('Dialog', function()
 
       show_called = false -- reset
       dialog:teardown()
+      vim.wait(20)
       assert.is_false(show_called, 'input should NOT be shown after responding to permission with auto_hide enabled')
     end)
 
@@ -288,7 +295,72 @@ describe('Dialog', function()
 
       show_called = false -- reset
       dialog:teardown()
+      vim.wait(100, function()
+        return show_called
+      end)
       assert.is_true(show_called, 'input should be shown after answering question with auto_hide disabled')
+    end)
+  end)
+
+  describe('shared input visibility', function()
+    local function new_dialog()
+      return Dialog.new({
+        buffer = output_buf,
+        on_select = function() end,
+        get_option_count = function()
+          return 3
+        end,
+        hide_input = true,
+      })
+    end
+
+    local function mock_input_window()
+      local calls = { show = 0, hide = 0 }
+      package.loaded['opencode.ui.input_window'] = {
+        _show = function()
+          calls.show = calls.show + 1
+        end,
+        _hide = function()
+          calls.hide = calls.hide + 1
+        end,
+      }
+      return calls
+    end
+
+    it('keeps the input hidden when a dialog is rebuilt in the same tick', function()
+      config.ui.input.auto_hide = false
+      local calls = mock_input_window()
+
+      local first = new_dialog()
+      first:setup()
+      first:teardown()
+      local second = new_dialog()
+      second:setup()
+      vim.wait(20)
+
+      assert.are.equal(0, calls.show)
+      second:teardown()
+    end)
+
+    it('shows the input only after every overlapping dialog is torn down', function()
+      config.ui.input.auto_hide = false
+      local calls = mock_input_window()
+
+      local permission = new_dialog()
+      local question = new_dialog()
+      permission:setup()
+      question:setup()
+      assert.are.equal(1, calls.hide)
+
+      question:teardown()
+      vim.wait(20)
+      assert.are.equal(0, calls.show)
+
+      permission:teardown()
+      vim.wait(100, function()
+        return calls.show > 0
+      end)
+      assert.are.equal(1, calls.show)
     end)
   end)
 

@@ -109,6 +109,37 @@ describe('panel autocmd subscriptions', function()
     assert.stub(teardown).was_called_with(windows)
   end)
 
+  for _, name in ipairs({ 'input', 'output' }) do
+    for _, event in ipairs({ 'BufDelete', 'BufWipeout' }) do
+      it('clears ' .. name .. ' window locks on ' .. event, function()
+        vim.cmd('vsplit')
+        local win = vim.api.nvim_get_current_win()
+        created_wins[#created_wins + 1] = win
+        local buf = vim.api.nvim_create_buf(false, true)
+        created_bufs[#created_bufs + 1] = buf
+        vim.api.nvim_win_set_buf(win, buf)
+        local panel = vim.tbl_extend('force', {}, windows, {
+          [name .. '_win'] = win,
+          [name .. '_buf'] = buf,
+        })
+        state.ui.set_windows(panel)
+        autocmds.setup_autocmds(panel)
+
+        for _, option in ipairs({ 'winfixbuf', 'winfixheight', 'winfixwidth' }) do
+          vim.api.nvim_set_option_value(option, true, { win = win })
+        end
+        vim.api.nvim_exec_autocmds(event, { buffer = buf })
+
+        for _, option in ipairs({ 'winfixbuf', 'winfixheight', 'winfixwidth' }) do
+          assert.is_false(vim.api.nvim_get_option_value(option, { win = win }))
+        end
+        local next_buf = vim.api.nvim_create_buf(false, true)
+        created_bufs[#created_bufs + 1] = next_buf
+        vim.api.nvim_win_set_buf(win, next_buf)
+      end)
+    end
+  end
+
   it('tracks files in the panel tab but ignores floats, other tabs, and window exits', function()
     local function file(name)
       local buf = vim.api.nvim_create_buf(true, false)

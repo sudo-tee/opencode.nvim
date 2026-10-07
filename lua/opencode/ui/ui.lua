@@ -114,6 +114,14 @@ local function prepare_window_close()
 end
 
 ---@param windows OpencodeWindowState
+local function close_input_window(windows)
+  if windows.input_win and vim.api.nvim_win_is_valid(windows.input_win) then
+    output_window.restore_winfix_options(windows.input_win)
+    pcall(vim.api.nvim_win_close, windows.input_win, true)
+  end
+end
+
+---@param windows OpencodeWindowState
 local function close_or_restore_output_window(windows)
   if not windows.output_win or not vim.api.nvim_win_is_valid(windows.output_win) then
     return
@@ -161,7 +169,7 @@ function M.hide_visible_windows(windows, force_preserve)
   prepare_window_close()
   footer.close(true)
   session_tab_strip.close(true, windows)
-  pcall(vim.api.nvim_win_close, windows.input_win, true)
+  close_input_window(windows)
   close_or_restore_output_window(windows)
 
   for _, buf in ipairs({ windows.input_buf, windows.output_buf, windows.footer_buf, windows.tab_strip_buf }) do
@@ -196,7 +204,7 @@ function M.teardown_visible_windows(windows)
   end
   footer.close(false)
   session_tab_strip.close(false, windows)
-  pcall(vim.api.nvim_win_close, windows.input_win, true)
+  close_input_window(windows)
   close_or_restore_output_window(windows)
 
   input_window._hidden = false

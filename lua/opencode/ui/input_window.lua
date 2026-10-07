@@ -118,6 +118,7 @@ function M.close()
   end
   ---@cast state.windows { input_win: integer, input_buf: integer }
 
+  require('opencode.ui.output_window').restore_winfix_options(state.windows.input_win)
   pcall(vim.api.nvim_win_close, state.windows.input_win, true)
   pcall(vim.api.nvim_buf_delete, state.windows.input_buf, { force = true })
 end
@@ -477,6 +478,7 @@ function M._hide()
     state.ui.set_cursor_position('input', pos)
   end
 
+  output_window.restore_winfix_options(windows.input_win)
   pcall(vim.api.nvim_win_close, windows.input_win, false)
   windows.input_win = nil
 

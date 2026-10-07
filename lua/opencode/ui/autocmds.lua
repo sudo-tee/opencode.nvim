@@ -124,16 +124,18 @@ local function setup_panel_autocmds(windows, group)
     end,
   })
 
-  -- Restore winfixbuf etc. when the output buffer is removed from the window,
-  vim.api.nvim_create_autocmd('BufDelete', {
-    group = group,
-    buffer = windows.output_buf,
-    callback = function()
-      if windows.output_win and vim.api.nvim_win_is_valid(windows.output_win) then
-        output_window.restore_winfix_options(windows.output_win)
-      end
-    end,
-  })
+  for _, name in ipairs({ 'input', 'output' }) do
+    vim.api.nvim_create_autocmd({ 'BufDelete', 'BufWipeout' }, {
+      group = group,
+      buffer = windows[name .. '_buf'],
+      callback = function()
+        local win = windows[name .. '_win']
+        if win and vim.api.nvim_win_is_valid(win) then
+          output_window.restore_winfix_options(win)
+        end
+      end,
+    })
+  end
 end
 
 ---@param windows OpencodeWindowState

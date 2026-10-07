@@ -233,6 +233,33 @@ describe('persist_state', function()
   end)
 
   describe('hidden buffer lifecycle', function()
+    for _, preserve in ipairs({ false, true }) do
+      it('unlocks a surviving input window when ' .. (preserve and 'hiding' or 'closing'), function()
+        setup_ui()
+        create_code_file()
+        windows = ui.create_windows()
+        state.ui.set_windows(windows)
+        local input_win = windows.input_win
+        local close_win = vim.api.nvim_win_close
+        local close = stub(vim.api, 'nvim_win_close', function(win, force)
+          if win == input_win then
+            vim.api.nvim_win_set_buf(win, code_buf)
+            error('Window cannot close')
+          end
+          return close_win(win, force)
+        end)
+
+        local ok, err = pcall(ui.close_windows, windows, preserve)
+        close:revert()
+        assert.is_true(ok, err)
+        assert.is_true(vim.api.nvim_win_is_valid(input_win))
+        assert.is_false(vim.wo[input_win].winfixbuf)
+        assert.is_false(vim.wo[input_win].winfixwidth)
+        vim.api.nvim_win_set_buf(input_win, code_buf)
+        close_win(input_win, true)
+      end)
+    end
+
     it('restores the code buffer when a current window closes after position changes', function()
       setup_ui({ position = 'current' })
       create_code_file()

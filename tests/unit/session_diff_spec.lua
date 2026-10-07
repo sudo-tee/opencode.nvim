@@ -118,6 +118,32 @@ describe('session diff', function()
     assert.is_true(called)
   end)
 
+  it('opens the working-tree file with gf from the list and preview without replacing snapshots', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    diff.open({ file(path, '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_gf' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    local list_win = vim.api.nvim_get_current_win()
+    local preview_win = vim.api.nvim_tabpage_list_wins(tab)[2]
+    local preview_buf = vim.api.nvim_win_get_buf(preview_win)
+    for _, win in ipairs({ list_win, preview_win }) do
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_feedkeys('gf', 'xt', false)
+      assert.equals(path, vim.api.nvim_buf_get_name(0))
+      assert.not_equals(tab, vim.api.nvim_get_current_tabpage())
+      vim.cmd('tabclose')
+      assert.equals(tab, vim.api.nvim_get_current_tabpage())
+      assert.equals(preview_buf, vim.api.nvim_win_get_buf(preview_win))
+    end
+  end)
+
+  it('does not open a new empty file when gf targets a deleted file', function()
+    local path = vim.fn.getcwd() .. '/missing-session-diff-gf.lua'
+    diff.open({ file(path, '@@ -1 +0,0 @@\n-old') }, { id = 'ses_gf_missing' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    vim.api.nvim_feedkeys('gf', 'xt', false)
+    assert.equals(tab, vim.api.nvim_get_current_tabpage())
+  end)
+
   it('disables list wrapping even when enabled globally', function()
     local wrap = vim.o.wrap
     vim.o.wrap = true

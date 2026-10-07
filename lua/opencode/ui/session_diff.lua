@@ -120,6 +120,7 @@ local function map_actions(buf, scope)
       M.select(-1)
     end,
     select = M.select,
+    open_file = M.open_file,
   }
   keymaps.setup_window_keymaps(config.keymap.session_diff[scope], buf, false, actions)
 end
@@ -736,6 +737,27 @@ function M.activate()
   render.tree(view, file_icon)
   render.title(view)
   vim.api.nvim_win_set_cursor(view.list_win, { row, 0 })
+end
+
+function M.open_file()
+  if not in_view() or #view.files == 0 then
+    return
+  end
+  local index = view.index
+  if vim.api.nvim_get_current_win() == view.list_win then
+    local node = view.rows[vim.api.nvim_win_get_cursor(view.list_win)[1]]
+    if not node or not node.file_index then
+      return
+    end
+    index = node.file_index
+  end
+  local file = view.files[index]
+  if vim.fn.filereadable(file.file) == 0 then
+    vim.notify('Working-tree file not found: ' .. file.file, vim.log.levels.WARN)
+    return
+  end
+  -- Keep snapshot previews intact while editing the current working-tree revision.
+  vim.cmd('tabedit ' .. vim.fn.fnameescape(file.file))
 end
 
 function M.select(direction)

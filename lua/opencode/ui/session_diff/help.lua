@@ -20,6 +20,7 @@ local action_order = {
   next_file = 16,
   prev_file = 17,
   select = 18,
+  open_file = 19,
 }
 
 ---@class OpencodeSessionDiffHelpSection

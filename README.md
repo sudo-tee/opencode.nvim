@@ -1191,6 +1191,8 @@ Press `r` to select a range of turns/messages: move through user prompts, mark t
 
 Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
 
+Press `gf` in the file list or diff preview to open the selected working-tree file in a new tab, keeping the snapshot review intact. If the file no longer exists on disk, a warning is shown instead. Remap this using the `open_file` action.
+
 ### Customize session-diff keymaps
 
 Like panel mappings, `keymap.session_diff` binds keys to `{ action, { arguments }, mode = ..., desc = ..., nowait = ... }` entries, using the same keymap utility. Actions can be local diff action names, panel command names, or Lua callbacks; local diff actions take precedence. Set a default key to `false` to disable it. `<Tab>` / `<S-Tab>` select the next / previous file in the list and diff panes.

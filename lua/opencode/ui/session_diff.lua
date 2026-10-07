@@ -862,6 +862,7 @@ function M.open(files, session, options)
   vim.wo[list_win].relativenumber = false
   vim.wo[list_win].signcolumn = 'no'
   vim.wo[list_win].cursorline = true
+  vim.wo[list_win].wrap = false
   vim.cmd('rightbelow vsplit')
   local preview_win = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_win(list_win)

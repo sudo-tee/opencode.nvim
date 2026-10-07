@@ -118,6 +118,15 @@ describe('session diff', function()
     assert.is_true(called)
   end)
 
+  it('disables list wrapping even when enabled globally', function()
+    local wrap = vim.o.wrap
+    vim.o.wrap = true
+    diff.open({ file(vim.fn.getcwd() .. '/one.lua', '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_wrap' })
+    local list_wrap = vim.wo.wrap
+    vim.o.wrap = wrap
+    assert.is_false(list_wrap)
+  end)
+
   it('aligns folders and files at the same tree depth', function()
     local cwd = vim.fn.getcwd()
     diff.open({

@@ -2,6 +2,7 @@ local patch = require('opencode.session_patch')
 local config = require('opencode.config')
 local float_layout = require('opencode.ui.float_layout')
 local help = require('opencode.ui.session_diff.help')
+local keymaps = require('opencode.keymap')
 local icons = require('opencode.ui.icons')
 local render = require('opencode.ui.session_diff.render')
 local context = require('opencode.context')
@@ -112,17 +113,16 @@ local function map_actions(buf, scope)
     prev_comment = function()
       M.jump_comment(-1)
     end,
+    next_file = function()
+      M.select(1)
+    end,
+    prev_file = function()
+      M.select(-1)
+    end,
+    select = M.select,
+    open_file = M.open_file,
   }
-  for key, entry in pairs(config.keymap.session_diff[scope]) do
-    if entry ~= false then
-      vim.keymap.set(entry.mode or 'n', key, actions[entry[1]], {
-        buffer = buf,
-        silent = true,
-        desc = entry.desc,
-        nowait = entry.nowait,
-      })
-    end
-  end
+  keymaps.setup_window_keymaps(config.keymap.session_diff[scope], buf, false, actions)
 end
 
 local function help_key()
@@ -216,6 +216,7 @@ function M.toggle_help()
 
   local buf, width, height = help.create(config.keymap.session_diff)
   map_actions(buf, 'help')
+  vim.bo[buf].filetype = 'opencode_diff_help'
   view.help_return_win = vim.api.nvim_get_current_win()
   view.help_win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -234,7 +235,6 @@ end
 local function open_turn_window()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = 'wipe'
-  vim.bo[buf].filetype = ''
   vim.bo[buf].modifiable = false
   local win_config = float_layout.window_configs(nil, false)
   win_config.width = math.min(assert(win_config.width), math.floor(vim.o.columns * 0.75)) --[[@as integer]]
@@ -251,6 +251,7 @@ local function open_turn_window()
   vim.wo[view.turn_win].relativenumber = false
   vim.wo[view.turn_win].signcolumn = 'no'
   map_actions(buf, 'messages')
+  vim.bo[buf].filetype = 'opencode_diff_messages'
 end
 
 local function close_turn_window()
@@ -388,9 +389,15 @@ scratch = function(lines, filetype, scope)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = 'wipe'
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].filetype = filetype
   vim.bo[buf].modifiable = false
   map_actions(buf, scope or 'preview')
+  if scope == 'list' then
+    vim.bo[buf].filetype = 'opencode_diff_list'
+  else
+    local suffix = scope == 'message_preview' and 'opencode_diff_message_preview' or 'opencode_diff_preview'
+    vim.bo[buf].filetype = filetype ~= '' and (filetype .. '.' .. suffix) or suffix
+    vim.bo[buf].syntax = filetype
+  end
   return buf
 end
 
@@ -398,6 +405,8 @@ local function set_preview(win, lines, filetype)
   vim.api.nvim_win_set_buf(win, scratch(lines, filetype))
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
   vim.wo[win].signcolumn = 'yes:1'
+  vim.wo[win].number = true
+  vim.wo[win].relativenumber = false
 end
 
 local function refresh_comments()
@@ -732,6 +741,63 @@ function M.activate()
   vim.api.nvim_win_set_cursor(view.list_win, { row, 0 })
 end
 
+---@param win integer
+---@return integer
+local function working_tree_line(win)
+  local row = vim.api.nvim_win_get_cursor(win)[1]
+  if view.sides[win] == 'after' then
+    return row
+  end
+  if view.sides[win] == 'before' then
+    for index, entry in ipairs(view.patch_map) do
+      if entry.old == row then
+        row = index
+        break
+      end
+    end
+  end
+  -- Deleted lines and patch headers target the next surviving line, or the last one.
+  for index = row, #view.patch_map do
+    local number = view.patch_map[index].new
+    if number then
+      return number
+    end
+  end
+  for index = math.min(row - 1, #view.patch_map), 1, -1 do
+    local number = view.patch_map[index].new
+    if number then
+      return number
+    end
+  end
+  return 1
+end
+
+function M.open_file()
+  if not in_view() or #view.files == 0 then
+    return
+  end
+  local index = view.index
+  local win = vim.api.nvim_get_current_win()
+  local line = 1
+  if win == view.list_win then
+    local node = view.rows[vim.api.nvim_win_get_cursor(view.list_win)[1]]
+    if not node or not node.file_index then
+      return
+    end
+    index = node.file_index
+  elseif win == view.preview_win or win == view.right_win then
+    line = working_tree_line(win)
+  end
+  local file = view.files[index]
+  if vim.fn.filereadable(file.file) == 0 then
+    vim.notify('Working-tree file not found: ' .. file.file, vim.log.levels.WARN)
+    return
+  end
+  -- Keep snapshot previews intact while editing the current working-tree revision.
+  vim.cmd('tabedit ' .. vim.fn.fnameescape(file.file))
+  vim.api.nvim_win_set_cursor(0, { math.min(line, vim.api.nvim_buf_line_count(0)), 0 })
+end
+
 function M.select(direction)
   if not active() then
     return false
@@ -856,6 +922,7 @@ function M.open(files, session, options)
   vim.wo[list_win].relativenumber = false
   vim.wo[list_win].signcolumn = 'no'
   vim.wo[list_win].cursorline = true
+  vim.wo[list_win].wrap = false
   vim.cmd('rightbelow vsplit')
   local preview_win = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_win(list_win)

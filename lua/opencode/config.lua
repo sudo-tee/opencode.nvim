@@ -33,6 +33,9 @@ M.defaults = {
     session_diff = {
       list = {
         ['<CR>'] = { 'activate', desc = 'Open file or toggle folder' },
+        ['gf'] = { 'open_file', desc = 'Open working-tree file in a new tab' },
+        ['<Tab>'] = { 'next_file', desc = 'Next file' },
+        ['<S-Tab>'] = { 'prev_file', desc = 'Previous file' },
         ['r'] = { 'toggle_range', desc = 'Choose message range', nowait = true },
         ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
         ['q'] = { 'close', desc = 'Close diff', nowait = true },
@@ -49,6 +52,9 @@ M.defaults = {
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },
       },
       preview = {
+        ['gf'] = { 'open_file', desc = 'Open working-tree file in a new tab' },
+        ['<Tab>'] = { 'next_file', desc = 'Next file' },
+        ['<S-Tab>'] = { 'prev_file', desc = 'Previous file' },
         ['q'] = { 'close', desc = 'Close diff', nowait = true },
         ['p'] = { 'toggle_view', desc = 'Toggle diff layout' },
         ['g?'] = { 'toggle_help', desc = 'Toggle keymap help' },

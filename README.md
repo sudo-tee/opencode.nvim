@@ -1193,6 +1193,29 @@ Press `r` to select a range of turns/messages: move through user prompts, mark t
 
 Press `q` to close the review tab. `:Opencode diff next` and `:Opencode diff prev` also select files in the open review tab.
 
+Press `gf` in the file list or diff preview to open the selected working-tree file in a new tab, keeping the snapshot review intact. From a preview, it targets the corresponding post-change line (deleted lines use the next surviving line, or the last one), clamped to the current file's length. This is best-effort if the working tree has changed since the snapshot. Diff panes show absolute line numbers. If the file no longer exists on disk, a warning is shown instead. Remap this using the `open_file` action.
+
+### Customize session-diff keymaps
+
+Like panel mappings, `keymap.session_diff` binds keys to `{ action, { arguments }, mode = ..., desc = ..., nowait = ... }` entries, using the same keymap utility. Actions can be local diff action names, panel command names, or Lua callbacks; local diff actions take precedence. Set a default key to `false` to disable it. `<Tab>` / `<S-Tab>` select the next / previous file in the list and diff panes.
+
+```lua
+keymap = {
+  session_diff = {
+    preview = {
+      [']f'] = { 'next_file', desc = 'Next file' },
+      ['[f'] = { 'prev_file', desc = 'Previous file' },
+      ['<M-e>'] = { function() vim.cmd('wincmd h') end, desc = 'Focus file list' },
+    },
+    list = {
+      ['<M-e>'] = { function() vim.cmd('wincmd l') end, desc = 'Focus diff' },
+    },
+  },
+}
+```
+
+Dedicated filetypes are `opencode_diff_list`, `opencode_diff_messages`, `opencode_diff_help`, and `opencode_diff_comment`. Preview buffers use composite filetypes such as `lua.opencode_diff_preview`, `diff.opencode_diff_preview`, and `markdown.opencode_diff_message_preview`, keeping source syntax highlighting. Use `FileType` patterns `*.opencode_diff_preview` or `*.opencode_diff_message_preview` to attach your own buffer-local mappings; configured mappings are installed before these hooks run.
+
 ### Comment on a session diff
 
 In a diff preview, press `c` on a line or visual selection to add or edit a review comment. Use `dc` to remove one; `]r` and `[r` move between comments. In the comment editor, `<C-s>` or `:w` saves, while `q` or `<Esc>` cancels. Comments appear as signs and in the file tree; closing the review focuses the input when comments are pending. Comments are sent with the next prompt and include the reviewed snapshot and a best-effort current-file status.

@@ -34,6 +34,7 @@ describe('session diff', function()
       end,
     })
     local list_buf = vim.api.nvim_get_current_buf()
+    assert.equals('opencode_diff_list', vim.bo[list_buf].filetype)
     local function mapped(buf, key)
       return vim.tbl_contains(
         vim.tbl_map(function(entry)
@@ -46,6 +47,8 @@ describe('session diff', function()
     assert.is_false(mapped(list_buf, 'p'))
     local preview_win = vim.api.nvim_tabpage_list_wins(0)[2]
     local preview_buf = vim.api.nvim_win_get_buf(preview_win)
+    assert.equals('lua.opencode_diff_preview', vim.bo[preview_buf].filetype)
+    assert.equals('lua', vim.bo[preview_buf].syntax)
     assert.is_true(mapped(preview_buf, 'v'))
     assert.is_false(mapped(preview_buf, 'p'))
 
@@ -54,14 +57,147 @@ describe('session diff', function()
       return vim.api.nvim_get_current_buf() ~= list_buf
     end))
     local turns_buf = vim.api.nvim_get_current_buf()
+    assert.equals('opencode_diff_messages', vim.bo[turns_buf].filetype)
     assert.is_true(mapped(turns_buf, 's'))
     assert.is_false(mapped(turns_buf, 'f'))
     assert.equals(' Messages  (s/t mark, <CR> apply, <Esc> close) ', vim.api.nvim_win_get_config(0).title[1][1])
     diff.show_turn_preview()
     local message_buf = vim.api.nvim_get_current_buf()
+    assert.equals('markdown.opencode_diff_message_preview', vim.bo[message_buf].filetype)
     assert.is_true(mapped(message_buf, 'x'))
     assert.is_false(mapped(message_buf, 'q'))
     assert.is_false(mapped(message_buf, 'p'))
+  end)
+
+  it('binds custom callbacks and file navigation with arguments', function()
+    local received
+    config.keymap.session_diff.preview['X'] = {
+      function(value)
+        received = value
+      end,
+      { 'custom argument' },
+      desc = 'Custom preview action',
+    }
+    config.keymap.session_diff.preview['N'] = { 'select', { 1 } }
+    local cwd = vim.fn.getcwd()
+    diff.open({
+      file(cwd .. '/one.lua', '@@ -1 +1 @@\n-old\n+first'),
+      file(cwd .. '/two.lua', '@@ -1 +1 @@\n-old\n+second'),
+    }, { id = 'ses_callbacks' })
+    local list_win = vim.api.nvim_get_current_win()
+    local preview_win = vim.api.nvim_tabpage_list_wins(0)[2]
+    vim.api.nvim_set_current_win(preview_win)
+    vim.api.nvim_feedkeys('X', 'xt', false)
+    assert.equals('custom argument', received)
+    vim.api.nvim_feedkeys('N', 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('two.lua', 1, true) ~= nil)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<S-Tab>', true, false, true), 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('one.lua', 1, true) ~= nil)
+    vim.api.nvim_set_current_win(list_win)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Tab>', true, false, true), 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('two.lua', 1, true) ~= nil)
+    diff.toggle_help()
+    local lines = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+    assert.is_true(lines:find('Custom preview action', 1, true) ~= nil)
+  end)
+
+  it('allows FileType hooks to override configured buffer-local mappings', function()
+    local called = false
+    local autocmd = vim.api.nvim_create_autocmd('FileType', {
+      pattern = '*.opencode_diff_preview',
+      callback = function(args)
+        vim.keymap.set('n', 'p', function()
+          called = true
+        end, { buffer = args.buf })
+      end,
+    })
+    diff.open({ file(vim.fn.getcwd() .. '/one.lua', '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_hooks' })
+    vim.api.nvim_del_autocmd(autocmd)
+    vim.api.nvim_set_current_win(vim.api.nvim_tabpage_list_wins(0)[2])
+    vim.api.nvim_feedkeys('p', 'xt', false)
+    assert.is_true(called)
+  end)
+
+  it('opens the working-tree file with gf from the list and preview without replacing snapshots', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    diff.open({ file(path, '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_gf' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    local list_win = vim.api.nvim_get_current_win()
+    local preview_win = vim.api.nvim_tabpage_list_wins(tab)[2]
+    local preview_buf = vim.api.nvim_win_get_buf(preview_win)
+    for _, win in ipairs({ list_win, preview_win }) do
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_feedkeys('gf', 'xt', false)
+      assert.equals(path, vim.api.nvim_buf_get_name(0))
+      assert.not_equals(tab, vim.api.nvim_get_current_tabpage())
+      vim.cmd('tabclose')
+      assert.equals(tab, vim.api.nvim_get_current_tabpage())
+      assert.equals(preview_buf, vim.api.nvim_win_get_buf(preview_win))
+    end
+  end)
+
+  it('does not open a new empty file when gf targets a deleted file', function()
+    local path = vim.fn.getcwd() .. '/missing-session-diff-gf.lua'
+    diff.open({ file(path, '@@ -1 +0,0 @@\n-old') }, { id = 'ses_gf_missing' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    vim.api.nvim_feedkeys('gf', 'xt', false)
+    assert.equals(tab, vim.api.nvim_get_current_tabpage())
+  end)
+
+  it('maps gf to post-change lines from both sides and unified patches', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/config.lua'
+    local text = '@@ -1,4 +1,5 @@\n+inserted\n first\n second\n-removed\n+replacement\n last'
+    diff.open({ file(path, text) }, { id = 'ses_gf_lines' })
+    local tab = vim.api.nvim_get_current_tabpage()
+    local before, after
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+      if vim.wo[win].winbar:find('Before:', 1, true) then
+        before = win
+      elseif vim.wo[win].winbar:find('After:', 1, true) then
+        after = win
+      end
+    end
+    local function jump(win, row, expected)
+      assert.is_true(vim.wo[win].number)
+      assert.is_false(vim.wo[win].relativenumber)
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_win_set_cursor(win, { row, 0 })
+      vim.api.nvim_feedkeys('gf', 'xt', false)
+      assert.equals(expected, vim.api.nvim_win_get_cursor(0)[1])
+      vim.cmd('tabclose')
+      assert.equals(tab, vim.api.nvim_get_current_tabpage())
+    end
+    jump(before, 2, 3)
+    jump(before, 3, 4)
+    jump(after, 5, 5)
+    diff.show_patch()
+    jump(before, 1, 1)
+    jump(before, 4, 3)
+    jump(before, 5, 4)
+    jump(before, 7, 5)
+  end)
+
+  it('clamps gf line navigation to the current working-tree file length', function()
+    local path = vim.fn.getcwd() .. '/lua/opencode/session_patch.lua'
+    local count = #vim.fn.readfile(path)
+    local text = '@@ -1,100 +1,100 @@\n' .. string.rep(' context\n', 99) .. '-old\n+new'
+    diff.open({ file(path, text) }, { id = 'ses_gf_clamp' })
+    diff.show_patch()
+    local preview = vim.api.nvim_tabpage_list_wins(0)[2]
+    vim.api.nvim_set_current_win(preview)
+    vim.api.nvim_win_set_cursor(preview, { 102, 0 })
+    vim.api.nvim_feedkeys('gf', 'xt', false)
+    assert.equals(count, vim.api.nvim_win_get_cursor(0)[1])
+    vim.cmd('tabclose')
+  end)
+
+  it('disables list wrapping even when enabled globally', function()
+    local wrap = vim.o.wrap
+    vim.o.wrap = true
+    diff.open({ file(vim.fn.getcwd() .. '/one.lua', '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_wrap' })
+    local list_wrap = vim.wo.wrap
+    vim.o.wrap = wrap
+    assert.is_false(list_wrap)
   end)
 
   it('aligns folders and files at the same tree depth', function()
@@ -98,6 +234,7 @@ describe('session diff', function()
     assert.is_true(vim.wo[list_win].winbar:find('?', 1, true) ~= nil)
     vim.api.nvim_feedkeys('?', 'xt', false)
     local help_win = vim.api.nvim_get_current_win()
+    assert.equals('opencode_diff_help', vim.bo.filetype)
     assert.not_equals(list_win, help_win)
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     assert.is_true(vim.tbl_contains(

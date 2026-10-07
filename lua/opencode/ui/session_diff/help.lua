@@ -17,6 +17,10 @@ local action_order = {
   prev_comment = 13,
   submit_comment = 14,
   cancel_comment = 15,
+  next_file = 16,
+  prev_file = 17,
+  select = 18,
+  open_file = 19,
 }
 
 ---@class OpencodeSessionDiffHelpSection
@@ -25,13 +29,14 @@ local action_order = {
 ---@field width integer
 
 ---@param title string
----@param mappings table<string, OpencodeKeymapEntry|false>
+---@param mappings OpencodeSessionDiffMappings
 ---@return OpencodeSessionDiffHelpSection
 local function section(title, mappings)
   local entries = {}
   for key, entry in pairs(mappings) do
     if entry ~= false then
-      entries[#entries + 1] = { key = key, action = entry[1], label = entry.desc or entry[1] }
+      local action = type(entry[1]) == 'string' and entry[1] or 'Custom callback'
+      entries[#entries + 1] = { key = key, action = action, label = entry.desc or action }
     end
   end
   table.sort(entries, function(a, b)
@@ -45,7 +50,7 @@ local function section(title, mappings)
   return { title = title, entries = entries, width = width }
 end
 
----@param keymaps {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, comment: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
+---@param keymaps OpencodeSessionDiffKeymaps
 ---@return integer, integer, integer
 function M.create(keymaps)
   local sections = {

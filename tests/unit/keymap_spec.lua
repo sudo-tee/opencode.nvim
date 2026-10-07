@@ -140,6 +140,46 @@ describe('opencode.keymap', function()
     package.loaded['opencode.config'] = nil
   end)
 
+  describe('local actions', function()
+    it('prefers local overrides and passes fresh arguments on each invocation', function()
+      local arguments = { { value = 'original' } }
+      local received = {}
+      keymap.setup_window_keymaps({ x = { 'toggle', arguments, mode = 'n', nowait = true } }, 0, false, {
+        toggle = function(value)
+          received[#received + 1] = value.value
+          value.value = 'changed'
+        end,
+      })
+      set_keymaps[1].callback()
+      set_keymaps[1].callback()
+      assert.same({ 'original', 'original' }, received)
+      assert.equals(0, #executed_parsed)
+      assert.equals('', set_keymaps[1].opts.desc)
+      assert.is_true(set_keymaps[1].opts.nowait)
+      assert.equals('n', set_keymaps[1].modes)
+    end)
+
+    it('falls back to panel commands for names outside the local action table', function()
+      keymap.setup_window_keymaps({ x = { 'toggle' } }, 0, false, {})
+      set_keymaps[1].callback()
+      assert.equals('toggle', executed_parsed[1].intent.name)
+    end)
+
+    it('passes configured arguments to custom callbacks', function()
+      local received
+      keymap.setup_window_keymaps({
+        x = {
+          function(value)
+            received = value
+          end,
+          { 'argument' },
+        },
+      }, 0)
+      set_keymaps[1].callback()
+      assert.equals('argument', received)
+    end)
+  end)
+
   describe('panel lifecycle', function()
     local function panel()
       local windows = { input_win = vim.api.nvim_get_current_win(), output_win = vim.api.nvim_get_current_win() }

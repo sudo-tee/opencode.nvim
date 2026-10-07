@@ -2,6 +2,7 @@ local patch = require('opencode.session_patch')
 local config = require('opencode.config')
 local float_layout = require('opencode.ui.float_layout')
 local help = require('opencode.ui.session_diff.help')
+local keymaps = require('opencode.keymap')
 local icons = require('opencode.ui.icons')
 local render = require('opencode.ui.session_diff.render')
 local context = require('opencode.context')
@@ -112,17 +113,15 @@ local function map_actions(buf, scope)
     prev_comment = function()
       M.jump_comment(-1)
     end,
+    next_file = function()
+      M.select(1)
+    end,
+    prev_file = function()
+      M.select(-1)
+    end,
+    select = M.select,
   }
-  for key, entry in pairs(config.keymap.session_diff[scope]) do
-    if entry ~= false then
-      vim.keymap.set(entry.mode or 'n', key, actions[entry[1]], {
-        buffer = buf,
-        silent = true,
-        desc = entry.desc,
-        nowait = entry.nowait,
-      })
-    end
-  end
+  keymaps.setup_window_keymaps(config.keymap.session_diff[scope], buf, false, actions)
 end
 
 local function help_key()
@@ -216,6 +215,7 @@ function M.toggle_help()
 
   local buf, width, height = help.create(config.keymap.session_diff)
   map_actions(buf, 'help')
+  vim.bo[buf].filetype = 'opencode_diff_help'
   view.help_return_win = vim.api.nvim_get_current_win()
   view.help_win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -234,7 +234,6 @@ end
 local function open_turn_window()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = 'wipe'
-  vim.bo[buf].filetype = ''
   vim.bo[buf].modifiable = false
   local win_config = float_layout.window_configs(nil, false)
   win_config.width = math.min(assert(win_config.width), math.floor(vim.o.columns * 0.75)) --[[@as integer]]
@@ -251,6 +250,7 @@ local function open_turn_window()
   vim.wo[view.turn_win].relativenumber = false
   vim.wo[view.turn_win].signcolumn = 'no'
   map_actions(buf, 'messages')
+  vim.bo[buf].filetype = 'opencode_diff_messages'
 end
 
 local function close_turn_window()
@@ -388,9 +388,15 @@ scratch = function(lines, filetype, scope)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = 'wipe'
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].filetype = filetype
   vim.bo[buf].modifiable = false
   map_actions(buf, scope or 'preview')
+  if scope == 'list' then
+    vim.bo[buf].filetype = 'opencode_diff_list'
+  else
+    local suffix = scope == 'message_preview' and 'opencode_diff_message_preview' or 'opencode_diff_preview'
+    vim.bo[buf].filetype = filetype ~= '' and (filetype .. '.' .. suffix) or suffix
+    vim.bo[buf].syntax = filetype
+  end
   return buf
 end
 

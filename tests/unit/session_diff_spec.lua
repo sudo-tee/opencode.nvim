@@ -34,6 +34,7 @@ describe('session diff', function()
       end,
     })
     local list_buf = vim.api.nvim_get_current_buf()
+    assert.equals('opencode_diff_list', vim.bo[list_buf].filetype)
     local function mapped(buf, key)
       return vim.tbl_contains(
         vim.tbl_map(function(entry)
@@ -46,6 +47,8 @@ describe('session diff', function()
     assert.is_false(mapped(list_buf, 'p'))
     local preview_win = vim.api.nvim_tabpage_list_wins(0)[2]
     local preview_buf = vim.api.nvim_win_get_buf(preview_win)
+    assert.equals('lua.opencode_diff_preview', vim.bo[preview_buf].filetype)
+    assert.equals('lua', vim.bo[preview_buf].syntax)
     assert.is_true(mapped(preview_buf, 'v'))
     assert.is_false(mapped(preview_buf, 'p'))
 
@@ -54,14 +57,65 @@ describe('session diff', function()
       return vim.api.nvim_get_current_buf() ~= list_buf
     end))
     local turns_buf = vim.api.nvim_get_current_buf()
+    assert.equals('opencode_diff_messages', vim.bo[turns_buf].filetype)
     assert.is_true(mapped(turns_buf, 's'))
     assert.is_false(mapped(turns_buf, 'f'))
     assert.equals(' Messages  (s/t mark, <CR> apply, <Esc> close) ', vim.api.nvim_win_get_config(0).title[1][1])
     diff.show_turn_preview()
     local message_buf = vim.api.nvim_get_current_buf()
+    assert.equals('markdown.opencode_diff_message_preview', vim.bo[message_buf].filetype)
     assert.is_true(mapped(message_buf, 'x'))
     assert.is_false(mapped(message_buf, 'q'))
     assert.is_false(mapped(message_buf, 'p'))
+  end)
+
+  it('binds custom callbacks and file navigation with arguments', function()
+    local received
+    config.keymap.session_diff.preview['X'] = {
+      function(value)
+        received = value
+      end,
+      { 'custom argument' },
+      desc = 'Custom preview action',
+    }
+    config.keymap.session_diff.preview['N'] = { 'select', { 1 } }
+    local cwd = vim.fn.getcwd()
+    diff.open({
+      file(cwd .. '/one.lua', '@@ -1 +1 @@\n-old\n+first'),
+      file(cwd .. '/two.lua', '@@ -1 +1 @@\n-old\n+second'),
+    }, { id = 'ses_callbacks' })
+    local list_win = vim.api.nvim_get_current_win()
+    local preview_win = vim.api.nvim_tabpage_list_wins(0)[2]
+    vim.api.nvim_set_current_win(preview_win)
+    vim.api.nvim_feedkeys('X', 'xt', false)
+    assert.equals('custom argument', received)
+    vim.api.nvim_feedkeys('N', 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('two.lua', 1, true) ~= nil)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<S-Tab>', true, false, true), 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('one.lua', 1, true) ~= nil)
+    vim.api.nvim_set_current_win(list_win)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Tab>', true, false, true), 'xt', false)
+    assert.is_true(vim.wo[preview_win].winbar:find('two.lua', 1, true) ~= nil)
+    diff.toggle_help()
+    local lines = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+    assert.is_true(lines:find('Custom preview action', 1, true) ~= nil)
+  end)
+
+  it('allows FileType hooks to override configured buffer-local mappings', function()
+    local called = false
+    local autocmd = vim.api.nvim_create_autocmd('FileType', {
+      pattern = '*.opencode_diff_preview',
+      callback = function(args)
+        vim.keymap.set('n', 'p', function()
+          called = true
+        end, { buffer = args.buf })
+      end,
+    })
+    diff.open({ file(vim.fn.getcwd() .. '/one.lua', '@@ -1 +1 @@\n-old\n+new') }, { id = 'ses_hooks' })
+    vim.api.nvim_del_autocmd(autocmd)
+    vim.api.nvim_set_current_win(vim.api.nvim_tabpage_list_wins(0)[2])
+    vim.api.nvim_feedkeys('p', 'xt', false)
+    assert.is_true(called)
   end)
 
   it('aligns folders and files at the same tree depth', function()
@@ -98,6 +152,7 @@ describe('session diff', function()
     assert.is_true(vim.wo[list_win].winbar:find('?', 1, true) ~= nil)
     vim.api.nvim_feedkeys('?', 'xt', false)
     local help_win = vim.api.nvim_get_current_win()
+    assert.equals('opencode_diff_help', vim.bo.filetype)
     assert.not_equals(list_win, help_win)
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     assert.is_true(vim.tbl_contains(

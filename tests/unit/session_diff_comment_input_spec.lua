@@ -1,6 +1,23 @@
 local comment_input = require('opencode.ui.session_diff.comment_input')
 
 describe('session diff comment input', function()
+  it('accepts custom callbacks with arguments in comment mappings', function()
+    local config = require('opencode.config')
+    local received
+    config.keymap.session_diff.comment['X'] = {
+      function(value)
+        received = value
+      end,
+      { 'comment callback' },
+    }
+    comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function() end })
+    config.keymap.session_diff.comment['X'] = nil
+    vim.cmd('stopinsert')
+    vim.api.nvim_feedkeys('X', 'xt', false)
+    assert.equals('comment callback', received)
+    vim.api.nvim_feedkeys('q', 'xt', false)
+  end)
+
   it('submits a written comment from the real acwrite float', function()
     local origin = vim.api.nvim_get_current_win()
     local submitted
@@ -18,11 +35,11 @@ describe('session diff comment input', function()
     assert.equals(origin, vim.api.nvim_get_current_win())
   end)
 
-  it('keeps temporary comment editor free of filetype hooks', function()
+  it('identifies the temporary comment editor with a dedicated filetype', function()
     local triggered = false
     local group = vim.api.nvim_create_augroup('OpencodeCommentInputSpec', { clear = true })
     vim.api.nvim_create_autocmd('FileType', {
-      pattern = '*',
+      pattern = 'opencode_diff_comment',
       group = group,
       callback = function(args)
         if vim.bo[args.buf].buftype == 'acwrite' then
@@ -33,9 +50,9 @@ describe('session diff comment input', function()
     comment_input.open({ title = 'file.lua:1-1 (after)', on_submit = function() end })
     local buf = vim.api.nvim_get_current_buf()
     assert.equals('acwrite', vim.bo[buf].buftype)
-    assert.equals('', vim.bo[buf].filetype)
+    assert.equals('opencode_diff_comment', vim.bo[buf].filetype)
     assert.is_false(vim.b[buf].completion)
-    assert.is_false(triggered)
+    assert.is_true(triggered)
     vim.api.nvim_win_close(vim.api.nvim_get_current_win(), true)
     vim.api.nvim_del_augroup_by_id(group)
   end)

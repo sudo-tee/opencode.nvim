@@ -1,5 +1,4 @@
 local M = {}
-local commands = require('opencode.commands')
 local store = require('opencode.state.store')
 local window_keymaps = {}
 
@@ -24,13 +23,21 @@ end
 
 ---@param func_name string|function
 ---@param func_args any
+---@param actions? table<string, function?> Buffer-local overrides take precedence over panel commands
 ---@return function|nil
-local function resolve_callback(func_name, func_args)
+local function resolve_callback(func_name, func_args, actions)
+  if type(func_name) == 'string' and actions and actions[func_name] then
+    func_name = actions[func_name]
+  end
   if type(func_name) == 'function' then
-    return func_name
+    return function()
+      local args = func_args and (type(func_args) == 'table' and vim.deepcopy(func_args) or { func_args }) or {}
+      return func_name(unpack(args))
+    end
   end
 
   if type(func_name) == 'string' then
+    local commands = require('opencode.commands')
     local command_defs = commands.get_commands()
     if command_defs[func_name] then
       return function()
@@ -51,7 +58,10 @@ end
 ---@param default_modes table Default modes for these keymaps
 ---@param base_opts table Base options to use for all keymaps
 ---@param preserve_existing? boolean
-local function process_keymap_entry(keymap_config, default_modes, base_opts, preserve_existing)
+---@param actions? table<string, function?>
+local function process_keymap_entry(keymap_config, default_modes, base_opts, preserve_existing, actions)
+  -- Commands load diff handlers, which also use this mapper for their buffers.
+  local commands = require('opencode.commands')
   local command_defs = commands.get_commands()
 
   for key_binding, config_entry in pairs(keymap_config) do
@@ -60,7 +70,7 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, pre
     elseif config_entry then
       local func_name = config_entry[1]
       local func_args = config_entry[2]
-      local callback = resolve_callback(func_name, func_args)
+      local callback = resolve_callback(func_name, func_args, actions)
 
       local modes = config_entry.mode or default_modes
       if preserve_existing and base_opts.buffer then
@@ -81,7 +91,10 @@ local function process_keymap_entry(keymap_config, default_modes, base_opts, pre
       end
       local opts = vim.tbl_deep_extend('force', {}, base_opts)
       opts.nowait = config_entry.nowait
-      opts.desc = config_entry.desc or vim.tbl_get(command_defs, func_name, 'desc') or ''
+      local command_desc = type(func_name) == 'string'
+        and not (actions and actions[func_name])
+        and vim.tbl_get(command_defs, func_name, 'desc')
+      opts.desc = config_entry.desc or command_desc or ''
 
       if not callback then
         if type(func_name) ~= 'string' then
@@ -131,12 +144,13 @@ end
 ---@param keymap_config table Window keymap configuration
 ---@param buf_id integer Buffer ID to set keymaps for
 ---@param preserve_existing? boolean
-function M.setup_window_keymaps(keymap_config, buf_id, preserve_existing)
+---@param actions? table<string, function?> Local action overrides; unknown names use command resolution and its error notification
+function M.setup_window_keymaps(keymap_config, buf_id, preserve_existing, actions)
   if not vim.api.nvim_buf_is_valid(buf_id) then
     return
   end
 
-  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id }, preserve_existing)
+  process_keymap_entry(keymap_config or {}, { 'n' }, { silent = true, buffer = buf_id }, preserve_existing, actions)
 end
 
 return M

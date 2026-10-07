@@ -1,4 +1,5 @@
 local config = require('opencode.config')
+local keymaps = require('opencode.keymap')
 
 local M = {}
 
@@ -71,16 +72,8 @@ function M.open(opts)
   end
   vim.api.nvim_create_autocmd('BufWriteCmd', { buffer = buf, callback = submit })
   local actions = { submit_comment = submit, cancel_comment = cancel }
-  for key, entry in pairs(config.keymap.session_diff.comment) do
-    if entry ~= false then
-      vim.keymap.set(entry.mode or 'n', key, actions[entry[1]], {
-        buffer = buf,
-        silent = true,
-        desc = entry.desc,
-        nowait = entry.nowait,
-      })
-    end
-  end
+  keymaps.setup_window_keymaps(config.keymap.session_diff.comment, buf, false, actions)
+  vim.bo[buf].filetype = 'opencode_diff_comment'
   vim.cmd('startinsert')
 end
 

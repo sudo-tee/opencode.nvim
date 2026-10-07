@@ -159,7 +159,8 @@
 ---@field project SessionProjectInfo|nil
 
 ---@class OpencodeKeymapEntry
----@field [1] string # Function name
+---@field [1] string|function # Action name or callback
+---@field [2]? any # Arguments passed to the action or callback
 ---@field mode? string|string[] # Mode(s) for the keymap
 ---@field desc? string # Keymap description
 ---@field nowait? boolean # Execute without waiting for longer mappings
@@ -169,11 +170,21 @@
 ---@class OpencodeKeymapInputWindow : table<string, OpencodeKeymapEntry>
 ---@class OpencodeKeymapOutputWindow : table<string, OpencodeKeymapEntry>
 
+---@alias OpencodeSessionDiffMappings table<string, OpencodeKeymapEntry|false>
+
+---@class OpencodeSessionDiffKeymaps
+---@field list OpencodeSessionDiffMappings
+---@field messages OpencodeSessionDiffMappings
+---@field preview OpencodeSessionDiffMappings
+---@field comment OpencodeSessionDiffMappings
+---@field message_preview OpencodeSessionDiffMappings
+---@field help OpencodeSessionDiffMappings
+
 ---@class OpencodeKeymap
 ---@field editor OpencodeKeymapEditor
 ---@field input_window OpencodeKeymapInputWindow
 ---@field output_window OpencodeKeymapOutputWindow
----@field session_diff {list: table<string, OpencodeKeymapEntry|false>, messages: table<string, OpencodeKeymapEntry|false>, preview: table<string, OpencodeKeymapEntry|false>, comment: table<string, OpencodeKeymapEntry|false>, message_preview: table<string, OpencodeKeymapEntry|false>, help: table<string, OpencodeKeymapEntry|false>}
+---@field session_diff OpencodeSessionDiffKeymaps
 ---@field tab_strip_window table<string, OpencodeKeymapEntry>
 ---@field session_picker OpencodeSessionPickerKeymap
 ---@field session_tab_picker OpencodeSessionTabPickerKeymap

@@ -220,6 +220,11 @@ function M.get_current_selection(context_config, range)
     return nil
   end
 
+  local buf = vim.api.nvim_get_current_buf()
+  if not util.is_buf_a_file(buf) or (state.current_code_buf and state.current_code_buf ~= buf) then
+    return nil
+  end
+
   -- Save current position and register state
   local current_pos = vim.fn.getpos('.')
   local old_reg = vim.fn.getreg('x')

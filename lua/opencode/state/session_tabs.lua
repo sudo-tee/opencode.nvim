@@ -38,6 +38,7 @@ local renderer_context = require('opencode.ui.renderer.ctx')
 ---@field last_window_width_ratio number|nil
 ---@field current_cwd string|nil
 ---@field bound_directory? string Explicit directory owned by this logical tab
+---@field bound_editor_cwd? string Last observed Neovim cwd; distinguishes a binding from an actual directory change
 ---@field session_locked boolean|nil
 ---@field _hidden_buffers OpencodeHiddenBuffers|nil
 ---@field context_data OpencodeContext|nil

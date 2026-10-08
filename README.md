@@ -590,6 +590,30 @@ sessions use the bound directory, including after tab switches. Explicit
 directory changes still follow `lock_session_to_directory`; locked bound tabs
 keep their directory.
 
+For worktree or other per-project workflows, `lock_session_to_directory` also
+accepts a function. It is called on each directory change with
+`{ from, to, session }` and returns `true` to keep the active session or `false`
+to load the target directory's last session. `from` is the bound directory (or
+the directory the session was loaded from) and `to` is the new directory. An
+error in the function is reported and falls back to following the cwd. Manual
+lock toggles still override the policy per logical tab.
+
+```lua
+require('opencode').setup({
+  lock_session_to_directory = function(change)
+    local function common_dir(dir)
+      local r = vim.system({ 'git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir' }, { text = true }):wait()
+      return r.code == 0 and vim.trim(r.stdout) or nil
+    end
+    local repo = common_dir(change.from)
+    return repo ~= nil and repo == common_dir(change.to)
+  end,
+})
+```
+
+That example keeps a session across the main checkout and linked worktrees of
+the same repository.
+
 Related APIs:
 
 - `require('opencode.api').toggle()` follows the `persist_state` behavior above.

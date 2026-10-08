@@ -159,13 +159,40 @@ local function sort_sessions(sessions)
   return sessions
 end
 
+---Manual lock wins over config. A function policy decides per directory change;
+---without `cwd` it is evaluated against the current Neovim cwd.
+---@param cwd? string Directory the editor is moving to
 ---@return boolean
-function M.is_session_locked()
+function M.is_session_locked(cwd)
   local explicit = state.store.get('session_locked')
   if explicit ~= nil then
     return explicit
   end
-  return config.lock_session_to_directory == true
+  local policy = config.lock_session_to_directory
+  if type(policy) ~= 'function' then
+    return policy == true
+  end
+  local session = state.active_session
+  if not session then
+    return false
+  end
+  local runtime = session_tabs.current()
+  local from = (runtime and runtime.bound_directory)
+    or (session.location and session.location.directory)
+    or state.current_cwd
+  if not from then
+    return false
+  end
+  local ok, result = pcall(policy, {
+    from = from,
+    to = cwd or vim.fn.getcwd(),
+    session = session,
+  })
+  if not ok then
+    vim.notify('lock_session_to_directory failed: ' .. tostring(result), vim.log.levels.WARN)
+    return false
+  end
+  return result == true
 end
 
 ---@param value boolean
@@ -283,16 +310,23 @@ end
 M.check_cwd = function()
   local runtime = session_tabs.current()
   if runtime and runtime.bound_directory then
-    state.context.set_current_cwd(runtime.bound_directory)
-    return
+    local cwd = vim.fn.getcwd()
+    if runtime.bound_editor_cwd == cwd or M.is_session_locked(cwd) then
+      runtime.bound_editor_cwd = cwd
+      state.context.set_current_cwd(runtime.bound_directory)
+      return
+    end
+    runtime.bound_directory = nil
+    runtime.bound_editor_cwd = nil
   end
   if state.current_cwd ~= vim.fn.getcwd() then
     log.debug(
       'CWD changed since last check, resetting session and context',
       { current_cwd = state.current_cwd, new_cwd = vim.fn.getcwd() }
     )
+    local locked = M.is_session_locked(vim.fn.getcwd())
     state.context.set_current_cwd(vim.fn.getcwd())
-    if M.is_session_locked() then
+    if locked then
       return
     end
     state.session.clear_active()
@@ -549,6 +583,7 @@ M.open_session_in_tab = Promise.async(function(selected_session, directory)
     if runtime.active_session and runtime.active_session.id == selected_session.id then
       if directory then
         runtime.bound_directory = directory
+        runtime.bound_editor_cwd = vim.fn.getcwd()
         runtime.current_cwd = directory
         if session_tabs.active_id() == runtime.id then
           state.context.set_current_cwd(directory)
@@ -569,6 +604,7 @@ M.open_session_in_tab = Promise.async(function(selected_session, directory)
   local runtime = session_tabs.create(selected_session)
   if directory then
     runtime.bound_directory = directory
+    runtime.bound_editor_cwd = vim.fn.getcwd()
     runtime.current_cwd = directory
   end
   session_tabs.activate(runtime)
@@ -693,6 +729,9 @@ M.switch_session_tab = Promise.async(function(tab_id)
   session_tabs.activate(runtime)
   context.restore(session_tabs.get_context())
 
+  if runtime.bound_directory then
+    runtime.bound_editor_cwd = vim.fn.getcwd()
+  end
   local focus = state.last_focused_opencode_window == 'output' and 'output' or 'input'
   M.open({
     focus = focus,
@@ -980,11 +1019,14 @@ end)
 ---@param cwd? string Directory from DirChanged; defaults to Neovim cwd.
 M.handle_directory_change = Promise.async(function(cwd)
   cwd = cwd or vim.fn.getcwd()
-  log.debug('Working directory change %s', vim.inspect({ cwd = cwd, locked = M.is_session_locked() }))
+  local locked = M.is_session_locked(cwd)
+  log.debug('Working directory change %s', vim.inspect({ cwd = cwd, locked = locked }))
 
-  if M.is_session_locked() and state.active_session then
+  if locked and state.active_session then
     local runtime = session_tabs.current()
-    if not (runtime and runtime.bound_directory) then
+    if runtime and runtime.bound_directory then
+      runtime.bound_editor_cwd = cwd
+    else
       state.context.set_current_cwd(cwd)
     end
     vim.notify(
@@ -999,6 +1041,7 @@ M.handle_directory_change = Promise.async(function(cwd)
   local runtime = session_tabs.current()
   if runtime then
     runtime.bound_directory = nil
+    runtime.bound_editor_cwd = nil
   end
   state.context.set_current_cwd(cwd)
   state.session.clear_active()

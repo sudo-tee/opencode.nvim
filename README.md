@@ -570,6 +570,26 @@ Available icon keys (see implementation at lua/opencode/ui/icons.lua lines 7-29)
 - `persist_state = true` (default): `toggle()` hides/restores the UI and keeps buffers/session view in memory for fast restore.
 - `persist_state = false`: `toggle()` fully tears down UI buffers and recreates them on next open.
 
+Directory-bound sessions can be opened in logical panel tabs without changing
+Neovim's cwd:
+
+```lua
+require('opencode.api').open_session({
+  directory = '/path/to/repo/.worktrees/feature',
+  new = true,
+  title = 'Feature work',
+})
+```
+
+Returns a Promise resolving to the session; failures reject. The directory must
+exist locally (normal path mapping still applies). Omit `new` to reopen the most
+recent root session created in that exact directory, or create one if absent.
+Pass `session_id` to open a specific session; `new` and `session_id` are mutually
+exclusive. Already-open sessions reuse their logical tab. Completion and new
+sessions use the bound directory, including after tab switches. Explicit
+directory changes still follow `lock_session_to_directory`; locked bound tabs
+keep their directory.
+
 Related APIs:
 
 - `require('opencode.api').toggle()` follows the `persist_state` behavior above.

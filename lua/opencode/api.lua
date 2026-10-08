@@ -40,6 +40,7 @@ local action_groups = {
   },
 
   session = {
+    open_session = session.open_session,
     open_input_new_session = session.open_input_new_session,
     navigate_session_tree = session.navigate_session_tree,
     share = session.share,
